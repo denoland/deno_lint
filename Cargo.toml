@@ -1,0 +1,11 @@
+[package]
+name = "dlint"
+version = "0.1.0"
+authors = ["Bartek Iwańczuk <biwanczuk@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+swc_common = { version = "=0.5.9", features = ["fold"] }
+swc_ecma_ast = { version = "=0.18.1", features = ["fold"] }
+swc_ecma_parser = "=0.21.6"
+swc_ecma_parser_macros = "=0.4.1"
