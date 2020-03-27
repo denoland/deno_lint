@@ -12,8 +12,7 @@ use swc_common::errors::Handler;
 use swc_common::errors::HandlerFlags;
 use swc_common::FileName;
 use swc_common::SourceMap;
-use swc_common::Span;
-use swc_common::{Visit, VisitWith};
+use swc_common::VisitWith;
 use swc_ecma_ast;
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::JscTarget;
@@ -22,6 +21,8 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
+
+mod rules;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
@@ -112,190 +113,29 @@ impl Linter {
   }
 
   fn lint_module(&self, file_name: String, module: swc_ecma_ast::Module) {
-    let context = Context {
+    let context = rules::Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.source_map.clone(),
     };
-    let mut any_finder = ExplicitAnyFinder {
-      context: context.clone(),
-    };
+
+    let mut any_finder = rules::NoExplicitAny::new(context.clone());
     module.visit_with(&mut any_finder);
-    let mut debugger_finder = DebuggerFinder {
-      context: context.clone(),
-    };
+    let mut debugger_finder = rules::NoDebugger::new(context.clone());
     module.visit_with(&mut debugger_finder);
-    let mut var_finder = VarFinder {
-      context: context.clone(),
-    };
+    let mut var_finder = rules::NoVar::new(context.clone());
     module.visit_with(&mut var_finder);
-    let mut single_var = SingleVarDeclaratorFinder {
-      context: context.clone(),
-    };
+    let mut single_var = rules::SingleVarDeclarator::new(context.clone());
     module.visit_with(&mut single_var);
+    let mut explicit_rt =
+      rules::ExplicitFunctionReturnType::new(context.clone());
+    module.visit_with(&mut explicit_rt);
 
     let diags = context.diagnostics.lock().unwrap();
     for d in diags.iter() {
       eprintln!(
         "error: {} at {}:{}:{}",
         d.message, d.location.filename, d.location.line, d.location.col
-      );
-    }
-  }
-}
-
-#[derive(Debug, Clone)]
-pub struct Location {
-  pub filename: String,
-  pub line: usize,
-  pub col: usize,
-}
-
-impl Into<Location> for swc_common::Loc {
-  fn into(self) -> Location {
-    use swc_common::FileName::*;
-
-    let filename = match &self.file.name {
-      Real(path_buf) => path_buf.to_string_lossy().to_string(),
-      Custom(str_) => str_.to_string(),
-      _ => panic!("invalid filename"),
-    };
-
-    Location {
-      filename,
-      line: self.line,
-      col: self.col_display,
-    }
-  }
-}
-
-#[derive(Debug)]
-struct LintDiagnotic {
-  location: Location,
-  message: String,
-  code: String,
-}
-
-#[derive(Clone)]
-struct Context {
-  file_name: String,
-  diagnostics: Arc<Mutex<Vec<LintDiagnotic>>>,
-  source_map: Arc<SourceMap>,
-}
-
-impl Context {
-  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
-    let location = self.source_map.lookup_char_pos(span.lo());
-    let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(LintDiagnotic {
-      location: location.into(),
-      message: message.to_string(),
-      code: code.to_string(),
-    });
-  }
-}
-
-struct ExplicitAnyFinder {
-  context: Context,
-}
-
-impl<T> Visit<T> for ExplicitAnyFinder
-where
-  T: VisitWith<Self>,
-{
-  default fn visit(&mut self, n: &T) {
-    n.visit_children(self)
-  }
-}
-
-impl Visit<swc_ecma_ast::TsTypeAnn> for ExplicitAnyFinder {
-  fn visit(&mut self, node: &swc_ecma_ast::TsTypeAnn) {
-    use swc_ecma_ast::TsKeywordTypeKind::*;
-    use swc_ecma_ast::TsType::*;
-
-    match &*node.type_ann {
-      TsKeywordType(keyword_type) => match keyword_type.kind {
-        TsAnyKeyword => {
-          self.context.add_diagnostic(
-            node.span,
-            "noExplicitAny",
-            "`any` type is not allowed",
-          );
-        }
-        _ => {}
-      },
-      _ => {}
-    }
-  }
-}
-struct DebuggerFinder {
-  context: Context,
-}
-
-impl<T> Visit<T> for DebuggerFinder
-where
-  T: VisitWith<Self>,
-{
-  default fn visit(&mut self, n: &T) {
-    n.visit_children(self)
-  }
-}
-
-impl Visit<swc_ecma_ast::DebuggerStmt> for DebuggerFinder {
-  fn visit(&mut self, node: &swc_ecma_ast::DebuggerStmt) {
-    self.context.add_diagnostic(
-      node.span,
-      "noDebugger",
-      "`debugger` statement is not allowed",
-    );
-  }
-}
-
-struct VarFinder {
-  context: Context,
-}
-
-impl<T> Visit<T> for VarFinder
-where
-  T: VisitWith<Self> + std::fmt::Debug,
-{
-  default fn visit(&mut self, n: &T) {
-    n.visit_children(self)
-  }
-}
-
-impl Visit<swc_ecma_ast::VarDecl> for VarFinder {
-  fn visit(&mut self, node: &swc_ecma_ast::VarDecl) {
-    if node.kind == swc_ecma_ast::VarDeclKind::Var {
-      self.context.add_diagnostic(
-        node.span,
-        "noVar",
-        "`var` keyword is not allowed",
-      );
-    }
-  }
-}
-
-struct SingleVarDeclaratorFinder {
-  context: Context,
-}
-
-impl<T> Visit<T> for SingleVarDeclaratorFinder
-where
-  T: VisitWith<Self> + std::fmt::Debug,
-{
-  default fn visit(&mut self, n: &T) {
-    n.visit_children(self)
-  }
-}
-
-impl Visit<swc_ecma_ast::VarDecl> for SingleVarDeclaratorFinder {
-  fn visit(&mut self, node: &swc_ecma_ast::VarDecl) {
-    if node.decls.len() > 1 {
-      self.context.add_diagnostic(
-        node.span,
-        "singleVarDeclarator",
-        "Multiple variable declarators are not allowed",
       );
     }
   }

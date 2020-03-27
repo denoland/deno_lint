@@ -26,3 +26,9 @@ function asdf(): number {
     debugger;
     return 1;
 }
+
+/** explicitFunctionReturnType */
+function missingType() {
+    console.log("asdf");
+    return 1;
+}
