@@ -12,7 +12,6 @@ use swc_common::errors::Handler;
 use swc_common::errors::HandlerFlags;
 use swc_common::FileName;
 use swc_common::SourceMap;
-use swc_common::VisitWith;
 use swc_ecma_ast;
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::JscTarget;
@@ -122,19 +121,19 @@ impl Linter {
       source_map: self.source_map.clone(),
     };
 
-    let mut any_finder = rules::NoExplicitAny::new(context.clone());
-    module.visit_with(&mut any_finder);
+    // let mut any_finder = rules::NoExplicitAny::new(context.clone());
+    // module.visit_with(&mut any_finder);
 
-    let debugger_lint = rules::NoDebugger::new(context.clone());
-    debugger_lint.walk_module(module.clone());
+    let rules: Vec<Box<dyn AstTraverser>> = vec![
+      Box::new(rules::NoDebugger::new(context.clone())),
+      Box::new(rules::NoVar::new(context.clone())),
+      Box::new(rules::SingleVarDeclarator::new(context.clone())),
+      Box::new(rules::ExplicitFunctionReturnType::new(context.clone())),
+    ];
 
-    let mut var_finder = rules::NoVar::new(context.clone());
-    module.visit_with(&mut var_finder);
-    let mut single_var = rules::SingleVarDeclarator::new(context.clone());
-    module.visit_with(&mut single_var);
-    let mut explicit_rt =
-      rules::ExplicitFunctionReturnType::new(context.clone());
-    module.visit_with(&mut explicit_rt);
+    for rule in rules {
+      rule.walk_module(module.clone());
+    }
 
     let diags = context.diagnostics.lock().unwrap();
     for d in diags.iter() {
@@ -154,9 +153,12 @@ fn main() {
     std::process::exit(1);
   }
 
-  let file_name = args[1].to_string();
-  let source_code =
-    std::fs::read_to_string(&file_name).expect("Failed to read file");
-  let mut linter = Linter::new();
-  linter.lint(file_name, source_code).expect("Failed to lint");
+  let file_names: Vec<String> = args[1..].to_vec();
+
+  for file_name in file_names {
+    let source_code =
+      std::fs::read_to_string(&file_name).expect("Failed to read file");
+    let mut linter = Linter::new();
+    linter.lint(file_name, source_code).expect("Failed to lint");
+  }
 }

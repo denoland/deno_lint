@@ -1,6 +1,6 @@
 use super::Context;
-use swc_common::Visit;
-use swc_common::VisitWith;
+use crate::traverse::AstTraverser;
+use swc_ecma_ast::VarDecl;
 
 pub struct SingleVarDeclarator {
   context: Context,
@@ -12,20 +12,11 @@ impl SingleVarDeclarator {
   }
 }
 
-impl<T> Visit<T> for SingleVarDeclarator
-where
-  T: VisitWith<Self> + std::fmt::Debug,
-{
-  default fn visit(&mut self, n: &T) {
-    n.visit_children(self)
-  }
-}
-
-impl Visit<swc_ecma_ast::VarDecl> for SingleVarDeclarator {
-  fn visit(&mut self, node: &swc_ecma_ast::VarDecl) {
-    if node.decls.len() > 1 {
+impl AstTraverser for SingleVarDeclarator {
+  fn walk_var_decl(&self, var_decl: VarDecl) {
+    if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
-        &node.span,
+        &var_decl.span,
         "singleVarDeclarator",
         "Multiple variable declarators are not allowed",
       );
