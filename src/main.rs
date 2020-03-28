@@ -23,6 +23,7 @@ use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
 
 mod rules;
+mod traverse;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
@@ -118,6 +119,9 @@ impl Linter {
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.source_map.clone(),
     };
+
+    // let traverser = traverse::AstTraverser {};
+    // traverser.walk_module(module.clone());
 
     let mut any_finder = rules::NoExplicitAny::new(context.clone());
     module.visit_with(&mut any_finder);
