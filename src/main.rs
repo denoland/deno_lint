@@ -25,6 +25,8 @@ use swc_ecma_parser::TsConfig;
 mod rules;
 mod traverse;
 
+use traverse::AstTraverser;
+
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
 #[derive(Clone, Default)]
@@ -125,8 +127,12 @@ impl Linter {
 
     let mut any_finder = rules::NoExplicitAny::new(context.clone());
     module.visit_with(&mut any_finder);
-    let mut debugger_finder = rules::NoDebugger::new(context.clone());
-    module.visit_with(&mut debugger_finder);
+
+    let debugger_lint = rules::NoDebugger::new(context.clone());
+    // module.visit_with(&mut debugger_lint);
+    eprintln!("{:#?}", module);
+    debugger_lint.walk_module(module.clone());
+
     let mut var_finder = rules::NoVar::new(context.clone());
     module.visit_with(&mut var_finder);
     let mut single_var = rules::SingleVarDeclarator::new(context.clone());
