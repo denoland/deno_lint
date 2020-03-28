@@ -122,15 +122,10 @@ impl Linter {
       source_map: self.source_map.clone(),
     };
 
-    // let traverser = traverse::AstTraverser {};
-    // traverser.walk_module(module.clone());
-
     let mut any_finder = rules::NoExplicitAny::new(context.clone());
     module.visit_with(&mut any_finder);
 
     let debugger_lint = rules::NoDebugger::new(context.clone());
-    // module.visit_with(&mut debugger_lint);
-    eprintln!("{:#?}", module);
     debugger_lint.walk_module(module.clone());
 
     let mut var_finder = rules::NoVar::new(context.clone());
