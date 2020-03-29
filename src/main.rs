@@ -47,7 +47,9 @@ pub struct Linter {
   buffered_error: BufferedError,
   pub source_map: Arc<SourceMap>,
   pub handler: Handler,
-  comments: Comments,
+  // After parsing module `comments` are taken from
+  // `Linter` as passed to `Context`
+  comments: Option<Comments>,
 }
 
 impl Linter {
@@ -67,7 +69,7 @@ impl Linter {
       buffered_error,
       source_map: Arc::new(SourceMap::default()),
       handler,
-      comments: Comments::default(),
+      comments: Some(Comments::default()),
     }
   }
 
@@ -95,7 +97,7 @@ impl Linter {
         syntax,
         JscTarget::Es2019,
         SourceFileInput::from(&*swc_source_file),
-        Some(&self.comments),
+        self.comments.as_ref(),
       );
 
       let mut parser = Parser::new_from(session, lexer);
@@ -113,11 +115,19 @@ impl Linter {
     })
   }
 
-  fn lint_module(&self, file_name: String, module: swc_ecma_ast::Module) {
+  fn lint_module(&mut self, file_name: String, module: swc_ecma_ast::Module) {
+    let (leading, trailing) = self
+      .comments
+      .take()
+      .expect("Comments already taken")
+      .take_all();
+
     let context = rules::Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.source_map.clone(),
+      leading_comments: leading,
+      trailing_comments: trailing,
     };
 
     let rules: Vec<Box<dyn AstTraverser>> = vec![
@@ -131,6 +141,9 @@ impl Linter {
     for rule in rules {
       rule.walk_module(module.clone());
     }
+
+    let ban_ts = rules::BanTsIgnore::new(context.clone());
+    ban_ts.lint_comments();
 
     let diags = context.diagnostics.lock().unwrap();
     for d in diags.iter() {

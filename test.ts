@@ -21,6 +21,7 @@ const obj = {
 };
 
 /** noDebugger */
+// @ts-ignore
 function asdf(): number {
     console.log("asdf");
     debugger;

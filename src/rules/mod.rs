@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use std::sync::Arc;
 use std::sync::Mutex;
+use swc_common::comments::CommentMap;
 use swc_common::SourceMap;
 use swc_common::Span;
 
@@ -14,6 +15,8 @@ mod no_var;
 pub use no_var::NoVar;
 mod single_var_declarator;
 pub use single_var_declarator::SingleVarDeclarator;
+mod ban_ts_ignore;
+pub use ban_ts_ignore::BanTsIgnore;
 
 #[derive(Debug, Clone)]
 pub struct Location {
@@ -52,6 +55,8 @@ pub struct Context {
   pub file_name: String,
   pub diagnostics: Arc<Mutex<Vec<LintDiagnotic>>>,
   pub source_map: Arc<SourceMap>,
+  pub leading_comments: CommentMap,
+  pub trailing_comments: CommentMap,
 }
 
 impl Context {
