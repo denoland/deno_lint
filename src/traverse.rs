@@ -370,5 +370,38 @@ pub trait AstTraverser {
     if let Some(body) = function.body {
       self.walk_block_stmt(body);
     }
+    self.walk_patterns(function.params);
+    if let Some(type_ann) = function.return_type {
+      self.walk_ts_type_ann(type_ann);
+    }
   }
+
+  fn walk_patterns(&self, patterns: Vec<Pat>) {
+    for pat in patterns {
+      self.walk_pattern(pat)
+    }
+  }
+
+  fn walk_pattern(&self, pattern: Pat) {
+    match pattern {
+      Pat::Ident(ident) => self.walk_binding_identifier(ident),
+      Pat::Array(array_pat) => self.walk_array_pattern(array_pat),
+      Pat::Rest(rest_pat) => self.walk_rest_pattern(rest_pat),
+      Pat::Object(object_pat) => self.walk_object_pattern(object_pat),
+      Pat::Assign(assign_pat) => self.walk_assign_pattern(assign_pat),
+      Pat::Invalid(_) => unreachable!(),
+      Pat::Expr(boxed_expr) => self.walk_expression(boxed_expr),
+    }
+  }
+
+  fn walk_array_pattern(&self, array_pat: ArrayPat) {}
+  fn walk_rest_pattern(&self, rest_pat: RestPat) {}
+  fn walk_object_pattern(&self, object_pat: ObjectPat) {}
+  fn walk_assign_pattern(&self, assign_pat: AssignPat) {}
+
+  fn walk_ts_type_ann(&self, ts_type_ann: TsTypeAnn) {
+    self.walk_ts_type(*ts_type_ann.type_ann);
+  }
+
+  fn walk_ts_type(&self, ts_type: TsType) {}
 }

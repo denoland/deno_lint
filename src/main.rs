@@ -1,5 +1,3 @@
-#![feature(specialization)]
-
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
@@ -121,10 +119,8 @@ impl Linter {
       source_map: self.source_map.clone(),
     };
 
-    // let mut any_finder = rules::NoExplicitAny::new(context.clone());
-    // module.visit_with(&mut any_finder);
-
     let rules: Vec<Box<dyn AstTraverser>> = vec![
+      Box::new(rules::NoExplicitAny::new(context.clone())),
       Box::new(rules::NoDebugger::new(context.clone())),
       Box::new(rules::NoVar::new(context.clone())),
       Box::new(rules::SingleVarDeclarator::new(context.clone())),
