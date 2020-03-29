@@ -28,6 +28,9 @@ function asdf(): number {
     return 1;
 }
 
+/** noEval */
+eval("123");
+
 /** explicitFunctionReturnType */
 // TODO:
 function missingType() {

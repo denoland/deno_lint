@@ -9,6 +9,8 @@ mod explicit_function_return_type;
 pub use explicit_function_return_type::ExplicitFunctionReturnType;
 mod no_debugger;
 pub use no_debugger::NoDebugger;
+mod no_eval;
+pub use no_eval::NoEval;
 mod no_explicit_any;
 pub use no_explicit_any::NoExplicitAny;
 mod no_var;
