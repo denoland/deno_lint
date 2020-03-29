@@ -29,6 +29,7 @@ function asdf(): number {
 }
 
 /** explicitFunctionReturnType */
+// TODO:
 function missingType() {
     console.log("asdf");
     return 1;

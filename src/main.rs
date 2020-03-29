@@ -144,6 +144,8 @@ impl Linter {
 
     let ban_ts = rules::BanTsIgnore::new(context.clone());
     ban_ts.lint_comments();
+    let ban_todo = rules::BanUntaggedTodo::new(context.clone());
+    ban_todo.lint_comments();
 
     let diags = context.diagnostics.lock().unwrap();
     for d in diags.iter() {

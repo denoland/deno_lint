@@ -17,6 +17,8 @@ mod single_var_declarator;
 pub use single_var_declarator::SingleVarDeclarator;
 mod ban_ts_ignore;
 pub use ban_ts_ignore::BanTsIgnore;
+mod ban_untagged_todo;
+pub use ban_untagged_todo::BanUntaggedTodo;
 
 #[derive(Debug, Clone)]
 pub struct Location {
