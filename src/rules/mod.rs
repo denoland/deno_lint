@@ -19,6 +19,10 @@ mod ban_ts_ignore;
 pub use ban_ts_ignore::BanTsIgnore;
 mod ban_untagged_todo;
 pub use ban_untagged_todo::BanUntaggedTodo;
+mod no_empty_interface;
+pub use no_empty_interface::NoEmptyInterface;
+mod no_delete_var;
+pub use no_delete_var::NoDeleteVar;
 
 #[derive(Debug, Clone)]
 pub struct Location {

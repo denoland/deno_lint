@@ -354,7 +354,9 @@ pub trait AstTraverser {
       }
     }
   }
-  fn walk_expr_stmt(&self, expr_stmt: ExprStmt) {}
+  fn walk_expr_stmt(&self, expr_stmt: ExprStmt) {
+    self.walk_expression(expr_stmt.expr);
+  }
 
   fn walk_class_decl(&self, class_decl: ClassDecl) {}
   fn walk_fn_decl(&self, fn_decl: FnDecl) {
