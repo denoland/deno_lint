@@ -1,3 +1,4 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use crate::traverse::AstTraverser;
 use swc_ecma_ast::TsTypeAnn;

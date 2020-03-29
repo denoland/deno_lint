@@ -1,3 +1,4 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use std::sync::Arc;
 use std::sync::Mutex;
 use swc_common::SourceMap;

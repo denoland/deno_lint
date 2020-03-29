@@ -1,3 +1,4 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 #![allow(unused)]
 
 use swc_ecma_ast::*;
