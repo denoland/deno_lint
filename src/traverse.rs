@@ -165,12 +165,33 @@ pub trait AstTraverser {
     self.walk_identifier(ident)
   }
 
-  fn walk_identifier(&self, ident: Ident) {}
+  fn walk_identifier(&self, ident: Ident) {
+    if let Some(type_ann) = ident.type_ann {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
 
   fn walk_string_literal(&self, str_literal: Str) {}
-  fn walk_export_default_decl(&self, export_default_decl: ExportDefaultDecl) {}
-  fn walk_export_default_expr(&self, export_default_expr: ExportDefaultExpr) {}
-  fn walk_export_all(&self, export_all: ExportAll) {}
+
+  fn walk_num_literal(&self, number_literal: Number) {}
+
+  fn walk_export_default_decl(&self, export_default_decl: ExportDefaultDecl) {
+    match export_default_decl.decl {
+      DefaultDecl::Class(class_expr) => self.walk_class_expr(class_expr),
+      DefaultDecl::Fn(fn_expr) => self.walk_fn_expr(fn_expr),
+      DefaultDecl::TsInterfaceDecl(ts_interface_decl) => {
+        self.walk_ts_interface_decl(ts_interface_decl);
+      }
+    }
+  }
+
+  fn walk_export_default_expr(&self, export_default_expr: ExportDefaultExpr) {
+    self.walk_expression(export_default_expr.expr);
+  }
+
+  fn walk_export_all(&self, export_all: ExportAll) {
+    self.walk_string_literal(export_all.src);
+  }
 
   fn walk_ts_import_equals_decl(
     &self,
@@ -259,40 +280,204 @@ pub trait AstTraverser {
     }
   }
 
-  fn walk_array_lit(&self, array_lit: ArrayLit) {}
-  fn walk_arrow_expr(&self, arrow_expr: ArrowExpr) {}
-  fn walk_assign_expr(&self, assign_expr: AssignExpr) {}
-  fn walk_await_expr(&self, await_expr: AwaitExpr) {}
-  fn walk_bin_expr(&self, bin_expr: BinExpr) {}
-  fn walk_call_expr(&self, call_expr: CallExpr) {}
-  fn walk_class_expr(&self, class_expr: ClassExpr) {}
-  fn walk_cond_expr(&self, cond_expr: CondExpr) {}
-  fn walk_fn_expr(&self, fn_expr: FnExpr) {}
-  fn walk_jsx_member_expr(&self, jsx_member_expr: JSXMemberExpr) {}
-  fn walk_jsx_namespaced_name(&self, js_namespaced_name: JSXNamespacedName) {}
+  fn walk_array_lit(&self, array_lit: ArrayLit) {
+    for expr_or_spread in array_lit.elems {
+      if let Some(expr_or_spread) = expr_or_spread {
+        self.walk_expression(expr_or_spread.expr);
+      }
+    }
+  }
+
+  // TODO: deal with type_params
+  fn walk_arrow_expr(&self, arrow_expr: ArrowExpr) {
+    match arrow_expr.body {
+      BlockStmtOrExpr::BlockStmt(stmt) => self.walk_block_stmt(stmt),
+      BlockStmtOrExpr::Expr(expr) => self.walk_expression(expr),
+    }
+    self.walk_patterns(arrow_expr.params);
+    if let Some(type_ann) = arrow_expr.return_type {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
+
+  fn walk_assign_expr(&self, assign_expr: AssignExpr) {
+    match assign_expr.left {
+      PatOrExpr::Pat(pat) => self.walk_pattern(*pat),
+      PatOrExpr::Expr(expr) => self.walk_expression(expr),
+    }
+    self.walk_expression(assign_expr.right);
+  }
+
+  fn walk_await_expr(&self, await_expr: AwaitExpr) {
+    self.walk_expression(await_expr.arg);
+  }
+
+  fn walk_bin_expr(&self, bin_expr: BinExpr) {
+    self.walk_expression(bin_expr.left);
+    self.walk_expression(bin_expr.right);
+  }
+
+  // TODO: deal with type_args
+  fn walk_call_expr(&self, call_expr: CallExpr) {
+    for arg in call_expr.args {
+      self.walk_expression(arg.expr);
+    }
+    match call_expr.callee {
+      ExprOrSuper::Expr(expr) => self.walk_expression(expr),
+      ExprOrSuper::Super(super_) => {}
+    }
+  }
+
+  fn walk_class_expr(&self, class_expr: ClassExpr) {
+    if let Some(ident) = class_expr.ident {
+      self.walk_identifier(ident);
+    }
+    // TODO: deal with actual class
+  }
+
+  fn walk_cond_expr(&self, cond_expr: CondExpr) {
+    self.walk_expression(cond_expr.test);
+    self.walk_expression(cond_expr.alt);
+    self.walk_expression(cond_expr.cons);
+  }
+
+  fn walk_fn_expr(&self, fn_expr: FnExpr) {
+    if let Some(ident) = fn_expr.ident {
+      self.walk_identifier(ident);
+    }
+    self.walk_function(fn_expr.function);
+  }
+
+  fn walk_jsx_member_expr(&self, jsx_member_expr: JSXMemberExpr) {
+    self.walk_identifier(jsx_member_expr.prop);
+    match jsx_member_expr.obj {
+      JSXObject::JSXMemberExpr(jsx_member_expr) => {
+        self.walk_jsx_member_expr(*jsx_member_expr)
+      }
+      JSXObject::Ident(ident) => self.walk_identifier(ident),
+    }
+  }
+
+  fn walk_jsx_namespaced_name(&self, jsx_namespaced_name: JSXNamespacedName) {
+    self.walk_identifier(jsx_namespaced_name.name);
+    self.walk_identifier(jsx_namespaced_name.ns);
+  }
+
   fn walk_jsx_empty(&self, jsx_empty: JSXEmptyExpr) {}
-  fn walk_jsx_element(&self, jsx_element: Box<JSXElement>) {}
-  fn walk_jsx_fragment(&self, jsx_fragment: JSXFragment) {}
-  fn walk_member_expr(&self, member_expr: MemberExpr) {}
-  fn walk_meta_prop_expr(&self, meta_prop_expr: MetaPropExpr) {}
-  fn walk_new_expr(&self, new_expr: NewExpr) {}
+
+  fn walk_jsx_element(&self, jsx_element: Box<JSXElement>) {
+    // TODO: deal with this
+  }
+
+  fn walk_jsx_fragment(&self, jsx_fragment: JSXFragment) {
+    // TODO: deal with this
+  }
+
+  fn walk_member_expr(&self, member_expr: MemberExpr) {
+    self.walk_expression(member_expr.prop);
+    match member_expr.obj {
+      ExprOrSuper::Expr(expr) => self.walk_expression(expr),
+      ExprOrSuper::Super(super_) => {}
+    }
+  }
+
+  fn walk_meta_prop_expr(&self, meta_prop_expr: MetaPropExpr) {
+    self.walk_identifier(meta_prop_expr.meta);
+    self.walk_identifier(meta_prop_expr.prop);
+  }
+
+  fn walk_new_expr(&self, new_expr: NewExpr) {
+    self.walk_expression(new_expr.callee);
+    if let Some(args) = new_expr.args {
+      for expr_or_spread in args {
+        self.walk_expression(expr_or_spread.expr);
+      }
+    }
+    // TODO: deal with type_args
+  }
+
   fn walk_lit(&self, lit: Lit) {}
-  fn walk_object_lit(&self, object_lit: ObjectLit) {}
-  fn walk_opt_chain_expr(&self, opt_chain_expr: OptChainExpr) {}
-  fn walk_paren_expr(&self, parent_expr: ParenExpr) {}
-  fn walk_private_name(&self, private_name: PrivateName) {}
-  fn walk_seq_expr(&self, seq_expr: SeqExpr) {}
-  fn walk_tagged_tpl(&self, tagged_tpl: TaggedTpl) {}
+
+  fn walk_object_lit(&self, object_lit: ObjectLit) {
+    for prop_or_spread in object_lit.props {
+      match prop_or_spread {
+        PropOrSpread::Prop(prop) => self.walk_prop(*prop),
+        PropOrSpread::Spread(spread) => self.walk_expression(spread.expr),
+      };
+    }
+  }
+
+  fn walk_opt_chain_expr(&self, opt_chain_expr: OptChainExpr) {
+    self.walk_expression(opt_chain_expr.expr)
+  }
+
+  fn walk_paren_expr(&self, parent_expr: ParenExpr) {
+    self.walk_expression(parent_expr.expr)
+  }
+
+  fn walk_private_name(&self, private_name: PrivateName) {
+    self.walk_identifier(private_name.id);
+  }
+
+  fn walk_seq_expr(&self, seq_expr: SeqExpr) {
+    for expr in seq_expr.exprs {
+      self.walk_expression(expr);
+    }
+  }
+
+  fn walk_tagged_tpl(&self, tagged_tpl: TaggedTpl) {
+    self.walk_expression(tagged_tpl.tag);
+    for expr in tagged_tpl.exprs {
+      self.walk_expression(expr);
+    }
+    // TODO: deal with quasis?
+  }
+
   fn walk_this_expr(&self, this_expr: ThisExpr) {}
-  fn walk_tpl(&self, tpl: Tpl) {}
-  fn walk_ts_type_assertion(&self, type_assertion: TsTypeAssertion) {}
-  fn walk_ts_const_assertion(&self, const_assertion: TsConstAssertion) {}
-  fn walk_ts_non_null_expr(&self, non_null_expr: TsNonNullExpr) {}
-  fn walk_ts_type_cast_expr(&self, type_cast_expr: TsTypeCastExpr) {}
-  fn walk_ts_as_expr(&self, as_expr: TsAsExpr) {}
-  fn walk_unary_expr(&self, unary_expr: UnaryExpr) {}
-  fn walk_update_expr(&self, update_expr: UpdateExpr) {}
-  fn walk_yield_expr(&self, yield_expr: YieldExpr) {}
+
+  fn walk_tpl(&self, tpl: Tpl) {
+    for expr in tpl.exprs {
+      self.walk_expression(expr);
+    }
+    // TODO: deal with quasis?
+  }
+
+  fn walk_ts_type_assertion(&self, type_assertion: TsTypeAssertion) {
+    self.walk_expression(type_assertion.expr);
+    self.walk_ts_type(*type_assertion.type_ann)
+  }
+
+  fn walk_ts_const_assertion(&self, const_assertion: TsConstAssertion) {
+    self.walk_expression(const_assertion.expr);
+  }
+
+  fn walk_ts_non_null_expr(&self, non_null_expr: TsNonNullExpr) {
+    self.walk_expression(non_null_expr.expr);
+  }
+
+  fn walk_ts_type_cast_expr(&self, type_cast_expr: TsTypeCastExpr) {
+    self.walk_expression(type_cast_expr.expr);
+    self.walk_ts_type_ann(type_cast_expr.type_ann);
+  }
+
+  fn walk_ts_as_expr(&self, as_expr: TsAsExpr) {
+    self.walk_expression(as_expr.expr);
+    self.walk_ts_type(*as_expr.type_ann)
+  }
+
+  fn walk_unary_expr(&self, unary_expr: UnaryExpr) {
+    self.walk_expression(unary_expr.arg);
+  }
+
+  fn walk_update_expr(&self, update_expr: UpdateExpr) {
+    self.walk_expression(update_expr.arg);
+  }
+
+  fn walk_yield_expr(&self, yield_expr: YieldExpr) {
+    if let Some(arg) = yield_expr.arg {
+      self.walk_expression(arg);
+    }
+  }
 
   fn walk_statement(&self, stmt: Stmt) {
     match stmt {
@@ -321,22 +506,118 @@ pub trait AstTraverser {
   fn walk_block_stmt(&self, block_stmt: BlockStmt) {
     self.walk_statements(block_stmt.stmts);
   }
+
   fn walk_empty_stmt(&self, empty_stmt: EmptyStmt) {}
+
   fn walk_debugger_stmt(&self, debugger_stmt: DebuggerStmt) {}
-  fn walk_with_stmt(&self, with_stmt: WithStmt) {}
-  fn walk_return_stmt(&self, return_stmt: ReturnStmt) {}
-  fn walk_labeled_stmt(&self, labeled_stmt: LabeledStmt) {}
-  fn walk_break_stmt(&self, break_stmt: BreakStmt) {}
-  fn walk_continue_stmt(&self, continue_stmt: ContinueStmt) {}
-  fn walk_if_stmt(&self, if_stmt: IfStmt) {}
-  fn walk_switch_stmt(&self, switch_stmt: SwitchStmt) {}
-  fn walk_throw_stmt(&self, throw_stmt: ThrowStmt) {}
-  fn walk_try_stmt(&self, try_stmt: TryStmt) {}
-  fn walk_while_stmt(&self, while_stmt: WhileStmt) {}
-  fn walk_do_while_stmt(&self, do_while_stmt: DoWhileStmt) {}
-  fn walk_for_stmt(&self, for_stmt: ForStmt) {}
-  fn walk_for_in_stmt(&self, for_in_stmt: ForInStmt) {}
-  fn walk_for_of_stmt(&self, for_of_stmt: ForOfStmt) {}
+
+  fn walk_with_stmt(&self, with_stmt: WithStmt) {
+    self.walk_expression(with_stmt.obj);
+    self.walk_statement(*with_stmt.body);
+  }
+
+  fn walk_return_stmt(&self, return_stmt: ReturnStmt) {
+    if let Some(arg) = return_stmt.arg {
+      self.walk_expression(arg);
+    }
+  }
+
+  fn walk_labeled_stmt(&self, labeled_stmt: LabeledStmt) {
+    self.walk_identifier(labeled_stmt.label);
+    self.walk_statement(*labeled_stmt.body);
+  }
+
+  fn walk_break_stmt(&self, break_stmt: BreakStmt) {
+    if let Some(label) = break_stmt.label {
+      self.walk_identifier(label);
+    }
+  }
+
+  fn walk_continue_stmt(&self, continue_stmt: ContinueStmt) {
+    if let Some(label) = continue_stmt.label {
+      self.walk_identifier(label);
+    }
+  }
+
+  fn walk_if_stmt(&self, if_stmt: IfStmt) {
+    if let Some(alt) = if_stmt.alt {
+      self.walk_statement(*alt);
+    }
+    self.walk_statement(*if_stmt.cons);
+    self.walk_expression(if_stmt.test);
+  }
+
+  fn walk_switch_stmt(&self, switch_stmt: SwitchStmt) {
+    self.walk_expression(switch_stmt.discriminant);
+    for case in switch_stmt.cases {
+      if let Some(case) = case.test {
+        self.walk_expression(case);
+      }
+      self.walk_statements(case.cons);
+    }
+  }
+
+  fn walk_throw_stmt(&self, throw_stmt: ThrowStmt) {
+    self.walk_expression(throw_stmt.arg);
+  }
+
+  fn walk_try_stmt(&self, try_stmt: TryStmt) {
+    self.walk_block_stmt(try_stmt.block);
+    if let Some(handler) = try_stmt.handler {
+      self.walk_block_stmt(handler.body);
+      if let Some(pat) = handler.param {
+        self.walk_pattern(pat);
+      }
+    }
+    if let Some(finalizer) = try_stmt.finalizer {
+      self.walk_block_stmt(finalizer);
+    }
+  }
+
+  fn walk_while_stmt(&self, while_stmt: WhileStmt) {
+    self.walk_expression(while_stmt.test);
+    self.walk_statement(*while_stmt.body)
+  }
+
+  fn walk_do_while_stmt(&self, do_while_stmt: DoWhileStmt) {
+    self.walk_expression(do_while_stmt.test);
+    self.walk_statement(*do_while_stmt.body)
+  }
+
+  fn walk_for_stmt(&self, for_stmt: ForStmt) {
+    self.walk_statement(*for_stmt.body);
+    if let Some(init) = for_stmt.init {
+      match init {
+        VarDeclOrExpr::Expr(expr) => self.walk_expression(expr),
+        VarDeclOrExpr::VarDecl(var_decl) => self.walk_var_decl(var_decl),
+      }
+    }
+    if let Some(test) = for_stmt.test {
+      self.walk_expression(test);
+    }
+    if let Some(update) = for_stmt.update {
+      self.walk_expression(update);
+    }
+  }
+
+  fn walk_for_in_stmt(&self, for_in_stmt: ForInStmt) {
+    self.walk_statement(*for_in_stmt.body);
+    match for_in_stmt.left {
+      VarDeclOrPat::Pat(pat) => self.walk_pattern(pat),
+      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl),
+    }
+    self.walk_expression(for_in_stmt.right);
+  }
+
+  fn walk_for_of_stmt(&self, for_of_stmt: ForOfStmt) {
+    self.walk_statement(*for_of_stmt.body);
+    match for_of_stmt.left {
+      VarDeclOrPat::Pat(pat) => self.walk_pattern(pat),
+      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl),
+    }
+    self.walk_expression(for_of_stmt.right);
+  }
+
   fn walk_decl(&self, decl: Decl) {
     match decl {
       Decl::Class(class_decl) => self.walk_class_decl(class_decl),
@@ -354,20 +635,75 @@ pub trait AstTraverser {
       }
     }
   }
+
   fn walk_expr_stmt(&self, expr_stmt: ExprStmt) {
     self.walk_expression(expr_stmt.expr);
   }
 
-  fn walk_class_decl(&self, class_decl: ClassDecl) {}
+  fn walk_class_decl(&self, class_decl: ClassDecl) {
+    self.walk_identifier(class_decl.ident);
+    // TODO: handle class
+  }
+
   fn walk_fn_decl(&self, fn_decl: FnDecl) {
     self.walk_identifier(fn_decl.ident);
     self.walk_function(fn_decl.function)
   }
-  fn walk_var_decl(&self, var_decl: VarDecl) {}
-  fn walk_ts_interface_decl(&self, ts_interface_decl: TsInterfaceDecl) {}
-  fn walk_ts_type_alias_decl(&self, ts_type_alias_decl: TsTypeAliasDecl) {}
-  fn walk_ts_enum_decl(&self, ts_enum_decl: TsEnumDecl) {}
-  fn walk_ts_module_decl(&self, ts_module_decl: TsModuleDecl) {}
+
+  fn walk_var_decl(&self, var_decl: VarDecl) {
+    for decl in var_decl.decls {
+      self.walk_pattern(decl.name);
+      if let Some(init) = decl.init {
+        self.walk_expression(init);
+      }
+    }
+  }
+
+  fn walk_ts_interface_decl(&self, ts_interface_decl: TsInterfaceDecl) {
+    self.walk_identifier(ts_interface_decl.id);
+    for expr in ts_interface_decl.extends {
+      // TODO: handle expr
+      // TODO: handle type args
+    }
+  }
+
+  fn walk_ts_type_alias_decl(&self, ts_type_alias_decl: TsTypeAliasDecl) {
+    self.walk_identifier(ts_type_alias_decl.id);
+    self.walk_ts_type(*ts_type_alias_decl.type_ann);
+    // TODO: handle type_params
+  }
+
+  fn walk_ts_enum_decl(&self, ts_enum_decl: TsEnumDecl) {
+    self.walk_identifier(ts_enum_decl.id);
+    for member in ts_enum_decl.members {
+      match member.id {
+        TsEnumMemberId::Ident(ident) => self.walk_identifier(ident),
+        TsEnumMemberId::Str(str_) => self.walk_string_literal(str_),
+      }
+    }
+  }
+
+  fn walk_ts_module_decl(&self, ts_module_decl: TsModuleDecl) {
+    match ts_module_decl.id {
+      TsModuleName::Ident(ident) => self.walk_identifier(ident),
+      TsModuleName::Str(str_) => self.walk_string_literal(str_),
+    }
+    if let Some(body) = ts_module_decl.body {
+      match body {
+        TsNamespaceBody::TsModuleBlock(module_block) => {
+          self.walk_module_items(module_block.body)
+        }
+        TsNamespaceBody::TsNamespaceDecl(namespace_decl) => {
+          self.walk_ts_namespace_decl(namespace_decl)
+        }
+      }
+    }
+  }
+
+  fn walk_ts_namespace_decl(&self, ts_namespace_decl: TsNamespaceDecl) {
+    self.walk_identifier(ts_namespace_decl.id);
+    // TODO: handle body
+  }
 
   fn walk_function(&self, function: Function) {
     if let Some(body) = function.body {
@@ -376,6 +712,62 @@ pub trait AstTraverser {
     self.walk_patterns(function.params);
     if let Some(type_ann) = function.return_type {
       self.walk_ts_type_ann(type_ann);
+    }
+    // TODO: deal with type_params
+  }
+
+  fn walk_prop(&self, prop: Prop) {
+    match prop {
+      Prop::Assign(assign_prop) => self.walk_assign_prop(assign_prop),
+      Prop::Getter(getter_prop) => self.walk_getter_prop(getter_prop),
+      Prop::KeyValue(key_value_prop) => {
+        self.walk_key_value_prop(key_value_prop)
+      }
+      Prop::Method(method_prop) => self.walk_method_prop(method_prop),
+      Prop::Setter(setter_prop) => self.walk_setter_prop(setter_prop),
+      Prop::Shorthand(ident) => self.walk_identifier_reference(ident),
+    }
+  }
+
+  fn walk_assign_prop(&self, assign_prop: AssignProp) {
+    self.walk_binding_identifier(assign_prop.key);
+    self.walk_expression(assign_prop.value);
+  }
+
+  fn walk_getter_prop(&self, getter_prop: GetterProp) {
+    self.walk_prop_name(getter_prop.key);
+    if let Some(body) = getter_prop.body {
+      self.walk_block_stmt(body);
+    }
+    if let Some(type_ann) = getter_prop.type_ann {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
+
+  fn walk_key_value_prop(&self, key_value_prop: KeyValueProp) {
+    self.walk_prop_name(key_value_prop.key);
+    self.walk_expression(key_value_prop.value);
+  }
+
+  fn walk_method_prop(&self, method_prop: MethodProp) {
+    self.walk_prop_name(method_prop.key);
+    self.walk_function(method_prop.function)
+  }
+
+  fn walk_setter_prop(&self, setter_prop: SetterProp) {
+    self.walk_prop_name(setter_prop.key);
+    if let Some(body) = setter_prop.body {
+      self.walk_block_stmt(body);
+    }
+    self.walk_pattern(setter_prop.param);
+  }
+
+  fn walk_prop_name(&self, prop_name: PropName) {
+    match prop_name {
+      PropName::Ident(ident) => self.walk_binding_identifier(ident),
+      PropName::Num(num) => self.walk_num_literal(num),
+      PropName::Str(str_) => self.walk_string_literal(str_),
+      PropName::Computed(computed) => self.walk_expression(computed.expr),
     }
   }
 
@@ -397,10 +789,52 @@ pub trait AstTraverser {
     }
   }
 
-  fn walk_array_pattern(&self, array_pat: ArrayPat) {}
-  fn walk_rest_pattern(&self, rest_pat: RestPat) {}
-  fn walk_object_pattern(&self, object_pat: ObjectPat) {}
-  fn walk_assign_pattern(&self, assign_pat: AssignPat) {}
+  fn walk_array_pattern(&self, array_pat: ArrayPat) {
+    for pat in array_pat.elems {
+      if let Some(pat) = pat {
+        self.walk_pattern(pat);
+      }
+    }
+    if let Some(type_ann) = array_pat.type_ann {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
+
+  fn walk_rest_pattern(&self, rest_pat: RestPat) {
+    self.walk_pattern(*rest_pat.arg);
+    if let Some(type_ann) = rest_pat.type_ann {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
+
+  fn walk_object_pattern(&self, object_pat: ObjectPat) {
+    for prop in object_pat.props {
+      match prop {
+        ObjectPatProp::Assign(assign_pat_props) => {
+          self.walk_binding_identifier(assign_pat_props.key);
+          if let Some(expr) = assign_pat_props.value {
+            self.walk_expression(expr);
+          }
+        }
+        ObjectPatProp::KeyValue(key_value_pat_props) => {
+          self.walk_prop_name(key_value_pat_props.key);
+          self.walk_pattern(*key_value_pat_props.value);
+        }
+        ObjectPatProp::Rest(rest_pat) => self.walk_rest_pattern(rest_pat),
+      }
+    }
+    if let Some(type_ann) = object_pat.type_ann {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
+
+  fn walk_assign_pattern(&self, assign_pat: AssignPat) {
+    self.walk_pattern(*assign_pat.left);
+    self.walk_expression(assign_pat.right);
+    if let Some(type_ann) = assign_pat.type_ann {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
 
   fn walk_ts_type_ann(&self, ts_type_ann: TsTypeAnn) {
     self.walk_ts_type(*ts_type_ann.type_ann);
