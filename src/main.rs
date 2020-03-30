@@ -20,9 +20,12 @@ use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
 
+mod ast_node;
 mod rules;
+mod scopes;
 mod traverse;
 
+use ast_node::AstNode;
 use traverse::AstTraverser;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
@@ -122,6 +125,11 @@ impl Linter {
       .expect("Comments already taken")
       .take_all();
 
+    let root_scope = scopes::Scope {
+      kind: scopes::ScopeKind::Root,
+    };
+    let mut lint_context = scopes::LintContext::new(root_scope);
+
     let context = rules::Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
@@ -129,6 +137,11 @@ impl Linter {
       leading_comments: leading,
       trailing_comments: trailing,
     };
+
+    let node = AstNode::Module(module.clone());
+    let transforms: Vec<Box<dyn scopes::LintTransform>> =
+      vec![Box::new(rules::NoDebugger::new(context.clone()))];
+    lint_context.walk(node, transforms.as_slice());
 
     let rules: Vec<Box<dyn AstTraverser>> = vec![
       Box::new(rules::NoExplicitAny::new(context.clone())),
