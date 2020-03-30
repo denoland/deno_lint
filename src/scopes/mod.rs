@@ -2,25 +2,27 @@
 
 #![allow(unused)]
 
-use std::fmt;
 use crate::ast_node::AstNode;
 use crate::ast_node::AstNodeKind;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::fmt;
+use std::rc::Rc;
 use swc_ecma_ast::Decl;
 use swc_ecma_ast::Module;
 use swc_ecma_ast::ModuleItem;
 use swc_ecma_ast::Pat;
 use swc_ecma_ast::Stmt;
-use std::collections::HashMap;
 
 pub struct LintContext {
-  pub root_scope: Scope,
-  pub scope_stack: Vec<Scope>,
+  pub root_scope: Rc<RefCell<Scope>>,
+  pub scope_stack: Vec<Rc<RefCell<Scope>>>,
 }
 
 impl LintContext {
   pub fn new(node: Box<AstNode>) -> Self {
     Self {
-      root_scope: Scope::new(node, ScopeKind::Root),
+      root_scope: Rc::new(RefCell::new(Scope::new(node, ScopeKind::Root))),
       scope_stack: vec![],
     }
   }
@@ -62,14 +64,19 @@ impl LintContext {
     assert!(self.scope_stack.is_empty());
 
     let module_node = Box::new(AstNode::Module(module.clone()));
+    let module_scope = Rc::new(RefCell::new(Scope::new(
+      module_node.clone(),
+      ScopeKind::Module,
+    )));
 
     let current_scope = self.get_current_scope();
-    let module_scope = Scope::new(module_node.clone(), ScopeKind::Module);
-    current_scope.add_child_scope(
-      *module_node,
-      module_scope,
-    );
-    // walk children
+    {
+      let mut mut_scope = current_scope.borrow_mut();
+      mut_scope.add_child_scope(*module_node, module_scope.clone());
+    }
+
+    // Entering module scope
+    self.scope_stack.push(module_scope);
 
     for module_item in &module.body {
       match module_item {
@@ -78,7 +85,10 @@ impl LintContext {
       }
     }
 
+    // Exiting module scope
+    self.scope_stack.pop();
     eprintln!("{:#?}", self.get_current_scope());
+    eprintln!("{:#?}", self.scope_stack);
   }
 
   fn walk_statement(&mut self, stmt: Stmt) {
@@ -112,18 +122,50 @@ impl LintContext {
       Decl::Fn(fn_decl) => {
         let current_scope = self.get_current_scope();
         let name = fn_decl.ident.sym.to_string();
-        current_scope.add_binding(Binding {
+        let fn_binding = Binding {
           kind: BindingKind::Function,
           name,
-        });
+        };
 
-        // TODO: create new scope and add bindings from inside function to new scope
+        let function_node = Box::new(AstNode::FnDecl(fn_decl.clone()));
+        let function_scope = Rc::new(RefCell::new(Scope::new(
+          function_node.clone(),
+          ScopeKind::Function,
+        )));
+        {
+          let mut mut_scope = current_scope.borrow_mut();
+          mut_scope.add_binding(fn_binding);
+          mut_scope.add_child_scope(*function_node, function_scope.clone());
+        }
 
-      },
+        // Entering function scope
+        self.scope_stack.push(function_scope);
+
+        {
+          let current_scope = self.get_current_scope();
+          let mut mut_scope = current_scope.borrow_mut();
+
+          for param in &fn_decl.function.params {
+            let name = match param {
+              Pat::Ident(ident) => ident.sym.to_string(),
+              _ => todo!(),
+            };
+            let param_binding = Binding {
+              kind: BindingKind::Param,
+              name,
+            };
+            mut_scope.add_binding(param_binding);
+          }
+        }
+
+        // Exiting function scope
+        self.scope_stack.pop();
+      }
       Decl::Var(var_decl) => {
         use swc_ecma_ast::VarDeclKind;
 
         let current_scope = self.get_current_scope();
+        let mut mut_scope = current_scope.borrow_mut();
 
         let var_kind = match &var_decl.kind {
           VarDeclKind::Var => BindingKind::Var,
@@ -137,10 +179,9 @@ impl LintContext {
             _ => todo!(),
           };
 
-          
-          current_scope.add_binding(Binding { 
+          mut_scope.add_binding(Binding {
             kind: var_kind.clone(),
-            name
+            name,
           })
         }
       }
@@ -158,19 +199,18 @@ impl LintContext {
     }
   }
 
-  pub fn get_current_scope(&mut self) -> &mut Scope {
-    // if self.scope_stack.is_empty() {
-      
-    // } else {
-    //   let index = self.scope_stack.len() - 1;
-    //   let mut last = self.scope_stack[index];
-    //   &mut last
-    // }
-    &mut self.root_scope
+  pub fn get_current_scope(&mut self) -> Rc<RefCell<Scope>> {
+    if self.scope_stack.is_empty() {
+      self.get_root_scope()
+    } else {
+      let index = self.scope_stack.len() - 1;
+      let last = &self.scope_stack[index];
+      last.clone()
+    }
   }
 
-  pub fn get_root_scope(&self) -> &Scope {
-    &self.root_scope
+  pub fn get_root_scope(&self) -> Rc<RefCell<Scope>> {
+    self.root_scope.clone()
   }
 }
 
@@ -185,6 +225,7 @@ pub enum BindingKind {
   Const,
   Let,
   Function,
+  Param,
 }
 
 #[derive(Clone, Debug)]
@@ -192,7 +233,6 @@ pub struct Binding {
   pub kind: BindingKind,
   pub name: String,
 }
-
 
 #[derive(Clone, Debug)]
 pub enum ScopeKind {
@@ -209,17 +249,17 @@ pub struct Scope {
   pub node: Box<AstNode>,
   pub kind: ScopeKind,
   pub bindings: HashMap<String, Binding>,
-  pub child_scopes: HashMap<AstNode, Scope>,
+  pub child_scopes: HashMap<AstNode, Rc<RefCell<Scope>>>,
   // pub parent_scope:
 }
 
 impl fmt::Debug for Scope {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      f.debug_struct("Scope")
-       .field("kind", &self.kind)
-       .field("bindings", &self.bindings)
-       .field("child_scopes", &self.child_scopes.values())
-       .finish()
+    f.debug_struct("Scope")
+      .field("kind", &self.kind)
+      .field("bindings", &self.bindings)
+      .field("child_scopes", &self.child_scopes.values())
+      .finish()
   }
 }
 
@@ -233,7 +273,7 @@ impl Scope {
     }
   }
 
-  pub fn add_child_scope(&mut self, node: AstNode, scope: Scope) {
+  pub fn add_child_scope(&mut self, node: AstNode, scope: Rc<RefCell<Scope>>) {
     self.child_scopes.insert(node, scope);
   }
 
