@@ -5,6 +5,7 @@ import { test2 } from "./test1.ts";
 /** noExplicitAny */
 function foo(): any {
     // nothing going on here
+    return undefined;
 }
 
 /** noVar */
@@ -52,3 +53,9 @@ switch (NaN) {
     default:
         break;
 }
+
+/** noEmptyFunction */
+function emptyFunctionWithBody() {
+    // empty func with body
+}
+function emptyFunctionWithoutBody(); // without body

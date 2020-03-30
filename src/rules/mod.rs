@@ -27,6 +27,8 @@ mod no_delete_var;
 pub use no_delete_var::NoDeleteVar;
 mod use_isnan;
 pub use use_isnan::UseIsNaN;
+mod no_empty_function;
+pub use no_empty_function::NoEmptyFunction;
 
 #[derive(Debug, Clone)]
 pub struct Location {
