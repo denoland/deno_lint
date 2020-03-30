@@ -13,10 +13,12 @@ macro_rules! generate_node {
             $($node_name),*,
         }
 
-        #[derive(Clone)]
+        #[derive(Clone, Hash, PartialEq, Debug)]
         pub enum AstNode {
             $($node_name($node_name)),*
         }
+
+        impl Eq for AstNode {}
 
         impl AstNode {
             pub fn kind(&self) -> AstNodeKind {
