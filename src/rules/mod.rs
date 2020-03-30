@@ -23,6 +23,8 @@ mod no_empty_interface;
 pub use no_empty_interface::NoEmptyInterface;
 mod no_delete_var;
 pub use no_delete_var::NoDeleteVar;
+mod no_empty_function;
+pub use no_empty_function::NoEmptyFunction;
 
 #[derive(Debug, Clone)]
 pub struct Location {

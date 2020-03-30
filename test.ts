@@ -5,6 +5,7 @@ import { test2 } from "./test1.ts";
 /** noExplicitAny */
 function foo(): any {
     // nothing going on here
+    return undefined;
 }
 
 /** noVar */
@@ -39,3 +40,6 @@ function missingType() {
 }
 /** noEmptyInterface */
 interface EmptyInterface {}
+
+/** noEmptyFunction */
+function emptyFunction() {}

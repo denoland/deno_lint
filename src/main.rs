@@ -138,6 +138,7 @@ impl Linter {
       Box::new(rules::ExplicitFunctionReturnType::new(context.clone())),
       Box::new(rules::NoEmptyInterface::new(context.clone())),
       Box::new(rules::NoDeleteVar::new(context.clone())),
+      Box::new(rules::NoEmptyFunction::new(context.clone())),
     ];
 
     for rule in rules {
