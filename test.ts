@@ -9,6 +9,8 @@ function foo(): any {
 
 /** noVar */
 var someVar = "someString";
+/** noDeleteVar */
+delete someVar;
 
 /** singleVarDeclarator */
 const a = "a", b = "b", c = "c";
@@ -20,7 +22,7 @@ const obj = {
     b: 30,
 };
 
-/** noDebugger */
+/** noDebugger, banTsIgnore */
 // @ts-ignore
 function asdf(): number {
     console.log("asdf");
@@ -31,9 +33,12 @@ function asdf(): number {
 /** noEval */
 eval("123");
 
-/** explicitFunctionReturnType */
+/** explicitFunctionReturnType, banUntaggedTodo */
 // TODO:
 function missingType() {
     console.log("asdf");
+
     return 1;
 }
+/** noEmptyInterface */
+interface EmptyInterface {}
