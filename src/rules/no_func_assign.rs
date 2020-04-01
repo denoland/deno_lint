@@ -19,11 +19,9 @@ impl NoFuncAssign {
 
 impl LintTransform for NoFuncAssign {
   fn enter(&self, context: &LintContext, node: AstNode) {
-    eprintln!("hello no func assign");
     if let AstNode::AssignExpr(assign_expr) = node {
       let scope = context.get_current_scope();
 
-      eprintln!("hello no func assign1");
       let ident = match &assign_expr.left {
         PatOrExpr::Expr(_) => return,
         PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
@@ -32,7 +30,6 @@ impl LintTransform for NoFuncAssign {
         },
       };
 
-      eprintln!("hello no func assign2 {}", ident);
       let scope_bor = scope.borrow();
       if let Some(binding) = scope_bor.get_binding(&ident) {
         if binding.kind == BindingKind::Function {
