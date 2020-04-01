@@ -22,7 +22,11 @@ pub struct LintContext {
 impl LintContext {
   pub fn new(node: Box<AstNode>) -> Self {
     Self {
-      root_scope: Rc::new(RefCell::new(Scope::new(node, ScopeKind::Root))),
+      root_scope: Rc::new(RefCell::new(Scope::new(
+        node,
+        ScopeKind::Root,
+        None,
+      ))),
       scope_stack: vec![],
     }
   }
@@ -64,16 +68,13 @@ impl LintContext {
     assert!(self.scope_stack.is_empty());
 
     let module_node = Box::new(AstNode::Module(module.clone()));
+    let current_scope = self.get_current_scope();
+
     let module_scope = Rc::new(RefCell::new(Scope::new(
       module_node.clone(),
       ScopeKind::Module,
+      Some(current_scope),
     )));
-
-    let current_scope = self.get_current_scope();
-    {
-      let mut mut_scope = current_scope.borrow_mut();
-      mut_scope.add_child_scope(*module_node, module_scope.clone());
-    }
 
     // Entering module scope
     self.scope_stack.push(module_scope);
@@ -131,12 +132,8 @@ impl LintContext {
         let function_scope = Rc::new(RefCell::new(Scope::new(
           function_node.clone(),
           ScopeKind::Function,
+          Some(current_scope),
         )));
-        {
-          let mut mut_scope = current_scope.borrow_mut();
-          mut_scope.add_binding(fn_binding);
-          mut_scope.add_child_scope(*function_node, function_scope.clone());
-        }
 
         // Entering function scope
         self.scope_stack.push(function_scope);
@@ -216,10 +213,9 @@ impl LintContext {
 
 pub trait LintTransform {
   fn enter(&self, context: &LintContext, node: AstNode) {}
-
   fn exit(&self, context: &LintContext, node: AstNode) {}
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BindingKind {
   Var,
   Const,
@@ -249,8 +245,7 @@ pub struct Scope {
   pub node: Box<AstNode>,
   pub kind: ScopeKind,
   pub bindings: HashMap<String, Binding>,
-  pub child_scopes: HashMap<AstNode, Rc<RefCell<Scope>>>,
-  // pub parent_scope:
+  pub parent_scope: Option<Rc<RefCell<Scope>>>,
 }
 
 impl fmt::Debug for Scope {
@@ -258,27 +253,36 @@ impl fmt::Debug for Scope {
     f.debug_struct("Scope")
       .field("kind", &self.kind)
       .field("bindings", &self.bindings)
-      .field("child_scopes", &self.child_scopes.values())
       .finish()
   }
 }
 
 impl Scope {
-  pub fn new(node: Box<AstNode>, kind: ScopeKind) -> Self {
+  pub fn new(
+    node: Box<AstNode>,
+    kind: ScopeKind,
+    parent_scope: Option<Rc<RefCell<Scope>>>,
+  ) -> Self {
     Self {
       node,
       kind,
       bindings: HashMap::new(),
-      child_scopes: HashMap::new(),
+      parent_scope,
     }
   }
 
-  pub fn add_child_scope(&mut self, node: AstNode, scope: Rc<RefCell<Scope>>) {
-    self.child_scopes.insert(node, scope);
-  }
+  pub fn get_binding(&self, name: &str) -> Option<Binding> {
+    // TODO: lookup bindings in parent scopes
+    if let Some(binding_ref) = self.bindings.get(name) {
+      return Some(binding_ref.clone());
+    }
 
-  pub fn get_binding() {
-    todo!()
+    if let Some(parent_scope) = &self.parent_scope {
+      let ps = parent_scope.borrow();
+      return ps.get_binding(name);
+    }
+
+    None
   }
 
   pub fn add_binding(&mut self, binding: Binding) {

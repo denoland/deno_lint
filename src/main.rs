@@ -125,7 +125,7 @@ impl Linter {
       .expect("Comments already taken")
       .take_all();
 
-      eprintln!("module {:#?}", module);
+    eprintln!("module {:#?}", module);
 
     let node = Box::new(AstNode::Module(module.clone()));
     let mut lint_context = scopes::LintContext::new(node);
@@ -138,11 +138,10 @@ impl Linter {
       trailing_comments: trailing,
     };
 
-    let transforms: Vec<Box<dyn scopes::LintTransform>> =
-      vec![
-        Box::new(rules::NoDebugger::new(context.clone())),
-        Box::new(rules::NoUnusedVars::new(context.clone())),
-      ];
+    let transforms: Vec<Box<dyn scopes::LintTransform>> = vec![
+      Box::new(rules::NoDebugger::new(context.clone())),
+      Box::new(rules::NoFuncAssign::new(context.clone())),
+    ];
     lint_context.walk_module(module.clone(), transforms.as_slice());
 
     let rules: Vec<Box<dyn AstTraverser>> = vec![
