@@ -7,3 +7,5 @@ function asdf(b: number, c: string): number {
     debugger;
     return 1;
 }
+
+asdf(3, "qwer");

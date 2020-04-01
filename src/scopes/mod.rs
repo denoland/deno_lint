@@ -199,7 +199,7 @@ impl LintContext {
     }
   }
 
-  pub fn get_current_scope(&mut self) -> Rc<RefCell<Scope>> {
+  pub fn get_current_scope(&self) -> Rc<RefCell<Scope>> {
     if self.scope_stack.is_empty() {
       self.get_root_scope()
     } else {
