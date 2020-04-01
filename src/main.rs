@@ -136,6 +136,7 @@ impl Linter {
       Box::new(rules::NoVar::new(context.clone())),
       Box::new(rules::SingleVarDeclarator::new(context.clone())),
       Box::new(rules::ExplicitFunctionReturnType::new(context.clone())),
+      Box::new(rules::NoEval::new(context.clone())),
       Box::new(rules::NoEmptyInterface::new(context.clone())),
       Box::new(rules::NoDeleteVar::new(context.clone())),
     ];

@@ -30,6 +30,9 @@ function asdf(): number {
     return 1;
 }
 
+/** noEval */
+eval("123");
+
 /** explicitFunctionReturnType, banUntaggedTodo */
 // TODO:
 function missingType() {
