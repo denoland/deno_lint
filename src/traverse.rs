@@ -392,7 +392,7 @@ pub trait AstTraverser {
     if let Some(init) = for_stmt.init {
       match init {
         VarDeclOrExpr::VarDecl(var_decl) => self.walk_var_decl(var_decl),
-        VarDeclOrExpr::Expr(expr) => self.walk_expression(expr)
+        VarDeclOrExpr::Expr(expr) => self.walk_expression(expr),
       }
     }
     if let Some(expr) = for_stmt.test {
@@ -406,7 +406,7 @@ pub trait AstTraverser {
   fn walk_for_in_stmt(&self, for_in_stmt: ForInStmt) {
     match for_in_stmt.left {
       VarDeclOrPat::Pat(pat) => self.walk_pattern(pat),
-      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl)
+      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl),
     }
 
     self.walk_expression(for_in_stmt.right);
@@ -415,7 +415,7 @@ pub trait AstTraverser {
   fn walk_for_of_stmt(&self, for_of_stmt: ForOfStmt) {
     match for_of_stmt.left {
       VarDeclOrPat::Pat(pat) => self.walk_pattern(pat),
-      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl)
+      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl),
     }
 
     self.walk_expression(for_of_stmt.right);
