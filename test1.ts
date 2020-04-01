@@ -8,4 +8,6 @@ function asdf(b: number, c: string): number {
     return 1;
 }
 
-asdf(3, "qwer");
+asdf = "foobar";
+
+// asdf(3, "qwer");

@@ -125,10 +125,9 @@ impl Linter {
       .expect("Comments already taken")
       .take_all();
 
-    eprintln!("module {:#?}", module);
+    // eprintln!("module {:#?}", module);
 
     let node = Box::new(AstNode::Module(module.clone()));
-    let mut lint_context = scopes::LintContext::new(node);
 
     let context = rules::Context {
       file_name,
@@ -142,7 +141,8 @@ impl Linter {
       Box::new(rules::NoDebugger::new(context.clone())),
       Box::new(rules::NoFuncAssign::new(context.clone())),
     ];
-    lint_context.walk_module(module.clone(), transforms.as_slice());
+    let mut lint_context = scopes::LintContext::new(node, transforms);
+    lint_context.walk_module(module.clone());
 
     let rules: Vec<Box<dyn AstTraverser>> = vec![
       Box::new(rules::NoExplicitAny::new(context.clone())),
