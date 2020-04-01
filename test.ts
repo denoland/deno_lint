@@ -42,3 +42,13 @@ function missingType() {
 }
 /** noEmptyInterface */
 interface EmptyInterface {}
+
+/** useIsNaN */
+42 === NaN;
+
+switch (NaN) {
+    case NaN:
+        break;
+    default:
+        break;
+}
