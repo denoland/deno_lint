@@ -260,7 +260,18 @@ pub trait AstTraverser {
   }
 
   fn walk_array_lit(&self, array_lit: ArrayLit) {}
-  fn walk_arrow_expr(&self, arrow_expr: ArrowExpr) {}
+  fn walk_arrow_expr(&self, arrow_expr: ArrowExpr) {
+    match arrow_expr.body {
+      BlockStmtOrExpr::BlockStmt(block_stmt) => {
+        self.walk_block_stmt(block_stmt)
+      }
+      BlockStmtOrExpr::Expr(expr) => self.walk_expression(expr),
+    }
+    self.walk_patterns(arrow_expr.params);
+    if let Some(type_ann) = arrow_expr.return_type {
+      self.walk_ts_type_ann(type_ann);
+    }
+  }
   fn walk_assign_expr(&self, assign_expr: AssignExpr) {}
   fn walk_await_expr(&self, await_expr: AwaitExpr) {}
   fn walk_bin_expr(&self, bin_expr: BinExpr) {}
@@ -323,20 +334,93 @@ pub trait AstTraverser {
   }
   fn walk_empty_stmt(&self, empty_stmt: EmptyStmt) {}
   fn walk_debugger_stmt(&self, debugger_stmt: DebuggerStmt) {}
-  fn walk_with_stmt(&self, with_stmt: WithStmt) {}
-  fn walk_return_stmt(&self, return_stmt: ReturnStmt) {}
-  fn walk_labeled_stmt(&self, labeled_stmt: LabeledStmt) {}
-  fn walk_break_stmt(&self, break_stmt: BreakStmt) {}
-  fn walk_continue_stmt(&self, continue_stmt: ContinueStmt) {}
-  fn walk_if_stmt(&self, if_stmt: IfStmt) {}
-  fn walk_switch_stmt(&self, switch_stmt: SwitchStmt) {}
-  fn walk_throw_stmt(&self, throw_stmt: ThrowStmt) {}
-  fn walk_try_stmt(&self, try_stmt: TryStmt) {}
-  fn walk_while_stmt(&self, while_stmt: WhileStmt) {}
-  fn walk_do_while_stmt(&self, do_while_stmt: DoWhileStmt) {}
-  fn walk_for_stmt(&self, for_stmt: ForStmt) {}
-  fn walk_for_in_stmt(&self, for_in_stmt: ForInStmt) {}
-  fn walk_for_of_stmt(&self, for_of_stmt: ForOfStmt) {}
+  fn walk_with_stmt(&self, with_stmt: WithStmt) {
+    self.walk_expression(with_stmt.obj);
+    self.walk_statement(*with_stmt.body);
+  }
+  fn walk_return_stmt(&self, return_stmt: ReturnStmt) {
+    if let Some(expr) = return_stmt.arg {
+      self.walk_expression(expr);
+    }
+  }
+  fn walk_labeled_stmt(&self, labeled_stmt: LabeledStmt) {
+    self.walk_identifier(labeled_stmt.label);
+    self.walk_statement(*labeled_stmt.body);
+  }
+  fn walk_break_stmt(&self, break_stmt: BreakStmt) {
+    if let Some(ident) = break_stmt.label {
+      self.walk_identifier(ident);
+    }
+  }
+  fn walk_continue_stmt(&self, continue_stmt: ContinueStmt) {
+    if let Some(ident) = continue_stmt.label {
+      self.walk_identifier(ident);
+    }
+  }
+  fn walk_if_stmt(&self, if_stmt: IfStmt) {
+    self.walk_expression(if_stmt.test);
+    self.walk_statement(*if_stmt.cons);
+    if let Some(stmt) = if_stmt.alt {
+      self.walk_statement(*stmt);
+    }
+  }
+  fn walk_switch_stmt(&self, switch_stmt: SwitchStmt) {
+    self.walk_expression(switch_stmt.discriminant);
+    self.walk_switch_cases(switch_stmt.cases);
+  }
+  fn walk_throw_stmt(&self, throw_stmt: ThrowStmt) {
+    self.walk_expression(throw_stmt.arg);
+  }
+  fn walk_try_stmt(&self, try_stmt: TryStmt) {
+    self.walk_block_stmt(try_stmt.block);
+    if let Some(catch_clause) = try_stmt.handler {
+      self.walk_catch_clause(catch_clause);
+    }
+    if let Some(block_stmt) = try_stmt.finalizer {
+      self.walk_block_stmt(block_stmt);
+    }
+  }
+  fn walk_while_stmt(&self, while_stmt: WhileStmt) {
+    self.walk_expression(while_stmt.test);
+    self.walk_statement(*while_stmt.body);
+  }
+  fn walk_do_while_stmt(&self, do_while_stmt: DoWhileStmt) {
+    self.walk_expression(do_while_stmt.test);
+    self.walk_statement(*do_while_stmt.body);
+  }
+  fn walk_for_stmt(&self, for_stmt: ForStmt) {
+    if let Some(init) = for_stmt.init {
+      match init {
+        VarDeclOrExpr::VarDecl(var_decl) => self.walk_var_decl(var_decl),
+        VarDeclOrExpr::Expr(expr) => self.walk_expression(expr)
+      }
+    }
+    if let Some(expr) = for_stmt.test {
+      self.walk_expression(expr);
+    }
+    if let Some(expr) = for_stmt.update {
+      self.walk_expression(expr);
+    }
+    self.walk_statement(*for_stmt.body);
+  }
+  fn walk_for_in_stmt(&self, for_in_stmt: ForInStmt) {
+    match for_in_stmt.left {
+      VarDeclOrPat::Pat(pat) => self.walk_pattern(pat),
+      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl)
+    }
+
+    self.walk_expression(for_in_stmt.right);
+    self.walk_statement(*for_in_stmt.body);
+  }
+  fn walk_for_of_stmt(&self, for_of_stmt: ForOfStmt) {
+    match for_of_stmt.left {
+      VarDeclOrPat::Pat(pat) => self.walk_pattern(pat),
+      VarDeclOrPat::VarDecl(var_decl) => self.walk_var_decl(var_decl)
+    }
+
+    self.walk_expression(for_of_stmt.right);
+    self.walk_statement(*for_of_stmt.body);
+  }
   fn walk_decl(&self, decl: Decl) {
     match decl {
       Decl::Class(class_decl) => self.walk_class_decl(class_decl),
@@ -395,6 +479,26 @@ pub trait AstTraverser {
       Pat::Invalid(_) => unreachable!(),
       Pat::Expr(boxed_expr) => self.walk_expression(boxed_expr),
     }
+  }
+
+  fn walk_switch_cases(&self, cases: Vec<SwitchCase>) {
+    for case in cases {
+      self.walk_switch_case(case);
+    }
+  }
+
+  fn walk_switch_case(&self, case: SwitchCase) {
+    if let Some(expr) = case.test {
+      self.walk_expression(expr);
+    }
+    self.walk_statements(case.cons);
+  }
+
+  fn walk_catch_clause(&self, catch_clause: CatchClause) {
+    if let Some(pat) = catch_clause.param {
+      self.walk_pattern(pat);
+    }
+    self.walk_block_stmt(catch_clause.body);
   }
 
   fn walk_array_pattern(&self, array_pat: ArrayPat) {}
