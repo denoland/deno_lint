@@ -1,21 +1,35 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
+use super::LintRule;
 use swc_ecma_ast::VarDecl;
 use swc_ecma_ast::VarDeclKind;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct NoVar {
+pub struct NoVar;
+
+impl LintRule for NoVar {
+  fn new() -> Box<Self> {
+    Box::new(NoVar)
+  }
+
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+    let mut visitor = NoVarVisitor::new(context);
+    visitor.visit_module(&module, &module);
+  }
+}
+
+pub struct NoVarVisitor {
   context: Context,
 }
 
-impl NoVar {
+impl NoVarVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoVar {
+impl Visit for NoVarVisitor {
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.kind == VarDeclKind::Var {
       self.context.add_diagnostic(

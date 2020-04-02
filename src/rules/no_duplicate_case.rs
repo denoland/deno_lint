@@ -1,21 +1,35 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
+use super::LintRule;
 use std::collections::HashSet;
 use swc_common::Spanned;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct NoDuplicateCase {
+pub struct NoDuplicateCase;
+
+impl LintRule for NoDuplicateCase {
+  fn new() -> Box<Self> {
+    Box::new(NoDuplicateCase)
+  }
+
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+    let mut visitor = NoDuplicateCaseVisitor::new(context);
+    visitor.visit_module(&module, &module);
+  }
+}
+
+pub struct NoDuplicateCaseVisitor {
   context: Context,
 }
 
-impl NoDuplicateCase {
+impl NoDuplicateCaseVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoDuplicateCase {
+impl Visit for NoDuplicateCaseVisitor {
   fn visit_switch_stmt(
     &mut self,
     switch_stmt: &swc_ecma_ast::SwitchStmt,

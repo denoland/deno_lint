@@ -1,19 +1,33 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
+use super::LintRule;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct NoSparseArray {
+pub struct NoSparseArray;
+
+impl LintRule for NoSparseArray {
+  fn new() -> Box<Self> {
+    Box::new(NoSparseArray)
+  }
+
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+    let mut visitor = NoSparseArrayVisitor::new(context);
+    visitor.visit_module(&module, &module);
+  }
+}
+
+pub struct NoSparseArrayVisitor {
   context: Context,
 }
 
-impl NoSparseArray {
+impl NoSparseArrayVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoSparseArray {
+impl Visit for NoSparseArrayVisitor {
   fn visit_array_lit(
     &mut self,
     array_lit: &swc_ecma_ast::ArrayLit,

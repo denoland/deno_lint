@@ -1,21 +1,35 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
+use super::LintRule;
 use swc_ecma_ast::Expr;
 use swc_ecma_ast::NewExpr;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct NoAsyncPromiseExecutor {
+pub struct NoAsyncPromiseExecutor;
+
+impl LintRule for NoAsyncPromiseExecutor {
+  fn new() -> Box<Self> {
+    Box::new(NoAsyncPromiseExecutor)
+  }
+
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+    let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
+    visitor.visit_module(&module, &module);
+  }
+}
+
+pub struct NoAsyncPromiseExecutorVisitor {
   context: Context,
 }
 
-impl NoAsyncPromiseExecutor {
+impl NoAsyncPromiseExecutorVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoAsyncPromiseExecutor {
+impl Visit for NoAsyncPromiseExecutorVisitor {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.to_string();

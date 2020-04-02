@@ -19,7 +19,6 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
-use swc_ecma_visit;
 
 mod rules;
 
@@ -130,30 +129,27 @@ impl Linter {
 
     use rules::LintRule;
     let rules: Vec<Box<dyn LintRule>> = vec![
-      // rules::NoExplicitAny::new(),
-      // rules::NoDebugger::new(),
-      // rules::NoVar::new(),
-      // rules::SingleVarDeclarator::new(),
+      rules::NoExplicitAny::new(),
+      rules::NoDebugger::new(),
+      rules::NoVar::new(),
+      rules::SingleVarDeclarator::new(),
       rules::ExplicitFunctionReturnType::new(),
-      // rules::NoEval::new(),
-      // rules::NoEmptyInterface::new(),
-      // rules::NoDeleteVar::new(),
-      // rules::UseIsNaN::new(),
-      // rules::NoEmptyFunction::new(),
-      // rules::NoAsyncPromiseExecutor::new(),
-      // rules::NoSparseArray::new(),
-      // rules::NoDuplicateCase::new(),
-      // rules::NoDupeArgs::new(),
+      rules::NoEval::new(),
+      rules::NoEmptyInterface::new(),
+      rules::NoDeleteVar::new(),
+      rules::UseIsNaN::new(),
+      rules::NoEmptyFunction::new(),
+      rules::NoAsyncPromiseExecutor::new(),
+      rules::NoSparseArray::new(),
+      rules::NoDuplicateCase::new(),
+      rules::NoDupeArgs::new(),
+      rules::BanTsIgnore::new(),
+      rules::BanUntaggedTodo::new(),
     ];
 
-    for mut rule in rules {
+    for rule in rules {
       rule.lint_module(context.clone(), module.clone());
     }
-
-    // let ban_ts = rules::BanTsIgnore::new(context.clone());
-    // ban_ts.lint_comments();
-    // let ban_todo = rules::BanUntaggedTodo::new(context.clone());
-    // ban_todo.lint_comments();
 
     let diags = context.diagnostics.lock().unwrap();
     for d in diags.iter() {
