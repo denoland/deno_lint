@@ -140,6 +140,8 @@ impl Linter {
       Box::new(rules::UseIsNaN::new(context.clone())),
       Box::new(rules::NoEmptyFunction::new(context.clone())),
       Box::new(rules::NoAsyncPromiseExecutor::new(context.clone())),
+      Box::new(rules::GetterReturn::new(context.clone())),
+      Box::new(rules::NoSetterReturn::new(context.clone())),
     ];
 
     for mut rule in rules {

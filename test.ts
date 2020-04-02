@@ -67,3 +67,14 @@ new Promise(async function(a, b) {
 new Promise(async (a, b) => {
 
 });
+
+/** getterReturn, noSetterReturn */
+class getterSetter {
+    get a() {}
+    set a() { return; }
+}
+
+const getterSetterObj = {
+    get a() {},
+    set a() { return; }
+};

@@ -31,6 +31,10 @@ mod no_empty_function;
 pub use no_empty_function::NoEmptyFunction;
 mod no_async_promise_executor;
 pub use no_async_promise_executor::NoAsyncPromiseExecutor;
+mod getter_return;
+pub use getter_return::GetterReturn;
+mod no_setter_return;
+pub use no_setter_return::NoSetterReturn;
 
 #[derive(Debug, Clone)]
 pub struct Location {
