@@ -120,6 +120,7 @@ impl Linter {
       .expect("Comments already taken")
       .take_all();
 
+    eprintln!("module {:#?}", module);
     let context = rules::Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
@@ -139,6 +140,7 @@ impl Linter {
       Box::new(rules::NoDeleteVar::new(context.clone())),
       Box::new(rules::UseIsNaN::new(context.clone())),
       Box::new(rules::NoEmptyFunction::new(context.clone())),
+      Box::new(rules::NoAsyncPromiseExecutor::new(context.clone())),
     ];
 
     for mut rule in rules {
