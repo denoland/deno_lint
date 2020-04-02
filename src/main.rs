@@ -128,31 +128,32 @@ impl Linter {
       trailing_comments: trailing,
     };
 
-    let rules: Vec<Box<dyn swc_ecma_visit::Visit>> = vec![
-      Box::new(rules::NoExplicitAny::new(context.clone())),
-      Box::new(rules::NoDebugger::new(context.clone())),
-      Box::new(rules::NoVar::new(context.clone())),
-      Box::new(rules::SingleVarDeclarator::new(context.clone())),
-      Box::new(rules::ExplicitFunctionReturnType::new(context.clone())),
-      Box::new(rules::NoEval::new(context.clone())),
-      Box::new(rules::NoEmptyInterface::new(context.clone())),
-      Box::new(rules::NoDeleteVar::new(context.clone())),
-      Box::new(rules::UseIsNaN::new(context.clone())),
-      Box::new(rules::NoEmptyFunction::new(context.clone())),
-      Box::new(rules::NoAsyncPromiseExecutor::new(context.clone())),
-      Box::new(rules::NoSparseArray::new(context.clone())),
-      Box::new(rules::NoDuplicateCase::new(context.clone())),
-      Box::new(rules::NoDupeArgs::new(context.clone())),
+    use rules::LintRule;
+    let rules: Vec<Box<dyn LintRule>> = vec![
+      // rules::NoExplicitAny::new(),
+      // rules::NoDebugger::new(),
+      // rules::NoVar::new(),
+      // rules::SingleVarDeclarator::new(),
+      rules::ExplicitFunctionReturnType::new(),
+      // rules::NoEval::new(),
+      // rules::NoEmptyInterface::new(),
+      // rules::NoDeleteVar::new(),
+      // rules::UseIsNaN::new(),
+      // rules::NoEmptyFunction::new(),
+      // rules::NoAsyncPromiseExecutor::new(),
+      // rules::NoSparseArray::new(),
+      // rules::NoDuplicateCase::new(),
+      // rules::NoDupeArgs::new(),
     ];
 
     for mut rule in rules {
-      rule.visit_module(&module, &module);
+      rule.lint_module(context.clone(), module.clone());
     }
 
-    let ban_ts = rules::BanTsIgnore::new(context.clone());
-    ban_ts.lint_comments();
-    let ban_todo = rules::BanUntaggedTodo::new(context.clone());
-    ban_todo.lint_comments();
+    // let ban_ts = rules::BanTsIgnore::new(context.clone());
+    // ban_ts.lint_comments();
+    // let ban_todo = rules::BanUntaggedTodo::new(context.clone());
+    // ban_todo.lint_comments();
 
     let diags = context.diagnostics.lock().unwrap();
     for d in diags.iter() {
