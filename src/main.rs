@@ -55,8 +55,8 @@ fn main() {
   if !diagnostics.is_empty() {
     for d in diagnostics.iter() {
       eprintln!(
-        "error: {} at {}:{}:{}",
-        d.message, d.location.filename, d.location.line, d.location.col
+        "error: {} ({}) at {}:{}:{}",
+        d.message, d.code, d.location.filename, d.location.line, d.location.col
       );
     }
     eprintln!("Found {} problems", diagnostics.len());
