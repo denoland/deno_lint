@@ -19,11 +19,10 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
+use swc_ecma_visit;
 
 mod rules;
 mod traverse;
-
-use traverse::AstTraverser;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
@@ -130,7 +129,7 @@ impl Linter {
       trailing_comments: trailing,
     };
 
-    let rules: Vec<Box<dyn AstTraverser>> = vec![
+    let rules: Vec<Box<dyn swc_ecma_visit::Visit>> = vec![
       Box::new(rules::NoExplicitAny::new(context.clone())),
       Box::new(rules::NoDebugger::new(context.clone())),
       Box::new(rules::NoVar::new(context.clone())),
@@ -142,8 +141,8 @@ impl Linter {
       Box::new(rules::UseIsNaN::new(context.clone())),
     ];
 
-    for rule in rules {
-      rule.walk_module(module.clone());
+    for mut rule in rules {
+      rule.visit_module(&module, &module);
     }
 
     let ban_ts = rules::BanTsIgnore::new(context.clone());

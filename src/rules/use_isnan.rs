@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use crate::traverse::AstTraverser;
+use swc_ecma_visit::Node;
+use swc_ecma_visit::Visit;
 
 pub struct UseIsNaN {
   context: Context,
@@ -16,8 +17,12 @@ fn is_nan_identifier(ident: &swc_ecma_ast::Ident) -> bool {
   ident.sym == swc_atoms::js_word!("NaN")
 }
 
-impl AstTraverser for UseIsNaN {
-  fn walk_bin_expr(&self, bin_expr: swc_ecma_ast::BinExpr) {
+impl Visit for UseIsNaN {
+  fn visit_bin_expr(
+    &mut self,
+    bin_expr: &swc_ecma_ast::BinExpr,
+    _parent: &dyn Node,
+  ) {
     if bin_expr.op == swc_ecma_ast::BinaryOp::EqEq
       || bin_expr.op == swc_ecma_ast::BinaryOp::NotEq
       || bin_expr.op == swc_ecma_ast::BinaryOp::EqEqEq
@@ -27,7 +32,7 @@ impl AstTraverser for UseIsNaN {
       || bin_expr.op == swc_ecma_ast::BinaryOp::Gt
       || bin_expr.op == swc_ecma_ast::BinaryOp::GtEq
     {
-      if let swc_ecma_ast::Expr::Ident(ident) = *bin_expr.left {
+      if let swc_ecma_ast::Expr::Ident(ident) = &*bin_expr.left {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             &bin_expr.span,
@@ -36,7 +41,7 @@ impl AstTraverser for UseIsNaN {
           );
         }
       }
-      if let swc_ecma_ast::Expr::Ident(ident) = *bin_expr.right {
+      if let swc_ecma_ast::Expr::Ident(ident) = &*bin_expr.right {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             &bin_expr.span,
@@ -48,8 +53,12 @@ impl AstTraverser for UseIsNaN {
     }
   }
 
-  fn walk_switch_stmt(&self, switch_stmt: swc_ecma_ast::SwitchStmt) {
-    if let swc_ecma_ast::Expr::Ident(ident) = *switch_stmt.discriminant {
+  fn visit_switch_stmt(
+    &mut self,
+    switch_stmt: &swc_ecma_ast::SwitchStmt,
+    _parent: &dyn Node,
+  ) {
+    if let swc_ecma_ast::Expr::Ident(ident) = &*switch_stmt.discriminant {
       if is_nan_identifier(&ident) {
         self.context.add_diagnostic(
           &switch_stmt.span,
@@ -59,10 +68,10 @@ impl AstTraverser for UseIsNaN {
       }
     }
 
-    for case in switch_stmt.cases {
-      if let Some(expr) = case.test {
-        if let swc_ecma_ast::Expr::Ident(ident) = *expr {
-          if is_nan_identifier(&ident) {
+    for case in &switch_stmt.cases {
+      if let Some(expr) = &case.test {
+        if let swc_ecma_ast::Expr::Ident(ident) = &**expr {
+          if is_nan_identifier(ident) {
             self.context.add_diagnostic(
               &case.span,
               "useIsNaN",

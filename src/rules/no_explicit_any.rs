@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use crate::traverse::AstTraverser;
 use swc_ecma_ast::TsTypeAnn;
-
+use swc_ecma_visit::Node;
+use swc_ecma_visit::Visit;
 pub struct NoExplicitAny {
   context: Context,
 }
@@ -13,8 +13,8 @@ impl NoExplicitAny {
   }
 }
 
-impl AstTraverser for NoExplicitAny {
-  fn walk_ts_type_ann(&self, type_ann: TsTypeAnn) {
+impl Visit for NoExplicitAny {
+  fn visit_ts_type_ann(&mut self, type_ann: &TsTypeAnn, _parent: &dyn Node) {
     use swc_ecma_ast::TsKeywordTypeKind::*;
     use swc_ecma_ast::TsType::*;
 

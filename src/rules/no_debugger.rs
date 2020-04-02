@@ -1,7 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use crate::traverse::AstTraverser;
 use swc_ecma_ast::DebuggerStmt;
+use swc_ecma_visit::Node;
+use swc_ecma_visit::Visit;
 
 pub struct NoDebugger {
   context: Context,
@@ -13,8 +14,12 @@ impl NoDebugger {
   }
 }
 
-impl AstTraverser for NoDebugger {
-  fn walk_debugger_stmt(&self, debugger_stmt: DebuggerStmt) {
+impl Visit for NoDebugger {
+  fn visit_debugger_stmt(
+    &mut self,
+    debugger_stmt: &DebuggerStmt,
+    _parent: &dyn Node,
+  ) {
     self.context.add_diagnostic(
       &debugger_stmt.span,
       "noDebugger",

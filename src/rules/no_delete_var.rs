@@ -1,9 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use crate::traverse::AstTraverser;
 use swc_ecma_ast::Expr;
 use swc_ecma_ast::UnaryExpr;
 use swc_ecma_ast::UnaryOp;
+use swc_ecma_visit::Node;
+use swc_ecma_visit::Visit;
 
 pub struct NoDeleteVar {
   context: Context,
@@ -15,8 +16,8 @@ impl NoDeleteVar {
   }
 }
 
-impl AstTraverser for NoDeleteVar {
-  fn walk_unary_expr(&self, unary_expr: UnaryExpr) {
+impl Visit for NoDeleteVar {
+  fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _parent: &dyn Node) {
     if unary_expr.op != UnaryOp::Delete {
       return;
     }
