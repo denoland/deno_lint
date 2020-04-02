@@ -71,6 +71,7 @@ switch (someText) {
 }
 
 /** noEmptyFunction */
+// dlint-ignore explicitFunctionReturnType
 function emptyFunctionWithBody() {
     // empty func with body
 }
