@@ -63,8 +63,8 @@ impl Into<Location> for swc_common::Loc {
   }
 }
 
-#[derive(Debug)]
-pub struct LintDiagnotic {
+#[derive(Clone, Debug)]
+pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,
   pub code: String,
@@ -73,7 +73,7 @@ pub struct LintDiagnotic {
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
-  pub diagnostics: Arc<Mutex<Vec<LintDiagnotic>>>,
+  pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
   pub leading_comments: CommentMap,
   pub trailing_comments: CommentMap,
@@ -83,7 +83,7 @@ impl Context {
   pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let location = self.source_map.lookup_char_pos(span.lo());
     let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(LintDiagnotic {
+    diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),

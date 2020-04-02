@@ -21,6 +21,8 @@ use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
 
 mod rules;
+use rules::LintDiagnostic;
+use rules::LintRule;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
@@ -74,7 +76,8 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<(), SwcDiagnostics> {
+    rules: Vec<Box<dyn LintRule>>,
+  ) -> Result<Vec<LintDiagnostic>, SwcDiagnostics> {
     swc_common::GLOBALS.set(&swc_common::Globals::new(), || {
       let swc_source_file = self
         .source_map
@@ -107,12 +110,16 @@ impl Linter {
             SwcDiagnostics::from(buffered_err)
           })?;
 
-      self.lint_module(file_name, module);
-      Ok(())
+      Ok(self.lint_module(file_name, module, rules))
     })
   }
 
-  fn lint_module(&mut self, file_name: String, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &mut self,
+    file_name: String,
+    module: swc_ecma_ast::Module,
+    rules: Vec<Box<dyn LintRule>>,
+  ) -> Vec<LintDiagnostic> {
     let (leading, trailing) = self
       .comments
       .take()
@@ -127,7 +134,31 @@ impl Linter {
       trailing_comments: trailing,
     };
 
-    use rules::LintRule;
+    for rule in rules {
+      rule.lint_module(context.clone(), module.clone());
+    }
+
+    let diags = context.diagnostics.lock().unwrap();
+    diags.to_vec()
+  }
+}
+
+fn main() {
+  let args: Vec<String> = std::env::args().collect();
+
+  if args.len() < 2 {
+    eprintln!("Missing file name");
+    std::process::exit(1);
+  }
+
+  let file_names: Vec<String> = args[1..].to_vec();
+
+  for file_name in file_names {
+    let source_code =
+      std::fs::read_to_string(&file_name).expect("Failed to read file");
+
+    let mut linter = Linter::default();
+
     let rules: Vec<Box<dyn LintRule>> = vec![
       rules::NoExplicitAny::new(),
       rules::NoDebugger::new(),
@@ -147,34 +178,18 @@ impl Linter {
       rules::BanUntaggedTodo::new(),
     ];
 
-    for rule in rules {
-      rule.lint_module(context.clone(), module.clone());
+    let diagnostics = linter
+      .lint(file_name, source_code, rules)
+      .expect("Failed to lint");
+
+    if !diagnostics.is_empty() {
+      for d in diagnostics.iter() {
+        eprintln!(
+          "error: {} at {}:{}:{}",
+          d.message, d.location.filename, d.location.line, d.location.col
+        );
+      }
+      eprintln!("Found {} problems", diagnostics.len());
     }
-
-    let diags = context.diagnostics.lock().unwrap();
-    for d in diags.iter() {
-      eprintln!(
-        "error: {} at {}:{}:{}",
-        d.message, d.location.filename, d.location.line, d.location.col
-      );
-    }
-  }
-}
-
-fn main() {
-  let args: Vec<String> = std::env::args().collect();
-
-  if args.len() < 2 {
-    eprintln!("Missing file name");
-    std::process::exit(1);
-  }
-
-  let file_names: Vec<String> = args[1..].to_vec();
-
-  for file_name in file_names {
-    let source_code =
-      std::fs::read_to_string(&file_name).expect("Failed to read file");
-    let mut linter = Linter::default();
-    linter.lint(file_name, source_code).expect("Failed to lint");
   }
 }
