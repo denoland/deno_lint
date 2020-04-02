@@ -24,6 +24,9 @@ mod rules;
 use rules::LintDiagnostic;
 use rules::LintRule;
 
+#[cfg(test)]
+mod test_util;
+
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
 #[derive(Clone, Default)]

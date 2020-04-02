@@ -1,4 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use serde::Serialize;
 use std::sync::Arc;
 use std::sync::Mutex;
 use swc_common::comments::CommentMap;
@@ -38,7 +39,7 @@ pub use no_duplicate_case::NoDuplicateCase;
 mod no_dupe_args;
 pub use no_dupe_args::NoDupeArgs;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Location {
   pub filename: String,
   pub line: usize,
@@ -63,7 +64,7 @@ impl Into<Location> for swc_common::Loc {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,

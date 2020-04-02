@@ -40,3 +40,32 @@ impl Visit for NoVarVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn no_var_test() {
+    test_lint(
+      "no_var",
+      r#"
+  var someVar = "someString";
+  const c = "c";
+  let a = "a";
+      "#,
+      vec![NoVar::new()],
+      json!([{
+        "code": "noVar",
+        "message": "`var` keyword is not allowed",
+        "location": {
+          "filename": "no_var",
+          "line": 2,
+          "col": 2,
+        }
+      }]),
+    )
+  }
+}
