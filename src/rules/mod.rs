@@ -31,6 +31,10 @@ mod no_empty_function;
 pub use no_empty_function::NoEmptyFunction;
 mod no_async_promise_executor;
 pub use no_async_promise_executor::NoAsyncPromiseExecutor;
+mod no_sparse_array;
+pub use no_sparse_array::NoSparseArray;
+mod no_duplicate_case;
+pub use no_duplicate_case::NoDuplicateCase;
 
 #[derive(Debug, Clone)]
 pub struct Location {

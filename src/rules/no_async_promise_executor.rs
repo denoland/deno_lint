@@ -24,14 +24,18 @@ impl Visit for NoAsyncPromiseExecutor {
 
       if let Some(args) = &new_expr.args {
         if let Some(first_arg) = args.get(0) {
-          if let Expr::Fn(fn_expr) = &*first_arg.expr {
-            if fn_expr.function.is_async {
-              self.context.add_diagnostic(
-                &new_expr.span,
-                "noAsyncPromiseExecutor",
-                "Async promise executors are not allowed",
-              );
-            }
+          let is_async = match &*first_arg.expr {
+            Expr::Fn(fn_expr) => fn_expr.function.is_async,
+            Expr::Arrow(arrow_expr) => arrow_expr.is_async,
+            _ => return,
+          };
+
+          if is_async {
+            self.context.add_diagnostic(
+              &new_expr.span,
+              "noAsyncPromiseExecutor",
+              "Async promise executors are not allowed",
+            );
           }
         }
       }
