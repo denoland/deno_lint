@@ -22,7 +22,6 @@ use swc_ecma_parser::TsConfig;
 use swc_ecma_visit;
 
 mod rules;
-mod traverse;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
