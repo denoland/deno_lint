@@ -1,7 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use crate::traverse::AstTraverser;
 use swc_ecma_ast::FnDecl;
+use swc_ecma_visit::Node;
+use swc_ecma_visit::Visit;
 
 pub struct NoEmptyFunction {
   context: Context,
@@ -13,9 +14,9 @@ impl NoEmptyFunction {
   }
 }
 
-impl AstTraverser for NoEmptyFunction {
-  fn walk_fn_decl(&self, fn_decl: FnDecl) {
-    let body = fn_decl.function.body;
+impl Visit for NoEmptyFunction {
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _parent: &dyn Node) {
+    let body = fn_decl.function.body.as_ref();
     if body.is_none() || body.unwrap().stmts.is_empty() {
       self.context.add_diagnostic(
         &fn_decl.function.span,
