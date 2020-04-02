@@ -35,7 +35,7 @@ impl Visit for UseIsNaN {
       if let swc_ecma_ast::Expr::Ident(ident) = &*bin_expr.left {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
-            &bin_expr.span,
+            bin_expr.span,
             "useIsNaN",
             "Use the isNaN function to compare with NaN",
           );
@@ -44,7 +44,7 @@ impl Visit for UseIsNaN {
       if let swc_ecma_ast::Expr::Ident(ident) = &*bin_expr.right {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
-            &bin_expr.span,
+            bin_expr.span,
             "useIsNaN",
             "Use the isNaN function to compare with NaN",
           );
@@ -61,7 +61,7 @@ impl Visit for UseIsNaN {
     if let swc_ecma_ast::Expr::Ident(ident) = &*switch_stmt.discriminant {
       if is_nan_identifier(&ident) {
         self.context.add_diagnostic(
-          &switch_stmt.span,
+          switch_stmt.span,
           "useIsNaN",
           "switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch",
         );
@@ -73,7 +73,7 @@ impl Visit for UseIsNaN {
         if let swc_ecma_ast::Expr::Ident(ident) = &**expr {
           if is_nan_identifier(ident) {
             self.context.add_diagnostic(
-              &case.span,
+              case.span,
               "useIsNaN",
               "'case NaN' can never match. Use Number.isNaN before the switch",
             );

@@ -80,7 +80,7 @@ pub struct Context {
 }
 
 impl Context {
-  pub fn add_diagnostic(&self, span: &Span, code: &str, message: &str) {
+  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let location = self.source_map.lookup_char_pos(span.lo());
     let mut diags = self.diagnostics.lock().unwrap();
     diags.push(LintDiagnotic {

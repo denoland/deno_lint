@@ -51,7 +51,7 @@ pub struct Linter {
 }
 
 impl Linter {
-  pub fn new() -> Self {
+  pub fn default() -> Self {
     let buffered_error = BufferedError::default();
 
     let handler = Handler::with_emitter_and_flags(
@@ -177,7 +177,7 @@ fn main() {
   for file_name in file_names {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
-    let mut linter = Linter::new();
+    let mut linter = Linter::default();
     linter.lint(file_name, source_code).expect("Failed to lint");
   }
 }

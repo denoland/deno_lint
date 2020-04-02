@@ -18,18 +18,14 @@ impl Visit for NoExplicitAny {
     use swc_ecma_ast::TsKeywordTypeKind::*;
     use swc_ecma_ast::TsType::*;
 
-    match &*type_ann.type_ann {
-      TsKeywordType(keyword_type) => match keyword_type.kind {
-        TsAnyKeyword => {
-          self.context.add_diagnostic(
-            &type_ann.span,
-            "noExplicitAny",
-            "`any` type is not allowed",
-          );
-        }
-        _ => {}
-      },
-      _ => {}
+    if let TsKeywordType(keyword_type) = &*type_ann.type_ann {
+      if keyword_type.kind == TsAnyKeyword {
+        self.context.add_diagnostic(
+          type_ann.span,
+          "noExplicitAny",
+          "`any` type is not allowed",
+        );
+      }
     }
   }
 }

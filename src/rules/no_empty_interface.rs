@@ -22,7 +22,7 @@ impl Visit for NoEmptyInterface {
   ) {
     if interface_decl.body.body.is_empty() {
       self.context.add_diagnostic(
-        &interface_decl.span,
+        interface_decl.span,
         "noEmptyInterface",
         "Empty interfaces are not allowed",
       );

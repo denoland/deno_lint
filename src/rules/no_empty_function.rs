@@ -19,7 +19,7 @@ impl Visit for NoEmptyFunction {
     let body = fn_decl.function.body.as_ref();
     if body.is_none() || body.unwrap().stmts.is_empty() {
       self.context.add_diagnostic(
-        &fn_decl.function.span,
+        fn_decl.function.span,
         "noEmptyFunction",
         "Empty functions are not allowed",
       )
