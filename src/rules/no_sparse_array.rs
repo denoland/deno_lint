@@ -21,7 +21,7 @@ impl Visit for NoSparseArray {
   ) {
     if array_lit.elems.iter().any(|e| e.is_none()) {
       self.context.add_diagnostic(
-        &array_lit.span,
+        array_lit.span,
         "noSparseArray",
         "Sparse arrays are not allowed",
       );

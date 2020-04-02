@@ -22,15 +22,12 @@ impl Visit for NoDeleteVar {
       return;
     }
 
-    match *unary_expr.arg {
-      Expr::Ident(_) => {
-        self.context.add_diagnostic(
-          &unary_expr.span,
-          "noDeleteVar",
-          "Variables shouldn't be deleted",
-        );
-      }
-      _ => {}
+    if let Expr::Ident(_) = *unary_expr.arg {
+      self.context.add_diagnostic(
+        unary_expr.span,
+        "noDeleteVar",
+        "Variables shouldn't be deleted",
+      );
     }
   }
 }

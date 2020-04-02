@@ -31,7 +31,7 @@ impl Visit for NoDuplicateCase {
 
         if seen.get(&test_txt).is_some() {
           self.context.add_diagnostic(
-            &span,
+            span,
             "noDuplicateCase",
             "Duplicate values in `case` are not allowed",
           );

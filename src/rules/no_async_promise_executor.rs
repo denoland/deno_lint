@@ -18,7 +18,8 @@ impl NoAsyncPromiseExecutor {
 impl Visit for NoAsyncPromiseExecutor {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
-      if ident.sym.to_string() != "Promise" {
+      let name = ident.sym.to_string();
+      if name != "Promise" {
         return;
       }
 
@@ -32,7 +33,7 @@ impl Visit for NoAsyncPromiseExecutor {
 
           if is_async {
             self.context.add_diagnostic(
-              &new_expr.span,
+              new_expr.span,
               "noAsyncPromiseExecutor",
               "Async promise executors are not allowed",
             );

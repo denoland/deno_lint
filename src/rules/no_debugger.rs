@@ -21,7 +21,7 @@ impl Visit for NoDebugger {
     _parent: &dyn Node,
   ) {
     self.context.add_diagnostic(
-      &debugger_stmt.span,
+      debugger_stmt.span,
       "noDebugger",
       "`debugger` statement is not allowed",
     );

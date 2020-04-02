@@ -20,9 +20,10 @@ impl Visit for NoEval {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
-        if ident.sym.to_string() == "eval" {
+        let name = ident.sym.to_string();
+        if name == "eval" {
           self.context.add_diagnostic(
-            &call_expr.span,
+            call_expr.span,
             "noEval",
             "`eval` call is not allowed",
           );

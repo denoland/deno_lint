@@ -17,7 +17,7 @@ impl NoDupeArgs {
     Self { context }
   }
 
-  fn check_params(&self, span: &Span, params: &[Pat]) {
+  fn check_params(&self, span: Span, params: &[Pat]) {
     let mut seen: HashSet<String> = HashSet::new();
 
     for param in params {
@@ -43,10 +43,10 @@ impl NoDupeArgs {
 
 impl Visit for NoDupeArgs {
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    self.check_params(&function.span, &function.params);
+    self.check_params(function.span, &function.params);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.check_params(&arrow_expr.span, &arrow_expr.params);
+    self.check_params(arrow_expr.span, &arrow_expr.params);
   }
 }

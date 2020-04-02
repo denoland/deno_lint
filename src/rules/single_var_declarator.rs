@@ -18,7 +18,7 @@ impl Visit for SingleVarDeclarator {
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
-        &var_decl.span,
+        var_decl.span,
         "singleVarDeclarator",
         "Multiple variable declarators are not allowed",
       );

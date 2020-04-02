@@ -21,7 +21,7 @@ impl Visit for ExplicitFunctionReturnType {
   ) {
     if function.return_type.is_none() {
       self.context.add_diagnostic(
-        &function.span,
+        function.span,
         "explicitFunctionReturnType",
         "Missing return type on function",
       );

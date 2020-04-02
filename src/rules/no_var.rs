@@ -19,7 +19,7 @@ impl Visit for NoVar {
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.kind == VarDeclKind::Var {
       self.context.add_diagnostic(
-        &var_decl.span,
+        var_decl.span,
         "noVar",
         "`var` keyword is not allowed",
       );
