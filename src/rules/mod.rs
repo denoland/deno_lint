@@ -35,6 +35,12 @@ mod getter_return;
 pub use getter_return::GetterReturn;
 mod no_setter_return;
 pub use no_setter_return::NoSetterReturn;
+mod no_sparse_array;
+pub use no_sparse_array::NoSparseArray;
+mod no_duplicate_case;
+pub use no_duplicate_case::NoDuplicateCase;
+mod no_dupe_args;
+pub use no_dupe_args::NoDupeArgs;
 
 #[derive(Debug, Clone)]
 pub struct Location {

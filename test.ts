@@ -54,12 +54,29 @@ switch (NaN) {
         break;
 }
 
+/** noSparseArray */
+const sparseArray = [1,,3];
+
+/** noDuplicateCase */
+const someText = "some text";
+switch (someText) {
+    case "a":
+        break;
+    case "b":
+        break;
+    case "a":
+        break;
+    default:
+        break;
+}
+
 /** noEmptyFunction */
 function emptyFunctionWithBody() {
     // empty func with body
 }
 function emptyFunctionWithoutBody(); // without body
 
+/** noAsyncPromiseExecutor */
 new Promise(async function(a, b) {
 
 });
@@ -78,3 +95,13 @@ const getterSetterObj = {
     get a() {},
     set a() { return; }
 };
+
+/** noDupeArgs */
+function dupeArgs1(a, b, a) {
+  //
+}
+
+const dupeArgs2 = (a, b, a) => {
+    //
+  };
+
