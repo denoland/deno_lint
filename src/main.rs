@@ -142,6 +142,7 @@ impl Linter {
       Box::new(rules::NoAsyncPromiseExecutor::new(context.clone())),
       Box::new(rules::NoSparseArray::new(context.clone())),
       Box::new(rules::NoDuplicateCase::new(context.clone())),
+      Box::new(rules::NoDupeArgs::new(context.clone())),
     ];
 
     for mut rule in rules {

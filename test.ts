@@ -84,3 +84,13 @@ new Promise(async function(a, b) {
 new Promise(async (a, b) => {
 
 });
+
+/** noDupeArgs */
+function dupeArgs1(a, b, a) {
+  //
+}
+
+const dupeArgs2 = (a, b, a) => {
+    //
+  };
+

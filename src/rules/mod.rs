@@ -35,6 +35,8 @@ mod no_sparse_array;
 pub use no_sparse_array::NoSparseArray;
 mod no_duplicate_case;
 pub use no_duplicate_case::NoDuplicateCase;
+mod no_dupe_args;
+pub use no_dupe_args::NoDupeArgs;
 
 #[derive(Debug, Clone)]
 pub struct Location {
