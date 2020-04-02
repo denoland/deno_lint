@@ -9,6 +9,8 @@ mod explicit_function_return_type;
 pub use explicit_function_return_type::ExplicitFunctionReturnType;
 mod no_debugger;
 pub use no_debugger::NoDebugger;
+mod no_eval;
+pub use no_eval::NoEval;
 mod no_explicit_any;
 pub use no_explicit_any::NoExplicitAny;
 mod no_var;
@@ -27,6 +29,18 @@ pub use no_delete_var::NoDeleteVar;
 // pub use no_unused_vars::NoUnusedVars;
 mod no_func_assign;
 pub use no_func_assign::NoFuncAssign;
+mod use_isnan;
+pub use use_isnan::UseIsNaN;
+mod no_empty_function;
+pub use no_empty_function::NoEmptyFunction;
+mod no_async_promise_executor;
+pub use no_async_promise_executor::NoAsyncPromiseExecutor;
+mod no_sparse_array;
+pub use no_sparse_array::NoSparseArray;
+mod no_duplicate_case;
+pub use no_duplicate_case::NoDuplicateCase;
+mod no_dupe_args;
+pub use no_dupe_args::NoDupeArgs;
 
 #[derive(Debug, Clone)]
 pub struct Location {
@@ -70,7 +84,7 @@ pub struct Context {
 }
 
 impl Context {
-  pub fn add_diagnostic(&self, span: &Span, code: &str, message: &str) {
+  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let location = self.source_map.lookup_char_pos(span.lo());
     let mut diags = self.diagnostics.lock().unwrap();
     diags.push(LintDiagnotic {

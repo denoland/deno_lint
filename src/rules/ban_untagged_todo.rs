@@ -30,7 +30,7 @@ impl BanUntaggedTodo {
     }
 
     self.context.add_diagnostic(
-      &comment.span,
+      comment.span,
       "banUntaggedTodo",
       "TODO should be tagged with (@username) or (#issue)",
     );

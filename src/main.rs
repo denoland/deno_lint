@@ -19,14 +19,13 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
+use swc_ecma_visit;
 
 mod ast_node;
 mod rules;
 mod scopes;
-mod traverse;
 
 use ast_node::AstNode;
-use traverse::AstTraverser;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
@@ -56,7 +55,7 @@ pub struct Linter {
 }
 
 impl Linter {
-  pub fn new() -> Self {
+  pub fn default() -> Self {
     let buffered_error = BufferedError::default();
 
     let handler = Handler::with_emitter_and_flags(
@@ -144,18 +143,26 @@ impl Linter {
     let mut lint_context = scopes::LintContext::new(node, transforms);
     lint_context.walk_module(module.clone());
 
-    let rules: Vec<Box<dyn AstTraverser>> = vec![
+
+    let rules: Vec<Box<dyn swc_ecma_visit::Visit>> = vec![
       Box::new(rules::NoExplicitAny::new(context.clone())),
       Box::new(rules::NoDebugger::new(context.clone())),
       Box::new(rules::NoVar::new(context.clone())),
       Box::new(rules::SingleVarDeclarator::new(context.clone())),
       Box::new(rules::ExplicitFunctionReturnType::new(context.clone())),
+      Box::new(rules::NoEval::new(context.clone())),
       Box::new(rules::NoEmptyInterface::new(context.clone())),
       Box::new(rules::NoDeleteVar::new(context.clone())),
+      Box::new(rules::UseIsNaN::new(context.clone())),
+      Box::new(rules::NoEmptyFunction::new(context.clone())),
+      Box::new(rules::NoAsyncPromiseExecutor::new(context.clone())),
+      Box::new(rules::NoSparseArray::new(context.clone())),
+      Box::new(rules::NoDuplicateCase::new(context.clone())),
+      Box::new(rules::NoDupeArgs::new(context.clone())),
     ];
 
-    for rule in rules {
-      rule.walk_module(module.clone());
+    for mut rule in rules {
+      rule.visit_module(&module, &module);
     }
 
     let ban_ts = rules::BanTsIgnore::new(context.clone());
@@ -186,7 +193,7 @@ fn main() {
   for file_name in file_names {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
-    let mut linter = Linter::new();
+    let mut linter = Linter::default();
     linter.lint(file_name, source_code).expect("Failed to lint");
   }
 }

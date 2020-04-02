@@ -3,8 +3,9 @@ use super::Context;
 use crate::ast_node::AstNode;
 use crate::scopes::LintContext;
 use crate::scopes::LintTransform;
-use crate::traverse::AstTraverser;
 use swc_ecma_ast::DebuggerStmt;
+use swc_ecma_visit::Node;
+use swc_ecma_visit::Visit;
 
 pub struct NoDebugger {
   context: Context,
@@ -16,10 +17,14 @@ impl NoDebugger {
   }
 }
 
-impl AstTraverser for NoDebugger {
-  fn walk_debugger_stmt(&self, debugger_stmt: DebuggerStmt) {
+impl Visit for NoDebugger {
+  fn visit_debugger_stmt(
+    &mut self,
+    debugger_stmt: &DebuggerStmt,
+    _parent: &dyn Node,
+  ) {
     self.context.add_diagnostic(
-      &debugger_stmt.span,
+      debugger_stmt.span,
       "noDebugger",
       "`debugger` statement is not allowed",
     );
@@ -30,7 +35,7 @@ impl LintTransform for NoDebugger {
   fn enter(&self, _context: &LintContext, node: AstNode) {
     if let AstNode::DebuggerStmt(debugger_stmt) = node {
       self.context.add_diagnostic(
-        &debugger_stmt.span,
+        debugger_stmt.span,
         "noDebugger",
         "`debugger` statement is not allowed",
       );

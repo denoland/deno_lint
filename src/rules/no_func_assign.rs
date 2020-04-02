@@ -34,7 +34,7 @@ impl LintTransform for NoFuncAssign {
       if let Some(binding) = scope_bor.get_binding(&ident) {
         if binding.kind == BindingKind::Function {
           self.context.add_diagnostic(
-            &assign_expr.span,
+            assign_expr.span,
             "noFuncAssign",
             "Reassigning function declaration is not allowed",
           );
