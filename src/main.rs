@@ -19,9 +19,13 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
-use swc_ecma_visit;
 
 mod rules;
+use rules::LintDiagnostic;
+use rules::LintRule;
+
+#[cfg(test)]
+mod test_util;
 
 pub type SwcDiagnostics = Vec<Diagnostic>;
 
@@ -75,7 +79,8 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<(), SwcDiagnostics> {
+    rules: Vec<Box<dyn LintRule>>,
+  ) -> Result<Vec<LintDiagnostic>, SwcDiagnostics> {
     swc_common::GLOBALS.set(&swc_common::Globals::new(), || {
       let swc_source_file = self
         .source_map
@@ -108,12 +113,16 @@ impl Linter {
             SwcDiagnostics::from(buffered_err)
           })?;
 
-      self.lint_module(file_name, module);
-      Ok(())
+      Ok(self.lint_module(file_name, module, rules))
     })
   }
 
-  fn lint_module(&mut self, file_name: String, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &mut self,
+    file_name: String,
+    module: swc_ecma_ast::Module,
+    rules: Vec<Box<dyn LintRule>>,
+  ) -> Vec<LintDiagnostic> {
     let (leading, trailing) = self
       .comments
       .take()
@@ -128,39 +137,12 @@ impl Linter {
       trailing_comments: trailing,
     };
 
-    let rules: Vec<Box<dyn swc_ecma_visit::Visit>> = vec![
-      Box::new(rules::NoExplicitAny::new(context.clone())),
-      Box::new(rules::NoDebugger::new(context.clone())),
-      Box::new(rules::NoVar::new(context.clone())),
-      Box::new(rules::SingleVarDeclarator::new(context.clone())),
-      Box::new(rules::ExplicitFunctionReturnType::new(context.clone())),
-      Box::new(rules::NoEval::new(context.clone())),
-      Box::new(rules::NoEmptyInterface::new(context.clone())),
-      Box::new(rules::NoDeleteVar::new(context.clone())),
-      Box::new(rules::UseIsNaN::new(context.clone())),
-      Box::new(rules::NoEmptyFunction::new(context.clone())),
-      Box::new(rules::NoAsyncPromiseExecutor::new(context.clone())),
-      Box::new(rules::NoSparseArray::new(context.clone())),
-      Box::new(rules::NoDuplicateCase::new(context.clone())),
-      Box::new(rules::NoDupeArgs::new(context.clone())),
-    ];
-
-    for mut rule in rules {
-      rule.visit_module(&module, &module);
+    for rule in rules {
+      rule.lint_module(context.clone(), module.clone());
     }
-
-    let ban_ts = rules::BanTsIgnore::new(context.clone());
-    ban_ts.lint_comments();
-    let ban_todo = rules::BanUntaggedTodo::new(context.clone());
-    ban_todo.lint_comments();
 
     let diags = context.diagnostics.lock().unwrap();
-    for d in diags.iter() {
-      eprintln!(
-        "error: {} at {}:{}:{}",
-        d.message, d.location.filename, d.location.line, d.location.col
-      );
-    }
+    diags.to_vec()
   }
 }
 
@@ -177,7 +159,40 @@ fn main() {
   for file_name in file_names {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
+
     let mut linter = Linter::default();
-    linter.lint(file_name, source_code).expect("Failed to lint");
+
+    let rules: Vec<Box<dyn LintRule>> = vec![
+      rules::NoExplicitAny::new(),
+      rules::NoDebugger::new(),
+      rules::NoVar::new(),
+      rules::SingleVarDeclarator::new(),
+      rules::ExplicitFunctionReturnType::new(),
+      rules::NoEval::new(),
+      rules::NoEmptyInterface::new(),
+      rules::NoDeleteVar::new(),
+      rules::UseIsNaN::new(),
+      rules::NoEmptyFunction::new(),
+      rules::NoAsyncPromiseExecutor::new(),
+      rules::NoSparseArray::new(),
+      rules::NoDuplicateCase::new(),
+      rules::NoDupeArgs::new(),
+      rules::BanTsIgnore::new(),
+      rules::BanUntaggedTodo::new(),
+    ];
+
+    let diagnostics = linter
+      .lint(file_name, source_code, rules)
+      .expect("Failed to lint");
+
+    if !diagnostics.is_empty() {
+      for d in diagnostics.iter() {
+        eprintln!(
+          "error: {} at {}:{}:{}",
+          d.message, d.location.filename, d.location.line, d.location.col
+        );
+      }
+      eprintln!("Found {} problems", diagnostics.len());
+    }
   }
 }

@@ -1,4 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use serde::Serialize;
 use std::sync::Arc;
 use std::sync::Mutex;
 use swc_common::comments::CommentMap;
@@ -38,7 +39,7 @@ pub use no_duplicate_case::NoDuplicateCase;
 mod no_dupe_args;
 pub use no_dupe_args::NoDupeArgs;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Location {
   pub filename: String,
   pub line: usize,
@@ -63,8 +64,8 @@ impl Into<Location> for swc_common::Loc {
   }
 }
 
-#[derive(Debug)]
-pub struct LintDiagnotic {
+#[derive(Clone, Debug, Serialize)]
+pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,
   pub code: String,
@@ -73,7 +74,7 @@ pub struct LintDiagnotic {
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
-  pub diagnostics: Arc<Mutex<Vec<LintDiagnotic>>>,
+  pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
   pub leading_comments: CommentMap,
   pub trailing_comments: CommentMap,
@@ -83,10 +84,17 @@ impl Context {
   pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let location = self.source_map.lookup_char_pos(span.lo());
     let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(LintDiagnotic {
+    diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
     });
   }
+}
+
+pub trait LintRule {
+  fn new() -> Box<Self>
+  where
+    Self: Sized;
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module);
 }

@@ -5,6 +5,9 @@ authors = ["Bartek Iwańczuk <biwanczuk@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+serde = { version = "1.0.104", features = ["derive"] }
+serde_derive = "1.0.104"
+serde_json = { version = "1.0.48" }
 swc_atoms = "0.2.2"
 swc_common = { version = "=0.5.9" }
 swc_ecma_ast = { version = "=0.18.1" }

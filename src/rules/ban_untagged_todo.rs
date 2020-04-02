@@ -1,19 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
+use super::LintRule;
 use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 
-pub struct BanUntaggedTodo {
-  context: Context,
-}
+pub struct BanUntaggedTodo;
 
 impl BanUntaggedTodo {
-  pub fn new(context: Context) -> Self {
-    Self { context }
-  }
-
-  fn lint_comment(&self, comment: &Comment) {
+  fn lint_comment(&self, context: &Context, comment: &Comment) {
     if comment.kind != CommentKind::Line {
       return;
     }
@@ -29,22 +24,28 @@ impl BanUntaggedTodo {
       return;
     }
 
-    self.context.add_diagnostic(
+    context.add_diagnostic(
       comment.span,
       "banUntaggedTodo",
       "TODO should be tagged with (@username) or (#issue)",
     );
   }
+}
 
-  pub fn lint_comments(&self) {
-    self.context.leading_comments.iter().for_each(|ref_multi| {
+impl LintRule for BanUntaggedTodo {
+  fn new() -> Box<Self> {
+    Box::new(BanUntaggedTodo)
+  }
+
+  fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
+    context.leading_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {
-        self.lint_comment(comment);
+        self.lint_comment(&context, comment);
       }
     });
-    self.context.trailing_comments.iter().for_each(|ref_multi| {
+    context.trailing_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {
-        self.lint_comment(comment);
+        self.lint_comment(&context, comment);
       }
     });
   }

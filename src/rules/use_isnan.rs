@@ -1,13 +1,27 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
+use super::LintRule;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct UseIsNaN {
+pub struct UseIsNaN;
+
+impl LintRule for UseIsNaN {
+  fn new() -> Box<Self> {
+    Box::new(UseIsNaN)
+  }
+
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+    let mut visitor = UseIsNaNVisitor::new(context);
+    visitor.visit_module(&module, &module);
+  }
+}
+
+pub struct UseIsNaNVisitor {
   context: Context,
 }
 
-impl UseIsNaN {
+impl UseIsNaNVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
@@ -17,7 +31,7 @@ fn is_nan_identifier(ident: &swc_ecma_ast::Ident) -> bool {
   ident.sym == swc_atoms::js_word!("NaN")
 }
 
-impl Visit for UseIsNaN {
+impl Visit for UseIsNaNVisitor {
   fn visit_bin_expr(
     &mut self,
     bin_expr: &swc_ecma_ast::BinExpr,
