@@ -156,6 +156,8 @@ fn main() {
 
   let file_names: Vec<String> = args[1..].to_vec();
 
+  let mut diagnostics = vec![];
+
   for file_name in file_names {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
@@ -181,18 +183,20 @@ fn main() {
       rules::BanUntaggedTodo::new(),
     ];
 
-    let diagnostics = linter
+    let file_diagnostics = linter
       .lint(file_name, source_code, rules)
       .expect("Failed to lint");
 
-    if !diagnostics.is_empty() {
-      for d in diagnostics.iter() {
-        eprintln!(
-          "error: {} at {}:{}:{}",
-          d.message, d.location.filename, d.location.line, d.location.col
-        );
-      }
-      eprintln!("Found {} problems", diagnostics.len());
+    diagnostics.extend(file_diagnostics)
+  }
+
+  if !diagnostics.is_empty() {
+    for d in diagnostics.iter() {
+      eprintln!(
+        "error: {} at {}:{}:{}",
+        d.message, d.location.filename, d.location.line, d.location.col
+      );
     }
+    eprintln!("Found {} problems", diagnostics.len());
   }
 }

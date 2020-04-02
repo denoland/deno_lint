@@ -19,7 +19,7 @@ impl BanTsIgnore {
     context.add_diagnostic(
       comment.span,
       "banTsIgnore",
-      "Don't use `// @ts-ginore`",
+      "Don't use `// @ts-ignore`",
     );
   }
 }
