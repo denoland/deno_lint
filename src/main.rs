@@ -23,6 +23,7 @@ use swc_ecma_parser::TsConfig;
 mod rules;
 use rules::LintDiagnostic;
 use rules::LintRule;
+mod scopes;
 
 #[cfg(test)]
 mod test_util;
@@ -179,6 +180,7 @@ fn main() {
       rules::NoDupeArgs::new(),
       rules::BanTsIgnore::new(),
       rules::BanUntaggedTodo::new(),
+      rules::NoFuncAssign::new(),
     ];
 
     let diagnostics = linter

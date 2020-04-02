@@ -38,6 +38,8 @@ mod no_duplicate_case;
 pub use no_duplicate_case::NoDuplicateCase;
 mod no_dupe_args;
 pub use no_dupe_args::NoDupeArgs;
+mod no_func_assign;
+pub use no_func_assign::NoFuncAssign;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
