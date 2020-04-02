@@ -29,6 +29,8 @@ mod use_isnan;
 pub use use_isnan::UseIsNaN;
 mod no_empty_function;
 pub use no_empty_function::NoEmptyFunction;
+mod no_async_promise_executor;
+pub use no_async_promise_executor::NoAsyncPromiseExecutor;
 
 #[derive(Debug, Clone)]
 pub struct Location {

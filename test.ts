@@ -59,3 +59,11 @@ function emptyFunctionWithBody() {
     // empty func with body
 }
 function emptyFunctionWithoutBody(); // without body
+
+new Promise(async function(a, b) {
+
+});
+
+new Promise(async (a, b) => {
+
+});
