@@ -92,16 +92,16 @@ mod tests {
       "setter_return",
       r#"
 const a = {
-  set setter() {
+  set setter(a) {
     return;
   }
 };
 
 class b {
-  set setterA() {
+  set setterA(a) {
     return;
   }
-  private set setterB() {
+  private set setterB(a) {
     return;
   }
 }
@@ -113,14 +113,6 @@ class b {
         "location": {
           "filename": "setter_return",
           "line": 3,
-          "col": 15,
-        }
-      }, {
-        "code": "noSetterReturn",
-        "message": "Setter shold not return",
-        "location": {
-          "filename": "setter_return",
-          "line": 9,
           "col": 16,
         }
       }, {
@@ -128,8 +120,16 @@ class b {
         "message": "Setter shold not return",
         "location": {
           "filename": "setter_return",
+          "line": 9,
+          "col": 17,
+        }
+      }, {
+        "code": "noSetterReturn",
+        "message": "Setter shold not return",
+        "location": {
+          "filename": "setter_return",
           "line": 12,
-          "col": 24,
+          "col": 25,
         }
       }]),
     )
