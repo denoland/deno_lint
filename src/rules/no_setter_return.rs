@@ -110,7 +110,7 @@ class b {
       vec![NoSetterReturn::new()],
       json!([{
         "code": "noSetterReturn",
-        "message": "Setter shold not return",
+        "message": "Setter cannot return a value",
         "location": {
           "filename": "setter_return",
           "line": 3,
@@ -118,7 +118,7 @@ class b {
         }
       }, {
         "code": "noSetterReturn",
-        "message": "Setter shold not return",
+        "message": "Setter cannot return a value",
         "location": {
           "filename": "setter_return",
           "line": 9,
@@ -126,7 +126,7 @@ class b {
         }
       }, {
         "code": "noSetterReturn",
-        "message": "Setter shold not return",
+        "message": "Setter cannot return a value",
         "location": {
           "filename": "setter_return",
           "line": 12,
