@@ -46,3 +46,30 @@ impl Visit for NoEvalVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn no_eval_test() {
+    test_lint(
+      "no_eval",
+      r#"
+eval("123");
+      "#,
+      vec![NoEval::new()],
+      json!([{
+        "code": "noEval",
+        "message": "`eval` call is not allowed",
+        "location": {
+          "filename": "no_eval",
+          "line": 2,
+          "col": 0,
+        }
+      }]),
+    )
+  }
+}

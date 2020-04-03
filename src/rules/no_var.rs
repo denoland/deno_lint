@@ -52,9 +52,9 @@ mod tests {
     test_lint(
       "no_var",
       r#"
-  var someVar = "someString";
-  const c = "c";
-  let a = "a";
+var someVar = "someString";
+const c = "c";
+let a = "a";
       "#,
       vec![NoVar::new()],
       json!([{
@@ -63,7 +63,7 @@ mod tests {
         "location": {
           "filename": "no_var",
           "line": 2,
-          "col": 2,
+          "col": 0,
         }
       }]),
     )

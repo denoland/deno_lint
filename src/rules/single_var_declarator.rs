@@ -39,3 +39,50 @@ impl Visit for SingleVarDeclaratorVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn single_var_declarator_test() {
+    test_lint(
+      "single_var_declarator",
+      r#"
+const a1 = "a", b1 = "b", c1 = "c";
+
+let a2 = "a", b2 = "b", c2 = "c";
+
+var a3 = "a", b3 = "b", c3 = "c";
+      "#,
+      vec![SingleVarDeclarator::new()],
+      json!([{
+        "code": "singleVarDeclarator",
+        "message": "Multiple variable declarators are not allowed",
+        "location": {
+          "filename": "single_var_declarator",
+          "line": 2,
+          "col": 0,
+        }
+      }, {
+        "code": "singleVarDeclarator",
+        "message": "Multiple variable declarators are not allowed",
+        "location": {
+          "filename": "single_var_declarator",
+          "line": 4,
+          "col": 0,
+        }
+      }, {
+        "code": "singleVarDeclarator",
+        "message": "Multiple variable declarators are not allowed",
+        "location": {
+          "filename": "single_var_declarator",
+          "line": 6,
+          "col": 0,
+        }
+      }]),
+    )
+  }
+}

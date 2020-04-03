@@ -40,3 +40,42 @@ impl Visit for NoEmptyFunctionVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn no_empty_function_test() {
+    test_lint(
+      "no_empty_function",
+      r#"
+function emptyFunctionWithBody() {
+    // empty func with body
+}
+
+function emptyFunctionWithoutBody(); // without body
+      "#,
+      vec![NoEmptyFunction::new()],
+      json!([{
+        "code": "noEmptyFunction",
+        "message": "Empty functions are not allowed",
+        "location": {
+          "filename": "no_empty_function",
+          "line": 2,
+          "col": 0,
+        }
+      }, {
+        "code": "noEmptyFunction",
+        "message": "Empty functions are not allowed",
+        "location": {
+          "filename": "no_empty_function",
+          "line": 6,
+          "col": 0,
+        }
+      }]),
+    )
+  }
+}

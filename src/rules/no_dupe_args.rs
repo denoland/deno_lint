@@ -64,3 +64,44 @@ impl Visit for NoDupeArgsVisitor {
     self.check_params(arrow_expr.span, &arrow_expr.params);
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn no_dupe_args_test() {
+    test_lint(
+      "no_dupe_args",
+      r#"
+function dupeArgs1(a, b, a) {
+  //
+}
+
+const dupeArgs2 = (a, b, a) => {
+  //
+};
+      "#,
+      vec![NoDupeArgs::new()],
+      json!([{
+        "code": "noDupeArgs",
+        "message": "Duplicate arguments not allowed",
+        "location": {
+          "filename": "no_dupe_args",
+          "line": 2,
+          "col": 0,
+        }
+      }, {
+        "code": "noDupeArgs",
+        "message": "Duplicate arguments not allowed",
+        "location": {
+          "filename": "no_dupe_args",
+          "line": 6,
+          "col": 18,
+        }
+      }]),
+    )
+  }
+}

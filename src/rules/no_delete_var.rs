@@ -45,3 +45,31 @@ impl Visit for NoDeleteVarVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn no_delete_var_test() {
+    test_lint(
+      "no_delete_var",
+      r#"
+var someVar = "someVar";
+delete someVar;
+      "#,
+      vec![NoDeleteVar::new()],
+      json!([{
+        "code": "noDeleteVar",
+        "message": "Variables shouldn't be deleted",
+        "location": {
+          "filename": "no_delete_var",
+          "line": 3,
+          "col": 0,
+        }
+      }]),
+    )
+  }
+}

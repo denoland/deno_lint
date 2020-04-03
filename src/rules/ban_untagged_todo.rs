@@ -50,3 +50,50 @@ impl LintRule for BanUntaggedTodo {
     });
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn ban_ts_ignore() {
+    test_lint(
+      "ban_untagged_todo",
+      r#"
+// TODO
+function foo() {
+  // pass
+}
+
+// TODO(username)
+const a = "a";
+
+// TODO(#1234)
+const b = "b";
+
+// TODO(@someusername)
+const c = "c";
+      "#,
+      vec![BanUntaggedTodo::new()],
+      json!([{
+        "code": "banUntaggedTodo",
+        "message": "TODO should be tagged with (@username) or (#issue)",
+        "location": {
+          "filename": "ban_untagged_todo",
+          "line": 2,
+          "col": 0,
+        }
+      }, {
+        "code": "banUntaggedTodo",
+        "message": "TODO should be tagged with (@username) or (#issue)",
+        "location": {
+          "filename": "ban_untagged_todo",
+          "line": 7,
+          "col": 0,
+        }
+      }]),
+    )
+  }
+}
