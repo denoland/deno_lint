@@ -19,7 +19,7 @@ impl BanTsIgnore {
     context.add_diagnostic(
       comment.span,
       "banTsIgnore",
-      "Don't use `// @ts-ignore`",
+      "@ts-ignore is not allowed",
     );
   }
 }
@@ -40,5 +40,48 @@ impl LintRule for BanTsIgnore {
         self.lint_comment(&context, comment);
       }
     });
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn ban_ts_ignore() {
+    test_lint(
+      "ban_ts_ignore",
+      r#"
+// @ts-ignore
+function foo() {
+  // pass
+}
+
+function bar() {
+  // @ts-ignore
+  const a = "bar";
+}
+      "#,
+      vec![BanTsIgnore::new()],
+      json!([{
+        "code": "banTsIgnore",
+        "message": "@ts-ignore is not allowed",
+        "location": {
+          "filename": "ban_ts_ignore",
+          "line": 2,
+          "col": 0,
+        }
+      }, {
+        "code": "banTsIgnore",
+        "message": "@ts-ignore is not allowed",
+        "location": {
+          "filename": "ban_ts_ignore",
+          "line": 8,
+          "col": 2,
+        }
+      }]),
+    )
   }
 }

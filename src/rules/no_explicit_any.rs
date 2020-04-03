@@ -44,3 +44,43 @@ impl Visit for NoExplicitAnyVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn no_explicit_any_test() {
+    test_lint(
+      "no_explicit_any",
+      r#"
+function foo(): any {
+    // nothing going on here
+    return undefined;
+}
+
+const a: any = {};
+      "#,
+      vec![NoExplicitAny::new()],
+      json!([{
+        "code": "noExplicitAny",
+        "message": "`any` type is not allowed",
+        "location": {
+          "filename": "no_explicit_any",
+          "line": 2,
+          "col": 14,
+        }
+      }, {
+        "code": "noExplicitAny",
+        "message": "`any` type is not allowed",
+        "location": {
+          "filename": "no_explicit_any",
+          "line": 7,
+          "col": 7,
+        }
+      }]),
+    )
+  }
+}
