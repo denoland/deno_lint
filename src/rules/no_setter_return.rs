@@ -93,16 +93,16 @@ mod tests {
       "setter_return",
       r#"
 const a = {
-  set setter() {
+  set setter(a) {
     return "something";
   }
 };
 
 class b {
-  set setterA() {
+  set setterA(a) {
     return "something";
   }
-  private set setterB() {
+  private set setterB(a) {
     return "something";
   }
 }
