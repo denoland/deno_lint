@@ -35,7 +35,7 @@ impl NoSetterReturnVisitor {
   fn check_block_stmt(&self, block_stmt: &BlockStmt) {
     for stmt in &block_stmt.stmts {
       if let Stmt::Return(return_stmt) = stmt {
-        if &return_stmt.arg.is_some() {
+        if return_stmt.arg.is_some() {
           self.context.add_diagnostic(
             block_stmt.span,
             "noSetterReturn",
