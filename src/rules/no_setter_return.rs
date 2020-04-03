@@ -33,15 +33,16 @@ impl NoSetterReturnVisitor {
   }
 
   fn check_block_stmt(&self, block_stmt: &BlockStmt) {
-    if block_stmt.stmts.iter().any(|s| match s {
-      Stmt::Return(_) => true,
-      _ => false,
-    }) {
-      self.context.add_diagnostic(
-        block_stmt.span,
-        "noSetterReturn",
-        "Setter shold not return",
-      );
+    for stmt in &block_stmt.stmts {
+      if let Stmt::Return(return_stmt) = stmt {
+        if let Some(_) = &return_stmt.arg {
+          self.context.add_diagnostic(
+            block_stmt.span,
+            "noSetterReturn",
+            "Setter cannot return a value",
+          );
+        }
+      }
     }
   }
 }
@@ -93,16 +94,16 @@ mod tests {
       r#"
 const a = {
   set setter() {
-    return;
+    return "something";
   }
 };
 
 class b {
   set setterA() {
-    return;
+    return "something";
   }
   private set setterB() {
-    return;
+    return "something";
   }
 }
       "#,
