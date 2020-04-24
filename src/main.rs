@@ -4,13 +4,13 @@ mod rules;
 
 use linter::Linter;
 use rules::LintRule;
+use prettytable::{format::consts::FORMAT_CLEAN,Table,row,cell};
 
 #[cfg(test)]
 mod test_util;
 
 fn main() {
   let args: Vec<String> = std::env::args().collect();
-
   if args.len() < 2 {
     eprintln!("Missing file name");
     std::process::exit(1);
@@ -53,12 +53,16 @@ fn main() {
   }
 
   if !diagnostics.is_empty() {
+    let mut table = Table::new();
+    table.set_format(*FORMAT_CLEAN);
     for d in diagnostics.iter() {
-      eprintln!(
-        "error: {} ({}) at {}:{}:{}",
-        d.message, d.code, d.location.filename, d.location.line, d.location.col
+      let location = format!(
+        "{} => {}:{}",
+        d.location.filename, d.location.line, d.location.col
       );
+      table.add_row(row![bFR->"Error",bFW->d.message, d.code,location]);
     }
+    table.printstd();
     eprintln!("Found {} problems", diagnostics.len());
   }
 }
