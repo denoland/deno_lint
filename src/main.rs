@@ -3,8 +3,8 @@ mod linter;
 mod rules;
 
 use linter::Linter;
+use prettytable::{cell, format::consts::FORMAT_CLEAN, row, Table};
 use rules::LintRule;
-use prettytable::{format::consts::FORMAT_CLEAN,Table,row,cell};
 
 #[cfg(test)]
 mod test_util;
