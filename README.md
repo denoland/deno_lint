@@ -3,6 +3,10 @@
 **NOTE**
 Very much work-in-progress
 
+## Goal
+
+A faster linter then `eslint`; specifically for `deno`.
+
 ## Supported rules
 
 - `banTsIgnore`
