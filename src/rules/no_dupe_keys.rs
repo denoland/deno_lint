@@ -116,6 +116,21 @@ var foo = {
   }
 
   #[test]
+  fn it_passes_when_there_are_duplicate_nested_keys() {
+    test_rule(
+      r#"
+var foo = {
+  bar: "baz",
+  boo: {
+    bar: "bang",
+  },
+}
+     "#,
+      json!([]),
+    )
+  }
+
+  #[test]
   fn it_fails_when_there_are_duplicate_keys() {
     test_rule(
       r#"
