@@ -1,15 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use super::LintRule;
 use super::Context;
-use std::collections::{HashSet, BTreeSet};
+use super::LintRule;
+use std::collections::{BTreeSet, HashSet};
 use swc_atoms::JsWord;
-use swc_ecma_ast::{Module, ObjectLit, PropOrSpread};
-use swc_ecma_ast::PropOrSpread::{Prop as PropVariant, Spread};
 use swc_ecma_ast::Prop;
 use swc_ecma_ast::Prop::*;
 use swc_ecma_ast::PropName;
 use swc_ecma_ast::PropName::*;
-use swc_ecma_visit::{Visit, Node};
+use swc_ecma_ast::PropOrSpread::{Prop as PropVariant, Spread};
+use swc_ecma_ast::{Module, ObjectLit, PropOrSpread};
+use swc_ecma_visit::{Node, Visit};
 
 pub struct NoDupeKeys;
 
@@ -67,7 +67,7 @@ impl Key for PropOrSpread {
   fn get_key(&self) -> Option<JsWord> {
     match self {
       PropVariant(p) => (&**p).get_key(),
-      Spread(_) => None
+      Spread(_) => None,
     }
   }
 }
@@ -273,7 +273,7 @@ var foo = {
     test_lint(
       "no_dupe_keys",
       source_code,
-      vec!(NoDupeKeys::new()),
+      vec![NoDupeKeys::new()],
       expected_diagnostics,
     )
   }
