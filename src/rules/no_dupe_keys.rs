@@ -2,7 +2,6 @@
 use super::Context;
 use super::LintRule;
 use std::collections::{BTreeSet, HashSet};
-use swc_atoms::JsWord;
 use swc_ecma_ast::Prop;
 use swc_ecma_ast::Prop::*;
 use swc_ecma_ast::PropName;
@@ -36,8 +35,8 @@ impl NoDupeKeysVisitor {
 
 impl Visit for NoDupeKeysVisitor {
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
-    let mut keys: HashSet<JsWord> = HashSet::new();
-    let mut duplicates: BTreeSet<JsWord> = BTreeSet::new();
+    let mut keys: HashSet<String> = HashSet::new();
+    let mut duplicates: BTreeSet<String> = BTreeSet::new();
 
     for prop in &obj_lit.props {
       if let Some(key) = prop.get_key() {
@@ -60,11 +59,11 @@ impl Visit for NoDupeKeysVisitor {
 }
 
 trait Key {
-  fn get_key(&self) -> Option<JsWord>;
+  fn get_key(&self) -> Option<String>;
 }
 
 impl Key for PropOrSpread {
-  fn get_key(&self) -> Option<JsWord> {
+  fn get_key(&self) -> Option<String> {
     match self {
       PropVariant(p) => (&**p).get_key(),
       Spread(_) => None,
@@ -73,7 +72,7 @@ impl Key for PropOrSpread {
 }
 
 impl Key for Prop {
-  fn get_key(&self) -> Option<JsWord> {
+  fn get_key(&self) -> Option<String> {
     match self {
       KeyValue(key_value) => key_value.key.get_key(),
       Getter(getter) => getter.key.get_key(),
@@ -86,11 +85,11 @@ impl Key for Prop {
 }
 
 impl Key for PropName {
-  fn get_key(&self) -> Option<JsWord> {
+  fn get_key(&self) -> Option<String> {
     match self {
-      Ident(identifier) => Some(identifier.sym.clone()),
-      Str(str) => Some(str.value.clone()),
-      Num(num) => Some(JsWord::from(num.to_string())),
+      Ident(identifier) => Some(identifier.sym.to_string()),
+      Str(str) => Some(str.value.to_string()),
+      Num(num) => Some(num.to_string()),
       Computed(_) => None,
     }
   }
