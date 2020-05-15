@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::LintRule;
 use super::Context;
-use std::collections::HashSet;
+use std::collections::{HashSet, BTreeSet};
 use swc_atoms::JsWord;
 use swc_ecma_ast::{Module, ObjectLit, PropOrSpread};
 use swc_ecma_ast::PropOrSpread::{Prop as PropVariant, Spread};
@@ -37,7 +37,7 @@ impl NoDupeKeysVisitor {
 impl Visit for NoDupeKeysVisitor {
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
     let mut keys: HashSet<JsWord> = HashSet::new();
-    let mut duplicates: HashSet<JsWord> = HashSet::new();
+    let mut duplicates: BTreeSet<JsWord> = BTreeSet::new();
 
     for prop in &obj_lit.props {
       if let Some(key) = prop.get_key() {
@@ -75,7 +75,7 @@ impl Keys for PropOrSpread {
 impl Keys for Prop {
   fn get_key(&self) -> Option<JsWord> {
     match self {
-      Shorthand(identifier) => Some(identifier.sym.clone()),
+      Shorthand(identifier) => Some(identifier.sym.clone()), // TODO: Is this valid here?
       KeyValue(key_value) => key_value.key.get_key(),
       Getter(getter) => getter.key.get_key(),
       Setter(setter) => setter.key.get_key(),
