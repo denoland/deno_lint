@@ -49,11 +49,11 @@ impl Visit for NoDupeKeysVisitor {
       }
     }
 
-    if !duplicates.is_empty() {
+    for key in duplicates {
       self.context.add_diagnostic(
         obj_lit.span,
         "noDupeKeys",
-        "Duplicate keys are not allowed",
+        format!("Duplicate key '{}'", key).as_str(),
       );
     }
   }
@@ -126,13 +126,47 @@ var foo = {
       "#,
       json!([{
         "code": "noDupeKeys",
-        "message": "Duplicate keys are not allowed",
+        "message": "Duplicate key 'bar'",
         "location": {
           "filename": "no_dupe_keys",
           "line": 2,
           "col": 10,
         }
       }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_when_there_are_multiple_duplicate_keys() {
+    test_rule(
+      r#"
+var foo = {
+  bar: "baz",
+  bar: "qux",
+  quux: "boom",
+  quux: "bang",
+};
+      "#,
+      json!([
+      {
+        "code": "noDupeKeys",
+        "message": "Duplicate key 'bar'",
+        "location": {
+          "filename": "no_dupe_keys",
+          "line": 2,
+          "col": 10,
+        }
+      },
+      {
+        "code": "noDupeKeys",
+        "message": "Duplicate key 'quux'",
+        "location": {
+          "filename": "no_dupe_keys",
+          "line": 2,
+          "col": 10,
+        }
+      }
+      ]),
     )
   }
 
@@ -147,7 +181,7 @@ var foo = {
       "#,
       json!([{
         "code": "noDupeKeys",
-        "message": "Duplicate keys are not allowed",
+        "message": "Duplicate key 'bar'",
         "location": {
           "filename": "no_dupe_keys",
           "line": 2,
@@ -168,7 +202,7 @@ var foo = {
       "#,
       json!([{
         "code": "noDupeKeys",
-        "message": "Duplicate keys are not allowed",
+        "message": "Duplicate key 'bar'",
         "location": {
           "filename": "no_dupe_keys",
           "line": 2,
@@ -189,7 +223,7 @@ var foo = {
       "#,
       json!([{
         "code": "noDupeKeys",
-        "message": "Duplicate keys are not allowed",
+        "message": "Duplicate key 'bar'",
         "location": {
           "filename": "no_dupe_keys",
           "line": 2,
