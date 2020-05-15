@@ -78,6 +78,31 @@ mod tests {
   use crate::test_util::test_lint;
   use serde_json::json;
 
+  #[test]
+  fn it_passes_using_positive_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x === 0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_passes_using_object_is_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (Object.is(x, -0)) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([]),
+    )
+  }
 
   #[test]
   fn it_fails_using_double_eq_with_neg_zero() {
@@ -232,6 +257,48 @@ if (x > -0) {
       "no_compare_neg_zero",
       r#"
 if (x >= -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_with_neg_zero_as_the_left_operand() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (-0 === x) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_with_floating_point_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x === -0.0) {
 }
      "#,
       vec![NoCompareNegZero::new()],
