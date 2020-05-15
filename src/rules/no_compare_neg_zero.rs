@@ -32,12 +32,8 @@ impl NoCompareNegZeroVisitor {
 impl Visit for NoCompareNegZeroVisitor {
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
     if is_comp_expr(&bin_expr.op) {
-      println!("{:?} is compare expr", bin_expr.op);
-      println!("LeftExpr -> {:?}", bin_expr.left);
-      println!("RightExpr -> {:?}", bin_expr.right);
       let left_neg_zero = is_neg_zero(&*bin_expr.left);
       let right_neg_zero = is_neg_zero(&*bin_expr.right);
-      println!("Left: {:?}. Right: {:?}", left_neg_zero, right_neg_zero);
 
       if left_neg_zero || right_neg_zero {
         self.context.add_diagnostic(
@@ -66,20 +62,9 @@ fn is_comp_expr(binary_op: &BinaryOp) -> bool {
 
 fn is_neg_zero(expr: &Expr) -> bool {
   match expr {
-    Lit(lit) => match lit {
-      Num(number) => {
-        println!("Number: {:?}", number.value);
-        number.value == 0.0 && number.value.is_sign_negative()
-      },
-      _ => false,
-    },
     Unary(unary) => {
-      if let Minus = &unary.op {
-        if let Lit(lit) = &*unary.arg {
-          if let Num(number) = lit {
-            return number.value == 0.0;
-          }
-        }
+      if let (Minus, Lit(Num(number))) = (unary.op, &*unary.arg) {
+        return number.value == 0.0;
       }
       false
     }
@@ -93,12 +78,160 @@ mod tests {
   use crate::test_util::test_lint;
   use serde_json::json;
 
+
+  #[test]
+  fn it_fails_using_double_eq_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x == -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_not_eq_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x != -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
   #[test]
   fn it_fails_using_triple_eq_with_neg_zero() {
     test_lint(
       "no_compare_neg_zero",
       r#"
 if (x === -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_not_double_eq_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x !== -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_less_than_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x < -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_less_than_eq_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x <= -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_greater_than_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x > -0) {
+}
+     "#,
+      vec![NoCompareNegZero::new()],
+      json!([{
+        "code": "noCompareNegZero",
+        "message": "Do not compare against -0",
+        "location": {
+          "filename": "no_compare_neg_zero",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_greater_than_equal_with_neg_zero() {
+    test_lint(
+      "no_compare_neg_zero",
+      r#"
+if (x >= -0) {
 }
      "#,
       vec![NoCompareNegZero::new()],
