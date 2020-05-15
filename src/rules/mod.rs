@@ -40,6 +40,7 @@ mod no_dupe_args;
 pub use no_dupe_args::NoDupeArgs;
 mod no_dupe_keys;
 pub use no_dupe_keys::NoDupeKeys;
+mod no_empty;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
