@@ -1,9 +1,10 @@
 use super::{Context, LintRule};
-use swc_ecma_ast::{Module, BinaryOp, BinExpr, Expr};
 use swc_ecma_ast::BinaryOp::*;
 use swc_ecma_ast::Expr::{Lit, Unary};
 use swc_ecma_ast::Lit::Num;
+use swc_ecma_ast::UnaryExpr;
 use swc_ecma_ast::UnaryOp::Minus;
+use swc_ecma_ast::{BinExpr, BinaryOp, Expr, Module};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoCompareNegZero;
@@ -31,44 +32,56 @@ impl NoCompareNegZeroVisitor {
 
 impl Visit for NoCompareNegZeroVisitor {
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    if is_comp_expr(&bin_expr.op) {
-      let left_neg_zero = is_neg_zero(&*bin_expr.left);
-      let right_neg_zero = is_neg_zero(&*bin_expr.right);
+    // if !is_comp_expr(&bin_expr.op) {
+    if !bin_expr.op.is_comparator() {
+      return;
+    }
 
-      if left_neg_zero || right_neg_zero {
-        self.context.add_diagnostic(
-          bin_expr.span,
-          "noCompareNegZero",
-          format!("Do not compare against -0").as_str(),
-        );
-      }
+    let left_neg_zero = bin_expr.left.is_neg_zero();
+    let right_neg_zero = bin_expr.right.is_neg_zero();
+
+    if left_neg_zero || right_neg_zero {
+      self.context.add_diagnostic(
+        bin_expr.span,
+        "noCompareNegZero",
+        format!("Do not compare against -0").as_str(),
+      );
     }
   }
 }
 
-fn is_comp_expr(binary_op: &BinaryOp) -> bool {
-  match binary_op {
-    EqEq
-    | NotEq
-    | EqEqEq
-    | NotEqEq
-    | Lt
-    | LtEq
-    | Gt
-    | GtEq => true,
-    _ => false,
+trait Comparator {
+  fn is_comparator(&self) -> bool;
+}
+
+impl Comparator for BinaryOp {
+  fn is_comparator(&self) -> bool {
+    match self {
+      EqEq | NotEq | EqEqEq | NotEqEq | Lt | LtEq | Gt | GtEq => true,
+      _ => false,
+    }
   }
 }
 
-fn is_neg_zero(expr: &Expr) -> bool {
-  match expr {
-    Unary(unary) => {
-      if let (Minus, Lit(Num(number))) = (unary.op, &*unary.arg) {
-        return number.value == 0.0;
-      }
-      false
+trait NegZero {
+  fn is_neg_zero(&self) -> bool;
+}
+
+impl NegZero for Expr {
+  fn is_neg_zero(&self) -> bool {
+    match self {
+      Unary(unary) => unary.is_neg_zero(),
+      _ => false,
     }
-    _ => false,
+  }
+}
+
+impl NegZero for UnaryExpr {
+  fn is_neg_zero(&self) -> bool {
+    if let (Minus, Lit(Num(number))) = (self.op, &*self.arg) {
+      return number.value == 0.0;
+    }
+    false
   }
 }
 
