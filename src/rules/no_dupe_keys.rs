@@ -1,12 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::LintRule;
-use crate::rules::Context;
-use swc_ecma_ast::{Module, ObjectLit};
+use super::Context;
+use std::collections::HashSet;
+use swc_atoms::JsWord;
+use swc_ecma_ast::{Module, ObjectLit, PropOrSpread};
+use swc_ecma_ast::PropOrSpread::{Prop as PropVariant, Spread};
+use swc_ecma_ast::Prop;
+use swc_ecma_ast::Prop::*;
+use swc_ecma_ast::PropName;
+use swc_ecma_ast::PropName::*;
 use swc_ecma_visit::{Visit, Node};
-use swc_ecma_ast::PropOrSpread::{Prop,Spread};
-use swc_ecma_ast::Prop::{KeyValue, Shorthand};
-use swc_ecma_ast::PropName::{Ident,Str};
-use std::collections::HashMap;
 
 pub struct NoDupeKeys;
 
@@ -33,42 +36,66 @@ impl NoDupeKeysVisitor {
 
 impl Visit for NoDupeKeysVisitor {
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
-    // let mut count = HashMap::new();
-    for prop in &obj_lit.props {
+    let mut keys: HashSet<JsWord> = HashSet::new();
+    let mut duplicates: HashSet<JsWord> = HashSet::new();
 
-      match prop {
-        Prop(p) => {
-          println!("{:?}", p);
-          match &**p { // Yuck
-            Shorthand(s) => {
-              // s.sym
-            },
-            KeyValue(kv) => {
-              println!("{:?}", kv.key);
-              match &kv.key {
-                Ident(i) => {
-                  println!("{:?}", i.sym);
-                },
-                Str(s) => {
-                  println!("{:?}", s.value);
-                }
-                _ => {}
-              }
-            },
-            _ => {},
-          }
-        },
-        Spread(s) => {
-          println!("Spread: {:?}", s);
-        },
+    for prop in &obj_lit.props {
+      if let Some(key) = prop.get_key() {
+        if keys.contains(&key) {
+          duplicates.insert(key);
+        } else {
+          keys.insert(key);
+        }
       }
     }
 
-    self.context.add_diagnostic(
-      obj_lit.span,
-      "noDupeKeys",
-      "Duplicate keys are not allowed",
-    )
+    println!("Keys: {:?}", keys);
+    println!("Duplicates: {:?}", duplicates);
+
+    if !duplicates.is_empty() {
+      self.context.add_diagnostic(
+        obj_lit.span,
+        "noDupeKeys",
+        "Duplicate keys are not allowed",
+      );
+    }
+  }
+}
+
+trait Keys {
+  fn get_key(&self) -> Option<JsWord>;
+}
+
+impl Keys for PropOrSpread {
+  fn get_key(&self) -> Option<JsWord> {
+    match self {
+      PropVariant(p) => (&**p).get_key(),
+      Spread(_) => None
+    }
+  }
+}
+
+impl Keys for Prop {
+  fn get_key(&self) -> Option<JsWord> {
+    match self {
+      Shorthand(identifier) => Some(identifier.sym.clone()),
+      KeyValue(key_value) => key_value.key.get_key(),
+      Getter(getter) => getter.key.get_key(),
+      Setter(setter) => setter.key.get_key(),
+      Method(method) => method.key.get_key(),
+      Assign(_) => None,
+    }
+  }
+}
+
+impl Keys for PropName {
+  fn get_key(&self) -> Option<JsWord> {
+    match self {
+      Ident(identifier) => Some(identifier.sym.clone()),
+      Str(str) => Some(str.value.clone()),
+      Num(_) => None,
+      Computed(_) => None,
+    }
   }
 }
 
@@ -76,19 +103,30 @@ impl Visit for NoDupeKeysVisitor {
 mod tests {
   use super::*;
   use crate::test_util::test_lint;
-  use serde_json::json;
+  use serde_json::{json, Value};
 
   #[test]
-  fn no_dupe_keys_test() {
-    test_lint(
-      "no_dupe_keys",
+  fn it_passes_when_there_are_no_duplicate_keys() {
+    test_rule(
       r#"
 var foo = {
-    bar: "baz",
-    "bar": "qux"
+  bar: "baz",
+  boo: "bang",
+}
+     "#,
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_fails_when_there_are_duplicate_keys() {
+    test_rule(
+      r#"
+var foo = {
+  bar: "baz",
+  bar: "qux"
 };
       "#,
-      vec!(NoDupeKeys::new()),
       json!([{
         "code": "noDupeKeys",
         "message": "Duplicate keys are not allowed",
@@ -98,6 +136,78 @@ var foo = {
           "col": 10,
         }
       }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_when_there_are_duplicate_string_keys() {
+    test_rule(
+      r#"
+var foo = {
+  bar: "baz",
+  "bar": "qux"
+};
+      "#,
+      json!([{
+        "code": "noDupeKeys",
+        "message": "Duplicate keys are not allowed",
+        "location": {
+          "filename": "no_dupe_keys",
+          "line": 2,
+          "col": 10,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_when_there_are_duplicate_getter_keys() {
+    test_rule(
+      r#"
+var foo = {
+  bar: "baz",
+  get bar() {},
+};
+      "#,
+      json!([{
+        "code": "noDupeKeys",
+        "message": "Duplicate keys are not allowed",
+        "location": {
+          "filename": "no_dupe_keys",
+          "line": 2,
+          "col": 10,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_when_there_are_duplicate_setter_keys() {
+    test_rule(
+      r#"
+var foo = {
+  bar: "baz",
+  set bar() {},
+};
+      "#,
+      json!([{
+        "code": "noDupeKeys",
+        "message": "Duplicate keys are not allowed",
+        "location": {
+          "filename": "no_dupe_keys",
+          "line": 2,
+          "col": 10,
+        }
+      }]),
+    )
+  }
+
+  fn test_rule(source_code: &str, expected_diagnostics: Value) {
+    test_lint(
+      "no_dupe_keys",
+      source_code,
+      vec!(NoDupeKeys::new()),
+      expected_diagnostics,
     )
   }
 }
