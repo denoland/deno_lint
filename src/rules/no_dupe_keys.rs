@@ -59,11 +59,11 @@ impl Visit for NoDupeKeysVisitor {
   }
 }
 
-trait Keys {
+trait Key {
   fn get_key(&self) -> Option<JsWord>;
 }
 
-impl Keys for PropOrSpread {
+impl Key for PropOrSpread {
   fn get_key(&self) -> Option<JsWord> {
     match self {
       PropVariant(p) => (&**p).get_key(),
@@ -72,20 +72,20 @@ impl Keys for PropOrSpread {
   }
 }
 
-impl Keys for Prop {
+impl Key for Prop {
   fn get_key(&self) -> Option<JsWord> {
     match self {
-      Shorthand(identifier) => Some(identifier.sym.clone()), // TODO: Is this valid here?
       KeyValue(key_value) => key_value.key.get_key(),
       Getter(getter) => getter.key.get_key(),
       Setter(setter) => setter.key.get_key(),
       Method(method) => method.key.get_key(),
+      Shorthand(_) => None,
       Assign(_) => None,
     }
   }
 }
 
-impl Keys for PropName {
+impl Key for PropName {
   fn get_key(&self) -> Option<JsWord> {
     match self {
       Ident(identifier) => Some(identifier.sym.clone()),
