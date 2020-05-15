@@ -32,7 +32,6 @@ impl NoCompareNegZeroVisitor {
 
 impl Visit for NoCompareNegZeroVisitor {
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    // if !is_comp_expr(&bin_expr.op) {
     if !bin_expr.op.is_comparator() {
       return;
     }
