@@ -49,9 +49,6 @@ impl Visit for NoDupeKeysVisitor {
       }
     }
 
-    println!("Keys: {:?}", keys);
-    println!("Duplicates: {:?}", duplicates);
-
     if !duplicates.is_empty() {
       self.context.add_diagnostic(
         obj_lit.span,
