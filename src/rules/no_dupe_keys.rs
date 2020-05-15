@@ -90,7 +90,7 @@ impl Keys for PropName {
     match self {
       Ident(identifier) => Some(identifier.sym.clone()),
       Str(str) => Some(str.value.clone()),
-      Num(_) => None,
+      Num(num) => Some(JsWord::from(num.to_string())),
       Computed(_) => None,
     }
   }
@@ -197,6 +197,27 @@ var foo = {
       json!([{
         "code": "noDupeKeys",
         "message": "Duplicate key 'bar'",
+        "location": {
+          "filename": "no_dupe_keys",
+          "line": 2,
+          "col": 10,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_when_there_are_duplicate_numeric_keys() {
+    test_rule(
+      r#"
+var foo = {
+  1: "baz",
+  0x1: "qux"
+};
+      "#,
+      json!([{
+        "code": "noDupeKeys",
+        "message": "Duplicate key '1'",
         "location": {
           "filename": "no_dupe_keys",
           "line": 2,
