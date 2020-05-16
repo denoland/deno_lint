@@ -30,36 +30,23 @@ impl NoUnsafeFinallyVisitor {
 impl Visit for NoUnsafeFinallyVisitor {
   fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
+
+      // Convenience function for providing different diagnostic message
+      // depending on statement type
+      let add_diagnostic = |stmt_type: &str| {
+        self.context.add_diagnostic(
+          finally_block.span,
+          "noUnsafeFinally",
+          format!("Unsafe usage of {}", stmt_type).as_str(),
+        );
+      };
+
       for stmt in &finally_block.stmts {
         match stmt {
-          Break(_) => {
-            self.context.add_diagnostic(
-              finally_block.span,
-              "noUnsafeFinally",
-              "Unsafe usage of BreakStatement",
-            );
-          },
-          Continue(_) => {
-            self.context.add_diagnostic(
-              finally_block.span,
-              "noUnsafeFinally",
-              "Unsafe usage of ContinueStatement",
-            );
-          },
-          Return(_) => {
-            self.context.add_diagnostic(
-              finally_block.span,
-              "noUnsafeFinally",
-              "Unsafe usage of ReturnStatement",
-            );
-          },
-          Throw(_) => {
-            self.context.add_diagnostic(
-              finally_block.span,
-              "noUnsafeFinally",
-              "Unsafe usage of ThrowStatement",
-            );
-          },
+          Break(_) => add_diagnostic("BreakStatement"),
+          Continue(_) => add_diagnostic("ContinueStatement"),
+          Return(_) => add_diagnostic("ReturnStatement"),
+          Throw(_) => add_diagnostic("ThrowStatement"),
           _ => {},
         }
       }
