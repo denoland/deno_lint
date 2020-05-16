@@ -94,6 +94,109 @@ let foo = function() {
   }
 
   #[test]
+  fn it_passes_for_a_return_within_a_function_in_a_finally_block() {
+    test_lint(
+      "no_unsafe_finally",
+      r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    let a = function() {
+      return "hola!";
+    }
+  }
+};
+     "#,
+      vec![NoUnsafeFinally::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_passes_for_a_break_within_a_switch_in_a_finally_block() {
+    test_lint(
+      "no_unsafe_finally",
+      r#"
+let foo = function(a) {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    switch(a) {
+      case 1: {
+        console.log("hola!")
+        break;
+      }
+    }
+  }
+};
+     "#,
+      vec![NoUnsafeFinally::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_a_break_in_a_finally_block() {
+    test_lint(
+      "no_unsafe_finally",
+      r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    break;
+  }
+};
+     "#,
+      vec![NoUnsafeFinally::new()],
+      json!([{
+        "code": "noUnsafeFinally",
+        "message": "Unsafe usage of BreakStatement",
+        "location": {
+          "filename": "no_unsafe_finally",
+          "line": 7,
+          "col": 12,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_a_continue_in_a_finally_block() {
+    test_lint(
+      "no_unsafe_finally",
+      r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    continue;
+  }
+};
+     "#,
+      vec![NoUnsafeFinally::new()],
+      json!([{
+        "code": "noUnsafeFinally",
+        "message": "Unsafe usage of ContinueStatement",
+        "location": {
+          "filename": "no_unsafe_finally",
+          "line": 7,
+          "col": 12,
+        }
+      }]),
+    )
+  }
+
+  #[test]
   fn it_fails_for_a_return_in_a_finally_block() {
     test_lint(
       "no_unsafe_finally",
@@ -112,6 +215,34 @@ let foo = function() {
       json!([{
         "code": "noUnsafeFinally",
         "message": "Unsafe usage of ReturnStatement",
+        "location": {
+          "filename": "no_unsafe_finally",
+          "line": 7,
+          "col": 12,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_a_throw_in_a_finally_block() {
+    test_lint(
+      "no_unsafe_finally",
+      r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    throw new Error;
+  }
+};
+     "#,
+      vec![NoUnsafeFinally::new()],
+      json!([{
+        "code": "noUnsafeFinally",
+        "message": "Unsafe usage of ThrowStatement",
         "location": {
           "filename": "no_unsafe_finally",
           "line": 7,
