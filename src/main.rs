@@ -45,6 +45,7 @@ fn main() {
       rules::BanUntaggedTodo::new(),
       rules::Eqeqeq::new(),
       rules::NoDupeKeys::new(),
+      rules::NoCompareNegZero::new(),
     ];
 
     let file_diagnostics = linter
