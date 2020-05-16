@@ -38,6 +38,8 @@ mod no_duplicate_case;
 pub use no_duplicate_case::NoDuplicateCase;
 mod no_dupe_args;
 pub use no_dupe_args::NoDupeArgs;
+mod eqeqeq;
+pub use eqeqeq::Eqeqeq;
 mod no_dupe_keys;
 pub use no_dupe_keys::NoDupeKeys;
 
