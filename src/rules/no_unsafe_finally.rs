@@ -1,7 +1,7 @@
 use super::{Context, LintRule};
-use swc_ecma_ast::{Module};
+use swc_ecma_ast::Module;
+use swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecma_ast::TryStmt;
-use swc_ecma_ast::Stmt::{Break, Continue,Return, Throw};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoUnsafeFinally;
@@ -30,7 +30,6 @@ impl NoUnsafeFinallyVisitor {
 impl Visit for NoUnsafeFinallyVisitor {
   fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
-
       // Convenience function for providing different diagnostic message
       // depending on statement type
       let add_diagnostic = |stmt_type: &str| {
@@ -47,7 +46,7 @@ impl Visit for NoUnsafeFinallyVisitor {
           Continue(_) => add_diagnostic("Continue"),
           Return(_) => add_diagnostic("Return"),
           Throw(_) => add_diagnostic("Throw"),
-          _ => {},
+          _ => {}
         }
       }
     }
