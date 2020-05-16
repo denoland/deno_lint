@@ -36,10 +36,7 @@ impl Visit for NoCompareNegZeroVisitor {
       return;
     }
 
-    let left_neg_zero = bin_expr.left.is_neg_zero();
-    let right_neg_zero = bin_expr.right.is_neg_zero();
-
-    if left_neg_zero || right_neg_zero {
+    if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
       self.context.add_diagnostic(
         bin_expr.span,
         "noCompareNegZero",
