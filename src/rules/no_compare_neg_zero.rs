@@ -40,7 +40,7 @@ impl Visit for NoCompareNegZeroVisitor {
       self.context.add_diagnostic(
         bin_expr.span,
         "noCompareNegZero",
-        format!("Do not compare against -0").as_str(),
+        "Do not compare against -0",
       );
     }
   }
