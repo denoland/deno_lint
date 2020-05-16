@@ -42,6 +42,10 @@ mod getter_return;
 pub use getter_return::GetterReturn;
 mod no_setter_return;
 pub use no_setter_return::NoSetterReturn;
+mod eqeqeq;
+pub use eqeqeq::Eqeqeq;
+mod no_dupe_keys;
+pub use no_dupe_keys::NoDupeKeys;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
