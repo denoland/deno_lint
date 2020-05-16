@@ -37,16 +37,16 @@ impl Visit for NoUnsafeFinallyVisitor {
         self.context.add_diagnostic(
           finally_block.span,
           "noUnsafeFinally",
-          format!("Unsafe usage of {}", stmt_type).as_str(),
+          format!("Unsafe usage of {}Statement", stmt_type).as_str(),
         );
       };
 
       for stmt in &finally_block.stmts {
         match stmt {
-          Break(_) => add_diagnostic("BreakStatement"),
-          Continue(_) => add_diagnostic("ContinueStatement"),
-          Return(_) => add_diagnostic("ReturnStatement"),
-          Throw(_) => add_diagnostic("ThrowStatement"),
+          Break(_) => add_diagnostic("Break"),
+          Continue(_) => add_diagnostic("Continue"),
+          Return(_) => add_diagnostic("Return"),
+          Throw(_) => add_diagnostic("Throw"),
           _ => {},
         }
       }
