@@ -45,6 +45,7 @@ pub use no_dupe_keys::NoDupeKeys;
 mod no_compare_neg_zero;
 pub use no_compare_neg_zero::NoCompareNegZero;
 mod no_unsafe_finally;
+pub use no_unsafe_finally::NoUnsafeFinally;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
