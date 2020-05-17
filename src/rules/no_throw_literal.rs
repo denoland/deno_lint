@@ -71,6 +71,51 @@ mod tests {
         }
       }]),
     );
+
+    test_lint(
+      "no_throw_literal",
+      "throw true",
+      vec![NoThrowLiteral::new()],
+      json!([{
+        "code": "noThrowLiteral",
+        "message": "expected an error object to be thrown",
+        "location": {
+          "filename": "no_throw_literal",
+          "line": 1,
+          "col": 0
+        }
+      }]),
+    );
+
+    test_lint(
+      "no_throw_literal",
+      "throw 1096",
+      vec![NoThrowLiteral::new()],
+      json!([{
+        "code": "noThrowLiteral",
+        "message": "expected an error object to be thrown",
+        "location": {
+          "filename": "no_throw_literal",
+          "line": 1,
+          "col": 0
+        }
+      }]),
+    );
+
+    test_lint(
+      "no_throw_literal",
+      "throw null",
+      vec![NoThrowLiteral::new()],
+      json!([{
+        "code": "noThrowLiteral",
+        "message": "expected an error object to be thrown",
+        "location": {
+          "filename": "no_throw_literal",
+          "line": 1,
+          "col": 0
+        }
+      }]),
+    );
   }
 
   #[test]
