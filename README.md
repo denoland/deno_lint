@@ -19,6 +19,7 @@ Very much work-in-progress
 - `noEval`
 - `noExplicitAny`
 - `noSparseArray`
+- `noThrowLiteral`
 - `noVar`
 - `singleVarDeclarator`
 - `useIsNaN`
