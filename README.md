@@ -7,6 +7,7 @@ Very much work-in-progress
 
 - `banTsIgnore`
 - `banUntaggedTodo`
+- `defaultParamLast`
 - `eqeqeq`
 - `explicitFunctionReturnType`
 - `noAsyncPromiseExecutor`
