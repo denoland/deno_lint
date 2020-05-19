@@ -3,7 +3,7 @@ use swc_ecma_ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecma_ast::Expr::{Lit, Unary};
 use swc_ecma_ast::Lit::Str;
 use swc_ecma_ast::UnaryOp::TypeOf;
-use swc_ecma_ast::{BinExpr, BinaryOp, Module};
+use swc_ecma_ast::{BinExpr, Module};
 use swc_ecma_visit::{Node, Visit};
 pub struct ValidTypeof;
 
@@ -30,7 +30,7 @@ impl ValidTypeofVisitor {
 
 impl Visit for ValidTypeofVisitor {
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    if !bin_expr.op.is_eq_expr() {
+    if !bin_expr.is_eq_expr() {
       return;
     }
 
@@ -63,9 +63,9 @@ trait EqExpr {
   fn is_eq_expr(&self) -> bool;
 }
 
-impl EqExpr for BinaryOp {
+impl EqExpr for BinExpr {
   fn is_eq_expr(&self) -> bool {
-    match self {
+    match self.op {
       EqEq | NotEq | EqEqEq | NotEqEq => true,
       _ => false,
     }
