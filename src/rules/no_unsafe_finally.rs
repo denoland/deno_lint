@@ -1,3 +1,4 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_ecma_ast::Module;
 use swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};

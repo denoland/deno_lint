@@ -1,3 +1,4 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_ecma_ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecma_ast::Expr::{Lit, Unary};
