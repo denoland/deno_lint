@@ -49,6 +49,7 @@ fn main() {
       rules::NoDupeKeys::new(),
       rules::NoCompareNegZero::new(),
       rules::NoUnsafeFinally::new(),
+      rules::ValidTypeof::new(),
     ];
 
     let file_diagnostics = linter

@@ -51,6 +51,7 @@ pub use no_compare_neg_zero::NoCompareNegZero;
 mod no_unsafe_finally;
 pub use no_unsafe_finally::NoUnsafeFinally;
 mod valid_typeof;
+pub use valid_typeof::ValidTypeof;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
