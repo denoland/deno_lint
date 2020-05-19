@@ -1,9 +1,9 @@
 use super::{Context, LintRule};
-use swc_ecma_ast::BinaryOp::*;
+use swc_ecma_ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecma_ast::Expr::{Lit, Unary};
 use swc_ecma_ast::Lit::Str;
-use swc_ecma_ast::UnaryOp::{Minus, TypeOf};
-use swc_ecma_ast::{BinExpr, BinaryOp, Module, UnaryExpr};
+use swc_ecma_ast::UnaryOp::TypeOf;
+use swc_ecma_ast::{BinExpr, BinaryOp, Module};
 use swc_ecma_visit::{Node, Visit};
 pub struct ValidTypeof;
 
@@ -30,7 +30,7 @@ impl ValidTypeofVisitor {
 
 impl Visit for ValidTypeofVisitor {
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    if !bin_expr.op.is_comparator() {
+    if !bin_expr.op.is_eq_expr() {
       return;
     }
 
@@ -59,26 +59,16 @@ fn is_valid_typeof_string(str: &str) -> bool {
   }
 }
 
-trait Comparator {
-  fn is_comparator(&self) -> bool;
+trait EqExpr {
+  fn is_eq_expr(&self) -> bool;
 }
 
-impl Comparator for BinaryOp {
-  fn is_comparator(&self) -> bool {
+impl EqExpr for BinaryOp {
+  fn is_eq_expr(&self) -> bool {
     match self {
-      EqEq | NotEq | EqEqEq | NotEqEq | Lt | LtEq | Gt | GtEq => true,
+      EqEq | NotEq | EqEqEq | NotEqEq => true,
       _ => false,
     }
-  }
-}
-
-trait TypeOfExpr {
-  fn is_typeof_expr(&self) -> bool;
-}
-
-impl TypeOfExpr for UnaryExpr {
-  fn is_typeof_expr(&self) -> bool {
-    self.op == TypeOf
   }
 }
 
@@ -106,7 +96,19 @@ typeof bar == "undefined"
     test_lint(
       "valid_typeof",
       r#"
-typeof foo === baz
+typeof foo === undefined
+typeof bar == Object
+     "#,
+      vec![ValidTypeof::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_passes_not_two_typeof_operations() {
+    test_lint(
+      "valid_typeof",
+      r#"
 typeof bar === typeof qux
      "#,
       vec![ValidTypeof::new()],
