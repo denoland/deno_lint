@@ -19,7 +19,9 @@ Very much work-in-progress
 - `noEmptyInterface`
 - `noEval`
 - `noExplicitAny`
+- `noNewSymbol`
 - `noSparseArray`
+- `noThrowLiteral`
 - `noVar`
 - `singleVarDeclarator`
 - `useIsNaN`
