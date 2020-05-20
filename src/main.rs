@@ -49,6 +49,7 @@ fn main() {
       rules::NoDupeKeys::new(),
       rules::NoCompareNegZero::new(),
       rules::NoUnsafeFinally::new(),
+      rules::NoNewSymbol::new(),
       rules::DefaultParamLast::new(),
     ];
 
