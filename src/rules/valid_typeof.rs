@@ -1,5 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use swc_common::Spanned;
 use swc_ecma_ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecma_ast::Expr::{Lit, Unary};
 use swc_ecma_ast::Lit::Str;
@@ -53,7 +54,7 @@ impl Visit for ValidTypeofVisitor {
           }
           _ => {
             self.context.add_diagnostic(
-              bin_expr.span,
+              operand.span(),
               "validTypeof",
               "Invalid typeof comparison value",
             );
@@ -186,7 +187,7 @@ typeof baz === anotherVariable
           "location": {
             "filename": "valid_typeof",
             "line": 2,
-            "col": 0,
+            "col": 15,
           }
         },
         {
@@ -195,7 +196,7 @@ typeof baz === anotherVariable
           "location": {
             "filename": "valid_typeof",
             "line": 3,
-            "col": 0,
+            "col": 14,
           }
         },
         {
@@ -204,7 +205,7 @@ typeof baz === anotherVariable
           "location": {
             "filename": "valid_typeof",
             "line": 4,
-            "col": 0,
+            "col": 15,
           }
         }
       ]),
