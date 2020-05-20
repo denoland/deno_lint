@@ -36,15 +36,18 @@ impl Visit for ValidTypeofVisitor {
     }
 
     match (&*bin_expr.left, &*bin_expr.right) {
-      (Unary(unary), Lit(Str(str))) | (Lit(Str(str)), Unary(unary))
+      (Unary(unary), operand @ _) | (operand @ _, Unary(unary))
         if unary.op == TypeOf =>
       {
-        if !is_valid_typeof_string(&str.value.to_string()) {
-          self.context.add_diagnostic(
-            bin_expr.span,
-            "validTypeof",
-            "Invalid typeof comparison value",
-          );
+        match operand {
+          Lit(Str(str)) if !is_valid_typeof_string(&str.value.to_string()) => {
+            self.context.add_diagnostic(
+              str.span,
+              "validTypeof",
+              "Invalid typeof comparison value",
+            );
+          }
+          _ => {}
         }
       }
       _ => {}
@@ -135,7 +138,7 @@ typeof bar !== "fucntion"
           "location": {
             "filename": "valid_typeof",
             "line": 2,
-            "col": 0,
+            "col": 15,
           }
         },
         {
@@ -144,7 +147,7 @@ typeof bar !== "fucntion"
           "location": {
             "filename": "valid_typeof",
             "line": 3,
-            "col": 0,
+            "col": 14,
           }
         },
         {
@@ -153,7 +156,7 @@ typeof bar !== "fucntion"
           "location": {
             "filename": "valid_typeof",
             "line": 4,
-            "col": 0,
+            "col": 14,
           }
         },
         {
@@ -162,7 +165,7 @@ typeof bar !== "fucntion"
           "location": {
             "filename": "valid_typeof",
             "line": 5,
-            "col": 0,
+            "col": 15,
           }
         },
       ]),
