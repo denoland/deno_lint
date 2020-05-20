@@ -143,7 +143,7 @@ impl Linter {
 
     let comment_text = comment.text.trim();
 
-    let codes: Vec<String> = if comment_text.starts_with("deno:ignore") {
+    let codes: Vec<String> = if comment_text.starts_with("deno-lint-ignore") {
       comment_text
         .split(' ')
         .map(|e| e.to_string())
