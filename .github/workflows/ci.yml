@@ -25,6 +25,12 @@ jobs:
           rustup component add clippy
           rustup component add rustfmt
 
+      - name: Cache
+        uses: actions/cache@v1
+        with:
+          path: target/
+          key: ${{ matrix.config.os }}-${{ hashFiles('Cargo.lock') }}
+
       - name: Environment
         run: |
           echo ::set-env name=GH_ACTIONS::1
