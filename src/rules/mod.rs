@@ -50,6 +50,8 @@ mod no_compare_neg_zero;
 pub use no_compare_neg_zero::NoCompareNegZero;
 mod no_unsafe_finally;
 pub use no_unsafe_finally::NoUnsafeFinally;
+mod default_param_last;
+pub use default_param_last::DefaultParamLast;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
