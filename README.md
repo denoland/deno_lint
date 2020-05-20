@@ -7,6 +7,7 @@ Very much work-in-progress
 
 - `banTsIgnore`
 - `banUntaggedTodo`
+- `defaultParamLast`
 - `eqeqeq`
 - `explicitFunctionReturnType`
 - `noAsyncPromiseExecutor`
@@ -29,12 +30,12 @@ Very much work-in-progress
 Only single line ignores are supported:
 
 ```ts
-// deno:ignore noExplicitAny
+// deno-lint-ignore noExplicitAny
 function foo(): any {
   // ...
 }
 
-// deno:ignore noExplicitAny explicitFunctionReturnType
+// deno-lint-ignore noExplicitAny explicitFunctionReturnType
 function bar(a: any) {
   // ...
 }

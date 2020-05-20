@@ -52,6 +52,8 @@ mod no_unsafe_finally;
 pub use no_unsafe_finally::NoUnsafeFinally;
 mod no_new_symbol;
 pub use no_new_symbol::NoNewSymbol;
+mod default_param_last;
+pub use default_param_last::DefaultParamLast;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
