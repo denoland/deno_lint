@@ -41,7 +41,7 @@ impl Visit for ValidTypeofVisitor {
         if unary.op == TypeOf =>
       {
         match operand {
-          Lit(Str(str)) if !is_valid_typeof_string(&str.value.to_string()) => {
+          Lit(Str(str)) if !is_valid_typeof_string(&str.value) => {
             self.context.add_diagnostic(
               str.span,
               "validTypeof",
