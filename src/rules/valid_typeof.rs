@@ -41,14 +41,23 @@ impl Visit for ValidTypeofVisitor {
         if unary.op == TypeOf =>
       {
         match operand {
-          Lit(Str(str)) if !is_valid_typeof_string(&str.value) => {
+          Unary(unary) if unary.op == TypeOf => {}
+          Lit(Str(str)) => {
+            if !is_valid_typeof_string(&str.value) {
+              self.context.add_diagnostic(
+                str.span,
+                "validTypeof",
+                "Invalid typeof comparison value",
+              );
+            }
+          }
+          _ => {
             self.context.add_diagnostic(
-              str.span,
+              bin_expr.span,
               "validTypeof",
               "Invalid typeof comparison value",
             );
           }
-          _ => {}
         }
       }
       _ => {}
@@ -97,20 +106,7 @@ typeof bar == "undefined"
   }
 
   #[test]
-  fn it_passes_not_using_strings() {
-    test_lint(
-      "valid_typeof",
-      r#"
-typeof foo === undefined
-typeof bar == Object
-     "#,
-      vec![ValidTypeof::new()],
-      json!([]),
-    )
-  }
-
-  #[test]
-  fn it_passes_not_two_typeof_operations() {
+  fn it_passes_using_two_typeof_operations() {
     test_lint(
       "valid_typeof",
       r#"
@@ -169,6 +165,48 @@ typeof bar !== "fucntion"
             "col": 15,
           }
         },
+      ]),
+    )
+  }
+
+  #[test]
+  fn it_fails_not_using_strings() {
+    test_lint(
+      "valid_typeof",
+      r#"
+typeof foo === undefined
+typeof bar == Object
+typeof baz === anotherVariable
+     "#,
+      vec![ValidTypeof::new()],
+      json!([
+        {
+          "code": "validTypeof",
+          "message": "Invalid typeof comparison value",
+          "location": {
+            "filename": "valid_typeof",
+            "line": 2,
+            "col": 0,
+          }
+        },
+        {
+          "code": "validTypeof",
+          "message": "Invalid typeof comparison value",
+          "location": {
+            "filename": "valid_typeof",
+            "line": 3,
+            "col": 0,
+          }
+        },
+        {
+          "code": "validTypeof",
+          "message": "Invalid typeof comparison value",
+          "location": {
+            "filename": "valid_typeof",
+            "line": 4,
+            "col": 0,
+          }
+        }
       ]),
     )
   }
