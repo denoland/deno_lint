@@ -50,6 +50,8 @@ mod no_compare_neg_zero;
 pub use no_compare_neg_zero::NoCompareNegZero;
 mod no_unsafe_finally;
 pub use no_unsafe_finally::NoUnsafeFinally;
+mod no_throw_literal;
+pub use no_throw_literal::NoThrowLiteral;
 mod no_new_symbol;
 pub use no_new_symbol::NoNewSymbol;
 mod default_param_last;

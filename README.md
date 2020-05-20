@@ -21,6 +21,7 @@ Very much work-in-progress
 - `noExplicitAny`
 - `noNewSymbol`
 - `noSparseArray`
+- `noThrowLiteral`
 - `noVar`
 - `singleVarDeclarator`
 - `useIsNaN`
