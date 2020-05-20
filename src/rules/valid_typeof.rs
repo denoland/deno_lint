@@ -6,6 +6,7 @@ use swc_ecma_ast::Lit::Str;
 use swc_ecma_ast::UnaryOp::TypeOf;
 use swc_ecma_ast::{BinExpr, Module};
 use swc_ecma_visit::{Node, Visit};
+
 pub struct ValidTypeof;
 
 impl LintRule for ValidTypeof {
