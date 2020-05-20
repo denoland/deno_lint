@@ -50,6 +50,7 @@ fn main() {
       rules::NoCompareNegZero::new(),
       rules::NoUnsafeFinally::new(),
       rules::ValidTypeof::new(),
+      rules::DefaultParamLast::new(),
     ];
 
     let file_diagnostics = linter
