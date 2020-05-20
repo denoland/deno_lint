@@ -37,7 +37,7 @@ impl Visit for ValidTypeofVisitor {
     }
 
     match (&*bin_expr.left, &*bin_expr.right) {
-      (Unary(unary), operand @ _) | (operand @ _, Unary(unary))
+      (Unary(unary), operand) | (operand, Unary(unary))
         if unary.op == TypeOf =>
       {
         match operand {
