@@ -58,6 +58,7 @@ mod no_new_symbol;
 pub use no_new_symbol::NoNewSymbol;
 mod default_param_last;
 pub use default_param_last::DefaultParamLast;
+mod no_cond_assign;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
