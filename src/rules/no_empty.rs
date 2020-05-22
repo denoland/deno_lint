@@ -1,5 +1,6 @@
-use super::{LintRule, Context};
-use swc_ecma_ast::{Module, BlockStmt};
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use super::{Context, LintRule};
+use swc_ecma_ast::{BlockStmt, Module};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;
@@ -54,7 +55,7 @@ if (foo) {
 }
       "#,
       vec![NoEmpty::new()],
-      json!([])
+      json!([]),
     )
   }
 
@@ -68,7 +69,7 @@ if (foo) {
 }
       "#,
       vec![NoEmpty::new()],
-      json!([])
+      json!([]),
     )
   }
 
@@ -89,7 +90,7 @@ if (foo) {
           "line": 2,
           "col": 9,
         }
-      }])
+      }]),
     )
   }
 }
