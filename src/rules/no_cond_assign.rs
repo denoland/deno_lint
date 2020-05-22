@@ -1,3 +1,4 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Span;
 use swc_ecma_ast::Expr::Assign;
