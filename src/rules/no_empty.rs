@@ -28,14 +28,29 @@ impl NoEmptyVisitor {
 
 impl Visit for NoEmptyVisitor {
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
-    println!("{:?}", block_stmt.stmts);
-    if block_stmt.stmts.is_empty() {
+    if block_stmt.stmts.is_empty()
+      && !block_stmt.contains_comments(&self.context)
+    {
       self.context.add_diagnostic(
         block_stmt.span,
         "noEmpty",
         "Empty block statement",
       );
     }
+  }
+}
+
+trait ContainsComments {
+  fn contains_comments(&self, context: &Context) -> bool;
+}
+
+impl ContainsComments for BlockStmt {
+  fn contains_comments(&self, context: &Context) -> bool {
+    context
+      .leading_comments
+      .iter()
+      .flat_map(|r| r.value().clone())
+      .any(|comment| self.span.contains(comment.span))
   }
 }
 
@@ -88,6 +103,28 @@ if (foo) {
         "location": {
           "filename": "no_empty",
           "line": 2,
+          "col": 9,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_block_with_preceding_comments() {
+    test_lint(
+      "no_empty",
+      r#"
+// This is an empty block
+if (foo) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 3,
           "col": 9,
         }
       }]),
