@@ -11,9 +11,12 @@ Very much work-in-progress
 - `eqeqeq`
 - `explicitFunctionReturnType`
 - `noAsyncPromiseExecutor`
+- `noCompareNegZero`
+- `noCondAssign`
 - `noDebugger`
 - `noDeleteVar`
 - `noDupeArgs`
+- `noDupeKeys`
 - `noDuplicateCase`
 - `noEmptyFunction`
 - `noEmptyInterface`
@@ -22,9 +25,11 @@ Very much work-in-progress
 - `noNewSymbol`
 - `noSparseArray`
 - `noThrowLiteral`
+- `noUnsafeFinally`
 - `noVar`
 - `singleVarDeclarator`
 - `useIsNaN`
+- `validTypeof`
 
 ## Ignores
 
