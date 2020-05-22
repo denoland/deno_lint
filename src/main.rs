@@ -53,6 +53,7 @@ fn main() {
       rules::NoThrowLiteral::new(),
       rules::NoNewSymbol::new(),
       rules::DefaultParamLast::new(),
+      rules::NoEmpty::new(),
     ];
 
     let file_diagnostics = linter
