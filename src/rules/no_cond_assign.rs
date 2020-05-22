@@ -63,3 +63,107 @@ impl Visit for NoCondAssignVisitor {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::test_lint;
+  use serde_json::json;
+
+  #[test]
+  fn it_passes_using_equality_operator() {
+    test_lint(
+      "no_cond_assign",
+      r#"
+if (x === 0) {
+}
+     "#,
+      vec![NoCondAssign::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_assignment_in_if_stmt() {
+    test_lint(
+      "no_cond_assign",
+      r#"
+if (x = 0) {
+}
+      "#,
+      vec![NoCondAssign::new()],
+      json!([{
+        "code": "noCondAssign",
+        "message": "Expected a conditional expression and instead saw an assignment",
+        "location": {
+          "filename": "no_cond_assign",
+          "line": 2,
+          "col": 4,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_assignment_in_while_stmt() {
+    test_lint(
+      "no_cond_assign",
+      r#"
+while (x = 0) {
+}
+      "#,
+      vec![NoCondAssign::new()],
+      json!([{
+        "code": "noCondAssign",
+        "message": "Expected a conditional expression and instead saw an assignment",
+        "location": {
+          "filename": "no_cond_assign",
+          "line": 2,
+          "col": 7,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_assignment_in_do_while_stmt() {
+    test_lint(
+      "no_cond_assign",
+      r#"
+do {
+} while (x = 0);
+      "#,
+      vec![NoCondAssign::new()],
+      json!([{
+        "code": "noCondAssign",
+        "message": "Expected a conditional expression and instead saw an assignment",
+        "location": {
+          "filename": "no_cond_assign",
+          "line": 3,
+          "col": 9,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_using_assignment_in_for_stmt() {
+    test_lint(
+      "no_cond_assign",
+      r#"
+for (let i = 0; i = 10; i++) {
+}
+      "#,
+      vec![NoCondAssign::new()],
+      json!([{
+        "code": "noCondAssign",
+        "message": "Expected a conditional expression and instead saw an assignment",
+        "location": {
+          "filename": "no_cond_assign",
+          "line": 2,
+          "col": 16,
+        }
+      }]),
+    )
+  }
+}
