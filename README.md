@@ -15,6 +15,7 @@ Very much work-in-progress
 - `noDeleteVar`
 - `noDupeArgs`
 - `noDuplicateCase`
+- `noEmpty`
 - `noEmptyFunction`
 - `noEmptyInterface`
 - `noEval`
