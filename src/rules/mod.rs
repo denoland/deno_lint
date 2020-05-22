@@ -38,8 +38,26 @@ mod no_duplicate_case;
 pub use no_duplicate_case::NoDuplicateCase;
 mod no_dupe_args;
 pub use no_dupe_args::NoDupeArgs;
+mod getter_return;
+pub use getter_return::GetterReturn;
+mod no_setter_return;
+pub use no_setter_return::NoSetterReturn;
+mod eqeqeq;
+pub use eqeqeq::Eqeqeq;
 mod no_dupe_keys;
 pub use no_dupe_keys::NoDupeKeys;
+mod no_compare_neg_zero;
+pub use no_compare_neg_zero::NoCompareNegZero;
+mod no_unsafe_finally;
+pub use no_unsafe_finally::NoUnsafeFinally;
+mod valid_typeof;
+pub use valid_typeof::ValidTypeof;
+mod no_throw_literal;
+pub use no_throw_literal::NoThrowLiteral;
+mod no_new_symbol;
+pub use no_new_symbol::NoNewSymbol;
+mod default_param_last;
+pub use default_param_last::DefaultParamLast;
 mod no_empty;
 
 #[derive(Debug, Clone, Serialize)]

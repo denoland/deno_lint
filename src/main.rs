@@ -43,7 +43,16 @@ fn main() {
       rules::NoDupeArgs::new(),
       rules::BanTsIgnore::new(),
       rules::BanUntaggedTodo::new(),
+      rules::GetterReturn::new(),
+      rules::NoSetterReturn::new(),
+      rules::Eqeqeq::new(),
       rules::NoDupeKeys::new(),
+      rules::NoCompareNegZero::new(),
+      rules::NoUnsafeFinally::new(),
+      rules::ValidTypeof::new(),
+      rules::NoThrowLiteral::new(),
+      rules::NoNewSymbol::new(),
+      rules::DefaultParamLast::new(),
     ];
 
     let file_diagnostics = linter
