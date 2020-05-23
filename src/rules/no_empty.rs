@@ -311,4 +311,27 @@ try {
       }]),
     )
   }
+
+  #[test]
+  fn it_fails_for_a_nested_empty_block() {
+    test_lint(
+      "no_empty",
+      r#"
+if (foo) {
+  if (bar) {
+  }
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 3,
+          "col": 11,
+        }
+      }]),
+    )
+  }
 }
