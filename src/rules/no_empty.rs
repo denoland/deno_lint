@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{BlockStmt, Module};
+use swc_ecma_ast::{BlockStmt, Module, SwitchStmt};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;
@@ -35,6 +35,16 @@ impl Visit for NoEmptyVisitor {
         block_stmt.span,
         "noEmpty",
         "Empty block statement",
+      );
+    }
+  }
+
+  fn visit_switch_stmt(&mut self, switch: &SwitchStmt, _parent: &dyn Node) {
+    if switch.cases.is_empty() {
+      self.context.add_diagnostic(
+        switch.span,
+        "noEmpty",
+        "Empty switch statement",
       );
     }
   }
@@ -89,7 +99,22 @@ if (foo) {
   }
 
   #[test]
-  fn it_fails_for_an_empty_block() {
+  fn it_passes_for_a_non_empty_switch_block() {
+    test_lint(
+      "no_empty",
+      r#"
+switch (foo) {
+  case bar:
+    break;
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_if_block() {
     test_lint(
       "no_empty",
       r#"
@@ -126,6 +151,162 @@ if (foo) {
           "filename": "no_empty",
           "line": 3,
           "col": 9,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_while_block() {
+    test_lint(
+      "no_empty",
+      r#"
+while (foo) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 12,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_do_while_block() {
+    test_lint(
+      "no_empty",
+      r#"
+do {
+} while (foo);
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 3,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_for_block() {
+    test_lint(
+      "no_empty",
+      r#"
+for(;;) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 8,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_switch_block() {
+    test_lint(
+      "no_empty",
+      r#"
+switch (foo) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty switch statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 0,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_try_catch_block() {
+    test_lint(
+      "no_empty",
+      r#"
+try {
+} catch (err) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 4,
+        }
+      },
+      {
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 3,
+          "col": 14,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_try_catch_finally_block() {
+    test_lint(
+      "no_empty",
+      r#"
+try {
+} catch (err) {
+} finally {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 4,
+        }
+      },
+      {
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 3,
+          "col": 14,
+        }
+      },
+      {
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 4,
+          "col": 10,
         }
       }]),
     )
