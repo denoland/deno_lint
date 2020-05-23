@@ -85,6 +85,19 @@ if (x === 0) {
   }
 
   #[test]
+  fn it_passes_with_bracketed_assignment() {
+    test_lint(
+      "no_cond_assign",
+      r#"
+if ((x = y)) {
+}
+     "#,
+      vec![NoCondAssign::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
   fn it_fails_using_assignment_in_if_stmt() {
     test_lint(
       "no_cond_assign",
