@@ -60,6 +60,8 @@ mod default_param_last;
 pub use default_param_last::DefaultParamLast;
 mod no_empty;
 pub use no_empty::NoEmpty;
+mod no_cond_assign;
+pub use no_cond_assign::NoCondAssign;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
