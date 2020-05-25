@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{BlockStmt, Module, SwitchStmt};
+use swc_ecma_ast::{BlockStmt, Module, Stmt, SwitchStmt};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;
@@ -24,18 +24,50 @@ impl NoEmptyVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
+
+  fn get_nested_block_stmt(&self, stmt: &Stmt) -> Option<BlockStmt> {
+    if let Some(Stmt::Block(block)) = match stmt {
+      Stmt::If(if_stmt) => Some(if_stmt.cons.as_ref()),
+      Stmt::While(while_stmt) => Some(while_stmt.body.as_ref()),
+      Stmt::DoWhile(do_while) => Some(do_while.body.as_ref()),
+      Stmt::For(for_stmt) => Some(for_stmt.body.as_ref()),
+      Stmt::ForIn(for_in) => Some(for_in.body.as_ref()),
+      Stmt::ForOf(for_of) => Some(for_of.body.as_ref()),
+      _ => None,
+    } {
+      return Some(block.clone());
+    } else if let Some(block) = match stmt {
+      Stmt::Try(try_stmt) => Some(try_stmt.block),
+      _ => None,
+    } {
+      return block;
+    }
+
+    None
+  }
 }
 
 impl Visit for NoEmptyVisitor {
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
-    if block_stmt.stmts.is_empty()
-      && !block_stmt.contains_comments(&self.context)
-    {
-      self.context.add_diagnostic(
-        block_stmt.span,
-        "noEmpty",
-        "Empty block statement",
-      );
+    if block_stmt.stmts.is_empty() {
+      println!("Block is empty");
+      if !block_stmt.contains_comments(&self.context) {
+        self.context.add_diagnostic(
+          block_stmt.span,
+          "noEmpty",
+          "Empty block statement",
+        );
+      }
+    } else {
+      for stmt in &block_stmt.stmts {
+        if let Some(block) = self.get_nested_block_stmt(stmt) {
+          self.visit_block_stmt(&block, _parent);
+        }
+
+        if let Stmt::Switch(switch) = stmt {
+          self.visit_switch_stmt(switch, _parent);
+        }
+      }
     }
   }
 
@@ -220,6 +252,48 @@ for(;;) {
   }
 
   #[test]
+  fn it_fails_for_an_empty_for_in_block() {
+    test_lint(
+      "no_empty",
+      r#"
+for(var foo in bar) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 20,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_an_empty_for_of_block() {
+    test_lint(
+      "no_empty",
+      r#"
+for(var foo of bar) {
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty block statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 2,
+          "col": 20,
+        }
+      }]),
+    )
+  }
+
+  #[test]
   fn it_fails_for_an_empty_switch_block() {
     test_lint(
       "no_empty",
@@ -313,7 +387,7 @@ try {
   }
 
   #[test]
-  fn it_fails_for_a_nested_empty_block() {
+  fn it_fails_for_a_nested_empty_if_block() {
     test_lint(
       "no_empty",
       r#"
@@ -330,6 +404,29 @@ if (foo) {
           "filename": "no_empty",
           "line": 3,
           "col": 11,
+        }
+      }]),
+    )
+  }
+
+  #[test]
+  fn it_fails_for_a_nested_empty_switch() {
+    test_lint(
+      "no_empty",
+      r#"
+if (foo) {
+  switch (foo) {
+  }
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([{
+        "code": "noEmpty",
+        "message": "Empty switch statement",
+        "location": {
+          "filename": "no_empty",
+          "line": 3,
+          "col": 2,
         }
       }]),
     )
