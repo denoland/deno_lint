@@ -920,9 +920,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "802b13ac5811ebc6897c9a1ed999aa9ca3dd6faf8e664b9df44e162e2b3a03ed"
+checksum = "3815addadc357192edf02d16aaf0a8ba3f61eafe37951ac30bbc4f3d47622560"
 dependencies = [
  "num-bigint",
  "swc_atoms",
@@ -933,9 +933,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit_macros"
-version = "0.2.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9083af117bcb987631d99129ce57e634315267d84521fd562926135fa49bee38"
+checksum = "1a32877a341800d772d95858c24344ce00f68361763eae5fa97187e6be136c4b"
 dependencies = [
  "Inflector",
  "pmutil",
