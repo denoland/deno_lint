@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use swc_common::Span;
 use swc_ecma_ast::ArrowExpr;
 use swc_ecma_ast::Function;
+use swc_ecma_ast::Param;
 use swc_ecma_ast::Pat;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
@@ -31,27 +32,35 @@ impl NoDupeArgsVisitor {
     Self { context }
   }
 
-  fn check_params(&self, span: Span, params: &[Pat]) {
+  fn check_pats(&self, span: Span, pats: &[Pat]) {
     let mut seen: HashSet<String> = HashSet::new();
 
-    for param in params {
-      match &param {
+    for pat in pats {
+      match &pat {
         Pat::Ident(ident) => {
-          let param_name = ident.sym.to_string();
+          let pat_name = ident.sym.to_string();
 
-          if seen.get(&param_name).is_some() {
+          if seen.get(&pat_name).is_some() {
             self.context.add_diagnostic(
               span,
               "noDupeArgs",
               "Duplicate arguments not allowed",
             );
           } else {
-            seen.insert(param_name);
+            seen.insert(pat_name);
           }
         }
         _ => continue,
       }
     }
+  }
+
+  fn check_params(&self, span: Span, params: &[Param]) {
+    let pats = params
+      .iter()
+      .map(|param| param.pat.clone())
+      .collect::<Vec<Pat>>();
+    self.check_pats(span, &pats);
   }
 }
 
@@ -61,7 +70,7 @@ impl Visit for NoDupeArgsVisitor {
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.check_params(arrow_expr.span, &arrow_expr.params);
+    self.check_pats(arrow_expr.span, &arrow_expr.params);
   }
 }
 
