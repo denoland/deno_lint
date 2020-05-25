@@ -31,13 +31,17 @@ impl DefaultParamLastVisitor {
 impl Visit for DefaultParamLastVisitor {
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     let mut has_normal_param = false;
-    let pat = function.params.iter().rev().find_map(|param| match param {
-      Pat::Assign(pat) => Some(pat),
-      _ => {
-        has_normal_param = true;
-        None
-      }
-    });
+    let pat = function
+      .params
+      .iter()
+      .rev()
+      .find_map(|param| match &param.pat {
+        Pat::Assign(pat) => Some(pat),
+        _ => {
+          has_normal_param = true;
+          None
+        }
+      });
     if has_normal_param {
       if let Some(pat) = pat {
         self.context.add_diagnostic(
