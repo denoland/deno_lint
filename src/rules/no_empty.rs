@@ -118,6 +118,22 @@ switch (foo) {
   }
 
   #[test]
+  fn it_passes_for_a_non_empty_nested_block() {
+    test_lint(
+      "no_empty",
+      r#"
+if (foo) {
+  if (bar) {
+    var baz = "";
+  }
+}
+      "#,
+      vec![NoEmpty::new()],
+      json!([]),
+    )
+  }
+
+  #[test]
   fn it_fails_for_an_empty_if_block() {
     test_lint(
       "no_empty",
