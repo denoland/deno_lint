@@ -18,6 +18,7 @@ Very much work-in-progress
 - `noDupeArgs`
 - `noDupeKeys`
 - `noDuplicateCase`
+- `noEmpty`
 - `noEmptyFunction`
 - `noEmptyInterface`
 - `noEval`

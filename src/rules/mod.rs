@@ -58,6 +58,8 @@ mod no_new_symbol;
 pub use no_new_symbol::NoNewSymbol;
 mod default_param_last;
 pub use default_param_last::DefaultParamLast;
+mod no_empty;
+pub use no_empty::NoEmpty;
 mod no_cond_assign;
 pub use no_cond_assign::NoCondAssign;
 
