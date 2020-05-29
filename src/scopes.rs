@@ -25,6 +25,21 @@ lazy_static! {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum BindingKind {
+  Var,
+  Const,
+  Let,
+  Function,
+  Param,
+}
+
+#[derive(Clone, Debug)]
+pub struct Binding {
+  pub kind: BindingKind,
+  pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum ScopeKind {
   Program,
   Module,
@@ -38,12 +53,35 @@ pub enum ScopeKind {
 pub struct Scope {
   pub kind: ScopeKind,
   pub id: u32,
+  pub parent_id: Option<u32>,
   pub span: Span,
   pub child_scopes: Vec<u32>,
+  pub bindings: HashMap<String, Binding>,
+}
+
+impl Scope {
+  pub fn new(kind: ScopeKind, span: Span, parent_id: Option<u32>) -> Self {
+    Self {
+      kind,
+      span,
+      parent_id,
+      id: next_id(),
+      child_scopes: vec![],
+      bindings: HashMap::new(),
+    }
+  }
+
+  pub fn add_binding(&mut self, binding: Binding) {
+    self.bindings.insert(binding.name.to_string(), binding);
+  }
+
+  pub fn get_binding(&self, name: &str) -> Option<&Binding> {
+    self.bindings.get(name)
+  }
 }
 
 #[derive(Debug)]
-struct ScopeManager {
+pub struct ScopeManager {
   pub scopes: HashMap<u32, Scope>,
   pub scope_stack: Vec<u32>,
 }
@@ -98,9 +136,61 @@ impl ScopeManager {
   pub fn get_scope_mut(&mut self, id: u32) -> Option<&mut Scope> {
     self.scopes.get_mut(&id)
   }
+
+  pub fn add_binding(&mut self, binding: Binding) {
+    let current_scope = self.get_current_scope_mut();
+    current_scope.add_binding(binding);
+  }
+
+  pub fn get_parent_scope(&self, scope: &Scope) {}
+
+  pub fn get_binding<'a>(
+    &'a self,
+    s: &'a Scope,
+    name: &str,
+  ) -> Option<&'a Binding> {
+    let mut scope = s;
+
+    loop {
+      if let Some(binding) = scope.get_binding(name) {
+        return Some(binding);
+      }
+      if let Some(parent_id) = scope.parent_id {
+        scope = self.get_scope(parent_id).unwrap();
+      } else {
+        break;
+      }
+    }
+
+    None
+  }
+
+  pub fn get_scope_for_span(&self, span: Span) -> &Scope {
+    let mut current_scope: Option<&Scope> = None;
+
+    for (_id, scope) in self.scopes.iter() {
+      if scope.span.contains(span) {
+        match current_scope {
+          Some(s) => {
+            // If currently found scope span fully encloses
+            // iterated span then it's a child scope.
+            if s.span.contains(scope.span) {
+              current_scope = Some(scope);
+            }
+          }
+          None => {
+            current_scope = Some(scope);
+          }
+        }
+      }
+    }
+
+    assert!(current_scope.is_some());
+    &current_scope.unwrap()
+  }
 }
 
-struct ScopeVisitor {
+pub struct ScopeVisitor {
   pub scope_manager: ScopeManager,
 }
 
@@ -109,7 +199,7 @@ fn next_id() -> u32 {
 }
 
 impl ScopeVisitor {
-  fn new(span: Span) -> Self {
+  pub fn new() -> Self {
     Self {
       scope_manager: ScopeManager::new(),
     }
@@ -122,21 +212,15 @@ impl ScopeVisitor {
 
 impl Visit for ScopeVisitor {
   fn visit_module(&mut self, module: &swc_ecma_ast::Module, parent: &dyn Node) {
-    let program_scope = Scope {
-      kind: ScopeKind::Program,
-      id: next_id(),
-      span: module.span,
-      child_scopes: vec![],
-    };
+    let program_scope = Scope::new(ScopeKind::Program, module.span, None);
 
     self.scope_manager.set_root_scope(program_scope);
 
-    let module_scope = Scope {
-      id: next_id(),
-      kind: ScopeKind::Module,
-      span: module.span,
-      child_scopes: vec![],
-    };
+    let module_scope = Scope::new(
+      ScopeKind::Module,
+      module.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
 
     self.scope_manager.enter_scope(module_scope);
     swc_ecma_visit::visit_module(self, module, parent);
@@ -151,16 +235,68 @@ impl Visit for ScopeVisitor {
     fn_decl: &swc_ecma_ast::FnDecl,
     parent: &dyn Node,
   ) {
-    let fn_scope = Scope {
-      id: next_id(),
-      kind: ScopeKind::Function,
-      span: fn_decl.function.span,
-      child_scopes: vec![],
+    let name = fn_decl.ident.sym.to_string();
+    let fn_binding = Binding {
+      kind: BindingKind::Function,
+      name,
     };
+    self.scope_manager.add_binding(fn_binding);
+
+    let fn_scope = Scope::new(
+      ScopeKind::Function,
+      fn_decl.function.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
     self.scope_manager.enter_scope(fn_scope);
 
     swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
     self.scope_manager.exit_scope();
+  }
+
+  fn visit_function(
+    &mut self,
+    function: &swc_ecma_ast::Function,
+    parent: &dyn Node,
+  ) {
+    for param in &function.params {
+      let name = match &param.pat {
+        Pat::Ident(ident) => ident.sym.to_string(),
+        _ => todo!(),
+      };
+      let param_binding = Binding {
+        kind: BindingKind::Param,
+        name,
+      };
+      self.scope_manager.add_binding(param_binding);
+    }
+    swc_ecma_visit::visit_function(self, function, parent);
+  }
+
+  fn visit_var_decl(
+    &mut self,
+    var_decl: &swc_ecma_ast::VarDecl,
+    parent: &dyn Node,
+  ) {
+    use swc_ecma_ast::VarDeclKind;
+
+    let var_kind = match &var_decl.kind {
+      VarDeclKind::Var => BindingKind::Var,
+      VarDeclKind::Let => BindingKind::Let,
+      VarDeclKind::Const => BindingKind::Const,
+    };
+
+    for decl in &var_decl.decls {
+      let name = match &decl.name {
+        Pat::Ident(ident) => ident.sym.to_string(),
+        _ => todo!(),
+      };
+
+      self.scope_manager.add_binding(Binding {
+        kind: var_kind.clone(),
+        name,
+      })
+    }
+    swc_ecma_visit::visit_var_decl(self, var_decl, parent);
   }
 
   fn visit_block_stmt(
@@ -168,12 +304,11 @@ impl Visit for ScopeVisitor {
     block_stmt: &swc_ecma_ast::BlockStmt,
     parent: &dyn Node,
   ) {
-    let block_scope = Scope {
-      id: next_id(),
-      kind: ScopeKind::Block,
-      span: block_stmt.span,
-      child_scopes: vec![],
-    };
+    let block_scope = Scope::new(
+      ScopeKind::Block,
+      block_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
     self.scope_manager.enter_scope(block_scope);
 
     swc_ecma_visit::visit_block_stmt(self, block_stmt, parent);
@@ -211,7 +346,7 @@ function asdf(b: number, c: string): number {
       source_code,
       |parse_result, comments| {
         let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new(module.span);
+        let mut scope_visitor = ScopeVisitor::new();
         scope_visitor.visit_module(&module, &module);
         let root_scope = scope_visitor.consume();
         Ok(root_scope)
