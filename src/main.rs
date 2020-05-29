@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 mod linter;
 mod rules;
+mod swc_util;
 
 use linter::Linter;
 use rules::LintRule;
