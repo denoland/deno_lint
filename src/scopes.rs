@@ -110,10 +110,8 @@ impl ScopeManager {
     self.scope_stack.pop();
   }
 
-  pub fn get_root_scope(&mut self) -> &mut Scope {
-    self
-      .get_scope_mut(*self.scope_stack.first().unwrap())
-      .unwrap()
+  pub fn get_root_scope(&self) -> &Scope {
+    self.get_scope(*self.scope_stack.first().unwrap()).unwrap()
   }
 
   pub fn get_current_scope_id(&self) -> u32 {
@@ -165,28 +163,33 @@ impl ScopeManager {
     None
   }
 
-  pub fn get_scope_for_span(&self, span: Span) -> &Scope {
-    let mut current_scope: Option<&Scope> = None;
-
-    for (_id, scope) in self.scopes.iter() {
-      if scope.span.contains(span) {
-        match current_scope {
-          Some(s) => {
-            // If currently found scope span fully encloses
-            // iterated span then it's a child scope.
-            if s.span.contains(scope.span) {
-              current_scope = Some(scope);
-            }
-          }
-          None => {
-            current_scope = Some(scope);
-          }
-        }
+  fn find_scope(&self, child_scopes: &[u32], span: Span) -> Option<u32> {
+    for scope_id in child_scopes {
+      let child_scope = self.get_scope(*scope_id).unwrap();
+      if child_scope.span.contains(span) {
+        let found_scope_id =
+          match self.find_scope(&child_scope.child_scopes, span) {
+            Some(id) => id,
+            None => child_scope.id,
+          };
+        return Some(found_scope_id);
       }
     }
 
-    assert!(current_scope.is_some());
-    &current_scope.unwrap()
+    None
+  }
+
+  pub fn get_scope_for_span(&self, span: Span) -> &Scope {
+    let mut current_scope: Option<&Scope> = None;
+    let root_scope = self.get_root_scope();
+
+    let scope_id = match self.find_scope(&root_scope.child_scopes, span) {
+      Some(id) => id,
+      None => root_scope.id,
+    };
+
+    let scope = self.get_scope(scope_id).unwrap();
+    &scope
   }
 }
 
