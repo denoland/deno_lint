@@ -118,7 +118,7 @@ impl ScopeManager {
 
   pub fn get_current_scope_id(&self) -> u32 {
     assert!(!self.scope_stack.is_empty());
-    self.scope_stack.last().unwrap().clone()
+    *self.scope_stack.last().unwrap()
   }
 
   pub fn get_current_scope(&self) -> &Scope {
@@ -359,17 +359,17 @@ function asdf(b: number, c: string): number {
     assert_eq!(root_scope.kind, ScopeKind::Program);
     assert_eq!(root_scope.child_scopes.len(), 1);
 
-    let module_scope_id = root_scope.child_scopes.first().unwrap().clone();
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
     let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
     assert_eq!(module_scope.kind, ScopeKind::Module);
     assert_eq!(module_scope.child_scopes.len(), 1);
 
-    let fn_scope_id = module_scope.child_scopes.first().unwrap().clone();
+    let fn_scope_id = *module_scope.child_scopes.first().unwrap();
     let fn_scope = scope_manager.get_scope(fn_scope_id).unwrap();
     assert_eq!(fn_scope.kind, ScopeKind::Function);
     assert_eq!(fn_scope.child_scopes.len(), 1);
 
-    let block_scope_id = fn_scope.child_scopes.first().unwrap().clone();
+    let block_scope_id = *fn_scope.child_scopes.first().unwrap();
     let block_scope = scope_manager.get_scope(block_scope_id).unwrap();
     assert_eq!(block_scope.kind, ScopeKind::Block);
   }
