@@ -1,4 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+#[macro_use]
+extern crate lazy_static;
+
 mod linter;
 mod rules;
 mod scopes;
