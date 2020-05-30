@@ -66,6 +66,8 @@ mod no_with;
 pub use no_with::NoWith;
 mod no_case_declarations;
 pub use no_case_declarations::NoCaseDeclarations;
+mod require_yield;
+pub use require_yield::RequireYield;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
