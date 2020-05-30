@@ -70,6 +70,8 @@ mod require_yield;
 pub use require_yield::RequireYield;
 mod no_prototype_builtins;
 pub use no_prototype_builtins::NoPrototypeBuiltins;
+mod for_direction;
+pub use for_direction::ForDirection;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {

@@ -60,6 +60,7 @@ fn main() {
       rules::NoCaseDeclarations::new(),
       rules::RequireYield::new(),
       rules::NoPrototypeBuiltins::new(),
+      rules::ForDirection::new(),
     ];
 
     let file_diagnostics = linter
