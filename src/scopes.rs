@@ -47,6 +47,9 @@ pub enum ScopeKind {
   Block,
   Loop,
   Class,
+  Switch,
+  With,
+  Catch,
 }
 
 #[derive(Clone, Debug)]
@@ -106,8 +109,10 @@ impl ScopeManager {
     self.scopes.insert(scope.id, scope);
   }
 
-  pub fn exit_scope(&mut self) {
-    self.scope_stack.pop();
+  pub fn exit_scope(&mut self, scope_id: u32) {
+    assert!(self.scope_stack.len() > 1);
+    let exit_id = self.scope_stack.pop().unwrap();
+    assert_eq!(exit_id, scope_id);
   }
 
   pub fn get_root_scope(&self) -> &Scope {
@@ -216,7 +221,6 @@ impl ScopeVisitor {
 impl Visit for ScopeVisitor {
   fn visit_module(&mut self, module: &swc_ecma_ast::Module, parent: &dyn Node) {
     let program_scope = Scope::new(ScopeKind::Program, module.span, None);
-
     self.scope_manager.set_root_scope(program_scope);
 
     let module_scope = Scope::new(
@@ -224,12 +228,12 @@ impl Visit for ScopeVisitor {
       module.span,
       Some(self.scope_manager.get_current_scope_id()),
     );
-
+    let module_scope_id = module_scope.id;
     self.scope_manager.enter_scope(module_scope);
+
     swc_ecma_visit::visit_module(self, module, parent);
 
-    self.scope_manager.exit_scope();
-
+    self.scope_manager.exit_scope(module_scope_id);
     // program scope is left on stack
   }
 
@@ -250,10 +254,12 @@ impl Visit for ScopeVisitor {
       fn_decl.function.span,
       Some(self.scope_manager.get_current_scope_id()),
     );
+    let fn_scope_id = fn_scope.id;
     self.scope_manager.enter_scope(fn_scope);
 
     swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
-    self.scope_manager.exit_scope();
+
+    self.scope_manager.exit_scope(fn_scope_id);
   }
 
   fn visit_function(
@@ -312,10 +318,11 @@ impl Visit for ScopeVisitor {
       block_stmt.span,
       Some(self.scope_manager.get_current_scope_id()),
     );
+    let block_scope_id = block_scope.id;
     self.scope_manager.enter_scope(block_scope);
 
     swc_ecma_visit::visit_block_stmt(self, block_stmt, parent);
-    self.scope_manager.exit_scope();
+    self.scope_manager.exit_scope(block_scope_id);
   }
 }
 
