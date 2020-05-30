@@ -15,6 +15,7 @@ use swc_ecma_ast::Expr;
 use swc_ecma_ast::ExprStmt;
 use swc_ecma_ast::Module;
 use swc_ecma_ast::ModuleItem;
+use swc_ecma_ast::ObjectPatProp;
 use swc_ecma_ast::Pat;
 use swc_ecma_ast::Stmt;
 use swc_ecma_visit::Node;
@@ -373,15 +374,29 @@ impl Visit for ScopeVisitor {
     self.scope_manager.enter_scope(catch_scope);
 
     if let Some(pat) = &catch_clause.param {
-      let name = match pat {
-        Pat::Ident(ident) => ident.sym.to_string(),
+      match pat {
+        Pat::Ident(ident) => {
+          self.scope_manager.add_binding(Binding {
+            kind: BindingKind::CatchClause,
+            name: ident.sym.to_string(),
+          });
+        }
+        Pat::Object(object_pat) => {
+          for prop in &object_pat.props {
+            match prop {
+              ObjectPatProp::Assign(assign_pat_prop) => {
+                // TODO(bartlomieju): handle default value
+                self.scope_manager.add_binding(Binding {
+                  kind: BindingKind::CatchClause,
+                  name: assign_pat_prop.key.sym.to_string(),
+                });
+              }
+              _ => todo!(),
+            }
+          }
+        }
         _ => todo!(),
       };
-
-      self.scope_manager.add_binding(Binding {
-        kind: BindingKind::CatchClause,
-        name,
-      });
     }
 
     // Not calling `swc_ecma_visit::visit_class` but instead
