@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::TsTypeAnn;
+use swc_ecma_ast::TsKeywordType;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -29,18 +29,19 @@ impl NoExplicitAnyVisitor {
 }
 
 impl Visit for NoExplicitAnyVisitor {
-  fn visit_ts_type_ann(&mut self, type_ann: &TsTypeAnn, _parent: &dyn Node) {
+  fn visit_ts_keyword_type(
+    &mut self,
+    ts_keyword_type: &TsKeywordType,
+    _parent: &dyn Node,
+  ) {
     use swc_ecma_ast::TsKeywordTypeKind::*;
-    use swc_ecma_ast::TsType::*;
 
-    if let TsKeywordType(keyword_type) = &*type_ann.type_ann {
-      if keyword_type.kind == TsAnyKeyword {
-        self.context.add_diagnostic(
-          type_ann.span,
-          "noExplicitAny",
-          "`any` type is not allowed",
-        );
-      }
+    if ts_keyword_type.kind == TsAnyKeyword {
+      self.context.add_diagnostic(
+        ts_keyword_type.span,
+        "noExplicitAny",
+        "`any` type is not allowed",
+      );
     }
   }
 }
@@ -61,6 +62,11 @@ function foo(): any {
     return undefined;
 }
 
+function bar(): Promise<any> {
+  // nothing going on here
+  return undefined;
+}
+
 const a: any = {};
       "#,
       vec![NoExplicitAny::new()],
@@ -70,7 +76,7 @@ const a: any = {};
         "location": {
           "filename": "no_explicit_any",
           "line": 2,
-          "col": 14,
+          "col": 16,
         }
       }, {
         "code": "noExplicitAny",
@@ -78,7 +84,15 @@ const a: any = {};
         "location": {
           "filename": "no_explicit_any",
           "line": 7,
-          "col": 7,
+          "col": 24,
+        }
+      }, {
+        "code": "noExplicitAny",
+        "message": "`any` type is not allowed",
+        "location": {
+          "filename": "no_explicit_any",
+          "line": 12,
+          "col": 9,
         }
       }]),
     )
