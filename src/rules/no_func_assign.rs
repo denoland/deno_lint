@@ -51,7 +51,6 @@ impl Visit for NoFuncAssignVisitor {
     };
 
     let scope = self.scope_manager.get_scope_for_span(assign_expr.span);
-    dbg!(scope);
     if let Some(binding) = self.scope_manager.get_binding(scope, &ident) {
       if binding.kind == BindingKind::Function {
         self.context.add_diagnostic(
