@@ -32,6 +32,7 @@ pub enum BindingKind {
   Function,
   Param,
   Class,
+  CatchClause,
 }
 
 #[derive(Clone, Debug)]
@@ -357,6 +358,41 @@ impl Visit for ScopeVisitor {
     swc_ecma_visit::visit_block_stmt(self, block_stmt, parent);
     self.scope_manager.exit_scope(block_scope_id);
   }
+
+  fn visit_catch_clause(
+    &mut self,
+    catch_clause: &swc_ecma_ast::CatchClause,
+    parent: &dyn Node,
+  ) {
+    let catch_scope = Scope::new(
+      ScopeKind::Catch,
+      catch_clause.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let catch_scope_id = catch_scope.id;
+    self.scope_manager.enter_scope(catch_scope);
+
+    if let Some(pat) = &catch_clause.param {
+      let name = match pat {
+        Pat::Ident(ident) => ident.sym.to_string(),
+        _ => todo!(),
+      };
+
+      self.scope_manager.add_binding(Binding {
+        kind: BindingKind::CatchClause,
+        name,
+      });
+    }
+
+    // Not calling `swc_ecma_visit::visit_class` but instead
+    // directly visiting body elements - otherwise additional
+    // block scope will be created which is undesirable
+    for stmt in &catch_clause.body.stmts {
+      swc_ecma_visit::visit_stmt(self, stmt, &catch_clause.body);
+    }
+
+    self.scope_manager.exit_scope(catch_scope_id);
+  }
 }
 
 #[cfg(test)]
@@ -390,6 +426,13 @@ class Foo {
 
   }
 }
+
+try {
+  // some code that might throw
+  throw new Error("asdf");
+} catch (e) {
+  const msg = "asdf " + e.message;
+}
 "#;
 
     let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
@@ -414,7 +457,7 @@ class Foo {
     let module_scope_id = *root_scope.child_scopes.first().unwrap();
     let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
     assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 2);
+    assert_eq!(module_scope.child_scopes.len(), 4);
 
     let fn_scope_id = *module_scope.child_scopes.first().unwrap();
     let fn_scope = scope_manager.get_scope(fn_scope_id).unwrap();
@@ -426,9 +469,16 @@ class Foo {
     assert_eq!(block_scope.kind, ScopeKind::Block);
     assert_eq!(block_scope.child_scopes.len(), 0);
 
-    let class_scope_id = *module_scope.child_scopes.last().unwrap();
+    let class_scope_id = *module_scope.child_scopes.get(1).unwrap();
     let class_scope = scope_manager.get_scope(class_scope_id).unwrap();
     assert_eq!(class_scope.kind, ScopeKind::Class);
     assert_eq!(class_scope.child_scopes.len(), 0);
+
+    let catch_scope_id = *module_scope.child_scopes.get(3).unwrap();
+    let catch_scope = scope_manager.get_scope(catch_scope_id).unwrap();
+    assert_eq!(catch_scope.kind, ScopeKind::Catch);
+    assert_eq!(catch_scope.child_scopes.len(), 0);
+    let catch_clause_e = catch_scope.get_binding("e").unwrap();
+    assert_eq!(catch_clause_e.kind, BindingKind::CatchClause);
   }
 }
