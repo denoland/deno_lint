@@ -11,6 +11,7 @@ mod for_direction;
 mod getter_return;
 mod no_async_promise_executor;
 mod no_case_declarations;
+mod no_class_assign;
 mod no_compare_neg_zero;
 mod no_cond_assign;
 mod no_debugger;
@@ -63,6 +64,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_dupe_args::NoDupeArgs::new(),
     no_dupe_keys::NoDupeKeys::new(),
     no_duplicate_case::NoDuplicateCase::new(),
+    no_class_assign::NoClassAssign::new(),
     no_empty::NoEmpty::new(),
     no_empty_function::NoEmptyFunction::new(),
     no_empty_interface::NoEmptyInterface::new(),

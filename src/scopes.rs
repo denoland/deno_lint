@@ -31,6 +31,7 @@ pub enum BindingKind {
   Let,
   Function,
   Param,
+  Class,
 }
 
 #[derive(Clone, Debug)]
@@ -262,6 +263,30 @@ impl Visit for ScopeVisitor {
     self.scope_manager.exit_scope(fn_scope_id);
   }
 
+  fn visit_class_decl(
+    &mut self,
+    class_decl: &swc_ecma_ast::ClassDecl,
+    parent: &dyn Node,
+  ) {
+    let class_binding = Binding {
+      kind: BindingKind::Class,
+      name: class_decl.ident.sym.to_string(),
+    };
+    self.scope_manager.add_binding(class_binding);
+
+    let class_scope = Scope::new(
+      ScopeKind::Class,
+      class_decl.class.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let class_scope_id = class_scope.id;
+    self.scope_manager.enter_scope(class_scope);
+
+    swc_ecma_visit::visit_class_decl(self, class_decl, parent);
+
+    self.scope_manager.exit_scope(class_scope_id);
+  }
+
   fn visit_function(
     &mut self,
     function: &swc_ecma_ast::Function,
@@ -278,7 +303,15 @@ impl Visit for ScopeVisitor {
       };
       self.scope_manager.add_binding(param_binding);
     }
-    swc_ecma_visit::visit_function(self, function, parent);
+
+    // Not calling `swc_ecma_visit::visit_function` but instead
+    // directly visiting body elements - otherwise additional
+    // block scope will be created which is undesirable
+    if let Some(body) = &function.body {
+      for stmt in &body.stmts {
+        swc_ecma_visit::visit_stmt(self, stmt, body);
+      }
+    }
   }
 
   fn visit_var_decl(
@@ -348,7 +381,16 @@ function asdf(b: number, c: string): number {
       let d = 2;
     }
     return 1;
-}"#;
+}
+
+class Foo {
+  #fizz = "fizz";
+
+  bar() {
+
+  }
+}
+"#;
 
     let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
       "file_name.ts",
@@ -372,7 +414,7 @@ function asdf(b: number, c: string): number {
     let module_scope_id = *root_scope.child_scopes.first().unwrap();
     let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
     assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 1);
+    assert_eq!(module_scope.child_scopes.len(), 2);
 
     let fn_scope_id = *module_scope.child_scopes.first().unwrap();
     let fn_scope = scope_manager.get_scope(fn_scope_id).unwrap();
@@ -382,5 +424,11 @@ function asdf(b: number, c: string): number {
     let block_scope_id = *fn_scope.child_scopes.first().unwrap();
     let block_scope = scope_manager.get_scope(block_scope_id).unwrap();
     assert_eq!(block_scope.kind, ScopeKind::Block);
+    assert_eq!(block_scope.child_scopes.len(), 0);
+
+    let class_scope_id = *module_scope.child_scopes.last().unwrap();
+    let class_scope = scope_manager.get_scope(class_scope_id).unwrap();
+    assert_eq!(class_scope.kind, ScopeKind::Class);
+    assert_eq!(class_scope.child_scopes.len(), 0);
   }
 }
