@@ -1,7 +1,7 @@
 pub struct ConstructorSuper;
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::{ExprOrSuper, Class, ClassMember, BlockStmt, Stmt, Expr};
+use swc_ecma_ast::{BlockStmt, Class, ClassMember, Expr, ExprOrSuper, Stmt};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -24,19 +24,21 @@ impl ConstructorSuperVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
-  fn check_constructor_block_stmt(&self, block_stmt: &BlockStmt, class: &Class) {
+  fn check_constructor_block_stmt(
+    &self,
+    block_stmt: &BlockStmt,
+    class: &Class,
+  ) {
     if block_stmt.stmts.iter().any(|stmt| match stmt {
       Stmt::Expr(expr) => match &*expr.expr {
         Expr::Call(call) => match &call.callee {
-            ExprOrSuper::Super(_) => {
-              true
-            },
-            _ => false,
-          }
+          ExprOrSuper::Super(_) => true,
           _ => false,
-        }
+        },
         _ => false,
-      }) {
+      },
+      _ => false,
+    }) {
       if class.super_class.is_none() {
         self.context.add_diagnostic(
           block_stmt.span,
@@ -44,7 +46,7 @@ impl ConstructorSuperVisitor {
           "Constructors of non derived classes must not call super()",
         );
       } else if let Some(expr) = &class.super_class {
-        if let Expr::Lit(lit) = &**expr {
+        if let Expr::Lit(_) = &**expr {
           self.context.add_diagnostic(
             block_stmt.span,
             "constructorSuper",
@@ -52,14 +54,12 @@ impl ConstructorSuperVisitor {
           );
         }
       }
-    } else {
-      if class.super_class.is_some() {
-        self.context.add_diagnostic(
-          block_stmt.span,
-          "constructorSuper",
-          "Constructors of derived classes must call super()",
-        );
-      }
+    } else if class.super_class.is_some() {
+      self.context.add_diagnostic(
+        block_stmt.span,
+        "constructorSuper",
+        "Constructors of derived classes must call super()",
+      );
     }
   }
 }
@@ -67,13 +67,10 @@ impl ConstructorSuperVisitor {
 impl Visit for ConstructorSuperVisitor {
   fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
     for member in &class.body {
-      match member {
-        ClassMember::Constructor(constructor) => {
-          if let Some(block_stmt) = &constructor.body {
-            self.check_constructor_block_stmt(block_stmt, class);
-          }
+      if let ClassMember::Constructor(constructor) = member {
+        if let Some(block_stmt) = &constructor.body {
+          self.check_constructor_block_stmt(block_stmt, class);
         }
-        _ => {}
       }
     }
   }
@@ -158,4 +155,3 @@ class F extends E {
     )
   }
 }
-
