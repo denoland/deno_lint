@@ -68,6 +68,8 @@ mod no_case_declarations;
 pub use no_case_declarations::NoCaseDeclarations;
 mod require_yield;
 pub use require_yield::RequireYield;
+mod no_prototype_builtins;
+pub use no_prototype_builtins::NoPrototypeBuiltins;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Location {
