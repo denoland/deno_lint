@@ -2,7 +2,6 @@
 
 use crate::rules::LintRule;
 use crate::Linter;
-use serde_json;
 use serde_json::Value;
 
 pub fn test_lint(

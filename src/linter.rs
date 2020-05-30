@@ -4,7 +4,6 @@ use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
 use std::sync::Arc;
 use std::sync::Mutex;
-use swc_common;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 use swc_common::comments::Comments;
