@@ -28,6 +28,7 @@ fn main() {
     let mut linter = Linter::default();
 
     let rules: Vec<Box<dyn LintRule>> = vec![
+      rules::ConstructorSuper::new(),
       rules::NoExplicitAny::new(),
       rules::NoDebugger::new(),
       rules::NoVar::new(),
