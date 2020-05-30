@@ -57,6 +57,7 @@ fn main() {
       rules::NoEmpty::new(),
       rules::NoCondAssign::new(),
       rules::NoWith::new(),
+      rules::NoCaseDeclarations::new(),
     ];
 
     let file_diagnostics = linter
