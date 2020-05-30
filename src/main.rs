@@ -71,7 +71,7 @@ fn main() {
           "  {}| {}\n  {}^ \n  ({}) {}\n",
           d.location.line,
           d.line_src,
-          " ".repeat(d.location.col + 3),
+          " ".repeat(d.location.line.to_string().len() + d.location.col + 2),
           d.code,
           d.message
         );
