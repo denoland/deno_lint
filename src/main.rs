@@ -18,8 +18,7 @@ fn main() {
 
   let file_names: Vec<String> = args[1..].to_vec();
 
-  let mut diagnostics = vec![];
-
+  let mut error_counts = 0;
   for file_name in file_names {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
@@ -61,16 +60,20 @@ fn main() {
       .lint(file_name, source_code, rules)
       .expect("Failed to lint");
 
-    diagnostics.extend(file_diagnostics)
-  }
-
-  if !diagnostics.is_empty() {
-    for d in diagnostics.iter() {
-      eprintln!(
-        "error: {} ({}) at {}:{}:{}",
-        d.message, d.code, d.location.filename, d.location.line, d.location.col
-      );
+    error_counts += file_diagnostics.len();
+    if !file_diagnostics.is_empty() {
+      eprintln!("{} =>", file_diagnostics[0].location.filename);
+      for d in file_diagnostics.iter() {
+        eprintln!(
+          "  {}| {}\n  {}^ \n  ({}) {}\n",
+          d.location.line,
+          d.line_src,
+          " ".repeat(d.location.col + 3),
+          d.code,
+          d.message
+        );
+      }
     }
-    eprintln!("Found {} problems", diagnostics.len());
   }
+  eprintln!("Found {} problems", error_counts);
 }

@@ -93,6 +93,7 @@ pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,
   pub code: String,
+  pub line_src: String,
 }
 
 #[derive(Clone)]
@@ -108,10 +109,18 @@ impl Context {
   pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let location = self.source_map.lookup_char_pos(span.lo());
     let mut diags = self.diagnostics.lock().unwrap();
+    let line_src = self
+      .source_map
+      .lookup_source_file(span.lo())
+      .get_line(location.line - 1)
+      .expect("error loading line soruce")
+      .to_string();
+
     diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
+      line_src,
     });
   }
 }
