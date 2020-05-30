@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 mod linter;
 mod rules;
+mod swc_util;
 
 use linter::Linter;
 use rules::LintRule;
@@ -54,6 +55,8 @@ fn main() {
       rules::DefaultParamLast::new(),
       rules::NoEmpty::new(),
       rules::NoCondAssign::new(),
+      rules::NoWith::new(),
+      rules::NoCaseDeclarations::new(),
     ];
 
     let file_diagnostics = linter
