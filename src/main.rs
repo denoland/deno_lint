@@ -67,14 +67,12 @@ fn main() {
     if !file_diagnostics.is_empty() {
       eprintln!("{} =>", file_diagnostics[0].location.filename);
       for d in file_diagnostics.iter() {
+        eprintln!("  {}| {}", d.location.line, d.line_src);
         eprintln!(
-          "  {}| {}\n  {}^ \n  ({}) {}\n",
-          d.location.line,
-          d.line_src,
-          " ".repeat(d.location.line.to_string().len() + d.location.col + 2),
-          d.code,
-          d.message
+          "  {}^",
+          " ".repeat(d.location.line.to_string().len() + d.location.col + 2)
         );
+        eprintln!("  ({}) {}", d.code, d.message);
       }
     }
   }
