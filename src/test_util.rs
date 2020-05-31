@@ -1,7 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-use crate::rules::{LintDiagnostic, LintRule};
+use crate::rules::LintRule;
 use crate::Linter;
+use crate::linter::LintDiagnostic;
+
 use serde_json::{json, Value};
 
 pub fn test_lint(
