@@ -65,12 +65,12 @@ impl Context {
       .get_line(location.line - 1)
       .expect("error loading line soruce")
       .to_string();
-      
+
     diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
-      line_src
+      line_src,
     });
   }
 }
