@@ -1,20 +1,74 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::rules::LintRule;
 use crate::swc_util;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
+use serde::Serialize;
 use std::sync::Arc;
 use std::sync::Mutex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
+use swc_common::comments::CommentMap;
 use swc_common::comments::Comments;
+use swc_common::SourceMap;
+use swc_common::Span;
 
-use crate::rules;
-use crate::rules::LintDiagnostic;
-use crate::rules::LintRule;
+#[derive(Debug, Clone, Serialize)]
+pub struct Location {
+  pub filename: String,
+  pub line: usize,
+  pub col: usize,
+}
+
+impl Into<Location> for swc_common::Loc {
+  fn into(self) -> Location {
+    use swc_common::FileName::*;
+
+    let filename = match &self.file.name {
+      Real(path_buf) => path_buf.to_string_lossy().to_string(),
+      Custom(str_) => str_.to_string(),
+      _ => panic!("invalid filename"),
+    };
+
+    Location {
+      filename,
+      line: self.line,
+      col: self.col_display,
+    }
+  }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct LintDiagnostic {
+  pub location: Location,
+  pub message: String,
+  pub code: String,
+}
+
+#[derive(Clone)]
+pub struct Context {
+  pub file_name: String,
+  pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
+  pub source_map: Arc<SourceMap>,
+  pub leading_comments: CommentMap,
+  pub trailing_comments: CommentMap,
+}
+
+impl Context {
+  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+    let location = self.source_map.lookup_char_pos(span.lo());
+    let mut diags = self.diagnostics.lock().unwrap();
+    diags.push(LintDiagnostic {
+      location: location.into(),
+      message: message.to_string(),
+      code: code.to_string(),
+    });
+  }
+}
 
 #[derive(Debug)]
 pub struct IgnoreDirective {
-  location: rules::Location,
+  location: Location,
   codes: Vec<String>,
 }
 
@@ -100,7 +154,7 @@ impl Linter {
   ) -> Vec<LintDiagnostic> {
     let (leading, trailing) = comments.take_all();
 
-    let context = rules::Context {
+    let context = Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.ast_parser.source_map.clone(),
