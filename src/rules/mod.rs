@@ -1,137 +1,83 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use serde::Serialize;
-use std::sync::Arc;
-use std::sync::Mutex;
-use swc_common::comments::CommentMap;
-use swc_common::SourceMap;
-use swc_common::Span;
+use crate::linter::Context;
 
-mod explicit_function_return_type;
-pub use explicit_function_return_type::ExplicitFunctionReturnType;
-mod no_debugger;
-pub use no_debugger::NoDebugger;
-mod no_eval;
-pub use no_eval::NoEval;
-mod no_explicit_any;
-pub use no_explicit_any::NoExplicitAny;
-mod no_var;
-pub use no_var::NoVar;
-mod single_var_declarator;
-pub use single_var_declarator::SingleVarDeclarator;
 mod ban_ts_ignore;
-pub use ban_ts_ignore::BanTsIgnore;
 mod ban_untagged_todo;
-pub use ban_untagged_todo::BanUntaggedTodo;
-mod no_empty_interface;
-pub use no_empty_interface::NoEmptyInterface;
-mod no_delete_var;
-pub use no_delete_var::NoDeleteVar;
-mod use_isnan;
-pub use use_isnan::UseIsNaN;
-mod no_empty_function;
-pub use no_empty_function::NoEmptyFunction;
-mod no_async_promise_executor;
-pub use no_async_promise_executor::NoAsyncPromiseExecutor;
-mod no_sparse_array;
-pub use no_sparse_array::NoSparseArray;
-mod no_duplicate_case;
-pub use no_duplicate_case::NoDuplicateCase;
-mod no_dupe_args;
-pub use no_dupe_args::NoDupeArgs;
-mod getter_return;
-pub use getter_return::GetterReturn;
-mod no_setter_return;
-pub use no_setter_return::NoSetterReturn;
-mod eqeqeq;
-pub use eqeqeq::Eqeqeq;
-mod no_dupe_keys;
-pub use no_dupe_keys::NoDupeKeys;
-mod no_compare_neg_zero;
-pub use no_compare_neg_zero::NoCompareNegZero;
-mod no_unsafe_finally;
-pub use no_unsafe_finally::NoUnsafeFinally;
-mod valid_typeof;
-pub use valid_typeof::ValidTypeof;
-mod no_throw_literal;
-pub use no_throw_literal::NoThrowLiteral;
-mod no_new_symbol;
-pub use no_new_symbol::NoNewSymbol;
+mod constructor_super;
 mod default_param_last;
-pub use default_param_last::DefaultParamLast;
-mod no_empty;
-pub use no_empty::NoEmpty;
-mod no_cond_assign;
-pub use no_cond_assign::NoCondAssign;
-mod no_with;
-pub use no_with::NoWith;
+mod eqeqeq;
+mod explicit_function_return_type;
+mod for_direction;
+mod getter_return;
+mod no_async_promise_executor;
 mod no_case_declarations;
-pub use no_case_declarations::NoCaseDeclarations;
-
-#[derive(Debug, Clone, Serialize)]
-pub struct Location {
-  pub filename: String,
-  pub line: usize,
-  pub col: usize,
-}
-
-impl Into<Location> for swc_common::Loc {
-  fn into(self) -> Location {
-    use swc_common::FileName::*;
-
-    let filename = match &self.file.name {
-      Real(path_buf) => path_buf.to_string_lossy().to_string(),
-      Custom(str_) => str_.to_string(),
-      _ => panic!("invalid filename"),
-    };
-
-    Location {
-      filename,
-      line: self.line,
-      col: self.col_display,
-    }
-  }
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct LintDiagnostic {
-  pub location: Location,
-  pub message: String,
-  pub code: String,
-  pub line_src: String,
-}
-
-#[derive(Clone)]
-pub struct Context {
-  pub file_name: String,
-  pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
-  pub source_map: Arc<SourceMap>,
-  pub leading_comments: CommentMap,
-  pub trailing_comments: CommentMap,
-}
-
-impl Context {
-  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
-    let location = self.source_map.lookup_char_pos(span.lo());
-    let mut diags = self.diagnostics.lock().unwrap();
-    let line_src = self
-      .source_map
-      .lookup_source_file(span.lo())
-      .get_line(location.line - 1)
-      .expect("error loading line soruce")
-      .to_string();
-
-    diags.push(LintDiagnostic {
-      location: location.into(),
-      message: message.to_string(),
-      code: code.to_string(),
-      line_src,
-    });
-  }
-}
+mod no_compare_neg_zero;
+mod no_cond_assign;
+mod no_debugger;
+mod no_delete_var;
+mod no_dupe_args;
+mod no_dupe_keys;
+mod no_duplicate_case;
+mod no_empty;
+mod no_empty_function;
+mod no_empty_interface;
+mod no_eval;
+mod no_explicit_any;
+mod no_new_symbol;
+mod no_prototype_builtins;
+mod no_setter_return;
+mod no_sparse_array;
+mod no_throw_literal;
+mod no_unsafe_finally;
+mod no_var;
+mod no_with;
+mod require_yield;
+mod single_var_declarator;
+mod use_isnan;
+mod valid_typeof;
 
 pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module);
+}
+
+pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+  vec![
+    ban_ts_ignore::BanTsIgnore::new(),
+    ban_untagged_todo::BanUntaggedTodo::new(),
+    constructor_super::ConstructorSuper::new(),
+    default_param_last::DefaultParamLast::new(),
+    eqeqeq::Eqeqeq::new(),
+    explicit_function_return_type::ExplicitFunctionReturnType::new(),
+    for_direction::ForDirection::new(),
+    getter_return::GetterReturn::new(),
+    no_async_promise_executor::NoAsyncPromiseExecutor::new(),
+    no_case_declarations::NoCaseDeclarations::new(),
+    no_compare_neg_zero::NoCompareNegZero::new(),
+    no_cond_assign::NoCondAssign::new(),
+    no_debugger::NoDebugger::new(),
+    no_delete_var::NoDeleteVar::new(),
+    no_dupe_args::NoDupeArgs::new(),
+    no_dupe_keys::NoDupeKeys::new(),
+    no_duplicate_case::NoDuplicateCase::new(),
+    no_empty::NoEmpty::new(),
+    no_empty_function::NoEmptyFunction::new(),
+    no_empty_interface::NoEmptyInterface::new(),
+    no_eval::NoEval::new(),
+    no_explicit_any::NoExplicitAny::new(),
+    no_new_symbol::NoNewSymbol::new(),
+    no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_setter_return::NoSetterReturn::new(),
+    no_sparse_array::NoSparseArray::new(),
+    no_throw_literal::NoThrowLiteral::new(),
+    no_unsafe_finally::NoUnsafeFinally::new(),
+    no_var::NoVar::new(),
+    no_with::NoWith::new(),
+    require_yield::RequireYield::new(),
+    single_var_declarator::SingleVarDeclarator::new(),
+    use_isnan::UseIsNaN::new(),
+    valid_typeof::ValidTypeof::new(),
+  ]
 }

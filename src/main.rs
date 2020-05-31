@@ -4,7 +4,7 @@ mod rules;
 mod swc_util;
 
 use linter::Linter;
-use rules::LintRule;
+use rules::get_all_rules;
 
 mod report_util;
 
@@ -31,38 +31,7 @@ fn main() {
 
     let mut linter = Linter::default();
 
-    let rules: Vec<Box<dyn LintRule>> = vec![
-      rules::NoExplicitAny::new(),
-      rules::NoDebugger::new(),
-      rules::NoVar::new(),
-      rules::SingleVarDeclarator::new(),
-      rules::ExplicitFunctionReturnType::new(),
-      rules::NoEval::new(),
-      rules::NoEmptyInterface::new(),
-      rules::NoDeleteVar::new(),
-      rules::UseIsNaN::new(),
-      rules::NoEmptyFunction::new(),
-      rules::NoAsyncPromiseExecutor::new(),
-      rules::NoSparseArray::new(),
-      rules::NoDuplicateCase::new(),
-      rules::NoDupeArgs::new(),
-      rules::BanTsIgnore::new(),
-      rules::BanUntaggedTodo::new(),
-      rules::GetterReturn::new(),
-      rules::NoSetterReturn::new(),
-      rules::Eqeqeq::new(),
-      rules::NoDupeKeys::new(),
-      rules::NoCompareNegZero::new(),
-      rules::NoUnsafeFinally::new(),
-      rules::ValidTypeof::new(),
-      rules::NoThrowLiteral::new(),
-      rules::NoNewSymbol::new(),
-      rules::DefaultParamLast::new(),
-      rules::NoEmpty::new(),
-      rules::NoCondAssign::new(),
-      rules::NoWith::new(),
-      rules::NoCaseDeclarations::new(),
-    ];
+    let rules = get_all_rules();
 
     let file_diagnostics = linter
       .lint(file_name, source_code, rules)
