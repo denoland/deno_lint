@@ -38,15 +38,15 @@ fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
   String::from_utf8_lossy(&v).into_owned()
 }
 
-pub fn report_filename(file_name: &String) {
-  eprintln!("{}", cyan(String::from(format!("{} =>", file_name))));
+pub fn report_filename(file_name: &str) {
+  eprintln!("{}", cyan(format!("{} =>", file_name)));
 }
 
-pub fn report_line_src(line_index: &usize, line_src: &String) {
+pub fn report_line_src(line_index: usize, line_src: &str) {
   eprintln!("  {}| {}", line_index, line_src);
 }
 
-pub fn place_glyph(line_index: &usize, col: &usize) {
+pub fn place_glyph(line_index: usize, col: usize) {
   eprintln!(
     "  {}{}",
     " ".repeat(line_index.to_string().len() + col + 2),
@@ -54,6 +54,6 @@ pub fn place_glyph(line_index: &usize, col: &usize) {
   );
 }
 
-pub fn report_error(code: &String, message: &String) {
+pub fn report_error(code: &str, message: &str) {
   eprintln!("  ({}) {}", gray(String::from(code)), message);
 }
