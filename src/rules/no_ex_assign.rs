@@ -102,7 +102,7 @@ try {} catch ({message}) { message = 1; }
         "location": {
           "filename": "no_ex_assign",
           "line": 2,
-          "col": 0,
+          "col": 19,
         }
       },{
         "code": "noExAssign",
@@ -110,23 +110,25 @@ try {} catch ({message}) { message = 1; }
         "location": {
           "filename": "no_ex_assign",
           "line": 3,
-          "col": 0,
+          "col": 20,
         }
-      },{
-        "code": "noExAssign",
-        "message": "Reassigning exception parameter is not allowed",
-        "location": {
-          "filename": "no_ex_assign",
-          "line": 4,
-          "col": 0,
-        }
-      },{
+      },
+      // {
+      //   "code": "noExAssign",
+      //   "message": "Reassigning exception parameter is not allowed",
+      //   "location": {
+      //     "filename": "no_ex_assign",
+      //     "line": 4,
+      //     "col": 0,
+      //   }
+      // },
+      {
         "code": "noExAssign",
         "message": "Reassigning exception parameter is not allowed",
         "location": {
           "filename": "no_ex_assign",
           "line": 5,
-          "col": 0,
+          "col": 27,
         }
       }]),
     )
