@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Bartek Iwańczuk <biwanczuk@gmail.com>"]
 edition = "2018"
 
+[lib]
+name = "dlinkt"
+path = "src/lib.rs"
+
 [dependencies]
 serde = { version = "1.0.104", features = ["derive"] }
 serde_derive = "1.0.104"
