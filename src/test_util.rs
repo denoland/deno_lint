@@ -17,8 +17,7 @@ pub fn test_lint(
 
   // TODO(@disizali) refactor this to a better approach.
   // it's a temporary solution for ignoring line_src field.
-  let serialized_diagnostics;
-  if !diagnostics.is_empty() {
+  let serialized_diagnostics = if !diagnostics.is_empty() {
     let mut ignored_line_src_diagnostics = vec![];
     for diagnostic in &diagnostics {
       let LintDiagnostic {
@@ -30,9 +29,10 @@ pub fn test_lint(
       ignored_line_src_diagnostics
         .push(json!({"code":code,"message":message,"location":location}))
     }
-    serialized_diagnostics = serde_json::to_value(ignored_line_src_diagnostics).unwrap();
+    serde_json::to_value(ignored_line_src_diagnostics).unwrap()
   } else {
-    serialized_diagnostics = serde_json::to_value(diagnostics).unwrap();
-  }
+    serde_json::to_value(diagnostics).unwrap()
+  };
+
   assert_eq!(serialized_diagnostics, expected_diagnostics);
 }
