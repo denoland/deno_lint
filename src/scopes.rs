@@ -1,23 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-#![allow(unused)]
-
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt;
-use std::rc::Rc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use swc_common::Span;
-use swc_ecma_ast::AssignExpr;
-use swc_ecma_ast::Decl;
-use swc_ecma_ast::Expr;
-use swc_ecma_ast::ExprStmt;
-use swc_ecma_ast::Module;
-use swc_ecma_ast::ModuleItem;
 use swc_ecma_ast::ObjectPatProp;
 use swc_ecma_ast::Pat;
-use swc_ecma_ast::Stmt;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -127,6 +115,7 @@ impl ScopeManager {
     *self.scope_stack.last().unwrap()
   }
 
+  #[allow(unused)]
   pub fn get_current_scope(&self) -> &Scope {
     self.get_scope(self.get_current_scope_id()).unwrap()
   }
@@ -148,7 +137,13 @@ impl ScopeManager {
     current_scope.add_binding(binding);
   }
 
-  pub fn get_parent_scope(&self, scope: &Scope) {}
+  #[allow(unused)]
+  pub fn get_parent_scope(&self, scope: &Scope) -> Option<&Scope> {
+    if let Some(parent_scope_id) = scope.parent_id {
+      return self.get_scope(parent_scope_id);
+    }
+    None
+  }
 
   pub fn get_binding<'a>(
     &'a self,
@@ -188,7 +183,6 @@ impl ScopeManager {
   }
 
   pub fn get_scope_for_span(&self, span: Span) -> &Scope {
-    let mut current_scope: Option<&Scope> = None;
     let root_scope = self.get_root_scope();
 
     let scope_id = match self.find_scope(&root_scope.child_scopes, span) {
@@ -292,7 +286,7 @@ impl Visit for ScopeVisitor {
   fn visit_function(
     &mut self,
     function: &swc_ecma_ast::Function,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     for param in &function.params {
       let name = match &param.pat {
@@ -314,6 +308,44 @@ impl Visit for ScopeVisitor {
         swc_ecma_visit::visit_stmt(self, stmt, body);
       }
     }
+  }
+
+  fn visit_with_stmt(
+    &mut self,
+    with_stmt: &swc_ecma_ast::WithStmt,
+    _parent: &dyn Node,
+  ) {
+    self.visit_expr(&*with_stmt.obj, with_stmt);
+
+    let with_scope = Scope::new(
+      ScopeKind::With,
+      with_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let with_scope_id = with_scope.id;
+    self.scope_manager.enter_scope(with_scope);
+    swc_ecma_visit::visit_stmt(self, &*with_stmt.body, with_stmt);
+    self.scope_manager.exit_scope(with_scope_id);
+  }
+
+  fn visit_switch_stmt(
+    &mut self,
+    switch_stmt: &swc_ecma_ast::SwitchStmt,
+    _parent: &dyn Node,
+  ) {
+    self.visit_expr(&*switch_stmt.discriminant, switch_stmt);
+
+    let switch_scope = Scope::new(
+      ScopeKind::Switch,
+      switch_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let switch_scope_id = switch_scope.id;
+    self.scope_manager.enter_scope(switch_scope);
+    for case in &switch_stmt.cases {
+      swc_ecma_visit::visit_switch_case(self, case, switch_stmt);
+    }
+    self.scope_manager.exit_scope(switch_scope_id);
   }
 
   fn visit_var_decl(
@@ -363,7 +395,7 @@ impl Visit for ScopeVisitor {
   fn visit_catch_clause(
     &mut self,
     catch_clause: &swc_ecma_ast::CatchClause,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     let catch_scope = Scope::new(
       ScopeKind::Catch,
@@ -454,7 +486,7 @@ try {
       "file_name.ts",
       syntax,
       source_code,
-      |parse_result, comments| {
+      |parse_result, _comments| {
         let module = parse_result?;
         let mut scope_visitor = ScopeVisitor::new();
         scope_visitor.visit_module(&module, &module);
@@ -463,7 +495,7 @@ try {
       },
     );
     assert!(r.is_ok());
-    let mut scope_manager = r.unwrap();
+    let scope_manager = r.unwrap();
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -495,5 +527,57 @@ try {
     assert_eq!(catch_scope.child_scopes.len(), 0);
     let catch_clause_e = catch_scope.get_binding("e").unwrap();
     assert_eq!(catch_clause_e.kind, BindingKind::CatchClause);
+  }
+
+  #[test]
+  fn switch_scope() {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+
+    let source_code = r#"
+switch (foo) {
+  case "foo":
+    let a = "a";
+    a = "b";
+    a;
+    break;
+  case "bar":
+    break;
+  default:
+    const defaultVal = "default";
+    return defaultVal;
+}
+"#;
+
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    let scope_manager = r.unwrap();
+
+    let root_scope = scope_manager.get_root_scope();
+    assert_eq!(root_scope.kind, ScopeKind::Program);
+    assert_eq!(root_scope.child_scopes.len(), 1);
+
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
+    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    assert_eq!(module_scope.kind, ScopeKind::Module);
+    assert_eq!(module_scope.child_scopes.len(), 1);
+
+    let switch_scope_id = *module_scope.child_scopes.first().unwrap();
+    let switch_scope = scope_manager.get_scope(switch_scope_id).unwrap();
+    assert_eq!(switch_scope.kind, ScopeKind::Switch);
+    assert_eq!(switch_scope.child_scopes.len(), 0);
+    assert!(switch_scope.get_binding("a").is_some());
+    assert!(switch_scope.get_binding("defaultVal").is_some());
   }
 }
