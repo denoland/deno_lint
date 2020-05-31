@@ -6,6 +6,8 @@ use swc_common::comments::CommentMap;
 use swc_common::SourceMap;
 use swc_common::Span;
 
+mod constructor_super;
+pub use constructor_super::ConstructorSuper;
 mod explicit_function_return_type;
 pub use explicit_function_return_type::ExplicitFunctionReturnType;
 mod no_debugger;
