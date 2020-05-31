@@ -6,10 +6,15 @@ mod swc_util;
 use linter::Linter;
 use rules::LintRule;
 
+mod report_util;
+
 #[cfg(test)]
 mod test_util;
 
 fn main() {
+  #[cfg(windows)]
+  report_util::enable_ansi();
+
   let args: Vec<String> = std::env::args().collect();
 
   if args.len() < 2 {
@@ -65,14 +70,11 @@ fn main() {
 
     error_counts += file_diagnostics.len();
     if !file_diagnostics.is_empty() {
-      eprintln!("{} =>", file_diagnostics[0].location.filename);
+      report_util::report_filename(&file_diagnostics[0].location.filename);
       for d in file_diagnostics.iter() {
-        eprintln!("  {}| {}", d.location.line, d.line_src);
-        eprintln!(
-          "  {}^",
-          " ".repeat(d.location.line.to_string().len() + d.location.col + 2)
-        );
-        eprintln!("  ({}) {}", d.code, d.message);
+      report_util::report_line_src(&d.location.line, &d.line_src);
+      report_util::place_glyph(&d.location.line, &d.location.col) ;   
+      report_util::report_error(&d.code, &d.message);
       }
     }
   }
