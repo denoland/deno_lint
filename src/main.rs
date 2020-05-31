@@ -42,7 +42,7 @@ fn main() {
       report_util::report_filename(&file_diagnostics[0].location.filename);
       for d in file_diagnostics.iter() {
         report_util::report_line_src(d.location.line, &d.line_src);
-        report_util::place_glyph(d.location.line, d.location.col) ;   
+        report_util::place_glyph(d.location.line, d.location.col);   
         report_util::report_error(&d.code, &d.message);
       }
     }
