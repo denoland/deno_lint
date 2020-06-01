@@ -144,36 +144,19 @@ const obj = {
 
   #[test]
   fn require_yield() {
-    assert_lint_err_on_line::<RequireYield>(
-      r#"
-function* bar() { 
-  return "bar";
-}
-    "#,
+    assert_lint_err::<RequireYield>(
+      r#" function* bar() { return "bar"; }"#,
       "requireYield",
-      2,
       0,
     );
-    assert_lint_err_on_line::<RequireYield>(
-      r#"
-(function* foo() {
-  return "foo";
-})();
-    "#,
+    assert_lint_err::<RequireYield>(
+      r#"(function* foo() { return "foo"; })();"#,
       "requireYield",
-      2,
       1,
     );
-    assert_lint_err_on_line::<RequireYield>(
-      r#"
-function* nested() {
-  function* gen() {
-    yield "gen";
-  }
-}
-    "#,
+    assert_lint_err::<RequireYield>(
+      r#"function* nested() { function* gen() { yield "gen"; } }"#,
       "requireYield",
-      2,
       0,
     );
     assert_lint_err_on_line_n::<RequireYield>(
@@ -190,17 +173,10 @@ class Fizz {
     "#,
       vec![("requireYield", 3, 2), ("requireYield", 7, 2)],
     );
-    assert_lint_err_on_line::<RequireYield>(
-      r#"
-const obj = {
-  *foo() {
-    return "foo";
-  }
-};
-    "#,
+    assert_lint_err::<RequireYield>(
+      r#"const obj = { *foo() { return "foo"; } };"#,
       "requireYield",
-      3,
-      2,
+      14,
     );
   }
 }

@@ -105,9 +105,7 @@ typeof bar == "undefined"
   #[test]
   fn it_passes_using_two_typeof_operations() {
     assert_lint_ok::<ValidTypeof>(vec![
-      r#"
-typeof bar === typeof qux
-     "#,
+      r#"typeof bar === typeof qux"#,
     ]);
   }
 
