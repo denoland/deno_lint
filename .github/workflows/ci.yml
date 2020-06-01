@@ -28,6 +28,23 @@ jobs:
           rustup component add clippy
           rustup component add rustfmt
 
+      - name: Install Deno (benchmark only)
+        if: github.ref == 'benchmarks' && contains(matrix.os, 'ubuntu')
+        uses: denolib/setup-deno@master
+        with:
+          deno-version: v1.x
+
+      - name: Install Node.js (benchmark only)
+        if: github.ref == 'benchmarks' && contains(matrix.os, 'ubuntu')
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: "12"
+
+      - name: Install npm packages (benchmark only)
+        if: github.ref == 'benchmarks' && contains(matrix.os, 'ubuntu')
+        run: npm install --ci
+        working-directory: benchmarks
+
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -53,6 +70,10 @@ jobs:
 
       - name: Lint
         run: cargo clippy --all-targets --release --locked -- -D clippy::all
+
+      - name: Benchmarks
+        if: github.ref == 'benchmarks' && contains(matrix.os, 'ubuntu')
+        run: deno -A benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
         if: |
@@ -97,3 +118,4 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           cargo publish
+
