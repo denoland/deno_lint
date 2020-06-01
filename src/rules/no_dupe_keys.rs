@@ -98,182 +98,70 @@ impl Key for PropName {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::{json, Value};
+  use crate::test_util::*;
 
   #[test]
   fn it_passes_when_there_are_no_duplicate_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  boo: "bang",
-}
-     "#,
-      json!([]),
-    )
+    assert_lint_ok::<NoDupeKeys>(r#"var foo = { bar: "baz", boo: "bang" }"#);
   }
 
   #[test]
   fn it_passes_when_there_are_duplicate_nested_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  boo: {
-    bar: "bang",
-  },
-}
-     "#,
-      json!([]),
-    )
+    assert_lint_ok::<NoDupeKeys>(
+      r#"var foo = { bar: "baz", boo: { bar: "bang", }, }"#,
+    );
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  bar: "qux"
-};
-      "#,
-      json!([{
-        "code": "noDupeKeys",
-        "message": "Duplicate key 'bar'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      }]),
-    )
+    assert_lint_err::<NoDupeKeys>(
+      r#"var foo = { bar: "baz", bar: "qux" };"#,
+      "noDupeKeys",
+      12,
+    );
   }
 
   #[test]
   fn it_fails_when_there_are_multiple_duplicate_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  bar: "qux",
-  quux: "boom",
-  quux: "bang",
-};
-      "#,
-      json!([
-      {
-        "code": "noDupeKeys",
-        "message": "Duplicate key 'bar'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      },
-      {
-        "code": "noDupeKeys",
-        "message": "Duplicate key 'quux'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      }
-      ]),
-    )
+    assert_lint_err_n::<NoDupeKeys>(
+      r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#,
+      vec![("noDupeKeys", 12), ("noDupeKeys", 36)],
+    );
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_string_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  "bar": "qux"
-};
-      "#,
-      json!([{
-        "code": "noDupeKeys",
-        "message": "Duplicate key 'bar'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      }]),
-    )
+    assert_lint_err::<NoDupeKeys>(
+      r#"var foo = { bar: "baz", "bar": "qux" };"#,
+      "noDupeKeys",
+      12,
+    );
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_numeric_keys() {
-    test_rule(
-      r#"
-var foo = {
-  1: "baz",
-  0x1: "qux"
-};
-      "#,
-      json!([{
-        "code": "noDupeKeys",
-        "message": "Duplicate key '1'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      }]),
-    )
+    assert_lint_err::<NoDupeKeys>(
+      r#"var foo = { 1: "baz", 0x1: "qux" };"#,
+      "noDupeKeys",
+      12,
+    );
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_getter_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  get bar() {},
-};
-      "#,
-      json!([{
-        "code": "noDupeKeys",
-        "message": "Duplicate key 'bar'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      }]),
-    )
+    assert_lint_err::<NoDupeKeys>(
+      r#"var foo = { bar: "baz", get bar() {} };"#,
+      "noDupeKeys",
+      12,
+    );
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_setter_keys() {
-    test_rule(
-      r#"
-var foo = {
-  bar: "baz",
-  set bar() {},
-};
-      "#,
-      json!([{
-        "code": "noDupeKeys",
-        "message": "Duplicate key 'bar'",
-        "location": {
-          "filename": "no_dupe_keys",
-          "line": 2,
-          "col": 10,
-        }
-      }]),
-    )
-  }
-
-  fn test_rule(source_code: &str, expected_diagnostics: Value) {
-    test_lint(
-      "no_dupe_keys",
-      source_code,
-      vec![NoDupeKeys::new()],
-      expected_diagnostics,
-    )
+    assert_lint_err::<NoDupeKeys>(
+      r#"var foo = { bar: "baz", set bar() {} };"#,
+      "noDupeKeys",
+      12,
+    );
   }
 }
