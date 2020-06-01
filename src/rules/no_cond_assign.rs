@@ -77,7 +77,7 @@ mod tests {
 
   #[test]
   fn it_passes_with_bracketed_assignment() {
-    assert_lint_err::<NoCondAssign>("if ((x = y)) { }", "noCondAssign", 5);
+    assert_lint_ok::<NoCondAssign>("if ((x = y)) { }");
   }
 
   #[test]

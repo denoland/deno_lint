@@ -117,7 +117,7 @@ mod tests {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", bar: "qux" };"#,
       "noDupeKeys",
-      12,
+      10,
     );
   }
 
@@ -125,7 +125,7 @@ mod tests {
   fn it_fails_when_there_are_multiple_duplicate_keys() {
     assert_lint_err_n::<NoDupeKeys>(
       r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#,
-      vec![("noDupeKeys", 12), ("noDupeKeys", 36)],
+      vec![("noDupeKeys", 10), ("noDupeKeys", 10)],
     );
   }
 
@@ -134,7 +134,7 @@ mod tests {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", "bar": "qux" };"#,
       "noDupeKeys",
-      12,
+      10,
     );
   }
 
@@ -143,7 +143,7 @@ mod tests {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { 1: "baz", 0x1: "qux" };"#,
       "noDupeKeys",
-      12,
+      10,
     );
   }
 
@@ -152,7 +152,7 @@ mod tests {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", get bar() {} };"#,
       "noDupeKeys",
-      12,
+      10,
     );
   }
 
@@ -161,7 +161,7 @@ mod tests {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", set bar() {} };"#,
       "noDupeKeys",
-      12,
+      10,
     );
   }
 }
