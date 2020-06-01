@@ -58,7 +58,7 @@ mod tests {
 
   #[test]
   fn ban_ts_ignore() {
-    assert_lint_ok::<BanUntaggedTodo>(vec![
+    assert_lint_ok_n::<BanUntaggedTodo>(vec![
       r#"
 // TODO(#1234)
 const b = "b";

@@ -47,30 +47,17 @@ impl Visit for NoEmptyInterfaceVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_empty_interface() {
-    test_lint(
-      "no_empty_interface",
-      r#"
-interface EmptyInterface {}
-
-interface NonEmptyInterface {
-  a: string
-}
-      "#,
-      vec![NoEmptyInterface::new()],
-      json!([{
-        "code": "noEmptyInterface",
-        "message": "Empty interfaces are not allowed",
-        "location": {
-          "filename": "no_empty_interface",
-          "line": 2,
-          "col": 0,
-        }
-      }]),
-    )
+    assert_lint_ok::<NoEmptyInterface>(
+      "interface NonEmptyInterface { a: string }",
+    );
+    assert_lint_err::<NoEmptyInterface>(
+      "interface EmptyInterface {}",
+      "noEmptyInterface",
+      0,
+    );
   }
 }

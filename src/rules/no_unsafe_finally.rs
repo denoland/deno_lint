@@ -57,13 +57,11 @@ impl Visit for NoUnsafeFinallyVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn it_passes_when_there_are_no_disallowed_keywords_in_the_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -75,15 +73,12 @@ let foo = function() {
   }
 };
      "#,
-      vec![NoUnsafeFinally::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn it_passes_for_a_return_within_a_function_in_a_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -97,15 +92,12 @@ let foo = function() {
   }
 };
      "#,
-      vec![NoUnsafeFinally::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn it_passes_for_a_break_within_a_switch_in_a_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function(a) {
   try {
@@ -121,16 +113,13 @@ let foo = function(a) {
     }
   }
 };
-     "#,
-      vec![NoUnsafeFinally::new()],
-      json!([]),
-    )
+      "#,
+    );
   }
 
   #[test]
   fn it_fails_for_a_break_in_a_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -142,23 +131,15 @@ let foo = function() {
   }
 };
      "#,
-      vec![NoUnsafeFinally::new()],
-      json!([{
-        "code": "noUnsafeFinally",
-        "message": "Unsafe usage of BreakStatement",
-        "location": {
-          "filename": "no_unsafe_finally",
-          "line": 7,
-          "col": 12,
-        }
-      }]),
-    )
+      "noUnsafeFinally",
+      7,
+      12,
+    );
   }
 
   #[test]
   fn it_fails_for_a_continue_in_a_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -170,23 +151,15 @@ let foo = function() {
   }
 };
      "#,
-      vec![NoUnsafeFinally::new()],
-      json!([{
-        "code": "noUnsafeFinally",
-        "message": "Unsafe usage of ContinueStatement",
-        "location": {
-          "filename": "no_unsafe_finally",
-          "line": 7,
-          "col": 12,
-        }
-      }]),
-    )
+      "noUnsafeFinally",
+      7,
+      12,
+    );
   }
 
   #[test]
   fn it_fails_for_a_return_in_a_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -197,24 +170,16 @@ let foo = function() {
     return 3;
   }
 };
-     "#,
-      vec![NoUnsafeFinally::new()],
-      json!([{
-        "code": "noUnsafeFinally",
-        "message": "Unsafe usage of ReturnStatement",
-        "location": {
-          "filename": "no_unsafe_finally",
-          "line": 7,
-          "col": 12,
-        }
-      }]),
-    )
+          "#,
+      "noUnsafeFinally",
+      7,
+      12,
+    );
   }
 
   #[test]
   fn it_fails_for_a_throw_in_a_finally_block() {
-    test_lint(
-      "no_unsafe_finally",
+    assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -226,16 +191,9 @@ let foo = function() {
   }
 };
      "#,
-      vec![NoUnsafeFinally::new()],
-      json!([{
-        "code": "noUnsafeFinally",
-        "message": "Unsafe usage of ThrowStatement",
-        "location": {
-          "filename": "no_unsafe_finally",
-          "line": 7,
-          "col": 12,
-        }
-      }]),
-    )
+      "noUnsafeFinally",
+      7,
+      12,
+    );
   }
 }

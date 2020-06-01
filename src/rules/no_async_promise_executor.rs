@@ -61,40 +61,23 @@ impl Visit for NoAsyncPromiseExecutorVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_async_promise_executor_test() {
-    test_lint(
-      "no_async_promise_executor",
-      r#"
-new Promise(async function(a, b) {});
-
-new Promise(function(a, b) {});
-
-new Promise(async (a, b) => {});
-
-new Promise((a, b) => {});
-      "#,
-      vec![NoAsyncPromiseExecutor::new()],
-      json!([{
-        "code": "noAsyncPromiseExecutor",
-        "message": "Async promise executors are not allowed",
-        "location": {
-          "filename": "no_async_promise_executor",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "noAsyncPromiseExecutor",
-        "message": "Async promise executors are not allowed",
-        "location": {
-          "filename": "no_async_promise_executor",
-          "line": 6,
-          "col": 0,
-        }
-      }]),
-    )
+    assert_lint_ok_n::<NoAsyncPromiseExecutor>(vec![
+      "new Promise(function(a, b) {});",
+      "new Promise((a, b) => {});",
+    ]);
+    assert_lint_err::<NoAsyncPromiseExecutor>(
+      "new Promise(async function(a, b) {});",
+      "noAsyncPromiseExecutor",
+      0,
+    );
+    assert_lint_err::<NoAsyncPromiseExecutor>(
+      "new Promise(async (a, b) => {});",
+      "noAsyncPromiseExecutor",
+      0,
+    );
   }
 }

@@ -52,97 +52,23 @@ impl Visit for NoThrowLiteralVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn check_literal() {
-    test_lint(
-      "no_throw_literal",
-      "throw 'kumiko'",
-      vec![NoThrowLiteral::new()],
-      json!([{
-        "code": "noThrowLiteral",
-        "message": "expected an error object to be thrown",
-        "location": {
-          "filename": "no_throw_literal",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
-
-    test_lint(
-      "no_throw_literal",
-      "throw true",
-      vec![NoThrowLiteral::new()],
-      json!([{
-        "code": "noThrowLiteral",
-        "message": "expected an error object to be thrown",
-        "location": {
-          "filename": "no_throw_literal",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
-
-    test_lint(
-      "no_throw_literal",
-      "throw 1096",
-      vec![NoThrowLiteral::new()],
-      json!([{
-        "code": "noThrowLiteral",
-        "message": "expected an error object to be thrown",
-        "location": {
-          "filename": "no_throw_literal",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
-
-    test_lint(
-      "no_throw_literal",
-      "throw null",
-      vec![NoThrowLiteral::new()],
-      json!([{
-        "code": "noThrowLiteral",
-        "message": "expected an error object to be thrown",
-        "location": {
-          "filename": "no_throw_literal",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
+    assert_lint_err::<NoThrowLiteral>("throw 'kumiko'", "noThrowLiteral", 0);
+    assert_lint_err::<NoThrowLiteral>("throw true", "noThrowLiteral", 0);
+    assert_lint_err::<NoThrowLiteral>("throw 1096", "noThrowLiteral", 0);
+    assert_lint_err::<NoThrowLiteral>("throw null", "noThrowLiteral", 0);
   }
 
   #[test]
   fn check_undefined() {
-    test_lint(
-      "no_throw_literal",
-      "throw undefined",
-      vec![NoThrowLiteral::new()],
-      json!([{
-        "code": "noThrowLiteral",
-        "message": "do not throw undefined",
-        "location": {
-          "filename": "no_throw_literal",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
+    assert_lint_err::<NoThrowLiteral>("throw undefined", "noThrowLiteral", 0);
   }
 
   #[test]
   fn check_variable() {
-    test_lint(
-      "no_throw_lietral",
-      "throw e",
-      vec![NoThrowLiteral::new()],
-      json!([]),
-    );
+    assert_lint_ok::<NoThrowLiteral>("throw e");
   }
 }

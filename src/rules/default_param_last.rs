@@ -57,45 +57,19 @@ impl Visit for DefaultParamLastVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn default_param_last_test() {
-    test_lint(
-      "default_param_last",
+    assert_lint_err::<DefaultParamLast>(
       "function fn(a = 2, b) {}",
-      vec![DefaultParamLast::new()],
-      json!([{
-        "code": "defaultParamLast",
-        "message": "default parameters should be at last",
-        "location": {
-          "filename": "default_param_last",
-          "line": 1,
-          "col": 12
-        }
-      }]),
+      "defaultParamLast",
+      12,
     );
-
-    test_lint(
-      "default_param_last",
+    assert_lint_ok_n::<DefaultParamLast>(vec![
       "function fn(a = 2, b = 3) {}",
-      vec![DefaultParamLast::new()],
-      json!([]),
-    );
-
-    test_lint(
-      "default_param_last",
       "function fn(a, b = 2) {}",
-      vec![DefaultParamLast::new()],
-      json!([]),
-    );
-
-    test_lint(
-      "default_param_last",
       "function fn(a, b) {}",
-      vec![DefaultParamLast::new()],
-      json!([]),
-    );
+    ]);
   }
 }
