@@ -46,42 +46,31 @@ impl LintRule for BanTsIgnore {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn ban_ts_ignore() {
-    test_lint(
-      "ban_ts_ignore",
+    assert_lint_err_on_line::<BanTsIgnore>(
       r#"
 // @ts-ignore
 function foo() {
   // pass
 }
-
+    "#,
+      "banTsIgnore",
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<BanTsIgnore>(
+      r#"
 function bar() {
   // @ts-ignore
   const a = "bar";
 }
-      "#,
-      vec![BanTsIgnore::new()],
-      json!([{
-        "code": "banTsIgnore",
-        "message": "@ts-ignore is not allowed",
-        "location": {
-          "filename": "ban_ts_ignore",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "banTsIgnore",
-        "message": "@ts-ignore is not allowed",
-        "location": {
-          "filename": "ban_ts_ignore",
-          "line": 8,
-          "col": 2,
-        }
-      }]),
-    )
+    "#,
+      "banTsIgnore",
+      3,
+      2,
+    );
   }
 }
