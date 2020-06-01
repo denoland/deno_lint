@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 clap = { version = "2.33.1" }
+lazy_static = "1.4.0"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_derive = "1.0.104"
 serde_json = { version = "1.0.48" }
