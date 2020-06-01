@@ -112,7 +112,6 @@ impl Visit for RequireYieldVisitor {
 mod tests {
   use super::*;
   use crate::test_util::*;
-  use serde_json::json;
 
   #[test]
   fn require_yield_ok() {
