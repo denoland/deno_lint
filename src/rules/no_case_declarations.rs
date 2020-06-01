@@ -62,13 +62,10 @@ impl Visit for NoCaseDeclarationsVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
-
+  use crate::test_util::*;
   #[test]
   fn no_case_declarations_ok() {
-    test_lint(
-      "no_with",
+    assert_lint_ok::<NoCaseDeclarations>(vec![
       r#"
 switch (foo) {
   case 1: {
@@ -97,40 +94,61 @@ switch (foo) {
   }
 }
       "#,
-      vec![NoCaseDeclarations::new()],
-      json!([]),
-    )
+    ]);
   }
 
   #[test]
   fn no_case_declarations() {
-    test_lint(
-      "no_case_declarations",
+    assert_lint_err_on_line::<NoCaseDeclarations>(
       r#"
 switch (foo) {
   case 1:
     let a = "a";
     break;
 }
-
+    "#,
+      "noCaseDeclarations",
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (bar) {
   default:
     let a = "a";
     break;
 }
-
+    "#,
+      "noCaseDeclarations",
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (fizz) {
   case 1:
     const a = "a";
     break;
 }
-
+    "#,
+      "noCaseDeclarations",
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (buzz) {
   default:
     const a = "a";
     break;
 }
-
+    "#,
+      "noCaseDeclarations",
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (fncase) {
   case 1:
     function fn() {
@@ -138,7 +156,13 @@ switch (fncase) {
     }
     break;
 }
-
+    "#,
+      "noCaseDeclarations",
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (classcase) {
   case 1:
     class Cl {
@@ -146,62 +170,10 @@ switch (classcase) {
     }
     break;
 }
-      "#,
-      vec![NoCaseDeclarations::new()],
-      json!([{
-        "code": "noCaseDeclarations",
-        "message": "Unexpected declaration in case",
-        "location": {
-          "filename": "no_case_declarations",
-          "line": 3,
-          "col": 2,
-        }
-      },
-      {
-        "code": "noCaseDeclarations",
-        "message": "Unexpected declaration in case",
-        "location": {
-          "filename": "no_case_declarations",
-          "line": 9,
-          "col": 2,
-        }
-      },
-      {
-        "code": "noCaseDeclarations",
-        "message": "Unexpected declaration in case",
-        "location": {
-          "filename": "no_case_declarations",
-          "line": 15,
-          "col": 2,
-        }
-      },
-      {
-        "code": "noCaseDeclarations",
-        "message": "Unexpected declaration in case",
-        "location": {
-          "filename": "no_case_declarations",
-          "line": 21,
-          "col": 2,
-        }
-      },
-      {
-        "code": "noCaseDeclarations",
-        "message": "Unexpected declaration in case",
-        "location": {
-          "filename": "no_case_declarations",
-          "line": 27,
-          "col": 2,
-        }
-      },
-      {
-        "code": "noCaseDeclarations",
-        "message": "Unexpected declaration in case",
-        "location": {
-          "filename": "no_case_declarations",
-          "line": 35,
-          "col": 2,
-        }
-      }]),
-    )
+    "#,
+      "noCaseDeclarations",
+      3,
+      2,
+    );
   }
 }
