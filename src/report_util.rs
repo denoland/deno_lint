@@ -43,17 +43,17 @@ pub fn report_filename(file_name: &str) {
 }
 
 pub fn report_line_src(line_index: usize, line_src: &str) {
-  eprintln!("  {}| {}", line_index, line_src);
+  eprintln!("{}| {}", line_index, line_src);
 }
 
 pub fn place_glyph(line_index: usize, col: usize) {
   eprintln!(
-    "  {}{}",
+    "{}{}",
     " ".repeat(line_index.to_string().len() + col + 2),
     red("^".to_string())
   );
 }
 
 pub fn report_error(code: &str, message: &str) {
-  eprintln!("  ({}) {}", gray(code.to_string()), message);
+  eprintln!("({}) {}", gray(code.to_string()), message);
 }
