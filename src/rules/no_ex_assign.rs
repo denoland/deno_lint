@@ -17,6 +17,10 @@ impl LintRule for NoExAssign {
     Box::new(NoExAssign)
   }
 
+  fn code(&self) -> &'static str {
+    "noExAssign"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut scope_visitor = ScopeVisitor::new();
     scope_visitor.visit_module(&module, &module);
@@ -67,70 +71,36 @@ impl Visit for NoExAssignVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::assert_lint_err_on_line_n;
+  use crate::test_util::assert_lint_ok;
 
   #[ignore]
   #[test]
   fn no_ex_assign_ok() {
-    test_lint(
-      "no_ex_assign",
+    assert_lint_ok::<NoExAssign>(
       r#"
 try {} catch { e = 1; }
 try {} catch (ex) { something = 1; }
 try {} catch (ex) { return 1; }
       "#,
-      vec![NoExAssign::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn no_ex_assign() {
-    test_lint(
-      "no_ex_assign",
+    assert_lint_err_on_line_n::<NoExAssign>(
       r#"
 try {} catch (e) { e = 1; }
 try {} catch (ex) { ex = 1; }
 // try {} catch (ex) { [ex] = []; }
 try {} catch ({message}) { message = 1; }
       "#,
-      vec![NoExAssign::new()],
-      json!([{
-        "code": "noExAssign",
-        "message": "Reassigning exception parameter is not allowed",
-        "location": {
-          "filename": "no_ex_assign",
-          "line": 2,
-          "col": 19,
-        }
-      },{
-        "code": "noExAssign",
-        "message": "Reassigning exception parameter is not allowed",
-        "location": {
-          "filename": "no_ex_assign",
-          "line": 3,
-          "col": 20,
-        }
-      },
-      // {
-      //   "code": "noExAssign",
-      //   "message": "Reassigning exception parameter is not allowed",
-      //   "location": {
-      //     "filename": "no_ex_assign",
-      //     "line": 4,
-      //     "col": 0,
-      //   }
-      // },
-      {
-        "code": "noExAssign",
-        "message": "Reassigning exception parameter is not allowed",
-        "location": {
-          "filename": "no_ex_assign",
-          "line": 5,
-          "col": 27,
-        }
-      }]),
-    )
+      vec![
+        (2, 19),
+        (3, 20),
+        // (4, 0),
+        (5, 27),
+      ],
+    );
   }
 }

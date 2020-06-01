@@ -17,6 +17,10 @@ impl LintRule for NoClassAssign {
     Box::new(NoClassAssign)
   }
 
+  fn code(&self) -> &'static str {
+    "noClassAssign"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut scope_visitor = ScopeVisitor::new();
     scope_visitor.visit_module(&module, &module);
@@ -66,13 +70,12 @@ impl Visit for NoClassAssignVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::assert_lint_err_on_line_n;
+  use crate::test_util::assert_lint_ok;
 
   #[test]
   fn no_class_assign_ok() {
-    test_lint(
-      "no_class_assign",
+    assert_lint_ok::<NoClassAssign>(
       r#"
 class A {}
 
@@ -94,15 +97,12 @@ x = "xx";
 var y = "y";
 y = "yy";
       "#,
-      vec![NoClassAssign::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn no_class_assign() {
-    test_lint(
-      "no_class_assign",
+    assert_lint_err_on_line_n::<NoClassAssign>(
       r#"
 class A {}
 A = 0;
@@ -117,42 +117,7 @@ class C {}
 C = 10;
 C = 20;
       "#,
-      vec![NoClassAssign::new()],
-      json!([{
-        "code": "noClassAssign",
-        "message": "Reassigning class declaration is not allowed",
-        "location": {
-          "filename": "no_class_assign",
-          "line": 3,
-          "col": 0,
-        }
-      },
-      {
-        "code": "noClassAssign",
-        "message": "Reassigning class declaration is not allowed",
-        "location": {
-          "filename": "no_class_assign",
-          "line": 7,
-          "col": 4,
-        }
-      },{
-        "code": "noClassAssign",
-        "message": "Reassigning class declaration is not allowed",
-        "location": {
-          "filename": "no_class_assign",
-          "line": 12,
-          "col": 0,
-        }
-      },
-      {
-        "code": "noClassAssign",
-        "message": "Reassigning class declaration is not allowed",
-        "location": {
-          "filename": "no_class_assign",
-          "line": 13,
-          "col": 0,
-        }
-      }]),
-    )
+      vec![(3, 0), (7, 4), (12, 0), (13, 0)],
+    );
   }
 }

@@ -17,6 +17,10 @@ impl LintRule for NoFuncAssign {
     Box::new(NoFuncAssign)
   }
 
+  fn code(&self) -> &'static str {
+    "noFuncAssign"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut scope_visitor = ScopeVisitor::new();
     scope_visitor.visit_module(&module, &module);
@@ -66,13 +70,11 @@ impl Visit for NoFuncAssignVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::assert_lint_err_on_line;
 
   #[test]
   fn no_func_assign() {
-    test_lint(
-      "no_func_assign",
+    assert_lint_err_on_line::<NoFuncAssign>(
       r#"
 const a = "a";
 const unused = "unused";
@@ -85,16 +87,8 @@ function asdf(b: number, c: string): number {
 
 asdf = "foobar";
       "#,
-      vec![NoFuncAssign::new()],
-      json!([{
-        "code": "noFuncAssign",
-        "message": "Reassigning function declaration is not allowed",
-        "location": {
-          "filename": "no_func_assign",
-          "line": 11,
-          "col": 0,
-        }
-      }]),
-    )
+      11,
+      0,
+    );
   }
 }

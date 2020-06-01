@@ -36,6 +36,7 @@ pub enum ScopeKind {
   Module,
   Function,
   Block,
+  #[allow(unused)]
   Loop,
   Class,
   Switch,
