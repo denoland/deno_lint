@@ -37,7 +37,7 @@ impl NoSetterReturnVisitor {
       if let Stmt::Return(return_stmt) = stmt {
         if return_stmt.arg.is_some() {
           self.context.add_diagnostic(
-            block_stmt.span,
+            return_stmt.span,
             "noSetterReturn",
             "Setter cannot return a value",
           );
@@ -84,20 +84,17 @@ impl Visit for NoSetterReturnVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn setter_return() {
-    test_lint(
-      "setter_return",
+    assert_lint_err::<NoSetterReturn>(
+      r#"const a = { set setter(a) { return "something"; } };"#,
+      "noSetterReturn",
+      28,
+    );
+    assert_lint_err_on_line_n::<NoSetterReturn>(
       r#"
-const a = {
-  set setter(a) {
-    return "something";
-  }
-};
-
 class b {
   set setterA(a) {
     return "something";
@@ -107,32 +104,7 @@ class b {
   }
 }
       "#,
-      vec![NoSetterReturn::new()],
-      json!([{
-        "code": "noSetterReturn",
-        "message": "Setter cannot return a value",
-        "location": {
-          "filename": "setter_return",
-          "line": 3,
-          "col": 16,
-        }
-      }, {
-        "code": "noSetterReturn",
-        "message": "Setter cannot return a value",
-        "location": {
-          "filename": "setter_return",
-          "line": 9,
-          "col": 17,
-        }
-      }, {
-        "code": "noSetterReturn",
-        "message": "Setter cannot return a value",
-        "location": {
-          "filename": "setter_return",
-          "line": 12,
-          "col": 25,
-        }
-      }]),
-    )
+      vec![("noSetterReturn", 4, 4), ("noSetterReturn", 7, 4)],
+    );
   }
 }
