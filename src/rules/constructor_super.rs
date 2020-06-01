@@ -13,6 +13,10 @@ impl LintRule for ConstructorSuper {
     Box::new(ConstructorSuper)
   }
 
+  fn code(&self) -> &'static str {
+    "constructorSuper"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ConstructorSuperVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -117,14 +121,11 @@ impl Visit for ConstructorSuperVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
-  fn getter_return() {
-    // valid
-    test_lint(
-      "constructor_super",
+  fn constructor_super() {
+    assert_lint_ok::<ConstructorSuper>(
       r#"
 // non derived classes.
 class A { }
@@ -169,182 +170,63 @@ class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } }
 // https://github.com/eslint/eslint/issues/5319
 class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }
       "#,
-      vec![ConstructorSuper::new()],
-      json!([]),
     );
     // invalid
-    test_lint(
-      "constructor_super",
-      r#"
-// inherit from non constructors.
-class A extends null { constructor() { super(); } }
-class A extends null { constructor() { } }
-class A extends 100 { constructor() { super(); } }
-class A extends 'test' { constructor() { super(); } }
-// derived classes.
-class A extends B { constructor() { } }
-class A extends B { constructor() { for (var a of b) super.foo(); } }
-// nested execution scope.
-class A extends B { constructor() { class C extends D { constructor() { super(); } } } }
-class A extends B { constructor() { var c = class extends D { constructor() { super(); } } } }
-class A extends B { constructor() { var c = () => super(); } }
-class A extends B { constructor() { class C extends D { constructor() { super(); } } } }
-class A extends B { constructor() { var C = class extends D { constructor() { super(); } } } }
-// ? class A extends B { constructor() { super(); class C extends D { constructor() { } } } }
-// ? class A extends B { constructor() { super(); var C = class extends D { constructor() { } } } }
-// lacked in some code path.
-// class A extends B { constructor() { if (a) super(); } }
-// class A extends B { constructor() { if (a); else super(); } }
-// class A extends B { constructor() { a && super(); } }
-// class A extends B { constructor() { switch (a) { case 0: super(); } } }
-// class A extends B { constructor() { switch (a) { case 0: break; default: super(); } } }
-// class A extends B { constructor() { try { super(); } catch (err) {} } }
-// class A extends B { constructor() { try { a; } catch (err) { super(); } } }
-// class A extends B { constructor() { if (a) return; super(); } }
-// duplicate.
-class A extends B { constructor() { super(); super(); } }
-// class A extends B { constructor() { super() || super(); } }
-// class A extends B { constructor() { if (a) super(); super(); } }
-// class A extends B { constructor() { switch (a) { case 0: super(); default: super(); } } }
-// class A extends B { constructor(a) { while (a) super(); } }
-// ignores `super()` on unreachable paths.
-class A extends B { constructor() { return; super(); } }
-// https://github.com/eslint/eslint/issues/8248
-class Foo extends Bar {
-                constructor() {
-                    for (a in b) for (c in d);
-                }
-            }
-      "#,
-      vec![ConstructorSuper::new()],
-      json!([
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 37,
-            "filename": "constructor_super",
-            "line": 3
-          },
-          "message": "Constructors of classes which inherit from a non constructor must not call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 37,
-            "filename": "constructor_super",
-            "line": 4
-          },
-          "message": "Classes which inherit from a non constructor must not define a constructor"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 36,
-            "filename": "constructor_super",
-            "line": 5
-          },
-          "message": "Constructors of classes which inherit from a non constructor must not call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 39,
-            "filename": "constructor_super",
-            "line": 6
-          },
-          "message": "Constructors of classes which inherit from a non constructor must not call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 8
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 9
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 11
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 12
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 13
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 14
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 15
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 28
-          },
-          "message": "Constructors of derived classes must call super() only once"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 34,
-            "filename": "constructor_super",
-            "line": 34
-          },
-          "message": "Constructors of derived classes must call super()"
-        },
-        {
-          "code": "constructorSuper",
-          "location": {
-            "col": 30,
-            "filename": "constructor_super",
-            "line": 37
-          },
-          "message": "Constructors of derived classes must call super()"
-        }
-      ]),
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends null { constructor() { super(); } }",
+      37,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends null { constructor() { } }",
+      37,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends 100 { constructor() { super(); } }",
+      36,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends 'test' { constructor() { super(); } }",
+      39,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { for (var a of b) super.foo(); } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { var c = class extends D { constructor() { super(); } } } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { var c = () => super(); } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { var C = class extends D { constructor() { super(); } } } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { super(); super(); } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class A extends B { constructor() { return; super(); } }",
+      34,
+    );
+    assert_lint_err::<ConstructorSuper>(
+      "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }",
+      38,
     );
   }
 }

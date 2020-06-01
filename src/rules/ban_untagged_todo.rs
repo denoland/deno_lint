@@ -37,6 +37,10 @@ impl LintRule for BanUntaggedTodo {
     Box::new(BanUntaggedTodo)
   }
 
+  fn code(&self) -> &'static str {
+    "banUntaggedTodo"
+  }
+
   fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
     context.leading_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {
@@ -54,46 +58,37 @@ impl LintRule for BanUntaggedTodo {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn ban_ts_ignore() {
-    test_lint(
-      "ban_untagged_todo",
+    assert_lint_ok_n::<BanUntaggedTodo>(vec![
+      r#"
+// TODO(#1234)
+const b = "b";
+      "#,
+      r#"
+// TODO(@someusername)
+const c = "c";
+      "#,
+    ]);
+    assert_lint_err_on_line::<BanUntaggedTodo>(
       r#"
 // TODO
 function foo() {
   // pass
 }
-
+      "#,
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<BanUntaggedTodo>(
+      r#"
 // TODO(username)
 const a = "a";
-
-// TODO(#1234)
-const b = "b";
-
-// TODO(@someusername)
-const c = "c";
       "#,
-      vec![BanUntaggedTodo::new()],
-      json!([{
-        "code": "banUntaggedTodo",
-        "message": "TODO should be tagged with (@username) or (#issue)",
-        "location": {
-          "filename": "ban_untagged_todo",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "banUntaggedTodo",
-        "message": "TODO should be tagged with (@username) or (#issue)",
-        "location": {
-          "filename": "ban_untagged_todo",
-          "line": 7,
-          "col": 0,
-        }
-      }]),
-    )
+      2,
+      0,
+    );
   }
 }

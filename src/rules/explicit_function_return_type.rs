@@ -11,6 +11,10 @@ impl LintRule for ExplicitFunctionReturnType {
     Box::new(ExplicitFunctionReturnType)
   }
 
+  fn code(&self) -> &'static str {
+    "explicitFunctionReturnType"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -46,41 +50,15 @@ impl Visit for ExplicitFunctionReturnTypeVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn explicit_function_return_type() {
-    test_lint(
-      "explicit_function_return_type",
-      r#"
-function foo() {
-  // pass
-}
-
-function fooTyped(): void {
-  // pass
-}
-
-const bar = (a: string) => {
-  // pass
-}
-
-const barTyped = (a: string): Promise<void> => {
-  // pass
-}
-
-      "#,
-      vec![ExplicitFunctionReturnType::new()],
-      json!([{
-        "code": "explicitFunctionReturnType",
-        "message": "Missing return type on function",
-        "location": {
-          "filename": "explicit_function_return_type",
-          "line": 2,
-          "col": 0,
-        }
-      }]),
-    )
+    assert_lint_ok_n::<ExplicitFunctionReturnType>(vec![
+      "function fooTyped(): void { }",
+      "const bar = (a: string) => { }",
+      "const barTyped = (a: string): Promise<void> => { }",
+    ]);
+    assert_lint_err::<ExplicitFunctionReturnType>("function foo() { }", 0);
   }
 }

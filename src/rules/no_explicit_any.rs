@@ -12,6 +12,10 @@ impl LintRule for NoExplicitAny {
     Box::new(NoExplicitAny)
   }
 
+  fn code(&self) -> &'static str {
+    "noExplicitAny"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -49,52 +53,18 @@ impl Visit for NoExplicitAnyVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_explicit_any_test() {
-    test_lint(
-      "no_explicit_any",
-      r#"
-function foo(): any {
-    // nothing going on here
-    return undefined;
-}
-
-function bar(): Promise<any> {
-  // nothing going on here
-  return undefined;
-}
-
-const a: any = {};
-      "#,
-      vec![NoExplicitAny::new()],
-      json!([{
-        "code": "noExplicitAny",
-        "message": "`any` type is not allowed",
-        "location": {
-          "filename": "no_explicit_any",
-          "line": 2,
-          "col": 16,
-        }
-      }, {
-        "code": "noExplicitAny",
-        "message": "`any` type is not allowed",
-        "location": {
-          "filename": "no_explicit_any",
-          "line": 7,
-          "col": 24,
-        }
-      }, {
-        "code": "noExplicitAny",
-        "message": "`any` type is not allowed",
-        "location": {
-          "filename": "no_explicit_any",
-          "line": 12,
-          "col": 9,
-        }
-      }]),
-    )
+    assert_lint_err::<NoExplicitAny>(
+      "function foo(): any { return undefined; }",
+      16,
+    );
+    assert_lint_err::<NoExplicitAny>(
+      "function bar(): Promise<any> { return undefined; }",
+      24,
+    );
+    assert_lint_err::<NoExplicitAny>("const a: any = {};", 9);
   }
 }

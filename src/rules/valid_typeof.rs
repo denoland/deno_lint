@@ -15,6 +15,10 @@ impl LintRule for ValidTypeof {
     Box::new(ValidTypeof)
   }
 
+  fn code(&self) -> &'static str {
+    "validTypeof"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = ValidTypeofVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -90,125 +94,35 @@ impl EqExpr for BinExpr {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn it_passes_using_valid_strings() {
-    test_lint(
-      "valid_typeof",
+    assert_lint_ok::<ValidTypeof>(
       r#"
 typeof foo === "string"
 typeof bar == "undefined"
-     "#,
-      vec![ValidTypeof::new()],
-      json!([]),
-    )
+      "#,
+    );
   }
 
   #[test]
   fn it_passes_using_two_typeof_operations() {
-    test_lint(
-      "valid_typeof",
-      r#"
-typeof bar === typeof qux
-     "#,
-      vec![ValidTypeof::new()],
-      json!([]),
-    )
+    assert_lint_ok::<ValidTypeof>(r#"typeof bar === typeof qux"#);
   }
 
   #[test]
   fn it_fails_using_invalid_strings() {
-    test_lint(
-      "valid_typeof",
-      r#"
-typeof foo === "strnig"
-typeof foo == "undefimed"
-typeof bar != "nunber"
-typeof bar !== "fucntion"
-     "#,
-      vec![ValidTypeof::new()],
-      json!([
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 2,
-            "col": 15,
-          }
-        },
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 3,
-            "col": 14,
-          }
-        },
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 4,
-            "col": 14,
-          }
-        },
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 5,
-            "col": 15,
-          }
-        },
-      ]),
-    )
+    assert_lint_err::<ValidTypeof>(r#"typeof foo === "strnig""#, 15);
+    assert_lint_err::<ValidTypeof>(r#"typeof foo == "undefimed""#, 14);
+    assert_lint_err::<ValidTypeof>(r#"typeof bar != "nunber""#, 14);
+    assert_lint_err::<ValidTypeof>(r#"typeof bar !== "fucntion""#, 15);
   }
 
   #[test]
   fn it_fails_not_using_strings() {
-    test_lint(
-      "valid_typeof",
-      r#"
-typeof foo === undefined
-typeof bar == Object
-typeof baz === anotherVariable
-     "#,
-      vec![ValidTypeof::new()],
-      json!([
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 2,
-            "col": 15,
-          }
-        },
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 3,
-            "col": 14,
-          }
-        },
-        {
-          "code": "validTypeof",
-          "message": "Invalid typeof comparison value",
-          "location": {
-            "filename": "valid_typeof",
-            "line": 4,
-            "col": 15,
-          }
-        }
-      ]),
-    )
+    assert_lint_err::<ValidTypeof>(r#"typeof foo === undefined"#, 15);
+    assert_lint_err::<ValidTypeof>(r#"typeof bar == Object"#, 14);
+    assert_lint_err::<ValidTypeof>(r#"typeof baz === anotherVariable"#, 15);
   }
 }

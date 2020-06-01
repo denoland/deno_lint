@@ -26,7 +26,7 @@ jobs:
           rustup component add rustfmt
 
       - name: Cache
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: target/
           key: ${{ matrix.config.os }}-${{ hashFiles('Cargo.lock') }}

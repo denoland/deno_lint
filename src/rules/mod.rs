@@ -44,6 +44,7 @@ pub trait LintRule {
   where
     Self: Sized;
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module);
+  fn code(&self) -> &'static str;
 }
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
