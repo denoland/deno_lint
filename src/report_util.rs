@@ -39,7 +39,7 @@ fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
 }
 
 pub fn report_filename(file_name: &str) {
-  eprintln!("{}", cyan(format!("{} =>", file_name)));
+  eprintln!("{}", cyan(file_name.to_string()));
 }
 
 pub fn report_line_src(line_index: usize, line_src: &str) {
@@ -55,5 +55,5 @@ pub fn place_glyph(line_index: usize, col: usize) {
 }
 
 pub fn report_error(code: &str, message: &str) {
-  eprintln!("  ({}) {}", gray(String::from(code)), message);
+  eprintln!("  ({}) {}", gray(code.to_string()), message);
 }
