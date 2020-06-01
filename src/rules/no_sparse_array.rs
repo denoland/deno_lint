@@ -46,27 +46,15 @@ impl Visit for NoSparseArrayVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_sparse_array_test() {
-    test_lint(
-      "no_sparse_array",
-      r#"
-const sparseArray = [1,,3];
-const sparseArray1 = [1,null,3];
-      "#,
-      vec![NoSparseArray::new()],
-      json!([{
-        "code": "noSparseArray",
-        "message": "Sparse arrays are not allowed",
-        "location": {
-          "filename": "no_sparse_array",
-          "line": 2,
-          "col": 20,
-        }
-      }]),
-    )
+    assert_lint_ok::<NoSparseArray>(vec!["const sparseArray1 = [1,null,3];"]);
+    assert_lint_err::<NoSparseArray>(
+      "const sparseArray = [1,,3];",
+      "noSparseArray",
+      20,
+    );
   }
 }
