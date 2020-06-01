@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-use crate::linter::LintDiagnostic;
+use crate::diagnostic::LintDiagnostic;
 use crate::rules::LintRule;
 use crate::Linter;
 
