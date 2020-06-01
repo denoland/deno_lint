@@ -145,7 +145,7 @@ const obj = {
   #[test]
   fn require_yield() {
     assert_lint_err::<RequireYield>(
-      r#" function* bar() { return "bar"; }"#,
+      r#"function* bar() { return "bar"; }"#,
       "requireYield",
       0,
     );
