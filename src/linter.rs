@@ -107,13 +107,15 @@ pub struct Linter {
   pub ast_parser: AstParser,
 }
 
-impl Linter {
-  pub fn default() -> Self {
+impl Default for Linter {
+  fn default() -> Self {
     let ast_parser = AstParser::new();
 
     Linter { ast_parser }
   }
+}
 
+impl Linter {
   pub fn lint(
     &mut self,
     file_name: String,

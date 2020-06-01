@@ -29,7 +29,7 @@ fn main() {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
 
-    let mut linter = Linter::default();
+    let mut linter: Linter = Default::default();
 
     let rules = get_all_rules();
 

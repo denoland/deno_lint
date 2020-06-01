@@ -12,7 +12,7 @@ pub fn test_lint(
   rules: Vec<Box<dyn LintRule>>,
   expected_diagnostics: Value,
 ) {
-  let mut linter = Linter::default();
+  let mut linter: Linter = Default::default();
   let diagnostics = linter
     .lint(filename.to_string(), source_code.to_string(), rules)
     .expect("Failed to lint");
