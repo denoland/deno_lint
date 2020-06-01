@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::{Expr, Lit::Str, NewExpr, Regex};
+use swc_ecma_ast::{Expr, Lit, NewExpr, Regex};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -48,12 +48,14 @@ impl Visit for NoRegexSpacesVisitor {
 
       if let Some(args) = &new_expr.args {
         if let Some(first_arg) = args.get(0) {
-          let regex_literal = if let Expr::Lit(Str(literal)) = &*first_arg.expr
-          {
-            &literal.value
-          } else {
-            return;
-          };
+          let regex_literal =
+            if let Expr::Lit(Lit::Str(literal)) = &*first_arg.expr {
+              &literal.value
+            } else if let Expr::Lit(Lit::Regex(regex)) = &*first_arg.expr {
+              &regex.exp
+            } else {
+              return;
+            };
 
           if regex_literal.matches("  ").count() > 0 {
             self.context.add_diagnostic(
@@ -79,7 +81,7 @@ mod tests {
     test_lint(
       "no_regex_spaces",
       r#"
-var re = /foo   bar/;
+var re = /a   z/;
       "#,
       vec![NoRegexSpaces::new()],
       json!([{
@@ -92,10 +94,11 @@ var re = /foo   bar/;
         }
       }]),
     );
+
     test_lint(
       "no_regex_spaces",
       r#"
-var re = new RegExp("foo   bar");
+var re = new RegExp("a   z");
       "#,
       vec![NoRegexSpaces::new()],
       json!([{
@@ -107,6 +110,41 @@ var re = new RegExp("foo   bar");
           "col": 9,
         }
       }]),
-    )
+    );
+
+    test_lint(
+      "no_regex_spaces",
+      r#"
+var re = new RegExp(/a  z/);
+    "#,
+      vec![NoRegexSpaces::new()],
+      json!([{
+        "code": "noRegexSpaces",
+        "message": "more than one consecutive spaces in RegExp is not allowed",
+        "location": {
+          "filename": "no_regex_spaces",
+          "line": 2,
+          "col": 9,
+        }
+      }]),
+    );
+
+    test_lint(
+      "no_regex_spaces",
+      r#"
+var re = new RegExp(/a {2}z/);
+    "#,
+      vec![NoRegexSpaces::new()],
+      json!([]),
+    );
+
+    test_lint(
+      "no_regex_spaces",
+      r#"
+var re = /a {30}z/;
+  "#,
+      vec![NoRegexSpaces::new()],
+      json!([]),
+    );
   }
 }
