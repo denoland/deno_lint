@@ -2,7 +2,7 @@
 
 use crate::diagnostic::LintDiagnostic;
 use crate::rules::LintRule;
-use crate::Linter;
+use crate::linter::Linter;
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = Linter::default();
