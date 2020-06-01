@@ -12,6 +12,10 @@ impl LintRule for NoEmptyFunction {
     Box::new(NoEmptyFunction)
   }
 
+  fn code(&self) -> &'static str {
+    "noEmptyFunction"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoEmptyFunctionVisitor::new(context);
     visitor.visit_module(&module, &module);

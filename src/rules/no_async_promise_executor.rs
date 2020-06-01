@@ -13,6 +13,10 @@ impl LintRule for NoAsyncPromiseExecutor {
     Box::new(NoAsyncPromiseExecutor)
   }
 
+  fn code(&self) -> &'static str {
+    "noAsyncPromiseExecutor"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
     visitor.visit_module(&module, &module);

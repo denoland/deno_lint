@@ -12,6 +12,10 @@ impl LintRule for DefaultParamLast {
     Box::new(DefaultParamLast)
   }
 
+  fn code(&self) -> &'static str {
+    "defaultParamLast"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = DefaultParamLastVisitor::new(context);
     visitor.visit_module(&module, &module);

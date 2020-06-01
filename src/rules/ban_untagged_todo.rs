@@ -37,6 +37,10 @@ impl LintRule for BanUntaggedTodo {
     Box::new(BanUntaggedTodo)
   }
 
+  fn code(&self) -> &'static str {
+    "banUntaggedTodo"
+  }
+
   fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
     context.leading_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {

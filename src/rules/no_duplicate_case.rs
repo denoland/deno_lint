@@ -13,6 +13,10 @@ impl LintRule for NoDuplicateCase {
     Box::new(NoDuplicateCase)
   }
 
+  fn code(&self) -> &'static str {
+    "noDuplicateCase"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
     visitor.visit_module(&module, &module);

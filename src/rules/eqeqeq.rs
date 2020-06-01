@@ -12,6 +12,10 @@ impl LintRule for Eqeqeq {
     Box::new(Eqeqeq)
   }
 
+  fn code(&self) -> &'static str {
+    "eqeqeq"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = EqeqeqVisitor::new(context);
     visitor.visit_module(&module, &module);

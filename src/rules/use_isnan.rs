@@ -11,6 +11,10 @@ impl LintRule for UseIsNaN {
     Box::new(UseIsNaN)
   }
 
+  fn code(&self) -> &'static str {
+    "useIsNaN"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = UseIsNaNVisitor::new(context);
     visitor.visit_module(&module, &module);

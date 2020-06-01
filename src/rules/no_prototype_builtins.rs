@@ -17,6 +17,10 @@ impl LintRule for NoPrototypeBuiltins {
     Box::new(NoPrototypeBuiltins)
   }
 
+  fn code(&self) -> &'static str {
+    "noPrototypeBuiltins"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoPrototypeBuiltinsVisitor::new(context);
     visitor.visit_module(&module, &module);

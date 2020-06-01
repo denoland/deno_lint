@@ -17,6 +17,10 @@ impl LintRule for GetterReturn {
     Box::new(GetterReturn)
   }
 
+  fn code(&self) -> &'static str {
+    "getterReturn"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = GetterReturnVisitor::new(context);
     visitor.visit_module(&module, &module);

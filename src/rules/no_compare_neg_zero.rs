@@ -15,6 +15,10 @@ impl LintRule for NoCompareNegZero {
     Box::new(NoCompareNegZero)
   }
 
+  fn code(&self) -> &'static str {
+    "noCompareNegZero"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
     visitor.visit_module(&module, &module);

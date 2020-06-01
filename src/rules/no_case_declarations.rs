@@ -15,6 +15,10 @@ impl LintRule for NoCaseDeclarations {
     Box::new(NoCaseDeclarations)
   }
 
+  fn code(&self) -> &'static str {
+    "noCaseDeclarations"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoCaseDeclarationsVisitor::new(context);
     visitor.visit_module(&module, &module);

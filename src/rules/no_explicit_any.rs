@@ -12,6 +12,10 @@ impl LintRule for NoExplicitAny {
     Box::new(NoExplicitAny)
   }
 
+  fn code(&self) -> &'static str {
+    "noExplicitAny"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
     visitor.visit_module(&module, &module);

@@ -29,6 +29,10 @@ impl LintRule for BanTsIgnore {
     Box::new(BanTsIgnore)
   }
 
+  fn code(&self) -> &'static str {
+    "banTsIgnore"
+  }
+
   fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
     context.leading_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {

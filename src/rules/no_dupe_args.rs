@@ -17,6 +17,10 @@ impl LintRule for NoDupeArgs {
     Box::new(NoDupeArgs)
   }
 
+  fn code(&self) -> &'static str {
+    "noDupeArgs"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoDupeArgsVisitor::new(context);
     visitor.visit_module(&module, &module);

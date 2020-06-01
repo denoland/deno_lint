@@ -15,6 +15,10 @@ impl LintRule for ValidTypeof {
     Box::new(ValidTypeof)
   }
 
+  fn code(&self) -> &'static str {
+    "validTypeof"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = ValidTypeofVisitor::new(context);
     visitor.visit_module(&module, &module);

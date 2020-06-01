@@ -13,6 +13,10 @@ impl LintRule for NoThrowLiteral {
     Box::new(NoThrowLiteral)
   }
 
+  fn code(&self) -> &'static str {
+    "noThrowLiteral"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoThrowLiteralVisitor::new(context);
     visitor.visit_module(&module, &module);

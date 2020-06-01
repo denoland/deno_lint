@@ -10,6 +10,10 @@ impl LintRule for NoEmpty {
     Box::new(NoEmpty)
   }
 
+  fn code(&self) -> &'static str {
+    "noEmpty"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoEmptyVisitor::new(context);
     visitor.visit_module(&module, &module);

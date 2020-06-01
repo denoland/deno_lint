@@ -13,6 +13,10 @@ impl LintRule for ConstructorSuper {
     Box::new(ConstructorSuper)
   }
 
+  fn code(&self) -> &'static str {
+    "constructorSuper"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ConstructorSuperVisitor::new(context);
     visitor.visit_module(&module, &module);

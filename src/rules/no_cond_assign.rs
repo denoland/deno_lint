@@ -13,6 +13,10 @@ impl LintRule for NoCondAssign {
     Box::new(NoCondAssign)
   }
 
+  fn code(&self) -> &'static str {
+    "noCondAssign"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoCondAssignVisitor::new(context);
     visitor.visit_module(&module, &module);

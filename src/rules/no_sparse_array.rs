@@ -11,6 +11,10 @@ impl LintRule for NoSparseArray {
     Box::new(NoSparseArray)
   }
 
+  fn code(&self) -> &'static str {
+    "noSparseArray"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoSparseArrayVisitor::new(context);
     visitor.visit_module(&module, &module);

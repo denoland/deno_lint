@@ -17,6 +17,10 @@ impl LintRule for NoSetterReturn {
     Box::new(NoSetterReturn)
   }
 
+  fn code(&self) -> &'static str {
+    "noSetterReturn"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoSetterReturnVisitor::new(context);
     visitor.visit_module(&module, &module);

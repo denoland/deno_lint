@@ -17,6 +17,10 @@ impl LintRule for NoDupeKeys {
     Box::new(NoDupeKeys)
   }
 
+  fn code(&self) -> &'static str {
+    "noDupeKeys"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
     visitor.visit_module(&module, &module);
