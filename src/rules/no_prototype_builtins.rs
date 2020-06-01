@@ -68,82 +68,52 @@ impl Visit for NoPrototypeBuiltinsVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_prototype_builtins_ok() {
-    test_lint(
-      "no_prototype_builtins",
+    assert_lint_ok::<NoPrototypeBuiltins>(vec![
       r#"
-Object.prototype.hasOwnProperty.call(foo, "bar");
-Object.prototype.isPrototypeOf.call(foo, "bar");
-Object.prototype.propertyIsEnumberable.call(foo, "bar");
-Object.prototype.hasOwnProperty.apply(foo, ["bar"]);
-Object.prototype.isPrototypeOf.apply(foo, ["bar"]);
-Object.prototype.propertyIsEnumberable.apply(foo, ["bar"]);
-hasOwnProperty(foo, "bar");
-isPrototypeOf(foo, "bar");
-propertyIsEnumberable(foo, "bar");
-({}.hasOwnProperty.call(foo, "bar"));
-({}.isPrototypeOf.call(foo, "bar"));
-({}.propertyIsEnumberable.call(foo, "bar"));
-({}.hasOwnProperty.apply(foo, ["bar"]));
-({}.isPrototypeOf.apply(foo, ["bar"]));
-({}.propertyIsEnumberable.apply(foo, ["bar"]));
+  Object.prototype.hasOwnProperty.call(foo, "bar");
+  Object.prototype.isPrototypeOf.call(foo, "bar");
+  Object.prototype.propertyIsEnumberable.call(foo, "bar");
+  Object.prototype.hasOwnProperty.apply(foo, ["bar"]);
+  Object.prototype.isPrototypeOf.apply(foo, ["bar"]);
+  Object.prototype.propertyIsEnumberable.apply(foo, ["bar"]);
+  hasOwnProperty(foo, "bar");
+  isPrototypeOf(foo, "bar");
+  propertyIsEnumberable(foo, "bar");
+  ({}.hasOwnProperty.call(foo, "bar"));
+  ({}.isPrototypeOf.call(foo, "bar"));
+  ({}.propertyIsEnumberable.call(foo, "bar"));
+  ({}.hasOwnProperty.apply(foo, ["bar"]));
+  ({}.isPrototypeOf.apply(foo, ["bar"]));
+  ({}.propertyIsEnumberable.apply(foo, ["bar"]));
       "#,
-      vec![NoPrototypeBuiltins::new()],
-      json!([]),
-    )
+    ]);
   }
 
   #[test]
   fn no_prototype_builtins() {
-    test_lint(
-      "no_prototype_builtins",
-      r#"
-foo.hasOwnProperty("bar");
-foo.isPrototypeOf("bar");
-foo.propertyIsEnumberable("bar");
-foo.bar.baz.hasOwnProperty("bar");
-      "#,
-      vec![NoPrototypeBuiltins::new()],
-      json!([{
-        "code": "noPrototypeBuiltins",
-        "message": "Access to Object.prototype.hasOwnProperty is not allowed from target object",
-        "location": {
-          "filename": "no_prototype_builtins",
-          "line": 2,
-          "col": 0,
-        }
-      },
-      {
-        "code": "noPrototypeBuiltins",
-        "message": "Access to Object.prototype.isPrototypeOf is not allowed from target object",
-        "location": {
-          "filename": "no_prototype_builtins",
-          "line": 3,
-          "col": 0,
-        }
-      },
-      {
-        "code": "noPrototypeBuiltins",
-        "message": "Access to Object.prototype.propertyIsEnumberable is not allowed from target object",
-        "location": {
-          "filename": "no_prototype_builtins",
-          "line": 4,
-          "col": 0,
-        }
-      },
-      {
-        "code": "noPrototypeBuiltins",
-        "message": "Access to Object.prototype.hasOwnProperty is not allowed from target object",
-        "location": {
-          "filename": "no_prototype_builtins",
-          "line": 5,
-          "col": 0,
-        }
-      },]),
-    )
+    assert_lint_err::<NoPrototypeBuiltins>(
+      r#"foo.hasOwnProperty("bar");"#,
+      "noPrototypeBuiltins",
+      0,
+    );
+    assert_lint_err::<NoPrototypeBuiltins>(
+      r#"foo.isPrototypeOf("bar");"#,
+      "noPrototypeBuiltins",
+      0,
+    );
+    assert_lint_err::<NoPrototypeBuiltins>(
+      r#"foo.propertyIsEnumberable("bar");"#,
+      "noPrototypeBuiltins",
+      0,
+    );
+    assert_lint_err::<NoPrototypeBuiltins>(
+      r#"foo.bar.baz.hasOwnProperty("bar");"#,
+      "noPrototypeBuiltins",
+      0,
+    );
   }
 }
