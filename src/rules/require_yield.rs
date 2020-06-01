@@ -115,7 +115,7 @@ mod tests {
 
   #[test]
   fn require_yield_ok() {
-    assert_lint_ok::<RequireYield>(vec![
+    assert_lint_ok::<RequireYield>(
       r#"
 function foo() {}
 function* bar() { 
@@ -139,7 +139,7 @@ const obj = {
   }
 };
       "#,
-    ]);
+    );
   }
 
   #[test]

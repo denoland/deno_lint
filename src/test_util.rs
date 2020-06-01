@@ -74,10 +74,14 @@ fn assert_diagnostic(
   ))
 }
 
-pub fn assert_lint_ok<T: LintRule + 'static>(cases: Vec<&str>) {
+pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
+  let diagnostics = lint::<T>(source);
+  assert!(diagnostics.is_empty());
+}
+
+pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {
   for source in cases {
-    let diagnostics = lint::<T>(source);
-    assert!(diagnostics.is_empty());
+    assert_lint_ok::<T>(source);
   }
 }
 

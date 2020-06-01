@@ -94,17 +94,17 @@ mod tests {
 
   #[test]
   fn it_passes_using_valid_strings() {
-    assert_lint_ok::<ValidTypeof>(vec![
+    assert_lint_ok::<ValidTypeof>(
       r#"
 typeof foo === "string"
 typeof bar == "undefined"
       "#,
-    ]);
+    );
   }
 
   #[test]
   fn it_passes_using_two_typeof_operations() {
-    assert_lint_ok::<ValidTypeof>(vec![r#"typeof bar === typeof qux"#]);
+    assert_lint_ok::<ValidTypeof>(r#"typeof bar === typeof qux"#);
   }
 
   #[test]

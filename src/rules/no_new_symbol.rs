@@ -55,11 +55,11 @@ mod tests {
 
   #[test]
   fn test_new_normal_class() {
-    assert_lint_ok::<NoNewSymbol>(vec!["new Class()"]);
+    assert_lint_ok::<NoNewSymbol>("new Class()");
   }
 
   #[test]
   fn test_create_symbol() {
-    assert_lint_ok::<NoNewSymbol>(vec!["Symbol()"]);
+    assert_lint_ok::<NoNewSymbol>("Symbol()");
   }
 }

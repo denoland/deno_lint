@@ -65,7 +65,7 @@ mod tests {
   use crate::test_util::*;
   #[test]
   fn no_case_declarations_ok() {
-    assert_lint_ok::<NoCaseDeclarations>(vec![
+    assert_lint_ok::<NoCaseDeclarations>(
       r#"
 switch (foo) {
   case 1: {
@@ -94,7 +94,7 @@ switch (foo) {
   }
 }
       "#,
-    ]);
+    );
   }
 
   #[test]

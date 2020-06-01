@@ -63,6 +63,6 @@ mod tests {
   fn eqeqeq_test() {
     assert_lint_err::<Eqeqeq>("kumiko == oumae", "eqeqeq", 0);
     assert_lint_err::<Eqeqeq>("reina != kousaka", "eqeqeq", 0);
-    assert_lint_ok::<Eqeqeq>(vec!["midori == null", "null == hazuki"]);
+    assert_lint_ok_n::<Eqeqeq>(vec!["midori == null", "null == hazuki"]);
   }
 }

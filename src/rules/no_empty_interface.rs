@@ -51,9 +51,9 @@ mod tests {
 
   #[test]
   fn no_empty_interface() {
-    assert_lint_ok::<NoEmptyInterface>(vec![
+    assert_lint_ok::<NoEmptyInterface>(
       "interface NonEmptyInterface { a: string }",
-    ]);
+    );
     assert_lint_err::<NoEmptyInterface>(
       "interface EmptyInterface {}",
       "noEmptyInterface",

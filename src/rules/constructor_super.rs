@@ -121,7 +121,7 @@ mod tests {
 
   #[test]
   fn constructor_super() {
-    assert_lint_ok::<ConstructorSuper>(vec![
+    assert_lint_ok::<ConstructorSuper>(
       r#"
 // non derived classes.
 class A { }
@@ -166,7 +166,7 @@ class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } }
 // https://github.com/eslint/eslint/issues/5319
 class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }
       "#,
-    ]);
+    );
     // invalid
     assert_lint_err::<ConstructorSuper>(
       "class A extends null { constructor() { super(); } }",

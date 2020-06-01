@@ -159,7 +159,7 @@ mod tests {
 
   #[test]
   fn for_direction_ok() {
-    assert_lint_ok::<ForDirection>(vec![
+    assert_lint_ok::<ForDirection>(
       r#"
 for(let i = 0; i < 2; i++) {}
 for(let i = 0; i <= 2; i++) {}
@@ -194,7 +194,7 @@ for(let i = 0; i != 10; i++) {}
 for(let i = 0; i === 0; i++) {}
 for(let i = 0; i == 0; i++) {}
       "#,
-    ]);
+    );
   }
 
   #[test]

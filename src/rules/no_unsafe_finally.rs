@@ -61,7 +61,7 @@ mod tests {
 
   #[test]
   fn it_passes_when_there_are_no_disallowed_keywords_in_the_finally_block() {
-    assert_lint_ok::<NoUnsafeFinally>(vec![
+    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -73,12 +73,12 @@ let foo = function() {
   }
 };
      "#,
-    ]);
+    );
   }
 
   #[test]
   fn it_passes_for_a_return_within_a_function_in_a_finally_block() {
-    assert_lint_ok::<NoUnsafeFinally>(vec![
+    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -92,12 +92,12 @@ let foo = function() {
   }
 };
      "#,
-    ]);
+    );
   }
 
   #[test]
   fn it_passes_for_a_break_within_a_switch_in_a_finally_block() {
-    assert_lint_ok::<NoUnsafeFinally>(vec![
+    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function(a) {
   try {
@@ -114,7 +114,7 @@ let foo = function(a) {
   }
 };
       "#,
-    ]);
+    );
   }
 
   #[test]

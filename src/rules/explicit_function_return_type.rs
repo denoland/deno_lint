@@ -50,7 +50,7 @@ mod tests {
 
   #[test]
   fn explicit_function_return_type() {
-    assert_lint_ok::<ExplicitFunctionReturnType>(vec![
+    assert_lint_ok_n::<ExplicitFunctionReturnType>(vec![
       "function fooTyped(): void { }",
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",

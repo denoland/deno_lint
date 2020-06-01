@@ -65,7 +65,7 @@ mod tests {
 
   #[test]
   fn no_async_promise_executor_test() {
-    assert_lint_ok::<NoAsyncPromiseExecutor>(vec![
+    assert_lint_ok_n::<NoAsyncPromiseExecutor>(vec![
       "new Promise(function(a, b) {});",
       "new Promise((a, b) => {});",
     ]);

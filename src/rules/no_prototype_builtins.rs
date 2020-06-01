@@ -72,7 +72,7 @@ mod tests {
 
   #[test]
   fn no_prototype_builtins_ok() {
-    assert_lint_ok::<NoPrototypeBuiltins>(vec![
+    assert_lint_ok::<NoPrototypeBuiltins>(
       r#"
   Object.prototype.hasOwnProperty.call(foo, "bar");
   Object.prototype.isPrototypeOf.call(foo, "bar");
@@ -90,7 +90,7 @@ mod tests {
   ({}.isPrototypeOf.apply(foo, ["bar"]));
   ({}.propertyIsEnumberable.apply(foo, ["bar"]));
       "#,
-    ]);
+    );
   }
 
   #[test]
