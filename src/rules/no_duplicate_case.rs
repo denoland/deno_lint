@@ -60,13 +60,11 @@ impl Visit for NoDuplicateCaseVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_duplicate_case_test() {
-    test_lint(
-      "no_duplicate_case",
+    assert_lint_err_on_line::<NoDuplicateCase>(
       r#"
 const someText = "some text";
 switch (someText) {
@@ -80,16 +78,9 @@ switch (someText) {
         break;
 }
       "#,
-      vec![NoDuplicateCase::new()],
-      json!([{
-        "code": "noDuplicateCase",
-        "message": "Duplicate values in `case` are not allowed",
-        "location": {
-          "filename": "no_duplicate_case",
-          "line": 8,
-          "col": 9,
-        }
-      }]),
-    )
+      "noDuplicateCase",
+      8,
+      9,
+    );
   }
 }
