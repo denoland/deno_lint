@@ -12,6 +12,10 @@ impl LintRule for NoDebugger {
     Box::new(NoDebugger)
   }
 
+  fn code(&self) -> &'static str {
+    "noDebugger"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoDebuggerVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -50,7 +54,6 @@ mod tests {
   fn no_debugger_test() {
     assert_lint_err::<NoDebugger>(
       r#"function asdf(): number { console.log("asdf"); debugger; return 1; }"#,
-      "noDebugger",
       47,
     )
   }

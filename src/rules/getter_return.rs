@@ -17,6 +17,10 @@ impl LintRule for GetterReturn {
     Box::new(GetterReturn)
   }
 
+  fn code(&self) -> &'static str {
+    "getterReturn"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = GetterReturnVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -87,14 +91,10 @@ mod tests {
 
   #[test]
   fn getter_return() {
-    assert_lint_err::<GetterReturn>(
-      "const a = { get getter() {} };",
-      "getterReturn",
-      25,
-    );
+    assert_lint_err::<GetterReturn>("const a = { get getter() {} };", 25);
     assert_lint_err_n::<GetterReturn>(
       "class b { get getterA() {} private get getterB() {} }",
-      vec![("getterReturn", 24), ("getterReturn", 49)],
+      vec![24, 49],
     );
   }
 }

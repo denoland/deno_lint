@@ -14,6 +14,10 @@ impl LintRule for NoEval {
     Box::new(NoEval)
   }
 
+  fn code(&self) -> &'static str {
+    "noEval"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoEvalVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -54,6 +58,6 @@ mod tests {
 
   #[test]
   fn no_eval_test() {
-    assert_lint_err::<NoEval>(r#"eval("123");"#, "noEval", 0)
+    assert_lint_err::<NoEval>(r#"eval("123");"#, 0)
   }
 }

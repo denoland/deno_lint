@@ -11,6 +11,10 @@ impl LintRule for ExplicitFunctionReturnType {
     Box::new(ExplicitFunctionReturnType)
   }
 
+  fn code(&self) -> &'static str {
+    "explicitFunctionReturnType"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -55,10 +59,6 @@ mod tests {
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
     ]);
-    assert_lint_err::<ExplicitFunctionReturnType>(
-      "function foo() { }",
-      "explicitFunctionReturnType",
-      0,
-    );
+    assert_lint_err::<ExplicitFunctionReturnType>("function foo() { }", 0);
   }
 }

@@ -13,6 +13,10 @@ impl LintRule for ConstructorSuper {
     Box::new(ConstructorSuper)
   }
 
+  fn code(&self) -> &'static str {
+    "constructorSuper"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ConstructorSuperVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -170,72 +174,58 @@ class Foo extends Object { constructor(method) { super(); this.method = method |
     // invalid
     assert_lint_err::<ConstructorSuper>(
       "class A extends null { constructor() { super(); } }",
-      "constructorSuper",
       37,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends null { constructor() { } }",
-      "constructorSuper",
       37,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends 100 { constructor() { super(); } }",
-      "constructorSuper",
       36,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends 'test' { constructor() { super(); } }",
-      "constructorSuper",
       39,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { for (var a of b) super.foo(); } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { var c = class extends D { constructor() { super(); } } } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { var c = () => super(); } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { var C = class extends D { constructor() { super(); } } } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { super(); super(); } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class A extends B { constructor() { return; super(); } }",
-      "constructorSuper",
       34,
     );
     assert_lint_err::<ConstructorSuper>(
       "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }",
-      "constructorSuper",
       38,
     );
   }

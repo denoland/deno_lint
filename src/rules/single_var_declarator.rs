@@ -12,6 +12,10 @@ impl LintRule for SingleVarDeclarator {
     Box::new(SingleVarDeclarator)
   }
 
+  fn code(&self) -> &'static str {
+    "singleVarDeclarator"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = SingleVarDeclaratorVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -49,17 +53,14 @@ mod tests {
   fn single_var_declarator_test() {
     assert_lint_err::<SingleVarDeclarator>(
       r#"const a1 = "a", b1 = "b", c1 = "c";"#,
-      "singleVarDeclarator",
       0,
     );
     assert_lint_err::<SingleVarDeclarator>(
       r#"let a2 = "a", b2 = "b", c2 = "c";"#,
-      "singleVarDeclarator",
       0,
     );
     assert_lint_err::<SingleVarDeclarator>(
       r#"var a3 = "a", b3 = "b", c3 = "c";"#,
-      "singleVarDeclarator",
       0,
     );
   }

@@ -14,6 +14,10 @@ impl LintRule for NoDeleteVar {
     Box::new(NoDeleteVar)
   }
 
+  fn code(&self) -> &'static str {
+    "noDeleteVar"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoDeleteVarVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -55,7 +59,6 @@ mod tests {
   fn no_delete_var_test() {
     assert_lint_err::<NoDeleteVar>(
       r#"var someVar = "someVar"; delete someVar;"#,
-      "noDeleteVar",
       25,
     );
   }

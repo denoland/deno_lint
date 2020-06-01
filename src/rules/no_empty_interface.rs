@@ -12,6 +12,10 @@ impl LintRule for NoEmptyInterface {
     Box::new(NoEmptyInterface)
   }
 
+  fn code(&self) -> &'static str {
+    "noEmptyInterface"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoEmptyInterfaceVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -54,10 +58,6 @@ mod tests {
     assert_lint_ok::<NoEmptyInterface>(
       "interface NonEmptyInterface { a: string }",
     );
-    assert_lint_err::<NoEmptyInterface>(
-      "interface EmptyInterface {}",
-      "noEmptyInterface",
-      0,
-    );
+    assert_lint_err::<NoEmptyInterface>("interface EmptyInterface {}", 0);
   }
 }

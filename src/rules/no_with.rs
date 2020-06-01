@@ -12,6 +12,10 @@ impl LintRule for NoWith {
     Box::new(NoWith)
   }
 
+  fn code(&self) -> &'static str {
+    "noWith"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoWithVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -45,10 +49,6 @@ mod tests {
 
   #[test]
   fn no_with() {
-    assert_lint_err::<NoWith>(
-      "with (someVar) { console.log('asdf'); }",
-      "noWith",
-      0,
-    )
+    assert_lint_err::<NoWith>("with (someVar) { console.log('asdf'); }", 0)
   }
 }

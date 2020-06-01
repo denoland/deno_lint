@@ -17,6 +17,10 @@ impl LintRule for NoDupeArgs {
     Box::new(NoDupeArgs)
   }
 
+  fn code(&self) -> &'static str {
+    "noDupeArgs"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoDupeArgsVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -81,15 +85,7 @@ mod tests {
 
   #[test]
   fn no_dupe_args_test() {
-    assert_lint_err::<NoDupeArgs>(
-      "function dupeArgs1(a, b, a) { }",
-      "noDupeArgs",
-      0,
-    );
-    assert_lint_err::<NoDupeArgs>(
-      "const dupeArgs2 = (a, b, a) => { }",
-      "noDupeArgs",
-      18,
-    );
+    assert_lint_err::<NoDupeArgs>("function dupeArgs1(a, b, a) { }", 0);
+    assert_lint_err::<NoDupeArgs>("const dupeArgs2 = (a, b, a) => { }", 18);
   }
 }

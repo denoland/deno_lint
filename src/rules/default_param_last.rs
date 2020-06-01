@@ -12,6 +12,10 @@ impl LintRule for DefaultParamLast {
     Box::new(DefaultParamLast)
   }
 
+  fn code(&self) -> &'static str {
+    "defaultParamLast"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = DefaultParamLastVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -61,11 +65,7 @@ mod tests {
 
   #[test]
   fn default_param_last_test() {
-    assert_lint_err::<DefaultParamLast>(
-      "function fn(a = 2, b) {}",
-      "defaultParamLast",
-      12,
-    );
+    assert_lint_err::<DefaultParamLast>("function fn(a = 2, b) {}", 12);
     assert_lint_ok_n::<DefaultParamLast>(vec![
       "function fn(a = 2, b = 3) {}",
       "function fn(a, b = 2) {}",

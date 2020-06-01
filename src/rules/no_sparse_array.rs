@@ -11,6 +11,10 @@ impl LintRule for NoSparseArray {
     Box::new(NoSparseArray)
   }
 
+  fn code(&self) -> &'static str {
+    "noSparseArray"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoSparseArrayVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -51,10 +55,6 @@ mod tests {
   #[test]
   fn no_sparse_array_test() {
     assert_lint_ok::<NoSparseArray>("const sparseArray1 = [1,null,3];");
-    assert_lint_err::<NoSparseArray>(
-      "const sparseArray = [1,,3];",
-      "noSparseArray",
-      20,
-    );
+    assert_lint_err::<NoSparseArray>("const sparseArray = [1,,3];", 20);
   }
 }

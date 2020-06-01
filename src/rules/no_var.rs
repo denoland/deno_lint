@@ -13,6 +13,10 @@ impl LintRule for NoVar {
     Box::new(NoVar)
   }
 
+  fn code(&self) -> &'static str {
+    "noVar"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoVarVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -50,7 +54,6 @@ mod tests {
   fn no_var_test() {
     assert_lint_err::<NoVar>(
       r#"var someVar = "someString"; const c = "c"; let a = "a";"#,
-      "noVar",
       0,
     );
   }

@@ -15,6 +15,10 @@ impl LintRule for ValidTypeof {
     Box::new(ValidTypeof)
   }
 
+  fn code(&self) -> &'static str {
+    "validTypeof"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = ValidTypeofVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -109,44 +113,16 @@ typeof bar == "undefined"
 
   #[test]
   fn it_fails_using_invalid_strings() {
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof foo === "strnig""#,
-      "validTypeof",
-      15,
-    );
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof foo == "undefimed""#,
-      "validTypeof",
-      14,
-    );
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof bar != "nunber""#,
-      "validTypeof",
-      14,
-    );
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof bar !== "fucntion""#,
-      "validTypeof",
-      15,
-    );
+    assert_lint_err::<ValidTypeof>(r#"typeof foo === "strnig""#, 15);
+    assert_lint_err::<ValidTypeof>(r#"typeof foo == "undefimed""#, 14);
+    assert_lint_err::<ValidTypeof>(r#"typeof bar != "nunber""#, 14);
+    assert_lint_err::<ValidTypeof>(r#"typeof bar !== "fucntion""#, 15);
   }
 
   #[test]
   fn it_fails_not_using_strings() {
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof foo === undefined"#,
-      "validTypeof",
-      15,
-    );
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof bar == Object"#,
-      "validTypeof",
-      14,
-    );
-    assert_lint_err::<ValidTypeof>(
-      r#"typeof baz === anotherVariable"#,
-      "validTypeof",
-      15,
-    );
+    assert_lint_err::<ValidTypeof>(r#"typeof foo === undefined"#, 15);
+    assert_lint_err::<ValidTypeof>(r#"typeof bar == Object"#, 14);
+    assert_lint_err::<ValidTypeof>(r#"typeof baz === anotherVariable"#, 15);
   }
 }

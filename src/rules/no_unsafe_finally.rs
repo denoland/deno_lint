@@ -12,6 +12,10 @@ impl LintRule for NoUnsafeFinally {
     Box::new(NoUnsafeFinally)
   }
 
+  fn code(&self) -> &'static str {
+    "noUnsafeFinally"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -131,7 +135,6 @@ let foo = function() {
   }
 };
      "#,
-      "noUnsafeFinally",
       7,
       12,
     );
@@ -151,7 +154,6 @@ let foo = function() {
   }
 };
      "#,
-      "noUnsafeFinally",
       7,
       12,
     );
@@ -171,7 +173,6 @@ let foo = function() {
   }
 };
           "#,
-      "noUnsafeFinally",
       7,
       12,
     );
@@ -191,7 +192,6 @@ let foo = function() {
   }
 };
      "#,
-      "noUnsafeFinally",
       7,
       12,
     );

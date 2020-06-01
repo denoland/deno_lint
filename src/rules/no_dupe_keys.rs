@@ -17,6 +17,10 @@ impl LintRule for NoDupeKeys {
     Box::new(NoDupeKeys)
   }
 
+  fn code(&self) -> &'static str {
+    "noDupeKeys"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -116,7 +120,6 @@ mod tests {
   fn it_fails_when_there_are_duplicate_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", bar: "qux" };"#,
-      "noDupeKeys",
       10,
     );
   }
@@ -125,7 +128,7 @@ mod tests {
   fn it_fails_when_there_are_multiple_duplicate_keys() {
     assert_lint_err_n::<NoDupeKeys>(
       r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#,
-      vec![("noDupeKeys", 10), ("noDupeKeys", 10)],
+      vec![10, 10],
     );
   }
 
@@ -133,25 +136,19 @@ mod tests {
   fn it_fails_when_there_are_duplicate_string_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", "bar": "qux" };"#,
-      "noDupeKeys",
       10,
     );
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_numeric_keys() {
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { 1: "baz", 0x1: "qux" };"#,
-      "noDupeKeys",
-      10,
-    );
+    assert_lint_err::<NoDupeKeys>(r#"var foo = { 1: "baz", 0x1: "qux" };"#, 10);
   }
 
   #[test]
   fn it_fails_when_there_are_duplicate_getter_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", get bar() {} };"#,
-      "noDupeKeys",
       10,
     );
   }
@@ -160,7 +157,6 @@ mod tests {
   fn it_fails_when_there_are_duplicate_setter_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", set bar() {} };"#,
-      "noDupeKeys",
       10,
     );
   }
