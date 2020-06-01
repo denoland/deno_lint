@@ -44,31 +44,14 @@ impl Visit for NoDebuggerVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_debugger_test() {
-    test_lint(
-      "no_debugger",
-      r#"
-function asdf(): number {
-  console.log("asdf");
-  debugger;
-  return 1;
-}
-    
-      "#,
-      vec![NoDebugger::new()],
-      json!([{
-        "code": "noDebugger",
-        "message": "`debugger` statement is not allowed",
-        "location": {
-          "filename": "no_debugger",
-          "line": 4,
-          "col": 2,
-        }
-      }]),
+    assert_lint_err::<NoDebugger>(
+      r#"function asdf(): number { console.log("asdf"); debugger; return 1; }"#,
+      "noDebugger",
+      47,
     )
   }
 }
