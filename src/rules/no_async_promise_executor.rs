@@ -75,12 +75,10 @@ mod tests {
     ]);
     assert_lint_err::<NoAsyncPromiseExecutor>(
       "new Promise(async function(a, b) {});",
-      "noAsyncPromiseExecutor",
       0,
     );
     assert_lint_err::<NoAsyncPromiseExecutor>(
       "new Promise(async (a, b) => {});",
-      "noAsyncPromiseExecutor",
       0,
     );
   }

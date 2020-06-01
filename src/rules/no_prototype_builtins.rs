@@ -99,24 +99,14 @@ mod tests {
 
   #[test]
   fn no_prototype_builtins() {
-    assert_lint_err::<NoPrototypeBuiltins>(
-      r#"foo.hasOwnProperty("bar");"#,
-      "noPrototypeBuiltins",
-      0,
-    );
-    assert_lint_err::<NoPrototypeBuiltins>(
-      r#"foo.isPrototypeOf("bar");"#,
-      "noPrototypeBuiltins",
-      0,
-    );
+    assert_lint_err::<NoPrototypeBuiltins>(r#"foo.hasOwnProperty("bar");"#, 0);
+    assert_lint_err::<NoPrototypeBuiltins>(r#"foo.isPrototypeOf("bar");"#, 0);
     assert_lint_err::<NoPrototypeBuiltins>(
       r#"foo.propertyIsEnumberable("bar");"#,
-      "noPrototypeBuiltins",
       0,
     );
     assert_lint_err::<NoPrototypeBuiltins>(
       r#"foo.bar.baz.hasOwnProperty("bar");"#,
-      "noPrototypeBuiltins",
       0,
     );
   }

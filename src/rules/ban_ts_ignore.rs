@@ -61,7 +61,6 @@ function foo() {
   // pass
 }
     "#,
-      "banTsIgnore",
       2,
       0,
     );
@@ -72,7 +71,6 @@ function bar() {
   const a = "bar";
 }
     "#,
-      "banTsIgnore",
       3,
       2,
     );

@@ -109,7 +109,7 @@ mod tests {
 
   #[test]
   fn use_isnan_test() {
-    assert_lint_err::<UseIsNaN>("42 === NaN", "useIsNaN", 0);
+    assert_lint_err::<UseIsNaN>("42 === NaN", 0);
     assert_lint_err_on_line_n::<UseIsNaN>(
       r#"
 switch (NaN) {
@@ -119,7 +119,7 @@ switch (NaN) {
     break;
 }
       "#,
-      vec![("useIsNaN", 2, 0), ("useIsNaN", 3, 2)],
+      vec![(2, 0), (3, 2)],
     );
   }
 }

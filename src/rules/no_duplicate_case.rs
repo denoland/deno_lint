@@ -82,7 +82,6 @@ switch (someText) {
         break;
 }
       "#,
-      "noDuplicateCase",
       8,
       9,
     );

@@ -86,29 +86,21 @@ mod tests {
 
   #[test]
   fn it_fails_using_assignment_in_if_stmt() {
-    assert_lint_err::<NoCondAssign>("if (x = 0) { }", "noCondAssign", 4);
+    assert_lint_err::<NoCondAssign>("if (x = 0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_assignment_in_while_stmt() {
-    assert_lint_err::<NoCondAssign>("while (x = 0) { }", "noCondAssign", 7);
+    assert_lint_err::<NoCondAssign>("while (x = 0) { }", 7);
   }
 
   #[test]
   fn it_fails_using_assignment_in_do_while_stmt() {
-    assert_lint_err::<NoCondAssign>(
-      "do { } while (x = 0);",
-      "noCondAssign",
-      14,
-    );
+    assert_lint_err::<NoCondAssign>("do { } while (x = 0);", 14);
   }
 
   #[test]
   fn it_fails_using_assignment_in_for_stmt() {
-    assert_lint_err::<NoCondAssign>(
-      "for (let i = 0; i = 10; i++) { }",
-      "noCondAssign",
-      16,
-    );
+    assert_lint_err::<NoCondAssign>("for (let i = 0; i = 10; i++) { }", 16);
   }
 }

@@ -79,7 +79,6 @@ function foo() {
   // pass
 }
       "#,
-      "banUntaggedTodo",
       2,
       0,
     );
@@ -88,7 +87,6 @@ function foo() {
 // TODO(username)
 const a = "a";
       "#,
-      "banUntaggedTodo",
       2,
       0,
     );

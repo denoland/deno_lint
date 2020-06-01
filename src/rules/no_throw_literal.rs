@@ -60,15 +60,15 @@ mod tests {
 
   #[test]
   fn check_literal() {
-    assert_lint_err::<NoThrowLiteral>("throw 'kumiko'", "noThrowLiteral", 0);
-    assert_lint_err::<NoThrowLiteral>("throw true", "noThrowLiteral", 0);
-    assert_lint_err::<NoThrowLiteral>("throw 1096", "noThrowLiteral", 0);
-    assert_lint_err::<NoThrowLiteral>("throw null", "noThrowLiteral", 0);
+    assert_lint_err::<NoThrowLiteral>("throw 'kumiko'", 0);
+    assert_lint_err::<NoThrowLiteral>("throw true", 0);
+    assert_lint_err::<NoThrowLiteral>("throw 1096", 0);
+    assert_lint_err::<NoThrowLiteral>("throw null", 0);
   }
 
   #[test]
   fn check_undefined() {
-    assert_lint_err::<NoThrowLiteral>("throw undefined", "noThrowLiteral", 0);
+    assert_lint_err::<NoThrowLiteral>("throw undefined", 0);
   }
 
   #[test]

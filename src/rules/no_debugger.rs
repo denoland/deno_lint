@@ -54,7 +54,6 @@ mod tests {
   fn no_debugger_test() {
     assert_lint_err::<NoDebugger>(
       r#"function asdf(): number { console.log("asdf"); debugger; return 1; }"#,
-      "noDebugger",
       47,
     )
   }

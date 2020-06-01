@@ -54,12 +54,10 @@ mod tests {
   fn no_empty_function_test() {
     assert_lint_err::<NoEmptyFunction>(
       "function emptyFunctionWithBody() { }",
-      "noEmptyFunction",
       0,
     );
     assert_lint_err::<NoEmptyFunction>(
       "function emptyFunctionWithoutBody();",
-      "noEmptyFunction",
       0,
     );
   }

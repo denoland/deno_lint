@@ -49,10 +49,6 @@ mod tests {
 
   #[test]
   fn no_with() {
-    assert_lint_err::<NoWith>(
-      "with (someVar) { console.log('asdf'); }",
-      "noWith",
-      0,
-    )
+    assert_lint_err::<NoWith>("with (someVar) { console.log('asdf'); }", 0)
   }
 }

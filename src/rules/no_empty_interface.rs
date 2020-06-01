@@ -58,10 +58,6 @@ mod tests {
     assert_lint_ok::<NoEmptyInterface>(
       "interface NonEmptyInterface { a: string }",
     );
-    assert_lint_err::<NoEmptyInterface>(
-      "interface EmptyInterface {}",
-      "noEmptyInterface",
-      0,
-    );
+    assert_lint_err::<NoEmptyInterface>("interface EmptyInterface {}", 0);
   }
 }

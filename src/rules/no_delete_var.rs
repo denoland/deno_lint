@@ -59,7 +59,6 @@ mod tests {
   fn no_delete_var_test() {
     assert_lint_err::<NoDeleteVar>(
       r#"var someVar = "someVar"; delete someVar;"#,
-      "noDeleteVar",
       25,
     );
   }

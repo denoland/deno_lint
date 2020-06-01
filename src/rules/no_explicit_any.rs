@@ -59,14 +59,12 @@ mod tests {
   fn no_explicit_any_test() {
     assert_lint_err::<NoExplicitAny>(
       "function foo(): any { return undefined; }",
-      "noExplicitAny",
       16,
     );
     assert_lint_err::<NoExplicitAny>(
       "function bar(): Promise<any> { return undefined; }",
-      "noExplicitAny",
       24,
     );
-    assert_lint_err::<NoExplicitAny>("const a: any = {};", "noExplicitAny", 9);
+    assert_lint_err::<NoExplicitAny>("const a: any = {};", 9);
   }
 }

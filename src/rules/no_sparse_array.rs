@@ -55,10 +55,6 @@ mod tests {
   #[test]
   fn no_sparse_array_test() {
     assert_lint_ok::<NoSparseArray>("const sparseArray1 = [1,null,3];");
-    assert_lint_err::<NoSparseArray>(
-      "const sparseArray = [1,,3];",
-      "noSparseArray",
-      20,
-    );
+    assert_lint_err::<NoSparseArray>("const sparseArray = [1,,3];", 20);
   }
 }

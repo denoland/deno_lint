@@ -59,10 +59,6 @@ mod tests {
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
     ]);
-    assert_lint_err::<ExplicitFunctionReturnType>(
-      "function foo() { }",
-      "explicitFunctionReturnType",
-      0,
-    );
+    assert_lint_err::<ExplicitFunctionReturnType>("function foo() { }", 0);
   }
 }

@@ -54,7 +54,6 @@ mod tests {
   fn no_var_test() {
     assert_lint_err::<NoVar>(
       r#"var someVar = "someString"; const c = "c"; let a = "a";"#,
-      "noVar",
       0,
     );
   }

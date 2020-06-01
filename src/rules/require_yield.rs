@@ -148,19 +148,13 @@ const obj = {
 
   #[test]
   fn require_yield() {
-    assert_lint_err::<RequireYield>(
-      r#"function* bar() { return "bar"; }"#,
-      "requireYield",
-      0,
-    );
+    assert_lint_err::<RequireYield>(r#"function* bar() { return "bar"; }"#, 0);
     assert_lint_err::<RequireYield>(
       r#"(function* foo() { return "foo"; })();"#,
-      "requireYield",
       1,
     );
     assert_lint_err::<RequireYield>(
       r#"function* nested() { function* gen() { yield "gen"; } }"#,
-      "requireYield",
       0,
     );
     assert_lint_err_on_line_n::<RequireYield>(
@@ -175,11 +169,10 @@ class Fizz {
   }
 }
     "#,
-      vec![("requireYield", 3, 2), ("requireYield", 7, 2)],
+      vec![(3, 2), (7, 2)],
     );
     assert_lint_err::<RequireYield>(
       r#"const obj = { *foo() { return "foo"; } };"#,
-      "requireYield",
       14,
     );
   }

@@ -65,11 +65,7 @@ mod tests {
 
   #[test]
   fn default_param_last_test() {
-    assert_lint_err::<DefaultParamLast>(
-      "function fn(a = 2, b) {}",
-      "defaultParamLast",
-      12,
-    );
+    assert_lint_err::<DefaultParamLast>("function fn(a = 2, b) {}", 12);
     assert_lint_ok_n::<DefaultParamLast>(vec![
       "function fn(a = 2, b = 3) {}",
       "function fn(a, b = 2) {}",

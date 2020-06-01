@@ -111,7 +111,6 @@ switch (foo) {
     break;
 }
     "#,
-      "noCaseDeclarations",
       3,
       2,
     );
@@ -123,7 +122,6 @@ switch (bar) {
     break;
 }
     "#,
-      "noCaseDeclarations",
       3,
       2,
     );
@@ -135,7 +133,6 @@ switch (fizz) {
     break;
 }
     "#,
-      "noCaseDeclarations",
       3,
       2,
     );
@@ -147,7 +144,6 @@ switch (buzz) {
     break;
 }
     "#,
-      "noCaseDeclarations",
       3,
       2,
     );
@@ -161,7 +157,6 @@ switch (fncase) {
     break;
 }
     "#,
-      "noCaseDeclarations",
       3,
       2,
     );
@@ -175,7 +170,6 @@ switch (classcase) {
     break;
 }
     "#,
-      "noCaseDeclarations",
       3,
       2,
     );

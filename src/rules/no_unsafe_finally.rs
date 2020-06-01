@@ -135,7 +135,6 @@ let foo = function() {
   }
 };
      "#,
-      "noUnsafeFinally",
       7,
       12,
     );
@@ -155,7 +154,6 @@ let foo = function() {
   }
 };
      "#,
-      "noUnsafeFinally",
       7,
       12,
     );
@@ -175,7 +173,6 @@ let foo = function() {
   }
 };
           "#,
-      "noUnsafeFinally",
       7,
       12,
     );
@@ -195,7 +192,6 @@ let foo = function() {
   }
 };
      "#,
-      "noUnsafeFinally",
       7,
       12,
     );

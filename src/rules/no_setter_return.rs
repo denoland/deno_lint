@@ -94,7 +94,6 @@ mod tests {
   fn setter_return() {
     assert_lint_err::<NoSetterReturn>(
       r#"const a = { set setter(a) { return "something"; } };"#,
-      "noSetterReturn",
       28,
     );
     assert_lint_err_on_line_n::<NoSetterReturn>(
@@ -108,7 +107,7 @@ class b {
   }
 }
       "#,
-      vec![("noSetterReturn", 4, 4), ("noSetterReturn", 7, 4)],
+      vec![(4, 4), (7, 4)],
     );
   }
 }

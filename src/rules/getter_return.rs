@@ -91,14 +91,10 @@ mod tests {
 
   #[test]
   fn getter_return() {
-    assert_lint_err::<GetterReturn>(
-      "const a = { get getter() {} };",
-      "getterReturn",
-      25,
-    );
+    assert_lint_err::<GetterReturn>("const a = { get getter() {} };", 25);
     assert_lint_err_n::<GetterReturn>(
       "class b { get getterA() {} private get getterB() {} }",
-      vec![("getterReturn", 24), ("getterReturn", 49)],
+      vec![24, 49],
     );
   }
 }

@@ -58,6 +58,6 @@ mod tests {
 
   #[test]
   fn no_eval_test() {
-    assert_lint_err::<NoEval>(r#"eval("123");"#, "noEval", 0)
+    assert_lint_err::<NoEval>(r#"eval("123");"#, 0)
   }
 }

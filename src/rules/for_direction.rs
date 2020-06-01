@@ -203,65 +203,17 @@ for(let i = 0; i == 0; i++) {}
 
   #[test]
   fn for_direction() {
-    assert_lint_err::<ForDirection>(
-      "for(let i = 0; i < 2; i--) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 0; i <= 2; i--) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 2; i > 2; i++) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 2; i >= 0; i++) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 0; i < 2; i -= 1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 0; i <= 2; i -= 1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 2; i > 2; i -= -1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 2; i >= 0; i -= -1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 2; i > 2; i += 1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 2; i >= 0; i += 1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 0; i < 2; i += -1) {}",
-      "forDirection",
-      0,
-    );
-    assert_lint_err::<ForDirection>(
-      "for(let i = 0; i <= 2; i += -1) {}",
-      "forDirection",
-      0,
-    );
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i--) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i--) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i++) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i++) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i -= 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i -= 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i -= -1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i -= -1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i += 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i += 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i += -1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i += -1) {}", 0);
   }
 }

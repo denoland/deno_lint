@@ -103,91 +103,51 @@ mod tests {
 
   #[test]
   fn it_fails_using_double_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x == -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x == -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_not_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x != -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x != -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_triple_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x === -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x === -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_not_double_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x !== -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x !== -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_less_than_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x < -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x < -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_less_than_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x <= -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x <= -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_greater_than_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x > -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x > -0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_greater_than_equal_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x >= -0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x >= -0) { }", 4);
   }
 
   #[test]
   fn it_fails_with_neg_zero_as_the_left_operand() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (-0 == x) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (-0 == x) { }", 4);
   }
 
   #[test]
   fn it_fails_with_floating_point_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>(
-      "if (x == -0.0) { }",
-      "noCompareNegZero",
-      4,
-    );
+    assert_lint_err::<NoCompareNegZero>("if (x == -0.0) { }", 4);
   }
 }
