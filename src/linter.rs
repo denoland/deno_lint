@@ -43,6 +43,8 @@ pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,
   pub code: String,
+  pub line_src: String,
+  pub snippet_length: usize,
 }
 
 #[derive(Clone)]
@@ -58,10 +60,25 @@ impl Context {
   pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let location = self.source_map.lookup_char_pos(span.lo());
     let mut diags = self.diagnostics.lock().unwrap();
+    let line_src = self
+      .source_map
+      .lookup_source_file(span.lo())
+      .get_line(location.line - 1)
+      .expect("error loading line soruce")
+      .to_string();
+
+    let snippet_length = self
+      .source_map
+      .span_to_snippet(span)
+      .expect("error loading snippet")
+      .len();
+
     diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
+      line_src,
+      snippet_length,
     });
   }
 }
