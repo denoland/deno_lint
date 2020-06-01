@@ -25,6 +25,7 @@ mod no_eval;
 mod no_explicit_any;
 mod no_new_symbol;
 mod no_prototype_builtins;
+mod no_regex_spaces;
 mod no_setter_return;
 mod no_sparse_array;
 mod no_throw_literal;
@@ -69,6 +70,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_explicit_any::NoExplicitAny::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
     no_sparse_array::NoSparseArray::new(),
     no_throw_literal::NoThrowLiteral::new(),
