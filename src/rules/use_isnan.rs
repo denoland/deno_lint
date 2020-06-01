@@ -101,49 +101,21 @@ impl Visit for UseIsNaNVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn use_isnan_test() {
-    test_lint(
-      "use_isnan",
+    assert_lint_err::<UseIsNaN>("42 === NaN", "useIsNaN", 0);
+    assert_lint_err_on_line_n::<UseIsNaN>(
       r#"
-42 === NaN;
-
 switch (NaN) {
-    case NaN:
-        break;
-    default:
-        break;
+  case NaN:
+    break;
+  default:
+    break;
 }
       "#,
-      vec![UseIsNaN::new()],
-      json!([{
-        "code": "useIsNaN",
-        "message": "Use the isNaN function to compare with NaN",
-        "location": {
-          "filename": "use_isnan",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "useIsNaN",
-        "message": "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch",
-        "location": {
-          "filename": "use_isnan",
-          "line": 4,
-          "col": 0,
-        }
-      }, {
-        "code": "useIsNaN",
-        "message": "'case NaN' can never match. Use Number.isNaN before the switch",
-        "location": {
-          "filename": "use_isnan",
-          "line": 5,
-          "col": 4,
-        }
-      }]),
-    )
+      vec![("useIsNaN", 2, 0), ("useIsNaN", 3, 2)],
+    );
   }
 }
