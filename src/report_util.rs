@@ -63,7 +63,7 @@ pub fn place_glyphes(line_index: usize, col: usize, length: usize) {
   eprintln!(
     "{}|{}{}",
     " ".repeat(line_index.to_string().len() + 1),
-    " ".repeat(col + 3),
+    " ".repeat(col + 1),
     red("^".repeat(length))
   );
   eprintln!("{}|", " ".repeat(line_index.to_string().len() + 1),);
