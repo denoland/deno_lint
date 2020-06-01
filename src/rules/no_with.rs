@@ -41,28 +41,14 @@ impl Visit for NoWithVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_with() {
-    test_lint(
-      "no_with",
-      r#"
-with (someVar) {
-  console.log("asdf");
-}
-      "#,
-      vec![NoWith::new()],
-      json!([{
-        "code": "noWith",
-        "message": "`with` statement is not allowed",
-        "location": {
-          "filename": "no_with",
-          "line": 2,
-          "col": 0,
-        }
-      }]),
+    assert_lint_err::<NoWith>(
+      "with (someVar) { console.log('asdf'); }",
+      "noWith",
+      0,
     )
   }
 }
