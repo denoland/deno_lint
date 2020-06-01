@@ -50,20 +50,23 @@ pub fn report_location(file_name: &str, line_index: usize, col: usize) {
 
   eprintln!(
     "{}",
-    cyan(format!("--> {}:{}:{}", location, line_index, col))
+    cyan(format!(" --> {}:{}:{}", location, line_index, col))
   );
 }
 
 pub fn report_line_src(line_index: usize, line_src: &str) {
-  eprintln!("{}| {}", line_index, line_src);
+  eprintln!("{}|", " ".repeat(line_index.to_string().len() + 1),);
+  eprintln!("{} | {}", line_index, line_src);
 }
 
 pub fn place_glyphes(line_index: usize, col: usize, length: usize) {
   eprintln!(
-    "{}{}",
-    " ".repeat(line_index.to_string().len() + col + 2),
+    "{}|{}{}",
+    " ".repeat(line_index.to_string().len() + 1),
+    " ".repeat(col + 3),
     red("^".repeat(length))
   );
+  eprintln!("{}|", " ".repeat(line_index.to_string().len() + 1),);
 }
 
 pub fn report_error(code: &str, message: &str) {
