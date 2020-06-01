@@ -50,7 +50,7 @@ fn main() {
       eprintln!("{}", d.to_pretty_string());
     }
   }
-  
+
   if error_counts > 0 {
     eprintln!("Found {} problems", error_counts);
   }
