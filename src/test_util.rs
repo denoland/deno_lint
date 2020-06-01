@@ -87,7 +87,7 @@ pub fn assert_lint_err<T: LintRule + 'static>(
   code: &str,
   col: usize,
 ) {
-  assert_lint_err_on_line::<T>(source, code, 0, col)
+  assert_lint_err_on_line::<T>(source, code, 1, col)
 }
 
 pub fn assert_lint_err_on_line<T: LintRule + 'static>(
@@ -109,7 +109,7 @@ pub fn assert_lint_err_n<T: LintRule + 'static>(
   let mut real: Vec<(&str, usize, usize)> = Vec::new();
   for x in expected {
     let (code, col) = x;
-    real.push((code, 0, col));
+    real.push((code, 1, col));
   }
   assert_lint_err_on_line_n::<T>(source, real)
 }
