@@ -1,4 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use clap::App;
+use clap::Arg;
+
 mod linter;
 mod rules;
 mod swc_util;
@@ -11,18 +14,24 @@ mod report_util;
 #[cfg(test)]
 mod test_util;
 
+fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
+  App::new("deno lint").arg(
+    Arg::with_name("FILES")
+      .help("Sets the input file to use")
+      .required(true)
+      .multiple(true),
+  )
+}
+
 fn main() {
   #[cfg(windows)]
   report_util::enable_ansi();
 
-  let args: Vec<String> = std::env::args().collect();
+  let cli_app = create_cli_app();
 
-  if args.len() < 2 {
-    eprintln!("Missing file name");
-    std::process::exit(1);
-  }
+  let matches = cli_app.get_matches();
 
-  let file_names: Vec<String> = args[1..].to_vec();
+  let file_names = matches.values_of("FILES").unwrap();
 
   let mut error_counts = 0;
   for file_name in file_names {
@@ -34,7 +43,7 @@ fn main() {
     let rules = get_all_rules();
 
     let file_diagnostics = linter
-      .lint(file_name, source_code, rules)
+      .lint(file_name.to_string(), source_code, rules)
       .expect("Failed to lint");
 
     error_counts += file_diagnostics.len();
