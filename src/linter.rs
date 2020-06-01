@@ -44,6 +44,7 @@ pub struct LintDiagnostic {
   pub message: String,
   pub code: String,
   pub line_src: String,
+  pub snippet_length: usize,
 }
 
 #[derive(Clone)]
@@ -66,11 +67,18 @@ impl Context {
       .expect("error loading line soruce")
       .to_string();
 
+    let snippet_length = self
+      .source_map
+      .span_to_snippet(span)
+      .expect("error loading snippet")
+      .len();
+
     diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
       line_src,
+      snippet_length,
     });
   }
 }

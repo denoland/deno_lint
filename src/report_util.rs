@@ -38,19 +38,31 @@ fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
   String::from_utf8_lossy(&v).into_owned()
 }
 
-pub fn report_filename(file_name: &str) {
-  eprintln!("{}", cyan(file_name.to_string()));
+pub fn report_location(file_name: &str, line_index: usize, col: usize) {
+  let location = if file_name.contains('/')
+    || file_name.contains('\\')
+    || file_name.starts_with("./")
+  {
+    file_name.to_string()
+  } else {
+    format!("./{}", file_name)
+  };
+
+  eprintln!(
+    "{}",
+    cyan(format!("--> {}:{}:{}", location, line_index, col))
+  );
 }
 
 pub fn report_line_src(line_index: usize, line_src: &str) {
   eprintln!("{}| {}", line_index, line_src);
 }
 
-pub fn place_glyph(line_index: usize, col: usize) {
+pub fn place_glyphes(line_index: usize, col: usize, length: usize) {
   eprintln!(
     "{}{}",
     " ".repeat(line_index.to_string().len() + col + 2),
-    red("^".to_string())
+    red("^".repeat(length))
   );
 }
 
