@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-use crate::linter::LintDiagnostic;
+use crate::diagnostic::LintDiagnostic;
+use crate::linter::Linter;
 use crate::rules::LintRule;
-use crate::Linter;
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = Linter::default();
