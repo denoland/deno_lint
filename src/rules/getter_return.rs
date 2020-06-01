@@ -83,49 +83,18 @@ impl Visit for GetterReturnVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn getter_return() {
-    test_lint(
-      "getter_return",
-      r#"
-const a = {
-  get getter() {}
-};
-
-class b {
-  get getterA() {}
-  private get getterB() {}
-}
-      "#,
-      vec![GetterReturn::new()],
-      json!([{
-        "code": "getterReturn",
-        "message": "Getter requires a return",
-        "location": {
-          "filename": "getter_return",
-          "line": 3,
-          "col": 15,
-        }
-      }, {
-        "code": "getterReturn",
-        "message": "Getter requires a return",
-        "location": {
-          "filename": "getter_return",
-          "line": 7,
-          "col": 16,
-        }
-      }, {
-        "code": "getterReturn",
-        "message": "Getter requires a return",
-        "location": {
-          "filename": "getter_return",
-          "line": 8,
-          "col": 24,
-        }
-      }]),
-    )
+    assert_lint_err::<GetterReturn>(
+      "const a = { get getter() {} };",
+      "getterReturn",
+      25,
+    );
+    assert_lint_err_n::<GetterReturn>(
+      "class b { get getterA() {} private get getterB() {} }",
+      vec![("getterReturn", 24), ("getterReturn", 49)],
+    );
   }
 }
