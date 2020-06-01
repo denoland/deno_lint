@@ -29,19 +29,19 @@ jobs:
           rustup component add rustfmt
 
       - name: Install Deno (benchmark only)
-        if: github.ref == 'master' && contains(matrix.os, 'ubuntu')
+        if: contains(matrix.os, 'ubuntu')
         uses: denolib/setup-deno@master
         with:
           deno-version: v1.x
 
       - name: Install Node.js (benchmark only)
-        if: github.ref == 'master' && contains(matrix.os, 'ubuntu')
+        if: contains(matrix.os, 'ubuntu')
         uses: actions/setup-node@v2-beta
         with:
           node-version: "12"
 
       - name: Install npm packages (benchmark only)
-        if: github.ref == 'master' && contains(matrix.os, 'ubuntu')
+        if: contains(matrix.os, 'ubuntu')
         run: npm install --ci
         working-directory: benchmarks
 
@@ -72,7 +72,7 @@ jobs:
         run: cargo clippy --all-targets --release --locked -- -D clippy::all
 
       - name: Benchmarks
-        if: github.ref == 'benchmarks' && contains(matrix.os, 'ubuntu')
+        if: contains(matrix.os, 'ubuntu')
         run: deno -A benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
