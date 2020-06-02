@@ -28,11 +28,14 @@ mod no_ex_assign;
 mod no_explicit_any;
 mod no_func_assign;
 mod no_new_symbol;
+mod no_obj_call;
+mod no_octal;
 mod no_prototype_builtins;
 mod no_setter_return;
 mod no_sparse_array;
 mod no_throw_literal;
 mod no_unsafe_finally;
+mod no_unsafe_negation;
 mod no_var;
 mod no_with;
 mod require_yield;
@@ -81,12 +84,14 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_sparse_array::NoSparseArray::new(),
     no_throw_literal::NoThrowLiteral::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
+    no_unsafe_negation::NoUnsafeNegation::new(),
     no_var::NoVar::new(),
     no_with::NoWith::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
-    no_empty_character_class::NoEmptyCharacterClass::new(),
+    no_octal::NoOctal::new(),
+    no_obj_call::NoObjCall::new(),
   ]
 }
