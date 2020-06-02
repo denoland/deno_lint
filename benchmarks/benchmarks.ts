@@ -40,7 +40,7 @@ bench({
     b.start();
     const proc = Deno.run({
       cmd: ["npm", "run", "eslint", ...files],
-      cwd: "./benchmarks",
+      cwd: "benchmarks",
       stdout: "null",
       stderr: "null",
     });
