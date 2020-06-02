@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install rust
-        uses: hecrj/setup-rust-action@v1
+        uses: hecrj/setup-rust-action@v1.3.3
         with:
           rust-version: "1.43.0"
 
@@ -73,7 +73,7 @@ jobs:
 
       - name: Benchmarks
         if: startsWith(matrix.os, 'ubuntu')
-        run: deno run -A benchmarks/benchmarks.ts
+        run: deno run -A --quiet benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
         if: |
