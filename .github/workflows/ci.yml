@@ -73,7 +73,7 @@ jobs:
 
       - name: Benchmarks
         if: startsWith(matrix.os, 'ubuntu')
-        run: deno -A benchmarks/benchmarks.ts
+        run: deno run -A benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
         if: |
