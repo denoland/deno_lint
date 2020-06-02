@@ -5,46 +5,55 @@ import {
 } from "https://deno.land/std@0.54.0/testing/bench.ts";
 import { expandGlobSync } from "https://deno.land/std@0.54.0/fs/expand_glob.ts";
 
+const RUN_COUNT = 5;
+
 const files = [
   ...expandGlobSync("**/*.ts", {
     root: "./benchmarks/oak",
   }),
 ].map((e) => e.path);
 
-bench(async function deno_lint(b: BenchmarkTimer): Promise<void> {
-  b.start();
-  const proc = Deno.run({
-    cmd: ["./target/release/deno_lint", ...files],
-    stdout: "null",
-    stderr: "null",
-  });
-  await proc.status();
-  b.stop();
-});
-
-bench(async function eslint(b: BenchmarkTimer): Promise<void> {
-  b.start();
-  const proc = Deno.run({
-    cmd: ["npx", "eslint", ...files],
-    cwd: "./benchmarks",
-    stdout: "null",
-  });
-  await proc.status();
-  b.stop();
-});
-
-const r1 = await runBenchmarks({ silent: true });
-const r2 = await runBenchmarks({ silent: true });
-const r3 = await runBenchmarks({ silent: true });
-
-const total = {
-  results: {
-    deno_lint:
-      (r1.results[0].totalMs + r2.results[0].totalMs + r3.results[0].totalMs) /
-      3,
-    eslint:
-      (r1.results[1].totalMs + r2.results[1].totalMs + r3.results[1].totalMs) /
-      3,
+bench({
+  name: "deno_lint",
+  runs: RUN_COUNT,
+  async func(b: BenchmarkTimer): Promise<void> {
+    b.start();
+    const proc = Deno.run({
+      cmd: ["./target/release/deno_lint", ...files],
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const { success } = await proc.status();
+    if (!success) {
+      await Deno.copy(proc.stdout!, Deno.stdout);
+      await Deno.copy(proc.stderr!, Deno.stderr);
+      throw Error("Failed to run deno_lint");
+    }
+    b.stop();
   },
-};
-console.log(JSON.stringify(total));
+});
+
+bench({
+  name: "eslint",
+  runs: RUN_COUNT,
+  async func(b: BenchmarkTimer): Promise<void> {
+    b.start();
+    const proc = Deno.run({
+      cmd: ["npx", "eslint", ...files],
+      cwd: "./benchmarks",
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const { success } = await proc.status();
+    if (!success) {
+      await Deno.copy(proc.stdout!, Deno.stdout);
+      await Deno.copy(proc.stderr!, Deno.stderr);
+      throw Error("Failed to run eslint");
+    }
+    b.stop();
+  },
+});
+
+const data = await runBenchmarks({ silent: true });
+
+console.log(JSON.stringify(data.results));
