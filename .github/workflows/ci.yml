@@ -4,7 +4,10 @@ on: [push, pull_request]
 
 jobs:
   rust:
-    name: rust-${{ matrix.os }}
+    name: deno_lint-${{ matrix.os }}
+    if: |
+      github.event_name == 'push' ||
+      !startsWith(github.event.pull_request.head.label, 'denoland:')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -28,8 +31,11 @@ jobs:
       - name: Cache
         uses: actions/cache@v2
         with:
-          path: target/
-          key: ${{ matrix.os }}-${{ hashFiles('Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('Cargo.lock') }}
 
       - name: Environment
         run: |
