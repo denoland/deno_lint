@@ -290,6 +290,7 @@ impl Visit for ScopeVisitor {
     _parent: &dyn Node,
   ) {
     for param in &function.params {
+      #[allow(clippy::single_match)] // TODO(lucacsonato): remove
       let name = match &param.pat {
         Pat::Ident(ident) => ident.sym.to_string(),
         _ => "".to_string(), //todo!(),
@@ -363,6 +364,7 @@ impl Visit for ScopeVisitor {
     };
 
     for decl in &var_decl.decls {
+      #[allow(clippy::single_match)] // TODO(lucacsonato): remove
       let name = match &decl.name {
         Pat::Ident(ident) => ident.sym.to_string(),
         _ => "".to_string(), //todo!(),
@@ -407,6 +409,7 @@ impl Visit for ScopeVisitor {
     self.scope_manager.enter_scope(catch_scope);
 
     if let Some(pat) = &catch_clause.param {
+      #[allow(clippy::single_match)] // TODO(lucacsonato): remove
       match pat {
         Pat::Ident(ident) => {
           self.scope_manager.add_binding(Binding {
@@ -416,6 +419,7 @@ impl Visit for ScopeVisitor {
         }
         Pat::Object(object_pat) => {
           for prop in &object_pat.props {
+            #[allow(clippy::single_match)] // TODO(lucacsonato): remove
             match prop {
               ObjectPatProp::Assign(assign_pat_prop) => {
                 // TODO(bartlomieju): handle default value
