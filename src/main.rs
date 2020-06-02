@@ -15,8 +15,8 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
 }
 
 fn main() {
-  use dlint::linter::Linter;
-  use dlint::rules::get_all_rules;
+  use deno_lint::linter::Linter;
+  use deno_lint::rules::get_all_rules;
 
   #[cfg(windows)]
   colors::enable_ansi();

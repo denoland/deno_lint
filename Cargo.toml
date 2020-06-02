@@ -7,7 +7,7 @@ authors = ["the Deno authors"]
 license = "MIT"
 
 [lib]
-name = "dlint"
+name = "deno_lint"
 
 [dependencies]
 clap = { version = "2.33.1" }
