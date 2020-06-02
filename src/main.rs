@@ -3,6 +3,8 @@
 use clap::App;
 use clap::Arg;
 
+mod colors;
+
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("deno lint").arg(
     Arg::with_name("FILES")
