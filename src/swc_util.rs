@@ -198,3 +198,9 @@ impl AstParser {
   //   }
   // }
 }
+
+impl Default for AstParser {
+  fn default() -> Self {
+    Self::new()
+  }
+}
