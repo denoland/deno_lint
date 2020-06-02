@@ -292,7 +292,7 @@ impl Visit for ScopeVisitor {
     for param in &function.params {
       let name = match &param.pat {
         Pat::Ident(ident) => ident.sym.to_string(),
-        _ => todo!(),
+        _ => "".to_string(), //todo!(),
       };
       let param_binding = Binding {
         kind: BindingKind::Param,
@@ -365,7 +365,7 @@ impl Visit for ScopeVisitor {
     for decl in &var_decl.decls {
       let name = match &decl.name {
         Pat::Ident(ident) => ident.sym.to_string(),
-        _ => todo!(),
+        _ => "".to_string(), //todo!(),
       };
 
       self.scope_manager.add_binding(Binding {
@@ -424,11 +424,11 @@ impl Visit for ScopeVisitor {
                   name: assign_pat_prop.key.sym.to_string(),
                 });
               }
-              _ => todo!(),
+              _ => {} //todo!(),
             }
           }
         }
-        _ => todo!(),
+        _ => {} //todo!(),
       };
     }
 
