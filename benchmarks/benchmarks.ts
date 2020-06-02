@@ -20,13 +20,13 @@ bench({
     b.start();
     const proc = Deno.run({
       cmd: ["./target/release/deno_lint", ...files],
-      stdout: "piped",
-      stderr: "piped",
+      stdout: "null",
+      stderr: "null",
     });
     const { success } = await proc.status();
     if (!success) {
-      await Deno.copy(proc.stdout!, Deno.stdout);
-      await Deno.copy(proc.stderr!, Deno.stderr);
+      // await Deno.copy(proc.stdout!, Deno.stdout);
+      // await Deno.copy(proc.stderr!, Deno.stderr);
       throw Error("Failed to run deno_lint");
     }
     b.stop();
@@ -41,13 +41,13 @@ bench({
     const proc = Deno.run({
       cmd: ["npx", "eslint", ...files],
       cwd: "./benchmarks",
-      stdout: "piped",
-      stderr: "piped",
+      stdout: "null",
+      stderr: "null",
     });
     const { success } = await proc.status();
     if (!success) {
-      await Deno.copy(proc.stdout!, Deno.stdout);
-      await Deno.copy(proc.stderr!, Deno.stderr);
+      // await Deno.copy(proc.stdout!, Deno.stdout);
+      // await Deno.copy(proc.stderr!, Deno.stderr);
       throw Error("Failed to run eslint");
     }
     b.stop();
