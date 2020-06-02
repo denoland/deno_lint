@@ -62,6 +62,9 @@ mod tests {
       "1 in [1, 2, 3]",
       "key in object",
       "foo instanceof Date",
+      "!(1 in [1, 2, 3])",
+      "!(key in object)",
+      "!(foo instanceof Date)",
     ]);
   }
 
