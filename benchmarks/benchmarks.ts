@@ -11,10 +11,10 @@ const files = [
   }),
 ].map((e) => e.path);
 
-bench(async function dlint(b: BenchmarkTimer): Promise<void> {
+bench(async function deno_lint(b: BenchmarkTimer): Promise<void> {
   b.start();
   const proc = Deno.run({
-    cmd: ["./target/release/dlint", ...files],
+    cmd: ["./target/release/deno_lint", ...files],
     stdout: "null",
     stderr: "null",
   });
@@ -39,7 +39,7 @@ const r3 = await runBenchmarks({ silent: true });
 
 const total = {
   results: {
-    dlint:
+    deno_lint:
       (r1.results[0].totalMs + r2.results[0].totalMs + r3.results[0].totalMs) /
       3,
     eslint:
