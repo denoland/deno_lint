@@ -193,7 +193,7 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "lazy_static",
