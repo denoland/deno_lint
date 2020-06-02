@@ -20,6 +20,7 @@ mod no_dupe_args;
 mod no_dupe_keys;
 mod no_duplicate_case;
 mod no_empty;
+mod no_empty_character_class;
 mod no_empty_function;
 mod no_empty_interface;
 mod no_eval;
@@ -86,5 +87,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     single_var_declarator::SingleVarDeclarator::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
+    no_empty_character_class::NoEmptyCharacterClass::new(),
   ]
 }
