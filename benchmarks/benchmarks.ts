@@ -39,7 +39,7 @@ bench({
   async func(b: BenchmarkTimer): Promise<void> {
     b.start();
     const proc = Deno.run({
-      cmd: ["npx", "eslint", ...files],
+      cmd: ["npm", "run", "eslint", ...files],
       cwd: "./benchmarks",
       stdout: "null",
       stderr: "null",
