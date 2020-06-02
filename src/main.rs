@@ -1,21 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-#![deny(warnings)]
-
-#[macro_use]
-extern crate lazy_static;
 
 use clap::App;
 use clap::Arg;
 
 mod colors;
-mod diagnostic;
-mod linter;
-mod rules;
-mod scopes;
-mod swc_util;
-
-#[cfg(test)]
-mod test_util;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("deno lint").arg(
@@ -27,8 +15,8 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
 }
 
 fn main() {
-  use linter::Linter;
-  use rules::get_all_rules;
+  use deno_lint::linter::Linter;
+  use deno_lint::rules::get_all_rules;
 
   #[cfg(windows)]
   colors::enable_ansi();

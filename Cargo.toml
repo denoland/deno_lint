@@ -6,6 +6,9 @@ description = "lint for deno"
 authors = ["the Deno authors"]
 license = "MIT"
 
+[lib]
+name = "deno_lint"
+
 [dependencies]
 clap = { version = "2.33.1" }
 lazy_static = "1.4.0"
