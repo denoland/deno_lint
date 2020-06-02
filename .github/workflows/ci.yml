@@ -36,6 +36,9 @@ jobs:
           echo ::set-env name=GH_ACTIONS::1
           echo ::set-env name=RUST_BACKTRACE::full
 
+      - name: Format
+        run: rustfmt --check src/main.rs
+
       - name: Build
         run: cargo build --locked --release --all-targets
 
@@ -44,9 +47,6 @@ jobs:
 
       - name: Lint
         run: cargo clippy --all-targets --release --locked -- -D clippy::all
-
-      - name: Format
-        run: rustfmt --check src/main.rs
 
       - name: Pre-release (linux)
         if: |
