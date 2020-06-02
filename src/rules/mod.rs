@@ -28,6 +28,7 @@ mod no_explicit_any;
 mod no_func_assign;
 mod no_new_symbol;
 mod no_octal;
+mod no_obj_call;
 mod no_prototype_builtins;
 mod no_setter_return;
 mod no_sparse_array;
@@ -88,5 +89,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
     no_octal::NoOctal::new(),
+    no_obj_call::NoObjCall::new(),
   ]
 }
