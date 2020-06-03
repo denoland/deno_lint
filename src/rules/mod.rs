@@ -38,6 +38,7 @@ mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod no_var;
 mod no_with;
+mod prefer_namespace_keyword;
 mod require_yield;
 mod single_var_declarator;
 mod use_isnan;
@@ -88,6 +89,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_var::NoVar::new(),
     no_with::NoWith::new(),
+    prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
     use_isnan::UseIsNaN::new(),
