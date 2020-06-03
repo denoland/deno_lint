@@ -1,5 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+#[macro_use]
+extern crate lazy_static;
+
 use clap::App;
 use clap::Arg;
 
