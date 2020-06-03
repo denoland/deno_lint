@@ -12,7 +12,7 @@ impl LintRule for UseIsNaN {
   }
 
   fn code(&self) -> &'static str {
-    "useIsNaN"
+    "use-is-na-n"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -54,7 +54,7 @@ impl Visit for UseIsNaNVisitor {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             bin_expr.span,
-            "useIsNaN",
+            "use-is-na-n",
             "Use the isNaN function to compare with NaN",
           );
         }
@@ -63,7 +63,7 @@ impl Visit for UseIsNaNVisitor {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             bin_expr.span,
-            "useIsNaN",
+            "use-is-na-n",
             "Use the isNaN function to compare with NaN",
           );
         }
@@ -80,7 +80,7 @@ impl Visit for UseIsNaNVisitor {
       if is_nan_identifier(&ident) {
         self.context.add_diagnostic(
           switch_stmt.span,
-          "useIsNaN",
+          "use-is-na-n",
           "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch",
         );
       }
@@ -92,7 +92,7 @@ impl Visit for UseIsNaNVisitor {
           if is_nan_identifier(ident) {
             self.context.add_diagnostic(
               case.span,
-              "useIsNaN",
+              "use-is-na-n",
               "'case NaN' can never match. Use Number.isNaN before the switch",
             );
           }

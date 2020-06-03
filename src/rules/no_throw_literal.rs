@@ -14,7 +14,7 @@ impl LintRule for NoThrowLiteral {
   }
 
   fn code(&self) -> &'static str {
-    "noThrowLiteral"
+    "no-throw-literal"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -38,13 +38,13 @@ impl Visit for NoThrowLiteralVisitor {
     match &*throw_stmt.arg {
       Expr::Lit(_) => self.context.add_diagnostic(
         throw_stmt.span,
-        "noThrowLiteral",
+        "no-throw-literal",
         "expected an error object to be thrown",
       ),
       Expr::Ident(ident) if ident.sym == js_word!("undefined") => {
         self.context.add_diagnostic(
           throw_stmt.span,
-          "noThrowLiteral",
+          "no-throw-literal",
           "do not throw undefined",
         )
       }

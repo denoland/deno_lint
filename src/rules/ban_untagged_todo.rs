@@ -26,7 +26,7 @@ impl BanUntaggedTodo {
 
     context.add_diagnostic(
       comment.span,
-      "banUntaggedTodo",
+      "ban-untagged-todo",
       "TODO should be tagged with (@username) or (#issue)",
     );
   }
@@ -38,7 +38,7 @@ impl LintRule for BanUntaggedTodo {
   }
 
   fn code(&self) -> &'static str {
-    "banUntaggedTodo"
+    "ban-untagged-todo"
   }
 
   fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {

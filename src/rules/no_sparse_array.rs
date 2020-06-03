@@ -12,7 +12,7 @@ impl LintRule for NoSparseArray {
   }
 
   fn code(&self) -> &'static str {
-    "noSparseArray"
+    "no-sparse-array"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -40,7 +40,7 @@ impl Visit for NoSparseArrayVisitor {
     if array_lit.elems.iter().any(|e| e.is_none()) {
       self.context.add_diagnostic(
         array_lit.span,
-        "noSparseArray",
+        "no-sparse-array",
         "Sparse arrays are not allowed",
       );
     }

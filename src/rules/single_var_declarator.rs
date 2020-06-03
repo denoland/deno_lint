@@ -13,7 +13,7 @@ impl LintRule for SingleVarDeclarator {
   }
 
   fn code(&self) -> &'static str {
-    "singleVarDeclarator"
+    "single-var-declarator"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -37,7 +37,7 @@ impl Visit for SingleVarDeclaratorVisitor {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
         var_decl.span,
-        "singleVarDeclarator",
+        "single-var-declarator",
         "Multiple variable declarators are not allowed",
       );
     }

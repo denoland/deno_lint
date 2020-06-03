@@ -18,7 +18,7 @@ impl LintRule for NoDupeArgs {
   }
 
   fn code(&self) -> &'static str {
-    "noDupeArgs"
+    "no-dupe-args"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -47,7 +47,7 @@ impl NoDupeArgsVisitor {
           if seen.get(&pat_name).is_some() {
             self.context.add_diagnostic(
               span,
-              "noDupeArgs",
+              "no-dupe-args",
               "Duplicate arguments not allowed",
             );
           } else {

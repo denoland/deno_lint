@@ -13,7 +13,7 @@ impl LintRule for NoOctal {
   }
 
   fn code(&self) -> &'static str {
-    "noOctal"
+    "no-octal"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -43,7 +43,7 @@ impl Visit for NoOctalVisitor {
     if raw_number != "0" && raw_number.starts_with('0') {
       self.context.add_diagnostic(
         literal_num.span,
-        "noOctal",
+        "no-octal",
         "`Octal number` is not allowed",
       );
     }

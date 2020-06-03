@@ -14,7 +14,7 @@ impl LintRule for NoNewSymbol {
   }
 
   fn code(&self) -> &'static str {
-    "noNewSymbol"
+    "no-new-symbol"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -39,7 +39,7 @@ impl Visit for NoNewSymbolVisitor {
       if ident.sym == js_word!("Symbol") {
         self.context.add_diagnostic(
           new_expr.span,
-          "noNewSymbol",
+          "no-new-symbol",
           "`Symbol` cannot be called as a constructor.",
         );
       }

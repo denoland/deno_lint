@@ -12,7 +12,7 @@ impl LintRule for ExplicitFunctionReturnType {
   }
 
   fn code(&self) -> &'static str {
-    "explicitFunctionReturnType"
+    "explicit-function-return-type"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -40,7 +40,7 @@ impl Visit for ExplicitFunctionReturnTypeVisitor {
     if function.return_type.is_none() {
       self.context.add_diagnostic(
         function.span,
-        "explicitFunctionReturnType",
+        "explicit-function-return-type",
         "Missing return type on function",
       );
     }

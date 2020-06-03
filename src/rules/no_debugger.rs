@@ -13,7 +13,7 @@ impl LintRule for NoDebugger {
   }
 
   fn code(&self) -> &'static str {
-    "noDebugger"
+    "no-debugger"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -39,7 +39,7 @@ impl Visit for NoDebuggerVisitor {
   ) {
     self.context.add_diagnostic(
       debugger_stmt.span,
-      "noDebugger",
+      "no-debugger",
       "`debugger` statement is not allowed",
     );
   }

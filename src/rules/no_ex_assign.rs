@@ -18,7 +18,7 @@ impl LintRule for NoExAssign {
   }
 
   fn code(&self) -> &'static str {
-    "noExAssign"
+    "no-ex-assign"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -60,7 +60,7 @@ impl Visit for NoExAssignVisitor {
       if binding.kind == BindingKind::CatchClause {
         self.context.add_diagnostic(
           assign_expr.span,
-          "noExAssign",
+          "no-ex-assign",
           "Reassigning exception parameter is not allowed",
         );
       }

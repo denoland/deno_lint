@@ -16,7 +16,7 @@ impl LintRule for NoCaseDeclarations {
   }
 
   fn code(&self) -> &'static str {
-    "noCaseDeclarations"
+    "no-case-declarations"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -55,7 +55,7 @@ impl Visit for NoCaseDeclarationsVisitor {
       if is_lexical_decl {
         self.context.add_diagnostic(
           switch_case.span,
-          "noCaseDeclarations",
+          "no-case-declarations",
           "Unexpected declaration in case",
         );
       }

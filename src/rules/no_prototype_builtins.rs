@@ -18,7 +18,7 @@ impl LintRule for NoPrototypeBuiltins {
   }
 
   fn code(&self) -> &'static str {
-    "noPrototypeBuiltins"
+    "no-prototype-builtins"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -58,7 +58,7 @@ impl Visit for NoPrototypeBuiltinsVisitor {
       if BANNED_PROPERTIES.contains(&prop_name.as_str()) {
         self.context.add_diagnostic(
           call_expr.span,
-          "noPrototypeBuiltins",
+          "no-prototype-builtins",
           &format!(
             "Access to Object.prototype.{} is not allowed from target object",
             prop_name

@@ -13,7 +13,7 @@ impl LintRule for NoEmptyInterface {
   }
 
   fn code(&self) -> &'static str {
-    "noEmptyInterface"
+    "no-empty-interface"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -41,7 +41,7 @@ impl Visit for NoEmptyInterfaceVisitor {
     if interface_decl.body.body.is_empty() {
       self.context.add_diagnostic(
         interface_decl.span,
-        "noEmptyInterface",
+        "no-empty-interface",
         "Empty interfaces are not allowed",
       );
     }

@@ -16,7 +16,7 @@ impl LintRule for ValidTypeof {
   }
 
   fn code(&self) -> &'static str {
-    "validTypeof"
+    "valid-typeof"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -51,7 +51,7 @@ impl Visit for ValidTypeofVisitor {
             if !is_valid_typeof_string(&str.value) {
               self.context.add_diagnostic(
                 str.span,
-                "validTypeof",
+                "valid-typeof",
                 "Invalid typeof comparison value",
               );
             }
@@ -59,7 +59,7 @@ impl Visit for ValidTypeofVisitor {
           _ => {
             self.context.add_diagnostic(
               operand.span(),
-              "validTypeof",
+              "valid-typeof",
               "Invalid typeof comparison value",
             );
           }

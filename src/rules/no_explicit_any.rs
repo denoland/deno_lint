@@ -13,7 +13,7 @@ impl LintRule for NoExplicitAny {
   }
 
   fn code(&self) -> &'static str {
-    "noExplicitAny"
+    "no-explicit-any"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -43,7 +43,7 @@ impl Visit for NoExplicitAnyVisitor {
     if ts_keyword_type.kind == TsAnyKeyword {
       self.context.add_diagnostic(
         ts_keyword_type.span,
-        "noExplicitAny",
+        "no-explicit-any",
         "`any` type is not allowed",
       );
     }
