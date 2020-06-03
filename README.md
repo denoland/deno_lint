@@ -37,7 +37,7 @@ Very much work-in-progress
 - `no-with`
 - `require-yield`
 - `single-var-declarator`
-- `use-is-nan`
+- `use-isnan`
 - `valid-typeof`
 
 ## Ignores
