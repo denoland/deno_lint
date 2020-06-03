@@ -51,19 +51,20 @@ impl LintDiagnostic {
       format!("./{}", file_name)
     };
 
+    let line_str_len = self.location.line.to_string().len();
     let pretty_location = colors::cyan(format!(
-      " --> {}:{}:{}",
-      location, self.location.line, self.location.col
+      "{}--> {}:{}:{}",
+      " ".repeat(line_str_len), location, self.location.line, self.location.col
     ))
     .to_string();
 
-    let line_str_len = self.location.line.to_string().len();
-    let dummy = format!("{}|", " ".repeat(line_str_len + 1));
+    
+    let dummy = format!("{} |", " ".repeat(line_str_len));
     let pretty_line_src = format!("{} | {}", self.location.line, self.line_src);
     let red_glyphs = format!(
-      "{}|{}{}",
-      " ".repeat(line_str_len + 1),
-      " ".repeat(self.location.col + 1),
+      "{} | {}{}",
+      " ".repeat(line_str_len),
+      " ".repeat(self.location.col),
       colors::red("^".repeat(self.snippet_length))
     );
 
