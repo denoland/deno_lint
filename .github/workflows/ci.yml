@@ -17,9 +17,11 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Install rust
-        uses: hecrj/setup-rust-action@v1
+        uses: hecrj/setup-rust-action@v1.3.3
         with:
           rust-version: "1.43.0"
 
@@ -27,6 +29,23 @@ jobs:
         run: |
           rustup component add clippy
           rustup component add rustfmt
+
+      - name: Install Deno
+        if: contains(matrix.os, 'ubuntu')
+        uses: denolib/setup-deno@master
+        with:
+          deno-version: v1.x
+
+      - name: Install Node.js
+        if: contains(matrix.os, 'ubuntu')
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: "12"
+
+      - name: Install npm packages
+        if: contains(matrix.os, 'ubuntu')
+        run: npm install --ci
+        working-directory: benchmarks
 
       - name: Cache
         uses: actions/cache@v2
@@ -43,7 +62,10 @@ jobs:
           echo ::set-env name=RUST_BACKTRACE::full
 
       - name: Format
-        run: rustfmt --check src/main.rs
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          rustfmt --check src/main.rs
+          deno fmt --check benchmarks/benchmarks.ts
 
       - name: Build
         run: cargo build --locked --release --all-targets
@@ -52,7 +74,13 @@ jobs:
         run: cargo test --locked --release --all-targets
 
       - name: Lint
-        run: cargo clippy --all-targets --release --locked -- -D clippy::all
+        run: |
+          cargo clippy --all-targets --release --locked -- -D clippy::all
+          target/release/deno_lint benchmarks/benchmarks.ts
+
+      - name: Benchmarks
+        if: contains(matrix.os, 'ubuntu')
+        run: deno run -A --quiet benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
         if: |

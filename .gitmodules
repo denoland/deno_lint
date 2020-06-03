@@ -1,0 +1,3 @@
+[submodule "benchmarks/oak"]
+	path = benchmarks/oak
+	url = https://github.com/oakserver/oak.git
