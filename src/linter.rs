@@ -40,12 +40,6 @@ impl Context {
       .expect("error loading snippet")
       .len();
 
-    // let glyphes_length = if snippet_length > line_src.len() {
-    //   line_src.len()
-    // } else {
-    //   snippet_length
-    // };
-
     diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
