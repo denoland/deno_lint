@@ -45,7 +45,7 @@ impl Context {
     // } else {
     //   snippet_length
     // };
-      
+
     diags.push(LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
