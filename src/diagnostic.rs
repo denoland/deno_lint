@@ -33,7 +33,7 @@ pub struct LintDiagnostic {
   pub message: String,
   pub code: String,
   pub line_src: String,
-  pub snippet_length: usize,
+  pub glyphes_length: usize,
 }
 
 impl LintDiagnostic {
@@ -64,7 +64,7 @@ impl LintDiagnostic {
       "{}|{}{}",
       " ".repeat(line_str_len + 1),
       " ".repeat(self.location.col + 1),
-      colors::red("^".repeat(self.snippet_length))
+      colors::red("^".repeat(self.glyphes_length))
     );
 
     let lines = vec![
