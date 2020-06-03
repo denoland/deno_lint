@@ -62,6 +62,7 @@ jobs:
           echo ::set-env name=RUST_BACKTRACE::full
 
       - name: Format
+        if: contains(matrix.os, 'ubuntu')
         run: |
           rustfmt --check src/main.rs
           deno fmt --check benchmarks/benchmarks.ts
