@@ -74,7 +74,6 @@ mod tests {
   use crate::test_util::assert_lint_err_on_line_n;
   use crate::test_util::assert_lint_ok;
 
-  #[ignore]
   #[test]
   fn no_ex_assign_ok() {
     assert_lint_ok::<NoExAssign>(
