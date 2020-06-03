@@ -5,8 +5,8 @@ use clap::Arg;
 
 mod colors;
 
-fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
-  App::new("deno lint").arg(
+fn create_cli_app<'a, 'b>(rule_list: &'b str) -> App<'a, 'b> {
+  App::new("deno lint").after_help(rule_list).arg(
     Arg::with_name("FILES")
       .help("Sets the input file to use")
       .required(true)
@@ -21,7 +21,19 @@ fn main() {
   #[cfg(windows)]
   colors::enable_ansi();
 
-  let cli_app = create_cli_app();
+  let rules = get_all_rules();
+
+  let mut rule_names = rules
+    .iter()
+    .map(|r| r.code())
+    .map(|name| format!(" - {}", name))
+    .collect::<Vec<String>>();
+
+  rule_names.sort();
+  rule_names.insert(0, "Available rules:".to_string());
+
+  let rule_list = rule_names.join("\n");
+  let cli_app = create_cli_app(&rule_list);
   let matches = cli_app.get_matches();
   let file_names = matches.values_of("FILES").unwrap();
 
