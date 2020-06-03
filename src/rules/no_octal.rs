@@ -40,7 +40,7 @@ impl Visit for NoOctalVisitor {
       .span_to_snippet(literal_num.span)
       .expect("error in loading snippet");
 
-    if raw_number.starts_with('0') {
+    if raw_number != "0" && raw_number.starts_with('0') {
       self.context.add_diagnostic(
         literal_num.span,
         "noOctal",
@@ -73,5 +73,10 @@ mod tests {
   #[test]
   fn test_string_octal_number() {
     assert_lint_ok::<NoOctal>("\"07\"");
+  }
+
+  #[test]
+  fn test_zero_number() {
+    assert_lint_ok::<NoOctal>("0");
   }
 }
