@@ -1,3 +1,7 @@
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// TODO(bartlomieju): I'm not sure why functions are marked as unused
+#![allow(unused)]
+
 use std::fmt;
 use std::io::Write;
 use termcolor::Color::{Ansi256, Red};
