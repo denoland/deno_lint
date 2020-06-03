@@ -34,13 +34,20 @@ impl NoOctalVisitor {
 
 impl Visit for NoOctalVisitor {
   fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
+    lazy_static! {
+      static ref OCTAL: regex::Regex = regex::Regex::new(
+        r"^0[0-9]"
+      )
+      .unwrap();
+    }
+
     let raw_number = self
       .context
       .source_map
       .span_to_snippet(literal_num.span)
       .expect("error in loading snippet");
 
-    if raw_number != "0" && raw_number.starts_with('0') {
+  if OCTAL.is_match(&raw_number) {
       self.context.add_diagnostic(
         literal_num.span,
         "no-octal",
