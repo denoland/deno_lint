@@ -36,7 +36,7 @@ impl Context {
 
     let snippet_length = self
       .source_map
-      .span_to_snippet(span)
+      .span_to_snippet(self.source_map.span_until_char(span, '\n'))
       .expect("error loading snippet")
       .len();
 
