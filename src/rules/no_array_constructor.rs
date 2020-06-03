@@ -50,7 +50,7 @@ impl Visit for NoArrayConstructorVisitor {
       if name != "Array" {
         return;
       }
-      if let Some(_) = &new_expr.type_args {
+      if new_expr.type_args.is_some() {
         return;
       }
       match &new_expr.args {
@@ -69,7 +69,7 @@ impl Visit for NoArrayConstructorVisitor {
         if name != "Array" {
           return;
         }
-        if let Some(_) = &call_expr.type_args {
+        if call_expr.type_args.is_some() {
           return;
         }
 
