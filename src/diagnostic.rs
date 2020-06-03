@@ -53,7 +53,7 @@ impl LintDiagnostic {
 
     let line_str_len = self.location.line.to_string().len();
     let pretty_location = colors::cyan(format!(
-      "{} --> {}:{}:{}",
+      "{}--> {}:{}:{}",
       " ".repeat(line_str_len), location, self.location.line, self.location.col
     ))
     .to_string();
