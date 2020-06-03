@@ -13,7 +13,7 @@ impl LintRule for NoEmptyFunction {
   }
 
   fn code(&self) -> &'static str {
-    "noEmptyFunction"
+    "no-empty-function"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -38,7 +38,7 @@ impl Visit for NoEmptyFunctionVisitor {
     if body.is_none() || body.unwrap().stmts.is_empty() {
       self.context.add_diagnostic(
         fn_decl.function.span,
-        "noEmptyFunction",
+        "no-empty-function",
         "Empty functions are not allowed",
       )
     }

@@ -11,7 +11,7 @@ impl LintRule for NoEmpty {
   }
 
   fn code(&self) -> &'static str {
-    "noEmpty"
+    "no-empty"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -36,7 +36,7 @@ impl Visit for NoEmptyVisitor {
       if !block_stmt.contains_comments(&self.context) {
         self.context.add_diagnostic(
           block_stmt.span,
-          "noEmpty",
+          "no-empty",
           "Empty block statement",
         );
       }
@@ -51,7 +51,7 @@ impl Visit for NoEmptyVisitor {
     if switch.cases.is_empty() {
       self.context.add_diagnostic(
         switch.span,
-        "noEmpty",
+        "no-empty",
         "Empty switch statement",
       );
     }

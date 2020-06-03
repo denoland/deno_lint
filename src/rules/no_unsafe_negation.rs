@@ -16,7 +16,7 @@ impl LintRule for NoUnsafeNegation {
   }
 
   fn code(&self) -> &'static str {
-    "noUnsafeNegation"
+    "no-unsafe-negation"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -42,7 +42,7 @@ impl Visit for NoUnsafeNegationVisitor {
         if unary_expr.op == UnaryOp::Bang {
           self.context.add_diagnostic(
             bin_expr.span,
-            "noUnsafeNegation",
+            "no-unsafe-negation",
             "Unexpected negation of left operand",
           );
         }

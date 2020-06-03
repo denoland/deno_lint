@@ -13,7 +13,7 @@ impl LintRule for NoEmptyCharacterClass {
   }
 
   fn code(&self) -> &'static str {
-    "noEmptyCharacterClass"
+    "no-empty-character-class"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -56,7 +56,7 @@ impl Visit for NoEmptyCharacterClassVisitor {
     if !RULE_REGEX.is_match(&regex_literal) {
       self.context.add_diagnostic(
         regex.span,
-        "noEmptyCharacterClass",
+        "no-empty-character-class",
         "empty character class in RegExp is not allowed",
       );
     }

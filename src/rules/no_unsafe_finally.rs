@@ -13,7 +13,7 @@ impl LintRule for NoUnsafeFinally {
   }
 
   fn code(&self) -> &'static str {
-    "noUnsafeFinally"
+    "no-unsafe-finally"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -40,7 +40,7 @@ impl Visit for NoUnsafeFinallyVisitor {
       let add_diagnostic = |stmt_type: &str| {
         self.context.add_diagnostic(
           finally_block.span,
-          "noUnsafeFinally",
+          "no-unsafe-finally",
           format!("Unsafe usage of {}Statement", stmt_type).as_str(),
         );
       };

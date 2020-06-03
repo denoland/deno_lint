@@ -13,7 +13,7 @@ impl LintRule for NoWith {
   }
 
   fn code(&self) -> &'static str {
-    "noWith"
+    "no-with"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -36,7 +36,7 @@ impl Visit for NoWithVisitor {
   fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
     self.context.add_diagnostic(
       with_stmt.span,
-      "noWith",
+      "no-with",
       "`with` statement is not allowed",
     );
   }

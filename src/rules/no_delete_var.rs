@@ -15,7 +15,7 @@ impl LintRule for NoDeleteVar {
   }
 
   fn code(&self) -> &'static str {
-    "noDeleteVar"
+    "no-delete-var"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -43,7 +43,7 @@ impl Visit for NoDeleteVarVisitor {
     if let Expr::Ident(_) = *unary_expr.arg {
       self.context.add_diagnostic(
         unary_expr.span,
-        "noDeleteVar",
+        "no-delete-var",
         "Variables shouldn't be deleted",
       );
     }

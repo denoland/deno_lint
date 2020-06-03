@@ -14,7 +14,7 @@ impl LintRule for NoArrayConstructor {
   }
 
   fn code(&self) -> &'static str {
-    "noArrayConstructor"
+    "no-array-constructor"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -36,7 +36,7 @@ impl NoArrayConstructorVisitor {
     if args.len() != 1 {
       self.context.add_diagnostic(
         span,
-        "noArrayConstructor",
+        "no-array-constructor",
         "Array Constructor is not allowed",
       );
     }

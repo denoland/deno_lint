@@ -14,7 +14,7 @@ impl LintRule for NoVar {
   }
 
   fn code(&self) -> &'static str {
-    "noVar"
+    "no-var"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -38,7 +38,7 @@ impl Visit for NoVarVisitor {
     if var_decl.kind == VarDeclKind::Var {
       self.context.add_diagnostic(
         var_decl.span,
-        "noVar",
+        "no-var",
         "`var` keyword is not allowed",
       );
     }

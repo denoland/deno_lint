@@ -18,7 +18,7 @@ impl LintRule for NoDupeKeys {
   }
 
   fn code(&self) -> &'static str {
-    "noDupeKeys"
+    "no-dupe-keys"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -55,7 +55,7 @@ impl Visit for NoDupeKeysVisitor {
     for key in duplicates {
       self.context.add_diagnostic(
         obj_lit.span,
-        "noDupeKeys",
+        "no-dupe-keys",
         format!("Duplicate key '{}'", key).as_str(),
       );
     }

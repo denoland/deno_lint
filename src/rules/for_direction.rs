@@ -22,7 +22,7 @@ impl LintRule for ForDirection {
   }
 
   fn code(&self) -> &'static str {
-    "forDirection"
+    "for-direction"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -147,7 +147,7 @@ impl Visit for ForDirectionVisitor {
         if update_direction == wrong_direction {
           self.context.add_diagnostic(
             for_stmt.span,
-            "forDirection",
+            "for-direction",
             "Update clause moves variable in the wrong direction",
           );
         }

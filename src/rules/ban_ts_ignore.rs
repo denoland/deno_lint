@@ -18,7 +18,7 @@ impl BanTsIgnore {
 
     context.add_diagnostic(
       comment.span,
-      "banTsIgnore",
+      "ban-ts-ignore",
       "@ts-ignore is not allowed",
     );
   }
@@ -30,7 +30,7 @@ impl LintRule for BanTsIgnore {
   }
 
   fn code(&self) -> &'static str {
-    "banTsIgnore"
+    "ban-ts-ignore"
   }
 
   fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {

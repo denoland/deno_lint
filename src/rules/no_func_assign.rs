@@ -18,7 +18,7 @@ impl LintRule for NoFuncAssign {
   }
 
   fn code(&self) -> &'static str {
-    "noFuncAssign"
+    "no-func-assign"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -59,7 +59,7 @@ impl Visit for NoFuncAssignVisitor {
       if binding.kind == BindingKind::Function {
         self.context.add_diagnostic(
           assign_expr.span,
-          "noFuncAssign",
+          "no-func-assign",
           "Reassigning function declaration is not allowed",
         );
       }

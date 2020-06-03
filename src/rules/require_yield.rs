@@ -19,7 +19,7 @@ impl LintRule for RequireYield {
   }
 
   fn code(&self) -> &'static str {
-    "requireYield"
+    "require-yield"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -57,7 +57,7 @@ impl RequireYieldVisitor {
         if !body.stmts.is_empty() && yield_count == 0 {
           self.context.add_diagnostic(
             function.span,
-            "requireYield",
+            "require-yield",
             "Generator function has no `yield`",
           );
         }

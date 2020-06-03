@@ -14,7 +14,7 @@ impl LintRule for NoCondAssign {
   }
 
   fn code(&self) -> &'static str {
-    "noCondAssign"
+    "no-cond-assign"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -35,7 +35,7 @@ impl NoCondAssignVisitor {
   fn add_diagnostic(&self, span: Span) {
     self.context.add_diagnostic(
       span,
-      "noCondAssign",
+      "no-cond-assign",
       "Expected a conditional expression and instead saw an assignment",
     );
   }
