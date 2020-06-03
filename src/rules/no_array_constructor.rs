@@ -50,6 +50,9 @@ impl Visit for NoArrayConstructorVisitor {
       if name != "Array" {
         return;
       }
+      if let Some(_) = &new_expr.type_args {
+        return;
+      }
       match &new_expr.args {
         Some(args) => {
           self.check_args(args.to_vec(), new_expr.span);
@@ -66,6 +69,10 @@ impl Visit for NoArrayConstructorVisitor {
         if name != "Array" {
           return;
         }
+        if let Some(_) = &call_expr.type_args {
+          return;
+        }
+
         self.check_args((&*call_expr.args).to_vec(), call_expr.span);
       }
     }
@@ -94,6 +101,16 @@ mod tests {
       "new Array(9)",
       "new foo.Array()",
       "new Array.foo",
+    ]);
+  }
+
+  #[test]
+  fn no_array_constructor_typescript_valid() {
+    assert_lint_ok_n::<NoArrayConstructor>(vec![
+      "new Array<Foo>(1, 2, 3);",
+      "new Array<Foo>()",
+      "Array<Foo>(1, 2, 3);",
+      "Array<Foo>();",
     ]);
   }
 
