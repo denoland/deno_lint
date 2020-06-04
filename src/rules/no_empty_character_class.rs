@@ -119,7 +119,8 @@ mod tests {
     const foo = /[[]/;
     const foo = /[\\[a-z[]]/;
     const foo = /[\-\[\]\/\{\}\(\)\*\+\?\.\\^\$\|]/g;
-    const foo = /\[/g
+    const foo = /\[/g;
+    const foo = /\]/i;
     "#,
     );
   }
