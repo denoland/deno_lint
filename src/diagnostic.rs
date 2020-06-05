@@ -1,8 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::colors;
-use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Location {
   pub filename: String,
   pub line: usize,
@@ -27,7 +26,7 @@ impl Into<Location> for swc_common::Loc {
   }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,
