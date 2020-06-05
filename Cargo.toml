@@ -5,6 +5,9 @@ edition = "2018"
 description = "lint for deno"
 authors = ["the Deno authors"]
 license = "MIT"
+exclude = [
+    "benchmarks/*",
+]
 
 [lib]
 name = "deno_lint"
