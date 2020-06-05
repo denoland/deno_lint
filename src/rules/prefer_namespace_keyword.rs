@@ -14,7 +14,7 @@ impl LintRule for PreferNamespaceKeyword {
   }
 
   fn code(&self) -> &'static str {
-    "preferNamespaceKeyword"
+    "prefer-namespace-keyword"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -58,7 +58,7 @@ impl Visit for PreferNamespaceKeywordVisitor {
       if keyword == "module" && !mod_decl.global {
         self.context.add_diagnostic(
           mod_decl.span,
-          "preferNamespaceKeyword",
+          "prefer-namespace-keyword",
           "`module` keyword in module decleration is not allowed",
         )
       }
