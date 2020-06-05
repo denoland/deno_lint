@@ -44,6 +44,9 @@ impl Visit for ExplicitFunctionReturnTypeVisitor {
         "Missing return type on function",
       );
     }
+    for stmt in &function.body {
+      self.visit_block_stmt(stmt, _parent);
+    }
   }
 }
 
@@ -53,12 +56,24 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn explicit_function_return_type() {
+  fn explicit_function_return_type_valid() {
     assert_lint_ok_n::<ExplicitFunctionReturnType>(vec![
       "function fooTyped(): void { }",
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
     ]);
+  }
+
+  #[test]
+  fn explicit_function_return_type_invalid() {
     assert_lint_err::<ExplicitFunctionReturnType>("function foo() { }", 0);
+    assert_lint_err_on_line_n::<ExplicitFunctionReturnType>(
+      r#"
+function a() {
+  function b() {}
+}
+      "#,
+      vec![(2, 0), (3, 2)],
+    );
   }
 }
