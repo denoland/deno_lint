@@ -64,7 +64,8 @@ jobs:
       - name: Format
         if: contains(matrix.os, 'ubuntu')
         run: |
-          rustfmt --check src/main.rs
+          rustfmt --check examples/dlint/main.rs
+          rustfmt --check src/lib.rs
           deno fmt --check benchmarks/benchmarks.ts
 
       - name: Build

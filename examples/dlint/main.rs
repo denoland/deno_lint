@@ -1,25 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-
-#[macro_use]
-extern crate lazy_static;
-
 use clap::App;
 use clap::Arg;
 
-mod colors;
-
-const DENO_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 fn create_cli_app<'a, 'b>(rule_list: &'b str) -> App<'a, 'b> {
-  App::new("deno lint")
-    .version(DENO_VERSION)
-    .after_help(rule_list)
-    .arg(
-      Arg::with_name("FILES")
-        .help("Sets the input file to use")
-        .required(true)
-        .multiple(true),
-    )
+  App::new("dlint").after_help(rule_list).arg(
+    Arg::with_name("FILES")
+      .help("Sets the input file to use")
+      .required(true)
+      .multiple(true),
+  )
 }
 
 fn main() {

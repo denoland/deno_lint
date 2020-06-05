@@ -1,6 +1,4 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-// TODO(bartlomieju): I'm not sure why functions are marked as unused
-#![allow(unused)]
 
 use std::env;
 use std::fmt;

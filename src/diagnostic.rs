@@ -53,11 +53,13 @@ impl LintDiagnostic {
     let line_str_len = self.location.line.to_string().len();
     let pretty_location = colors::cyan(format!(
       "{}--> {}:{}:{}",
-      " ".repeat(line_str_len), location, self.location.line, self.location.col
+      " ".repeat(line_str_len),
+      location,
+      self.location.line,
+      self.location.col
     ))
     .to_string();
 
-    
     let dummy = format!("{} |", " ".repeat(line_str_len));
     let pretty_line_src = format!("{} | {}", self.location.line, self.line_src);
     let red_glyphs = format!(
