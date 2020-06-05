@@ -28,6 +28,7 @@ mod no_eval;
 mod no_ex_assign;
 mod no_explicit_any;
 mod no_func_assign;
+mod no_namespace;
 mod no_new_symbol;
 mod no_obj_call;
 mod no_octal;
@@ -81,6 +82,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_ex_assign::NoExAssign::new(),
     no_explicit_any::NoExplicitAny::new(),
     no_func_assign::NoFuncAssign::new(),
+    no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_setter_return::NoSetterReturn::new(),
