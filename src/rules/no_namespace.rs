@@ -38,14 +38,15 @@ impl Visit for NoNamespaceVisitor {
     mod_decl: &TsModuleDecl,
     parent: &dyn Node,
   ) {
-    if let TsModuleName::Str(_) = mod_decl.id {
-      return;
+    if !mod_decl.global {
+      if let TsModuleName::Ident(_) = mod_decl.id {
+        self.context.add_diagnostic(
+          mod_decl.span,
+          "no-namespace",
+          "custom typescript modules are outdated",
+        );
+      }
     }
-    self.context.add_diagnostic(
-      mod_decl.span,
-      "no-namespace",
-      "custom typescript modules are outdated",
-    );
     for stmt in &mod_decl.body {
       self.visit_ts_namespace_body(stmt, parent);
     }
