@@ -17,6 +17,7 @@ pub fn use_color() -> bool {
 #[cfg(windows)]
 use termcolor::{BufferWriter, ColorChoice};
 
+#[allow(unused)]
 #[cfg(windows)]
 pub fn enable_ansi() {
   BufferWriter::stdout(ColorChoice::AlwaysAnsi);
