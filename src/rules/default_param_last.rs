@@ -13,7 +13,7 @@ impl LintRule for DefaultParamLast {
   }
 
   fn code(&self) -> &'static str {
-    "defaultParamLast"
+    "default-param-last"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -50,7 +50,7 @@ impl Visit for DefaultParamLastVisitor {
       if let Some(pat) = pat {
         self.context.add_diagnostic(
           pat.span,
-          "defaultParamLast",
+          "default-param-last",
           "default parameters should be at last",
         );
       }

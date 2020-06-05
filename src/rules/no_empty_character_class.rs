@@ -13,7 +13,7 @@ impl LintRule for NoEmptyCharacterClass {
   }
 
   fn code(&self) -> &'static str {
-    "noEmptyCharacterClass"
+    "no-empty-character-class"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -34,7 +34,12 @@ impl NoEmptyCharacterClassVisitor {
 
 impl Visit for NoEmptyCharacterClassVisitor {
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
-    let regex_literal = format!("/{}/", regex.exp);
+    let raw_regex = self
+      .context
+      .source_map
+      .span_to_snippet(regex.span)
+      .expect("error in loading snippet");
+
     lazy_static! {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
       * plain-English description of the following regexp:
@@ -49,14 +54,14 @@ impl Visit for NoEmptyCharacterClassVisitor {
       * 5. `$`: fix the match at the end of the string
       */
       static ref RULE_REGEX: regex::Regex = regex::Regex::new(
-        r"(?u)^/([^\\\[]|\\\.|\[([^\\\]]|\\.)+\])*/[gimuys]*$"
+        r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[gimuys]*$"
       )
       .unwrap();
     }
-    if !RULE_REGEX.is_match(&regex_literal) {
+    if !RULE_REGEX.is_match(&raw_regex) {
       self.context.add_diagnostic(
         regex.span,
-        "noEmptyCharacterClass",
+        "no-empty-character-class",
         "empty character class in RegExp is not allowed",
       );
     }
@@ -114,6 +119,8 @@ mod tests {
     const foo = /[[]/;
     const foo = /[\\[a-z[]]/;
     const foo = /[\-\[\]\/\{\}\(\)\*\+\?\.\\^\$\|]/g;
+    const foo = /\[/g;
+    const foo = /\]/i;
     "#,
     );
   }

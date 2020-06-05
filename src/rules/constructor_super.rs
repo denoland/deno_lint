@@ -14,7 +14,7 @@ impl LintRule for ConstructorSuper {
   }
 
   fn code(&self) -> &'static str {
-    "constructorSuper"
+    "constructor-super"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -45,7 +45,7 @@ impl ConstructorSuperVisitor {
               } else {
                 self.context.add_diagnostic(
                   span,
-                  "constructorSuper",
+                  "constructor-super",
                   "Constructors of derived classes must call super() only once",
                 );
               }
@@ -57,7 +57,7 @@ impl ConstructorSuperVisitor {
             if ret.arg.is_none() && class.super_class.is_some() {
               self.context.add_diagnostic(
                 span,
-                "constructorSuper",
+                "constructor-super",
                 "Constructors of derived classes must call super()",
               );
             }
@@ -74,13 +74,13 @@ impl ConstructorSuperVisitor {
         {
           self.context.add_diagnostic(
             span,
-            "constructorSuper",
+            "constructor-super",
             "Classes which inherit from a non constructor must not define a constructor",
           );
         } else {
           self.context.add_diagnostic(
             span,
-            "constructorSuper",
+            "constructor-super",
             "Constructors of classes which inherit from a non constructor must not call super()",
           );
         }
@@ -92,14 +92,14 @@ impl ConstructorSuperVisitor {
       if class.super_class.is_none() {
         self.context.add_diagnostic(
           span,
-          "constructorSuper",
+          "constructor-super",
           "Constructors of non derived classes must not call super()",
         );
       }
     } else if class.super_class.is_some() {
       self.context.add_diagnostic(
         span,
-        "constructorSuper",
+        "constructor-super",
         "Constructors of derived classes must call super()",
       );
     }

@@ -16,7 +16,7 @@ impl LintRule for NoCompareNegZero {
   }
 
   fn code(&self) -> &'static str {
-    "noCompareNegZero"
+    "no-compare-neg-zero"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -44,7 +44,7 @@ impl Visit for NoCompareNegZeroVisitor {
     if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
       self.context.add_diagnostic(
         bin_expr.span,
-        "noCompareNegZero",
+        "no-compare-neg-zero",
         "Do not compare against -0",
       );
     }

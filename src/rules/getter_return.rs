@@ -18,7 +18,7 @@ impl LintRule for GetterReturn {
   }
 
   fn code(&self) -> &'static str {
-    "getterReturn"
+    "getter-return"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -43,7 +43,7 @@ impl GetterReturnVisitor {
     }) {
       self.context.add_diagnostic(
         block_stmt.span,
-        "getterReturn",
+        "getter-return",
         "Getter requires a return",
       );
     }

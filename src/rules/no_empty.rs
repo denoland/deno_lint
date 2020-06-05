@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{BlockStmt, Module, SwitchStmt};
+use swc_ecma_ast::{BlockStmt, Module, Function, SwitchStmt};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;
@@ -11,7 +11,7 @@ impl LintRule for NoEmpty {
   }
 
   fn code(&self) -> &'static str {
-    "noEmpty"
+    "no-empty"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -31,12 +31,24 @@ impl NoEmptyVisitor {
 }
 
 impl Visit for NoEmptyVisitor {
+  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
+    // Empty functions shouldn't be caught be this rule.
+    // Because function's body is a block statement, we're gonna
+    // manually visit each member; otherwise rule would produce errors
+    // for empty function body.
+    if let Some(body) = &function.body {
+      for stmt in &body.stmts {
+        swc_ecma_visit::visit_stmt(self, stmt, body);
+      }
+    }
+  }
+
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
     if block_stmt.stmts.is_empty() {
       if !block_stmt.contains_comments(&self.context) {
         self.context.add_diagnostic(
           block_stmt.span,
-          "noEmpty",
+          "no-empty",
           "Empty block statement",
         );
       }
@@ -51,7 +63,7 @@ impl Visit for NoEmptyVisitor {
     if switch.cases.is_empty() {
       self.context.add_diagnostic(
         switch.span,
-        "noEmpty",
+        "no-empty",
         "Empty switch statement",
       );
     }
@@ -76,6 +88,11 @@ impl ContainsComments for BlockStmt {
 mod tests {
   use super::*;
   use crate::test_util::*;
+
+  #[test]
+  fn it_passes_for_a_function() {
+    assert_lint_ok::<NoEmpty>(r#"function foobar() {}"#);
+  }
 
   #[test]
   fn it_passes_for_a_non_empty_block() {

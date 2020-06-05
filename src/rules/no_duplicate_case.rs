@@ -14,7 +14,7 @@ impl LintRule for NoDuplicateCase {
   }
 
   fn code(&self) -> &'static str {
-    "noDuplicateCase"
+    "no-duplicate-case"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -50,7 +50,7 @@ impl Visit for NoDuplicateCaseVisitor {
         if seen.get(&test_txt).is_some() {
           self.context.add_diagnostic(
             span,
-            "noDuplicateCase",
+            "no-duplicate-case",
             "Duplicate values in `case` are not allowed",
           );
         } else {

@@ -18,7 +18,7 @@ impl LintRule for NoClassAssign {
   }
 
   fn code(&self) -> &'static str {
-    "noClassAssign"
+    "no-class-assign"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -59,7 +59,7 @@ impl Visit for NoClassAssignVisitor {
       if binding.kind == BindingKind::Class {
         self.context.add_diagnostic(
           assign_expr.span,
-          "noClassAssign",
+          "no-class-assign",
           "Reassigning class declaration is not allowed",
         );
       }

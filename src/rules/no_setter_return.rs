@@ -18,7 +18,7 @@ impl LintRule for NoSetterReturn {
   }
 
   fn code(&self) -> &'static str {
-    "noSetterReturn"
+    "no-setter-return"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -42,7 +42,7 @@ impl NoSetterReturnVisitor {
         if return_stmt.arg.is_some() {
           self.context.add_diagnostic(
             return_stmt.span,
-            "noSetterReturn",
+            "no-setter-return",
             "Setter cannot return a value",
           );
         }

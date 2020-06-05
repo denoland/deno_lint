@@ -14,7 +14,7 @@ impl LintRule for NoAsyncPromiseExecutor {
   }
 
   fn code(&self) -> &'static str {
-    "noAsyncPromiseExecutor"
+    "no-async-promise-executor"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -52,7 +52,7 @@ impl Visit for NoAsyncPromiseExecutorVisitor {
           if is_async {
             self.context.add_diagnostic(
               new_expr.span,
-              "noAsyncPromiseExecutor",
+              "no-async-promise-executor",
               "Async promise executors are not allowed",
             );
           }

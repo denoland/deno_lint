@@ -9,6 +9,7 @@ mod eqeqeq;
 mod explicit_function_return_type;
 mod for_direction;
 mod getter_return;
+mod no_array_constructor;
 mod no_async_promise_executor;
 mod no_case_declarations;
 mod no_class_assign;
@@ -62,6 +63,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     explicit_function_return_type::ExplicitFunctionReturnType::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
+    no_array_constructor::NoArrayConstructor::new(),
     no_async_promise_executor::NoAsyncPromiseExecutor::new(),
     no_case_declarations::NoCaseDeclarations::new(),
     no_compare_neg_zero::NoCompareNegZero::new(),

@@ -15,7 +15,7 @@ impl LintRule for NoEval {
   }
 
   fn code(&self) -> &'static str {
-    "noEval"
+    "no-eval"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
@@ -42,7 +42,7 @@ impl Visit for NoEvalVisitor {
         if name == "eval" {
           self.context.add_diagnostic(
             call_expr.span,
-            "noEval",
+            "no-eval",
             "`eval` call is not allowed",
           );
         }
