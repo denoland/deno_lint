@@ -13,8 +13,10 @@ Very much work-in-progress
 - `explicit-function-return-type`
 - `for-direction`
 - `getter-return`
+- `no-array-constructor`
 - `no-async-promise-executor`
 - `no-case-declarations`
+- `no-class-assign`
 - `no-compare-neg-zero`
 - `no-cond-assign`
 - `no-debugger`
@@ -22,19 +24,27 @@ Very much work-in-progress
 - `no-dupe-args`
 - `no-dupe-keys`
 - `no-duplicate-case`
-- `no-empty`
+- `no-empty-character-class`
 - `no-empty-function`
 - `no-empty-interface`
+- `no-empty`
 - `no-eval`
+- `no-ex-assign`
 - `no-explicit-any`
+- `no-func-assign`
+- `no-namespace`
 - `no-new-symbol`
+- `no-obj-call`
+- `no-octal`
 - `no-prototype-builtins`
 - `no-setter-return`
 - `no-sparse-array`
 - `no-throw-literal`
 - `no-unsafe-finally`
+- `no-unsafe-negation`
 - `no-var`
 - `no-with`
+- `prefer-namespace-keyword`
 - `require-yield`
 - `single-var-declarator`
 - `use-isnan`
@@ -60,44 +70,44 @@ function bar(a: any) {
 
 ```shell
 $ ▶ target/debug/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
-(noEmpty) Empty block statement
- --> ../deno/std/http/server.ts:93:14
+(no-empty) Empty block statement
+  --> ../deno/std/http/server.ts:93:14
    |
 93 |       } catch {}
    |               ^^
    |
-(noEmpty) Empty block statement
- --> ../deno/std/http/server.ts:111:44
+(no-empty) Empty block statement
+   --> ../deno/std/http/server.ts:111:44
     |
 111 |     while ((await body.read(buf)) !== null) {}
     |                                             ^^
     |
-(noEmpty) Empty block statement
- --> ../deno/std/http/server.ts:120:41
+(no-empty) Empty block statement
+   --> ../deno/std/http/server.ts:120:41
     |
 120 |   constructor(public listener: Listener) {}
     |                                          ^^
     |
-(banUntaggedTodo) TODO should be tagged with (@username) or (#issue)
+(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
  --> ../deno/std/http/file_server.ts:5:0
   |
 5 | // TODO Stream responses instead of reading them into memory.
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-(banUntaggedTodo) TODO should be tagged with (@username) or (#issue)
+(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
  --> ../deno/std/http/file_server.ts:6:0
   |
 6 | // TODO Add tests like these:
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-(banUntaggedTodo) TODO should be tagged with (@username) or (#issue)
- --> ../deno/std/http/file_server.ts:137:0
+(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
+   --> ../deno/std/http/file_server.ts:137:0
     |
 137 | // TODO: simplify this after deno.stat and deno.readDir are fixed
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     |
-(noEmpty) Empty block statement
- --> ../deno/std/http/file_server.ts:155:16
+(no-empty) Empty block statement
+   --> ../deno/std/http/file_server.ts:155:16
     |
 155 |     } catch (e) {}
     |                 ^^
