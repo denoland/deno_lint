@@ -41,6 +41,10 @@ impl Visit for NoEmptyFunctionVisitor {
         "no-empty-function",
         "Empty functions are not allowed",
       )
+    } else {
+      for stmt in &fn_decl.function.body {
+        self.visit_block_stmt(stmt, _parent);
+      }
     }
   }
 }
@@ -59,6 +63,14 @@ mod tests {
     assert_lint_err::<NoEmptyFunction>(
       "function emptyFunctionWithoutBody();",
       0,
+    );
+  }
+
+  #[test]
+  fn no_empty_function_nested_test() {
+    assert_lint_err::<NoEmptyFunction>(
+      "function parentFunction() { function childFunction(); }",
+      28,
     );
   }
 }
