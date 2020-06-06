@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{BlockStmt, Module, Function, SwitchStmt};
+use swc_ecma_ast::{BlockStmt, Function, Module, SwitchStmt};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;

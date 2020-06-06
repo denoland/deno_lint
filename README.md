@@ -69,7 +69,7 @@ function bar(a: any) {
 ## Example output
 
 ```shell
-$ ▶ target/debug/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
+$ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
 (no-empty) Empty block statement
   --> ../deno/std/http/server.ts:93:14
    |
