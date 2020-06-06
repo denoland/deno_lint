@@ -57,7 +57,7 @@ impl Visit for NoMisusedNewVisitor {
   ) {
     for member in &n.body.body {
       match &member {
-        TsMethodSignature(signature) | TsConstructSignatureDecl(signature) => {
+        TsMethodSignature(signature) => {
           if let Expr::Ident(ident) = &*signature.key {
             if JsWord::from("constructor") == ident.sym
               && signature.type_ann.is_some()
@@ -72,6 +72,13 @@ impl Visit for NoMisusedNewVisitor {
               );
             }
           }
+        }
+        TsConstructSignatureDecl(signature) => {
+          self.context.add_diagnostic(
+            signature.span,
+            "noMisusedNew",
+            "Interfaces cannot be constructed, only classes",
+          );
         }
         _ => {}
       }
