@@ -36,16 +36,13 @@ impl NoMisusedNewVisitor {
   }
 
   fn match_parent_type(&self, parent: &Ident, return_type: &TsTypeAnn) -> bool {
-    match &*return_type.type_ann {
-      TsType::TsTypeRef(type_ref) => {
-        if let TsEntityName::Ident(ident) = &type_ref.type_name {
-          return ident.sym == parent.sym;
-        }
+    if let TsType::TsTypeRef(type_ref) = &*return_type.type_ann {
+      if let TsEntityName::Ident(ident) = &type_ref.type_name {
+        return ident.sym == parent.sym;
       }
-      _ => {}
     }
 
-    return false;
+    false
   }
 }
 
@@ -87,23 +84,20 @@ impl Visit for NoMisusedNewVisitor {
 
   fn visit_class_decl(&mut self, expr: &ClassDecl, _parent: &dyn Node) {
     for member in &expr.class.body {
-      match member {
-        ClassMember::Method(method) => {
-          if method.function.return_type.is_some()
-            && self.match_parent_type(
-              &expr.ident,
-              &method.function.return_type.as_ref().unwrap(),
-            )
-          {
-            // new
-            self.context.add_diagnostic(
-              method.span,
-              "noMisusedNew",
-              "Class cannot have method named `new`.",
-            );
-          }
+      if let ClassMember::Method(method) = member {
+        if method.function.return_type.is_some()
+          && self.match_parent_type(
+            &expr.ident,
+            &method.function.return_type.as_ref().unwrap(),
+          )
+        {
+          // new
+          self.context.add_diagnostic(
+            method.span,
+            "noMisusedNew",
+            "Class cannot have method named `new`.",
+          );
         }
-        _ => {}
       }
     }
   }
