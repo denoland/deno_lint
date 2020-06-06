@@ -43,6 +43,7 @@ mod no_with;
 mod prefer_namespace_keyword;
 mod require_yield;
 mod single_var_declarator;
+mod triple_slash_reference;
 mod use_isnan;
 mod valid_typeof;
 
@@ -96,6 +97,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
+    triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
     no_octal::NoOctal::new(),
