@@ -35,6 +35,7 @@ mod no_octal;
 mod no_prototype_builtins;
 mod no_setter_return;
 mod no_sparse_array;
+mod no_this_alias;
 mod no_throw_literal;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
@@ -88,6 +89,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_setter_return::NoSetterReturn::new(),
     no_sparse_array::NoSparseArray::new(),
+    no_this_alias::NoThisAlias::new(),
     no_throw_literal::NoThrowLiteral::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
