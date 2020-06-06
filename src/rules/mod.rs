@@ -24,6 +24,7 @@ mod no_empty;
 mod no_empty_character_class;
 mod no_empty_function;
 mod no_empty_interface;
+mod no_empty_pattern;
 mod no_eval;
 mod no_ex_assign;
 mod no_explicit_any;
@@ -77,6 +78,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_empty_character_class::NoEmptyCharacterClass::new(),
     no_empty_function::NoEmptyFunction::new(),
     no_empty_interface::NoEmptyInterface::new(),
+    no_empty_pattern::NoEmptyPattern::new(),
     no_eval::NoEval::new(),
     no_ex_assign::NoExAssign::new(),
     no_explicit_any::NoExplicitAny::new(),
