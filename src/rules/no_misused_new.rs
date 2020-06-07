@@ -77,7 +77,7 @@ impl Visit for NoMisusedNewVisitor {
   fn visit_ts_interface_decl(
     &mut self,
     n: &TsInterfaceDecl,
-    _parent: &dyn Node,
+    parent: &dyn Node,
   ) {
     for member in &n.body.body {
       match &member {
@@ -108,9 +108,11 @@ impl Visit for NoMisusedNewVisitor {
         _ => {}
       }
     }
+
+    swc_ecma_visit::visit_ts_interface_decl(self, n, parent);
   }
 
-  fn visit_class_decl(&mut self, expr: &ClassDecl, _parent: &dyn Node) {
+  fn visit_class_decl(&mut self, expr: &ClassDecl, parent: &dyn Node) {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
         if method.function.return_type.is_some()
@@ -128,6 +130,8 @@ impl Visit for NoMisusedNewVisitor {
         }
       }
     }
+
+    swc_ecma_visit::visit_class_decl(self, expr, parent);
   }
 }
 
@@ -160,6 +164,21 @@ interface G {
 
     assert_lint_err_on_line::<NoMisusedNew>(
       r#"
+class B {
+    method() {
+        interface T {
+            new(): T
+        }
+    }
+}
+      "#,
+      5,
+      12,
+    );
+
+
+    assert_lint_err_on_line::<NoMisusedNew>(
+      r#"
 type T = {
     constructor(): void;
 }
@@ -176,6 +195,20 @@ class C {
       "#,
       3,
       4,
+    );
+
+    assert_lint_err_on_line::<NoMisusedNew>(
+      r#"
+class A {
+  foo() {
+    class C {
+      new(): C;
+    }
+  }
+}
+      "#,
+      5,
+      6
     );
 
     assert_lint_err_on_line::<NoMisusedNew>(
