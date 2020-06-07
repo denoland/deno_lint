@@ -176,7 +176,6 @@ class B {
       12,
     );
 
-
     assert_lint_err_on_line::<NoMisusedNew>(
       r#"
 type T = {
@@ -208,7 +207,7 @@ class A {
 }
       "#,
       5,
-      6
+      6,
     );
 
     assert_lint_err_on_line::<NoMisusedNew>(
