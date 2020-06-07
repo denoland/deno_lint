@@ -29,6 +29,7 @@ mod no_eval;
 mod no_ex_assign;
 mod no_explicit_any;
 mod no_func_assign;
+mod no_misused_new;
 mod no_namespace;
 mod no_new_symbol;
 mod no_obj_call;
@@ -104,5 +105,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     valid_typeof::ValidTypeof::new(),
     no_octal::NoOctal::new(),
     no_obj_call::NoObjCall::new(),
+    no_misused_new::NoMisusedNew::new(),
   ]
 }
