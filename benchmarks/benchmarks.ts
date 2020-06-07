@@ -19,7 +19,7 @@ bench({
   async func(b: BenchmarkTimer): Promise<void> {
     b.start();
     const proc = Deno.run({
-      cmd: ["./target/release/deno_lint", ...files],
+      cmd: ["./target/release/examples/dlint", ...files],
       stdout: "null",
       stderr: "null",
     });
