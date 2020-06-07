@@ -105,5 +105,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     valid_typeof::ValidTypeof::new(),
     no_octal::NoOctal::new(),
     no_obj_call::NoObjCall::new(),
+    no_misused_new::NoMisusedNew::new(),
   ]
 }
