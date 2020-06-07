@@ -5,7 +5,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod colors;
 pub mod diagnostic;
 pub mod linter;
 pub mod rules;
