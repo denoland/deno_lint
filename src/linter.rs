@@ -136,6 +136,19 @@ impl Linter {
     comments: Comments,
     rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
+    if let Some(module_leading_comments) =
+      comments.take_leading_comments(module.span.lo())
+    {
+      for comment in module_leading_comments.iter() {
+        if comment.kind == CommentKind::Line {
+          if comment.text.trim() == "deno-lint-file-ignore" {
+            return vec![];
+          }
+        }
+      }
+      comments.add_leading(module.span.lo(), module_leading_comments);
+    }
+
     let (leading, trailing) = comments.take_all();
 
     let context = Context {
