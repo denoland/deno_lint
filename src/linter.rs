@@ -13,6 +13,7 @@ use swc_common::comments::CommentMap;
 use swc_common::comments::Comments;
 use swc_common::SourceMap;
 use swc_common::Span;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Context {
@@ -54,10 +55,12 @@ impl Context {
 pub struct IgnoreDirective {
   location: Location,
   codes: Vec<String>,
+  span: Span,
+  used_codes: HashMap<String, bool>,
 }
 
 impl IgnoreDirective {
-  pub fn should_ignore_diagnostic(&self, diagnostic: &LintDiagnostic) -> bool {
+  pub fn maybe_ignore_diagnostic(&mut self, diagnostic: &LintDiagnostic) -> bool {
     if self.location.filename != diagnostic.location.filename {
       return false;
     }
@@ -66,7 +69,12 @@ impl IgnoreDirective {
       return false;
     }
 
-    self.codes.contains(&diagnostic.code)
+    let should_ignore = self.codes.contains(&diagnostic.code);
+
+    let used_code = self.used_codes.get_mut(&diagnostic.code).unwrap();
+    *used_code = true;
+
+    should_ignore
   }
 }
 
@@ -123,9 +131,17 @@ impl Linter {
       .source_map
       .lookup_char_pos(comment.span.lo());
 
+    let mut used_codes = HashMap::new();
+
+    for code in codes.iter() {
+      used_codes.insert(code.to_string(), false);
+    }
+
     Some(IgnoreDirective {
       location: location.into(),
       codes,
+      used_codes,
+      span: comment.span,
     })
   }
 
@@ -167,11 +183,39 @@ impl Linter {
       .iter()
       .cloned()
       .filter(|diagnostic| {
-        !ignore_directives.iter().any(|ignore_directive| {
-          ignore_directive.should_ignore_diagnostic(&diagnostic)
+        !ignore_directives.iter_mut().any(|ignore_directive| {
+          ignore_directive.maybe_ignore_diagnostic(diagnostic)
         })
       })
       .collect();
+
+    ignore_directives.iter().for_each(|ignore_directive| {
+      for (code, used) in ignore_directive.used_codes.iter() {
+        if !used {
+          let location = context.source_map.lookup_char_pos(ignore_directive.span.lo());
+          let line_src = context
+            .source_map
+            .lookup_source_file(ignore_directive.span.lo())
+            .get_line(location.line - 1)
+            .expect("error loading line soruce")
+            .to_string();
+      
+          let snippet_length = context
+            .source_map
+            .span_to_snippet(context.source_map.span_until_char(ignore_directive.span, '\n'))
+            .expect("error loading snippet")
+            .len();
+      
+          filtered_diagnostics.push(LintDiagnostic {
+            location: location.into(),
+            message: format!("Ignore directive for code \"{}\" is not used", code),
+            code: "no-unused-ignore".to_string(),
+            line_src,
+            snippet_length,
+          });
+        }
+      }
+    });
 
     filtered_diagnostics.sort_by(|a, b| a.location.line.cmp(&b.location.line));
 
