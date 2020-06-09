@@ -72,13 +72,19 @@ impl IgnoreDirective {
 
 pub struct Linter {
   pub ast_parser: AstParser,
+  pub ignore_file_directive: String,
+  pub ignore_diagnostic_directive: String,
 }
 
 impl Linter {
   pub fn default() -> Self {
     let ast_parser = AstParser::new();
 
-    Linter { ast_parser }
+    Linter {
+      ast_parser,
+      ignore_file_directive: "deno-lint-ignore-file".to_string(),
+      ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
+    }
   }
 
   pub fn lint(
@@ -108,15 +114,16 @@ impl Linter {
 
     let comment_text = comment.text.trim();
 
-    let codes: Vec<String> = if comment_text.starts_with("deno-lint-ignore") {
-      comment_text
-        .split(' ')
-        .map(|e| e.to_string())
-        .skip(1)
-        .collect()
-    } else {
-      return None;
-    };
+    let codes: Vec<String> =
+      if comment_text.starts_with(&self.ignore_diagnostic_directive) {
+        comment_text
+          .split(' ')
+          .map(|e| e.to_string())
+          .skip(1)
+          .collect()
+      } else {
+        return None;
+      };
 
     let location = self
       .ast_parser
@@ -140,10 +147,10 @@ impl Linter {
       comments.take_leading_comments(module.span.lo())
     {
       for comment in module_leading_comments.iter() {
-        if comment.kind == CommentKind::Line {
-          if comment.text.trim() == "deno-lint-file-ignore" {
-            return vec![];
-          }
+        if comment.kind == CommentKind::Line
+          && comment.text.trim() == self.ignore_file_directive
+        {
+          return vec![];
         }
       }
       comments.add_leading(module.span.lo(), module_leading_comments);
