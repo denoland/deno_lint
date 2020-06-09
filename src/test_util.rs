@@ -6,6 +6,7 @@ use crate::rules::LintRule;
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = Linter::default();
+  linter.lint_unused_ignore_directives = false;
   linter
     .lint(
       "deno_lint_test.tsx".to_string(),
