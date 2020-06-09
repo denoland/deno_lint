@@ -50,6 +50,7 @@ mod single_var_declarator;
 mod triple_slash_reference;
 mod use_isnan;
 mod valid_typeof;
+mod prefer_as_const;
 
 pub trait LintRule {
   fn new() -> Box<Self>
@@ -99,6 +100,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_throw_literal::NoThrowLiteral::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
+    prefer_as_const::PreferAsConst::new(),
     no_var::NoVar::new(),
     no_with::NoWith::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
