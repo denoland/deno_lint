@@ -8,9 +8,8 @@ extern crate lazy_static;
 pub mod diagnostic;
 pub mod linter;
 pub mod rules;
-
-mod scopes;
-mod swc_util;
+pub mod scopes;
+pub mod swc_util;
 
 #[cfg(test)]
 mod test_util;

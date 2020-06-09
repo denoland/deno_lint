@@ -23,7 +23,7 @@ use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
 
 #[allow(unused)]
-fn get_default_es_config() -> Syntax {
+pub fn get_default_es_config() -> Syntax {
   let mut config = EsConfig::default();
   config.num_sep = true;
   config.class_private_props = false;
@@ -39,6 +39,7 @@ fn get_default_es_config() -> Syntax {
   Syntax::Es(config)
 }
 
+#[allow(unused)]
 pub fn get_default_ts_config() -> Syntax {
   let mut ts_config = TsConfig::default();
   ts_config.dynamic_import = true;

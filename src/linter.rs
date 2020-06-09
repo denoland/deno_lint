@@ -2,7 +2,6 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::diagnostic::Location;
 use crate::rules::LintRule;
-use crate::swc_util;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
@@ -118,9 +117,9 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
+    syntax: swc_ecma_parser::Syntax,
     rules: Vec<Box<dyn LintRule>>,
   ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
-    let syntax = swc_util::get_default_ts_config();
     self.ast_parser.parse_module(
       &file_name,
       syntax,
