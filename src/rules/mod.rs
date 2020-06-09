@@ -50,6 +50,7 @@ mod single_var_declarator;
 mod triple_slash_reference;
 mod use_isnan;
 mod valid_typeof;
+mod ban_ts_comment;
 
 pub trait LintRule {
   fn new() -> Box<Self>
@@ -62,6 +63,7 @@ pub trait LintRule {
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   vec![
     ban_ts_ignore::BanTsIgnore::new(),
+    ban_ts_comment::BanTsComment::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     constructor_super::ConstructorSuper::new(),
