@@ -62,8 +62,8 @@ pub trait LintRule {
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   vec![
-    ban_ts_ignore::BanTsIgnore::new(),
     ban_ts_comment::BanTsComment::new(),
+    ban_ts_ignore::BanTsIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     constructor_super::ConstructorSuper::new(),

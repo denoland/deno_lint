@@ -14,7 +14,7 @@ impl BanTsComment {
 
     lazy_static! {
       static ref BTC_REGEX: regex::Regex =
-        regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)(.*)"#)
+        regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#)
           .unwrap();
     }
 
@@ -97,6 +97,31 @@ mod tests {
 */
 "#,
     ]);
+
+    assert_lint_ok::<BanTsComment>(
+      r#"if (false) {
+// @ts-ignore: Unreachable code error
+console.log('hello');
+}"#,
+    );
+    assert_lint_ok::<BanTsComment>(
+      r#"if (false) {
+// @ts-expect-error: Unreachable code error
+console.log('hello');
+}"#,
+    );
+    assert_lint_ok::<BanTsComment>(
+      r#"if (false) {
+// @ts-nocheck: Unreachable code error
+console.log('hello');
+}"#,
+    );
+
+    assert_lint_ok::<BanTsComment>(
+      r#"// @ts-expect-error: Suppress next line"#,
+    );
+    assert_lint_ok::<BanTsComment>(r#"// @ts-ignore: Suppress next line"#);
+    assert_lint_ok::<BanTsComment>(r#"// @ts-nocheck: Suppress next line"#);
   }
 
   #[test]
@@ -104,37 +129,5 @@ mod tests {
     assert_lint_err::<BanTsComment>(r#"// @ts-expect-error"#, 0);
     assert_lint_err::<BanTsComment>(r#"// @ts-ignore"#, 0);
     assert_lint_err::<BanTsComment>(r#"// @ts-nocheck"#, 0);
-
-    assert_lint_err::<BanTsComment>(
-      r#"// @ts-expect-error: Suppress next line"#,
-      0,
-    );
-    assert_lint_err::<BanTsComment>(r#"// @ts-ignore: Suppress next line"#, 0);
-    assert_lint_err::<BanTsComment>(r#"// @ts-nocheck: Suppress next line"#, 0);
-
-    assert_lint_err_on_line::<BanTsComment>(
-      r#"if (false) {
-// @ts-ignore: Unreachable code error
-console.log('hello');
-}"#,
-      2,
-      0,
-    );
-    assert_lint_err_on_line::<BanTsComment>(
-      r#"if (false) {
-// @ts-expect-error: Unreachable code error
-console.log('hello');
-}"#,
-      2,
-      0,
-    );
-    assert_lint_err_on_line::<BanTsComment>(
-      r#"if (false) {
-// @ts-nocheck: Unreachable code error
-console.log('hello');
-}"#,
-      2,
-      0,
-    );
   }
 }
