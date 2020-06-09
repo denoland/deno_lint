@@ -50,21 +50,56 @@ Very much work-in-progress
 - `use-isnan`
 - `valid-typeof`
 
-## Ignores
+## Ignore directives
 
-Only single line ignores are supported:
+### Files
+
+To ignore whole file `// deno-lint-ignore-file` directive should placed at the top of the file.
 
 ```ts
-// deno-lint-ignore noExplicitAny
+// deno-lint-ignore-file
+
+function foo(): any {
+  // ...
+}
+```
+
+Ignore directive must be placed before first stament or declaration:
+
+```ts
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+
+/**
+ * Some JS doc
+ **/
+
+// deno-lint-ignore-file
+
+import { bar } from "./bar.js";
+
+function foo(): any {
+  // ...
+}
+```
+
+### Diagnostics
+
+To ignore certain diagnostic `// deno-lint-ignore <codes...>` directive should be placed
+before offending line.
+
+```ts
+// deno-lint-ignore no-explicit-any
 function foo(): any {
   // ...
 }
 
-// deno-lint-ignore noExplicitAny explicitFunctionReturnType
+// deno-lint-ignore no-explicit-any explicit-function-return-type
 function bar(a: any) {
   // ...
 }
 ```
+
+Specyfing rule code that will be ignored is required.
 
 ## Example output
 
