@@ -1,7 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+
+#![allow(unused)]
+
+
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::TsAsExpr;
+use swc_ecma_ast::{TsAsExpr, VarDecl, TsLitType};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -34,7 +38,9 @@ impl PreferAsConstVisitor {
 
 impl Visit for PreferAsConstVisitor {
   fn visit_ts_as_expr(&mut self, as_expr: &TsAsExpr, _parent: &dyn Node) {
-   println!("{:?}",as_expr);
+    if let swc_ecma_ast::Expr::Lit(lit) = &*as_expr.expr {
+      
+   }
   }
 }
 
