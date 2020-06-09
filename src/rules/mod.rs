@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
 
+mod ban_ts_comment;
 mod ban_ts_ignore;
 mod ban_untagged_ignore;
 mod ban_untagged_todo;
@@ -50,7 +51,6 @@ mod single_var_declarator;
 mod triple_slash_reference;
 mod use_isnan;
 mod valid_typeof;
-mod ban_ts_comment;
 
 pub trait LintRule {
   fn new() -> Box<Self>
