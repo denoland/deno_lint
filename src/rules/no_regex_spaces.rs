@@ -197,7 +197,6 @@ mod tests {
       "var foo = new RegExp(' [  ] ');",
       "var foo = RegExp(' [  ] [  ] ');",
       "var foo = new RegExp(' \\[   \\] ');",
-
       // TODO(@disizali) invalid regexes must handled on separated rule called `no-invalid-regexp`.
       // "var foo = new RegExp('[  ');",
       // "var foo = new RegExp('{  ', 'u');",
