@@ -23,7 +23,7 @@ impl LintRule for NoCondAssign {
   }
 }
 
- struct NoCondAssignVisitor {
+struct NoCondAssignVisitor {
   context: Context,
 }
 
