@@ -182,5 +182,23 @@ class A extends B {
       4,
       10,
     );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    super();
+  }
+}
+class C extends D {
+  constructor() {
+    this.c = 42;
+    super();
+  }
+}
+    "#,
+      9,
+      4,
+    );
   }
 }
