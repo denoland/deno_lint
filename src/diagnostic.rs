@@ -20,7 +20,11 @@ impl Into<Location> for swc_common::Loc {
     Location {
       filename,
       line: self.line,
-      col: self.col_display,
+      // Using self.col instead of self.col_display
+      // because it leads to out-of-bounds columns if file
+      // contains non-narrow chars (like tabs).
+      // See: https://github.com/denoland/deno_lint/issues/139
+      col: self.col.0,
     }
   }
 }
