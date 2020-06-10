@@ -41,6 +41,7 @@ mod no_regex_spaces;
 mod no_setter_return;
 mod no_sparse_array;
 mod no_this_alias;
+mod no_this_before_super;
 mod no_throw_literal;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
@@ -150,6 +151,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_setter_return::NoSetterReturn::new(),
     no_sparse_array::NoSparseArray::new(),
     no_this_alias::NoThisAlias::new(),
+    no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
