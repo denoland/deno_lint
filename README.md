@@ -82,6 +82,7 @@ Blazingly fast, see comparison with ESLint:
 - `no-setter-return`
 - `no-sparse-array`
 - `no-this-alias`
+- `no-this-before-super`
 - `no-throw-literal`
 - `no-unsafe-finally`
 - `no-unsafe-negation`
