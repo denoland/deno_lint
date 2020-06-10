@@ -24,7 +24,7 @@ impl LintRule for NoDeleteVar {
   }
 }
 
-pub struct NoDeleteVarVisitor {
+struct NoDeleteVarVisitor {
   context: Context,
 }
 

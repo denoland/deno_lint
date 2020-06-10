@@ -23,7 +23,7 @@ impl LintRule for PreferNamespaceKeyword {
   }
 }
 
-pub struct PreferNamespaceKeywordVisitor {
+struct PreferNamespaceKeywordVisitor {
   context: Context,
 }
 

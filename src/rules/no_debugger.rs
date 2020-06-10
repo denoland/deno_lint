@@ -21,7 +21,7 @@ impl LintRule for NoDebugger {
     visitor.visit_module(&module, &module);
   }
 }
-pub struct NoDebuggerVisitor {
+struct NoDebuggerVisitor {
   context: Context,
 }
 

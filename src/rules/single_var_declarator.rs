@@ -22,7 +22,7 @@ impl LintRule for SingleVarDeclarator {
   }
 }
 
-pub struct SingleVarDeclaratorVisitor {
+struct SingleVarDeclaratorVisitor {
   context: Context,
 }
 

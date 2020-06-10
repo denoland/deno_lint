@@ -22,7 +22,7 @@ impl LintRule for NoNamespace {
   }
 }
 
-pub struct NoNamespaceVisitor {
+struct NoNamespaceVisitor {
   context: Context,
 }
 

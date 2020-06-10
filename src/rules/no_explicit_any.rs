@@ -22,7 +22,7 @@ impl LintRule for NoExplicitAny {
   }
 }
 
-pub struct NoExplicitAnyVisitor {
+struct NoExplicitAnyVisitor {
   context: Context,
 }
 

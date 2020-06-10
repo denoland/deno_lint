@@ -30,7 +30,7 @@ impl LintRule for NoExAssign {
   }
 }
 
-pub struct NoExAssignVisitor {
+struct NoExAssignVisitor {
   context: Context,
   scope_manager: ScopeManager,
 }

@@ -27,7 +27,7 @@ impl LintRule for NoPrototypeBuiltins {
   }
 }
 
-pub struct NoPrototypeBuiltinsVisitor {
+struct NoPrototypeBuiltinsVisitor {
   context: Context,
 }
 

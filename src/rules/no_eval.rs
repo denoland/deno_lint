@@ -24,7 +24,7 @@ impl LintRule for NoEval {
   }
 }
 
-pub struct NoEvalVisitor {
+struct NoEvalVisitor {
   context: Context,
 }
 
