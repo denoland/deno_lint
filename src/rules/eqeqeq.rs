@@ -22,7 +22,7 @@ impl LintRule for Eqeqeq {
   }
 }
 
-pub struct EqeqeqVisitor {
+struct EqeqeqVisitor {
   context: Context,
 }
 

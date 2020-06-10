@@ -23,7 +23,7 @@ impl LintRule for NoVar {
   }
 }
 
-pub struct NoVarVisitor {
+struct NoVarVisitor {
   context: Context,
 }
 

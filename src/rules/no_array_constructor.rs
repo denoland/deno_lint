@@ -23,7 +23,7 @@ impl LintRule for NoArrayConstructor {
   }
 }
 
-pub struct NoArrayConstructorVisitor {
+struct NoArrayConstructorVisitor {
   context: Context,
 }
 

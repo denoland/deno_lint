@@ -27,7 +27,7 @@ impl LintRule for NoSetterReturn {
   }
 }
 
-pub struct NoSetterReturnVisitor {
+struct NoSetterReturnVisitor {
   context: Context,
 }
 

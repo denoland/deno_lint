@@ -27,7 +27,7 @@ impl LintRule for GetterReturn {
   }
 }
 
-pub struct GetterReturnVisitor {
+struct GetterReturnVisitor {
   context: Context,
 }
 

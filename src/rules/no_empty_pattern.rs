@@ -22,7 +22,7 @@ impl LintRule for NoEmptyPattern {
   }
 }
 
-pub struct NoEmptyPatternVisitor {
+struct NoEmptyPatternVisitor {
   context: Context,
 }
 

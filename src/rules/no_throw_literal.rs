@@ -23,7 +23,7 @@ impl LintRule for NoThrowLiteral {
   }
 }
 
-pub struct NoThrowLiteralVisitor {
+struct NoThrowLiteralVisitor {
   context: Context,
 }
 

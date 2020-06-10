@@ -23,7 +23,7 @@ impl LintRule for ConstructorSuper {
   }
 }
 
-pub struct ConstructorSuperVisitor {
+struct ConstructorSuperVisitor {
   context: Context,
 }
 

@@ -22,7 +22,7 @@ impl LintRule for NoUnsafeFinally {
   }
 }
 
-pub struct NoUnsafeFinallyVisitor {
+struct NoUnsafeFinallyVisitor {
   context: Context,
 }
 

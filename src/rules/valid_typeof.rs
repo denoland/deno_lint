@@ -25,7 +25,7 @@ impl LintRule for ValidTypeof {
   }
 }
 
-pub struct ValidTypeofVisitor {
+struct ValidTypeofVisitor {
   context: Context,
 }
 
