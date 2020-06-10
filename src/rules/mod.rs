@@ -64,6 +64,7 @@ pub trait LintRule {
 pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
   vec![
     ban_ts_comment::BanTsComment::new(),
+    ban_untagged_ignore::BanUntaggedIgnore::new(),
     constructor_super::ConstructorSuper::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
@@ -92,6 +93,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_obj_call::NoObjCall::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
     no_sparse_array::NoSparseArray::new(),
     no_this_alias::NoThisAlias::new(),
