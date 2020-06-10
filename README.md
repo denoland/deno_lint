@@ -5,7 +5,7 @@ Very much work-in-progress
 
 Rust crate for writing JavaScript and TypeScript linters.
 
-It's about 1000x faster than ESLint:
+Blazingly fast, see comparison with ESLint:
 
 ```
 [
