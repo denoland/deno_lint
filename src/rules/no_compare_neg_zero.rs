@@ -25,7 +25,7 @@ impl LintRule for NoCompareNegZero {
   }
 }
 
-pub struct NoCompareNegZeroVisitor {
+struct NoCompareNegZeroVisitor {
   context: Context,
 }
 

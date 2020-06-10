@@ -25,7 +25,7 @@ impl LintRule for NoCaseDeclarations {
   }
 }
 
-pub struct NoCaseDeclarationsVisitor {
+struct NoCaseDeclarationsVisitor {
   context: Context,
 }
 

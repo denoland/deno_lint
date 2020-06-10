@@ -22,7 +22,7 @@ impl LintRule for NoEmptyCharacterClass {
   }
 }
 
-pub struct NoEmptyCharacterClassVisitor {
+struct NoEmptyCharacterClassVisitor {
   context: Context,
 }
 

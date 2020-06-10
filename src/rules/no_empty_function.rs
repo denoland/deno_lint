@@ -22,7 +22,7 @@ impl LintRule for NoEmptyFunction {
   }
 }
 
-pub struct NoEmptyFunctionVisitor {
+struct NoEmptyFunctionVisitor {
   context: Context,
 }
 

@@ -22,7 +22,7 @@ impl LintRule for NoEmptyInterface {
   }
 }
 
-pub struct NoEmptyInterfaceVisitor {
+struct NoEmptyInterfaceVisitor {
   context: Context,
 }
 

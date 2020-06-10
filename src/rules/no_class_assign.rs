@@ -30,7 +30,7 @@ impl LintRule for NoClassAssign {
   }
 }
 
-pub struct NoClassAssignVisitor {
+struct NoClassAssignVisitor {
   context: Context,
   scope_manager: ScopeManager,
 }

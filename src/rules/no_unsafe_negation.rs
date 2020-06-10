@@ -25,7 +25,7 @@ impl LintRule for NoUnsafeNegation {
   }
 }
 
-pub struct NoUnsafeNegationVisitor {
+struct NoUnsafeNegationVisitor {
   context: Context,
 }
 

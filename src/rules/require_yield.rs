@@ -28,7 +28,7 @@ impl LintRule for RequireYield {
   }
 }
 
-pub struct RequireYieldVisitor {
+struct RequireYieldVisitor {
   context: Context,
   yield_stack: Vec<u32>,
 }

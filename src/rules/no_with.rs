@@ -22,7 +22,7 @@ impl LintRule for NoWith {
   }
 }
 
-pub struct NoWithVisitor {
+struct NoWithVisitor {
   context: Context,
 }
 
