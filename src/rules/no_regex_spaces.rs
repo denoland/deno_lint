@@ -48,7 +48,7 @@ impl NoRegexSpacesVisitor {
       static ref SPACES: regex::Regex =
         regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap();
     }
-    if !DOUBLE_SPACE.is_match(regex){
+    if !DOUBLE_SPACE.is_match(regex) {
       return false;
     }
 
@@ -173,11 +173,9 @@ mod tests {
       "var foo = /  ?/;",
       "var foo = /  */;",
       "var foo = /  {2}/;",
-
       // don't report if RegExp shadowed
       "var RegExp = function() {}; var foo = new RegExp('bar   baz');",
       "var RegExp = function() {}; var foo = RegExp('bar   baz');",
-      
       // don't report if there are no consecutive spaces in the source code
       "var foo = /bar \\ baz/;",
       "var foo = /bar\\ \\ baz/;",
@@ -189,7 +187,6 @@ mod tests {
       "var foo = new RegExp('bar \\u0020 baz')",
       "var foo = new RegExp('bar\\u0020\\u0020baz')",
       "var foo = new RegExp('bar \\\\u0020 baz')",
-
       // don't report spaces in character classes
       "var foo = /[  ]/;",
       "var foo = /[   ]/;",
@@ -200,7 +197,6 @@ mod tests {
       "var foo = new RegExp(' [  ] ');",
       "var foo = RegExp(' [  ] [  ] ');",
       "var foo = new RegExp(' \\[   \\] ');",
-      
       // TODO(@disizali) invalid regexes must handled on separated rule called `no-invalid-regexp`.
       // "var foo = new RegExp('[  ');",
       // "var foo = new RegExp('{  ', 'u');",
@@ -210,32 +206,37 @@ mod tests {
 
   #[test]
   fn no_regex_spaces_invalid() {
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar  baz/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar    baz/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = / a b  c d /;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp(' a b c d  ');",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar    baz');",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    baz');",10);
-    assert_lint_err::<NoRegexSpaces>("{ let RegExp = function() {}; } var foo = RegExp('bar    baz');",42);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar   {3}baz/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar    ?baz/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar   +baz')",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    ');",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar\\  baz/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /[   ]  /;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /  [   ] /;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('[   ]  ');",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('  [ ]');",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  /;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  \\]/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /(?:  )/;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('^foo(?=   )');",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\  /",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = / \\  /",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /  foo   /;",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\d  ')",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('\\u0041   ')",10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\[  \\\\]');",10);
-
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar  baz/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar    baz/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = / a b  c d /;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp(' a b c d  ');", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar    baz');", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    baz');", 10);
+    assert_lint_err::<NoRegexSpaces>(
+      "{ let RegExp = function() {}; } var foo = RegExp('bar    baz');",
+      42,
+    );
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar   {3}baz/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar    ?baz/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar   +baz')", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    ');", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar\\  baz/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /[   ]  /;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /  [   ] /;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('[   ]  ');", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('  [ ]');", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  /;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  \\]/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /(?:  )/;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('^foo(?=   )');", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /\\  /", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = / \\  /", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /  foo   /;", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\d  ')", 10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('\\u0041   ')", 10);
+    assert_lint_err::<NoRegexSpaces>(
+      "let foo = new RegExp('\\\\[  \\\\]');",
+      10,
+    );
   }
 }
