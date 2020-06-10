@@ -1,11 +1,50 @@
-# Deno linter
+# `deno_lint`
 
 **NOTE**
 Very much work-in-progress
 
+Rust crate for writing JavaScript and TypeScript linters.
+
+It's about 1000x faster than ESLint:
+
+```
+[
+   {
+      "name":"deno_lint",
+      "totalMs":12.234113999999863,
+      "runsCount":5,
+      "runsAvgMs":2.4468227999999725,
+      "runsMs":[
+         3.500347000000147,
+         2.2351940000000923,
+         2.2010919999997896,
+         2.1718909999999596,
+         2.1255899999998746
+      ]
+   },
+   {
+      "name":"eslint",
+      "totalMs":11414.694615999999,
+      "runsCount":5,
+      "runsAvgMs":2282.9389232,
+      "runsMs":[
+         2489.383729,
+         2225.3896830000003,
+         2226.8073840000006,
+         2252.641211,
+         2220.4726089999986
+      ]
+   }
+]
+```
+
+*Benchmarks are run during CI on Ubuntu. Using the same set of rules for both linters.*
+
 ## Supported rules
 
+- `ban-ts-comment`
 - `ban-ts-ignore`
+- `ban-untagged-ignore`
 - `ban-untagged-todo`
 - `constructor-super`
 - `default-param-last`
@@ -27,18 +66,22 @@ Very much work-in-progress
 - `no-empty-character-class`
 - `no-empty-function`
 - `no-empty-interface`
+- `no-empty-pattern`
 - `no-empty`
 - `no-eval`
 - `no-ex-assign`
 - `no-explicit-any`
 - `no-func-assign`
+- `no-misused-new`
 - `no-namespace`
 - `no-new-symbol`
 - `no-obj-call`
 - `no-octal`
 - `no-prototype-builtins`
+- `no-regex-spaces`
 - `no-setter-return`
 - `no-sparse-array`
+- `no-this-alias`
 - `no-throw-literal`
 - `no-unsafe-finally`
 - `no-unsafe-negation`
@@ -47,6 +90,7 @@ Very much work-in-progress
 - `prefer-namespace-keyword`
 - `require-yield`
 - `single-var-declarator`
+- `triple-slash-reference`
 - `use-isnan`
 - `valid-typeof`
 
