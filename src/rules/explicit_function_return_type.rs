@@ -11,6 +11,10 @@ impl LintRule for ExplicitFunctionReturnType {
     Box::new(ExplicitFunctionReturnType)
   }
 
+  fn code(&self) -> &'static str {
+    "explicit-function-return-type"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -36,9 +40,12 @@ impl Visit for ExplicitFunctionReturnTypeVisitor {
     if function.return_type.is_none() {
       self.context.add_diagnostic(
         function.span,
-        "explicitFunctionReturnType",
+        "explicit-function-return-type",
         "Missing return type on function",
       );
+    }
+    for stmt in &function.body {
+      self.visit_block_stmt(stmt, _parent);
     }
   }
 }
@@ -46,41 +53,27 @@ impl Visit for ExplicitFunctionReturnTypeVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
-  fn explicit_function_return_type() {
-    test_lint(
-      "explicit_function_return_type",
+  fn explicit_function_return_type_valid() {
+    assert_lint_ok_n::<ExplicitFunctionReturnType>(vec![
+      "function fooTyped(): void { }",
+      "const bar = (a: string) => { }",
+      "const barTyped = (a: string): Promise<void> => { }",
+    ]);
+  }
+
+  #[test]
+  fn explicit_function_return_type_invalid() {
+    assert_lint_err::<ExplicitFunctionReturnType>("function foo() { }", 0);
+    assert_lint_err_on_line_n::<ExplicitFunctionReturnType>(
       r#"
-function foo() {
-  // pass
+function a() {
+  function b() {}
 }
-
-function fooTyped(): void {
-  // pass
-}
-
-const bar = (a: string) => {
-  // pass
-}
-
-const barTyped = (a: string): Promise<void> => {
-  // pass
-}
-
       "#,
-      vec![ExplicitFunctionReturnType::new()],
-      json!([{
-        "code": "explicitFunctionReturnType",
-        "message": "Missing return type on function",
-        "location": {
-          "filename": "explicit_function_return_type",
-          "line": 2,
-          "col": 0,
-        }
-      }]),
-    )
+      vec![(2, 0), (3, 2)],
+    );
   }
 }

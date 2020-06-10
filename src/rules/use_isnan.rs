@@ -11,6 +11,10 @@ impl LintRule for UseIsNaN {
     Box::new(UseIsNaN)
   }
 
+  fn code(&self) -> &'static str {
+    "use-isnan"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = UseIsNaNVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -50,7 +54,7 @@ impl Visit for UseIsNaNVisitor {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             bin_expr.span,
-            "useIsNaN",
+            "use-isnan",
             "Use the isNaN function to compare with NaN",
           );
         }
@@ -59,7 +63,7 @@ impl Visit for UseIsNaNVisitor {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             bin_expr.span,
-            "useIsNaN",
+            "use-isnan",
             "Use the isNaN function to compare with NaN",
           );
         }
@@ -76,7 +80,7 @@ impl Visit for UseIsNaNVisitor {
       if is_nan_identifier(&ident) {
         self.context.add_diagnostic(
           switch_stmt.span,
-          "useIsNaN",
+          "use-isnan",
           "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch",
         );
       }
@@ -88,7 +92,7 @@ impl Visit for UseIsNaNVisitor {
           if is_nan_identifier(ident) {
             self.context.add_diagnostic(
               case.span,
-              "useIsNaN",
+              "use-isnan",
               "'case NaN' can never match. Use Number.isNaN before the switch",
             );
           }
@@ -101,49 +105,21 @@ impl Visit for UseIsNaNVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn use_isnan_test() {
-    test_lint(
-      "use_isnan",
+    assert_lint_err::<UseIsNaN>("42 === NaN", 0);
+    assert_lint_err_on_line_n::<UseIsNaN>(
       r#"
-42 === NaN;
-
 switch (NaN) {
-    case NaN:
-        break;
-    default:
-        break;
+  case NaN:
+    break;
+  default:
+    break;
 }
       "#,
-      vec![UseIsNaN::new()],
-      json!([{
-        "code": "useIsNaN",
-        "message": "Use the isNaN function to compare with NaN",
-        "location": {
-          "filename": "use_isnan",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "useIsNaN",
-        "message": "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch",
-        "location": {
-          "filename": "use_isnan",
-          "line": 4,
-          "col": 0,
-        }
-      }, {
-        "code": "useIsNaN",
-        "message": "'case NaN' can never match. Use Number.isNaN before the switch",
-        "location": {
-          "filename": "use_isnan",
-          "line": 5,
-          "col": 4,
-        }
-      }]),
-    )
+      vec![(2, 0), (3, 2)],
+    );
   }
 }

@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{BlockStmt, Module, SwitchStmt};
+use swc_ecma_ast::{BlockStmt, Function, Module, SwitchStmt};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;
@@ -8,6 +8,10 @@ pub struct NoEmpty;
 impl LintRule for NoEmpty {
   fn new() -> Box<Self> {
     Box::new(NoEmpty)
+  }
+
+  fn code(&self) -> &'static str {
+    "no-empty"
   }
 
   fn lint_module(&self, context: Context, module: Module) {
@@ -27,12 +31,24 @@ impl NoEmptyVisitor {
 }
 
 impl Visit for NoEmptyVisitor {
+  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
+    // Empty functions shouldn't be caught be this rule.
+    // Because function's body is a block statement, we're gonna
+    // manually visit each member; otherwise rule would produce errors
+    // for empty function body.
+    if let Some(body) = &function.body {
+      for stmt in &body.stmts {
+        swc_ecma_visit::visit_stmt(self, stmt, body);
+      }
+    }
+  }
+
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
     if block_stmt.stmts.is_empty() {
       if !block_stmt.contains_comments(&self.context) {
         self.context.add_diagnostic(
           block_stmt.span,
-          "noEmpty",
+          "no-empty",
           "Empty block statement",
         );
       }
@@ -47,7 +63,7 @@ impl Visit for NoEmptyVisitor {
     if switch.cases.is_empty() {
       self.context.add_diagnostic(
         switch.span,
-        "noEmpty",
+        "no-empty",
         "Empty switch statement",
       );
     }
@@ -71,56 +87,44 @@ impl ContainsComments for BlockStmt {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
+
+  #[test]
+  fn it_passes_for_a_function() {
+    assert_lint_ok::<NoEmpty>(r#"function foobar() {}"#);
+  }
 
   #[test]
   fn it_passes_for_a_non_empty_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  var bar = "";
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([]),
-    )
+    assert_lint_ok::<NoEmpty>(r#"if (foo) { var bar = ""; }"#);
   }
 
   #[test]
   fn it_passes_for_a_block_only_containing_comments() {
-    test_lint(
-      "no_empty",
+    assert_lint_ok::<NoEmpty>(
       r#"
 if (foo) {
   // This block is not empty
 }
-      "#,
-      vec![NoEmpty::new()],
-      json!([]),
-    )
+    "#,
+    );
   }
 
   #[test]
   fn it_passes_for_a_non_empty_switch_block() {
-    test_lint(
-      "no_empty",
+    assert_lint_ok::<NoEmpty>(
       r#"
-switch (foo) {
-  case bar:
-    break;
-}
+    switch (foo) {
+      case bar:
+        break;
+    }
       "#,
-      vec![NoEmpty::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn it_passes_for_a_non_empty_nested_block() {
-    test_lint(
-      "no_empty",
+    assert_lint_ok::<NoEmpty>(
       r#"
 if (foo) {
   if (bar) {
@@ -128,410 +132,101 @@ if (foo) {
   }
 }
       "#,
-      vec![NoEmpty::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn it_fails_for_an_empty_if_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 9,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { }", 9);
   }
 
   #[test]
   fn it_fails_for_an_empty_block_with_preceding_comments() {
-    test_lint(
-      "no_empty",
+    assert_lint_err_on_line::<NoEmpty>(
       r#"
 // This is an empty block
-if (foo) {
-}
+if (foo) { }
       "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 9,
-        }
-      }]),
-    )
+      3,
+      9,
+    );
   }
 
   #[test]
   fn it_fails_for_an_empty_while_block() {
-    test_lint(
-      "no_empty",
-      r#"
-while (foo) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 12,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("while (foo) { }", 12);
   }
 
   #[test]
   fn it_fails_for_an_empty_do_while_block() {
-    test_lint(
-      "no_empty",
-      r#"
-do {
-} while (foo);
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 3,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("do { } while (foo);", 3);
   }
 
   #[test]
   fn it_fails_for_an_empty_for_block() {
-    test_lint(
-      "no_empty",
-      r#"
-for(;;) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 8,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("for(;;) { }", 8);
   }
 
   #[test]
   fn it_fails_for_an_empty_for_in_block() {
-    test_lint(
-      "no_empty",
-      r#"
-for(var foo in bar) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 20,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("for(var foo in bar) { }", 20);
   }
 
   #[test]
   fn it_fails_for_an_empty_for_of_block() {
-    test_lint(
-      "no_empty",
-      r#"
-for(var foo of bar) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 20,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("for(var foo of bar) { }", 20);
   }
 
   #[test]
   fn it_fails_for_an_empty_switch_block() {
-    test_lint(
-      "no_empty",
-      r#"
-switch (foo) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty switch statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 0,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("switch (foo) { }", 0);
   }
 
   #[test]
   fn it_fails_for_an_empty_try_catch_block() {
-    test_lint(
-      "no_empty",
-      r#"
-try {
-} catch (err) {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 4,
-        }
-      },
-      {
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 14,
-        }
-      }]),
-    )
+    assert_lint_err_n::<NoEmpty>("try { } catch (err) { }", vec![4, 20]);
   }
 
   #[test]
   fn it_fails_for_an_empty_try_catch_finally_block() {
-    test_lint(
-      "no_empty",
-      r#"
-try {
-} catch (err) {
-} finally {
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 2,
-          "col": 4,
-        }
-      },
-      {
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 14,
-        }
-      },
-      {
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 4,
-          "col": 10,
-        }
-      }]),
-    )
+    assert_lint_err_n::<NoEmpty>(
+      "try { } catch (err) { } finally { }",
+      vec![4, 20, 32],
+    );
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_if_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  if (bar) {
-  }
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 11,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { if (bar) { } }", 20);
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_while_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  while (bar) {
-  }
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 14,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { while (bar) { } }", 23);
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_do_while_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  do {
-  } while (bar);
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 5,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { do { } while (bar); }", 14);
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_for_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  for(;;) {
-  }
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 10,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { for(;;) { } }", 19);
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_for_in_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  for(var bar in foo) {
-  }
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 22,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { for(var bar in foo) { } }", 31);
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_for_of_block() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  for(var bar of foo) {
-  }
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty block statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 22,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { for(var bar of foo) { } }", 31);
   }
 
   #[test]
   fn it_fails_for_a_nested_empty_switch() {
-    test_lint(
-      "no_empty",
-      r#"
-if (foo) {
-  switch (foo) {
-  }
-}
-      "#,
-      vec![NoEmpty::new()],
-      json!([{
-        "code": "noEmpty",
-        "message": "Empty switch statement",
-        "location": {
-          "filename": "no_empty",
-          "line": 3,
-          "col": 2,
-        }
-      }]),
-    )
+    assert_lint_err::<NoEmpty>("if (foo) { switch (foo) { } }", 11);
   }
 }

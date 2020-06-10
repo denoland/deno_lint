@@ -18,6 +18,10 @@ impl LintRule for RequireYield {
     Box::new(RequireYield)
   }
 
+  fn code(&self) -> &'static str {
+    "require-yield"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = RequireYieldVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -53,7 +57,7 @@ impl RequireYieldVisitor {
         if !body.stmts.is_empty() && yield_count == 0 {
           self.context.add_diagnostic(
             function.span,
-            "requireYield",
+            "require-yield",
             "Generator function has no `yield`",
           );
         }
@@ -111,13 +115,11 @@ impl Visit for RequireYieldVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn require_yield_ok() {
-    test_lint(
-      "require_yield",
+    assert_lint_ok::<RequireYield>(
       r#"
 function foo() {}
 function* bar() { 
@@ -141,30 +143,22 @@ const obj = {
   }
 };
       "#,
-      vec![RequireYield::new()],
-      json!([]),
-    )
+    );
   }
 
   #[test]
   fn require_yield() {
-    test_lint(
-      "require_yield",
+    assert_lint_err::<RequireYield>(r#"function* bar() { return "bar"; }"#, 0);
+    assert_lint_err::<RequireYield>(
+      r#"(function* foo() { return "foo"; })();"#,
+      1,
+    );
+    assert_lint_err::<RequireYield>(
+      r#"function* nested() { function* gen() { yield "gen"; } }"#,
+      0,
+    );
+    assert_lint_err_on_line_n::<RequireYield>(
       r#"
-function* bar() { 
-  return "bar";
-}
-
-(function* foo() {
-  return "foo";
-})();
-
-function* nested() {
-  function* gen() {
-    yield "gen";
-  }
-}
-
 class Fizz {
   *fizz() {
     return "fizz";
@@ -174,67 +168,12 @@ class Fizz {
     return "buzz";
   }
 }
-
-const obj = {
-  *foo() {
-    return "foo";
-  }
-};
-      "#,
-      vec![RequireYield::new()],
-      json!([{
-        "code": "requireYield",
-        "message": "Generator function has no `yield`",
-        "location": {
-          "filename": "require_yield",
-          "line": 2,
-          "col": 0,
-        }
-      },{
-        "code": "requireYield",
-        "message": "Generator function has no `yield`",
-        "location": {
-          "filename": "require_yield",
-          "line": 6,
-          "col": 1,
-        }
-      },
-      {
-        "code": "requireYield",
-        "message": "Generator function has no `yield`",
-        "location": {
-          "filename": "require_yield",
-          "line": 10,
-          "col": 0,
-        }
-      },
-      {
-        "code": "requireYield",
-        "message": "Generator function has no `yield`",
-        "location": {
-          "filename": "require_yield",
-          "line": 17,
-          "col": 2,
-        }
-      },
-      {
-        "code": "requireYield",
-        "message": "Generator function has no `yield`",
-        "location": {
-          "filename": "require_yield",
-          "line": 21,
-          "col": 2,
-        }
-      },
-      {
-        "code": "requireYield",
-        "message": "Generator function has no `yield`",
-        "location": {
-          "filename": "require_yield",
-          "line": 27,
-          "col": 2,
-        }
-      }]),
-    )
+    "#,
+      vec![(3, 2), (7, 2)],
+    );
+    assert_lint_err::<RequireYield>(
+      r#"const obj = { *foo() { return "foo"; } };"#,
+      14,
+    );
   }
 }

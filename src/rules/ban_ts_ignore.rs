@@ -18,7 +18,7 @@ impl BanTsIgnore {
 
     context.add_diagnostic(
       comment.span,
-      "banTsIgnore",
+      "ban-ts-ignore",
       "@ts-ignore is not allowed",
     );
   }
@@ -27,6 +27,10 @@ impl BanTsIgnore {
 impl LintRule for BanTsIgnore {
   fn new() -> Box<Self> {
     Box::new(BanTsIgnore)
+  }
+
+  fn code(&self) -> &'static str {
+    "ban-ts-ignore"
   }
 
   fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
@@ -46,42 +50,29 @@ impl LintRule for BanTsIgnore {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn ban_ts_ignore() {
-    test_lint(
-      "ban_ts_ignore",
+    assert_lint_err_on_line::<BanTsIgnore>(
       r#"
 // @ts-ignore
 function foo() {
   // pass
 }
-
+    "#,
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<BanTsIgnore>(
+      r#"
 function bar() {
   // @ts-ignore
   const a = "bar";
 }
-      "#,
-      vec![BanTsIgnore::new()],
-      json!([{
-        "code": "banTsIgnore",
-        "message": "@ts-ignore is not allowed",
-        "location": {
-          "filename": "ban_ts_ignore",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "banTsIgnore",
-        "message": "@ts-ignore is not allowed",
-        "location": {
-          "filename": "ban_ts_ignore",
-          "line": 8,
-          "col": 2,
-        }
-      }]),
-    )
+    "#,
+      3,
+      2,
+    );
   }
 }

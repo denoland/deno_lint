@@ -5,77 +5,147 @@ Very much work-in-progress
 
 ## Supported rules
 
-- `banTsIgnore`
-- `banUntaggedTodo`
-- `defaultParamLast`
+- `ban-ts-ignore`
+- `ban-untagged-todo`
+- `constructor-super`
+- `default-param-last`
 - `eqeqeq`
-- `explicitFunctionReturnType`
-- `noAsyncPromiseExecutor`
-- `noCompareNegZero`
-- `noCondAssign`
-- `noDebugger`
-- `noDeleteVar`
-- `noDupeArgs`
-- `noDupeKeys`
-- `noDuplicateCase`
-- `noEmpty`
-- `noEmptyFunction`
-- `noEmptyInterface`
-- `noEval`
-- `noExplicitAny`
-- `noNewSymbol`
-- `noSparseArray`
-- `noThrowLiteral`
-- `noUnsafeFinally`
-- `noVar`
-- `singleVarDeclarator`
-- `useIsNaN`
-- `validTypeof`
+- `explicit-function-return-type`
+- `for-direction`
+- `getter-return`
+- `no-array-constructor`
+- `no-async-promise-executor`
+- `no-case-declarations`
+- `no-class-assign`
+- `no-compare-neg-zero`
+- `no-cond-assign`
+- `no-debugger`
+- `no-delete-var`
+- `no-dupe-args`
+- `no-dupe-keys`
+- `no-duplicate-case`
+- `no-empty-character-class`
+- `no-empty-function`
+- `no-empty-interface`
+- `no-empty`
+- `no-eval`
+- `no-ex-assign`
+- `no-explicit-any`
+- `no-func-assign`
+- `no-namespace`
+- `no-new-symbol`
+- `no-obj-call`
+- `no-octal`
+- `no-prototype-builtins`
+- `no-setter-return`
+- `no-sparse-array`
+- `no-throw-literal`
+- `no-unsafe-finally`
+- `no-unsafe-negation`
+- `no-var`
+- `no-with`
+- `prefer-namespace-keyword`
+- `require-yield`
+- `single-var-declarator`
+- `use-isnan`
+- `valid-typeof`
 
-## Ignores
+## Ignore directives
 
-Only single line ignores are supported:
+### Files
+
+To ignore whole file `// deno-lint-ignore-file` directive should placed at the top of the file.
 
 ```ts
-// deno-lint-ignore noExplicitAny
+// deno-lint-ignore-file
+
+function foo(): any {
+  // ...
+}
+```
+
+Ignore directive must be placed before first stament or declaration:
+
+```ts
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+
+/**
+ * Some JS doc
+ **/
+
+// deno-lint-ignore-file
+
+import { bar } from "./bar.js";
+
+function foo(): any {
+  // ...
+}
+```
+
+### Diagnostics
+
+To ignore certain diagnostic `// deno-lint-ignore <codes...>` directive should be placed
+before offending line.
+
+```ts
+// deno-lint-ignore no-explicit-any
 function foo(): any {
   // ...
 }
 
-// deno-lint-ignore noExplicitAny explicitFunctionReturnType
+// deno-lint-ignore no-explicit-any explicit-function-return-type
 function bar(a: any) {
   // ...
 }
 ```
 
+Specyfing rule code that will be ignored is required.
+
 ## Example output
 
 ```shell
-$ target/debug/dlint test.ts
-error: `any` type is not allowed (noExplicitAny) at ./test.ts:6:14
-error: `var` keyword is not allowed (noVar) at ./test.ts:12:0
-error: Variables shouldn't be deleted (noDeleteVar) at ./test.ts:14:0
-error: Multiple variable declarators are not allowed (singleVarDeclarator) at ./test.ts:17:0
-error: Don't use `// @ts-ignore` (banTsIgnore) at ./test.ts:27:0
-error: `debugger` statement is not allowed (noDebugger) at ./test.ts:30:4
-error: `eval` call is not allowed (noEval) at ./test.ts:35:0
-error: TODO should be tagged with (@username) or (#issue) (banUntaggedTodo) at ./test.ts:38:0
-error: Missing return type on function (explicitFunctionReturnType) at ./test.ts:39:0
-error: Empty interfaces are not allowed (noEmptyInterface) at ./test.ts:45:0
-error: Use the isNaN function to compare with NaN (useIsNaN) at ./test.ts:48:0
-error: switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch (useIsNaN) at ./test.ts:50:0
-error: 'case NaN' can never match. Use Number.isNaN before the switch (useIsNaN) at ./test.ts:51:4
-error: Sparse arrays are not allowed (noSparseArray) at ./test.ts:58:20
-error: Duplicate values in `case` are not allowed (noDuplicateCase) at ./test.ts:67:9
-error: Empty functions are not allowed (noEmptyFunction) at ./test.ts:75:0
-error: Missing return type on function (explicitFunctionReturnType) at ./test.ts:78:0
-error: Empty functions are not allowed (noEmptyFunction) at ./test.ts:78:0
-error: Missing return type on function (explicitFunctionReturnType) at ./test.ts:81:12
-error: Async promise executors are not allowed (noAsyncPromiseExecutor) at ./test.ts:81:0
-error: Async promise executors are not allowed (noAsyncPromiseExecutor) at ./test.ts:85:0
-error: Missing return type on function (explicitFunctionReturnType) at ./test.ts:90:0
-error: Empty functions are not allowed (noEmptyFunction) at ./test.ts:90:0
-error: Duplicate arguments not allowed (noDupeArgs) at ./test.ts:90:0
-error: Duplicate arguments not allowed (noDupeArgs) at ./test.ts:94:18
-Found 25 problems
+$ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
+(no-empty) Empty block statement
+  --> ../deno/std/http/server.ts:93:14
+   |
+93 |       } catch {}
+   |               ^^
+   |
+(no-empty) Empty block statement
+   --> ../deno/std/http/server.ts:111:44
+    |
+111 |     while ((await body.read(buf)) !== null) {}
+    |                                             ^^
+    |
+(no-empty) Empty block statement
+   --> ../deno/std/http/server.ts:120:41
+    |
+120 |   constructor(public listener: Listener) {}
+    |                                          ^^
+    |
+(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
+ --> ../deno/std/http/file_server.ts:5:0
+  |
+5 | // TODO Stream responses instead of reading them into memory.
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
+ --> ../deno/std/http/file_server.ts:6:0
+  |
+6 | // TODO Add tests like these:
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+(ban-untagged-todo) TODO should be tagged with (@username) or (#issue)
+   --> ../deno/std/http/file_server.ts:137:0
+    |
+137 | // TODO: simplify this after deno.stat and deno.readDir are fixed
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+(no-empty) Empty block statement
+   --> ../deno/std/http/file_server.ts:155:16
+    |
+155 |     } catch (e) {}
+    |                 ^^
+    |
+Found 7 problems
 ```

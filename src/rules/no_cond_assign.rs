@@ -13,6 +13,10 @@ impl LintRule for NoCondAssign {
     Box::new(NoCondAssign)
   }
 
+  fn code(&self) -> &'static str {
+    "no-cond-assign"
+  }
+
   fn lint_module(&self, context: Context, module: Module) {
     let mut visitor = NoCondAssignVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -31,7 +35,7 @@ impl NoCondAssignVisitor {
   fn add_diagnostic(&self, span: Span) {
     self.context.add_diagnostic(
       span,
-      "noCondAssign",
+      "no-cond-assign",
       "Expected a conditional expression and instead saw an assignment",
     );
   }
@@ -68,116 +72,35 @@ impl Visit for NoCondAssignVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn it_passes_using_equality_operator() {
-    test_lint(
-      "no_cond_assign",
-      r#"
-if (x === 0) {
-}
-     "#,
-      vec![NoCondAssign::new()],
-      json!([]),
-    )
+    assert_lint_ok::<NoCondAssign>("if (x === 0) { }");
   }
 
   #[test]
   fn it_passes_with_bracketed_assignment() {
-    test_lint(
-      "no_cond_assign",
-      r#"
-if ((x = y)) {
-}
-     "#,
-      vec![NoCondAssign::new()],
-      json!([]),
-    )
+    assert_lint_ok::<NoCondAssign>("if ((x = y)) { }");
   }
 
   #[test]
   fn it_fails_using_assignment_in_if_stmt() {
-    test_lint(
-      "no_cond_assign",
-      r#"
-if (x = 0) {
-}
-      "#,
-      vec![NoCondAssign::new()],
-      json!([{
-        "code": "noCondAssign",
-        "message": "Expected a conditional expression and instead saw an assignment",
-        "location": {
-          "filename": "no_cond_assign",
-          "line": 2,
-          "col": 4,
-        }
-      }]),
-    )
+    assert_lint_err::<NoCondAssign>("if (x = 0) { }", 4);
   }
 
   #[test]
   fn it_fails_using_assignment_in_while_stmt() {
-    test_lint(
-      "no_cond_assign",
-      r#"
-while (x = 0) {
-}
-      "#,
-      vec![NoCondAssign::new()],
-      json!([{
-        "code": "noCondAssign",
-        "message": "Expected a conditional expression and instead saw an assignment",
-        "location": {
-          "filename": "no_cond_assign",
-          "line": 2,
-          "col": 7,
-        }
-      }]),
-    )
+    assert_lint_err::<NoCondAssign>("while (x = 0) { }", 7);
   }
 
   #[test]
   fn it_fails_using_assignment_in_do_while_stmt() {
-    test_lint(
-      "no_cond_assign",
-      r#"
-do {
-} while (x = 0);
-      "#,
-      vec![NoCondAssign::new()],
-      json!([{
-        "code": "noCondAssign",
-        "message": "Expected a conditional expression and instead saw an assignment",
-        "location": {
-          "filename": "no_cond_assign",
-          "line": 3,
-          "col": 9,
-        }
-      }]),
-    )
+    assert_lint_err::<NoCondAssign>("do { } while (x = 0);", 14);
   }
 
   #[test]
   fn it_fails_using_assignment_in_for_stmt() {
-    test_lint(
-      "no_cond_assign",
-      r#"
-for (let i = 0; i = 10; i++) {
-}
-      "#,
-      vec![NoCondAssign::new()],
-      json!([{
-        "code": "noCondAssign",
-        "message": "Expected a conditional expression and instead saw an assignment",
-        "location": {
-          "filename": "no_cond_assign",
-          "line": 2,
-          "col": 16,
-        }
-      }]),
-    )
+    assert_lint_err::<NoCondAssign>("for (let i = 0; i = 10; i++) { }", 16);
   }
 }

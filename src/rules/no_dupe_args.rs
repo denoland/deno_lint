@@ -17,6 +17,10 @@ impl LintRule for NoDupeArgs {
     Box::new(NoDupeArgs)
   }
 
+  fn code(&self) -> &'static str {
+    "no-dupe-args"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = NoDupeArgsVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -43,7 +47,7 @@ impl NoDupeArgsVisitor {
           if seen.get(&pat_name).is_some() {
             self.context.add_diagnostic(
               span,
-              "noDupeArgs",
+              "no-dupe-args",
               "Duplicate arguments not allowed",
             );
           } else {
@@ -77,40 +81,11 @@ impl Visit for NoDupeArgsVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn no_dupe_args_test() {
-    test_lint(
-      "no_dupe_args",
-      r#"
-function dupeArgs1(a, b, a) {
-  //
-}
-
-const dupeArgs2 = (a, b, a) => {
-  //
-};
-      "#,
-      vec![NoDupeArgs::new()],
-      json!([{
-        "code": "noDupeArgs",
-        "message": "Duplicate arguments not allowed",
-        "location": {
-          "filename": "no_dupe_args",
-          "line": 2,
-          "col": 0,
-        }
-      }, {
-        "code": "noDupeArgs",
-        "message": "Duplicate arguments not allowed",
-        "location": {
-          "filename": "no_dupe_args",
-          "line": 6,
-          "col": 18,
-        }
-      }]),
-    )
+    assert_lint_err::<NoDupeArgs>("function dupeArgs1(a, b, a) { }", 0);
+    assert_lint_err::<NoDupeArgs>("const dupeArgs2 = (a, b, a) => { }", 18);
   }
 }

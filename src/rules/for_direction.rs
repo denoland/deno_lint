@@ -21,6 +21,10 @@ impl LintRule for ForDirection {
     Box::new(ForDirection)
   }
 
+  fn code(&self) -> &'static str {
+    "for-direction"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = ForDirectionVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -143,7 +147,7 @@ impl Visit for ForDirectionVisitor {
         if update_direction == wrong_direction {
           self.context.add_diagnostic(
             for_stmt.span,
-            "forDirection",
+            "for-direction",
             "Update clause moves variable in the wrong direction",
           );
         }
@@ -155,13 +159,11 @@ impl Visit for ForDirectionVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn for_direction_ok() {
-    test_lint(
-      "for_direction",
+    assert_lint_ok::<ForDirection>(
       r#"
 for(let i = 0; i < 2; i++) {}
 for(let i = 0; i <= 2; i++) {}
@@ -195,135 +197,23 @@ for(let i = 0; i !== 10; i++) {}
 for(let i = 0; i != 10; i++) {}
 for(let i = 0; i === 0; i++) {}
 for(let i = 0; i == 0; i++) {}
-    "#,
-      vec![ForDirection::new()],
-      json!([]),
-    )
+      "#,
+    );
   }
 
   #[test]
   fn for_direction() {
-    test_lint(
-      "for_direction",
-      r#"
-for(let i = 0; i < 2; i--) {}
-for(let i = 0; i <= 2; i--) {}
-for(let i = 2; i > 2; i++) {}
-for(let i = 2; i >= 0; i++) {}
-
-for(let i = 0; i < 2; i -= 1) {}
-for(let i = 0; i <= 2; i -= 1) {}
-for(let i = 2; i > 2; i -= -1) {}
-for(let i = 2; i >= 0; i -= -1) {}
-
-for(let i = 2; i > 2; i += 1) {}
-for(let i = 2; i >= 0; i += 1) {}
-for(let i = 0; i < 2; i += -1) {}
-for(let i = 0; i <= 2; i += -1) {}
-
-      "#,
-      vec![ForDirection::new()],
-      json!([{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 2,
-          "col": 0,
-        }
-      },
-      {
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 3,
-          "col": 0,
-        }
-      },
-      {
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 4,
-          "col": 0,
-        }
-      },
-      {
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 5,
-          "col": 0,
-        }
-      },
-      {
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 7,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 8,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 9,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 10,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 12,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 13,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 14,
-          "col": 0,
-        }
-      },{
-        "code": "forDirection",
-        "message": "Update clause moves variable in the wrong direction",
-        "location": {
-          "filename": "for_direction",
-          "line": 15,
-          "col": 0,
-        }
-      }]),
-    )
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i--) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i--) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i++) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i++) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i -= 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i -= 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i -= -1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i -= -1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i += 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i += 1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i += -1) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i += -1) {}", 0);
   }
 }

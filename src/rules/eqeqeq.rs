@@ -12,6 +12,10 @@ impl LintRule for Eqeqeq {
     Box::new(Eqeqeq)
   }
 
+  fn code(&self) -> &'static str {
+    "eqeqeq"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
     let mut visitor = EqeqeqVisitor::new(context);
     visitor.visit_module(&module, &module);
@@ -57,43 +61,12 @@ impl Visit for EqeqeqVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
   fn eqeqeq_test() {
-    test_lint(
-      "eqeqeq",
-      "kumiko == oumae",
-      vec![Eqeqeq::new()],
-      json!([{
-        "code": "eqeqeq",
-        "message": "expected '===' and instead saw '=='.",
-        "location": {
-          "filename": "eqeqeq",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
-
-    test_lint(
-      "eqeqeq",
-      "reina != kousaka",
-      vec![Eqeqeq::new()],
-      json!([{
-        "code": "eqeqeq",
-        "message": "expected '!==' and instead saw '!='.",
-        "location": {
-          "filename": "eqeqeq",
-          "line": 1,
-          "col": 0
-        }
-      }]),
-    );
-
-    test_lint("eqeqeq", "midori == null", vec![Eqeqeq::new()], json!([]));
-
-    test_lint("eqeqeq", "null == hazuki", vec![Eqeqeq::new()], json!([]));
+    assert_lint_err::<Eqeqeq>("kumiko == oumae", 0);
+    assert_lint_err::<Eqeqeq>("reina != kousaka", 0);
+    assert_lint_ok_n::<Eqeqeq>(vec!["midori == null", "null == hazuki"]);
   }
 }
