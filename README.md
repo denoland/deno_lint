@@ -38,7 +38,7 @@ It's about 1000x faster than ESLint:
 ]
 ```
 
-*Benchmarks are run during CI on Ubuntu. Using the same set of rules for both linters.*
+*Benchmarks are run during CI on Ubuntu. Using the same set of rules for both linters. See [`./benchmarks/`](./benchmarks/) directory for more info.*
 
 ## Supported rules
 
