@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::scopes::{ScopeManager, ScopeVisitor};
 use swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, Lit, NewExpr, Regex};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
@@ -12,28 +13,68 @@ impl LintRule for NoRegexSpaces {
     Box::new(NoRegexSpaces)
   }
 
+  fn code(&self) -> &'static str {
+    "no-regex-spaces"
+  }
+
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
-    let mut visitor = NoRegexSpacesVisitor::new(context);
+    let mut scope_visitor = ScopeVisitor::new();
+    scope_visitor.visit_module(&module, &module);
+    let scope_manager = scope_visitor.consume();
+    let mut visitor = NoRegexSpacesVisitor::new(context, scope_manager);
     visitor.visit_module(&module, &module);
   }
 }
 
 pub struct NoRegexSpacesVisitor {
   context: Context,
+  scope_manager: ScopeManager,
 }
 
 impl NoRegexSpacesVisitor {
-  pub fn new(context: Context) -> Self {
-    Self { context }
+  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
+    Self {
+      context,
+      scope_manager,
+    }
+  }
+
+  fn check_regex(&self, regex: &str) -> bool {
+    lazy_static! {
+      static ref DOUBLE_SPACE: regex::Regex =
+        regex::Regex::new(r"(?u) {2}").unwrap();
+      static ref BRACKETS: regex::Regex =
+        regex::Regex::new(r"\[.*?[^\\]\]").unwrap();
+      static ref SPACES: regex::Regex =
+        regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap();
+    }
+    if !DOUBLE_SPACE.is_match(regex){
+      return false;
+    }
+
+    let mut character_classes = vec![];
+    for mtch in BRACKETS.find_iter(regex) {
+      character_classes.push((mtch.start(), mtch.end()));
+    }
+
+    for mtch in SPACES.find_iter(regex) {
+      let not_in_classes = &character_classes
+        .iter()
+        .all(|ref v| mtch.start() < v.0 || v.1 <= mtch.start());
+      if *not_in_classes {
+        return true;
+      }
+    }
+    false
   }
 }
 
 impl Visit for NoRegexSpacesVisitor {
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
-    if regex.exp.to_string().matches("  ").count() > 0 {
+    if self.check_regex(regex.exp.to_string().as_ref()) {
       self.context.add_diagnostic(
         regex.span,
-        "noRegexSpaces",
+        "no-regex-spaces",
         "more than one consecutive spaces in RegExp is not allowed",
       );
     }
@@ -45,7 +86,10 @@ impl Visit for NoRegexSpacesVisitor {
       if name != "RegExp" {
         return;
       }
-
+      let scope = self.scope_manager.get_scope_for_span(new_expr.span);
+      if self.scope_manager.get_binding(scope, &ident.sym).is_some() {
+        return;
+      }
       if let Some(args) = &new_expr.args {
         if let Some(first_arg) = args.get(0) {
           let regex_literal =
@@ -57,10 +101,10 @@ impl Visit for NoRegexSpacesVisitor {
               return;
             };
 
-          if regex_literal.matches("  ").count() > 0 {
+          if self.check_regex(regex_literal.as_ref()) {
             self.context.add_diagnostic(
               new_expr.span,
-              "noRegexSpaces",
+              "no-regex-spaces",
               "more than one consecutive spaces in RegExp is not allowed",
             );
           }
@@ -75,28 +119,32 @@ impl Visit for NoRegexSpacesVisitor {
         let name = ident.sym.to_string();
         if name != "RegExp" {
           return;
-        } else {
-          if !call_expr.args.is_empty() {
-            if let Some(first_arg) = call_expr.args.get(0) {
-              let regex_literal =
-                if let Expr::Lit(Lit::Str(literal)) = &*first_arg.expr {
-                  &literal.value
-                } else if let Expr::Lit(Lit::Regex(regex)) = &*first_arg.expr {
-                  &regex.exp
-                } else {
-                  return;
-                };
-
-              if regex_literal.matches("  ").count() > 0 {
-                self.context.add_diagnostic(
-                  call_expr.span,
-                  "noRegexSpaces",
-                  "more than one consecutive spaces in RegExp is not allowed",
-                );
-              }
-            }
-          };
         }
+        let scope = self.scope_manager.get_scope_for_span(call_expr.span);
+        if self.scope_manager.get_binding(scope, &ident.sym).is_some() {
+          return;
+        }
+
+        if !call_expr.args.is_empty() {
+          if let Some(first_arg) = call_expr.args.get(0) {
+            let regex_literal =
+              if let Expr::Lit(Lit::Str(literal)) = &*first_arg.expr {
+                &literal.value
+              } else if let Expr::Lit(Lit::Regex(regex)) = &*first_arg.expr {
+                &regex.exp
+              } else {
+                return;
+              };
+
+            if self.check_regex(regex_literal.as_ref()) {
+              self.context.add_diagnostic(
+                call_expr.span,
+                "no-regex-spaces",
+                "more than one consecutive spaces in RegExp is not allowed",
+              );
+            }
+          }
+        };
       }
     }
   }
@@ -105,129 +153,89 @@ impl Visit for NoRegexSpacesVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::test_lint;
-  use serde_json::json;
+  use crate::test_util::*;
 
   #[test]
-  fn no_regex_spaces_test() {
-    test_lint(
-      "no_regex_spaces",
-      r#"
-var re = /a   z/;
-      "#,
-      vec![NoRegexSpaces::new()],
-      json!([{
-        "code": "noRegexSpaces",
-        "message": "more than one consecutive spaces in RegExp is not allowed",
-        "location": {
-          "filename": "no_regex_spaces",
-          "line": 2,
-          "col": 9,
-        }
-      }]),
-    );
+  fn no_regex_spaces_valid() {
+    assert_lint_ok_n::<NoRegexSpaces>(vec![
+      "var foo = /foo/;",
+      "var foo = RegExp('foo')",
+      "var foo = / /;",
+      "var foo = RegExp(' ')",
+      "var foo = / a b c d /;",
+      "var foo = /bar {3}baz/g;",
+      "var foo = RegExp('bar {3}baz', 'g')",
+      "var foo = new RegExp('bar {3}baz')",
+      "var foo = /bar\t\t\tbaz/;",
+      "var foo = RegExp('bar\t\t\tbaz');",
+      "var foo = new RegExp('bar\t\t\tbaz');",
+      "var foo = /  +/;",
+      "var foo = /  ?/;",
+      "var foo = /  */;",
+      "var foo = /  {2}/;",
 
-    test_lint(
-      "no_regex_spaces",
-      r#"
-var re = new RegExp("a   z");
-      "#,
-      vec![NoRegexSpaces::new()],
-      json!([{
-        "code": "noRegexSpaces",
-        "message": "more than one consecutive spaces in RegExp is not allowed",
-        "location": {
-          "filename": "no_regex_spaces",
-          "line": 2,
-          "col": 9,
-        }
-      }]),
-    );
+      // don't report if RegExp shadowed
+      "var RegExp = function() {}; var foo = new RegExp('bar   baz');",
+      "var RegExp = function() {}; var foo = RegExp('bar   baz');",
+      
+      // don't report if there are no consecutive spaces in the source code
+      "var foo = /bar \\ baz/;",
+      "var foo = /bar\\ \\ baz/;",
+      "var foo = /bar \\u0020 baz/;",
+      "var foo = /bar\\u0020\\u0020baz/;",
+      "var foo = new RegExp('bar \\ baz')",
+      "var foo = new RegExp('bar\\ \\ baz')",
+      "var foo = new RegExp('bar \\\\ baz')",
+      "var foo = new RegExp('bar \\u0020 baz')",
+      "var foo = new RegExp('bar\\u0020\\u0020baz')",
+      "var foo = new RegExp('bar \\\\u0020 baz')",
 
-    test_lint(
-      "no_regex_spaces",
-      r#"
-var re = new RegExp(/a  z/);
-    "#,
-      vec![NoRegexSpaces::new()],
-      json!([{
-        "code": "noRegexSpaces",
-        "message": "more than one consecutive spaces in RegExp is not allowed",
-        "location": {
-          "filename": "no_regex_spaces",
-          "line": 2,
-          "col": 9,
-        }
-      }]),
-    );
-
-    test_lint(
-      "no_regex_spaces",
-      r#"
-var re = new RegExp(/a  z/);
-    "#,
-      vec![NoRegexSpaces::new()],
-      json!([{
-        "code": "noRegexSpaces",
-        "message": "more than one consecutive spaces in RegExp is not allowed",
-        "location": {
-          "filename": "no_regex_spaces",
-          "line": 2,
-          "col": 9,
-        }
-      }]),
-    );
+      // don't report spaces in character classes
+      "var foo = /[  ]/;",
+      "var foo = /[   ]/;",
+      "var foo = / [  ] /;",
+      "var foo = / [  ] [  ] /;",
+      "var foo = new RegExp('[  ]');",
+      "var foo = new RegExp('[   ]');",
+      "var foo = new RegExp(' [  ] ');",
+      "var foo = RegExp(' [  ] [  ] ');",
+      "var foo = new RegExp(' \\[   \\] ');",
+      
+      // TODO(@disizali) invalid regexes must handled on separated rule called `no-invalid-regexp`.
+      // "var foo = new RegExp('[  ');",
+      // "var foo = new RegExp('{  ', 'u');",
+      // "var foo = new RegExp(' \\[   ');",
+    ]);
   }
 
   #[test]
-  fn no_regex_spaces_ok() {
-    test_lint(
-      "no_regex_spaces",
-      r#"
-          var foo = /foo/;
-          var foo = RegExp('foo')
-          var foo = / /;
-          var foo = RegExp(' ')
-          var foo = / a b c d /;
-          var foo = /bar {3}baz/g;
-          var foo = RegExp('bar {3}baz','g')
-          var foo = new RegExp('bar {3}baz')
-          var foo = /bar\t\t\tbaz/;
-          var foo = RegExp('bar\t\t\tbaz');
-          var foo = new RegExp('bar\t\t\tbaz');
-          var RegExp = function() {}; var foo = new RegExp('bar   baz');
-          var RegExp = function() {}; var foo = RegExp('bar   baz');
-          var foo = /  +/;
-          var foo = /  ?/;
-          var foo = /  */;
-          var foo = /  {2}/;
-          var foo = /bar \\ baz/;
-          var foo = /bar\\ \\ baz/;
-          var foo = /bar \\u0020 baz/;
-          var foo = /bar\\u0020\\u0020baz/;
-          var foo = new RegExp('bar \\ baz')
-          var foo = new RegExp('bar\\ \\ baz')
-          var foo = new RegExp('bar \\\\ baz')
-          var foo = new RegExp('bar \\u0020 baz')
-          var foo = new RegExp('bar\\u0020\\u0020baz')
-          var foo = new RegExp('bar \\\\u0020 baz')
-          /*
-          var foo = /[  ]/;
-          var foo = /[   ]/;
-          var foo = / [  ] /;
-          var foo = / [  ] [  ] /;
-          var foo = new RegExp('[  ]');
-          var foo = new RegExp('[   ]');
-          var foo = new RegExp(' [  ] ');
-          var foo = RegExp(' [  ] [  ] ');
-          var foo = new RegExp(' \\[   ');
-          var foo = new RegExp(' \\[   \\] ');
-          var foo = new RegExp('[  ');
-          var foo = new RegExp('{  ','u');
-          */
-        "#,
-      vec![NoRegexSpaces::new()],
-      json!([]),
-    );
+  fn no_regex_spaces_invalid() {
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar  baz/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar    baz/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = / a b  c d /;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp(' a b c d  ');",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar    baz');",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    baz');",10);
+    assert_lint_err::<NoRegexSpaces>("{ let RegExp = function() {}; } var foo = RegExp('bar    baz');",42);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar   {3}baz/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar    ?baz/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar   +baz')",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    ');",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /bar\\  baz/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /[   ]  /;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /  [   ] /;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('[   ]  ');",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('  [ ]');",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  /;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  \\]/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /(?:  )/;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('^foo(?=   )');",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /\\  /",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = / \\  /",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = /  foo   /;",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\d  ')",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('\\u0041   ')",10);
+    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\[  \\\\]');",10);
+
   }
 }
