@@ -25,26 +25,41 @@ impl LintRule for NoThisBeforeSuper {
 
 struct NoThisBeforeSuperVisitor {
   context: Context,
-  has_super_class: bool,
 }
 
 impl NoThisBeforeSuperVisitor {
   fn new(context: Context) -> Self {
-    Self {
-      context,
-      has_super_class: false,
-    }
+    Self { context }
   }
 }
 
 impl Visit for NoThisBeforeSuperVisitor {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let tmp = self.has_super_class;
+    let mut class_visitor =
+      ClassVisitor::new(&self.context, class.super_class.is_some());
+    swc_ecma_visit::visit_class(&mut class_visitor, class, parent);
+  }
+}
 
-    self.has_super_class = class.super_class.is_some();
-    swc_ecma_visit::visit_class(self, class, parent);
+struct ClassVisitor<'a> {
+  context: &'a Context,
+  has_super_class: bool,
+}
 
-    self.has_super_class = tmp;
+impl<'a> ClassVisitor<'a> {
+  fn new(context: &'a Context, has_super_class: bool) -> Self {
+    Self {
+      context,
+      has_super_class,
+    }
+  }
+}
+
+impl<'a> Visit for ClassVisitor<'a> {
+  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+    let mut class_visitor =
+      ClassVisitor::new(&self.context, class.super_class.is_some());
+    swc_ecma_visit::visit_class(&mut class_visitor, class, parent);
   }
 
   fn visit_constructor(&mut self, cons: &Constructor, parent: &dyn Node) {
@@ -72,6 +87,12 @@ impl<'a> ConstructorVisitor<'a> {
 }
 
 impl<'a> Visit for ConstructorVisitor<'a> {
+  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+    let mut class_visitor =
+      ClassVisitor::new(&self.context, class.super_class.is_some());
+    swc_ecma_visit::visit_class(&mut class_visitor, class, parent);
+  }
+
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     for arg in &call_expr.args {
       self.visit_expr(&*arg.expr, call_expr);
@@ -368,6 +389,24 @@ class A extends B {
       "#,
       4,
       4,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    super();
+    this.a = 0;
+    class C extends D {
+      constructor() {
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
+      8,
+      8,
     );
   }
 }
