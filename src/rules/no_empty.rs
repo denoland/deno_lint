@@ -1,6 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{BlockStmt, Constructor, Function, Module, SwitchStmt};
+use swc_ecma_ast::{
+  ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
+  SwitchStmt,
+};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoEmpty;
@@ -39,6 +42,15 @@ impl Visit for NoEmptyVisitor {
     if let Some(body) = &function.body {
       for stmt in &body.stmts {
         swc_ecma_visit::visit_stmt(self, stmt, body);
+      }
+    }
+  }
+
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
+    // Similar to the above, empty arrow expressions shouldn't be caught.
+    if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body {
+      for stmt in &block_stmt.stmts {
+        swc_ecma_visit::visit_stmt(self, stmt, block_stmt);
       }
     }
   }
@@ -99,12 +111,8 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn it_passes_for_a_function() {
+  fn no_empty_ok() {
     assert_lint_ok::<NoEmpty>(r#"function foobar() {}"#);
-  }
-
-  #[test]
-  fn it_passes_for_an_empty_constructor() {
     assert_lint_ok::<NoEmpty>(
       r#"
 class Foo {
@@ -112,15 +120,7 @@ class Foo {
 }
       "#,
     );
-  }
-
-  #[test]
-  fn it_passes_for_a_non_empty_block() {
     assert_lint_ok::<NoEmpty>(r#"if (foo) { var bar = ""; }"#);
-  }
-
-  #[test]
-  fn it_passes_for_a_block_only_containing_comments() {
     assert_lint_ok::<NoEmpty>(
       r#"
 if (foo) {
@@ -128,10 +128,6 @@ if (foo) {
 }
     "#,
     );
-  }
-
-  #[test]
-  fn it_passes_for_a_non_empty_switch_block() {
     assert_lint_ok::<NoEmpty>(
       r#"
     switch (foo) {
@@ -140,10 +136,6 @@ if (foo) {
     }
       "#,
     );
-  }
-
-  #[test]
-  fn it_passes_for_a_non_empty_nested_block() {
     assert_lint_ok::<NoEmpty>(
       r#"
 if (foo) {
@@ -153,6 +145,7 @@ if (foo) {
 }
       "#,
     );
+    assert_lint_ok::<NoEmpty>("const testFunction = (): void => {};");
   }
 
   #[test]
