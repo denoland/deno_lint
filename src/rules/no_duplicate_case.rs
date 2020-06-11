@@ -23,7 +23,7 @@ impl LintRule for NoDuplicateCase {
   }
 }
 
-pub struct NoDuplicateCaseVisitor {
+struct NoDuplicateCaseVisitor {
   context: Context,
 }
 

@@ -23,7 +23,7 @@ impl LintRule for NoAsyncPromiseExecutor {
   }
 }
 
-pub struct NoAsyncPromiseExecutorVisitor {
+struct NoAsyncPromiseExecutorVisitor {
   context: Context,
 }
 

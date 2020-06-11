@@ -21,7 +21,7 @@ impl LintRule for UseIsNaN {
   }
 }
 
-pub struct UseIsNaNVisitor {
+struct UseIsNaNVisitor {
   context: Context,
 }
 

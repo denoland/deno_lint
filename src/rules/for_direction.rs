@@ -31,7 +31,7 @@ impl LintRule for ForDirection {
   }
 }
 
-pub struct ForDirectionVisitor {
+struct ForDirectionVisitor {
   context: Context,
 }
 

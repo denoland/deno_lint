@@ -30,7 +30,7 @@ impl LintRule for NoFuncAssign {
   }
 }
 
-pub struct NoFuncAssignVisitor {
+struct NoFuncAssignVisitor {
   context: Context,
   scope_manager: ScopeManager,
 }

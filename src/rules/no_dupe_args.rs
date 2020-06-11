@@ -27,7 +27,7 @@ impl LintRule for NoDupeArgs {
   }
 }
 
-pub struct NoDupeArgsVisitor {
+struct NoDupeArgsVisitor {
   context: Context,
 }
 

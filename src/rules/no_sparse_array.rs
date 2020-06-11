@@ -21,7 +21,7 @@ impl LintRule for NoSparseArray {
   }
 }
 
-pub struct NoSparseArrayVisitor {
+struct NoSparseArrayVisitor {
   context: Context,
 }
 

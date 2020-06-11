@@ -3,7 +3,8 @@ use clap::App;
 use clap::Arg;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::Linter;
-use deno_lint::rules::get_all_rules;
+use deno_lint::rules::get_recommended_rules;
+use deno_lint::swc_util::get_default_ts_config;
 use std::fmt;
 use std::io::Write;
 use termcolor::Color::{Ansi256, Red};
@@ -107,7 +108,7 @@ fn main() {
   #[cfg(windows)]
   enable_ansi();
 
-  let rules = get_all_rules();
+  let rules = get_recommended_rules();
 
   let mut rule_names = rules
     .iter()
@@ -131,10 +132,11 @@ fn main() {
 
     let mut linter = Linter::default();
 
-    let rules = get_all_rules();
+    let rules = get_recommended_rules();
+    let syntax = get_default_ts_config();
 
     let file_diagnostics = linter
-      .lint(file_name.to_string(), source_code, rules)
+      .lint(file_name.to_string(), source_code, syntax, rules)
       .expect("Failed to lint");
 
     error_counts += file_diagnostics.len();

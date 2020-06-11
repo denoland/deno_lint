@@ -26,7 +26,7 @@ impl LintRule for NoObjCall {
   }
 }
 
-pub struct NoObjCallVisitor {
+struct NoObjCallVisitor {
   context: Context,
 }
 

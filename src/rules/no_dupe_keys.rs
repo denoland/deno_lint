@@ -27,7 +27,7 @@ impl LintRule for NoDupeKeys {
   }
 }
 
-pub struct NoDupeKeysVisitor {
+struct NoDupeKeysVisitor {
   context: Context,
 }
 

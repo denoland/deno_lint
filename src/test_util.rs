@@ -3,13 +3,17 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::Linter;
 use crate::rules::LintRule;
+use crate::swc_util;
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
+  let syntax = swc_util::get_default_ts_config();
   let mut linter = Linter::default();
+  linter.lint_unused_ignore_directives = false;
   linter
     .lint(
       "deno_lint_test.tsx".to_string(),
       source.to_string(),
+      syntax,
       vec![rule],
     )
     .expect("Failed to lint")

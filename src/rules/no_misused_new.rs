@@ -27,7 +27,7 @@ impl LintRule for NoMisusedNew {
   }
 }
 
-pub struct NoMisusedNewVisitor {
+struct NoMisusedNewVisitor {
   context: Context,
 }
 
