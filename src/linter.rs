@@ -165,7 +165,9 @@ impl Linter {
       if comment_text.starts_with(ignore_dir) {
         let codes = comment_text
           .split(' ')
-          .map(|e| e.to_string())
+          // TODO(bartlomieju): this is make-shift, make it configurable
+          .map(|s| s.trim_start_matches("@typescript-eslint/"))
+          .map(String::from)
           .skip(1)
           .collect::<Vec<String>>();
 
