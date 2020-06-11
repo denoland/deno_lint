@@ -201,7 +201,7 @@ impl Linter {
       }
     }
 
-    return None;
+    None
   }
 
   fn parse_ignore_directives(
