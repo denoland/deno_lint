@@ -221,9 +221,18 @@ impl Linter {
     ignore_directives
   }
 
-  fn filter_diagnostics(&self, context: Context) -> Vec<LintDiagnostic> {
+  fn filter_diagnostics(
+    &self,
+    context: Context,
+    rules: Vec<Box<dyn LintRule>>,
+  ) -> Vec<LintDiagnostic> {
     let mut ignore_directives = context.ignore_directives.clone();
     let diagnostics = context.diagnostics.lock().unwrap();
+
+    let rule_codes = rules
+      .iter()
+      .map(|r| r.code().to_string())
+      .collect::<Vec<String>>();
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -239,7 +248,7 @@ impl Linter {
     if self.lint_unused_ignore_directives {
       for ignore_directive in ignore_directives {
         for (code, used) in ignore_directive.used_codes.iter() {
-          if !used {
+          if !used && rule_codes.contains(code) {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
               "ban-unused-ignore",
@@ -280,10 +289,10 @@ impl Linter {
       ignore_directives,
     };
 
-    for rule in rules {
+    for rule in &rules {
       rule.lint_module(context.clone(), module.clone());
     }
 
-    self.filter_diagnostics(context)
+    self.filter_diagnostics(context, rules)
   }
 }
