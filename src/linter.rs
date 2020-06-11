@@ -97,7 +97,7 @@ impl IgnoreDirective {
 pub struct Linter {
   pub ast_parser: AstParser,
   pub ignore_file_directive: String,
-  pub ignore_diagnostic_directive: String,
+  pub ignore_diagnostic_directives: Vec<String>,
   pub lint_unused_ignore_directives: bool,
 }
 
@@ -108,7 +108,7 @@ impl Linter {
     Linter {
       ast_parser,
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
-      ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
+      ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
       lint_unused_ignore_directives: true,
     }
   }
@@ -161,33 +161,34 @@ impl Linter {
 
     let comment_text = comment.text.trim();
 
-    let codes: Vec<String> =
-      if comment_text.starts_with(&self.ignore_diagnostic_directive) {
-        comment_text
+    for ignore_dir in &self.ignore_diagnostic_directives {
+      if comment_text.starts_with(ignore_dir) {
+        let codes = comment_text
           .split(' ')
           .map(|e| e.to_string())
           .skip(1)
-          .collect()
-      } else {
-        return None;
-      };
+          .collect::<Vec<String>>();
 
-    let location = self
-      .ast_parser
-      .source_map
-      .lookup_char_pos(comment.span.lo());
+        let location = self
+          .ast_parser
+          .source_map
+          .lookup_char_pos(comment.span.lo());
 
-    let mut used_codes = HashMap::new();
-    codes.iter().for_each(|code| {
-      used_codes.insert(code.to_string(), false);
-    });
+        let mut used_codes = HashMap::new();
+        codes.iter().for_each(|code| {
+          used_codes.insert(code.to_string(), false);
+        });
 
-    Some(IgnoreDirective {
-      location: location.into(),
-      span: comment.span,
-      codes,
-      used_codes,
-    })
+        return Some(IgnoreDirective {
+          location: location.into(),
+          span: comment.span,
+          codes,
+          used_codes,
+        });
+      }
+    }
+
+    return None;
   }
 
   fn parse_ignore_directives(
