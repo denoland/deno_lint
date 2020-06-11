@@ -103,13 +103,24 @@ pub struct Linter {
 
 impl Linter {
   pub fn default() -> Self {
-    let ast_parser = AstParser::new();
-
     Linter {
-      ast_parser,
+      ast_parser: AstParser::new(),
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
       lint_unused_ignore_directives: true,
+    }
+  }
+
+  pub fn new(
+    ignore_file_directive: String,
+    ignore_diagnostic_directives: Vec<String>,
+    lint_unused_ignore_directives: bool,
+  ) -> Self {
+    Linter {
+      ast_parser: AstParser::new(),
+      ignore_file_directive,
+      ignore_diagnostic_directives,
+      lint_unused_ignore_directives,
     }
   }
 
