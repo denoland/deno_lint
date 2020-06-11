@@ -34,16 +34,17 @@ impl NoEmptyFunctionVisitor {
 
 impl Visit for NoEmptyFunctionVisitor {
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _parent: &dyn Node) {
-    let body = fn_decl.function.body.as_ref();
-    if body.is_none() || body.unwrap().stmts.is_empty() {
-      self.context.add_diagnostic(
-        fn_decl.function.span,
-        "no-empty-function",
-        "Empty functions are not allowed",
-      )
-    } else {
-      for stmt in &fn_decl.function.body {
-        self.visit_block_stmt(stmt, _parent);
+    if let Some(body) = &fn_decl.function.body {
+      if body.stmts.is_empty() {
+        self.context.add_diagnostic(
+          fn_decl.function.span,
+          "no-empty-function",
+          "Empty functions are not allowed",
+        )
+      } else {
+        for stmt in &fn_decl.function.body {
+          self.visit_block_stmt(stmt, _parent);
+        }
       }
     }
   }
@@ -53,6 +54,20 @@ impl Visit for NoEmptyFunctionVisitor {
 mod tests {
   use super::*;
   use crate::test_util::*;
+
+  #[test]
+  fn no_empty_function_ok() {
+    assert_lint_ok::<NoEmptyFunction>(
+      r#"
+function callbackify<ResultT>(
+  fn: () => PromiseLike<ResultT>
+): (callback: Callback<ResultT>) => void;
+function callbackify<ArgT, ResultT>(
+  fn: (arg: ArgT) => PromiseLike<ResultT>
+): (arg: ArgT, callback: Callback<ResultT>) => void;
+      "#,
+    )
+  }
 
   #[test]
   fn no_empty_function_test() {
