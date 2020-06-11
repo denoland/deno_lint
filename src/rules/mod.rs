@@ -97,7 +97,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
-    no_sparse_array::NoSparseArray::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
