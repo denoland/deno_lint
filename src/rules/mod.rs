@@ -102,12 +102,12 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_with::NoWith::new(),
+    prefer_as_const::PreferAsConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
-    prefer_as_const::PreferAsConst::new(),
   ]
 }
 
@@ -157,9 +157,9 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_throw_literal::NoThrowLiteral::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
-    prefer_as_const::PreferAsConst::new(),
     no_var::NoVar::new(),
     no_with::NoWith::new(),
+    prefer_as_const::PreferAsConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
