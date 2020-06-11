@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecma_ast::{
-  CallExpr, Class, ClassMember, ExprOrSuper, Super, ThisExpr,
+  CallExpr, Class, Constructor, ExprOrSuper, Super, ThisExpr,
 };
 use swc_ecma_visit::{Node, Visit};
 
@@ -25,40 +25,53 @@ impl LintRule for NoThisBeforeSuper {
 
 struct NoThisBeforeSuperVisitor {
   context: Context,
-  super_called: bool,
+  has_super_class: bool,
 }
 
 impl NoThisBeforeSuperVisitor {
-  pub fn new(context: Context) -> Self {
+  fn new(context: Context) -> Self {
+    Self {
+      context,
+      has_super_class: false,
+    }
+  }
+}
+
+impl Visit for NoThisBeforeSuperVisitor {
+  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+    let tmp = self.has_super_class;
+
+    self.has_super_class = class.super_class.is_some();
+    swc_ecma_visit::visit_class(self, class, parent);
+
+    self.has_super_class = tmp;
+  }
+
+  fn visit_constructor(&mut self, cons: &Constructor, parent: &dyn Node) {
+    if self.has_super_class {
+      let mut cons_visitor = ConstructorVisitor::new(&self.context);
+      cons_visitor.visit_constructor(cons, parent);
+    } else {
+      swc_ecma_visit::visit_constructor(self, cons, parent);
+    }
+  }
+}
+
+struct ConstructorVisitor<'a> {
+  context: &'a Context,
+  super_called: bool,
+}
+
+impl<'a> ConstructorVisitor<'a> {
+  fn new(context: &'a Context) -> Self {
     Self {
       context,
       super_called: false,
     }
   }
-
-  fn init_on_class(&mut self) {
-    self.super_called = false;
-  }
 }
 
-impl Visit for NoThisBeforeSuperVisitor {
-  fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
-    if class.super_class.is_none() {
-      return;
-    }
-
-    self.init_on_class();
-
-    let cons = class.body.iter().find_map(|m| match m {
-      ClassMember::Constructor(c) => Some(c),
-      _ => None,
-    });
-
-    if let Some(cons) = cons {
-      self.visit_constructor(cons, class);
-    }
-  }
-
+impl<'a> Visit for ConstructorVisitor<'a> {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     for arg in &call_expr.args {
       self.visit_expr(&*arg.expr, call_expr);
@@ -198,6 +211,162 @@ class C extends D {
 }
     "#,
       9,
+      4,
+    );
+  }
+
+  #[test]
+  fn no_this_before_super_inline_super_class() {
+    assert_lint_ok::<NoThisBeforeSuper>(
+      r#"
+class A extends class extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+} {
+    constructor() {
+      super();
+      this.a = 0;
+    }
+}
+      "#,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends class extends B {
+  constructor() {
+    this.a = 0;
+    super();
+  }
+} {
+    constructor() {
+      super();
+      this.a = 0;
+    }
+}
+      "#,
+      4,
+      4,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends class extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+} {
+    constructor() {
+      this.a = 0;
+      super();
+    }
+}
+      "#,
+      9,
+      6,
+    );
+  }
+
+  #[test]
+  fn no_this_before_super_nested_class() {
+    assert_lint_ok::<NoThisBeforeSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+  foo() {
+    class C extends D {
+      constructor() {
+        super();
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+  foo() {
+    class C extends D {
+      constructor() {
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
+      10,
+      8,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    this.a = 0;
+    super();
+  }
+  foo() {
+    class C extends D {
+      constructor() {
+        super();
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
+      4,
+      4,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A {
+  constructor() {
+    this.a = 0;
+  }
+  foo() {
+    class C extends D {
+      constructor() {
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
+      9,
+      8,
+    );
+
+    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    this.a = 0;
+  }
+  foo() {
+    class C {
+      constructor() {
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
+      4,
       4,
     );
   }
