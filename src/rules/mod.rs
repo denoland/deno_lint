@@ -47,13 +47,13 @@ mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod no_var;
 mod no_with;
+mod prefer_as_const;
 mod prefer_namespace_keyword;
 mod require_yield;
 mod single_var_declarator;
 mod triple_slash_reference;
 mod use_isnan;
 mod valid_typeof;
-mod prefer_as_const;
 
 pub trait LintRule {
   fn new() -> Box<Self>
@@ -107,6 +107,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
+    prefer_as_const::PreferAsConst::new(),
   ]
 }
 
