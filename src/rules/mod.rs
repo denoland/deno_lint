@@ -47,6 +47,7 @@ mod no_unsafe_finally;
 mod no_unsafe_negation;
 mod no_var;
 mod no_with;
+mod prefer_as_const;
 mod prefer_namespace_keyword;
 mod require_yield;
 mod single_var_declarator;
@@ -98,9 +99,11 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_setter_return::NoSetterReturn::new(),
     no_sparse_array::NoSparseArray::new(),
     no_this_alias::NoThisAlias::new(),
+    no_this_before_super::NoThisBeforeSuper::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_with::NoWith::new(),
+    prefer_as_const::PreferAsConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     triple_slash_reference::TripleSlashReference::new(),
@@ -157,6 +160,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_var::NoVar::new(),
     no_with::NoWith::new(),
+    prefer_as_const::PreferAsConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
