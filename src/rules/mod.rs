@@ -24,7 +24,6 @@ mod no_dupe_keys;
 mod no_duplicate_case;
 mod no_empty;
 mod no_empty_character_class;
-mod no_empty_function;
 mod no_empty_interface;
 mod no_empty_pattern;
 mod no_eval;
@@ -82,7 +81,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_dupe_keys::NoDupeKeys::new(),
     no_duplicate_case::NoDuplicateCase::new(),
     no_empty_character_class::NoEmptyCharacterClass::new(),
-    no_empty_function::NoEmptyFunction::new(),
     no_empty_interface::NoEmptyInterface::new(),
     no_empty_pattern::NoEmptyPattern::new(),
     no_empty::NoEmpty::new(),
@@ -97,7 +95,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
-    no_sparse_array::NoSparseArray::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
@@ -136,7 +133,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_dupe_keys::NoDupeKeys::new(),
     no_duplicate_case::NoDuplicateCase::new(),
     no_empty_character_class::NoEmptyCharacterClass::new(),
-    no_empty_function::NoEmptyFunction::new(),
     no_empty_interface::NoEmptyInterface::new(),
     no_empty_pattern::NoEmptyPattern::new(),
     no_empty::NoEmpty::new(),
