@@ -38,7 +38,7 @@ impl PreferAsConstVisitor {
     self.context.add_diagnostic(
       span,
       "prefer-as-const",
-      "please prefer as const",
+      "strict equality between type and value is not allowed",
     );
   }
 
