@@ -2,8 +2,8 @@
 use super::Context;
 use super::LintRule;
 use swc_ecma_ast::{
-  ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsTypeAssertion,
-  VarDecl,
+  ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
+  TsTypeAssertion, VarDecl,
 };
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
@@ -42,23 +42,18 @@ impl PreferAsConstVisitor {
     );
   }
 
-  fn compare(
-    &self,
-    type_ann: &swc_ecma_ast::TsType,
-    expr: &swc_ecma_ast::Expr,
-    span: swc_common::Span,
-  ) {
-    if let swc_ecma_ast::TsType::TsLitType(lit_type) = &*type_ann {
-      if let swc_ecma_ast::Expr::Lit(lit) = &*expr {
-        match (lit, &lit_type.lit) {
-          (Lit::Str(st1), TsLit::Str(st2)) => {
-            if st1.value == st2.value {
+  fn compare(&self, type_ann: &TsType, expr: &Expr, span: swc_common::Span) {
+    if let TsType::TsLitType(lit_type) = &*type_ann {
+      if let Expr::Lit(expr_lit) = &*expr {
+        match (expr_lit, &lit_type.lit) {
+          (Lit::Str(value_literal), TsLit::Str(type_literal)) => {
+            if value_literal.value == type_literal.value {
               self.add_diagnostic_helper(span)
             }
           }
-          (Lit::Num(st1), TsLit::Number(st2)) => {
+          (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
             let error = 0.01f64;
-            if (st1.value - st2.value).abs() < error {
+            if (value_literal.value - type_literal.value).abs() < error {
               self.add_diagnostic_helper(span)
             }
           }
