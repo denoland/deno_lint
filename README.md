@@ -64,6 +64,7 @@ Blazingly fast, see comparison with ESLint:
 - `no-dupe-keys`
 - `no-duplicate-case`
 - `no-empty-character-class`
+- `no-empty-function`
 - `no-empty-interface`
 - `no-empty-pattern`
 - `no-empty`
