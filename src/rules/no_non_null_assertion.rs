@@ -51,11 +51,33 @@ mod tests {
   fn should_ok() {
     assert_lint_ok::<NoNonNullAssertion>("instance.doWork();");
     assert_lint_ok::<NoNonNullAssertion>("foo.bar?.includes('baz')");
+    assert_lint_ok::<NoNonNullAssertion>("x;");
+    assert_lint_ok::<NoNonNullAssertion>("x.y;");
+    assert_lint_ok::<NoNonNullAssertion>("x.y.z;");
+    assert_lint_ok::<NoNonNullAssertion>("x?.y.z;");
+    assert_lint_ok::<NoNonNullAssertion>("x?.y?.z;");
+    assert_lint_ok::<NoNonNullAssertion>("!x;");
   }
 
   #[test]
   fn should_err() {
     assert_lint_err::<NoNonNullAssertion>("instance!.doWork()", 0);
     assert_lint_err::<NoNonNullAssertion>("foo.bar!.includes('baz');", 0);
+    assert_lint_err::<NoNonNullAssertion>("x.y.z!?.();", 0);
+    assert_lint_err::<NoNonNullAssertion>("x!?.y.z;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x!?.[y].z;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x.y.z!!();", 0);
+    assert_lint_err::<NoNonNullAssertion>("x.y!!;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x!!.y;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x!!!;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x.y?.z!();", 0);
+    assert_lint_err::<NoNonNullAssertion>("x.y.z!();", 0);
+    assert_lint_err::<NoNonNullAssertion>("x![y]?.z;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x![y];", 0);
+    assert_lint_err::<NoNonNullAssertion>("!x!.y;", 1);
+    assert_lint_err::<NoNonNullAssertion>("x!.y?.z;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x.y!;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x!.y;", 0);
+    assert_lint_err::<NoNonNullAssertion>("x!;", 0);
   }
 }
