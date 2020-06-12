@@ -45,7 +45,9 @@ fn assert_diagnostic(
 pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
   let rule = T::new();
   let diagnostics = lint(rule, source);
-  assert!(diagnostics.is_empty());
+  if !diagnostics.is_empty() {
+    panic!("Unexpected diagnostics: {:#?}", diagnostics);
+  }
 }
 
 pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {

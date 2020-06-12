@@ -3,8 +3,8 @@ use super::Context;
 use super::LintRule;
 use swc_atoms::JsWord;
 use swc_ecma_ast::{
-  ClassDecl, ClassMember, Expr, Ident, Module, TsEntityName, TsInterfaceDecl,
-  TsType, TsTypeAliasDecl, TsTypeAnn,
+  ClassDecl, ClassMember, Expr, Ident, Module, PropName, TsEntityName,
+  TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
 use swc_ecma_visit::Node;
@@ -115,6 +115,16 @@ impl Visit for NoMisusedNewVisitor {
   fn visit_class_decl(&mut self, expr: &ClassDecl, parent: &dyn Node) {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
+        let method_name = match &method.key {
+          PropName::Ident(ident) => ident.sym.to_string(),
+          PropName::Str(str_) => str_.value.to_string(),
+          _ => continue,
+        };
+
+        if method_name != "new" {
+          continue;
+        }
+
         if method.function.return_type.is_some()
           && self.match_parent_type(
             &expr.ident,
@@ -229,6 +239,23 @@ declare abstract class C {
     assert_lint_ok::<NoMisusedNew>("class C { new(): {} }");
     assert_lint_ok::<NoMisusedNew>("class C { constructor(); }");
     assert_lint_ok::<NoMisusedNew>("class C { constructor() {} }");
+    assert_lint_ok::<NoMisusedNew>(
+      r#"
+    export class Fnv32a extends Fnv32Base<Fnv32a> {
+      write(data: Uint8Array): Fnv32a {
+        let hash = this.sum32();
+    
+        data.forEach((c) => {
+          hash ^= c;
+          hash = mul32(hash, prime32);
+        });
+    
+        this._updateState(hash);
+        return this;
+      }
+    }
+      "#,
+    );
     assert_lint_ok::<NoMisusedNew>(
       r#"
     declare class DC {
