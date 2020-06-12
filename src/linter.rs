@@ -97,30 +97,19 @@ impl IgnoreDirective {
 pub struct Linter {
   pub ast_parser: AstParser,
   pub ignore_file_directive: String,
-  pub ignore_diagnostic_directives: Vec<String>,
+  pub ignore_diagnostic_directive: String,
   pub lint_unused_ignore_directives: bool,
 }
 
 impl Linter {
   pub fn default() -> Self {
-    Linter {
-      ast_parser: AstParser::new(),
-      ignore_file_directive: "deno-lint-ignore-file".to_string(),
-      ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
-      lint_unused_ignore_directives: true,
-    }
-  }
+    let ast_parser = AstParser::new();
 
-  pub fn new(
-    ignore_file_directive: String,
-    ignore_diagnostic_directives: Vec<String>,
-    lint_unused_ignore_directives: bool,
-  ) -> Self {
     Linter {
-      ast_parser: AstParser::new(),
-      ignore_file_directive,
-      ignore_diagnostic_directives,
-      lint_unused_ignore_directives,
+      ast_parser,
+      ignore_file_directive: "deno-lint-ignore-file".to_string(),
+      ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
+      lint_unused_ignore_directives: true,
     }
   }
 
@@ -172,36 +161,33 @@ impl Linter {
 
     let comment_text = comment.text.trim();
 
-    for ignore_dir in &self.ignore_diagnostic_directives {
-      if comment_text.starts_with(ignore_dir) {
-        let codes = comment_text
+    let codes: Vec<String> =
+      if comment_text.starts_with(&self.ignore_diagnostic_directive) {
+        comment_text
           .split(' ')
-          // TODO(bartlomieju): this is make-shift, make it configurable
-          .map(|s| s.trim_start_matches("@typescript-eslint/"))
-          .map(String::from)
+          .map(|e| e.to_string())
           .skip(1)
-          .collect::<Vec<String>>();
+          .collect()
+      } else {
+        return None;
+      };
 
-        let location = self
-          .ast_parser
-          .source_map
-          .lookup_char_pos(comment.span.lo());
+    let location = self
+      .ast_parser
+      .source_map
+      .lookup_char_pos(comment.span.lo());
 
-        let mut used_codes = HashMap::new();
-        codes.iter().for_each(|code| {
-          used_codes.insert(code.to_string(), false);
-        });
+    let mut used_codes = HashMap::new();
+    codes.iter().for_each(|code| {
+      used_codes.insert(code.to_string(), false);
+    });
 
-        return Some(IgnoreDirective {
-          location: location.into(),
-          span: comment.span,
-          codes,
-          used_codes,
-        });
-      }
-    }
-
-    None
+    Some(IgnoreDirective {
+      location: location.into(),
+      span: comment.span,
+      codes,
+      used_codes,
+    })
   }
 
   fn parse_ignore_directives(
@@ -221,18 +207,9 @@ impl Linter {
     ignore_directives
   }
 
-  fn filter_diagnostics(
-    &self,
-    context: Context,
-    rules: Vec<Box<dyn LintRule>>,
-  ) -> Vec<LintDiagnostic> {
+  fn filter_diagnostics(&self, context: Context) -> Vec<LintDiagnostic> {
     let mut ignore_directives = context.ignore_directives.clone();
     let diagnostics = context.diagnostics.lock().unwrap();
-
-    let rule_codes = rules
-      .iter()
-      .map(|r| r.code().to_string())
-      .collect::<Vec<String>>();
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -248,7 +225,7 @@ impl Linter {
     if self.lint_unused_ignore_directives {
       for ignore_directive in ignore_directives {
         for (code, used) in ignore_directive.used_codes.iter() {
-          if !used && rule_codes.contains(code) {
+          if !used {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
               "ban-unused-ignore",
@@ -289,10 +266,10 @@ impl Linter {
       ignore_directives,
     };
 
-    for rule in &rules {
+    for rule in rules {
       rule.lint_module(context.clone(), module.clone());
     }
 
-    self.filter_diagnostics(context, rules)
+    self.filter_diagnostics(context)
   }
 }

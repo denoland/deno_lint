@@ -49,13 +49,11 @@ impl Visit for NoEmptyPatternVisitor {
 
   fn visit_object_pat(&mut self, obj_pat: &ObjectPat, _parent: &dyn Node) {
     if obj_pat.props.is_empty() {
-      if obj_pat.type_ann.is_none() {
-        self.context.add_diagnostic(
-          obj_pat.span,
-          "no-empty-pattern",
-          "empty patterns are not allowed",
-        )
-      }
+      self.context.add_diagnostic(
+        obj_pat.span,
+        "no-empty-pattern",
+        "empty patterns are not allowed",
+      )
     } else {
       for prop in &obj_pat.props {
         self.visit_object_pat_prop(prop, _parent)
@@ -98,7 +96,6 @@ mod tests {
       "function foo({a = {}}) {}",
       "function foo({a = []}) {}",
       "var [a] = foo",
-      "async function startFileServerAsLibrary({}: FileServerCfg = {}): Promise<void>",
     ]);
   }
 
