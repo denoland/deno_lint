@@ -34,6 +34,7 @@ mod no_func_assign;
 mod no_misused_new;
 mod no_namespace;
 mod no_new_symbol;
+mod no_non_null_assertion;
 mod no_obj_call;
 mod no_octal;
 mod no_prototype_builtins;
@@ -92,6 +93,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
+    no_non_null_assertion::NoNonNullAssertion::new(),
     no_obj_call::NoObjCall::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
@@ -147,6 +149,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
+    no_non_null_assertion::NoNonNullAssertion::new(),
     no_obj_call::NoObjCall::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
