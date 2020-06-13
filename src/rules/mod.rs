@@ -30,6 +30,7 @@ mod no_eval;
 mod no_ex_assign;
 mod no_explicit_any;
 mod no_func_assign;
+mod no_inferrable_types;
 mod no_misused_new;
 mod no_namespace;
 mod no_new_symbol;
@@ -106,6 +107,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
+    no_inferrable_types::NoInferrableTypes::new(),
   ]
 }
 
@@ -163,5 +165,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
+    no_inferrable_types::NoInferrableTypes::new(),
   ]
 }
