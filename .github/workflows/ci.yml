@@ -5,9 +5,9 @@ on: [push, pull_request]
 jobs:
   rust:
     name: deno_lint-${{ matrix.os }}
-    if: |
-      github.event_name == 'push' ||
-      !startsWith(github.event.pull_request.head.label, 'denoland:')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   !startsWith(github.event.pull_request.head.label, 'denoland:')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -23,7 +23,7 @@ jobs:
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.3
         with:
-          rust-version: "1.43.0"
+          rust-version: '1.43.0'
 
       - name: Install clippy and rustfmt
         run: |
@@ -40,12 +40,26 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         uses: actions/setup-node@v2-beta
         with:
-          node-version: "12"
+          node-version: '12'
 
       - name: Install npm packages
         if: contains(matrix.os, 'ubuntu')
         run: npm install --ci
         working-directory: benchmarks
+
+      - name: Install Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '2.7'
+          architecture: x64
+
+      - name: Remove unused versions of Python
+        if: startsWith(matrix.config.os, 'windows')
+        run: |-
+          $env:PATH -split ";" |
+            Where-Object { Test-Path "$_\python.exe" } |
+            Select-Object -Skip 1 |
+            ForEach-Object { Move-Item "$_" "$_.disabled" }
 
       - name: Cache
         uses: actions/cache@v2
@@ -63,10 +77,7 @@ jobs:
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
-        run: |
-          rustfmt --check examples/dlint/main.rs
-          rustfmt --check src/lib.rs
-          deno fmt --check benchmarks/benchmarks.ts
+        run: python ./tools/format.py
 
       - name: Build
         run: cargo build --locked --release --all-targets
@@ -75,9 +86,7 @@ jobs:
         run: cargo test --locked --release --all-targets
 
       - name: Lint
-        run: |
-          cargo clippy --all-targets --release --locked -- -D clippy::all
-          target/release/examples/dlint benchmarks/benchmarks.ts
+        run: python ./tools/lint.py
 
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
