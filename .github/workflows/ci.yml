@@ -71,7 +71,7 @@ jobs:
         run: cargo test --locked --release --all-targets
 
       - name: Lint
-        run: deno run --allow-run ./tools/lint.ts
+        run: deno run --allow-run ./tools/lint.ts --release
 
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
