@@ -63,7 +63,7 @@ jobs:
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
-        run: deno run ./tools/format.ts
+        run: deno run --allow-run ./tools/format.ts
 
       - name: Build
         run: cargo build --locked --release --all-targets
@@ -72,7 +72,7 @@ jobs:
         run: cargo test --locked --release --all-targets
 
       - name: Lint
-        run: python ./tools/lint.ts
+        run: deno run --allow-run ./tools/lint.ts
 
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
