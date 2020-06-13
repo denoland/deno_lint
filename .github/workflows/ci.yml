@@ -5,9 +5,9 @@ on: [push, pull_request]
 jobs:
   rust:
     name: deno_lint-${{ matrix.os }}
-    # if: |
-    #   github.event_name == 'push' ||
-    #   !startsWith(github.event.pull_request.head.label, 'denoland:')
+    if: |
+      github.event_name == 'push' ||
+      !startsWith(github.event.pull_request.head.label, 'denoland:')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
