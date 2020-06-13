@@ -5,9 +5,9 @@ on: [push, pull_request]
 jobs:
   rust:
     name: deno_lint-${{ matrix.os }}
-    if: |
-      github.event_name == 'push' ||
-      !startsWith(github.event.pull_request.head.label, 'denoland:')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   !startsWith(github.event.pull_request.head.label, 'denoland:')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -47,20 +47,6 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - name: Install Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: '2.7'
-          architecture: x64
-
-      - name: Remove unused versions of Python
-        if: startsWith(matrix.config.os, 'windows')
-        run: |-
-          $env:PATH -split ";" |
-            Where-Object { Test-Path "$_\python.exe" } |
-            Select-Object -Skip 1 |
-            ForEach-Object { Move-Item "$_" "$_.disabled" }
-
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -77,7 +63,7 @@ jobs:
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
-        run: python ./tools/format.py
+        run: deno run ./tools/format.ts
 
       - name: Build
         run: cargo build --locked --release --all-targets
@@ -86,7 +72,7 @@ jobs:
         run: cargo test --locked --release --all-targets
 
       - name: Lint
-        run: python ./tools/lint.py
+        run: python ./tools/lint.ts
 
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
