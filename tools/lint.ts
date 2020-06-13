@@ -1,24 +1,38 @@
+const release = Deno.args.includes("--release");
 console.log("clippy");
 
-await Deno.run({
-  cmd: [
-    "cargo",
-    "clippy",
-    "--all-targets",
-    "--release",
-    "--locked",
-    "--",
-    "-D",
-    "clippy::all",
-  ],
+const mode = release ? ["--release"] : [];
+const clippy = [
+  "cargo",
+  "clippy",
+  "--all-targets",
+  ...mode,
+  "--locked",
+  "--",
+  "-D",
+  "clippy::all",
+];
+
+let s1 = await Deno.run({
+  cmd: clippy,
   stdin: "null",
-  stdout: "null",
 }).status();
+
+if (s1.code !== 0) {
+  throw new Error(`Failed: ${clippy.join(" ")}`);
+}
 
 console.log("deno lint");
 
-await Deno.run({
-  cmd: ["./target/release/examples/dlint", "benchmarks/benchmarks.ts"],
+const dlint = `./target/${release ? "release" : "debug"}/examples/dlint`;
+const s2 = await Deno.run({
+  cmd: [
+    dlint,
+    "benchmarks/benchmarks.ts",
+  ],
   stdin: "null",
-  stdout: "null",
 }).status();
+
+if (s2.code !== 0) {
+  throw new Error(`Failed: ${dlint} benchmarks/benchmarks.ts`);
+}

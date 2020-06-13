@@ -23,7 +23,7 @@ jobs:
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.3
         with:
-          rust-version: '1.43.0'
+          rust-version: "1.43.0"
 
       - name: Install clippy and rustfmt
         run: |
@@ -39,7 +39,7 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         uses: actions/setup-node@v2-beta
         with:
-          node-version: '12'
+          node-version: "12"
 
       - name: Install npm packages
         if: contains(matrix.os, 'ubuntu')
