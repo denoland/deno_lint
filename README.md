@@ -71,6 +71,7 @@ Blazingly fast, see comparison with ESLint:
 - `no-ex-assign`
 - `no-explicit-any`
 - `no-func-assign`
+- `no-inferrable-types`
 - `no-misused-new`
 - `no-namespace`
 - `no-new-symbol`
