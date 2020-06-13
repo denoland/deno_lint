@@ -74,6 +74,7 @@ Blazingly fast, see comparison with ESLint:
 - `no-misused-new`
 - `no-namespace`
 - `no-new-symbol`
+- `no-non-null-assertion`
 - `no-obj-call`
 - `no-octal`
 - `no-prototype-builtins`
