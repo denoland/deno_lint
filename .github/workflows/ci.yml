@@ -31,7 +31,6 @@ jobs:
           rustup component add rustfmt
 
       - name: Install Deno
-        if: contains(matrix.os, 'ubuntu')
         uses: denolib/setup-deno@master
         with:
           deno-version: v1.x
