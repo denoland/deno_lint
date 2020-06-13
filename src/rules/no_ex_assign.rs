@@ -42,7 +42,12 @@ impl NoExAssignVisitor {
     }
   }
 
-  fn check_scope(&self, scope: &Scope, ident: &str, span: swc_common::Span) {
+  fn check_scope_for_catch_clause(
+    &self,
+    scope: &Scope,
+    ident: &str,
+    span: swc_common::Span,
+  ) {
     if let Some(binding) = self.scope_manager.get_binding(scope, ident) {
       if binding.kind == BindingKind::CatchClause {
         self.context.add_diagnostic(
@@ -61,36 +66,38 @@ impl Visit for NoExAssignVisitor {
     match &assign_expr.left {
       PatOrExpr::Expr(_) => {}
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => self.check_scope(
+        Pat::Ident(ident) => self.check_scope_for_catch_clause(
           scope,
           ident.sym.to_string().as_ref(),
           assign_expr.span,
         ),
         Pat::Array(array) => {
-          if !array.elems.is_empty() {
-            for elem in array.elems.iter() {
-              if let Some(Pat::Ident(ident)) = elem {
-                self.check_scope(
-                  scope,
-                  ident.sym.to_string().as_ref(),
-                  assign_expr.span,
-                );
-              }
+          if array.elems.is_empty() {
+            return;
+          }
+          for elem in array.elems.iter() {
+            if let Some(Pat::Ident(ident)) = elem {
+              self.check_scope_for_catch_clause(
+                scope,
+                ident.sym.to_string().as_ref(),
+                assign_expr.span,
+              );
             }
           }
         }
         Pat::Object(object) => {
-          if !object.props.is_empty() {
-            for prop in object.props.iter() {
-              if let ObjectPatProp::KeyValue(kv) = prop {
-                if let Pat::Assign(assign_pat) = &*kv.value {
-                  if let Pat::Ident(ident) = &*assign_pat.left {
-                    self.check_scope(
-                      scope,
-                      ident.sym.to_string().as_ref(),
-                      assign_expr.span,
-                    );
-                  }
+          if object.props.is_empty() {
+            return;
+          }
+          for prop in object.props.iter() {
+            if let ObjectPatProp::KeyValue(kv) = prop {
+              if let Pat::Assign(assign_pat) = &*kv.value {
+                if let Pat::Ident(ident) = &*assign_pat.left {
+                  self.check_scope_for_catch_clause(
+                    scope,
+                    ident.sym.to_string().as_ref(),
+                    assign_expr.span,
+                  );
                 }
               }
             }
