@@ -71,9 +71,11 @@ Blazingly fast, see comparison with ESLint:
 - `no-ex-assign`
 - `no-explicit-any`
 - `no-func-assign`
+- `no-inferrable-types`
 - `no-misused-new`
 - `no-namespace`
 - `no-new-symbol`
+- `no-non-null-assertion`
 - `no-obj-call`
 - `no-octal`
 - `no-prototype-builtins`
