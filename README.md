@@ -54,6 +54,7 @@ Blazingly fast, see comparison with ESLint:
 - `getter-return`
 - `no-array-constructor`
 - `no-async-promise-executor`
+- `no-await-in-loop`
 - `no-case-declarations`
 - `no-class-assign`
 - `no-compare-neg-zero`
