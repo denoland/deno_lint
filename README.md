@@ -1,11 +1,20 @@
 # `deno_lint`
 
+A Rust crate for writing fast JavaScript and TypeScript linters.
+
 **NOTE**
-Very much work-in-progress
+Work-in-progress
 
-Rust crate for writing JavaScript and TypeScript linters.
+*Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
+working out of the box.*
 
-Blazingly fast, see comparison with ESLint:
+This crate powers [`deno lint`](https://deno.land/manual/tools/linter).
+
+Crate is not Deno specific and can be used to write dedicated linters for Node as well.
+
+## Performance
+
+Blazing fast, see comparison with ESLint:
 
 ```
 [
@@ -38,7 +47,9 @@ Blazingly fast, see comparison with ESLint:
 ]
 ```
 
-*Benchmarks are run during CI on Ubuntu. Using the same set of rules for both linters. See [`./benchmarks/`](./benchmarks/) directory for more info.*
+*Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
+Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
+See [`./benchmarks/`](./benchmarks/) directory for more info.*
 
 ## Supported rules
 
@@ -147,7 +158,10 @@ function bar(a: any) {
 
 Specyfing rule code that will be ignored is required.
 
-## Example output
+## Example
+
+`examples/dlint/main.rs` provides a minimal standalone binary demonstrating
+how `deno_lint` can be used as a crate. 
 
 ```shell
 $ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
@@ -195,3 +209,26 @@ $ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/fi
     |
 Found 7 problems
 ```
+
+For more concrete implementation visit [`deno`](https://github.com/denoland/deno/blob/master/cli/lint.rs)
+
+## Contributing
+
+- If you are going to work on an issue, mention so in the issue comments
+  _before_ you start working on the issue.
+
+- Please be professional in the forums. We follow
+  [Rust's code of conduct](https://www.rust-lang.org/policies/code-of-conduct)
+  (CoC) Have a problem? Email ry@tinyclouds.org.
+
+- Ask for help in the [community chat room](https://discord.gg/TGMHGv6).
+
+## Submitting a Pull Request
+
+Before submitting, please make sure the following is done:
+
+1. That there is a related issue and it is referenced in the PR text.
+2. There are tests that cover the changes.
+3. Ensure `cargo test` passes.
+4. Format your code with `deno run --allow-run tools/format.ts`
+5. Make sure `deno run --allow-run tools/lint.ts` passes.
