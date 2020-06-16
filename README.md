@@ -212,6 +212,22 @@ Found 7 problems
 
 For more concrete implementation visit [`deno`](https://github.com/denoland/deno/blob/master/cli/lint.rs)
 
+## Developing
+
+Make sure to have latest stable version of Rust installed (1.44.0).
+
+```shell
+// check version
+$ rustc --version
+rustc 1.44.0 (49cae5576 2020-06-01)
+
+// build all targets
+$ cargo build --all-targets
+
+// test it
+$ cargo test
+```
+
 ## Contributing
 
 - If you are going to work on an issue, mention so in the issue comments
