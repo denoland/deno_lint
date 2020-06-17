@@ -214,6 +214,60 @@ impl ScopeVisitor {
   pub fn consume(self) -> ScopeManager {
     self.scope_manager
   }
+
+  fn check_pat(&mut self, pat: &Pat, kind: BindingKind) {
+    match pat {
+      Pat::Ident(ident) => {
+        self.scope_manager.add_binding(Binding {
+          kind,
+          name: ident.sym.to_string(),
+        });
+      }
+      Pat::Assign(assign) => {
+        self.check_pat(&assign.left, kind);
+      }
+      Pat::Array(array) => {
+        self.check_array_pat(array, kind);
+      }
+      Pat::Object(object) => {
+        self.check_obj_pat(object, kind);
+      }
+      _ => {}
+    }
+  }
+
+  fn check_obj_pat(
+    &mut self,
+    object: &swc_ecma_ast::ObjectPat,
+    kind: BindingKind,
+  ) {
+    if !object.props.is_empty() {
+      for prop in object.props.iter() {
+        if let ObjectPatProp::Assign(assign_prop) = prop {
+          self.scope_manager.add_binding(Binding {
+            kind: kind.clone(),
+            name: assign_prop.key.sym.to_string(),
+          });
+        } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
+          self.check_pat(&kv_prop.value, kind.clone());
+        }
+      }
+    }
+  }
+
+  fn check_array_pat(
+    &mut self,
+    array: &swc_ecma_ast::ArrayPat,
+    kind: BindingKind,
+  ) {
+    if !array.elems.is_empty() {
+      for elem in array.elems.iter() {
+        if let Some(element) = elem {
+          self.check_pat(element, kind.clone());
+        }
+      }
+    }
+  }
 }
 
 impl Visit for ScopeVisitor {
@@ -290,16 +344,7 @@ impl Visit for ScopeVisitor {
     _parent: &dyn Node,
   ) {
     for param in &function.params {
-      #[allow(clippy::single_match)] // TODO(lucacsonato): remove
-      let name = match &param.pat {
-        Pat::Ident(ident) => ident.sym.to_string(),
-        _ => "".to_string(), //todo!(),
-      };
-      let param_binding = Binding {
-        kind: BindingKind::Param,
-        name,
-      };
-      self.scope_manager.add_binding(param_binding);
+      self.check_pat(&param.pat, BindingKind::Param);
     }
 
     // Not calling `swc_ecma_visit::visit_function` but instead
@@ -364,16 +409,7 @@ impl Visit for ScopeVisitor {
     };
 
     for decl in &var_decl.decls {
-      #[allow(clippy::single_match)] // TODO(lucacsonato): remove
-      let name = match &decl.name {
-        Pat::Ident(ident) => ident.sym.to_string(),
-        _ => "".to_string(), //todo!(),
-      };
-
-      self.scope_manager.add_binding(Binding {
-        kind: var_kind.clone(),
-        name,
-      })
+      self.check_pat(&decl.name, var_kind.clone());
     }
     swc_ecma_visit::visit_var_decl(self, var_decl, parent);
   }
@@ -409,31 +445,7 @@ impl Visit for ScopeVisitor {
     self.scope_manager.enter_scope(catch_scope);
 
     if let Some(pat) = &catch_clause.param {
-      #[allow(clippy::single_match)] // TODO(lucacsonato): remove
-      match pat {
-        Pat::Ident(ident) => {
-          self.scope_manager.add_binding(Binding {
-            kind: BindingKind::CatchClause,
-            name: ident.sym.to_string(),
-          });
-        }
-        Pat::Object(object_pat) => {
-          for prop in &object_pat.props {
-            #[allow(clippy::single_match)] // TODO(lucacsonato): remove
-            match prop {
-              ObjectPatProp::Assign(assign_pat_prop) => {
-                // TODO(bartlomieju): handle default value
-                self.scope_manager.add_binding(Binding {
-                  kind: BindingKind::CatchClause,
-                  name: assign_pat_prop.key.sym.to_string(),
-                });
-              }
-              _ => {} //todo!(),
-            }
-          }
-        }
-        _ => {} //todo!(),
-      };
+      self.check_pat(pat, BindingKind::CatchClause);
     }
 
     // Not calling `swc_ecma_visit::visit_class` but instead
@@ -584,5 +596,80 @@ switch (foo) {
     assert_eq!(switch_scope.child_scopes.len(), 0);
     assert!(switch_scope.get_binding("a").is_some());
     assert!(switch_scope.get_binding("defaultVal").is_some());
+  }
+
+  #[test]
+  fn destructuring_assignment() {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+    let source_code = r#"
+const {a} = {a : "a"};
+const {a: {b}} = {a : {b: "b"}};
+const {a: {b: {c}}} = {a : {b: {c : "c"}}};
+
+const [d] = ["d"];
+const [e, [f,[g]]] = ["e",["f",["g"]]];
+
+const {a: [h]} = {a: ["h"]};
+const [i, {j}] = ["i",{j: "j"}];
+const {a: {b : [k,{l}]}} = {a: {b : ["k",{l : "l"}]}};
+
+const {m = "M"} = {};
+const [n = "N"] = [];
+
+function getPerson({username="disizali",info: [name, family]}) {
+  try {
+    throw 'TryAgain';
+  } catch(e) {}
+}
+
+try{} catch({message}){};
+"#;
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    let scope_manager = r.unwrap();
+    let root_scope = scope_manager.get_root_scope();
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
+    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    assert!(module_scope.get_binding("a").is_some());
+    assert!(module_scope.get_binding("b").is_some());
+    assert!(module_scope.get_binding("c").is_some());
+    assert!(module_scope.get_binding("d").is_some());
+    assert!(module_scope.get_binding("e").is_some());
+    assert!(module_scope.get_binding("f").is_some());
+    assert!(module_scope.get_binding("g").is_some());
+    assert!(module_scope.get_binding("h").is_some());
+    assert!(module_scope.get_binding("i").is_some());
+    assert!(module_scope.get_binding("j").is_some());
+    assert!(module_scope.get_binding("k").is_some());
+    assert!(module_scope.get_binding("l").is_some());
+    assert!(module_scope.get_binding("m").is_some());
+    assert!(module_scope.get_binding("n").is_some());
+
+    let function_scope_id = *module_scope.child_scopes.first().unwrap();
+    let function_scope = scope_manager.get_scope(function_scope_id).unwrap();
+    assert!(function_scope.get_binding("username").is_some());
+    assert!(function_scope.get_binding("name").is_some());
+    assert!(function_scope.get_binding("family").is_some());
+
+    let function_catch_scope_id = *function_scope.child_scopes.last().unwrap();
+    let function_catch_scope =
+      scope_manager.get_scope(function_catch_scope_id).unwrap();
+    assert!(function_catch_scope.get_binding("e").is_some());
+
+    let catch_scope_id = *module_scope.child_scopes.last().unwrap();
+    let catch_scope = scope_manager.get_scope(catch_scope_id).unwrap();
+    assert!(catch_scope.get_binding("message").is_some());
   }
 }
