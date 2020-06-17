@@ -249,7 +249,7 @@ impl ScopeVisitor {
             name: assign_prop.key.sym.to_string(),
           });
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
-          self.check_pat(&kv_prop.value,kind.clone());
+          self.check_pat(&kv_prop.value, kind.clone());
         }
       }
     }
@@ -263,7 +263,7 @@ impl ScopeVisitor {
     if !array.elems.is_empty() {
       for elem in array.elems.iter() {
         if let Some(element) = elem {
-          self.check_pat(element,kind.clone());
+          self.check_pat(element, kind.clone());
         }
       }
     }
@@ -445,7 +445,7 @@ impl Visit for ScopeVisitor {
     self.scope_manager.enter_scope(catch_scope);
 
     if let Some(pat) = &catch_clause.param {
-      self.check_pat(pat,BindingKind::CatchClause);
+      self.check_pat(pat, BindingKind::CatchClause);
     }
 
     // Not calling `swc_ecma_visit::visit_class` but instead
@@ -657,7 +657,6 @@ try{} catch({message}){};
     assert!(module_scope.get_binding("m").is_some());
     assert!(module_scope.get_binding("n").is_some());
 
-    
     let function_scope_id = *module_scope.child_scopes.first().unwrap();
     let function_scope = scope_manager.get_scope(function_scope_id).unwrap();
     assert!(function_scope.get_binding("username").is_some());
@@ -665,7 +664,8 @@ try{} catch({message}){};
     assert!(function_scope.get_binding("family").is_some());
 
     let function_catch_scope_id = *function_scope.child_scopes.last().unwrap();
-    let function_catch_scope = scope_manager.get_scope(function_catch_scope_id).unwrap();
+    let function_catch_scope =
+      scope_manager.get_scope(function_catch_scope_id).unwrap();
     assert!(function_catch_scope.get_binding("e").is_some());
 
     let catch_scope_id = *module_scope.child_scopes.last().unwrap();
