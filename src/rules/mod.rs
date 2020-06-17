@@ -13,6 +13,7 @@ mod for_direction;
 mod getter_return;
 mod no_array_constructor;
 mod no_async_promise_executor;
+mod no_await_in_loop;
 mod no_case_declarations;
 mod no_class_assign;
 mod no_compare_neg_zero;
@@ -127,6 +128,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     getter_return::GetterReturn::new(),
     no_array_constructor::NoArrayConstructor::new(),
     no_async_promise_executor::NoAsyncPromiseExecutor::new(),
+    no_await_in_loop::NoAwaitInLoop::new(),
     no_case_declarations::NoCaseDeclarations::new(),
     no_class_assign::NoClassAssign::new(),
     no_compare_neg_zero::NoCompareNegZero::new(),

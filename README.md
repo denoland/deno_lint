@@ -65,6 +65,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - `getter-return`
 - `no-array-constructor`
 - `no-async-promise-executor`
+- `no-await-in-loop`
 - `no-case-declarations`
 - `no-class-assign`
 - `no-compare-neg-zero`
