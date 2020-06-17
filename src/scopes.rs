@@ -219,18 +219,18 @@ impl ScopeVisitor {
     match pat {
       Pat::Ident(ident) => {
         self.scope_manager.add_binding(Binding {
-          kind: kind.clone(),
+          kind,
           name: ident.sym.to_string(),
         });
       }
       Pat::Assign(assign) => {
-        self.check_pat(&assign.left, kind.clone());
+        self.check_pat(&assign.left, kind);
       }
       Pat::Array(array) => {
-        self.check_array_pat(array, kind.clone());
+        self.check_array_pat(array, kind);
       }
       Pat::Object(object) => {
-        self.check_obj_pat(object, kind.clone());
+        self.check_obj_pat(object, kind);
       }
       _ => {}
     }
