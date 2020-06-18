@@ -79,6 +79,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-debugger`](https://eslint.org/docs/rules/no-debugger)
 - [`no-delete-var`](https://eslint.org/docs/rules/no-delete-var)
 - [`no-dupe-args`](https://eslint.org/docs/rules/no-dupe-args)
+- [`no-dupe-class-members`](https://eslint.org/docs/rules/no-dupe-class-members)
 - [`no-dupe-keys`](https://eslint.org/docs/rules/no-dupe-keys)
 - [`no-duplicate-case`](https://eslint.org/docs/rules/no-duplicate-case)
 - [`no-empty-character-class`](https://eslint.org/docs/rules/no-empty-character-class)
