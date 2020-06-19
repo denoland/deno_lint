@@ -138,7 +138,7 @@ mod tests {
       for (const x in [1,2,3]) { foo(x); }
       for (const x of [1,2,3]) { foo(x); }
       const x = {key: 0}; x.key = 1;
-
+      if (true) {const a = 1} else { a = 2};
       // ignores non constant.
       var x = 0; x = 1;
       let x = 0; x = 1;
@@ -169,6 +169,99 @@ mod tests {
     assert_lint_err::<NoConstAssign>(
       "const x = 0; while (true) { x = x + 1; }",
       28,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+switch (char) {
+  case "a":
+    const a = true;
+  break;
+  case "b":
+    a = false;
+  break;
+}"#,
+      7,
+      4,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+  try {
+    const a = 1;
+    a = 2;
+  } catch (e) {}"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line_n::<NoConstAssign>(
+      r#"
+if (true) {
+  const a = 1;
+  if (false) {
+    a = 2;
+  } else {
+    a = 2;
+  }
+}"#,
+      vec![(5, 4), (7, 4)],
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+for (const a of [1, 2, 3]) {
+  a = 0;
+}"#,
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+for (const a in [1, 2, 3]) {
+  a = 0;
+}"#,
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+while (true) {
+  const a = 1;
+  while (a == 1) {
+    a = 2;
+  }
+}"#,
+      5,
+      4,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+const lambda = () => {
+  const a = 1;
+  {
+    a = 1;
+  }
+}"#,
+      5,
+      4,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+class URL {
+  get port(){
+    const port = 80;
+    port = 3000;
+    return port;
+  }
+}"#,
+      5,
+      4,
+    );
+    assert_lint_err_on_line::<NoConstAssign>(
+      r#"
+declare module "foo" {
+  const a = 1;
+  a=2;
+}"#,
+      4,
+      2,
     );
     assert_lint_err_n::<NoConstAssign>(
       "const x = 0  ; x = 1; x = 2;",
