@@ -70,6 +70,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - `no-class-assign`
 - `no-compare-neg-zero`
 - `no-cond-assign`
+- `no-const-assign`
 - `no-debugger`
 - `no-delete-var`
 - `no-dupe-args`

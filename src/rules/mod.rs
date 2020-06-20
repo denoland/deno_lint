@@ -18,6 +18,7 @@ mod no_case_declarations;
 mod no_class_assign;
 mod no_compare_neg_zero;
 mod no_cond_assign;
+mod no_const_assign;
 mod no_debugger;
 mod no_delete_var;
 mod no_dupe_args;
@@ -111,6 +112,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
+    no_const_assign::NoConstAssign::new(),
   ]
 }
 
@@ -171,5 +173,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
+    no_const_assign::NoConstAssign::new(),
   ]
 }
