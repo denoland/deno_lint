@@ -1,9 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Span;
-use swc_ecma_ast::Expr::Assign;
+use swc_ecma_ast::Expr;
+use swc_ecma_ast::Expr::{Assign, Bin, Paren};
 use swc_ecma_ast::Module;
-use swc_ecma_ast::Stmt::{self, DoWhile, For, If, While};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoCondAssign;
@@ -39,32 +39,61 @@ impl NoCondAssignVisitor {
       "Expected a conditional expression and instead saw an assignment",
     );
   }
-}
 
-impl Visit for NoCondAssignVisitor {
-  fn visit_stmt(&mut self, stmt: &Stmt, _parent: &dyn Node) {
-    match stmt {
-      If(if_stmt) => {
-        if let Assign(assign) = &*if_stmt.test {
-          self.add_diagnostic(assign.span);
-        }
+  fn check_condition(&self, condition: &Expr) {
+    match condition {
+      Assign(assign) => {
+        self.add_diagnostic(assign.span);
       }
-      While(while_stmt) => {
-        if let Assign(assign) = &*while_stmt.test {
-          self.add_diagnostic(assign.span);
-        }
-      }
-      DoWhile(do_while) => {
-        if let Assign(assign) = &*do_while.test {
-          self.add_diagnostic(assign.span);
-        }
-      }
-      For(for_stmt) => {
-        if let Some(Assign(assign)) = for_stmt.test.as_deref() {
-          self.add_diagnostic(assign.span);
+      Bin(bin) => {
+        if bin.op == swc_ecma_ast::BinaryOp::LogicalOr {
+          self.check_condition(&bin.left);
+          self.check_condition(&bin.right);
         }
       }
       _ => {}
+    }
+  }
+}
+
+impl Visit for NoCondAssignVisitor {
+  fn visit_if_stmt(
+    &mut self,
+    if_stmt: &swc_ecma_ast::IfStmt,
+    _parent: &dyn Node,
+  ) {
+    self.check_condition(&if_stmt.test);
+  }
+  fn visit_while_stmt(
+    &mut self,
+    while_stmt: &swc_ecma_ast::WhileStmt,
+    _parent: &dyn Node,
+  ) {
+    self.check_condition(&while_stmt.test);
+  }
+  fn visit_do_while_stmt(
+    &mut self,
+    do_while_stmt: &swc_ecma_ast::DoWhileStmt,
+    _parent: &dyn Node,
+  ) {
+    self.check_condition(&do_while_stmt.test);
+  }
+  fn visit_for_stmt(
+    &mut self,
+    for_stmt: &swc_ecma_ast::ForStmt,
+    _parent: &dyn Node,
+  ) {
+    if let Some(for_test) = &for_stmt.test {
+      self.check_condition(&for_test);
+    }
+  }
+  fn visit_cond_expr(
+    &mut self,
+    cond_expr: &swc_ecma_ast::CondExpr,
+    _parent: &dyn Node,
+  ) {
+    if let Paren(paren) = &*cond_expr.test {
+      self.check_condition(&paren.expr);
     }
   }
 }
@@ -76,7 +105,7 @@ mod tests {
 
   #[test]
   fn it_passes_using_equality_operator() {
-    assert_lint_ok::<NoCondAssign>("if (x === 0) { }");
+    assert_lint_ok::<NoCondAssign>("if (x === 0) { };");
   }
 
   #[test]
@@ -102,5 +131,58 @@ mod tests {
   #[test]
   fn it_fails_using_assignment_in_for_stmt() {
     assert_lint_err::<NoCondAssign>("for (let i = 0; i = 10; i++) { }", 16);
+  }
+
+  #[test]
+  fn no_cond_assign_valid() {
+    assert_lint_ok::<NoCondAssign>("const x = 0; if (x == 0) { const b = 1; }");
+    assert_lint_ok::<NoCondAssign>("const x = 5; while (x < 5) { x = x + 1; }");
+    assert_lint_ok::<NoCondAssign>("while ((a = b));");
+    assert_lint_ok::<NoCondAssign>("do {} while ((a = b));");
+    assert_lint_ok::<NoCondAssign>("for (;(a = b););");
+    assert_lint_ok::<NoCondAssign>("for (;;) {}");
+    assert_lint_ok::<NoCondAssign>(
+      "if (someNode || (someNode = parentNode)) { }",
+    );
+    assert_lint_ok::<NoCondAssign>(
+      "while (someNode || (someNode = parentNode)) { }",
+    );
+    assert_lint_ok::<NoCondAssign>(
+      "do { } while (someNode || (someNode = parentNode));",
+    );
+    assert_lint_ok::<NoCondAssign>(
+      "for (;someNode || (someNode = parentNode););",
+    );
+    assert_lint_ok::<NoCondAssign>(
+      "if ((function(node) { return node = parentNode; })(someNode)) { }",
+    );
+    assert_lint_ok::<NoCondAssign>(
+      "if ((node => node = parentNode)(someNode)) { }",
+    );
+    assert_lint_ok::<NoCondAssign>(
+      "if (function(node) { return node = parentNode; }) { }",
+    );
+    assert_lint_ok::<NoCondAssign>("const x; const b = (x === 0) ? 1 : 0;");
+    assert_lint_ok::<NoCondAssign>("switch (foo) { case a = b: bar(); }");
+  }
+
+  #[test]
+  fn no_cond_assign_invalid() {
+    assert_lint_err::<NoCondAssign>("const x; if (x = 0) { const b = 1; }", 13);
+    assert_lint_err::<NoCondAssign>(
+      "const x; while (x = 0) { const b = 1; }",
+      16,
+    );
+    assert_lint_err::<NoCondAssign>(
+      "const x = 0, y; do { y = x; } while (x = x + 1);",
+      37,
+    );
+    assert_lint_err::<NoCondAssign>("let x; for(; x+=1 ;){};", 13);
+    assert_lint_err::<NoCondAssign>("let x; if ((x) = (0));", 11);
+    assert_lint_err::<NoCondAssign>("let x; let b = (x = 0) ? 1 : 0;", 16);
+    assert_lint_err::<NoCondAssign>(
+      "(((123.45)).abcd = 54321) ? foo : bar;",
+      1,
+    );
   }
 }
