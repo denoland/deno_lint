@@ -2,15 +2,20 @@
 
 A Rust crate for writing fast JavaScript and TypeScript linters.
 
+This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific 
+and can be used to write linters for Node as well.
+
+---
+
 **NOTE**
 Work-in-progress
 
 *Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
 working out of the box.*
 
-This crate powers [`deno lint`](https://deno.land/manual/tools/linter).
+See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
-Crate is not Deno specific and can be used to write dedicated linters for Node as well.
+---
 
 ## Performance
 
