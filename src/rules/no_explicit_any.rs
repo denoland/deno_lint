@@ -56,7 +56,33 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_explicit_any_test() {
+  fn no_explicit_any_valid() {
+    assert_lint_ok::<NoExplicitAny>(
+      r#"
+class Foo {
+  static _extensions: {
+    // deno-lint-ignore no-explicit-any
+    [key: string]: (module: Module, filename: string) => any;
+  } = Object.create(null);
+}"#,
+    );
+
+    assert_lint_ok::<NoExplicitAny>(
+      r#"
+type RequireWrapper = (
+  // deno-lint-ignore no-explicit-any
+  exports: any,
+  // deno-lint-ignore no-explicit-any
+  require: any,
+  module: Module,
+  __filename: string,
+  __dirname: string
+) => void;"#,
+    );
+  }
+
+  #[test]
+  fn no_explicit_any_invalid() {
     assert_lint_err::<NoExplicitAny>(
       "function foo(): any { return undefined; }",
       16,
@@ -66,5 +92,28 @@ mod tests {
       24,
     );
     assert_lint_err::<NoExplicitAny>("const a: any = {};", 9);
+
+    assert_lint_err_on_line::<NoExplicitAny>(
+      r#"
+class Foo {
+  static _extensions: {
+    [key: string]: (module: Module, filename: string) => any;
+  } = Object.create(null);
+}"#,
+      4,
+      57,
+    );
+
+    assert_lint_err_on_line_n::<NoExplicitAny>(
+      r#"
+type RequireWrapper = (
+  exports: any,
+  require: any,
+  module: Module,
+  __filename: string,
+  __dirname: string
+) => void;"#,
+      vec![(3, 11), (4, 11)],
+    );
   }
 }
