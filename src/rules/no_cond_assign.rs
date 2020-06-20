@@ -168,14 +168,14 @@ mod tests {
 
   #[test]
   fn no_cond_assign_invalid() {
-    assert_lint_err::<NoCondAssign>("const x; if (x = 0) { const b = 1; }", 11);
+    assert_lint_err::<NoCondAssign>("const x; if (x = 0) { const b = 1; }", 13);
     assert_lint_err::<NoCondAssign>(
       "const x; while (x = 0) { const b = 1; }",
-      14,
+      16,
     );
     assert_lint_err::<NoCondAssign>(
       "const x = 0, y; do { y = x; } while (x = x + 1);",
-      35,
+      37,
     );
     assert_lint_err::<NoCondAssign>("let x; for(; x+=1 ;){};", 13);
     assert_lint_err::<NoCondAssign>("let x; if ((x) = (0));", 11);
