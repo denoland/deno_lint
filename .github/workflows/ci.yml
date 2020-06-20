@@ -62,7 +62,7 @@ jobs:
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
-        run: deno run --allow-run ./tools/format.ts
+        run: deno run --allow-run ./tools/format.ts --check
 
       - name: Build
         run: cargo build --locked --release --all-targets
