@@ -434,6 +434,19 @@ class Foo {
 }
       "#,
     );
+
+    assert_lint_ok::<NoDupeClassMembers>(
+      r#"
+class Foo {
+  foo() {
+    class Bar {
+      foo() {}
+    }
+    foo();
+  }
+}
+      "#,
+    );
   }
 
   #[test]
@@ -697,6 +710,20 @@ class Foo {
 }
       "#,
       vec![(3, 2), (4, 2)],
+    );
+
+    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      r#"
+class Foo {
+  foo() {
+    class Bar {
+      set bar(value: number) {}
+      bar() {}
+    }
+  }
+}
+      "#,
+      vec![(5, 6), (6, 6)],
     );
   }
 }
