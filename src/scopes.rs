@@ -36,7 +36,6 @@ pub enum ScopeKind {
   Module,
   Function,
   Block,
-  #[allow(unused)]
   Loop,
   Class,
   Switch,
@@ -457,6 +456,117 @@ impl Visit for ScopeVisitor {
 
     self.scope_manager.exit_scope(catch_scope_id);
   }
+
+  fn visit_for_stmt(
+    &mut self,
+    for_stmt: &swc_ecma_ast::ForStmt,
+    parent: &dyn Node,
+  ) {
+    let loop_scope = Scope::new(
+      ScopeKind::Loop,
+      for_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let loop_scope_id = loop_scope.id;
+    self.scope_manager.enter_scope(loop_scope);
+    if let Some(swc_ecma_ast::VarDeclOrExpr::VarDecl(var_decl)) =
+      for_stmt.init.as_ref()
+    {
+      self.visit_var_decl(var_decl, parent);
+    }
+    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_stmt.body {
+      for stmt in &body_block.stmts {
+        swc_ecma_visit::visit_stmt(self, &stmt, &for_stmt.body);
+      }
+    }
+    self.scope_manager.exit_scope(loop_scope_id);
+  }
+
+  fn visit_for_in_stmt(
+    &mut self,
+    for_in_stmt: &swc_ecma_ast::ForInStmt,
+    parent: &dyn Node,
+  ) {
+    let loop_scope = Scope::new(
+      ScopeKind::Loop,
+      for_in_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let loop_scope_id = loop_scope.id;
+    self.scope_manager.enter_scope(loop_scope);
+    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
+      self.visit_var_decl(var_decl, parent);
+    }
+    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_in_stmt.body {
+      for stmt in &body_block.stmts {
+        swc_ecma_visit::visit_stmt(self, &stmt, &for_in_stmt.body);
+      }
+    }
+    self.scope_manager.exit_scope(loop_scope_id);
+  }
+
+  fn visit_for_of_stmt(
+    &mut self,
+    for_of_stmt: &swc_ecma_ast::ForOfStmt,
+    parent: &dyn Node,
+  ) {
+    let loop_scope = Scope::new(
+      ScopeKind::Loop,
+      for_of_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let loop_scope_id = loop_scope.id;
+    self.scope_manager.enter_scope(loop_scope);
+    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
+      self.visit_var_decl(var_decl, parent);
+    }
+    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_of_stmt.body {
+      for stmt in &body_block.stmts {
+        swc_ecma_visit::visit_stmt(self, &stmt, &for_of_stmt.body);
+      }
+    }
+    self.scope_manager.exit_scope(loop_scope_id);
+  }
+
+  fn visit_while_stmt(
+    &mut self,
+    while_stmt: &swc_ecma_ast::WhileStmt,
+    _parent: &dyn Node,
+  ) {
+    let loop_scope = Scope::new(
+      ScopeKind::Loop,
+      while_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let loop_scope_id = loop_scope.id;
+    self.scope_manager.enter_scope(loop_scope);
+    if let swc_ecma_ast::Stmt::Block(body_block) = &*while_stmt.body {
+      for stmt in &body_block.stmts {
+        swc_ecma_visit::visit_stmt(self, &stmt, &while_stmt.body);
+      }
+    }
+    self.scope_manager.exit_scope(loop_scope_id);
+  }
+
+  fn visit_do_while_stmt(
+    &mut self,
+    do_while_stmt: &swc_ecma_ast::DoWhileStmt,
+    _parent: &dyn Node,
+  ) {
+    let loop_scope = Scope::new(
+      ScopeKind::Loop,
+      do_while_stmt.span,
+      Some(self.scope_manager.get_current_scope_id()),
+    );
+    let loop_scope_id = loop_scope.id;
+    self.scope_manager.enter_scope(loop_scope);
+    if let swc_ecma_ast::Stmt::Block(body_block) = &*do_while_stmt.body {
+      for stmt in &body_block.stmts {
+        swc_ecma_visit::visit_stmt(self, &stmt, &do_while_stmt.body);
+      }
+    }
+    self.scope_manager.exit_scope(loop_scope_id);
+  }
 }
 
 #[cfg(test)]
@@ -597,7 +707,71 @@ switch (foo) {
     assert!(switch_scope.get_binding("a").is_some());
     assert!(switch_scope.get_binding("defaultVal").is_some());
   }
+  #[test]
+  fn loop_scopes() {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
 
+    let source_code = r#"
+    for (let i = 0; i < 10; i++){}
+    for (let i in [1,2,3]){}
+    for (let i of [1,2,3]){}
+    while (i > 1) {}
+    do {} while (i > 1)
+"#;
+
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    let scope_manager = r.unwrap();
+
+    let root_scope = scope_manager.get_root_scope();
+    assert_eq!(root_scope.kind, ScopeKind::Program);
+    assert_eq!(root_scope.child_scopes.len(), 1);
+
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
+    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    assert_eq!(module_scope.kind, ScopeKind::Module);
+    assert_eq!(module_scope.child_scopes.len(), 5);
+
+    let for_scope_id = *module_scope.child_scopes.first().unwrap();
+    let for_scope = scope_manager.get_scope(for_scope_id).unwrap();
+    assert_eq!(for_scope.kind, ScopeKind::Loop);
+    assert_eq!(for_scope.child_scopes.len(), 0);
+    assert!(for_scope.get_binding("i").is_some());
+
+    let for_in_scope_id = *module_scope.child_scopes.get(1).unwrap();
+    let for_in_scope = scope_manager.get_scope(for_in_scope_id).unwrap();
+    assert_eq!(for_in_scope.kind, ScopeKind::Loop);
+    assert_eq!(for_in_scope.child_scopes.len(), 0);
+    assert!(for_in_scope.get_binding("i").is_some());
+
+    let for_of_scope_id = *module_scope.child_scopes.get(2).unwrap();
+    let for_of_scope = scope_manager.get_scope(for_of_scope_id).unwrap();
+    assert_eq!(for_of_scope.kind, ScopeKind::Loop);
+    assert_eq!(for_of_scope.child_scopes.len(), 0);
+    assert!(for_of_scope.get_binding("i").is_some());
+
+    let while_scope_id = *module_scope.child_scopes.get(3).unwrap();
+    let while_scope = scope_manager.get_scope(while_scope_id).unwrap();
+    assert_eq!(while_scope.kind, ScopeKind::Loop);
+    assert_eq!(while_scope.child_scopes.len(), 0);
+
+    let do_while_scope_id = *module_scope.child_scopes.last().unwrap();
+    let do_while_scope = scope_manager.get_scope(do_while_scope_id).unwrap();
+    assert_eq!(do_while_scope.kind, ScopeKind::Loop);
+    assert_eq!(do_while_scope.child_scopes.len(), 0);
+  }
   #[test]
   fn destructuring_assignment() {
     let ast_parser = AstParser::new();
