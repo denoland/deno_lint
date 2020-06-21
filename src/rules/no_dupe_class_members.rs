@@ -91,17 +91,19 @@ impl<'a> Visit for ClassVisitor<'a> {
     class_method: &ClassMethod,
     parent: &dyn Node,
   ) {
-    if let Some(m) = MethodToCheck::new(
-      &class_method.key,
-      class_method.kind,
-      class_method.is_static,
-    ) {
-      let name = m.normalized_name.clone();
-      self
-        .appeared_methods
-        .entry(m)
-        .or_insert_with(Vec::new)
-        .push((class_method.span, name));
+    if class_method.function.body.is_some() {
+      if let Some(m) = MethodToCheck::new(
+        &class_method.key,
+        class_method.kind,
+        class_method.is_static,
+      ) {
+        let name = m.normalized_name.clone();
+        self
+          .appeared_methods
+          .entry(m)
+          .or_insert_with(Vec::new)
+          .push((class_method.span, name));
+      }
     }
     swc_ecma_visit::visit_class_method(self, class_method, parent);
   }
@@ -140,15 +142,12 @@ struct MethodToCheck {
 
 impl MethodToCheck {
   fn new(name: &PropName, kind: MethodKind, is_static: bool) -> Option<Self> {
-    if let Some(normalized_name) = normalize_prop_name(name) {
-      Some(Self {
-        normalized_name,
-        kind,
-        is_static,
-      })
-    } else {
-      None
-    }
+    let normalized_name = normalize_prop_name(name)?;
+    Some(Self {
+      normalized_name,
+      kind,
+      is_static,
+    })
   }
 }
 
@@ -447,6 +446,16 @@ class Foo {
 }
       "#,
     );
+
+    assert_lint_ok::<NoDupeClassMembers>(
+      r#"
+class Foo {
+  bar(v1: number): number;
+  bar(v1: string, v2: boolean): string;
+  bar(v1: number | string, v2?: boolean): number | string {}
+}
+      "#,
+    );
   }
 
   #[test]
@@ -724,6 +733,18 @@ class Foo {
 }
       "#,
       vec![(5, 6), (6, 6)],
+    );
+
+    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      r#"
+class Foo {
+  bar(v1: number): number;
+  bar(v1: string, v2: boolean): string;
+  bar(v1: number | string, v2?: boolean): number | string {}
+  set bar(value: number) {}
+}
+      "#,
+      vec![(5, 2), (6, 2)],
     );
   }
 }
