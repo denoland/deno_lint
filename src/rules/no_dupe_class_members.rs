@@ -142,15 +142,12 @@ struct MethodToCheck {
 
 impl MethodToCheck {
   fn new(name: &PropName, kind: MethodKind, is_static: bool) -> Option<Self> {
-    if let Some(normalized_name) = normalize_prop_name(name) {
-      Some(Self {
-        normalized_name,
-        kind,
-        is_static,
-      })
-    } else {
-      None
-    }
+    let normalized_name = normalize_prop_name(name)?;
+    Some(Self {
+      normalized_name,
+      kind,
+      is_static,
+    })
   }
 }
 
