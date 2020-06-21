@@ -32,6 +32,7 @@ mod no_empty_pattern;
 mod no_eval;
 mod no_ex_assign;
 mod no_explicit_any;
+mod no_extra_boolean_cast;
 mod no_func_assign;
 mod no_inferrable_types;
 mod no_misused_new;
@@ -92,6 +93,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_empty::NoEmpty::new(),
     no_ex_assign::NoExAssign::new(),
     no_explicit_any::NoExplicitAny::new(),
+    no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_func_assign::NoFuncAssign::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
@@ -150,6 +152,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_eval::NoEval::new(),
     no_ex_assign::NoExAssign::new(),
     no_explicit_any::NoExplicitAny::new(),
+    no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_func_assign::NoFuncAssign::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
