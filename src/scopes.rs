@@ -22,6 +22,7 @@ pub enum BindingKind {
   Param,
   Class,
   CatchClause,
+  Import,
 }
 
 #[derive(Clone, Debug)]
@@ -500,6 +501,23 @@ impl Visit for ScopeVisitor {
         swc_ecma_visit::visit_stmt(self, stmt, body);
       }
     }
+  }
+
+  fn visit_import_specifier(
+    &mut self,
+    import_spec: &swc_ecma_ast::ImportSpecifier,
+    _parent: &dyn Node,
+  ) {
+    use swc_ecma_ast::ImportSpecifier::*;
+    let local = match import_spec {
+      Named(named) => &named.local,
+      Default(default) => &default.local,
+      Namespace(namespace) => &namespace.local,
+    };
+    self.scope_manager.add_binding(Binding {
+      kind: BindingKind::Import,
+      name: local.sym.to_string(),
+    });
   }
 
   fn visit_with_stmt(
@@ -1104,6 +1122,67 @@ switch (foo) {
       .unwrap();
     assert_eq!(array_object_method_scope.kind, ScopeKind::Function);
     assert!(array_object_method_scope.get_binding("d").is_some());
+  }
+
+  #[test]
+  fn import_binding() {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+
+    let source_code = r#"
+    import defaultExport1 from "module-name";
+    import * as namespaced1 from "module-name";
+    import { export1 } from "module-name";
+    import { export2 as alias1 } from "module-name";
+    import { export3 , export4 } from "module-name";
+    import { export5 , export6 as alias2} from "module-name";
+    import defaultExport2, { export7 } from "module-name";
+    import defaultExport3, * as namespaced2 from "module-name";
+    import "module-name";
+    var promise = import("module-name");
+    "#;
+
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    let scope_manager = r.unwrap();
+
+    let root_scope = scope_manager.get_root_scope();
+    assert_eq!(root_scope.kind, ScopeKind::Program);
+    assert_eq!(root_scope.child_scopes.len(), 1);
+
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
+    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    assert_eq!(module_scope.kind, ScopeKind::Module);
+    assert_eq!(module_scope.child_scopes.len(), 0);
+    assert!(module_scope.get_binding("defaultExport1").is_some());
+    let default_export = module_scope.get_binding("defaultExport1").unwrap();
+    assert_eq!(default_export.kind, BindingKind::Import);
+    let namespaced1 = module_scope.get_binding("namespaced1").unwrap();
+    assert_eq!(namespaced1.kind, BindingKind::Import);
+    let export1 = module_scope.get_binding("export1").unwrap();
+    assert_eq!(export1.kind, BindingKind::Import);
+    assert!(module_scope.get_binding("export2").is_none());
+    assert!(module_scope.get_binding("alias1").is_some());
+    assert!(module_scope.get_binding("export3").is_some());
+    assert!(module_scope.get_binding("export4").is_some());
+    assert!(module_scope.get_binding("export5").is_some());
+    assert!(module_scope.get_binding("export6").is_none());
+    assert!(module_scope.get_binding("alias2").is_some());
+    assert!(module_scope.get_binding("defaultExport2").is_some());
+    assert!(module_scope.get_binding("export7").is_some());
+    assert!(module_scope.get_binding("defaultExport3").is_some());
+    assert!(module_scope.get_binding("namespaced2").is_some());
   }
 
   #[test]
