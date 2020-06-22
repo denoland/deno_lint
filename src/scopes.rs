@@ -902,24 +902,10 @@ switch (foo) {
   }
 
   #[test]
-  fn object_array_literals() {
+  fn object_literal() {
     let ast_parser = AstParser::new();
     let syntax = swc_util::get_default_ts_config();
-
     let source_code = r#"
-    let array = [
-      function x(){ const a; },
-      ()=>{const b;},
-      [
-        function nested() { const c;}
-      ],
-      {
-        innerMethod(){
-          const d;
-        }
-      }
-    ]
-
     let obj = {
       method(){
         const e;
@@ -939,7 +925,6 @@ switch (foo) {
         }
       }
     }
-
     "#;
 
     let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
@@ -964,7 +949,78 @@ switch (foo) {
     let module_scope_id = *root_scope.child_scopes.first().unwrap();
     let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
     assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 8);
+    assert_eq!(module_scope.child_scopes.len(), 4);
+
+    let obj_method_scope_id = *module_scope.child_scopes.first().unwrap();
+    let obj_method_scope =
+      scope_manager.get_scope(obj_method_scope_id).unwrap();
+    assert_eq!(obj_method_scope.kind, ScopeKind::Method);
+    assert!(obj_method_scope.get_binding("e").is_some());
+
+    let obj_nested_method_scope_id = *module_scope.child_scopes.get(1).unwrap();
+    let obj_nested_method_scope =
+      scope_manager.get_scope(obj_nested_method_scope_id).unwrap();
+    assert_eq!(obj_nested_method_scope.kind, ScopeKind::Method);
+    assert!(obj_nested_method_scope.get_binding("f").is_some());
+
+    let obj_getter_scope_id = *module_scope.child_scopes.get(2).unwrap();
+    let obj_getter_scope =
+      scope_manager.get_scope(obj_getter_scope_id).unwrap();
+    assert_eq!(obj_getter_scope.kind, ScopeKind::Getter);
+    assert!(obj_getter_scope.get_binding("g").is_some());
+    assert!(obj_getter_scope.get_binding("h").is_none());
+
+    let obj_setter_scope_id = *module_scope.child_scopes.get(3).unwrap();
+    let obj_setter_scope =
+      scope_manager.get_scope(obj_setter_scope_id).unwrap();
+    assert_eq!(obj_setter_scope.kind, ScopeKind::Setter);
+    assert!(obj_setter_scope.get_binding("h").is_some());
+    assert!(obj_setter_scope.get_binding("g").is_none());
+  }
+
+  #[test]
+  fn array_literal() {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+
+    let source_code = r#"
+    let array = [
+      function x(){ const a; },
+      ()=>{const b;},
+      [
+        function nested() { const c;}
+      ],
+      {
+        innerMethod(){
+          const d;
+        }
+      }
+    ]
+    "#;
+
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    let scope_manager = r.unwrap();
+
+    let root_scope = scope_manager.get_root_scope();
+    assert_eq!(root_scope.kind, ScopeKind::Program);
+    assert_eq!(root_scope.child_scopes.len(), 1);
+
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
+    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    assert_eq!(module_scope.kind, ScopeKind::Module);
+    assert_eq!(module_scope.child_scopes.len(), 4);
 
     let array_fn_scope_id = *module_scope.child_scopes.first().unwrap();
     let array_fn_scope = scope_manager.get_scope(array_fn_scope_id).unwrap();
@@ -992,32 +1048,6 @@ switch (foo) {
       .unwrap();
     assert_eq!(array_object_method_scope.kind, ScopeKind::Method);
     assert!(array_object_method_scope.get_binding("d").is_some());
-
-    let obj_method_scope_id = *module_scope.child_scopes.get(4).unwrap();
-    let obj_method_scope =
-      scope_manager.get_scope(obj_method_scope_id).unwrap();
-    assert_eq!(obj_method_scope.kind, ScopeKind::Method);
-    assert!(obj_method_scope.get_binding("e").is_some());
-
-    let obj_nested_method_scope_id = *module_scope.child_scopes.get(5).unwrap();
-    let obj_nested_method_scope =
-      scope_manager.get_scope(obj_nested_method_scope_id).unwrap();
-    assert_eq!(obj_nested_method_scope.kind, ScopeKind::Method);
-    assert!(obj_nested_method_scope.get_binding("f").is_some());
-
-    let obj_getter_scope_id = *module_scope.child_scopes.get(6).unwrap();
-    let obj_getter_scope =
-      scope_manager.get_scope(obj_getter_scope_id).unwrap();
-    assert_eq!(obj_getter_scope.kind, ScopeKind::Getter);
-    assert!(obj_getter_scope.get_binding("g").is_some());
-    assert!(obj_getter_scope.get_binding("h").is_none());
-
-    let obj_setter_scope_id = *module_scope.child_scopes.get(7).unwrap();
-    let obj_setter_scope =
-      scope_manager.get_scope(obj_setter_scope_id).unwrap();
-    assert_eq!(obj_setter_scope.kind, ScopeKind::Setter);
-    assert!(obj_setter_scope.get_binding("h").is_some());
-    assert!(obj_setter_scope.get_binding("g").is_none());
   }
 
   #[test]
