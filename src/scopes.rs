@@ -416,6 +416,40 @@ impl Visit for ScopeVisitor {
     self.check_array_lit(arr_lit);
   }
 
+  fn visit_call_expr(
+    &mut self,
+    call_expr: &swc_ecma_ast::CallExpr,
+    _parent: &dyn Node,
+  ) {
+    if call_expr.args.is_empty() {
+      return;
+    }
+    for arg in call_expr.args.iter() {
+      if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
+        self.create_fn_or_method_scope(&fn_expr.function, ScopeKind::Function);
+      } else {
+        self.check_expr(&arg.expr)
+      }
+    }
+  }
+
+  fn visit_new_expr(
+    &mut self,
+    new_expr: &swc_ecma_ast::NewExpr,
+    _parent: &dyn Node,
+  ) {
+    if let Some(args) = &new_expr.args {
+      for arg in args.iter() {
+        if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
+          self
+            .create_fn_or_method_scope(&fn_expr.function, ScopeKind::Function);
+        } else {
+          self.check_expr(&arg.expr)
+        }
+      }
+    }
+  }
+
   fn visit_fn_decl(
     &mut self,
     fn_decl: &swc_ecma_ast::FnDecl,
@@ -720,15 +754,11 @@ function asdf(b: number, c: string): number {
     }
     return 1;
 }
-
 class Foo {
   #fizz = "fizz";
-
   bar() {
-
   }
 }
-
 try {
   // some code that might throw
   throw new Error("asdf");
@@ -902,6 +932,48 @@ switch (foo) {
   }
 
   #[test]
+  fn call_new_expressions() {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+    let source_code = r#"
+    Deno.test("first test", function(){});
+    new Deno(function(){});
+    "#;
+
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    let scope_manager = r.unwrap();
+
+    let root_scope = scope_manager.get_root_scope();
+    assert_eq!(root_scope.kind, ScopeKind::Program);
+    assert_eq!(root_scope.child_scopes.len(), 1);
+
+    let module_scope_id = *root_scope.child_scopes.first().unwrap();
+    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    assert_eq!(module_scope.kind, ScopeKind::Module);
+    assert_eq!(module_scope.child_scopes.len(), 2);
+
+    let call_fn_scope_id = *module_scope.child_scopes.first().unwrap();
+    let call_fn_scope = scope_manager.get_scope(call_fn_scope_id).unwrap();
+    assert_eq!(call_fn_scope.kind, ScopeKind::Function);
+
+    let new_fn_scope_id = *module_scope.child_scopes.last().unwrap();
+    let new_fn_scope = scope_manager.get_scope(new_fn_scope_id).unwrap();
+    assert_eq!(new_fn_scope.kind, ScopeKind::Function);
+  }
+
+  #[test]
   fn object_literal() {
     let ast_parser = AstParser::new();
     let syntax = swc_util::get_default_ts_config();
@@ -1058,23 +1130,18 @@ switch (foo) {
 const {a} = {a : "a"};
 const {a: {b}} = {a : {b: "b"}};
 const {a: {b: {c}}} = {a : {b: {c : "c"}}};
-
 const [d] = ["d"];
 const [e, [f,[g]]] = ["e",["f",["g"]]];
-
 const {a: [h]} = {a: ["h"]};
 const [i, {j}] = ["i",{j: "j"}];
 const {a: {b : [k,{l}]}} = {a: {b : ["k",{l : "l"}]}};
-
 const {m = "M"} = {};
 const [n = "N"] = [];
-
 function getPerson({username="disizali",info: [name, family]}) {
   try {
     throw 'TryAgain';
   } catch(e) {}
 }
-
 try{} catch({message}){};
 "#;
     let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
