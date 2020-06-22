@@ -971,10 +971,10 @@ switch (foo) {
     assert_eq!(array_fn_scope.kind, ScopeKind::Function);
     assert!(array_fn_scope.get_binding("a").is_some());
     assert!(array_fn_scope.get_binding("b").is_none());
-    
+
     let array_arrow_scope_id = *module_scope.child_scopes.get(1).unwrap();
     let array_arrow_scope =
-    scope_manager.get_scope(array_arrow_scope_id).unwrap();
+      scope_manager.get_scope(array_arrow_scope_id).unwrap();
     assert_eq!(array_arrow_scope.kind, ScopeKind::Block);
     assert!(array_arrow_scope.get_binding("b").is_some());
     assert!(array_arrow_scope.get_binding("c").is_none());
