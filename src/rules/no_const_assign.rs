@@ -172,7 +172,7 @@ mod tests {
           const a = 1;
           return a;
         }
-
+        ,
         set setter(x){
           a = 2;
         }
