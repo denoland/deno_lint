@@ -233,17 +233,17 @@ impl ScopeVisitor {
     kind: ScopeKind,
   ) {
     if let Some(body) = &body {
-      let getter_scope = Scope::new(
+      let gs_scope = Scope::new(
         kind,
         body.span,
         Some(self.scope_manager.get_current_scope_id()),
       );
-      let getter_scope_id = getter_scope.id;
-      self.scope_manager.enter_scope(getter_scope);
+      let gs_scope_id = gs_scope.id;
+      self.scope_manager.enter_scope(gs_scope);
       for stmt in body.stmts.iter() {
         self.visit_stmt(stmt, body);
       }
-      self.scope_manager.exit_scope(getter_scope_id);
+      self.scope_manager.exit_scope(gs_scope_id);
     }
   }
 }
