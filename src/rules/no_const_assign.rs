@@ -145,7 +145,39 @@ mod tests {
       function x() {} x = 1;
       function foo(x) { x = 1; }
       class X {} X = 1;
-      try {} catch (x) { x = 1; }"#,
+      try {} catch (x) { x = 1; }
+      Deno.test("test function", function(){
+        const a = 1;
+      });
+      Deno.test("test another function", function(){
+        a=2;
+      });
+
+      Deno.test({
+        name : "test object",
+        fn() : Promise<void> {
+          const a = 1;
+        }
+      });
+
+      Deno.test({
+        name : "test another object",
+        fn() : Promise<void> {
+         a = 2;
+        }
+      });
+
+      let obj = {
+        get getter(){
+          const a = 1;
+          return a;
+        }
+        ,
+        set setter(x){
+          a = 2;
+        }
+      }
+      "#,
     );
   }
 
