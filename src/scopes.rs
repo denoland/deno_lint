@@ -35,15 +35,12 @@ pub enum ScopeKind {
   Program,
   Module,
   Function,
-  Method,
   Block,
   Loop,
   Class,
   Switch,
   With,
   Catch,
-  Getter,
-  Setter,
 }
 
 #[derive(Clone, Debug)]
@@ -207,14 +204,10 @@ fn next_id() -> u32 {
 }
 
 impl ScopeVisitor {
-  fn create_fn_or_method_scope(
-    &mut self,
-    function: &swc_ecma_ast::Function,
-    kind: ScopeKind,
-  ) {
+  fn create_fn_scope(&mut self, function: &swc_ecma_ast::Function) {
     if let Some(body) = &function.body {
       let fn_scope = Scope::new(
-        kind,
+        ScopeKind::Function,
         function.span,
         Some(self.scope_manager.get_current_scope_id()),
       );
@@ -230,11 +223,10 @@ impl ScopeVisitor {
   fn create_getter_or_setter_scope(
     &mut self,
     body: &Option<swc_ecma_ast::BlockStmt>,
-    kind: ScopeKind,
   ) {
     if let Some(body) = &body {
       let gs_scope = Scope::new(
-        kind,
+        ScopeKind::Function,
         body.span,
         Some(self.scope_manager.get_current_scope_id()),
       );
@@ -268,26 +260,20 @@ impl ScopeVisitor {
       if let swc_ecma_ast::PropOrSpread::Prop(prop_expr) = prop {
         match &**prop_expr {
           Method(method_prop) => {
-            self.create_fn_or_method_scope(
-              &method_prop.function,
-              ScopeKind::Method,
-            );
+            self.create_fn_scope(&method_prop.function);
           }
           KeyValue(kv_prop) => {
             if let swc_ecma_ast::Expr::Fn(fn_expr) = &*kv_prop.value {
-              self.create_fn_or_method_scope(
-                &fn_expr.function,
-                ScopeKind::Method,
-              );
+              self.create_fn_scope(&fn_expr.function);
             } else {
               self.check_expr(&kv_prop.value);
             }
           }
           Getter(getter) => {
-            self.create_getter_or_setter_scope(&getter.body, ScopeKind::Getter);
+            self.create_getter_or_setter_scope(&getter.body);
           }
           Setter(setter) => {
-            self.create_getter_or_setter_scope(&setter.body, ScopeKind::Setter);
+            self.create_getter_or_setter_scope(&setter.body);
           }
           _ => {}
         }
@@ -317,8 +303,7 @@ impl ScopeVisitor {
     for elem in arr.elems.iter() {
       if let Some(element) = elem {
         if let swc_ecma_ast::Expr::Fn(fn_expr) = &*element.expr {
-          self
-            .create_fn_or_method_scope(&fn_expr.function, ScopeKind::Function);
+          self.create_fn_scope(&fn_expr.function);
         } else {
           self.check_expr(&element.expr);
         }
@@ -426,7 +411,7 @@ impl Visit for ScopeVisitor {
     }
     for arg in call_expr.args.iter() {
       if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
-        self.create_fn_or_method_scope(&fn_expr.function, ScopeKind::Function);
+        self.create_fn_scope(&fn_expr.function);
       } else {
         self.check_expr(&arg.expr)
       }
@@ -441,8 +426,7 @@ impl Visit for ScopeVisitor {
     if let Some(args) = &new_expr.args {
       for arg in args.iter() {
         if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
-          self
-            .create_fn_or_method_scope(&fn_expr.function, ScopeKind::Function);
+          self.create_fn_scope(&fn_expr.function);
         } else {
           self.check_expr(&arg.expr)
         }
@@ -1026,26 +1010,26 @@ switch (foo) {
     let obj_method_scope_id = *module_scope.child_scopes.first().unwrap();
     let obj_method_scope =
       scope_manager.get_scope(obj_method_scope_id).unwrap();
-    assert_eq!(obj_method_scope.kind, ScopeKind::Method);
+    assert_eq!(obj_method_scope.kind, ScopeKind::Function);
     assert!(obj_method_scope.get_binding("e").is_some());
 
     let obj_nested_method_scope_id = *module_scope.child_scopes.get(1).unwrap();
     let obj_nested_method_scope =
       scope_manager.get_scope(obj_nested_method_scope_id).unwrap();
-    assert_eq!(obj_nested_method_scope.kind, ScopeKind::Method);
+    assert_eq!(obj_nested_method_scope.kind, ScopeKind::Function);
     assert!(obj_nested_method_scope.get_binding("f").is_some());
 
     let obj_getter_scope_id = *module_scope.child_scopes.get(2).unwrap();
     let obj_getter_scope =
       scope_manager.get_scope(obj_getter_scope_id).unwrap();
-    assert_eq!(obj_getter_scope.kind, ScopeKind::Getter);
+    assert_eq!(obj_getter_scope.kind, ScopeKind::Function);
     assert!(obj_getter_scope.get_binding("g").is_some());
     assert!(obj_getter_scope.get_binding("h").is_none());
 
     let obj_setter_scope_id = *module_scope.child_scopes.get(3).unwrap();
     let obj_setter_scope =
       scope_manager.get_scope(obj_setter_scope_id).unwrap();
-    assert_eq!(obj_setter_scope.kind, ScopeKind::Setter);
+    assert_eq!(obj_setter_scope.kind, ScopeKind::Function);
     assert!(obj_setter_scope.get_binding("h").is_some());
     assert!(obj_setter_scope.get_binding("g").is_none());
   }
@@ -1118,7 +1102,7 @@ switch (foo) {
     let array_object_method_scope = scope_manager
       .get_scope(array_object_method_scope_id)
       .unwrap();
-    assert_eq!(array_object_method_scope.kind, ScopeKind::Method);
+    assert_eq!(array_object_method_scope.kind, ScopeKind::Function);
     assert!(array_object_method_scope.get_binding("d").is_some());
   }
 
