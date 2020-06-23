@@ -174,7 +174,7 @@ fn expr_or_super_callee_is_boolean(expr_or_super: &ExprOrSuper) -> bool {
 
 fn expr_callee_is_boolean(expr: &Expr) -> bool {
   match expr {
-    Expr::Ident(Ident { ref sym, .. }) if sym.to_string() == "Boolean" => true,
+    Expr::Ident(Ident { ref sym, .. }) if sym == "Boolean" => true,
     _ => false,
   }
 }
