@@ -74,7 +74,7 @@ impl<'a> ClassVisitor<'a> {
       .filter(|m| m.len() >= 2)
       .flatten()
       .for_each(|(span, name)| {
-        self.root_visitor.add_diagnostic(span.clone(), name);
+        self.root_visitor.add_diagnostic(*span, name);
       });
   }
 }
