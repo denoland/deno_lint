@@ -23,6 +23,7 @@ mod no_debugger;
 mod no_delete_var;
 mod no_dupe_args;
 mod no_dupe_class_members;
+mod no_dupe_else_if;
 mod no_dupe_keys;
 mod no_duplicate_case;
 mod no_empty;
@@ -85,6 +86,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_delete_var::NoDeleteVar::new(),
     no_dupe_args::NoDupeArgs::new(),
     no_dupe_class_members::NoDupeClassMembers::new(),
+    no_dupe_else_if::NoDupeElseIf::new(),
     no_dupe_keys::NoDupeKeys::new(),
     no_duplicate_case::NoDuplicateCase::new(),
     no_empty_character_class::NoEmptyCharacterClass::new(),
@@ -143,6 +145,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_delete_var::NoDeleteVar::new(),
     no_dupe_args::NoDupeArgs::new(),
     no_dupe_class_members::NoDupeClassMembers::new(),
+    no_dupe_else_if::NoDupeElseIf::new(),
     no_dupe_keys::NoDupeKeys::new(),
     no_duplicate_case::NoDuplicateCase::new(),
     no_empty_character_class::NoEmptyCharacterClass::new(),
