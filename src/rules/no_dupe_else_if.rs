@@ -1,8 +1,9 @@
 #![allow(unused_imports, dead_code)]
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use crate::swc_util::{equal_in_if_else, DropSpan, SpanDropped};
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use swc_common::{Span, Spanned, DUMMY_SP};
 use swc_ecma_ast::{
   ArrayLit, ArrowExpr, AssignExpr, AwaitExpr, BigInt, BinExpr, BlockStmt,
@@ -49,13 +50,12 @@ impl NoDupeElseIfVisitor {
 
 impl Visit for NoDupeElseIfVisitor {
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
-    let mut dropper = ExprSpanDropper;
     let span = if_stmt.test.span();
     if !self.checked_span.contains(&span) {
       self.checked_span.insert(span);
-      let mut conditions = HashMap::new();
-      let test = dropper.fold_expr((&*if_stmt.test).clone());
-      conditions.insert(ConditionToCheck::new(test), vec![if_stmt.test.span()]);
+      let mut conditions = BTreeMap::new();
+      let test = (&*if_stmt.test).clone().drop_span();
+      conditions.insert(IfElseEqualChecker(test), vec![span]);
       let mut next = if_stmt.alt.as_ref();
       while let Some(alt) = next {
         if let Stmt::If(IfStmt {
@@ -64,9 +64,9 @@ impl Visit for NoDupeElseIfVisitor {
         {
           // preserve the span before dropping
           let span = test.span();
-          let test = dropper.fold_expr((&**test).clone());
+          let test = (&**test).clone().drop_span();
           conditions
-            .entry(ConditionToCheck::new(test))
+            .entry(IfElseEqualChecker(test))
             .or_insert_with(Vec::new)
             .push(span);
           self.checked_span.insert(span);
@@ -75,15 +75,11 @@ impl Visit for NoDupeElseIfVisitor {
           break;
         }
       }
-      dbg!(&conditions);
+      //dbg!(&conditions);
 
       conditions
         .values()
-        .filter_map(|c| if c.len() >= 2 {
-          Some(c.iter().skip(1))
-        } else {
-          None
-        })
+        .map(|c| c.iter().skip(1))
         .flatten()
         .for_each(|span| {
           self
@@ -96,199 +92,35 @@ impl Visit for NoDupeElseIfVisitor {
   }
 }
 
-struct ExprSpanDropper;
+#[derive(Debug)]
+struct IfElseEqualChecker(SpanDropped<Expr>);
 
-impl Fold for ExprSpanDropper {
-  fn fold_expr(&mut self, expr: Expr) -> Expr {
-    let dropped = match expr {
-      Expr::This(_) => Expr::This(ThisExpr { span: DUMMY_SP }),
-      Expr::Array(ArrayLit { elems, .. }) => Expr::Array(ArrayLit {
-        span: DUMMY_SP,
-        elems,
-      }),
-      Expr::Object(ObjectLit { props, .. }) => Expr::Object(ObjectLit {
-        span: DUMMY_SP,
-        props,
-      }),
-      Expr::Fn(FnExpr {
-        mut ident,
-        mut function,
-      }) => {
-        ident.as_mut().map(|i| i.span = DUMMY_SP);
-        function.span = DUMMY_SP;
-        Expr::Fn(FnExpr { ident, function })
-      }
-      Expr::Unary(UnaryExpr { op, arg, .. }) => Expr::Unary(UnaryExpr {
-        span: DUMMY_SP,
-        op,
-        arg,
-      }),
-      Expr::Update(UpdateExpr {
-        op, prefix, arg, ..
-      }) => Expr::Update(UpdateExpr {
-        span: DUMMY_SP,
-        op,
-        prefix,
-        arg,
-      }),
-      Expr::Bin(BinExpr {
-        op, left, right, ..
-      }) => Expr::Bin(BinExpr {
-        span: DUMMY_SP,
-        op,
-        left,
-        right,
-      }),
-      Expr::Assign(AssignExpr {
-        op, left, right, ..
-      }) => Expr::Assign(AssignExpr {
-        span: DUMMY_SP,
-        op,
-        left,
-        right,
-      }),
-      Expr::Member(MemberExpr {
-        obj,
-        prop,
-        computed,
-        ..
-      }) => Expr::Member(MemberExpr {
-        span: DUMMY_SP,
-        obj,
-        prop,
-        computed,
-      }),
-      Expr::Cond(CondExpr {
-        test, cons, alt, ..
-      }) => Expr::Cond(CondExpr {
-        span: DUMMY_SP,
-        test,
-        cons,
-        alt,
-      }),
-      Expr::Call(CallExpr {
-        callee,
-        args,
-        type_args,
-        ..
-      }) => Expr::Call(CallExpr {
-        span: DUMMY_SP,
-        callee,
-        args,
-        type_args,
-      }),
-      Expr::New(NewExpr {
-        callee,
-        args,
-        type_args,
-        ..
-      }) => Expr::New(NewExpr {
-        span: DUMMY_SP,
-        callee,
-        args,
-        type_args,
-      }),
-      Expr::Seq(SeqExpr { exprs, .. }) => Expr::Seq(SeqExpr {
-        span: DUMMY_SP,
-        exprs,
-      }),
-      Expr::Ident(Ident {
-        sym,
-        type_ann,
-        optional,
-        ..
-      }) => Expr::Ident(Ident {
-        span: DUMMY_SP,
-        sym,
-        type_ann,
-        optional,
-      }),
-      Expr::Lit(lit) => {
-        let l = match lit {
-          Lit::Str(Str {
-            value, has_escape, ..
-          }) => Lit::Str(Str {
-            span: DUMMY_SP,
-            value,
-            has_escape,
-          }),
-          Lit::Bool(Bool { value, .. }) => Lit::Bool(Bool {
-            span: DUMMY_SP,
-            value,
-          }),
-          Lit::Null(_) => Lit::Null(Null { span: DUMMY_SP }),
-          Lit::Num(Number { value, .. }) => Lit::Num(Number {
-            span: DUMMY_SP,
-            value,
-          }),
-          Lit::BigInt(BigInt { value, .. }) => Lit::BigInt(BigInt {
-            span: DUMMY_SP,
-            value,
-          }),
-          Lit::Regex(Regex { exp, flags, .. }) => Lit::Regex(Regex {
-            span: DUMMY_SP,
-            exp,
-            flags,
-          }),
-          Lit::JSXText(JSXText { value, raw, .. }) => Lit::JSXText(JSXText {
-            span: DUMMY_SP,
-            value,
-            raw,
-          }),
-        };
-        Expr::Lit(l)
-      }
-      Expr::Tpl(Tpl { exprs, quasis, .. }) => Expr::Tpl(Tpl {
-        span: DUMMY_SP,
-        exprs,
-        quasis,
-      }),
-      Expr::TaggedTpl(TaggedTpl {
-        tag,
-        exprs,
-        quasis,
-        type_params,
-        ..
-      }) => Expr::TaggedTpl(TaggedTpl {
-        span: DUMMY_SP,
-        tag,
-        exprs,
-        quasis,
-        type_params,
-      }),
-      Expr::Arrow(ArrowExpr {
-        params,
-        body,
-        is_async,
-        is_generator,
-        type_params,
-        return_type,
-        ..
-      }) => Expr::Arrow(ArrowExpr {
-        span: DUMMY_SP,
-        params,
-        body,
-        is_async,
-        is_generator,
-        type_params,
-        return_type,
-      }),
-      // TODO(magurotuna) from here. next is ClassExpr
-      _ => Expr::Invalid(Invalid { span: DUMMY_SP }),
-    };
+impl PartialEq for IfElseEqualChecker {
+  fn eq(&self, other: &Self) -> bool {
+    let IfElseEqualChecker(ref self_sd) = self;
+    let IfElseEqualChecker(ref other_sd) = other;
 
-    swc_ecma_visit::fold_expr(self, dropped)
+    equal_in_if_else(&self_sd.as_ref(), &other_sd.as_ref())
   }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
-struct ConditionToCheck {
-  condition: Expr,
+impl Eq for IfElseEqualChecker {}
+
+impl PartialOrd for IfElseEqualChecker {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
 }
 
-impl ConditionToCheck {
-  fn new(condition: Expr) -> Self {
-    Self { condition }
+impl Ord for IfElseEqualChecker {
+  fn cmp(&self, other: &Self) -> Ordering {
+    if self == other {
+      Ordering::Equal
+    } else {
+      let IfElseEqualChecker(ref self_sd) = self;
+      let IfElseEqualChecker(ref other_sd) = other;
+      self_sd.cmp(other_sd)
+    }
   }
 }
 
@@ -346,8 +178,8 @@ mod tests {
   #[test]
   fn hogepiyo() {
     assert_lint_err::<NoDupeElseIf>(
-      "if (a>1) {} else if (a >             1) {} else if (b) {}",
-      21,
+      "if (a === 1) {} else if ((a === 1)) {}",
+      0,
     );
   }
 
@@ -358,62 +190,62 @@ mod tests {
       19,
     );
     assert_lint_err::<NoDupeElseIf>("if (a); else if (a);", 17);
-    assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a) {} else {}", 0); // TODO(magurotuna) from here
+    assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a) {} else {}", 19);
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (a) {} else if (c) {}",
-      0,
+      34,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (a) {}",
-      0,
+      34,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (c) {} else if (a) {}",
-      0,
+      49,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (b) {}",
-      0,
+      34,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (b) {} else {}",
-      0,
+      34,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (c) {} else if (b) {}",
-      0,
+      49,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a); else if (b); else if (c); else if (b); else if (d); else;",
-      0,
+      43,
     );
-    assert_lint_err::<NoDupeElseIf>("if (a); else if (b); else if (c); else if (d); else if (b); else if (e);", 0);
-    assert_lint_err::<NoDupeElseIf>(
+    assert_lint_err::<NoDupeElseIf>("if (a); else if (b); else if (c); else if (d); else if (b); else if (e);", 56);
+    assert_lint_err_n::<NoDupeElseIf>(
       "if (a) {} else if (a) {} else if (a) {}",
-      0,
+      vec![19, 34],
     );
-    assert_lint_err::<NoDupeElseIf>(
+    assert_lint_err_n::<NoDupeElseIf>(
       "if (a) {} else if (b) {} else if (a) {} else if (b) {} else if (a) {}",
-      0,
+      vec![34, 64, 49],
     );
-    assert_lint_err::<NoDupeElseIf>("if (a) { if (b) {} } else if (a) {}", 0);
-    assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a === 1) {}", 0);
-    assert_lint_err::<NoDupeElseIf>("if (1 < a) {} else if (1 < a) {}", 0);
-    assert_lint_err::<NoDupeElseIf>("if (true) {} else if (true) {}", 0);
-    assert_lint_err::<NoDupeElseIf>("if (a && b) {} else if (a && b) {}", 0);
+    assert_lint_err::<NoDupeElseIf>("if (a) { if (b) {} } else if (a) {}", 30);
+    assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a === 1) {}", 25);
+    assert_lint_err::<NoDupeElseIf>("if (1 < a) {} else if (1 < a) {}", 23);
+    assert_lint_err::<NoDupeElseIf>("if (true) {} else if (true) {}", 22);
+    assert_lint_err::<NoDupeElseIf>("if (a && b) {} else if (a && b) {}", 24);
     assert_lint_err::<NoDupeElseIf>(
       "if (a && b || c)  {} else if (a && b || c) {}",
-      0,
+      30,
     );
-    assert_lint_err::<NoDupeElseIf>("if (f(a)) {} else if (f(a)) {}", 0);
-    assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a===1) {}", 0);
+    assert_lint_err::<NoDupeElseIf>("if (f(a)) {} else if (f(a)) {}", 22);
+    assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a===1) {}", 25);
     assert_lint_err::<NoDupeElseIf>(
       "if (a === 1) {} else if (a === /* comment */ 1) {}",
-      0,
+      25,
     );
     assert_lint_err::<NoDupeElseIf>(
       "if (a === 1) {} else if ((a === 1)) {}",
-      0,
+      25,
     );
     assert_lint_err::<NoDupeElseIf>("if (a || b) {} else if (a) {}", 0);
     assert_lint_err::<NoDupeElseIf>(

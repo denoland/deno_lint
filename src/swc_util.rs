@@ -13,6 +13,8 @@ use swc_common::FileName;
 use swc_common::Globals;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_common::DUMMY_SP;
+use swc_ecma_ast::{BinaryOp, Expr, ParenExpr};
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::EsConfig;
 use swc_ecma_parser::JscTarget;
@@ -21,6 +23,7 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
+use swc_ecma_visit::Fold;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -203,5 +206,130 @@ impl AstParser {
 impl Default for AstParser {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+/// A folder to drop all spans of a subtree.
+struct SpanDropper;
+
+impl Fold for SpanDropper {
+  fn fold_span(&mut self, _: Span) -> Span {
+    DUMMY_SP
+  }
+}
+
+/// A struct that has span-dropped ast node.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct SpanDropped<T: std::fmt::Debug + Eq + PartialEq>(T);
+
+impl<T: std::fmt::Debug + Eq + PartialEq> SpanDropped<T> {
+  pub(crate) fn as_ref(&self) -> SpanDropped<&T> {
+    let SpanDropped(ref inner) = self;
+    SpanDropped(inner)
+  }
+}
+
+/// Determines whether the two given `Expr`s are considered to be equal in if-else condition
+/// context.
+pub(crate) fn equal_in_if_else(
+  one: &SpanDropped<&Expr>,
+  other: &SpanDropped<&Expr>,
+) -> bool {
+  let SpanDropped(ref expr1) = one;
+  let SpanDropped(ref expr2) = other;
+
+  use swc_ecma_ast::Expr::*;
+  match (expr1, expr2) {
+    (Bin(ref bin1), Bin(ref bin2))
+      if matches!(bin1.op, BinaryOp::LogicalOr | BinaryOp::LogicalAnd)
+        && bin1.op == bin2.op =>
+    {
+      let b1_left = SpanDropped(&*bin1.left);
+      let b2_left = SpanDropped(&*bin2.left);
+      let b1_right = SpanDropped(&*bin1.right);
+      let b2_right = SpanDropped(&*bin2.right);
+      equal_in_if_else(&b1_left, &b2_left)
+        && equal_in_if_else(&b1_right, &b2_right)
+        || equal_in_if_else(&b1_left, &b2_right)
+          && equal_in_if_else(&b1_right, &b2_left)
+    }
+    (Paren(ParenExpr { ref expr, .. }), _) => {
+      equal_in_if_else(&SpanDropped(&**expr), other)
+    }
+    (_, Paren(ParenExpr { ref expr, .. })) => {
+      equal_in_if_else(one, &SpanDropped(&**expr))
+    }
+    (This(_), This(_))
+    | (Array(_), Array(_))
+    | (Object(_), Object(_))
+    | (Fn(_), Fn(_))
+    | (Unary(_), Unary(_))
+    | (Update(_), Update(_))
+    | (Bin(_), Bin(_))
+    | (Assign(_), Member(_))
+    | (Cond(_), Cond(_))
+    | (Call(_), Call(_))
+    | (New(_), New(_))
+    | (Seq(_), Seq(_))
+    | (Ident(_), Ident(_))
+    | (Lit(_), Lit(_))
+    | (Tpl(_), Tpl(_))
+    | (TaggedTpl(_), TaggedTpl(_))
+    | (Arrow(_), Arrow(_))
+    | (Class(_), Class(_))
+    | (Yield(_), Yield(_))
+    | (MetaProp(_), MetaProp(_))
+    | (Await(_), Await(_))
+    | (JSXMember(_), JSXMember(_))
+    | (JSXNamespacedName(_), JSXNamespacedName(_))
+    | (JSXEmpty(_), JSXEmpty(_))
+    | (JSXElement(_), JSXElement(_))
+    | (JSXFragment(_), JSXFragment(_))
+    | (TsTypeAssertion(_), TsTypeAssertion(_))
+    | (TsConstAssertion(_), TsConstAssertion(_))
+    | (TsNonNull(_), TsNonNull(_))
+    | (TsTypeCast(_), TsTypeCast(_))
+    | (TsAs(_), TsAs(_))
+    | (PrivateName(_), PrivateName(_))
+    | (OptChain(_), OptChain(_))
+    | (Invalid(_), Invalid(_)) => expr1 == expr2,
+    _ => false,
+  }
+}
+
+impl<T> PartialOrd for SpanDropped<T>
+where
+  T: std::fmt::Debug + Eq + PartialEq,
+{
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl<T> Ord for SpanDropped<T>
+where
+  T: std::fmt::Debug + Eq + PartialEq,
+{
+  fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    let SpanDropped(ref self_inner) = self;
+    let SpanDropped(ref other_inner) = other;
+    let self_debug = format!("{:?}", self_inner);
+    let other_debug = format!("{:?}", other_inner);
+    self_debug.cmp(&other_debug)
+  }
+}
+
+/// Provides a additional method to drop spans.
+pub(crate) trait DropSpan {
+  fn drop_span(self) -> SpanDropped<Self>
+  where
+    Self: Sized + std::fmt::Debug + Eq + PartialEq;
+}
+
+impl DropSpan for Expr {
+  fn drop_span(self) -> SpanDropped<Self> {
+    let mut dropper = SpanDropper;
+    let dropped = dropper.fold_expr(self);
+    SpanDropped(dropped)
   }
 }
