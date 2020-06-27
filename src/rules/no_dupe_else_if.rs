@@ -82,7 +82,7 @@ impl Visit for NoDupeElseIfVisitor {
 
             if current_condition_to_check
               .iter()
-              .any(|or_operands| or_operands.len() == 0)
+              .any(|or_operands| or_operands.is_empty())
             {
               self
               .context
@@ -142,7 +142,7 @@ fn split_by_or_then_and(expr: Expr) -> Vec<Vec<Expr>> {
   split_by_or(expr).into_iter().map(split_by_and).collect()
 }
 
-fn is_subset(arr_a: &Vec<Expr>, arr_b: &Vec<Expr>) -> bool {
+fn is_subset(arr_a: &[Expr], arr_b: &[Expr]) -> bool {
   arr_a
     .iter()
     .all(|a| arr_b.iter().any(|b| equal_in_if_else(a, b)))
