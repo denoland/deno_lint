@@ -740,11 +740,28 @@ mod tests {
   use crate::swc_util::AstParser;
   use crate::swc_util::SwcDiagnosticBuffer;
 
-  #[test]
-  fn scopes() {
+  fn test_scopes(source_code: &str) -> ScopeManager {
     let ast_parser = AstParser::new();
     let syntax = swc_util::get_default_ts_config();
 
+    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
+      "file_name.ts",
+      syntax,
+      source_code,
+      |parse_result, _comments| {
+        let module = parse_result?;
+        let mut scope_visitor = ScopeVisitor::new();
+        scope_visitor.visit_module(&module, &module);
+        let root_scope = scope_visitor.consume();
+        Ok(root_scope)
+      },
+    );
+    assert!(r.is_ok());
+    r.unwrap()
+  }
+
+  #[test]
+  fn scopes() {
     let source_code = r#"
 const a = "a";
 const unused = "unused";
@@ -768,21 +785,7 @@ try {
   const msg = "asdf " + e.message;
 }
 "#;
-
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -818,9 +821,6 @@ try {
 
   #[test]
   fn switch_scope() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
-
     let source_code = r#"
 switch (foo) {
   case "foo":
@@ -835,21 +835,7 @@ switch (foo) {
     return defaultVal;
 }
 "#;
-
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -869,9 +855,6 @@ switch (foo) {
   }
   #[test]
   fn loop_scopes() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
-
     let source_code = r#"
     for (let i = 0; i < 10; i++){}
     for (let i in [1,2,3]){}
@@ -879,21 +862,7 @@ switch (foo) {
     while (i > 1) {}
     do {} while (i > 1)
 "#;
-
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -935,27 +904,12 @@ switch (foo) {
 
   #[test]
   fn call_new_expressions() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
     let source_code = r#"
     Deno.test("first test", function(){});
     new Deno(function(){});
     "#;
 
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -977,8 +931,6 @@ switch (foo) {
 
   #[test]
   fn object_literal() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
     let source_code = r#"
     let obj = {
       method(){
@@ -1000,21 +952,7 @@ switch (foo) {
       }
     }
     "#;
-
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -1054,9 +992,6 @@ switch (foo) {
 
   #[test]
   fn array_literal() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
-
     let source_code = r#"
     let array = [
       function x(){ const a; },
@@ -1072,20 +1007,7 @@ switch (foo) {
     ]
     "#;
 
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -1126,9 +1048,6 @@ switch (foo) {
 
   #[test]
   fn import_binding() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
-
     let source_code = r#"
     import defaultExport1 from "module-name";
     import * as namespaced1 from "module-name";
@@ -1142,20 +1061,7 @@ switch (foo) {
     var promise = import("module-name");
     "#;
 
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
 
     let root_scope = scope_manager.get_root_scope();
     assert_eq!(root_scope.kind, ScopeKind::Program);
@@ -1187,8 +1093,6 @@ switch (foo) {
 
   #[test]
   fn destructuring_assignment() {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
     let source_code = r#"
 const {a} = {a : "a"};
 const {a: {b}} = {a : {b: "b"}};
@@ -1207,20 +1111,7 @@ function getPerson({username="disizali",info: [name, family]}) {
 }
 try{} catch({message}){};
 "#;
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    let scope_manager = r.unwrap();
+    let scope_manager = test_scopes(source_code);
     let root_scope = scope_manager.get_root_scope();
     let module_scope_id = *root_scope.child_scopes.first().unwrap();
     let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
