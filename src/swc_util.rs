@@ -13,6 +13,8 @@ use swc_common::FileName;
 use swc_common::Globals;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_common::DUMMY_SP;
+use swc_ecma_ast::Expr;
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::EsConfig;
 use swc_ecma_parser::JscTarget;
@@ -21,6 +23,7 @@ use swc_ecma_parser::Session;
 use swc_ecma_parser::SourceFileInput;
 use swc_ecma_parser::Syntax;
 use swc_ecma_parser::TsConfig;
+use swc_ecma_visit::Fold;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -203,5 +206,26 @@ impl AstParser {
 impl Default for AstParser {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+/// A folder to drop all spans of a subtree.
+struct SpanDropper;
+
+impl Fold for SpanDropper {
+  fn fold_span(&mut self, _: Span) -> Span {
+    DUMMY_SP
+  }
+}
+
+/// Provides an additional method to drop spans.
+pub(crate) trait DropSpan {
+  fn drop_span(self) -> Self;
+}
+
+impl DropSpan for Expr {
+  fn drop_span(self) -> Self {
+    let mut dropper = SpanDropper;
+    dropper.fold_expr(self)
   }
 }
