@@ -8,19 +8,19 @@ use swc_ecma_ast::LabeledStmt;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct NoUnusedLabel;
+pub struct NoUnusedLabels;
 
-impl LintRule for NoUnusedLabel {
+impl LintRule for NoUnusedLabels {
   fn new() -> Box<Self> {
-    Box::new(NoUnusedLabel)
+    Box::new(NoUnusedLabels)
   }
 
   fn code(&self) -> &'static str {
-    "no-unused-label"
+    "no-unused-labels"
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
-    let mut visitor = NoUnusedLabelVisitor::new(context);
+    let mut visitor = NoUnusedLabelsVisitor::new(context);
     visitor.visit_module(&module, &module);
   }
 }
@@ -30,12 +30,12 @@ struct LabelScope {
   name: String,
 }
 
-struct NoUnusedLabelVisitor {
+struct NoUnusedLabelsVisitor {
   context: Context,
   label_scopes: Vec<LabelScope>,
 }
 
-impl NoUnusedLabelVisitor {
+impl NoUnusedLabelsVisitor {
   pub fn new(context: Context) -> Self {
     Self {
       context,
@@ -57,7 +57,7 @@ impl NoUnusedLabelVisitor {
   }
 }
 
-impl Visit for NoUnusedLabelVisitor {
+impl Visit for NoUnusedLabelsVisitor {
   fn visit_labeled_stmt(
     &mut self,
     labeled_stmt: &LabeledStmt,
@@ -74,7 +74,7 @@ impl Visit for NoUnusedLabelVisitor {
     if !scope.used {
       self.context.add_diagnostic(
         labeled_stmt.span,
-        "no-unused-label",
+        "no-unused-labels",
         &format!("\"{}\" label is never used", name),
       );
     }
@@ -100,25 +100,25 @@ mod tests {
 
   #[test]
   fn no_unused_label_ok() {
-    assert_lint_ok::<NoUnusedLabel>(
+    assert_lint_ok::<NoUnusedLabels>(
       "LABEL: for (let i = 0; i < 5; i++) { a(); break LABEL; }",
     );
-    assert_lint_ok::<NoUnusedLabel>("LABEL: for (let i = 0; i < 5; i++) { a(); if (i < 3) { continue LABEL; } b(); if (i > 3) { break LABEL; } }");
-    assert_lint_ok::<NoUnusedLabel>("LABEL: { a(); b(); break LABEL; c(); }");
-    assert_lint_ok::<NoUnusedLabel>("A: { B: break B; C: for (var i = 0; i < 10; ++i) { foo(); if (a) break A; if (c) continue C; bar(); } }");
-    assert_lint_ok::<NoUnusedLabel>("LABEL: while(true) { break LABEL; }");
-    assert_lint_ok::<NoUnusedLabel>("LABEL: break LABEL;");
+    assert_lint_ok::<NoUnusedLabels>("LABEL: for (let i = 0; i < 5; i++) { a(); if (i < 3) { continue LABEL; } b(); if (i > 3) { break LABEL; } }");
+    assert_lint_ok::<NoUnusedLabels>("LABEL: { a(); b(); break LABEL; c(); }");
+    assert_lint_ok::<NoUnusedLabels>("A: { B: break B; C: for (var i = 0; i < 10; ++i) { foo(); if (a) break A; if (c) continue C; bar(); } }");
+    assert_lint_ok::<NoUnusedLabels>("LABEL: while(true) { break LABEL; }");
+    assert_lint_ok::<NoUnusedLabels>("LABEL: break LABEL;");
   }
 
   #[test]
   fn no_unused_label_err() {
-    assert_lint_err::<NoUnusedLabel>("LABEL: var a = 0;", 0);
-    assert_lint_err::<NoUnusedLabel>("LABEL: if (something) { a(); }", 0);
-    assert_lint_err::<NoUnusedLabel>(
+    assert_lint_err::<NoUnusedLabels>("LABEL: var a = 0;", 0);
+    assert_lint_err::<NoUnusedLabels>("LABEL: if (something) { a(); }", 0);
+    assert_lint_err::<NoUnusedLabels>(
       "LABEL: for (let i = 0; i < 5; i++) { a(); b(); }",
       0,
     );
-    assert_lint_err::<NoUnusedLabel>(
+    assert_lint_err::<NoUnusedLabels>(
       "A: for (var i = 0; i < 10; ++i) { B: break A; }",
       34,
     );
