@@ -50,6 +50,7 @@ mod no_this_before_super;
 mod no_throw_literal;
 mod no_unsafe_finally;
 mod no_unsafe_negation;
+mod no_unused_label;
 mod no_var;
 mod no_with;
 mod prefer_as_const;
@@ -117,6 +118,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_const_assign::NoConstAssign::new(),
+    no_unused_label::NoUnusedLabel::new(),
   ]
 }
 
@@ -180,5 +182,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_const_assign::NoConstAssign::new(),
+    no_unused_label::NoUnusedLabel::new(),
   ]
 }
