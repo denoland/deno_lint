@@ -171,7 +171,8 @@ fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
     | (Unary(_), Unary(_))
     | (Update(_), Update(_))
     | (Bin(_), Bin(_))
-    | (Assign(_), Member(_))
+    | (Assign(_), Assign(_))
+    | (Member(_), Member(_))
     | (Cond(_), Cond(_))
     | (Call(_), Call(_))
     | (New(_), New(_))
@@ -228,12 +229,33 @@ mod tests {
     assert_lint_ok::<NoDupeElseIf>("if (a) if (a) {}");
     assert_lint_ok::<NoDupeElseIf>("if (a) if (a);");
     assert_lint_ok::<NoDupeElseIf>("if (a) { if (a) {} }");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else { if (a) {} }");
+    assert_lint_ok::<NoDupeElseIf>(
+      r#"
+if (a) {}
+else {
+  if (a) {}
+}
+"#,
+    );
     assert_lint_ok::<NoDupeElseIf>("if (a) {} if (a) {}");
     assert_lint_ok::<NoDupeElseIf>("if (a); if (a);");
     assert_lint_ok::<NoDupeElseIf>("while (a) if (a);");
     assert_lint_ok::<NoDupeElseIf>("if (a); else a ? a : a;");
-    assert_lint_ok::<NoDupeElseIf>("if (a) { if (b) {} } else if (b) {}");
+    assert_lint_ok::<NoDupeElseIf>(
+      r#"
+if (a) {
+  if (b) {}
+} else if (b) {}
+"#,
+    );
+    assert_lint_ok::<NoDupeElseIf>(
+      r#"
+if (a) {
+  if (b !== 1) {}
+  else if (b !== 2) {}
+} else if (c) {}
+"#,
+    );
     assert_lint_ok::<NoDupeElseIf>("if (a) if (b); else if (a);");
     assert_lint_ok::<NoDupeElseIf>("if (a) {} else if (!!a) {}");
     assert_lint_ok::<NoDupeElseIf>("if (a === 1) {} else if (a === (1)) {}");
@@ -308,9 +330,50 @@ mod tests {
       vec![34, 49, 64],
     );
     assert_lint_err::<NoDupeElseIf>("if (a) { if (b) {} } else if (a) {}", 30);
+    assert_lint_err::<NoDupeElseIf>("if (this) {} else if (this) {}", 22);
+    assert_lint_err::<NoDupeElseIf>("if ([a]) {} else if ([a]) {}", 21);
+    assert_lint_err::<NoDupeElseIf>("if ({a: 1}) {} else if ({a: 1}) {}", 24);
+    assert_lint_err::<NoDupeElseIf>(
+      "if (function () {}) {} else if (function () {}) {}",
+      32,
+    );
+    assert_lint_err::<NoDupeElseIf>("if (!a) {} else if (!a) {}", 20);
+    assert_lint_err::<NoDupeElseIf>("if (++a) {} else if (++a) {}", 21);
     assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a === 1) {}", 25);
     assert_lint_err::<NoDupeElseIf>("if (1 < a) {} else if (1 < a) {}", 23);
+    assert_lint_err::<NoDupeElseIf>("if (a = b) {} else if (a = b) {}", 23);
+    assert_lint_err::<NoDupeElseIf>("if (a.b) {} else if (a.b) {}", 21);
+    assert_lint_err::<NoDupeElseIf>("if (a[b]) {} else if (a[b]) {}", 22);
+    assert_lint_err::<NoDupeElseIf>(
+      "if (a ? 1 : 2) {} else if (a ? 1 : 2) {}",
+      27,
+    );
+    assert_lint_err::<NoDupeElseIf>("if (a()) {} else if (a()) {}", 21);
+    assert_lint_err::<NoDupeElseIf>("if (new A()) {} else if (new A()) {}", 25);
     assert_lint_err::<NoDupeElseIf>("if (true) {} else if (true) {}", 22);
+    assert_lint_err::<NoDupeElseIf>("if (`a`) {} else if (`a`) {}", 21);
+    assert_lint_err::<NoDupeElseIf>("if (a`b`) {} else if (a`b`) {}", 22);
+    assert_lint_err::<NoDupeElseIf>("if (a => {}) {} else if (a => {}) {}", 25);
+    assert_lint_err::<NoDupeElseIf>(
+      "if (class A {}) {} else if (class A {}) {}",
+      28,
+    );
+    assert_lint_err_on_line::<NoDupeElseIf>(
+      r#"
+function* foo(a) {
+  if (yield a) {}
+  else if (yield a) {}
+}
+      "#,
+      4,
+      11,
+    );
+    assert_lint_err::<NoDupeElseIf>(
+      "if (new.target) {} else if (new.target) {}",
+      28,
+    );
+    assert_lint_err::<NoDupeElseIf>("if (await a) {} else if (await a) {}", 25);
+    assert_lint_err::<NoDupeElseIf>("if ((a)) {} else if ((a)) {}", 21);
     assert_lint_err::<NoDupeElseIf>("if (a && b) {} else if (a && b) {}", 24);
     assert_lint_err::<NoDupeElseIf>(
       "if (a && b || c)  {} else if (a && b || c) {}",
@@ -418,5 +481,26 @@ mod tests {
     assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a && a) {}", 19);
     assert_lint_err::<NoDupeElseIf>("if (a && a) {} else if (a && a) {}", 24);
     assert_lint_err::<NoDupeElseIf>("if (a && a) {} else if (a) {}", 24);
+
+    assert_lint_err_on_line::<NoDupeElseIf>(
+      r#"
+if (foo) {
+  if (a == 1) {}
+  else if (a == 1) {}
+}
+      "#,
+      4,
+      11,
+    );
+    assert_lint_err_on_line::<NoDupeElseIf>(
+      r#"
+if (foo) {
+  if (a == 1) {}
+  else if (a > 1) {}
+} else if (foo) {}
+      "#,
+      5,
+      11,
+    );
   }
 }
