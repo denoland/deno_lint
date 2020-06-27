@@ -218,40 +218,7 @@ impl Fold for SpanDropper {
   }
 }
 
-///// A struct that has span-dropped ast node.
-//#[derive(Debug, Eq, PartialEq)]
-//pub(crate) struct SpanDropped<T: std::fmt::Debug + Eq + PartialEq>(T);
-
-//impl<T: std::fmt::Debug + Eq + PartialEq> SpanDropped<T> {
-//pub(crate) fn as_ref(&self) -> SpanDropped<&T> {
-//let SpanDropped(ref inner) = self;
-//SpanDropped(inner)
-//}
-//}
-
-//impl<T> PartialOrd for SpanDropped<T>
-//where
-//T: std::fmt::Debug + Eq + PartialEq,
-//{
-//fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-//Some(self.cmp(other))
-//}
-//}
-
-//impl<T> Ord for SpanDropped<T>
-//where
-//T: std::fmt::Debug + Eq + PartialEq,
-//{
-//fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-//let SpanDropped(ref self_inner) = self;
-//let SpanDropped(ref other_inner) = other;
-//let self_debug = format!("{:?}", self_inner);
-//let other_debug = format!("{:?}", other_inner);
-//self_debug.cmp(&other_debug)
-//}
-//}
-
-/// Provides a additional method to drop spans.
+/// Provides an additional method to drop spans.
 pub(crate) trait DropSpan {
   fn drop_span(self) -> Self;
 }
