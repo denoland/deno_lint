@@ -248,7 +248,7 @@ impl Linter {
       })
       .collect();
 
-    if self.lint_unused_ignore_directives {
+    if self.lint_unused_ignore_directives || self.lint_unknown_rules {
       for ignore_directive in ignore_directives {
         for (code, used) in ignore_directive.used_codes.iter() {
           if !used && rule_codes.contains(code) {
@@ -258,6 +258,14 @@ impl Linter {
               &format!("Ignore for code \"{}\" was not used.", code),
             );
             filtered_diagnostics.push(diagnostic);
+          }
+
+          if !rule_codes.contains(code) {
+            filtered_diagnostics.push(context.create_diagnostic(
+              ignore_directive.span,
+              "ban-unknown-rule-code",
+              &format!("Unknown rule for code \"{}\"", code),
+            ))
           }
         }
       }
