@@ -107,6 +107,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-throw-literal`](https://eslint.org/docs/rules/no-throw-literal)
 - [`no-unsafe-finally`](https://eslint.org/docs/rules/no-unsafe-finally)
 - [`no-unsafe-negation`](https://eslint.org/docs/rules/no-unsafe-negation)
+- [`no-unused-labels`](https://eslint.org/docs/rules/no-unused-labels)
 - [`no-var`](https://eslint.org/docs/rules/no-var)
 - [`no-with`](https://eslint.org/docs/rules/no-with)
 - [`prefer-namespace-keyword`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-namespace-keyword.md)
