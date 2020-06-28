@@ -99,6 +99,7 @@ pub struct Linter {
   pub ignore_file_directive: String,
   pub ignore_diagnostic_directives: Vec<String>,
   pub lint_unused_ignore_directives: bool,
+  pub lint_unknown_rules: bool,
 }
 
 impl Linter {
@@ -108,6 +109,7 @@ impl Linter {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
       lint_unused_ignore_directives: true,
+      lint_unknown_rules: true,
     }
   }
 
@@ -115,12 +117,14 @@ impl Linter {
     ignore_file_directive: String,
     ignore_diagnostic_directives: Vec<String>,
     lint_unused_ignore_directives: bool,
+    lint_unknown_rules: bool,
   ) -> Self {
     Linter {
       ast_parser: AstParser::new(),
       ignore_file_directive,
       ignore_diagnostic_directives,
       lint_unused_ignore_directives,
+      lint_unknown_rules,
     }
   }
 
@@ -248,16 +252,27 @@ impl Linter {
       })
       .collect();
 
-    if self.lint_unused_ignore_directives {
+    if self.lint_unused_ignore_directives || self.lint_unknown_rules {
       for ignore_directive in ignore_directives {
         for (code, used) in ignore_directive.used_codes.iter() {
-          if !used && rule_codes.contains(code) {
+          if self.lint_unused_ignore_directives
+            && !used
+            && rule_codes.contains(code)
+          {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
               "ban-unused-ignore",
               &format!("Ignore for code \"{}\" was not used.", code),
             );
             filtered_diagnostics.push(diagnostic);
+          }
+
+          if self.lint_unknown_rules && !rule_codes.contains(code) {
+            filtered_diagnostics.push(context.create_diagnostic(
+              ignore_directive.span,
+              "ban-unknown-rule-code",
+              &format!("Unknown rule for code \"{}\"", code),
+            ))
           }
         }
       }

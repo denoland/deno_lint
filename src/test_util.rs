@@ -9,6 +9,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let syntax = swc_util::get_default_ts_config();
   let mut linter = Linter::default();
   linter.lint_unused_ignore_directives = false;
+  linter.lint_unknown_rules = false;
   linter
     .lint(
       "deno_lint_test.tsx".to_string(),
@@ -19,7 +20,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .expect("Failed to lint")
 }
 
-fn assert_diagnostic(
+pub fn assert_diagnostic(
   diagnostic: &LintDiagnostic,
   code: &str,
   line: usize,
