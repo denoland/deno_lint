@@ -44,6 +44,7 @@ mod no_octal;
 mod no_prototype_builtins;
 mod no_regex_spaces;
 mod no_setter_return;
+mod no_shadow_restricted_names;
 mod no_sparse_array;
 mod no_this_alias;
 mod no_this_before_super;
@@ -119,6 +120,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_inferrable_types::NoInferrableTypes::new(),
     no_const_assign::NoConstAssign::new(),
     no_unused_labels::NoUnusedLabels::new(),
+    no_shadow_restricted_names::NoShadowRestrictedNames::new(),
   ]
 }
 
@@ -183,5 +185,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_inferrable_types::NoInferrableTypes::new(),
     no_const_assign::NoConstAssign::new(),
     no_unused_labels::NoUnusedLabels::new(),
+    no_shadow_restricted_names::NoShadowRestrictedNames::new(),
   ]
 }
