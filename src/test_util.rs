@@ -20,7 +20,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .expect("Failed to lint")
 }
 
-fn assert_diagnostic(
+pub fn assert_diagnostic(
   diagnostic: &LintDiagnostic,
   code: &str,
   line: usize,
