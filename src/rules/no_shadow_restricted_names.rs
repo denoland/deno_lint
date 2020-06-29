@@ -54,6 +54,8 @@ impl NoShadowRestrictedNamesVisitor {
   fn check_pat(&self, pat: &Pat, check_scope: bool) {
     match pat {
       Pat::Ident(ident) => {
+        // trying to assign `undefined`
+        // Check is scope is valid for current pattern
         if &ident.sym.to_string() == "undefined" && check_scope {
           let scope = self.scope_manager.get_scope_for_span(ident.span);
 
@@ -120,6 +122,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
   fn visit_var_decl(&mut self, node: &VarDecl, parent: &dyn Node) {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {
+        // `undefined` variable declaration without init is have same meaning
         if decl.init.is_none() && &ident.sym.to_string() == "undefined" {
           continue;
         }
