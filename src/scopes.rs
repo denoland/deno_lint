@@ -329,6 +329,9 @@ impl ScopeVisitor {
       Pat::Object(object) => {
         self.check_obj_pat(object, kind);
       }
+      Pat::Rest(rest) => {
+        self.check_pat(&rest.arg, kind);
+      }
       _ => {}
     }
   }
@@ -340,13 +343,19 @@ impl ScopeVisitor {
   ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
-        if let ObjectPatProp::Assign(assign_prop) = prop {
-          self.scope_manager.add_binding(Binding {
-            kind: kind.clone(),
-            name: assign_prop.key.sym.to_string(),
-          });
-        } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
-          self.check_pat(&kv_prop.value, kind.clone());
+        match prop {
+          ObjectPatProp::Assign(assign_prop) => {
+            self.scope_manager.add_binding(Binding {
+              kind: kind.clone(),
+              name: assign_prop.key.sym.to_string(),
+            });
+          }
+          ObjectPatProp::KeyValue(kv_prop) => {
+            self.check_pat(&kv_prop.value, kind.clone());
+          }
+          ObjectPatProp::Rest(rest) => {
+            self.check_pat(&rest.arg, kind.clone());
+          }
         }
       }
     }
@@ -1200,6 +1209,8 @@ const [i, {j}] = ["i",{j: "j"}];
 const {a: {b : [k,{l}]}} = {a: {b : ["k",{l : "l"}]}};
 const {m = "M"} = {};
 const [n = "N"] = [];
+const {...o} = {o : "O"};
+const [...p] = ["p"];
 function getPerson({username="disizali",info: [name, family]}) {
   try {
     throw 'TryAgain';
@@ -1238,6 +1249,8 @@ try{} catch({message}){};
     assert!(module_scope.get_binding("l").is_some());
     assert!(module_scope.get_binding("m").is_some());
     assert!(module_scope.get_binding("n").is_some());
+    assert!(module_scope.get_binding("o").is_some());
+    assert!(module_scope.get_binding("p").is_some());
 
     let function_scope_id = *module_scope.child_scopes.first().unwrap();
     let function_scope = scope_manager.get_scope(function_scope_id).unwrap();
