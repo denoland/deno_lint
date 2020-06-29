@@ -94,34 +94,77 @@ impl IgnoreDirective {
   }
 }
 
-pub struct Linter {
-  pub ast_parser: AstParser,
-  pub ignore_file_directive: String,
-  pub ignore_diagnostic_directives: Vec<String>,
-  pub lint_unused_ignore_directives: bool,
-  pub lint_unknown_rules: bool,
+pub struct LinterBuilder {
+  ignore_file_directives: Vec<String>,
+  ignore_diagnostic_directives: Vec<String>,
+  lint_unused_ignore_directives: bool,
+  lint_unknown_rules: bool,
 }
 
-impl Linter {
+impl LinterBuilder {
   pub fn default() -> Self {
-    Linter {
-      ast_parser: AstParser::new(),
-      ignore_file_directive: "deno-lint-ignore-file".to_string(),
+    Self {
+      ignore_file_directives: vec!["deno-lint-ignore-file".to_string()],
       ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
       lint_unused_ignore_directives: true,
       lint_unknown_rules: true,
     }
   }
 
-  pub fn new(
-    ignore_file_directive: String,
+  pub fn build(self) -> Linter {
+    Linter::new(
+      self.ignore_file_directives,
+      self.ignore_diagnostic_directives,
+      self.lint_unused_ignore_directives,
+      self.lint_unknown_rules,
+    )
+  }
+
+  pub fn ignore_file_directives(mut self, directives: Vec<String>) -> Self {
+    self.ignore_file_directives = directives;
+    self
+  }
+
+  pub fn ignore_diagnostic_directives(
+    mut self,
+    directives: Vec<String>,
+  ) -> Self {
+    self.ignore_diagnostic_directives = directives;
+    self
+  }
+
+  pub fn lint_unused_ignore_directives(
+    mut self,
+    lint_unused_ignore_directives: bool,
+  ) -> Self {
+    self.lint_unused_ignore_directives = lint_unused_ignore_directives;
+    self
+  }
+
+  pub fn lint_unknown_rules(mut self, lint_unknown_rules: bool) -> Self {
+    self.lint_unknown_rules = lint_unknown_rules;
+    self
+  }
+}
+
+pub struct Linter {
+  pub ast_parser: AstParser,
+  pub ignore_file_directives: Vec<String>,
+  pub ignore_diagnostic_directives: Vec<String>,
+  pub lint_unused_ignore_directives: bool,
+  pub lint_unknown_rules: bool,
+}
+
+impl Linter {
+  fn new(
+    ignore_file_directives: Vec<String>,
     ignore_diagnostic_directives: Vec<String>,
     lint_unused_ignore_directives: bool,
     lint_unknown_rules: bool,
   ) -> Self {
     Linter {
       ast_parser: AstParser::new(),
-      ignore_file_directive,
+      ignore_file_directives,
       ignore_diagnostic_directives,
       lint_unused_ignore_directives,
       lint_unknown_rules,
@@ -157,10 +200,11 @@ impl Linter {
       comments.take_leading_comments(module.span.lo())
     {
       for comment in module_leading_comments.iter() {
-        if comment.kind == CommentKind::Line
-          && comment.text.trim() == self.ignore_file_directive
-        {
-          return true;
+        if comment.kind == CommentKind::Line {
+          let text = comment.text.trim().to_string();
+          if self.ignore_file_directives.contains(&text) {
+            return true;
+          }
         }
       }
       comments.add_leading(module.span.lo(), module_leading_comments);

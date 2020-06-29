@@ -2,7 +2,7 @@
 use clap::App;
 use clap::Arg;
 use deno_lint::diagnostic::LintDiagnostic;
-use deno_lint::linter::Linter;
+use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
 use deno_lint::swc_util::get_default_ts_config;
 use std::fmt;
@@ -130,7 +130,7 @@ fn main() {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
 
-    let mut linter = Linter::default();
+    let mut linter = LinterBuilder::default().build();
 
     let rules = get_recommended_rules();
     let syntax = get_default_ts_config();

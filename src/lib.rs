@@ -27,10 +27,11 @@ mod lint_tests {
     unknown_rules: bool,
     unused_dir: bool,
   ) -> Vec<LintDiagnostic> {
-    let mut linter = Linter::default();
+    let mut linter = LinterBuilder::default()
+      .lint_unknown_rules(unknown_rules)
+      .lint_unused_ignore_directives(unused_dir)
+      .build();
 
-    linter.lint_unknown_rules = unknown_rules;
-    linter.lint_unused_ignore_directives = unused_dir;
     linter
       .lint(
         "lint_test.ts".to_string(),
