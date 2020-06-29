@@ -51,19 +51,17 @@ impl NoShadowRestrictedNamesVisitor {
     }
   }
 
-  fn check_pat(&self, pat: &Pat) {
+  fn check_pat(&self, pat: &Pat, check_scope: bool) {
     match pat {
       Pat::Ident(ident) => {
-        let scope = self.scope_manager.get_scope_for_span(ident.span);
+        if &ident.sym.to_string() == "undefined" && check_scope {
+          let scope = self.scope_manager.get_scope_for_span(ident.span);
 
-        if &ident.sym.to_string() == "undefined" {
-          if let Some(binding) = self
+          if let Some(_binding) = self
             .scope_manager
             .get_binding(&scope, ident.sym.to_string().as_str())
           {
-            if binding.name == *ident.sym.to_string() {
-              self.report_shadowing(&ident);
-            }
+            self.report_shadowing(&ident);
           }
 
           return;
@@ -79,7 +77,7 @@ impl NoShadowRestrictedNamesVisitor {
       Pat::Array(array_pat) => {
         for el in &array_pat.elems {
           if el.is_some() {
-            self.check_pat(el.as_ref().unwrap())
+            self.check_pat(el.as_ref().unwrap(), false);
           }
         }
       }
@@ -89,12 +87,15 @@ impl NoShadowRestrictedNamesVisitor {
             ObjectPatProp::Assign(assign) => {
               self.check_shadowing(&assign.key);
             }
-            ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg),
+            ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg, false),
             ObjectPatProp::KeyValue(key_value) => {
-              self.check_pat(&key_value.value);
+              self.check_pat(&key_value.value, false);
             }
           }
         }
+      }
+      Pat::Rest(rest_pat) => {
+        self.check_pat(&rest_pat.arg, false);
       }
       _ => {}
     }
@@ -124,7 +125,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
         }
       }
 
-      self.check_pat(&decl.name);
+      self.check_pat(&decl.name, false);
     }
 
     swc_ecma_visit::visit_var_decl(self, node, parent);
@@ -134,7 +135,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
     self.check_shadowing(&node.ident);
 
     for param in &node.function.params {
-      self.check_pat(&param.pat);
+      self.check_pat(&param.pat, false);
     }
 
     swc_ecma_visit::visit_fn_decl(self, node, parent);
@@ -146,7 +147,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
     }
 
     for param in &node.function.params {
-      self.check_pat(&param.pat);
+      self.check_pat(&param.pat, false);
     }
 
     swc_ecma_visit::visit_fn_expr(self, node, parent);
@@ -154,21 +155,23 @@ impl Visit for NoShadowRestrictedNamesVisitor {
 
   fn visit_arrow_expr(&mut self, node: &ArrowExpr, parent: &dyn Node) {
     for param in &node.params {
-      self.check_pat(&param);
+      self.check_pat(&param, false);
     }
 
     swc_ecma_visit::visit_arrow_expr(self, node, parent);
   }
 
-  fn visit_catch_clause(&mut self, node: &CatchClause, _parent: &dyn Node) {
+  fn visit_catch_clause(&mut self, node: &CatchClause, parent: &dyn Node) {
     if node.param.is_some() {
-      self.check_pat(node.param.as_ref().unwrap());
+      self.check_pat(node.param.as_ref().unwrap(), false);
     }
+
+    swc_ecma_visit::visit_catch_clause(self, node, parent);
   }
 
   fn visit_assign_expr(&mut self, node: &AssignExpr, _parent: &dyn Node) {
     if let PatOrExpr::Pat(pat) = &node.left {
-      self.check_pat(pat);
+      self.check_pat(pat, true);
     }
   }
 }
@@ -192,6 +195,8 @@ mod tests {
     );
     assert_lint_ok::<NoShadowRestrictedNames>("var undefined; var undefined;");
     assert_lint_ok::<NoShadowRestrictedNames>("let undefined");
+    assert_lint_ok::<NoShadowRestrictedNames>("let [...foo] = []");
+    assert_lint_ok::<NoShadowRestrictedNames>("function bar (...rest) {}");
   }
 
   #[test]
@@ -282,5 +287,21 @@ mod tests {
       "var undefined; undefined = 5;",
       15,
     );
+    assert_lint_err::<NoShadowRestrictedNames>("var [...undefined] = []", 8);
+    assert_lint_err::<NoShadowRestrictedNames>(
+      "try {} catch { try{} catch(NaN) {} }",
+      27,
+    );
+
+    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
+      r#"
+function foo1(...undefined) {}
+function foo2(...NaN) {}
+function foo3(...arguments) {}
+function foo4(...Infinity) {}
+function foo5(...eval) {}
+      "#,
+      vec![(2, 17), (3, 17), (4, 17), (5, 17), (6, 17)],
+    )
   }
 }
