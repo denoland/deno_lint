@@ -129,15 +129,14 @@ impl LinterBuilder {
   }
 
   pub fn ignore_file_directives(mut self, directives: Vec<&str>) -> Self {
-    self.ignore_file_directives = directives.iter().map(|s| s.to_string()).collect();
+    self.ignore_file_directives =
+      directives.iter().map(|s| s.to_string()).collect();
     self
   }
 
-  pub fn ignore_diagnostic_directives(
-    mut self,
-    directives: Vec<&str>,
-  ) -> Self {
-    self.ignore_diagnostic_directives = directives.iter().map(|s| s.to_string()).collect();
+  pub fn ignore_diagnostic_directives(mut self, directives: Vec<&str>) -> Self {
+    self.ignore_diagnostic_directives =
+      directives.iter().map(|s| s.to_string()).collect();
     self
   }
 
