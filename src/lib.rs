@@ -19,7 +19,6 @@ mod lint_tests {
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
   use crate::rules::get_recommended_rules;
-  use crate::swc_util::get_default_ts_config;
   use crate::test_util::assert_diagnostic;
 
   fn lint(
@@ -27,17 +26,14 @@ mod lint_tests {
     unknown_rules: bool,
     unused_dir: bool,
   ) -> Vec<LintDiagnostic> {
-    let mut linter = Linter::default();
+    let mut linter = LinterBuilder::default()
+      .lint_unknown_rules(unknown_rules)
+      .lint_unused_ignore_directives(unused_dir)
+      .rules(get_recommended_rules())
+      .build();
 
-    linter.lint_unknown_rules = unknown_rules;
-    linter.lint_unused_ignore_directives = unused_dir;
     linter
-      .lint(
-        "lint_test.ts".to_string(),
-        source.to_string(),
-        get_default_ts_config(),
-        get_recommended_rules(),
-      )
+      .lint("lint_test.ts".to_string(), source.to_string())
       .expect("Failed to lint")
   }
 

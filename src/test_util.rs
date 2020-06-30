@@ -1,22 +1,20 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
 use crate::diagnostic::LintDiagnostic;
-use crate::linter::Linter;
+use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
-  let syntax = swc_util::get_default_ts_config();
-  let mut linter = Linter::default();
-  linter.lint_unused_ignore_directives = false;
-  linter.lint_unknown_rules = false;
+  let mut linter = LinterBuilder::default()
+    .lint_unused_ignore_directives(false)
+    .lint_unknown_rules(false)
+    .syntax(swc_util::get_default_ts_config())
+    .rules(vec![rule])
+    .build();
+
   linter
-    .lint(
-      "deno_lint_test.tsx".to_string(),
-      source.to_string(),
-      syntax,
-      vec![rule],
-    )
+    .lint("deno_lint_test.tsx".to_string(), source.to_string())
     .expect("Failed to lint")
 }
 

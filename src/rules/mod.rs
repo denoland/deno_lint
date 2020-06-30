@@ -102,7 +102,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
-    no_non_null_assertion::NoNonNullAssertion::new(),
     no_obj_call::NoObjCall::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
@@ -120,7 +119,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
-    no_const_assign::NoConstAssign::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
   ]
