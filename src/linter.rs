@@ -2,6 +2,7 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::diagnostic::Location;
 use crate::rules::LintRule;
+use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
@@ -13,6 +14,7 @@ use swc_common::comments::CommentMap;
 use swc_common::comments::Comments;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_ecma_parser::Syntax;
 
 #[derive(Clone)]
 pub struct Context {
@@ -99,6 +101,8 @@ pub struct LinterBuilder {
   ignore_diagnostic_directives: Vec<String>,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
+  syntax: swc_ecma_parser::Syntax,
+  rules: Vec<Box<dyn LintRule>>,
 }
 
 impl LinterBuilder {
@@ -108,6 +112,8 @@ impl LinterBuilder {
       ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
       lint_unused_ignore_directives: true,
       lint_unknown_rules: true,
+      syntax: get_default_ts_config(),
+      rules: vec![],
     }
   }
 
@@ -117,6 +123,8 @@ impl LinterBuilder {
       self.ignore_diagnostic_directives,
       self.lint_unused_ignore_directives,
       self.lint_unknown_rules,
+      self.syntax,
+      self.rules,
     )
   }
 
@@ -145,14 +153,27 @@ impl LinterBuilder {
     self.lint_unknown_rules = lint_unknown_rules;
     self
   }
+
+  pub fn syntax(mut self, syntax: Syntax) -> Self {
+    self.syntax = syntax;
+    self
+  }
+
+  pub fn rules(mut self, rules: Vec<Box<dyn LintRule>>) -> Self {
+    self.rules = rules;
+    self
+  }
 }
 
 pub struct Linter {
+  has_linted: bool,
   pub ast_parser: AstParser,
   pub ignore_file_directives: Vec<String>,
   pub ignore_diagnostic_directives: Vec<String>,
   pub lint_unused_ignore_directives: bool,
   pub lint_unknown_rules: bool,
+  syntax: Syntax,
+  rules: Vec<Box<dyn LintRule>>,
 }
 
 impl Linter {
@@ -161,13 +182,18 @@ impl Linter {
     ignore_diagnostic_directives: Vec<String>,
     lint_unused_ignore_directives: bool,
     lint_unknown_rules: bool,
+    syntax: Syntax,
+    rules: Vec<Box<dyn LintRule>>,
   ) -> Self {
     Linter {
+      has_linted: false,
       ast_parser: AstParser::new(),
       ignore_file_directives,
       ignore_diagnostic_directives,
       lint_unused_ignore_directives,
       lint_unknown_rules,
+      syntax,
+      rules,
     }
   }
 
@@ -175,17 +201,19 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-    syntax: swc_ecma_parser::Syntax,
-    rules: Vec<Box<dyn LintRule>>,
   ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
+    assert!(
+      !self.has_linted,
+      "Linter can be used only on a single module."
+    );
+    self.has_linted = true;
     self.ast_parser.parse_module(
       &file_name,
-      syntax,
+      self.syntax,
       &source_code,
       |parse_result, comments| {
         let module = parse_result?;
-        let diagnostics =
-          self.lint_module(file_name.clone(), module, comments, rules);
+        let diagnostics = self.lint_module(file_name.clone(), module, comments);
         Ok(diagnostics)
       },
     )
@@ -275,7 +303,7 @@ impl Linter {
   fn filter_diagnostics(
     &self,
     context: Context,
-    rules: Vec<Box<dyn LintRule>>,
+    rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     let mut ignore_directives = context.ignore_directives.clone();
     let diagnostics = context.diagnostics.lock().unwrap();
@@ -332,7 +360,6 @@ impl Linter {
     file_name: String,
     module: swc_ecma_ast::Module,
     comments: Comments,
-    rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
     if self.has_ignore_file_directive(&comments, &module) {
       return vec![];
@@ -351,10 +378,10 @@ impl Linter {
       ignore_directives,
     };
 
-    for rule in &rules {
+    for rule in &self.rules {
       rule.lint_module(context.clone(), module.clone());
     }
 
-    self.filter_diagnostics(context, rules)
+    self.filter_diagnostics(context, &self.rules)
   }
 }

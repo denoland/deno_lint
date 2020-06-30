@@ -130,13 +130,13 @@ fn main() {
     let source_code =
       std::fs::read_to_string(&file_name).expect("Failed to read file");
 
-    let mut linter = LinterBuilder::default().build();
-
-    let rules = get_recommended_rules();
-    let syntax = get_default_ts_config();
+    let mut linter = LinterBuilder::default()
+      .rules(get_recommended_rules())
+      .syntax(get_default_ts_config())
+      .build();
 
     let file_diagnostics = linter
-      .lint(file_name.to_string(), source_code, syntax, rules)
+      .lint(file_name.to_string(), source_code)
       .expect("Failed to lint");
 
     error_counts += file_diagnostics.len();
