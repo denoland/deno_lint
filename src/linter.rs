@@ -294,9 +294,6 @@ impl Linter {
       }
     });
 
-    // Not entirely sure why, but there are duplicate comments in the comment map:
-    // https://github.com/swc-project/swc/issues/856
-    ignore_directives.dedup();
     ignore_directives
   }
 
