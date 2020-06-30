@@ -167,11 +167,11 @@ impl LinterBuilder {
 
 pub struct Linter {
   has_linted: bool,
-  pub ast_parser: AstParser,
-  pub ignore_file_directives: Vec<String>,
-  pub ignore_diagnostic_directives: Vec<String>,
-  pub lint_unused_ignore_directives: bool,
-  pub lint_unknown_rules: bool,
+  ast_parser: AstParser,
+  ignore_file_directives: Vec<String>,
+  ignore_diagnostic_directives: Vec<String>,
+  lint_unused_ignore_directives: bool,
+  lint_unknown_rules: bool,
   syntax: Syntax,
   rules: Vec<Box<dyn LintRule>>,
 }
