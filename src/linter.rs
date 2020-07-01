@@ -293,9 +293,6 @@ impl Linter {
       }
     });
 
-    // TODO(bartlomieju): remove once https://github.com/swc-project/swc/issues/856
-    // is resolved
-    ignore_directives.dedup();
     ignore_directives
   }
 
