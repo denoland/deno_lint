@@ -74,10 +74,10 @@ impl Visit for BanTypesVisitor {
       return;
     }
     self.context.add_diagnostic(
-        ts_type_lit.span,
-        "ban-types",
-        BANNED_TYPES[5].1, // `Object` message
-      );
+      ts_type_lit.span,
+      "ban-types",
+      BANNED_TYPES[5].1, // `Object` message
+    );
   }
   fn visit_ts_keyword_type(
     &mut self,
