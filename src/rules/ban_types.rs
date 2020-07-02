@@ -39,7 +39,7 @@ const BANNED_TYPES: [(&str, &str); 6] = [
   ("Symbol", "Use `symbol` instead"),
   ("Function", "Define the function shape Explicitly."),
   ("Object", "if you want a type meaning `any object` use `Record<string, unknown>` instead,
-or If you want a type meaning `any value`, you probably want `unknown` instead."),
+or if you want a type meaning `any value`, you probably want `unknown` instead."),
 ];
 
 impl Visit for BanTypesVisitor {
@@ -76,8 +76,7 @@ impl Visit for BanTypesVisitor {
     self.context.add_diagnostic(
         ts_type_lit.span,
         "ban-types",
-        "if you want a type meaning `any object` use `Record<string, unknown>` instead,
-or If you want a type meaning `any value`, you probably want `unknown` instead.",
+        BANNED_TYPES[5].1, // `Object` message
       );
   }
   fn visit_ts_keyword_type(
