@@ -3,6 +3,7 @@ use crate::linter::Context;
 
 mod ban_ts_comment;
 mod ban_ts_ignore;
+mod ban_types;
 mod ban_untagged_ignore;
 mod ban_untagged_todo;
 mod constructor_super;
@@ -75,6 +76,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
   vec![
     ban_ts_comment::BanTsComment::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
+    ban_types::BanTypes::new(),
     constructor_super::ConstructorSuper::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
@@ -128,6 +130,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   vec![
     ban_ts_comment::BanTsComment::new(),
     ban_ts_ignore::BanTsIgnore::new(),
+    ban_types::BanTypes::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
     constructor_super::ConstructorSuper::new(),
