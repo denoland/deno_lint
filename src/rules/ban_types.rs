@@ -137,10 +137,12 @@ mod tests {
       "let a: { b: object, c: Object};",
       vec![12, 23],
     );
+    assert_lint_err::<BanTypes>("let a: { b: { c : Function}};", 18);
     assert_lint_err::<BanTypes>("let a: Array<String>", 13);
     assert_lint_err_n::<BanTypes>("let a: Number<Function>", vec![7, 14]);
-    assert_lint_err::<BanTypes>("let a: { b: { c : Function}};", 18);
     assert_lint_err::<BanTypes>("function foo(a: String) {}", 16);
+    assert_lint_err::<BanTypes>("function foo(): Number {}", 16);
+    assert_lint_err::<BanTypes>("let a: () => Number;", 13);
     assert_lint_err::<BanTypes>("'a' as String;", 7);
     assert_lint_err::<BanTypes>("1 as Number;", 5);
     assert_lint_err_on_line_n::<BanTypes>(
