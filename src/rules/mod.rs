@@ -36,6 +36,7 @@ pub mod no_ex_assign;
 pub mod no_explicit_any;
 pub mod no_extra_boolean_cast;
 pub mod no_extra_non_null_assertion;
+pub mod no_extra_semi;
 pub mod no_func_assign;
 pub mod no_inferrable_types;
 pub mod no_misused_new;
@@ -102,6 +103,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_explicit_any::NoExplicitAny::new(),
     no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
+    no_extra_semi::NoExtraSemi::new(),
     no_func_assign::NoFuncAssign::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
@@ -164,6 +166,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_explicit_any::NoExplicitAny::new(),
     no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
+    no_extra_semi::NoExtraSemi::new(),
     no_func_assign::NoFuncAssign::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),

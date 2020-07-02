@@ -93,6 +93,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-explicit-any`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-explicit-any.md)
 - [`no-extra-boolean-cast`](https://eslint.org/docs/rules/no-extra-boolean-cast)
 - [`no-extra-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-extra-non-null-assertion.md)
+- [`no-extra-semi`](https://eslint.org/docs/rules/no-extra-semi)
 - [`no-func-assign`](https://eslint.org/docs/rules/no-func-assign)
 - [`no-inferrable-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-inferrable-types.md)
 - [`no-misused-new`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-misused-new.md)
