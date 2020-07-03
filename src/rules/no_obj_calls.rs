@@ -9,11 +9,11 @@ use swc_ecma_ast::NewExpr;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
-pub struct NoObjCall;
+pub struct NoObjCalls;
 
-impl LintRule for NoObjCall {
+impl LintRule for NoObjCalls {
   fn new() -> Box<Self> {
-    Box::new(NoObjCall)
+    Box::new(NoObjCalls)
   }
 
   fn code(&self) -> &'static str {
@@ -21,16 +21,16 @@ impl LintRule for NoObjCall {
   }
 
   fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
-    let mut visitor = NoObjCallVisitor::new(context);
+    let mut visitor = NoObjCallsVisitor::new(context);
     visitor.visit_module(&module, &module);
   }
 }
 
-struct NoObjCallVisitor {
+struct NoObjCallsVisitor {
   context: Context,
 }
 
-impl NoObjCallVisitor {
+impl NoObjCallsVisitor {
   pub fn new(context: Context) -> Self {
     Self { context }
   }
@@ -49,7 +49,7 @@ impl NoObjCallVisitor {
   }
 }
 
-impl Visit for NoObjCallVisitor {
+impl Visit for NoObjCallsVisitor {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
@@ -74,61 +74,61 @@ mod tests {
 
   #[test]
   fn test_no_call_math() {
-    assert_lint_err::<NoObjCall>(r#"Math();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"Math();"#, 0)
   }
 
   #[test]
   fn test_no_new_math() {
-    assert_lint_err::<NoObjCall>(r#"new Math();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"new Math();"#, 0)
   }
 
   #[test]
   fn test_no_call_json() {
-    assert_lint_err::<NoObjCall>(r#"JSON();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"JSON();"#, 0)
   }
 
   #[test]
   fn test_no_new_json() {
-    assert_lint_err::<NoObjCall>(r#"new JSON();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"new JSON();"#, 0)
   }
 
   #[test]
   fn test_no_call_reflect() {
-    assert_lint_err::<NoObjCall>(r#"Reflect();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"Reflect();"#, 0)
   }
 
   #[test]
   fn test_no_new_reflect() {
-    assert_lint_err::<NoObjCall>(r#"new Reflect();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"new Reflect();"#, 0)
   }
 
   #[test]
   fn test_no_call_atomicst() {
-    assert_lint_err::<NoObjCall>(r#"Atomics();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"Atomics();"#, 0)
   }
 
   #[test]
   fn test_no_new_atomics() {
-    assert_lint_err::<NoObjCall>(r#"new Atomics();"#, 0)
+    assert_lint_err::<NoObjCalls>(r#"new Atomics();"#, 0)
   }
 
   #[test]
   fn test_math_func_ok() {
-    assert_lint_ok::<NoObjCall>("Math.PI * 2 * 3;");
+    assert_lint_ok::<NoObjCalls>("Math.PI * 2 * 3;");
   }
 
   #[test]
   fn test_new_json_ok() {
-    assert_lint_ok::<NoObjCall>("JSON.parse(\"{}\");");
+    assert_lint_ok::<NoObjCalls>("JSON.parse(\"{}\");");
   }
 
   #[test]
   fn test_reflect_get_ok() {
-    assert_lint_ok::<NoObjCall>("Reflect.get({ x: 1, y: 2 }, \"x\");");
+    assert_lint_ok::<NoObjCalls>("Reflect.get({ x: 1, y: 2 }, \"x\");");
   }
 
   #[test]
   fn test_atomic_load_ok() {
-    assert_lint_ok::<NoObjCall>("Atomics.load(foo, 0);");
+    assert_lint_ok::<NoObjCalls>("Atomics.load(foo, 0);");
   }
 }

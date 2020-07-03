@@ -23,32 +23,32 @@ Blazing fast, see comparison with ESLint:
 
 ```
 [
-   {
-      "name":"deno_lint",
-      "totalMs":12.234113999999863,
-      "runsCount":5,
-      "runsAvgMs":2.4468227999999725,
-      "runsMs":[
-         3.500347000000147,
-         2.2351940000000923,
-         2.2010919999997896,
-         2.1718909999999596,
-         2.1255899999998746
-      ]
-   },
-   {
-      "name":"eslint",
-      "totalMs":11414.694615999999,
-      "runsCount":5,
-      "runsAvgMs":2282.9389232,
-      "runsMs":[
-         2489.383729,
-         2225.3896830000003,
-         2226.8073840000006,
-         2252.641211,
-         2220.4726089999986
-      ]
-   }
+  {
+    "name": "deno_lint",
+    "totalMs": 830.5838349999995,
+    "runsCount": 5,
+    "runsAvgMs": 166.1167669999999,
+    "runsMs": [
+      163.71872200000007,
+      160.46893499999987,
+      169.2397719999999,
+      167.75393099999974,
+      169.40247499999987
+    ]
+  },
+  {
+    "name": "eslint",
+    "totalMs": 11783.570954999997,
+    "runsCount": 5,
+    "runsAvgMs": 2356.7141909999996,
+    "runsMs": [
+      2559.053129,
+      2383.412156999999,
+      2261.1746249999997,
+      2306.645263999999,
+      2273.28578
+    ]
+  }
 ]
 ```
 
@@ -60,9 +60,9 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 
 - [`ban-ts-comment`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-ts-comment.md)
 - `ban-ts-ignore`
+- [`ban-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-types.md)
 - `ban-untagged-ignore`
 - `ban-untagged-todo`
-- [`ban-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-types.md)
 - [`constructor-super`](https://eslint.org/docs/rules/constructor-super)
 - [`default-param-last`](https://eslint.org/docs/rules/default-param-last)
 - [`eqeqeq`](https://eslint.org/docs/rules/eqeqeq)
@@ -98,11 +98,12 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-namespace`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-namespace.md)
 - [`no-new-symbol`](https://eslint.org/docs/rules/no-new-symbol)
 - [`no-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-non-null-assertion.md)
-- `no-obj-call`
+- [`no-obj-calls`](https://eslint.org/docs/rules/no-obj-calls)
 - [`no-octal`](https://eslint.org/docs/rules/no-octal)
 - [`no-prototype-builtins`](https://eslint.org/docs/rules/no-prototype-builtins)
 - [`no-regex-spaces`](https://eslint.org/docs/rules/no-regex-spaces)
 - [`no-setter-return`](https://eslint.org/docs/rules/no-setter-return)
+- [`no-shadow-restricted-names`](https://eslint.org/docs/rules/no-shadow-restricted-names)
 - `no-sparse-array`
 - [`no-this-alias`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-this-alias.md)
 - [`no-this-before-super`](https://eslint.org/docs/rules/no-this-before-super)
@@ -112,6 +113,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-unused-labels`](https://eslint.org/docs/rules/no-unused-labels)
 - [`no-var`](https://eslint.org/docs/rules/no-var)
 - [`no-with`](https://eslint.org/docs/rules/no-with)
+- [`prefer-as-const`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-as-const.md)
 - [`prefer-namespace-keyword`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-namespace-keyword.md)
 - [`require-yield`](https://eslint.org/docs/rules/require-yield)
 - `single-var-declarator`
