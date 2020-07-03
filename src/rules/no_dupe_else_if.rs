@@ -280,11 +280,6 @@ if (a) {
   }
 
   #[test]
-  fn hogepiyo() {
-    assert_lint_ok::<NoDupeElseIf>("if (a || b) {} else if (a || c) {}");
-  }
-
-  #[test]
   fn no_dupe_else_if_invalid() {
     assert_lint_err::<NoDupeElseIf>(
       "if (a) {} else if (a) {} else if (b) {}",
