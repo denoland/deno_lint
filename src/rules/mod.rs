@@ -42,7 +42,7 @@ pub mod no_misused_new;
 pub mod no_namespace;
 pub mod no_new_symbol;
 pub mod no_non_null_assertion;
-pub mod no_obj_call;
+pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
 pub mod no_regex_spaces;
@@ -106,7 +106,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
-    no_obj_call::NoObjCall::new(),
+    no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
@@ -169,7 +169,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_non_null_assertion::NoNonNullAssertion::new(),
-    no_obj_call::NoObjCall::new(),
+    no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
