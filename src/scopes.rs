@@ -82,7 +82,7 @@ pub struct ScopeManager {
 }
 
 impl ScopeManager {
-  pub fn new() -> Self {
+  pub fn default() -> Self {
     Self {
       scopes: HashMap::new(),
       scope_stack: vec![],
@@ -244,7 +244,7 @@ impl ScopeVisitor {
 impl ScopeVisitor {
   pub fn new() -> Self {
     Self {
-      scope_manager: ScopeManager::new(),
+      scope_manager: ScopeManager::default(),
     }
   }
 
