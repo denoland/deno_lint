@@ -64,9 +64,54 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn eqeqeq_test() {
-    assert_lint_err::<Eqeqeq>("kumiko == oumae", 0);
-    assert_lint_err::<Eqeqeq>("reina != kousaka", 0);
-    assert_lint_ok_n::<Eqeqeq>(vec!["midori == null", "null == hazuki"]);
+  fn eqeqeq_valid() {
+    assert_lint_ok::<Eqeqeq>("midori === sapphire");
+    assert_lint_ok::<Eqeqeq>("midori !== hazuki");
+    assert_lint_ok::<Eqeqeq>("kumiko === null");
+    assert_lint_ok::<Eqeqeq>("reina !== null");
+    assert_lint_ok::<Eqeqeq>("null === null");
+    assert_lint_ok::<Eqeqeq>("null !== null");
+  }
+
+  #[test]
+  fn eqeqeq_invalid() {
+    assert_lint_err::<Eqeqeq>("a == b", 0);
+    assert_lint_err::<Eqeqeq>("a != b", 0);
+    assert_lint_err::<Eqeqeq>("typeof a == 'number'", 0);
+    assert_lint_err::<Eqeqeq>("'string' != typeof a", 0);
+    assert_lint_err::<Eqeqeq>("true == true", 0);
+    assert_lint_err::<Eqeqeq>("2 == 3", 0);
+    assert_lint_err::<Eqeqeq>("'hello' != 'world'", 0);
+    assert_lint_err::<Eqeqeq>("a == null", 0);
+    assert_lint_err::<Eqeqeq>("null != a", 0);
+    assert_lint_err::<Eqeqeq>("true == null", 0);
+    assert_lint_err::<Eqeqeq>("true != null", 0);
+    assert_lint_err::<Eqeqeq>("null == null", 0);
+    assert_lint_err::<Eqeqeq>("null != null", 0);
+    assert_lint_err_on_line::<Eqeqeq>(
+      r#"
+a
+==
+b"#,
+      2,
+      0,
+    );
+    assert_lint_err::<Eqeqeq>("(a) == b", 0);
+    assert_lint_err::<Eqeqeq>("(a) != b", 0);
+    assert_lint_err::<Eqeqeq>("a == (b)", 0);
+    assert_lint_err::<Eqeqeq>("a != (b)", 0);
+    assert_lint_err::<Eqeqeq>("(a) == (b)", 0);
+    assert_lint_err::<Eqeqeq>("(a) != (b)", 0);
+    assert_lint_err_n::<Eqeqeq>("(a == b) == (c)", vec![0, 1]);
+    assert_lint_err_n::<Eqeqeq>("(a != b) != (c)", vec![0, 1]);
+    assert_lint_err::<Eqeqeq>("(a == b) === (c)", 1);
+    assert_lint_err::<Eqeqeq>("(a == b) !== (c)", 1);
+    assert_lint_err::<Eqeqeq>("(a === b) == (c)", 0);
+    assert_lint_err::<Eqeqeq>("(a === b) != (c)", 0);
+    assert_lint_err::<Eqeqeq>("a == b;", 0);
+    assert_lint_err::<Eqeqeq>("a!=b;", 0);
+    assert_lint_err::<Eqeqeq>("(a + b) == c;", 0);
+    assert_lint_err::<Eqeqeq>("(a + b)  !=  c;", 0);
+    assert_lint_err::<Eqeqeq>("((1) )  ==  (2);", 0);
   }
 }
