@@ -38,11 +38,16 @@ impl Visit for NoEmptyInterfaceVisitor {
     interface_decl: &TsInterfaceDecl,
     _parent: &dyn Node,
   ) {
-    if interface_decl.body.body.is_empty() {
+    if interface_decl.extends.len() <= 1 && interface_decl.body.body.is_empty()
+    {
       self.context.add_diagnostic(
         interface_decl.span,
         "no-empty-interface",
-        "Empty interfaces are not allowed",
+        if interface_decl.extends.is_empty() {
+          "An empty interface is equivalent to `{}`."
+        } else {
+          "An interface declaring no members is equivalent to its supertype."
+        },
       );
     }
   }
