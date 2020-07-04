@@ -54,10 +54,70 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_empty_interface() {
-    assert_lint_ok::<NoEmptyInterface>(
-      "interface NonEmptyInterface { a: string }",
+  fn no_empty_interface_valid() {
+    assert_lint_ok::<NoEmptyInterface>("interface Foo { a: string }");
+    assert_lint_ok::<NoEmptyInterface>("interface Foo { a: number }");
+
+    // This is valid because an interface with more than one supertype
+    // can be used as a replacement of a union type.
+    assert_lint_ok::<NoEmptyInterface>("interface Foo extends Bar, Baz {}");
+  }
+
+  #[test]
+  fn no_empty_interface_invalid() {
+    assert_lint_err::<NoEmptyInterface>("interface Foo {}", 0);
+    assert_lint_err::<NoEmptyInterface>("interface Foo extends {}", 0);
+    assert_lint_err_on_line::<NoEmptyInterface>(
+      r#"
+interface Foo {
+  a: string;
+}
+
+interface Bar extends Foo {}
+"#,
+      6,
+      0,
     );
-    assert_lint_err::<NoEmptyInterface>("interface EmptyInterface {}", 0);
+    assert_lint_err::<NoEmptyInterface>(
+      "interface Foo extends Array<number> {}",
+      0,
+    );
+    assert_lint_err::<NoEmptyInterface>(
+      "interface Foo extends Array<number | {}> {}",
+      0,
+    );
+    assert_lint_err_on_line::<NoEmptyInterface>(
+      r#"
+interface Foo {
+  a: string;
+}
+
+interface Bar extends Array<Foo> {}
+"#,
+      6,
+      0,
+    );
+    assert_lint_err_on_line::<NoEmptyInterface>(
+      r#"
+type R = Record<string, unknown>;
+interface Foo extends R {}
+"#,
+      3,
+      0,
+    );
+    assert_lint_err::<NoEmptyInterface>(
+      "interface Foo<T> extends Bar<T> {}",
+      0,
+    );
+    assert_lint_err_on_line::<NoEmptyInterface>(
+      r#"
+declare module FooBar {
+  type Baz = typeof baz;
+  export interface Bar extends Baz {}
+}
+"#,
+      4,
+      9,
+    );
   }
 }
