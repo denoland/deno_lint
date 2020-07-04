@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::{BinExpr, BinaryOp, Expr, Lit};
+use swc_ecma_ast::{BinExpr, BinaryOp};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -32,20 +32,9 @@ impl EqeqeqVisitor {
   }
 }
 
-fn is_null(expr: &Expr) -> bool {
-  match expr {
-    Expr::Lit(lit) => matches!(lit, Lit::Null(_)),
-    _ => false,
-  }
-}
-
 impl Visit for EqeqeqVisitor {
-  fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    if bin_expr.op == BinaryOp::EqEq || bin_expr.op == BinaryOp::NotEq {
-      if is_null(&bin_expr.left) || is_null(&bin_expr.right) {
-        return;
-      }
-
+  fn visit_bin_expr(&mut self, bin_expr: &BinExpr, parent: &dyn Node) {
+    if matches!(bin_expr.op, BinaryOp::EqEq | BinaryOp::NotEq) {
       let message = if bin_expr.op == BinaryOp::EqEq {
         "expected '===' and instead saw '=='."
       } else {
@@ -55,6 +44,7 @@ impl Visit for EqeqeqVisitor {
         .context
         .add_diagnostic(bin_expr.span, "eqeqeq", message)
     }
+    swc_ecma_visit::visit_bin_expr(self, bin_expr, parent);
   }
 }
 
