@@ -20,6 +20,7 @@ pub mod no_class_assign;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
 pub mod no_const_assign;
+pub mod no_control_regex;
 pub mod no_debugger;
 pub mod no_delete_var;
 pub mod no_dupe_args;
@@ -88,6 +89,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_class_assign::NoClassAssign::new(),
     no_compare_neg_zero::NoCompareNegZero::new(),
     no_cond_assign::NoCondAssign::new(),
+    no_control_regex::NoControlRegex::new(),
     no_debugger::NoDebugger::new(),
     no_delete_var::NoDeleteVar::new(),
     no_dupe_args::NoDupeArgs::new(),
@@ -194,6 +196,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_const_assign::NoConstAssign::new(),
+    no_control_regex::NoControlRegex::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
   ]
