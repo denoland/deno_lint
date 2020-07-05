@@ -154,6 +154,7 @@ mod tests {
     assert_lint_ok::<NoExtraSemi>("if(true);");
     assert_lint_ok::<NoExtraSemi>("if(true); else;");
     assert_lint_ok::<NoExtraSemi>("foo: ;");
+    assert_lint_ok::<NoExtraSemi>("foo: bar: ;");
     assert_lint_ok::<NoExtraSemi>("with(foo);");
     assert_lint_ok::<NoExtraSemi>("class A { }");
     assert_lint_ok::<NoExtraSemi>("var A = class { };");
@@ -187,5 +188,101 @@ mod tests {
       vec![9, 17, 25],
     );
     assert_lint_err::<NoExtraSemi>("class A { a() {}; get b() {} }", 16);
+
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+for (let i = 0; i < n; i++) {
+  for (;;);;
+}
+"#,
+      3,
+      11,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+while (a) {
+  while (b);;
+}
+"#,
+      3,
+      12,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+do {
+  do {
+    ;
+  } while(a);
+} while(b);
+"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+with(a) {
+  with(b) {
+    ;
+  }
+}
+"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+for (const a of b) {
+  for (const c of d) {
+    ;
+  }
+}
+"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+for (const a in b) {
+  for (const c in d) {
+    ;
+  }
+}
+"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+if (a) {
+  if (b) {
+    ;
+  } else;
+}
+"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+foo: {
+  bar: {
+    ;
+  }
+}
+"#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoExtraSemi>(
+      r#"
+class A {
+  foo() {
+    class B { ; }
+  }
+}
+"#,
+      4,
+      14,
+    );
   }
 }
