@@ -114,7 +114,7 @@ impl Visit for NoExtraSemiVisitor {
         swc_ecma_visit::visit_stmt(self, cons, parent);
       }
     }
-    match if_stmt.alt.as_ref().map(|alt| &**alt) {
+    match if_stmt.alt.as_deref() {
       None | Some(Stmt::Empty(_)) => {}
       Some(alt) => {
         swc_ecma_visit::visit_stmt(self, alt, parent);
