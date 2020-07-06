@@ -1,4 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::scopes::ScopeManager;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
@@ -14,7 +15,7 @@ use swc_common::Globals;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
-use swc_ecma_ast::Expr;
+use swc_ecma_ast::{Expr, ExprOrSpread, Ident, Lit};
 use swc_ecma_parser::lexer::Lexer;
 use swc_ecma_parser::EsConfig;
 use swc_ecma_parser::JscTarget;
@@ -229,3 +230,29 @@ impl DropSpan for Expr {
     dropper.fold_expr(self)
   }
 }
+
+pub(crate) fn extract_regex(
+  scope_manager: &ScopeManager,
+  expr_span: Span,
+  ident: &Ident,
+  args: &[ExprOrSpread],
+) -> Option<String> {
+  if ident.sym.to_string() != "RegExp" {
+    return None;
+  }
+
+  let scope = scope_manager.get_scope_for_span(expr_span);
+  if scope_manager.get_binding(scope, &ident.sym).is_some() {
+    return None;
+  }
+
+  match args.get(0) {
+    Some(first_arg) => match &*first_arg.expr {
+      Expr::Lit(Lit::Str(literal)) => Some(literal.value.to_string()),
+      Expr::Lit(Lit::Regex(regex)) => Some(regex.exp.to_string()),
+      _ => None,
+    },
+    None => None,
+  }
+}
+
