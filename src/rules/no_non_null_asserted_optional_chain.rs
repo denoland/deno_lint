@@ -94,28 +94,25 @@ mod tests {
 
   #[test]
   fn no_non_null_asserted_optional_chain_ok() {
-    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar!;");
-    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar()!;");
-    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar();");
-    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar;");
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar).baz!;");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar!;");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar()!;");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar();");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar;");
+    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar).baz!;");
     // assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar()).baz!;");
-    // 'foo?.bar();',
-    // '(foo?.bar).baz!;',
-    // '(foo?.bar()).baz!;',
   }
 
   #[test]
   fn no_non_null_asserted_optional_chain_err() {
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar!;", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.['bar']!;", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar()!;", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("foo.bar?.()!;", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar!;", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.['bar']!;", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar()!;", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo.bar?.()!;", 0);
     assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!.baz", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!().baz", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!()", 0);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar!)", 1);
-    // assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar!)()", 1);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!().baz", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!()", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar!)", 1);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar!)()", 1);
   }
 }
