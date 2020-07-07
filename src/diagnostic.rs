@@ -1,4 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::swc_common;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Location {
@@ -9,7 +10,7 @@ pub struct Location {
 
 impl Into<Location> for swc_common::Loc {
   fn into(self) -> Location {
-    use swc_common::FileName::*;
+    use crate::swc_common::FileName::*;
 
     let filename = match &self.file.name {
       Real(path_buf) => path_buf.to_string_lossy().to_string(),

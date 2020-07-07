@@ -1,7 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::TsKeywordType;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::TsKeywordType;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -38,7 +39,7 @@ impl Visit for NoExplicitAnyVisitor {
     ts_keyword_type: &TsKeywordType,
     _parent: &dyn Node,
   ) {
-    use swc_ecma_ast::TsKeywordTypeKind::*;
+    use crate::swc_ecma_ast::TsKeywordTypeKind::*;
 
     if ts_keyword_type.kind == TsAnyKeyword {
       self.context.add_diagnostic(

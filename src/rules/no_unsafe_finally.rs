@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::Module;
-use swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};
-use swc_ecma_ast::TryStmt;
+use crate::swc_ecma_ast::Module;
+use crate::swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};
+use crate::swc_ecma_ast::TryStmt;
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoUnsafeFinally;

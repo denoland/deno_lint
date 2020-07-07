@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::{ScopeManager, ScopeVisitor};
-use swc_ecma_ast::{
+use crate::swc_ecma_ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };

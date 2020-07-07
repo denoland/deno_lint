@@ -2,7 +2,8 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::{ScopeManager, ScopeVisitor};
-use swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, Lit, NewExpr, Regex};
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, Lit, NewExpr, Regex};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

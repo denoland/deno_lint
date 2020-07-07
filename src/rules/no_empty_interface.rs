@@ -1,7 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::TsInterfaceDecl;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::TsInterfaceDecl;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

@@ -12,18 +12,18 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.3.5"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f3e0bf23f51883cce372d5d5892211236856e4bb37fb942e1eb135ee0f146e3"
+checksum = "e8fd72866655d1904d6b0997d0b07ba561047d070fbe29de039031c641b61217"
 dependencies = [
  "const-random",
 ]
 
 [[package]]
 name = "aho-corasick"
-version = "0.7.10"
+version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8716408b8bc624ed7f65d223ddb9ac2d044c0547b6fa4b0d554f3a9540496ada"
+checksum = "043164d8ba5c4c3035fec9bbee8647c0261d788f3474306f93bb65901cae0e86"
 dependencies = [
  "memchr",
 ]
@@ -39,9 +39,9 @@ dependencies = [
 
 [[package]]
 name = "ast_node"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d96b5937e2a8b8dd9eac561c192f7fef2ab0cbc06c445e67b9e637ab158c52b"
+checksum = "aa87dd2848313961eec40d0625ac425cd9e8bb75988382a247484b7aa3805e5d"
 dependencies = [
  "darling",
  "pmutil",
@@ -190,17 +190,38 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "clap",
+ "dprint-plugin-typescript",
  "lazy_static",
  "regex",
  "swc_atoms",
+ "swc_ecma_visit",
+ "termcolor",
+]
+
+[[package]]
+name = "dprint-core"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb13f434a98b4fc4f35ae52d5130c9bbe2a514f56c3d6529df11df91080fbd8f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "dprint-plugin-typescript"
+version = "0.19.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c227beb41f4c0e3be999c17f9a292765c7d3cfea3186ae55325907e046ad5fc9"
+dependencies = [
+ "dprint-core",
+ "serde",
+ "serde_json",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
- "swc_ecma_visit",
- "termcolor",
 ]
 
 [[package]]
@@ -267,9 +288,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.13"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91780f809e750b0a89f5544be56617ff6b1227ee485bcb06ebe10cdf89bd3b71"
+checksum = "3deed196b6e7f9e44a2ae8d94225d80302d81208b1bb673fd21fe634645c85a9"
 dependencies = [
  "libc",
 ]
@@ -299,9 +320,9 @@ checksum = "c3360c7b59e5ffa2653671fb74b4741a5d343c03f331c0a4aeda42b5c2b0ec7d"
 
 [[package]]
 name = "itoa"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8b7a7c0c47db5545ed3fef7468ee7bb5b74691498139e4b3f6a20685dc6dd8e"
+checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
 name = "lazy_static"
@@ -372,9 +393,9 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.42"
+version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f6ea62e9d81a77cd3ee9a2a5b9b609447857f3d358704331e4ef39eb247fcba"
+checksum = "8d59457e662d541ba17869cf51cf177c0b5f0cbf476c66bdc90bf1edac4f875b"
 dependencies = [
  "autocfg 1.0.0",
  "num-traits",
@@ -382,9 +403,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.11"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62be47e61d1842b9170f0fdeec8eba98e60e90e5446449a0545e5152acd7096"
+checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
 dependencies = [
  "autocfg 1.0.0",
 ]
@@ -737,18 +758,18 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.111"
+version = "1.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9124df5b40cbd380080b2cc6ab894c040a3070d995f5c9dc77e18c34a8ae37d"
+checksum = "5317f7588f0a5078ee60ef675ef96735a1442132dc645eb1d12c018620ed8cd3"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.111"
+version = "1.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f2c3ac8e6ca1e9c80b8be1023940162bf81ae3cffbb1809474152f2ce1eb250"
+checksum = "2a0be94b04690fbaed37cddffc5c134bf537c8e3329d53e982fe04c374978f8e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -757,9 +778,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.53"
+version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "993948e75b189211a9b31a7528f950c6adc21f9720b6438ff80a7fa2f864cea2"
+checksum = "3433e879a558dde8b5e8feb2a04899cf34fdde1fafb894687e52105fc1162ac3"
 dependencies = [
  "itoa",
  "ryu",
@@ -783,9 +804,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.4.0"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7cb5678e1615754284ec264d9bb5b4c27d2018577fd90ac0ceb578591ed5ee4"
+checksum = "3757cb9d89161a2f24e1cf78efa0c1fcff485d18e3f55e0aa3480824ddaa0f3f"
 
 [[package]]
 name = "sourcemap"
@@ -871,9 +892,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f4e030b00e19415ce63321a994cdabe87661f4210858715ffea22a1da921de5"
+checksum = "79e97fcbda03677da4d57519548082bd8ed30d6afcef8e18053ad829e290d252"
 dependencies = [
  "ast_node",
  "atty",
@@ -894,9 +915,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.23.0"
+version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da76cf57795cac33c72ee8950eb0b07a4c921d6b78a959216d6ad0e36d477024"
+checksum = "47b0fe7f603d4ddef115f7efe72e9c0823f90d9adae5dd4d754fe1a08686b021"
 dependencies = [
  "enum_kind",
  "num-bigint",
@@ -919,7 +940,7 @@ dependencies = [
  "once_cell",
  "regex",
  "serde",
- "smallvec 1.4.0",
+ "smallvec 1.4.1",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
@@ -981,9 +1002,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.30"
+version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93a56fabc59dce20fe48b6c832cc249c713e7ed88fa28b0ee0a3bfcaae5fe4e2"
+checksum = "e8d5d96e8cbb005d6959f119f773bfaebb5684296108fb32600c00cde305b2cd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1018,6 +1039,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinyvec"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53953d2d3a5ad81d9f844a32f14ebb121f50b650cd59d0ee2a07cf13c617efed"
+
+[[package]]
 name = "unicode-bidi"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1028,24 +1055,24 @@ dependencies = [
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.12"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5479532badd04e128284890390c1e876ef7a993d0570b3597ae43dfa1d59afa4"
+checksum = "6fb19cf769fa8c6a80a162df694621ebeb4dafb606470b2b2fce0be40a98a977"
 dependencies = [
- "smallvec 1.4.0",
+ "tinyvec",
 ]
 
 [[package]]
 name = "unicode-width"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caaa9d531767d1ff2150b9332433f32a24622147e5ebb1f26409d5da67afd479"
+checksum = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
 
 [[package]]
 name = "unicode-xid"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "826e7639553986605ec5979c7dd957c7895e93eabed50ab2ffa7f6128a75097c"
+checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
 
 [[package]]
 name = "url"
@@ -1072,9 +1099,9 @@ checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
 
 [[package]]
 name = "winapi"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8093091eeb260906a183e6ae1abdba2ef5ef2257a21801128899c3fc699229c6"
+checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
 dependencies = [
  "winapi-i686-pc-windows-gnu",
  "winapi-x86_64-pc-windows-gnu",
