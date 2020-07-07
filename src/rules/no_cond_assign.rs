@@ -1,9 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_common::Span;
-use swc_ecma_ast::Expr;
-use swc_ecma_ast::Expr::{Assign, Bin, Paren};
-use swc_ecma_ast::Module;
+use crate::swc_common::Span;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::Expr;
+use crate::swc_ecma_ast::Expr::{Assign, Bin, Paren};
+use crate::swc_ecma_ast::Module;
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoCondAssign;

@@ -1,8 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::swc_common::Spanned;
+use crate::swc_ecma_ast;
 use std::collections::HashSet;
-use swc_common::Spanned;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

@@ -1,12 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::BlockStmt;
-use swc_ecma_ast::Class;
-use swc_ecma_ast::ClassMember;
-use swc_ecma_ast::MethodKind;
-use swc_ecma_ast::SetterProp;
-use swc_ecma_ast::Stmt;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::BlockStmt;
+use crate::swc_ecma_ast::Class;
+use crate::swc_ecma_ast::ClassMember;
+use crate::swc_ecma_ast::MethodKind;
+use crate::swc_ecma_ast::SetterProp;
+use crate::swc_ecma_ast::Stmt;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

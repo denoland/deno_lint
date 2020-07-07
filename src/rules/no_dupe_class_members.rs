@@ -1,13 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use swc_common::Span;
-use swc_ecma_ast::{
+use crate::swc_common::Span;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

@@ -1,12 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::swc_common::Span;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::ArrowExpr;
+use crate::swc_ecma_ast::Function;
+use crate::swc_ecma_ast::Param;
+use crate::swc_ecma_ast::Pat;
 use std::collections::HashSet;
-use swc_common::Span;
-use swc_ecma_ast::ArrowExpr;
-use swc_ecma_ast::Function;
-use swc_ecma_ast::Param;
-use swc_ecma_ast::Pat;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

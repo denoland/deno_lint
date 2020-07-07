@@ -1,11 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+use crate::swc_common::Span;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::ObjectPatProp;
+use crate::swc_ecma_ast::Pat;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-use swc_common::Span;
-use swc_ecma_ast::ObjectPatProp;
-use swc_ecma_ast::Pat;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -256,7 +257,7 @@ impl ScopeVisitor {
     if obj.props.is_empty() {
       return;
     }
-    use swc_ecma_ast::Prop::*;
+    use crate::swc_ecma_ast::Prop::*;
     for prop in obj.props.iter() {
       if let swc_ecma_ast::PropOrSpread::Prop(prop_expr) = prop {
         match &**prop_expr {
@@ -517,7 +518,7 @@ impl Visit for ScopeVisitor {
     import_spec: &swc_ecma_ast::ImportSpecifier,
     _parent: &dyn Node,
   ) {
-    use swc_ecma_ast::ImportSpecifier::*;
+    use crate::swc_ecma_ast::ImportSpecifier::*;
     let local = match import_spec {
       Named(named) => &named.local,
       Default(default) => &default.local,
@@ -572,7 +573,7 @@ impl Visit for ScopeVisitor {
     var_decl: &swc_ecma_ast::VarDecl,
     parent: &dyn Node,
   ) {
-    use swc_ecma_ast::VarDeclKind;
+    use crate::swc_ecma_ast::VarDeclKind;
 
     let var_kind = match &var_decl.kind {
       VarDeclKind::Var => BindingKind::Var,
