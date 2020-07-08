@@ -4,9 +4,10 @@ use super::LintRule;
 use crate::scopes::BindingKind;
 use crate::scopes::ScopeManager;
 use crate::scopes::ScopeVisitor;
-use swc_ecma_ast::AssignExpr;
-use swc_ecma_ast::Pat;
-use swc_ecma_ast::PatOrExpr;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::AssignExpr;
+use crate::swc_ecma_ast::Pat;
+use crate::swc_ecma_ast::PatOrExpr;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

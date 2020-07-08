@@ -1,11 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::BinaryOp::*;
-use swc_ecma_ast::Expr::{Lit, Unary};
-use swc_ecma_ast::Lit::Num;
-use swc_ecma_ast::UnaryExpr;
-use swc_ecma_ast::UnaryOp::Minus;
-use swc_ecma_ast::{BinExpr, BinaryOp, Expr, Module};
+use crate::swc_ecma_ast::BinaryOp::*;
+use crate::swc_ecma_ast::Expr::{Lit, Unary};
+use crate::swc_ecma_ast::Lit::Num;
+use crate::swc_ecma_ast::UnaryExpr;
+use crate::swc_ecma_ast::UnaryOp::Minus;
+use crate::swc_ecma_ast::{BinExpr, BinaryOp, Expr, Module};
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoCompareNegZero;

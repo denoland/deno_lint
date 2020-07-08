@@ -1,5 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
+use crate::swc_ecma_ast;
 
 pub mod ban_ts_comment;
 pub mod ban_ts_ignore;

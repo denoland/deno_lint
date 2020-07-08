@@ -2,9 +2,10 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::{ScopeManager, ScopeVisitor};
+use crate::swc_common::Span;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use crate::swc_util::extract_regex;
-use swc_common::Span;
-use swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

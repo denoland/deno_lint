@@ -5,7 +5,9 @@ use crate::scopes::BindingKind;
 use crate::scopes::Scope;
 use crate::scopes::ScopeManager;
 use crate::scopes::ScopeVisitor;
-use swc_ecma_ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
+use crate::swc_common;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

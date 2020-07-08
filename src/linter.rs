@@ -2,19 +2,21 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::diagnostic::Location;
 use crate::rules::LintRule;
+use crate::swc_common::comments::Comment;
+use crate::swc_common::comments::CommentKind;
+use crate::swc_common::comments::CommentMap;
+use crate::swc_common::comments::Comments;
+use crate::swc_common::SourceMap;
+use crate::swc_common::Span;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_parser;
+use crate::swc_ecma_parser::Syntax;
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use swc_common::comments::Comment;
-use swc_common::comments::CommentKind;
-use swc_common::comments::CommentMap;
-use swc_common::comments::Comments;
-use swc_common::SourceMap;
-use swc_common::Span;
-use swc_ecma_parser::Syntax;
 
 #[derive(Clone)]
 pub struct Context {

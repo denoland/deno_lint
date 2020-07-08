@@ -1,10 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::JsWord;
-use swc_ecma_ast::{
+use crate::swc_common;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{
   Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
 };
+use swc_atoms::JsWord;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 pub struct NoInferrableTypes;
@@ -66,7 +68,7 @@ impl NoInferrableTypesVisitor {
     ts_type: &TsKeywordType,
     span: swc_common::Span,
   ) {
-    use swc_ecma_ast::TsKeywordTypeKind::*;
+    use crate::swc_ecma_ast::TsKeywordTypeKind::*;
     match ts_type.kind {
       TsBigIntKeyword => match &*value {
         Expr::Lit(Lit::BigInt(_)) => {

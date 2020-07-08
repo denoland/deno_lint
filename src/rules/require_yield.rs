@@ -1,13 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::ClassMethod;
-use swc_ecma_ast::FnDecl;
-use swc_ecma_ast::FnExpr;
-use swc_ecma_ast::Function;
-use swc_ecma_ast::MethodProp;
-use swc_ecma_ast::PrivateMethod;
-use swc_ecma_ast::YieldExpr;
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::ClassMethod;
+use crate::swc_ecma_ast::FnDecl;
+use crate::swc_ecma_ast::FnExpr;
+use crate::swc_ecma_ast::Function;
+use crate::swc_ecma_ast::MethodProp;
+use crate::swc_ecma_ast::PrivateMethod;
+use crate::swc_ecma_ast::YieldExpr;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 

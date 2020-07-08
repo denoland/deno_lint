@@ -2,7 +2,10 @@ pub struct ConstructorSuper;
 
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::{Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt};
+use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{
+  Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
+};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
