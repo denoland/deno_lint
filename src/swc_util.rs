@@ -14,7 +14,7 @@ use crate::swc_common::SourceMap;
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::Expr;
+use crate::swc_ecma_ast::{Expr, ExprOrSpread, Ident, Lit};
 use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
 use crate::swc_ecma_parser::JscTarget;
