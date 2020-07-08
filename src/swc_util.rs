@@ -4,6 +4,7 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::RwLock;
+use swc_atoms::js_word;
 use swc_common::comments::Comments;
 use swc_common::errors::Diagnostic;
 use swc_common::errors::DiagnosticBuilder;
@@ -231,22 +232,24 @@ impl DropSpan for Expr {
   }
 }
 
+/// Extracts regex string from an expression, using ScopeManager.
+/// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
   scope_manager: &ScopeManager,
   expr_span: Span,
-  ident: &Ident,
-  args: &[ExprOrSpread],
+  expr_ident: &Ident,
+  expr_args: &[ExprOrSpread],
 ) -> Option<String> {
-  if ident.sym.to_string() != "RegExp" {
+  if expr_ident.sym != js_word!("RegExp") {
     return None;
   }
 
   let scope = scope_manager.get_scope_for_span(expr_span);
-  if scope_manager.get_binding(scope, &ident.sym).is_some() {
+  if scope_manager.get_binding(scope, &expr_ident.sym).is_some() {
     return None;
   }
 
-  match args.get(0) {
+  match expr_args.get(0) {
     Some(first_arg) => match &*first_arg.expr {
       Expr::Lit(Lit::Str(literal)) => Some(literal.value.to_string()),
       Expr::Lit(Lit::Regex(regex)) => Some(regex.exp.to_string()),
