@@ -62,7 +62,7 @@ impl NoControlRegexVisitor {
       }
       match iter.next() {
         Some('x') => {
-          if let Some(cp) = consume_n_hex(&mut iter, 2) {
+          if let Some(cp) = read_hex_n(&mut iter, 2) {
             if cp <= 31 {
               self.add_diagnostic(span, cp);
               return;
@@ -71,8 +71,8 @@ impl NoControlRegexVisitor {
         }
         Some('u') => {
           let cp = match iter.peek() {
-            Some(&'{') => consume_until_brace(&mut iter),
-            Some(_) => consume_n_hex(&mut iter, 4),
+            Some(&'{') => read_hex_until_brace(&mut iter),
+            Some(_) => read_hex_n(&mut iter, 4),
             _ => None,
           };
           if let Some(cp) = cp {
@@ -89,7 +89,7 @@ impl NoControlRegexVisitor {
 }
 
 /// Read the next n characters and try to parse it as hexadecimal.
-fn consume_n_hex(iter: &mut Peekable<Chars>, n: usize) -> Option<u64> {
+fn read_hex_n(iter: &mut Peekable<Chars>, n: usize) -> Option<u64> {
   let mut s = String::new();
   for _ in 0..n {
     let ch = iter.next()?;
@@ -99,7 +99,7 @@ fn consume_n_hex(iter: &mut Peekable<Chars>, n: usize) -> Option<u64> {
 }
 
 /// Read characters until `}` and try to parse it as hexadecimal.
-fn consume_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
+fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   iter.next(); // consume `{`
   let mut s = String::new();
   loop {
@@ -154,17 +154,6 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn hogepiyo() {
-    // TODO(magurotuna): DELETE
-    //assert_lint_ok::<NoControlRegex>(r#"/\\x1f/"#);
-    //assert_lint_err::<NoControlRegex>(r#"/\x1f/"#, 0);
-    //assert_lint_err::<NoControlRegex>(r#"RegExp('\\x1f')"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\u001f/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\u{001f}/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\u{0001f}/"#, 0);
-  }
-
-  #[test]
   fn no_control_regex_valid() {
     assert_lint_ok_n::<NoControlRegex>(vec![
       r#"/x1f/"#,
@@ -196,6 +185,5 @@ mod tests {
     assert_lint_err::<NoControlRegex>(r#"new RegExp('\\x1fFOO\\x00')"#, 0);
     assert_lint_err::<NoControlRegex>(r#"new RegExp('FOO\\x1fFOO\\x1f')"#, 0);
     assert_lint_err::<NoControlRegex>(r#"RegExp('\\x1f')"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/(?<a>\\x1f)/"#, 0); // TODO(magurotuna)
   }
 }
