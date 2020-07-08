@@ -20,7 +20,7 @@ impl LintRule for NoConstantCondition {
   }
 
   fn lint_module(&self, context: Context, module: Module) {
-    let mut visitor = NoConstantCondition::new(context);
+    let mut visitor = NoConstantConditionVisitor::new(context);
     visitor.visit_module(&module, &module);
   }
 }
@@ -43,11 +43,15 @@ impl NoConstantConditionVisitor {
   }
 
   fn check_condition(&self, condition: &Expr) {
-    if let Expr::Lit(lit_node) = &condition {
-      self.add_diagnostic(lit_node.span())
-    }
-    if let Expr::Arrow(arrow) = &condition {
-      self.add_diagnostic(arrow.span)
+    match condition {
+      Expr::Lit(lit) => self.add_diagnostic(lit.span()),
+      Expr::Bin(bin) => {
+        if bin.op != swc_ecma_ast::BinaryOp::In {
+          self.check_condition(&bin.left);
+          self.check_condition(&bin.right)
+        }
+      }
+      _ => {}
     }
   }
 }
@@ -69,9 +73,11 @@ mod tests {
 
   #[test]
   fn no_constant_condition_lit() {
-    assert_lint_err::<NoConstantCondition>(
-      r#"if ("some str") { console.log("Constant Condition encountered")} "#,
-      13,
-    );
+    assert_lint_err::<NoConstantCondition>(r#"if ("some str") ;"#, 4);
+  }
+
+  #[test]
+  fn no_constant_condition_a() {
+    assert_lint_err::<NoConstantCondition>(r#"if (0 > 1) ;"#, 4);
   }
 }
