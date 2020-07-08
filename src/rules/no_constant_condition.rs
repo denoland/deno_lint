@@ -48,7 +48,7 @@ impl NoConstantConditionVisitor {
       Expr::Bin(bin) => {
         if bin.op != swc_ecma_ast::BinaryOp::In {
           self.check_condition(&bin.left);
-          self.check_condition(&bin.right)
+          self.check_condition(&bin.right);
         }
       }
       _ => {}
