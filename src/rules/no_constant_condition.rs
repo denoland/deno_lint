@@ -57,15 +57,22 @@ impl NoConstantConditionVisitor {
     }
   }
 
-  fn is_constant(&self, condition: &Expr) -> (bool, Span) {
+  fn is_constant(&self, condition: &Expr) -> (bool, Option<Span>) {
     match condition {
-      Expr::Lit(lit) => (true, lit.span()),
+      Expr::Lit(lit) => (true, Some(lit.span())),
+      // TODO(humancalico)
       Expr::Bin(bin) => {
         if bin.op == swc_ecma_ast::BinaryOp::LogicalOr || bin.op == swc_ecma_ast::BinaryOp::LogicalAnd {
           let is_left_constant = self.is_constant(&bin.left).0;
           let is_right_constant = self.is_constant(&bin.right).0;
-        } else {
-        (self.is_constant(&bin.left).0 && self.is_constant(&bin.right).0 && bin.op != swc_ecma_ast::BinaryOp::In, bin.span) }
+          let is_left_short_circuit = is_left_constant && self.check_short_circuit(&bin.left, bin.op);
+          let is_right_short_circuit = is_right_constant && self.check_short_circuit(&bin.right, bin.op);
+        }
+      }
+        // ----
+        Expr::Assign(assign) => self.is_constant(&assign.right),
+        Expr::Seq(seq) => self.is_constant(&seq.exprs[seq.exprs.len() - 1]),
+        _ => (false, None)
       }
   }
 }
@@ -76,22 +83,6 @@ impl Visit for NoConstantConditionVisitor {
     if_stmt: &swc_ecma_ast::IfStmt,
     _parent: &dyn Node,
   ) {
-    self.check_condition(&if_stmt.test);
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::test_util::*;
-
-  #[test]
-  fn no_constant_condition_lit() {
-    assert_lint_err::<NoConstantCondition>(r#"if ("some str") ;"#, 4);
-  }
-
-  #[test]
-  fn no_constant_condition_a() {
-    assert_lint_err::<NoConstantCondition>(r#"if (0 > 1) ;"#, 4);
+    self.is_constant(&if_stmt.test);
   }
 }
