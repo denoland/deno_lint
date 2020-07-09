@@ -42,17 +42,31 @@ impl NoConstantConditionVisitor {
     );
   }
 
-  fn check_condition(&self, condition: &Expr) {
-    match condition {
-      Expr::Lit(lit) => self.add_diagnostic(lit.span()),
+  fn check_short_circuit(&self, expr: &Expr, operator: swc_ecma_ast::BinaryOp) -> bool {
+    match expr {
+      Expr::Lit::Bool(boolean) {
+        (operator == swc_ecma_ast::BinaryOp::LogicalOr && boolean.value == true) || (operator == swc_ecma_ast::BinaryOp::LogicalAnd && boolean.value == false)
+      },
+      Expr::Unary(unary) => operator == swc_ecma_ast::BinaryOp::LogicalAnd && unary.op == swc_ecma_ast::UnaryOp::Void,
       Expr::Bin(bin) => {
-        if bin.op != swc_ecma_ast::BinaryOp::In {
-          self.check_condition(&bin.left);
-          self.check_condition(&bin.right);
-        }
-      }
-      _ => {}
+        if bin.op == swc_ecma_ast::BinaryOp::LogicalAnd || bin.op == swc_ecma_ast::BinaryOp::LogicalOr {
+          self.check_short_circuit(bin.left, bin.op) || self.check_short_circuit(bin.right, bin.op)
+        } else {false}
+      },
+      _ => false
     }
+  }
+
+  fn is_constant(&self, condition: &Expr) -> (bool, Span) {
+    match condition {
+      Expr::Lit(lit) => (true, lit.span()),
+      Expr::Bin(bin) => {
+        if bin.op == swc_ecma_ast::BinaryOp::LogicalOr || bin.op == swc_ecma_ast::BinaryOp::LogicalAnd {
+          let is_left_constant = self.is_constant(&bin.left).0;
+          let is_right_constant = self.is_constant(&bin.right).0;
+        } else {
+        (self.is_constant(&bin.left).0 && self.is_constant(&bin.right).0 && bin.op != swc_ecma_ast::BinaryOp::In, bin.span) }
+      }
   }
 }
 
