@@ -3,6 +3,7 @@ use crate::linter::Context;
 use crate::swc_ecma_ast;
 use std::sync::Arc;
 
+pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
 pub mod ban_ts_ignore;
 pub mod ban_types;
@@ -79,6 +80,7 @@ pub trait LintRule {
 
 pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
   vec![
+    adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_types::BanTypes::new(),
@@ -136,6 +138,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   vec![
+    adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
     ban_ts_ignore::BanTsIgnore::new(),
     ban_types::BanTypes::new(),
