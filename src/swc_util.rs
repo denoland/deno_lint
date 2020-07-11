@@ -1,4 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::scopes::ScopeManager;
+use crate::swc_atoms::js_word;
 use crate::swc_common;
 use crate::swc_common::comments::Comments;
 use crate::swc_common::errors::Diagnostic;
@@ -12,7 +14,7 @@ use crate::swc_common::SourceMap;
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::Expr;
+use crate::swc_ecma_ast::{Expr, ExprOrSpread, Ident, Lit};
 use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
 use crate::swc_ecma_parser::JscTarget;
@@ -229,5 +231,32 @@ impl DropSpan for Expr {
   fn drop_span(self) -> Self {
     let mut dropper = SpanDropper;
     dropper.fold_expr(self)
+  }
+}
+
+/// Extracts regex string from an expression, using ScopeManager.
+/// If the passed expression is not regular expression, this will return `None`.
+pub(crate) fn extract_regex(
+  scope_manager: &ScopeManager,
+  expr_span: Span,
+  expr_ident: &Ident,
+  expr_args: &[ExprOrSpread],
+) -> Option<String> {
+  if expr_ident.sym != js_word!("RegExp") {
+    return None;
+  }
+
+  let scope = scope_manager.get_scope_for_span(expr_span);
+  if scope_manager.get_binding(scope, &expr_ident.sym).is_some() {
+    return None;
+  }
+
+  match expr_args.get(0) {
+    Some(first_arg) => match &*first_arg.expr {
+      Expr::Lit(Lit::Str(literal)) => Some(literal.value.to_string()),
+      Expr::Lit(Lit::Regex(regex)) => Some(regex.exp.to_string()),
+      _ => None,
+    },
+    None => None,
   }
 }
