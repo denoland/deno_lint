@@ -42,38 +42,50 @@ impl NoConstantConditionVisitor {
     );
   }
 
-  fn check_short_circuit(&self, expr: &Expr, operator: swc_ecma_ast::BinaryOp) -> bool {
+  fn check_short_circuit(
+    &self,
+    expr: &Expr,
+    operator: swc_ecma_ast::BinaryOp,
+  ) -> bool {
     match expr {
-      Expr::Lit::Bool(boolean) {
-        (operator == swc_ecma_ast::BinaryOp::LogicalOr && boolean.value == true) || (operator == swc_ecma_ast::BinaryOp::LogicalAnd && boolean.value == false)
-      },
-      Expr::Unary(unary) => operator == swc_ecma_ast::BinaryOp::LogicalAnd && unary.op == swc_ecma_ast::UnaryOp::Void,
-      Expr::Bin(bin) => {
-        if bin.op == swc_ecma_ast::BinaryOp::LogicalAnd || bin.op == swc_ecma_ast::BinaryOp::LogicalOr {
-          self.check_short_circuit(bin.left, bin.op) || self.check_short_circuit(bin.right, bin.op)
-        } else {false}
-      },
-      _ => false
+      Expr::Lit(boolean) => {
+        (operator == swc_ecma_ast::BinaryOp::LogicalOr
+          && &boolean.value == true)
+          || (operator == swc_ecma_ast::BinaryOp::LogicalAnd
+            && boolean.value == false)
+      }
+      Expr::Unary(unary) => {
+        operator == swc_ecma_ast::BinaryOp::LogicalAnd
+          && unary.op == swc_ecma_ast::UnaryOp::Void
+      }
+      Expr::Bin(bin)
+        if bin.op == swc_ecma_ast::BinaryOp::LogicalAnd
+          || bin.op == swc_ecma_ast::BinaryOp::LogicalOr =>
+      {
+        self.check_short_circuit(&bin.left, bin.op)
+          || self.check_short_circuit(&bin.right, bin.op)
+      }
+      _ => false,
     }
   }
 
   fn is_constant(&self, condition: &Expr) -> (bool, Option<Span>) {
     match condition {
       Expr::Lit(lit) => (true, Some(lit.span())),
-      // TODO(humancalico)
-      Expr::Bin(bin) => {
-        if bin.op == swc_ecma_ast::BinaryOp::LogicalOr || bin.op == swc_ecma_ast::BinaryOp::LogicalAnd {
-          let is_left_constant = self.is_constant(&bin.left).0;
-          let is_right_constant = self.is_constant(&bin.right).0;
-          let is_left_short_circuit = is_left_constant && self.check_short_circuit(&bin.left, bin.op);
-          let is_right_short_circuit = is_right_constant && self.check_short_circuit(&bin.right, bin.op);
-        }
-      }
-        // ----
-        Expr::Assign(assign) => self.is_constant(&assign.right),
-        Expr::Seq(seq) => self.is_constant(&seq.exprs[seq.exprs.len() - 1]),
-        _ => (false, None)
-      }
+      //     // TODO(humancalico)
+      //     Expr::Bin(bin) => {
+      //       if bin.op == swc_ecma_ast::BinaryOp::LogicalOr || bin.op == swc_ecma_ast::BinaryOp::LogicalAnd {
+      //         let is_left_constant = self.is_constant(&bin.left).0;
+      //         let is_right_constant = self.is_constant(&bin.right).0;
+      //         let is_left_short_circuit = is_left_constant && self.check_short_circuit(&bin.left, bin.op);
+      //         let is_right_short_circuit = is_right_constant && self.check_short_circuit(&bin.right, bin.op);
+      //       }
+      //     }
+      //       // ----
+      Expr::Assign(assign) => self.is_constant(&assign.right),
+      Expr::Seq(seq) => self.is_constant(&seq.exprs[seq.exprs.len() - 1]),
+      _ => (false, None),
+    }
   }
 }
 
@@ -83,6 +95,20 @@ impl Visit for NoConstantConditionVisitor {
     if_stmt: &swc_ecma_ast::IfStmt,
     _parent: &dyn Node,
   ) {
-    self.is_constant(&if_stmt.test);
+    let const_result = self.is_constant(&if_stmt.test);
+    if const_result.0 {
+      self.add_diagnostic(const_result.1.unwrap())
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::*;
+
+  #[test]
+  fn no_constant_condition_1() {
+    assert_lint_err::<NoConstantCondition>(r#"if ("some str") {}"#, 4);
   }
 }
