@@ -2,8 +2,8 @@ import {
   BenchmarkTimer,
   bench,
   runBenchmarks,
-} from "https://deno.land/std@0.54.0/testing/bench.ts";
-import { expandGlobSync } from "https://deno.land/std@0.54.0/fs/expand_glob.ts";
+} from "https://deno.land/std@0.61.0/testing/bench.ts";
+import { expandGlobSync } from "https://deno.land/std@0.61.0/fs/expand_glob.ts";
 
 const RUN_COUNT = 5;
 

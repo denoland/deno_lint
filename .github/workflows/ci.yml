@@ -33,7 +33,7 @@ jobs:
       - name: Install Deno
         uses: denolib/setup-deno@master
         with:
-          deno-version: v1.x
+          deno-version: v1.2
 
       - name: Install Node.js
         if: contains(matrix.os, 'ubuntu')
