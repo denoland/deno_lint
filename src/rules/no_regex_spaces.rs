@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::{ScopeManager, ScopeVisitor};
 use crate::swc_common::Span;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
@@ -21,25 +20,18 @@ impl LintRule for NoRegexSpaces {
   }
 
   fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(module, module);
-    let scope_manager = scope_visitor.consume();
-    let mut visitor = NoRegexSpacesVisitor::new(context, scope_manager);
+    let mut visitor = NoRegexSpacesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 pub struct NoRegexSpacesVisitor {
   context: Context,
-  scope_manager: ScopeManager,
 }
 
 impl NoRegexSpacesVisitor {
-  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  pub fn new(context: Context) -> Self {
+    Self { context }
   }
 
   fn check_regex(&self, regex: &str, span: Span) {
@@ -86,7 +78,7 @@ impl Visit for NoRegexSpacesVisitor {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) =
-          extract_regex(&self.scope_manager, new_expr.span, ident, args)
+          extract_regex(&self.context.scope_manager, new_expr.span, ident, args)
         {
           self.check_regex(regex.as_str(), new_expr.span);
         }
@@ -99,7 +91,7 @@ impl Visit for NoRegexSpacesVisitor {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) = extract_regex(
-          &self.scope_manager,
+          &self.context.scope_manager,
           call_expr.span,
           ident,
           &call_expr.args,

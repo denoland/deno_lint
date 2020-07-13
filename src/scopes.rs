@@ -76,7 +76,7 @@ impl Scope {
   }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ScopeManager {
   pub scopes: HashMap<u32, Scope>,
   pub scope_stack: Vec<u32>,

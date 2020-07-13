@@ -2,8 +2,6 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
-use crate::scopes::ScopeManager;
-use crate::scopes::ScopeVisitor;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::AssignExpr;
 use crate::swc_ecma_ast::Pat;
@@ -23,25 +21,18 @@ impl LintRule for NoClassAssign {
   }
 
   fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(module, module);
-    let scope_manager = scope_visitor.consume();
-    let mut visitor = NoClassAssignVisitor::new(context, scope_manager);
+    let mut visitor = NoClassAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoClassAssignVisitor {
   context: Context,
-  scope_manager: ScopeManager,
 }
 
 impl NoClassAssignVisitor {
-  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  pub fn new(context: Context) -> Self {
+    Self { context }
   }
 }
 
@@ -55,8 +46,12 @@ impl Visit for NoClassAssignVisitor {
       },
     };
 
-    let scope = self.scope_manager.get_scope_for_span(assign_expr.span);
-    if let Some(binding) = self.scope_manager.get_binding(scope, &ident) {
+    let scope = self
+      .context
+      .scope_manager
+      .get_scope_for_span(assign_expr.span);
+    if let Some(binding) = self.context.scope_manager.get_binding(scope, &ident)
+    {
       if binding.kind == BindingKind::Class {
         self.context.add_diagnostic(
           assign_expr.span,

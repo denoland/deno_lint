@@ -2,8 +2,6 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
-use crate::scopes::ScopeManager;
-use crate::scopes::ScopeVisitor;
 use crate::swc_common::Span;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::AssignExpr;
@@ -27,25 +25,18 @@ impl LintRule for NoConstAssign {
   }
 
   fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(module, module);
-    let scope_manager = scope_visitor.consume();
-    let mut visitor = NoConstAssignVisitor::new(context, scope_manager);
+    let mut visitor = NoConstAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoConstAssignVisitor {
   context: Context,
-  scope_manager: ScopeManager,
 }
 
 impl NoConstAssignVisitor {
-  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  pub fn new(context: Context) -> Self {
+    Self { context }
   }
 
   fn check_pat(&mut self, pat: &Pat, span: Span) {
@@ -92,8 +83,9 @@ impl NoConstAssignVisitor {
   }
 
   fn check_scope_for_const(&mut self, span: Span, ident: &str) {
-    let scope = self.scope_manager.get_scope_for_span(span);
-    if let Some(binding) = self.scope_manager.get_binding(scope, ident) {
+    let scope = self.context.scope_manager.get_scope_for_span(span);
+    if let Some(binding) = self.context.scope_manager.get_binding(scope, ident)
+    {
       if binding.kind == BindingKind::Const {
         self.context.add_diagnostic(
           span,
