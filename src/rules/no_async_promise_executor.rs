@@ -7,6 +7,8 @@ use crate::swc_ecma_ast::NewExpr;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoAsyncPromiseExecutor;
 
 impl LintRule for NoAsyncPromiseExecutor {
@@ -18,18 +20,18 @@ impl LintRule for NoAsyncPromiseExecutor {
     "no-async-promise-executor"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoAsyncPromiseExecutorVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoAsyncPromiseExecutorVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

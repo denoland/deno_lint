@@ -10,6 +10,8 @@ use swc_atoms::JsWord;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoMisusedNew;
 
 impl LintRule for NoMisusedNew {
@@ -17,7 +19,7 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoMisusedNewVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -28,11 +30,11 @@ impl LintRule for NoMisusedNew {
 }
 
 struct NoMisusedNewVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoMisusedNewVisitor {
-  fn new(context: Context) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

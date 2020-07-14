@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
 use crate::swc_ecma_ast;
+use std::sync::Arc;
 
 pub mod ban_ts_comment;
 pub mod ban_ts_ignore;
@@ -72,7 +73,7 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module);
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module);
   fn code(&self) -> &'static str;
 }
 

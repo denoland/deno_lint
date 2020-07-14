@@ -9,6 +9,8 @@ use crate::swc_ecma_ast::LabeledStmt;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoUnusedLabels;
 
 impl LintRule for NoUnusedLabels {
@@ -20,7 +22,7 @@ impl LintRule for NoUnusedLabels {
     "no-unused-labels"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoUnusedLabelsVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -32,12 +34,12 @@ struct LabelScope {
 }
 
 struct NoUnusedLabelsVisitor {
-  context: Context,
+  context: Arc<Context>,
   label_scopes: Vec<LabelScope>,
 }
 
 impl NoUnusedLabelsVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       label_scopes: vec![],

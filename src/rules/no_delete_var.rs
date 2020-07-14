@@ -8,6 +8,8 @@ use crate::swc_ecma_ast::UnaryOp;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoDeleteVar;
 
 impl LintRule for NoDeleteVar {
@@ -19,18 +21,18 @@ impl LintRule for NoDeleteVar {
     "no-delete-var"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoDeleteVarVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoDeleteVarVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoDeleteVarVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

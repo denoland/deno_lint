@@ -6,6 +6,8 @@ use crate::swc_ecma_ast::{ArrayPat, ObjectPat, ObjectPatProp};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoEmptyPattern;
 
 impl LintRule for NoEmptyPattern {
@@ -17,18 +19,18 @@ impl LintRule for NoEmptyPattern {
     "no-empty-pattern"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoEmptyPatternVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoEmptyPatternVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

@@ -6,6 +6,8 @@ use crate::swc_ecma_ast::WithStmt;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoWith;
 
 impl LintRule for NoWith {
@@ -17,18 +19,18 @@ impl LintRule for NoWith {
     "no-with"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoWithVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoWithVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoWithVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

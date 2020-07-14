@@ -7,6 +7,7 @@ use crate::swc_ecma_ast::{
   ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAssertion, VarDecl,
 };
+use std::sync::Arc;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
@@ -21,18 +22,18 @@ impl LintRule for PreferAsConst {
     "prefer-as-const"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = PreferAsConstVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-pub struct PreferAsConstVisitor {
-  context: Context,
+struct PreferAsConstVisitor {
+  context: Arc<Context>,
 }
 
 impl PreferAsConstVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

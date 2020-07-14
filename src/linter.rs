@@ -2,6 +2,8 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::diagnostic::Location;
 use crate::rules::LintRule;
+use crate::scopes::ScopeManager;
+use crate::scopes::ScopeVisitor;
 use crate::swc_common::comments::Comment;
 use crate::swc_common::comments::CommentKind;
 use crate::swc_common::comments::CommentMap;
@@ -17,6 +19,7 @@ use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use swc_ecma_visit::Visit;
 
 #[derive(Clone)]
 pub struct Context {
@@ -26,6 +29,7 @@ pub struct Context {
   pub leading_comments: CommentMap,
   pub trailing_comments: CommentMap,
   pub ignore_directives: Vec<IgnoreDirective>,
+  pub scope_manager: ScopeManager,
 }
 
 impl Context {
@@ -303,7 +307,7 @@ impl Linter {
 
   fn filter_diagnostics(
     &self,
-    context: Context,
+    context: Arc<Context>,
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     let mut ignore_directives = context.ignore_directives.clone();
@@ -370,14 +374,19 @@ impl Linter {
 
     let ignore_directives = self.parse_ignore_directives(&leading);
 
-    let context = Context {
+    let mut scope_visitor = ScopeVisitor::new();
+    scope_visitor.visit_module(&module, &module);
+    let scope_manager = scope_visitor.consume();
+
+    let context = Arc::new(Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.ast_parser.source_map.clone(),
       leading_comments: leading,
       trailing_comments: trailing,
       ignore_directives,
-    };
+      scope_manager,
+    });
 
     for rule in &self.rules {
       rule.lint_module(context.clone(), &module);

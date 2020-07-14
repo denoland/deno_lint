@@ -1,12 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::{ScopeManager, ScopeVisitor};
 use crate::swc_ecma_ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
 use swc_ecma_visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct NoShadowRestrictedNames;
 
@@ -15,13 +16,8 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(module, module);
-
-    let scope_manager = scope_visitor.consume();
-    let mut visitor =
-      NoShadowRestrictedNamesVisitor::new(context, scope_manager);
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+    let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 
@@ -30,18 +26,13 @@ impl LintRule for NoShadowRestrictedNames {
   }
 }
 
-#[allow(dead_code)]
-pub struct NoShadowRestrictedNamesVisitor {
-  context: Context,
-  scope_manager: ScopeManager,
+struct NoShadowRestrictedNamesVisitor {
+  context: Arc<Context>,
 }
 
 impl NoShadowRestrictedNamesVisitor {
-  fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  fn new(context: Arc<Context>) -> Self {
+    Self { context }
   }
 
   fn is_restricted_names(&self, ident: &Ident) -> bool {
@@ -57,9 +48,10 @@ impl NoShadowRestrictedNamesVisitor {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
         if &ident.sym.to_string() == "undefined" && check_scope {
-          let scope = self.scope_manager.get_scope_for_span(ident.span);
+          let scope = self.context.scope_manager.get_scope_for_span(ident.span);
 
           if let Some(_binding) = self
+            .context
             .scope_manager
             .get_binding(&scope, ident.sym.to_string().as_str())
           {

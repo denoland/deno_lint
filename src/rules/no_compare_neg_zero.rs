@@ -8,6 +8,8 @@ use crate::swc_ecma_ast::UnaryOp::Minus;
 use crate::swc_ecma_ast::{BinExpr, BinaryOp, Expr, Module};
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoCompareNegZero;
 
 impl LintRule for NoCompareNegZero {
@@ -19,18 +21,18 @@ impl LintRule for NoCompareNegZero {
     "no-compare-neg-zero"
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoCompareNegZeroVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoCompareNegZeroVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

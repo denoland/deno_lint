@@ -6,6 +6,8 @@ use crate::swc_ecma_ast::{
 };
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoEmpty;
 
 impl LintRule for NoEmpty {
@@ -17,18 +19,18 @@ impl LintRule for NoEmpty {
     "no-empty"
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoEmptyVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoEmptyVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoEmptyVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }
