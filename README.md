@@ -245,6 +245,20 @@ $ cargo build --all-targets
 $ cargo test
 ```
 
+### Generating flamegraph (Linux)
+
+Prerequisites:
+
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), (`stackcollapse-perf`)[https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl], [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+
+```shell
+$ RUSTFLAGS='-g' cargo build --release --all-targets # build target
+$ sudo perf record --call-graph dwarf ./target/release/examples/dlint benchmarks/oak/**.ts # create performance profile
+$ perf script | stackcollapse-perf | rust-unmangle | flamegraph > flame.svg # generate flamegraph
+```
+
+These commands can take a few minutes to run.
+
 ## Contributing
 
 - If you are going to work on an issue, mention so in the issue comments
