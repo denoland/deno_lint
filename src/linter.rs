@@ -19,6 +19,7 @@ use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Instant;
 use swc_ecma_visit::Visit;
 
 #[derive(Clone)]
@@ -39,6 +40,7 @@ impl Context {
     code: &str,
     message: &str,
   ) -> LintDiagnostic {
+    let start = Instant::now();
     let location = self.source_map.lookup_char_pos(span.lo());
     let line_src = self
       .source_map
@@ -53,13 +55,17 @@ impl Context {
       .expect("error loading snippet")
       .len();
 
-    LintDiagnostic {
+    let diagnostic = LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
       line_src,
       snippet_length,
-    }
+    };
+
+    let end = Instant::now();
+    debug!("Context::create_diagnostic took {:?}", end - start);
+    diagnostic
   }
 
   pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
@@ -212,16 +218,25 @@ impl Linter {
       "Linter can be used only on a single module."
     );
     self.has_linted = true;
-    self.ast_parser.parse_module(
+    let start = Instant::now();
+    let r = self.ast_parser.parse_module(
       &file_name,
       self.syntax,
       &source_code,
       |parse_result, comments| {
+        let end_parse_module = Instant::now();
+        debug!(
+          "ast_parser.parse_module took {:#?}",
+          end_parse_module - start
+        );
         let module = parse_result?;
         let diagnostics = self.lint_module(file_name.clone(), module, comments);
         Ok(diagnostics)
       },
-    )
+    );
+    let end = Instant::now();
+    debug!("Linter::lint took {:#?}", end - start);
+    r
   }
 
   fn has_ignore_file_directive(
@@ -310,6 +325,7 @@ impl Linter {
     context: Arc<Context>,
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
+    let start = Instant::now();
     let mut ignore_directives = context.ignore_directives.clone();
     let diagnostics = context.diagnostics.lock().unwrap();
 
@@ -357,6 +373,9 @@ impl Linter {
 
     filtered_diagnostics.sort_by(|a, b| a.location.line.cmp(&b.location.line));
 
+    let end = Instant::now();
+    debug!("Linter::filter_diagnostics took {:#?}", end - start);
+
     filtered_diagnostics
   }
 
@@ -369,6 +388,7 @@ impl Linter {
     if self.has_ignore_file_directive(&comments, &module) {
       return vec![];
     }
+    let start = Instant::now();
 
     let (leading, trailing) = comments.take_all();
 
@@ -392,6 +412,10 @@ impl Linter {
       rule.lint_module(context.clone(), &module);
     }
 
-    self.filter_diagnostics(context, &self.rules)
+    let d = self.filter_diagnostics(context, &self.rules);
+    let end = Instant::now();
+    debug!("Linter::lint_module took {:#?}", end - start);
+
+    d
   }
 }

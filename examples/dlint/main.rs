@@ -108,6 +108,8 @@ fn main() {
   #[cfg(windows)]
   enable_ansi();
 
+  env_logger::init();
+
   let rules = get_recommended_rules();
 
   let mut rule_names = rules
