@@ -9,6 +9,8 @@ use crate::swc_ecma_ast::PatOrExpr;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoFuncAssign;
 
 impl LintRule for NoFuncAssign {
@@ -20,18 +22,18 @@ impl LintRule for NoFuncAssign {
     "no-func-assign"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoFuncAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoFuncAssignVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoFuncAssignVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

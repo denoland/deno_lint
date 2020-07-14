@@ -7,6 +7,8 @@ use crate::swc_ecma_ast::{
 };
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoShadowRestrictedNames;
 
 impl LintRule for NoShadowRestrictedNames {
@@ -14,7 +16,7 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -24,13 +26,12 @@ impl LintRule for NoShadowRestrictedNames {
   }
 }
 
-#[allow(dead_code)]
-pub struct NoShadowRestrictedNamesVisitor {
-  context: Context,
+struct NoShadowRestrictedNamesVisitor {
+  context: Arc<Context>,
 }
 
 impl NoShadowRestrictedNamesVisitor {
-  fn new(context: Context) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

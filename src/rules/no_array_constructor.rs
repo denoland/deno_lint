@@ -7,6 +7,8 @@ use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoArrayConstructor;
 
 impl LintRule for NoArrayConstructor {
@@ -18,18 +20,18 @@ impl LintRule for NoArrayConstructor {
     "no-array-constructor"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoArrayConstructorVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoArrayConstructorVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

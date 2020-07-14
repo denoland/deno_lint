@@ -7,6 +7,8 @@ use crate::swc_ecma_ast::Expr::{Assign, Bin, Paren};
 use crate::swc_ecma_ast::Module;
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoCondAssign;
 
 impl LintRule for NoCondAssign {
@@ -18,18 +20,18 @@ impl LintRule for NoCondAssign {
     "no-cond-assign"
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoCondAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoCondAssignVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoCondAssignVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

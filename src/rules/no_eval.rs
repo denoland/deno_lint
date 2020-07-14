@@ -8,6 +8,8 @@ use crate::swc_ecma_ast::ExprOrSuper;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoEval;
 
 impl LintRule for NoEval {
@@ -19,18 +21,18 @@ impl LintRule for NoEval {
     "no-eval"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoEvalVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoEvalVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoEvalVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

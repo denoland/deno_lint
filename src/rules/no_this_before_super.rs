@@ -7,6 +7,8 @@ use crate::swc_ecma_ast::{
 };
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoThisBeforeSuper;
 
 impl LintRule for NoThisBeforeSuper {
@@ -18,18 +20,18 @@ impl LintRule for NoThisBeforeSuper {
     "no-this-before-super"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoThisBeforeSuperVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoThisBeforeSuperVisitor {
-  fn new(context: Context) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

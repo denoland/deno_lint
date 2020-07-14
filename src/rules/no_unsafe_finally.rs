@@ -5,6 +5,8 @@ use crate::swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};
 use crate::swc_ecma_ast::TryStmt;
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoUnsafeFinally;
 
 impl LintRule for NoUnsafeFinally {
@@ -16,18 +18,18 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoUnsafeFinallyVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoUnsafeFinallyVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

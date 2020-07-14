@@ -6,6 +6,8 @@ use crate::swc_ecma_ast::Regex;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoEmptyCharacterClass;
 
 impl LintRule for NoEmptyCharacterClass {
@@ -17,18 +19,18 @@ impl LintRule for NoEmptyCharacterClass {
     "no-empty-character-class"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoEmptyCharacterClassVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoEmptyCharacterClassVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoEmptyCharacterClassVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

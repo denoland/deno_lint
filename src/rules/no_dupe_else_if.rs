@@ -8,6 +8,8 @@ use crate::swc_util::DropSpan;
 use std::collections::HashSet;
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoDupeElseIf;
 
 impl LintRule for NoDupeElseIf {
@@ -19,7 +21,7 @@ impl LintRule for NoDupeElseIf {
     "no-dupe-else-if"
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -28,12 +30,12 @@ impl LintRule for NoDupeElseIf {
 /// A visitor to check the `no-dupe-else-if` rule.
 /// Determination logic is ported from ESLint's implementation. For more, see [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
 struct NoDupeElseIfVisitor {
-  context: Context,
+  context: Arc<Context>,
   checked_span: HashSet<Span>,
 }
 
 impl NoDupeElseIfVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       checked_span: HashSet::new(),

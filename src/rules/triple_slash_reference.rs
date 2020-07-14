@@ -5,6 +5,8 @@ use crate::swc_common::comments::Comment;
 use crate::swc_common::comments::CommentKind;
 use crate::swc_ecma_ast;
 
+use std::sync::Arc;
+
 pub struct TripleSlashReference;
 
 impl TripleSlashReference {
@@ -39,7 +41,7 @@ impl LintRule for TripleSlashReference {
     "triple-slash-reference"
   }
 
-  fn lint_module(&self, context: Context, _module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecma_ast::Module) {
     context.leading_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {
         self.lint_comment(&context, comment);

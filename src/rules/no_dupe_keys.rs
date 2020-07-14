@@ -10,6 +10,8 @@ use crate::swc_ecma_ast::{Module, ObjectLit, PropOrSpread};
 use std::collections::{BTreeSet, HashSet};
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoDupeKeys;
 
 impl LintRule for NoDupeKeys {
@@ -21,18 +23,18 @@ impl LintRule for NoDupeKeys {
     "no-dupe-keys"
   }
 
-  fn lint_module(&self, context: Context, module: &Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoDupeKeysVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoDupeKeysVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

@@ -10,6 +10,8 @@ use std::str::Chars;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoControlRegex;
 
 impl LintRule for NoControlRegex {
@@ -21,18 +23,18 @@ impl LintRule for NoControlRegex {
     "no-control-regex"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoControlRegexVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-pub struct NoControlRegexVisitor {
-  context: Context,
+struct NoControlRegexVisitor {
+  context: Arc<Context>,
 }
 
 impl NoControlRegexVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

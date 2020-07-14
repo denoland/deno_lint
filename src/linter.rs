@@ -307,7 +307,7 @@ impl Linter {
 
   fn filter_diagnostics(
     &self,
-    context: Context,
+    context: Arc<Context>,
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     let mut ignore_directives = context.ignore_directives.clone();
@@ -378,7 +378,7 @@ impl Linter {
     scope_visitor.visit_module(&module, &module);
     let scope_manager = scope_visitor.consume();
 
-    let context = Context {
+    let context = Arc::new(Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.ast_parser.source_map.clone(),
@@ -386,7 +386,7 @@ impl Linter {
       trailing_comments: trailing,
       ignore_directives,
       scope_manager,
-    };
+    });
 
     for rule in &self.rules {
       rule.lint_module(context.clone(), &module);

@@ -9,6 +9,8 @@ use crate::swc_ecma_ast::{
 };
 use swc_ecma_visit::{Node, Visit};
 
+use std::sync::Arc;
+
 pub struct NoAwaitInLoop;
 
 impl LintRule for NoAwaitInLoop {
@@ -20,18 +22,18 @@ impl LintRule for NoAwaitInLoop {
     "no-await-in-loop"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoAwaitInLoopVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoAwaitInLoopVisitor {
-  fn new(context: Context) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

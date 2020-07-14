@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub struct ConstructorSuper;
 
 use super::Context;
@@ -20,18 +22,18 @@ impl LintRule for ConstructorSuper {
     "constructor-super"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = ConstructorSuperVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct ConstructorSuperVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl ConstructorSuperVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
   fn check_constructor(&self, constructor: &Constructor, class: &Class) {

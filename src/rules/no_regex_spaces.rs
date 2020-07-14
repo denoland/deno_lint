@@ -8,6 +8,8 @@ use crate::swc_util::extract_regex;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
 
+use std::sync::Arc;
+
 pub struct NoRegexSpaces;
 
 impl LintRule for NoRegexSpaces {
@@ -19,18 +21,18 @@ impl LintRule for NoRegexSpaces {
     "no-regex-spaces"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-pub struct NoRegexSpacesVisitor {
-  context: Context,
+struct NoRegexSpacesVisitor {
+  context: Arc<Context>,
 }
 
 impl NoRegexSpacesVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

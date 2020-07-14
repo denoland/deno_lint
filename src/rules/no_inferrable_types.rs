@@ -6,9 +6,11 @@ use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{
   Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
 };
+use std::sync::Arc;
 use swc_atoms::JsWord;
 use swc_ecma_visit::Node;
 use swc_ecma_visit::Visit;
+
 pub struct NoInferrableTypes;
 
 impl LintRule for NoInferrableTypes {
@@ -20,18 +22,18 @@ impl LintRule for NoInferrableTypes {
     "no-inferrable-types"
   }
 
-  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
 struct NoInferrableTypesVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoInferrableTypesVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
