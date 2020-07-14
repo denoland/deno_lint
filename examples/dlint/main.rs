@@ -5,6 +5,7 @@ use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
 use deno_lint::swc_util::get_default_ts_config;
+use env_logger;
 use std::fmt;
 use std::io::Write;
 use termcolor::Color::{Ansi256, Red};
@@ -107,6 +108,8 @@ pub fn format_diagnostic(diagnostic: &LintDiagnostic) -> String {
 fn main() {
   #[cfg(windows)]
   enable_ansi();
+
+  env_logger::init();
 
   let rules = get_recommended_rules();
 
