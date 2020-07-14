@@ -1,33 +1,18 @@
+#![allow(dead_code, unused)]
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::comments::Comment;
-use crate::swc_common::comments::CommentKind;
+use crate::swc_atoms::JsWord;
+use crate::swc_common::Spanned;
 use crate::swc_ecma_ast;
+use crate::swc_ecma_ast::{
+  Decl, ExportDecl, ExprStmt, FnDecl, Module, ModuleDecl, ModuleItem, Program,
+  Stmt, TsModuleBlock, TsNamespaceBody,
+};
+use std::collections::HashSet;
+use swc_ecma_visit::{Node, Visit};
 
 pub struct AdjacentOverloadSignatures;
-
-impl AdjacentOverloadSignatures {
-  fn lint_comment(&self, context: &Context, comment: &Comment) {
-    if comment.kind != CommentKind::Line {
-      return;
-    }
-
-    lazy_static! {
-      static ref BTC_REGEX: regex::Regex =
-        regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#)
-          .unwrap();
-    }
-
-    if BTC_REGEX.is_match(&comment.text) {
-      context.add_diagnostic(
-        comment.span,
-        "ban-ts-comment",
-        "ts directives are not allowed",
-      );
-    }
-  }
-}
 
 impl LintRule for AdjacentOverloadSignatures {
   fn new() -> Box<Self> {
@@ -35,27 +20,135 @@ impl LintRule for AdjacentOverloadSignatures {
   }
 
   fn code(&self) -> &'static str {
-    "ban-ts-comment"
+    "adjacent-overload-signatures"
   }
 
-  fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
-    context.leading_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
-        self.lint_comment(&context, comment);
-      }
-    });
-    context.trailing_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
-        self.lint_comment(&context, comment);
-      }
-    });
+  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+    let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
+    visitor.visit_module(&module, &module);
   }
+}
+
+struct AdjacentOverloadSignaturesVisitor {
+  context: Context,
+}
+
+impl AdjacentOverloadSignaturesVisitor {
+  pub fn new(context: Context) -> Self {
+    Self { context }
+  }
+}
+
+impl Visit for AdjacentOverloadSignaturesVisitor {
+  fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
+    let mut seen_methods = HashSet::new();
+    let mut last_method = None;
+    module
+      .body
+      .iter()
+      .for_each(|module_item| match module_item {
+        ModuleItem::ModuleDecl(_) => {
+          last_method = None;
+        }
+        ModuleItem::Stmt(ref stmt) => match stmt {
+          Stmt::Decl(Decl::Fn(FnDecl { ref ident, .. })) => {
+            let m = Method {
+              name: ident.sym.clone(),
+              is_static: false,
+            };
+            if seen_methods.contains(&m) && last_method.as_ref() != Some(&m) {
+              self.context.add_diagnostic(
+                stmt.span(),
+                "adjacent-overload-signatures",
+                "piyo", // TODO(magurotuna)
+              );
+            }
+
+            seen_methods.insert(m.clone());
+            last_method = Some(m);
+          }
+          _ => {}
+        },
+      });
+    swc_ecma_visit::visit_module(self, module, parent);
+  }
+
+  fn visit_ts_module_block(
+    &mut self,
+    ts_module_block: &TsModuleBlock,
+    parent: &dyn Node,
+  ) {
+    let mut seen_methods = HashSet::new();
+    let mut last_method = None;
+
+    let extract_ident = |decl: &Decl| match decl {
+      Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.clone()),
+      _ => None,
+    };
+
+    ts_module_block.body.iter().for_each(|module_item| {
+      let fn_name = match module_item {
+        ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+          ref decl,
+          ..
+        })) => extract_ident(decl),
+        ModuleItem::Stmt(ref stmt) => match stmt {
+          Stmt::Decl(ref decl) => extract_ident(decl),
+          _ => None,
+        },
+        _ => None,
+      };
+
+      if let Some(fn_name) = fn_name {
+        let m = Method {
+          name: fn_name,
+          is_static: false,
+        };
+
+        if seen_methods.contains(&m) && last_method.as_ref() != Some(&m) {
+          self.context.add_diagnostic(
+            module_item.span(),
+            "adjacent-overload-signatures",
+            "piyo", // TODO(magurotuna)
+          );
+        }
+
+        seen_methods.insert(m.clone());
+        last_method = Some(m);
+      } else {
+        last_method = None;
+      }
+    });
+
+    swc_ecma_visit::visit_ts_module_block(self, ts_module_block, parent);
+  }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone)]
+struct Method {
+  name: JsWord,
+  is_static: bool,
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
   use crate::test_util::*;
+
+  #[test]
+  fn hogepiyo() {
+    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+      r#"
+declare namespace Foo {
+  export function foo(s: string): void;
+  export function bar(): void;
+  export function foo(sn: string | number): void;
+}
+      "#,
+      5,
+      2,
+    );
+  }
 
   #[test]
   fn adjacent_overload_signatures_valid() {
