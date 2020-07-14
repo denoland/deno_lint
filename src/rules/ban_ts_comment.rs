@@ -38,7 +38,7 @@ impl LintRule for BanTsComment {
     "ban-ts-comment"
   }
 
-  fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, _module: &swc_ecma_ast::Module) {
     context.leading_comments.iter().for_each(|ref_multi| {
       for comment in ref_multi.value() {
         self.lint_comment(&context, comment);

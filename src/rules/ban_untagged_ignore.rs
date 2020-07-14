@@ -14,7 +14,7 @@ impl LintRule for BanUntaggedIgnore {
     "ban-untagged-ignore"
   }
 
-  fn lint_module(&self, context: Context, _module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, _module: &swc_ecma_ast::Module) {
     for ignore_directive in &context.ignore_directives {
       if ignore_directive.codes.is_empty() {
         context.add_diagnostic(

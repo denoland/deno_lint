@@ -21,9 +21,9 @@ impl LintRule for NoDupeKeys {
     "no-dupe-keys"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Context, module: &Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

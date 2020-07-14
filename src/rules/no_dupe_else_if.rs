@@ -19,9 +19,9 @@ impl LintRule for NoDupeElseIf {
     "no-dupe-else-if"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Context, module: &Module) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

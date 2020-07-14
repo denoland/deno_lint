@@ -22,12 +22,12 @@ impl LintRule for NoControlRegex {
     "no-control-regex"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
     let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(&module, &module);
+    scope_visitor.visit_module(module, module);
     let scope_manager = scope_visitor.consume();
     let mut visitor = NoControlRegexVisitor::new(context, scope_manager);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

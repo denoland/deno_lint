@@ -380,7 +380,7 @@ impl Linter {
     };
 
     for rule in &self.rules {
-      rule.lint_module(context.clone(), module.clone());
+      rule.lint_module(context.clone(), &module);
     }
 
     self.filter_diagnostics(context, &self.rules)

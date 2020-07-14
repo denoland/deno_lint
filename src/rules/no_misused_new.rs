@@ -17,9 +17,9 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Context, module: &Module) {
     let mut visitor = NoMisusedNewVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 
   fn code(&self) -> &'static str {

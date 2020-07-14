@@ -19,9 +19,9 @@ impl LintRule for NoCompareNegZero {
     "no-compare-neg-zero"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Context, module: &Module) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
