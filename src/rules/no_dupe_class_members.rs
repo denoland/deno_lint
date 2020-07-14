@@ -23,9 +23,9 @@ impl LintRule for NoDupeClassMembers {
     "no-dupe-class-members"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

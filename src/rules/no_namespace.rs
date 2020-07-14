@@ -17,9 +17,9 @@ impl LintRule for NoNamespace {
     "no-namespace"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
     let mut visitor = NoNamespaceVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

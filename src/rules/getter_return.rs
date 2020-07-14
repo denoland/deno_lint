@@ -26,9 +26,9 @@ impl LintRule for GetterReturn {
     "getter-return"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
     let mut visitor = GetterReturnVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

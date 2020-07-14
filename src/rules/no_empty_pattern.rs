@@ -17,9 +17,9 @@ impl LintRule for NoEmptyPattern {
     "no-empty-pattern"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

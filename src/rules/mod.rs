@@ -72,7 +72,7 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module);
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module);
   fn code(&self) -> &'static str;
 }
 

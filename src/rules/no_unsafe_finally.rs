@@ -16,9 +16,9 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Context, module: &Module) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 

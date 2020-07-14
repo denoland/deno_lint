@@ -18,9 +18,9 @@ impl LintRule for NoAsyncPromiseExecutor {
     "no-async-promise-executor"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Context, module: &swc_ecma_ast::Module) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
