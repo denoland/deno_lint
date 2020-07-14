@@ -78,11 +78,14 @@ impl NoConstantConditionVisitor {
   ) -> (bool, Option<Span>) {
     match node {
       Expr::Lit(lit) => (true, Some(lit.span())),
+      Expr::Arrow(arrow) => (true, Some(arrow.span)),
+      Expr::Fn(func) => (true, Some(func.ident.as_ref().unwrap().span)),
+      Expr::Object(obj) => (true, Some(obj.span)),
       Expr::Unary(unary) => {
         if unary.op == swc_ecma_ast::UnaryOp::Void {
           (true, Some(unary.span))
         } else {
-          self.is_constant(&unary.arg, Some(unary))
+          self.is_constant(&unary.arg, Some(node))
         }
       }
       // TODO(humancalico)
@@ -104,15 +107,15 @@ impl NoConstantConditionVisitor {
           // (is_left_constant && is_right_constant) || ();
           (false, None)
         } else */
-        if bin.op == swc_ecma_ast::BinaryOp::In {
-          (
-            self.is_constant(&bin.left, Some(node)).0
-              && self.is_constant(&bin.right, Some(node)).0,
-            Some(bin.span),
-          )
-        } else {
-          (false, None)
-        }
+        // if bin.op != swc_ecma_ast::BinaryOp::In {
+        (
+          self.is_constant(&bin.left, Some(node)).0
+            && self.is_constant(&bin.right, Some(node)).0,
+          Some(bin.span),
+        )
+        // } else {
+        //   (false, None)
+        // }
       }
       // ----
       Expr::Assign(assign) => self.is_constant(&assign.right, Some(node)),
@@ -130,6 +133,7 @@ impl Visit for NoConstantConditionVisitor {
     if_stmt: &swc_ecma_ast::IfStmt,
     _parent: &dyn Node,
   ) {
+    dbg!(&if_stmt);
     let const_result = self.is_constant(&if_stmt.test, None);
     if const_result.0 {
       self.add_diagnostic(const_result.1.unwrap())
@@ -143,8 +147,10 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_constant_condition_1() {
-    assert_lint_err::<NoConstantCondition>(r#"if ("some str") {}"#, 4);
-    assert_lint_err::<NoConstantCondition>(r#"if (-2) {}"#, 4);
+  fn no_constant_condition_err() {
+    // assert_lint_err::<NoConstantCondition>(r#"if ("some str") {}"#, 4);
+    // assert_lint_err::<NoConstantCondition>(r#"if (-2) {}"#, 5);
+    // assert_lint_err::<NoConstantCondition>(r#"if ({});"#, 4);
+    assert_lint_err::<NoConstantCondition>(r#"if(''+['a']) {}"#, 5);
   }
 }
