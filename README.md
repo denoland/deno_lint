@@ -2,7 +2,7 @@
 
 A Rust crate for writing fast JavaScript and TypeScript linters.
 
-This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific 
+This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific
 and can be used to write linters for Node as well.
 
 ---
@@ -10,8 +10,8 @@ and can be used to write linters for Node as well.
 **NOTE**
 Work-in-progress
 
-*Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
-working out of the box.*
+_Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
+working out of the box._
 
 See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
@@ -52,9 +52,9 @@ Blazing fast, see comparison with ESLint:
 ]
 ```
 
-*Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
+_Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
 Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
-See [`./benchmarks/`](./benchmarks/) directory for more info.*
+See [`./benchmarks/`](./benchmarks/) directory for more info._
 
 ## Supported rules
 
@@ -178,7 +178,7 @@ Specyfing rule code that will be ignored is required.
 ## Example
 
 `examples/dlint/main.rs` provides a minimal standalone binary demonstrating
-how `deno_lint` can be used as a crate. 
+how `deno_lint` can be used as a crate.
 
 ```shell
 $ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
@@ -244,6 +244,20 @@ $ cargo build --all-targets
 // test it
 $ cargo test
 ```
+
+### Generating flamegraph (Linux)
+
+Prerequisites:
+
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), (`stackcollapse-perf`)[https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl], [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+
+```shell
+$ RUSTFLAGS='-g' cargo build --release --all-targets # build target
+$ sudo perf record --call-graph dwarf ./target/release/examples/dlint benchmarks/oak/**.ts # create performance profile
+$ perf script | stackcollapse-perf | rust-unmangle | flamegraph > flame.svg # generate flamegraph
+```
+
+These commands can take a few minutes to run.
 
 ## Contributing
 
