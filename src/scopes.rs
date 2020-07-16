@@ -1,5 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+#![allow(unused)]
+
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
@@ -16,6 +18,8 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::cell::RefMut;
+use std::cell::Ref;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BindingKind {
@@ -42,6 +46,19 @@ pub enum ScopeKind {
   Catch,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ReferenceKind {
+  Read,
+  Write,
+  ReadWrite,
+}
+
+#[derive(Clone, Debug)]
+pub struct Reference {
+  pub kind: ReferenceKind,
+  pub name: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct ScopeData {
   pub kind: ScopeKind,
@@ -49,6 +66,7 @@ pub struct ScopeData {
   pub span: Span,
   pub child_scopes: Vec<Scope>,
   pub bindings: HashMap<String, BindingKind>,
+  pub references: HashMap<String, Reference>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -69,6 +87,7 @@ impl Scope {
       parent_scope,
       child_scopes: Vec::default(),
       bindings: HashMap::default(),
+      references: HashMap::default(),
     })
   }
 
@@ -161,6 +180,34 @@ impl Scope {
       }
     }
   }
+
+  pub fn add_reference(&mut self, reference: Reference) {
+    let existing = self.index.borrow_mut()[self.id]
+      .references
+      .insert(reference.name.to_string(), reference);
+    assert!(
+      existing.is_none(),
+      "Trying to add duplicate reference".to_string()
+    );
+  }
+
+  pub fn get_reference<'a>(&'a self, name: &str) -> Option<Ref<'a, Reference>> {
+    let index = self.index.borrow();
+      if index[self.id].references.contains_key(name) {
+      Some(Ref::map(index, |index| &index[self.id].references[name]))
+    } else {
+      None
+    }
+  }
+
+  pub fn get_reference_mut<'a>(&'a self, name: &str) -> Option<RefMut<'a, Reference>> {
+    let index = self.index.borrow_mut();
+      if index[self.id].references.contains_key(name) {
+      Some(RefMut::map(index, |index| index[self.id].references.get_mut(name).unwrap()))
+    } else {
+      None
+    }
+  }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -204,6 +251,81 @@ impl ScopeIndex {
       None => assert_eq!(scope.id, 0),
     };
     scope
+  }
+}
+
+struct PatternVisitor<'sv, F>
+where
+  F: FnMut(&mut ScopeVisitor, &swc_ecma_ast::Ident, &[Box<swc_ecma_ast::Expr>]),
+{
+  scope_visitor: &'sv mut ScopeVisitor,
+  rhs_nodes: Vec<Box<dyn Node>>,
+  #[allow(clippy::vec_box)]
+  assignments: Vec<Box<swc_ecma_ast::Expr>>,
+  callback: F,
+}
+
+impl<
+    'sv,
+    F: FnMut(&mut ScopeVisitor, &swc_ecma_ast::Ident, &[Box<swc_ecma_ast::Expr>]),
+  > PatternVisitor<'sv, F>
+{
+  fn new(scope_visitor: &'sv mut ScopeVisitor, cb: F) -> Self {
+    Self {
+      scope_visitor,
+      rhs_nodes: vec![],
+      assignments: vec![],
+      callback: cb,
+    }
+  }
+
+  fn get_rhs_nodes(self) -> Vec<Box<dyn Node>> {
+    self.rhs_nodes
+  }
+}
+
+impl<
+    'sv,
+    F: FnMut(&mut ScopeVisitor, &swc_ecma_ast::Ident, &[Box<swc_ecma_ast::Expr>]),
+  > Visit for PatternVisitor<'sv, F>
+{
+  fn visit_pat(&mut self, pat: &swc_ecma_ast::Pat, parent: &dyn Node) {
+    // eprintln!("pat {:#?}", pat);
+    swc_ecma_visit::visit_pat(self, pat, parent);
+  }
+
+  fn visit_ident(&mut self, ident: &swc_ecma_ast::Ident, _parent: &dyn Node) {
+    (self.callback)(self.scope_visitor, ident, &self.assignments)
+  }
+
+  fn visit_assign_pat(
+    &mut self,
+    assign_pat: &swc_ecma_ast::AssignPat,
+    _parent: &dyn Node,
+  ) {
+    self.assignments.push(assign_pat.right.clone());
+    swc_ecma_visit::visit_pat(self, &*assign_pat.left, assign_pat);
+    swc_ecma_visit::visit_expr(
+      self.scope_visitor,
+      &*assign_pat.right,
+      assign_pat,
+    );
+    self.assignments.pop();
+  }
+
+  fn visit_assign_expr(
+    &mut self,
+    assign_expr: &swc_ecma_ast::AssignExpr,
+    _parent: &dyn Node,
+  ) {
+    self.assignments.push(assign_expr.right.clone());
+    swc_ecma_visit::visit_pat_or_expr(self, &assign_expr.left, assign_expr);
+    swc_ecma_visit::visit_expr(
+      self.scope_visitor,
+      &*assign_expr.right,
+      assign_expr,
+    );
+    self.assignments.pop();
   }
 }
 
@@ -329,6 +451,57 @@ impl ScopeVisitor {
         }
       }
     }
+  }
+
+  // /// This function visits `Pat` and calls provided callback for
+  // /// each found `Ident`.
+  // fn visit_idents_in_pat<'a>(
+  //   &mut self,
+  //   pat: &'a swc_ecma_ast::Pat,
+  //   parent: &'a dyn Node,
+  //   callback: Arc<dyn FnMut(&swc_ecma_ast::Ident)>,
+  // ) {
+  //   let mut pattern_visitor = PatternVisitor::new(callback);
+  //   pattern_visitor.visit_pat(pat, parent);
+  // }
+
+  fn visit_variable_declaration(
+    &mut self,
+    decl: &swc_ecma_ast::VarDeclarator,
+    parent: &dyn Node,
+    kind: BindingKind,
+  ) {
+    let cb = |sv: &mut ScopeVisitor,
+              ident: &swc_ecma_ast::Ident,
+              assignments: &[Box<swc_ecma_ast::Expr>]| {
+      let mut scope = sv.get_current_scope();
+      // TODO(bartlomieju): scope for binding should be passed as an arg
+      // to `visit_variable_declaration`
+      scope.add_binding(ident.sym.to_string(), kind.clone());
+
+      for assignment in assignments {
+        // eprintln!("assignment {:#?}", assignment);
+        let ref_ = Reference {
+          name: ident.sym.to_string(),
+          kind: ReferenceKind::Write,
+        };
+        scope.add_reference(ref_);
+      }
+
+      if decl.init.is_some() {
+        let ref_ = Reference {
+          name: ident.sym.to_string(),
+          kind: ReferenceKind::Write,
+        };
+        scope.add_reference(ref_);
+      }
+    };
+    let mut pattern_visitor = PatternVisitor::new(self, cb);
+    pattern_visitor.visit_pat(&decl.name, parent);
+    // let rhs_nodes = pattern_visitor.get_rhs_nodes();
+    // for node in rhs_nodes {
+    //   swc_ecma_visit::visit(self, node, decl);
+    // }
   }
 
   fn check_pat(&mut self, pat: &Pat, kind: BindingKind) {
@@ -466,7 +639,8 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&fn_scope);
-    swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
+    // swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
+    self.visit_function(&fn_decl.function, fn_decl);
     self.exit_scope(&fn_scope);
   }
 
@@ -523,6 +697,20 @@ impl Visit for ScopeVisitor {
       .add_binding(&local.sym, BindingKind::Import);
   }
 
+  fn visit_expr(&mut self, expr: &swc_ecma_ast::Expr, parent: &dyn Node) {
+    dbg!(&expr);
+    swc_ecma_visit::visit_expr(self, expr, parent);
+  }
+
+  fn visit_assign_expr(
+    &mut self,
+    assign_expr: &swc_ecma_ast::AssignExpr,
+    parent: &dyn Node,
+  ) {
+    dbg!(&assign_expr);
+    swc_ecma_visit::visit_assign_expr(self, assign_expr, parent);
+  }
+
   fn visit_with_stmt(
     &mut self,
     with_stmt: &swc_ecma_ast::WithStmt,
@@ -573,9 +761,12 @@ impl Visit for ScopeVisitor {
     };
 
     for decl in &var_decl.decls {
-      self.check_pat(&decl.name, var_kind);
+      self.visit_variable_declaration(decl, parent, var_kind.clone());
+      // self.check_pat(&decl.name, var_kind.clone());
+      if let Some(boxed_expr) = decl.init.as_ref() {
+        swc_ecma_visit::visit_expr(self, &*boxed_expr, decl);
+      }
     }
-    swc_ecma_visit::visit_var_decl(self, var_decl, parent);
   }
 
   fn visit_block_stmt(
@@ -723,6 +914,16 @@ impl Visit for ScopeVisitor {
       }
     }
     self.exit_scope(&loop_scope);
+  }
+
+  fn visit_ident(&mut self, ident: &swc_ecma_ast::Ident, _parent: &dyn Node) {
+    // eprintln!("visit ident {:#?}", ident);
+    let mut scope = self.get_current_scope();
+    let ref_ = Reference {
+      kind: ReferenceKind::Read,
+      name: ident.sym.to_string(),
+    };
+    scope.add_reference(ref_);
   }
 }
 
@@ -1083,5 +1284,49 @@ try{} catch({message}){};
 
     let catch_scope = module_scope.get_child_scope(-1).unwrap();
     assert!(catch_scope.get_binding("message").is_some());
+  }
+
+  #[test]
+  fn references() {
+    let source_code = r#"
+let a = 0;
+"#;
+    let root_scope = test_scopes(source_code);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    // assert_eq!(module_scope.bindings.len(), 1);
+    assert!(module_scope.get_binding("a").is_some());
+    // assert_eq!(module_scope.references.len(), 1);
+    let a_ref = module_scope.get_reference("a").unwrap();
+    assert_eq!(a_ref.kind, ReferenceKind::Write);
+  }
+
+  #[test]
+  fn references2() {
+    let source_code = r#"
+let a = 0;
+function b() {
+  let c = a;
+}
+"#;
+    let root_scope = test_scopes(source_code);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    // assert_eq!(module_scope.bindings.len(), 2);
+    assert!(module_scope.get_binding("a").is_some());
+    assert!(module_scope.get_binding("b").is_some());
+
+    // assert_eq!(module_scope.references.len(), 1); // a
+    let a_ref = module_scope.get_reference("a").unwrap();
+    assert_eq!(a_ref.kind, ReferenceKind::Write);
+
+    let fn_scope = module_scope.get_child_scope(0).unwrap();
+    // eprintln!("function scope refs {:#?}", fn_scope);
+    // assert_eq!(fn_scope.bindings.len(), 1); // b
+    assert!(fn_scope.get_binding("c").is_some());
+
+    // assert_eq!(fn_scope.references.len(), 2); // c, a
+    let a_ref = fn_scope.get_reference("c").unwrap();
+    assert_eq!(a_ref.kind, ReferenceKind::Write);
+    let a_ref = fn_scope.get_reference("a").unwrap();
+    assert_eq!(a_ref.kind, ReferenceKind::Read);
   }
 }
