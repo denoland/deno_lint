@@ -14,7 +14,9 @@ use crate::swc_common::SourceMap;
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{Expr, ExprOrSpread, Ident, Lit};
+use crate::swc_ecma_ast::{
+  Expr, ExprOrSpread, Ident, Lit, Prop, PropName, PropOrSpread,
+};
 use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
 use crate::swc_ecma_parser::JscTarget;
@@ -258,5 +260,45 @@ pub(crate) fn extract_regex(
       _ => None,
     },
     None => None,
+  }
+}
+
+pub(crate) trait Key {
+  fn get_key(&self) -> Option<String>;
+}
+
+impl Key for PropOrSpread {
+  fn get_key(&self) -> Option<String> {
+    use PropOrSpread::*;
+    match self {
+      Prop(p) => (&**p).get_key(),
+      Spread(_) => None,
+    }
+  }
+}
+
+impl Key for Prop {
+  fn get_key(&self) -> Option<String> {
+    use Prop::*;
+    match self {
+      KeyValue(key_value) => key_value.key.get_key(),
+      Getter(getter) => getter.key.get_key(),
+      Setter(setter) => setter.key.get_key(),
+      Method(method) => method.key.get_key(),
+      Shorthand(_) => None,
+      Assign(_) => None,
+    }
+  }
+}
+
+impl Key for PropName {
+  fn get_key(&self) -> Option<String> {
+    use PropName::*;
+    match self {
+      Ident(identifier) => Some(identifier.sym.to_string()),
+      Str(str) => Some(str.value.to_string()),
+      Num(num) => Some(num.to_string()),
+      Computed(_) => None,
+    }
   }
 }

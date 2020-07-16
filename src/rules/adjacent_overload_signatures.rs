@@ -6,10 +6,12 @@ use crate::swc_atoms::JsWord;
 use crate::swc_common::Spanned;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{
-  Decl, ExportDecl, ExprStmt, FnDecl, Module, ModuleDecl, ModuleItem, Program,
-  Stmt, TsModuleBlock, TsNamespaceBody,
+  Class, ClassMember, ClassMethod, Decl, ExportDecl, ExprStmt, FnDecl, Module,
+  ModuleDecl, ModuleItem, Program, Stmt, TsModuleBlock, TsNamespaceBody,
 };
+use crate::swc_util::Key;
 use std::collections::HashSet;
+use std::sync::Arc;
 use swc_ecma_visit::{Node, Visit};
 
 pub struct AdjacentOverloadSignatures;
@@ -23,25 +25,25 @@ impl LintRule for AdjacentOverloadSignatures {
     "adjacent-overload-signatures"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct AdjacentOverloadSignaturesVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl AdjacentOverloadSignaturesVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }
 
-fn extract_ident(decl: &Decl) -> Option<JsWord> {
+fn extract_ident(decl: &Decl) -> Option<String> {
   match decl {
-    Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.clone()),
+    Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.to_string()),
     _ => None,
   }
 }
@@ -130,11 +132,44 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
 
     swc_ecma_visit::visit_ts_module_block(self, ts_module_block, parent);
   }
+
+  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+    let mut seen_methods = HashSet::new();
+    let mut last_method = None;
+
+    class.body.iter().for_each(|member| {
+      let method = match member {
+        ClassMember::Method(ClassMethod {
+          ref key, is_static, ..
+        }) => key.get_key().map(|k| Method {
+          name: dbg!(k),
+          is_static: *is_static,
+        }),
+        _ => None,
+      };
+
+      if let Some(m) = method {
+        if seen_methods.contains(&m) && last_method.as_ref() != Some(&m) {
+          self.context.add_diagnostic(
+            member.span(),
+            "adjacent-overload-signatures",
+            "piyo", // TODO(magurotuna)
+          );
+        }
+
+        seen_methods.insert(m.clone());
+        last_method = Some(m);
+      } else {
+        last_method = None;
+      }
+    });
+    swc_ecma_visit::visit_class(self, class, parent);
+  }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
 struct Method {
-  name: JsWord,
+  name: String,
   is_static: bool,
 }
 
@@ -145,16 +180,16 @@ mod tests {
 
   #[test]
   fn hogepiyo() {
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
-export function foo(s: string);
-export function foo(n: number);
-export function bar(): void {}
-export function baz(): void {}
-export function foo(sn: string | number) {}
-      "#,
-      0,
-      0,
+class Foo {
+  foo(s: string): void;
+  ['foo'](n: number): void;
+  foo(sn: string | number): void {}
+  bar(): void {}
+  baz(): void {}
+}
+    "#,
     );
   }
 
@@ -503,7 +538,6 @@ function foo(sn: string | number) {}
       0,
     );
 
-    // TODO(magurotuna)
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
 function foo(s: string) {}
@@ -527,8 +561,8 @@ declare function bar(): void;
 declare function baz(): void;
 declare function foo(sn: string | number);
       "#,
-      0,
-      0,
+      6,
+      8,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -538,8 +572,8 @@ const a = '';
 const b = '';
 declare function foo(sn: string | number);
       "#,
-      0,
-      0,
+      6,
+      8,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -551,8 +585,8 @@ declare module 'Foo' {
   export function foo(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -566,8 +600,8 @@ declare module 'Foo' {
   function baz(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      8,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -579,8 +613,8 @@ declare namespace Foo {
   export function foo(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -594,8 +628,8 @@ declare namespace Foo {
   function baz(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      8,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
