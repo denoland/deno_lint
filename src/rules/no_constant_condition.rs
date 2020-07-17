@@ -51,15 +51,11 @@ impl NoConstantConditionVisitor {
     match expr {
       Expr::Lit(lit) => match lit {
         Lit::Bool(boolean) => {
-          // println!("inside short circuit lit");
           (operator == swc_ecma_ast::BinaryOp::LogicalOr && boolean.value)
             || (operator == swc_ecma_ast::BinaryOp::LogicalAnd
               && !boolean.value)
         }
-        _ => {
-          // println!("inside short circuit lit false");
-          false
-        }
+        _ => false,
       },
       Expr::Unary(unary) => {
         operator == swc_ecma_ast::BinaryOp::LogicalAnd
@@ -69,14 +65,10 @@ impl NoConstantConditionVisitor {
         if bin.op == swc_ecma_ast::BinaryOp::LogicalAnd
           || bin.op == swc_ecma_ast::BinaryOp::LogicalOr =>
       {
-        // println!("inside short circuit binary logical expression");
         self.check_short_circuit(&bin.left, bin.op)
           || self.check_short_circuit(&bin.right, bin.op)
       }
-      _ => {
-        // println!("inside short circuit default false _ ");
-        false
-      }
+      _ => false,
     }
   }
 
@@ -87,37 +79,23 @@ impl NoConstantConditionVisitor {
     in_boolean_position: bool,
   ) -> bool {
     match node {
-      Expr::Lit(_) | Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => {
-        // println!("inside is_constant Lit, Arrow, Fn, Object");
-        true
-      }
+      Expr::Lit(_) | Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => true,
       Expr::Tpl(tpl) => {
         (in_boolean_position
           && tpl.quasis.iter().any(|quasi| match &quasi.cooked {
-            Some(str) => {
-              println!("inside quasi cooked Some(_)");
-              println!("{}", !str.is_empty());
-              !str.is_empty()
-            }
-            None => {
-              println!("inside quasi cooked false");
-              false
-            }
+            Some(str) => !str.is_empty(),
+            None => false,
           }))
           || tpl.exprs.iter().all(|expr| {
-            println!("inside Tpl exprs all");
             self.is_constant(expr, parent_node, in_boolean_position)
           })
       }
       // TODO(humancalico) confirm in_boolean_position here
       Expr::Paren(paren) => self.is_constant(&paren.expr, Some(node), false),
-      // TODO(humancalico) add support for Template Literals
       Expr::Array(arr) => match parent_node {
         Some(Expr::Bin(bin)) => {
           if bin.op == swc_ecma_ast::BinaryOp::Add {
-            // println!("inside array add");
             arr.elems.iter().all(|element| {
-              // println!("checking all elements");
               self.is_constant(
                 &element.as_ref().unwrap().expr,
                 parent_node,
@@ -128,17 +106,12 @@ impl NoConstantConditionVisitor {
             true
           }
         }
-        _ => {
-          // println!("inside Expr::Array _");
-          true
-        }
+        _ => true,
       },
       Expr::Unary(unary) => {
         if unary.op == swc_ecma_ast::UnaryOp::Void {
           true
         } else {
-          // println!("inside Expr::Unary else");
-          // TODO(humancalico) add typeof condition here https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L120
           (unary.op == swc_ecma_ast::UnaryOp::TypeOf && in_boolean_position)
             || self.is_constant(&unary.arg, Some(node), true)
         }
@@ -148,26 +121,21 @@ impl NoConstantConditionVisitor {
         if bin.op == swc_ecma_ast::BinaryOp::LogicalOr
           || bin.op == swc_ecma_ast::BinaryOp::LogicalAnd
         {
-          // println!("inside is_constant binary logical expression");
           let is_left_constant =
             self.is_constant(&bin.left, Some(node), in_boolean_position);
-          // println!("is_left_constant: {}", &is_left_constant);
           let is_right_constant =
             self.is_constant(&bin.right, Some(node), in_boolean_position);
-          // println!("tag7: {}", &self.check_short_circuit(&bin.left, bin.op));
           let is_left_short_circuit =
             is_left_constant && self.check_short_circuit(&bin.left, bin.op);
-          // println!("tag8: {}", &is_left_short_circuit);
           let is_right_short_circuit =
             is_right_constant && self.check_short_circuit(&bin.right, bin.op);
-          // println!("tag10: {}", &is_right_short_circuit);
           (is_left_constant && is_right_constant)
           // TODO(humancalico) add more condiitons here from https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
             || is_left_short_circuit
             || is_right_short_circuit
-        // (is_left_constant && is_right_constant) || ();
-        } else if bin.op != swc_ecma_ast::BinaryOp::In {
-          // println!("inside binary expression");
+        }
+        // These are fo regular BinaryExpression
+        else if bin.op != swc_ecma_ast::BinaryOp::In {
           self.is_constant(&bin.left, Some(node), false)
             && self.is_constant(&bin.right, Some(node), false)
         } else {
@@ -198,13 +166,11 @@ impl NoConstantConditionVisitor {
 }
 
 impl Visit for NoConstantConditionVisitor {
-  // TODO(humancalico) add tests for conditional expressions
   fn visit_cond_expr(
     &mut self,
     cond_expr: &swc_ecma_ast::CondExpr,
     _parent: &dyn Node,
   ) {
-    // dbg!(&cond_expr);
     self.report(&cond_expr.test)
   }
   fn visit_if_stmt(
@@ -212,7 +178,6 @@ impl Visit for NoConstantConditionVisitor {
     if_stmt: &swc_ecma_ast::IfStmt,
     _parent: &dyn Node,
   ) {
-    dbg!(&if_stmt);
     self.report(&if_stmt.test)
   }
   fn visit_while_stmt(
@@ -220,7 +185,6 @@ impl Visit for NoConstantConditionVisitor {
     while_stmt: &swc_ecma_ast::WhileStmt,
     __parent: &dyn Node,
   ) {
-    dbg!(&while_stmt);
     self.report(&while_stmt.test)
   }
   fn visit_do_while_stmt(
@@ -228,7 +192,6 @@ impl Visit for NoConstantConditionVisitor {
     do_while_stmt: &swc_ecma_ast::DoWhileStmt,
     __parent: &dyn Node,
   ) {
-    // dbg!(&do_while_stmt);
     self.report(&do_while_stmt.test)
   }
   fn visit_for_stmt(
@@ -236,7 +199,6 @@ impl Visit for NoConstantConditionVisitor {
     for_stmt: &swc_ecma_ast::ForStmt,
     __parent: &dyn Node,
   ) {
-    dbg!(&for_stmt);
     if let Some(cond) = for_stmt.test.as_ref() {
       self.report(cond)
     } else {
@@ -257,7 +219,7 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"if(a = f());"#);
     assert_lint_ok::<NoConstantCondition>(r#"if(1, a);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if ('every' in []);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if (`\\\n${a}`) {}"#);
+    assert_lint_ok::<NoConstantCondition>("if (`\\\n${a}`) {}");
     assert_lint_ok::<NoConstantCondition>(r#"if (`${a}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (`${foo()}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (`${a === 'b' && b==='a'}`);"#);
@@ -279,7 +241,7 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"while(x += 3) {}"#);
     assert_lint_ok::<NoConstantCondition>(r#"while(tag`a`) {}"#);
     assert_lint_ok::<NoConstantCondition>(r#"while(tag`${a}`) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"while(`\\\n${a}`) {}"#);
+    assert_lint_ok::<NoConstantCondition>("while(`\\\n${a}`) {}");
 
     // typeof conditions
     assert_lint_ok::<NoConstantCondition>(r#"if(typeof x === 'undefined'){}"#);
@@ -299,6 +261,7 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"if (a || void a);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (void a || a);"#);
 
+    // TODO(humancalico) can be uncommented after adding more conditions https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
     // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' && abc==='str2'){}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' || abc==='str2'){}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' || abc==='str2' && pqr === 5){}"#);
@@ -333,7 +296,6 @@ mod tests {
       r#"if ((foo || {}) instanceof obj) {}"#,
     );
 
-    // here
     assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y] === '' + [ty]) {}"#);
     assert_lint_ok::<NoConstantCondition>(r#"if ('a' === '' + [ty]) {}"#);
     assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y, m, d] === 'a') {}"#);
@@ -353,12 +315,12 @@ mod tests {
     );
     assert_lint_ok::<NoConstantCondition>(r#"if ([...x]+'' === 'y'){}"#);
 
-    // { checkLoops: false } https://eslint.org/docs/rules/no-constant-condition#checkloops
+    // TODO(humancalico) add a configuration option for { checkLoops: false } https://eslint.org/docs/rules/no-constant-condition#checkloops
     // assert_lint_ok::<NoConstantCondition>(r#"while(true);"#);
     // assert_lint_ok::<NoConstantCondition>(r#"for(;true;);"#);
     // assert_lint_ok::<NoConstantCondition>(r#"do{}while(true)"#);
 
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while(true){yield 'foo';}}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while(true){yield 'foo';}}"#,);
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){for(;true;){yield 'foo';}}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){do{yield 'foo';}while(true)}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while (true) { while(true) {yield;}}}"#);
@@ -366,7 +328,7 @@ mod tests {
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {for (; ; yield) {}}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {while (true) {function* foo() {yield;}yield;}}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; x < 10; x++) {yield;}yield;}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; ; x++) { yield; }}#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; ; x++) { yield; }}"#);
 
     assert_lint_err::<NoConstantCondition>(r#"for(;true;);"#, 5);
     assert_lint_err::<NoConstantCondition>(r#"for(;``;);"#, 5);
@@ -469,6 +431,7 @@ mod tests {
     // assert_lint_err::<NoConstantCondition>(r#"function* foo() { for (let foo = 1 + 2 + 3 + (yield); true; baz) {}}"#, );
 
     assert_lint_err::<NoConstantCondition>(r#"if(+1) {}"#, 3);
+    // FIXME(humancalico)
     // assert_lint_err::<NoConstantCondition>(r#"if ([,] + ''){}"#, );
     assert_lint_err::<NoConstantCondition>(r#"if([a]) {}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if([]) {}"#, 3);
@@ -478,7 +441,4 @@ mod tests {
     assert_lint_err::<NoConstantCondition>(r#"if([a] - '') {}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(+[a]) {}"#, 3);
   }
-
-  #[test]
-  fn temporary_test() {}
 }
