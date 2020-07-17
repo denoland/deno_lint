@@ -80,13 +80,37 @@ impl NoConstantConditionVisitor {
     }
   }
 
-  fn is_constant(&self, node: &Expr, parent_node: Option<&Expr>) -> bool {
+  fn is_constant(
+    &self,
+    node: &Expr,
+    parent_node: Option<&Expr>,
+    in_boolean_position: bool,
+  ) -> bool {
     match node {
       Expr::Lit(_) | Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => {
         // println!("inside is_constant Lit, Arrow, Fn, Object");
         true
       }
-      Expr::Paren(paren) => self.is_constant(&paren.expr, Some(node)),
+      Expr::Tpl(tpl) => {
+        (in_boolean_position
+          && tpl.quasis.iter().any(|quasi| match &quasi.cooked {
+            Some(str) => {
+              println!("inside quasi cooked Some(_)");
+              println!("{}", !str.is_empty());
+              !str.is_empty()
+            }
+            None => {
+              println!("inside quasi cooked false");
+              false
+            }
+          }))
+          || tpl.exprs.iter().all(|expr| {
+            println!("inside Tpl exprs all");
+            self.is_constant(expr, parent_node, in_boolean_position)
+          })
+      }
+      // TODO(humancalico) confirm in_boolean_position here
+      Expr::Paren(paren) => self.is_constant(&paren.expr, Some(node), false),
       // TODO(humancalico) add support for Template Literals
       Expr::Array(arr) => match parent_node {
         Some(Expr::Bin(bin)) => {
@@ -94,10 +118,14 @@ impl NoConstantConditionVisitor {
             // println!("inside array add");
             arr.elems.iter().all(|element| {
               // println!("checking all elements");
-              self.is_constant(&element.as_ref().unwrap().expr, parent_node)
+              self.is_constant(
+                &element.as_ref().unwrap().expr,
+                parent_node,
+                false,
+              )
             })
           } else {
-            false
+            true
           }
         }
         _ => {
@@ -111,7 +139,8 @@ impl NoConstantConditionVisitor {
         } else {
           // println!("inside Expr::Unary else");
           // TODO(humancalico) add typeof condition here https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L120
-          self.is_constant(&unary.arg, Some(node))
+          (unary.op == swc_ecma_ast::UnaryOp::TypeOf && in_boolean_position)
+            || self.is_constant(&unary.arg, Some(node), true)
         }
       }
       Expr::Bin(bin) => {
@@ -120,9 +149,11 @@ impl NoConstantConditionVisitor {
           || bin.op == swc_ecma_ast::BinaryOp::LogicalAnd
         {
           // println!("inside is_constant binary logical expression");
-          let is_left_constant = self.is_constant(&bin.left, Some(node));
+          let is_left_constant =
+            self.is_constant(&bin.left, Some(node), in_boolean_position);
           // println!("is_left_constant: {}", &is_left_constant);
-          let is_right_constant = self.is_constant(&bin.right, Some(node));
+          let is_right_constant =
+            self.is_constant(&bin.right, Some(node), in_boolean_position);
           // println!("tag7: {}", &self.check_short_circuit(&bin.left, bin.op));
           let is_left_short_circuit =
             is_left_constant && self.check_short_circuit(&bin.left, bin.op);
@@ -137,22 +168,27 @@ impl NoConstantConditionVisitor {
         // (is_left_constant && is_right_constant) || ();
         } else if bin.op != swc_ecma_ast::BinaryOp::In {
           // println!("inside binary expression");
-          self.is_constant(&bin.left, Some(node))
-            && self.is_constant(&bin.right, Some(node))
+          self.is_constant(&bin.left, Some(node), false)
+            && self.is_constant(&bin.right, Some(node), false)
         } else {
           false
         }
       }
-      Expr::Assign(assign) => self.is_constant(&assign.right, Some(node)),
-      Expr::Seq(seq) => {
-        self.is_constant(&seq.exprs[seq.exprs.len() - 1], Some(node))
+      Expr::Assign(assign) => {
+        assign.op == swc_ecma_ast::AssignOp::Assign
+          && self.is_constant(&assign.right, Some(node), in_boolean_position)
       }
+      Expr::Seq(seq) => self.is_constant(
+        &seq.exprs[seq.exprs.len() - 1],
+        Some(node),
+        in_boolean_position,
+      ),
       _ => false,
     }
   }
 
   fn report(&self, condition: &Expr) {
-    if self.is_constant(condition, None) {
+    if self.is_constant(condition, None, true) {
       let span = condition.span();
       self.add_diagnostic(span);
     } else {
@@ -176,7 +212,7 @@ impl Visit for NoConstantConditionVisitor {
     if_stmt: &swc_ecma_ast::IfStmt,
     _parent: &dyn Node,
   ) {
-    // dbg!(&if_stmt);
+    dbg!(&if_stmt);
     self.report(&if_stmt.test)
   }
   fn visit_while_stmt(
@@ -184,7 +220,7 @@ impl Visit for NoConstantConditionVisitor {
     while_stmt: &swc_ecma_ast::WhileStmt,
     __parent: &dyn Node,
   ) {
-    // dbg!(&while_stmt);
+    dbg!(&while_stmt);
     self.report(&while_stmt.test)
   }
   fn visit_do_while_stmt(
@@ -192,7 +228,7 @@ impl Visit for NoConstantConditionVisitor {
     do_while_stmt: &swc_ecma_ast::DoWhileStmt,
     __parent: &dyn Node,
   ) {
-    // dbg!(&while_stmt);
+    // dbg!(&do_while_stmt);
     self.report(&do_while_stmt.test)
   }
   fn visit_for_stmt(
@@ -200,8 +236,12 @@ impl Visit for NoConstantConditionVisitor {
     for_stmt: &swc_ecma_ast::ForStmt,
     __parent: &dyn Node,
   ) {
-    // dbg!(&for_stmt);
-    self.report(&for_stmt.test.as_ref().unwrap())
+    dbg!(&for_stmt);
+    if let Some(cond) = for_stmt.test.as_ref() {
+      self.report(cond)
+    } else {
+      ()
+    }
   }
 }
 
@@ -217,7 +257,7 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"if(a = f());"#);
     assert_lint_ok::<NoConstantCondition>(r#"if(1, a);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if ('every' in []);"#);
-    assert_lint_ok::<NoConstantCondition>(r#"if (`\\\n${a}`) {}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if (`\\\n${a}`) {}"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (`${a}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (`${foo()}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (`${a === 'b' && b==='a'}`);"#);
@@ -226,19 +266,19 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"if (tag`${a}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"while(~!a);"#);
     assert_lint_ok::<NoConstantCondition>(r#"while(a = b);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"while(`${a}`);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"for(;x < 10;);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"for(;;);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"for(;`${a}`;);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"do{ }while(x)"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"q > 0 ? 1 : 2;"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"`${a}` === a ? 1 : 2"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"`foo${a}` === a ? 1 : 2"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"tag`a` === a ? 1 : 2"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"tag`${a}` === a ? 1 : 2"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"while(x += 3) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"while(tag`a`) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"while(tag`${a}`) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"while(`${a}`);"#);
+    assert_lint_ok::<NoConstantCondition>(r#"for(;x < 10;);"#);
+    assert_lint_ok::<NoConstantCondition>(r#"for(;;);"#);
+    assert_lint_ok::<NoConstantCondition>(r#"for(;`${a}`;);"#);
+    assert_lint_ok::<NoConstantCondition>(r#"do{ }while(x)"#);
+    assert_lint_ok::<NoConstantCondition>(r#"q > 0 ? 1 : 2;"#);
+    assert_lint_ok::<NoConstantCondition>(r#"`${a}` === a ? 1 : 2"#);
+    assert_lint_ok::<NoConstantCondition>(r#"`foo${a}` === a ? 1 : 2"#);
+    assert_lint_ok::<NoConstantCondition>(r#"tag`a` === a ? 1 : 2"#);
+    assert_lint_ok::<NoConstantCondition>(r#"tag`${a}` === a ? 1 : 2"#);
+    assert_lint_ok::<NoConstantCondition>(r#"while(x += 3) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"while(tag`a`) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"while(tag`${a}`) {}"#);
     // assert_lint_ok::<NoConstantCondition>(r#"while(`\\\n${a}`) {}"#);
 
     // typeof conditions
@@ -247,9 +287,13 @@ mod tests {
       r#"if(`${typeof x}` === 'undefined'){}"#,
     );
     assert_lint_ok::<NoConstantCondition>(r#"if(a === 'str' && typeof b){}"#);
-    // assert_lint_ok::<NoConstantCondition>("typeof a == typeof b");
-    // assert_lint_ok::<NoConstantCondition>("typeof 'a' === 'string'|| typeof b === 'string'");
-    // assert_lint_ok::<NoConstantCondition>("`${typeof 'a'}` === 'string'|| `${typeof b}` === 'string'");
+    assert_lint_ok::<NoConstantCondition>("typeof a == typeof b");
+    assert_lint_ok::<NoConstantCondition>(
+      "typeof 'a' === 'string'|| typeof b === 'string'",
+    );
+    assert_lint_ok::<NoConstantCondition>(
+      "`${typeof 'a'}` === 'string'|| `${typeof b}` === 'string'",
+    );
 
     // void conditions
     assert_lint_ok::<NoConstantCondition>(r#"if (a || void a);"#);
@@ -267,29 +311,47 @@ mod tests {
     // assert_lint_ok::<NoConstantCondition>(r#"if(true && typeof abc==='string'){}"#);
 
     // string literals
-    // assert_lint_ok::<NoConstantCondition>(r#"if('str' || a){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if('str1' && a){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(a && 'str'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if('str' || abc==='str'){}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if('str' || a){}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if('str1' && a){}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if(a && 'str'){}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if('str' || abc==='str'){}"#);
 
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 'bar') === 'baz') {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 'bar') !== 'baz') {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 'bar') == 'baz') {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 'bar') != 'baz') {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) > 666) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) < 666) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) >= 666) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) <= 666) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((key || 'k') in obj) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ((foo || {}) instanceof obj) {}"#);
+    assert_lint_ok::<NoConstantCondition>(
+      r#"if ((foo || 'bar') === 'baz') {}"#,
+    );
+    assert_lint_ok::<NoConstantCondition>(
+      r#"if ((foo || 'bar') !== 'baz') {}"#,
+    );
+    assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 'bar') == 'baz') {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 'bar') != 'baz') {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) > 666) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) < 666) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) >= 666) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ((foo || 233) <= 666) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ((key || 'k') in obj) {}"#);
+    assert_lint_ok::<NoConstantCondition>(
+      r#"if ((foo || {}) instanceof obj) {}"#,
+    );
 
-    // assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y] === '' + [ty]) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ('a' === '' + [ty]) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y, m, d] === 'a') {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y, 'm'] === '' + [ty, 'tm']) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y, 'm'] === '' + ['ty']) {}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ([,] in\n\n($2))\n ;\nelse\n ;"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if ([...x]+'' === 'y'){}"#);
+    // here
+    assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y] === '' + [ty]) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ('a' === '' + [ty]) {}"#);
+    assert_lint_ok::<NoConstantCondition>(r#"if ('' + [y, m, d] === 'a') {}"#);
+    assert_lint_ok::<NoConstantCondition>(
+      r#"if ('' + [y, 'm'] === '' + [ty, 'tm']) {}"#,
+    );
+    assert_lint_ok::<NoConstantCondition>(
+      r#"if ('' + [y, 'm'] === '' + ['ty']) {}"#,
+    );
+    assert_lint_ok::<NoConstantCondition>(
+      r#"if ([,] in
+
+        ($2))
+         ;
+         else
+          ;"#,
+    );
+    assert_lint_ok::<NoConstantCondition>(r#"if ([...x]+'' === 'y'){}"#);
 
     // { checkLoops: false } https://eslint.org/docs/rules/no-constant-condition#checkloops
     // assert_lint_ok::<NoConstantCondition>(r#"while(true);"#);
@@ -307,36 +369,36 @@ mod tests {
     // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; ; x++) { yield; }}#);
 
     assert_lint_err::<NoConstantCondition>(r#"for(;true;);"#, 5);
-    // assert_lint_err::<NoConstantCondition>(r#"for(;``;);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"for(;`foo`;);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"for(;`foo${bar}`;);"#, );
+    assert_lint_err::<NoConstantCondition>(r#"for(;``;);"#, 5);
+    assert_lint_err::<NoConstantCondition>(r#"for(;`foo`;);"#, 5);
+    assert_lint_err::<NoConstantCondition>(r#"for(;`foo${bar}`;);"#, 5);
     assert_lint_err::<NoConstantCondition>(r#"do{}while(true)"#, 10);
     assert_lint_err::<NoConstantCondition>(r#"do{}while(t = -2)"#, 10);
-    // assert_lint_err::<NoConstantCondition>(r#"do{}while(``)"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"do{}while(`foo`)"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"do{}while(`foo${bar}`)"#, );
+    assert_lint_err::<NoConstantCondition>(r#"do{}while(``)"#, 10);
+    assert_lint_err::<NoConstantCondition>(r#"do{}while(`foo`)"#, 10);
+    assert_lint_err::<NoConstantCondition>(r#"do{}while(`foo${bar}`)"#, 10);
 
     assert_lint_err::<NoConstantCondition>(r#"true ? 1 : 2;"#, 0);
     // FIXME(humancalico) Is it supposed to be on column 4
     assert_lint_err::<NoConstantCondition>(r#"q = 0 ? 1 : 2;"#, 4);
     assert_lint_err::<NoConstantCondition>(r#"(q = 0) ? 1 : 2;"#, 0);
-    // assert_lint_err::<NoConstantCondition>(r#"`` ? 1 : 2;"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"`foo` ? 1 : 2;"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"`foo${bar}` ? 1 : 2;"#, );
+    assert_lint_err::<NoConstantCondition>(r#"`` ? 1 : 2;"#, 0);
+    assert_lint_err::<NoConstantCondition>(r#"`foo` ? 1 : 2;"#, 0);
+    assert_lint_err::<NoConstantCondition>(r#"`foo${bar}` ? 1 : 2;"#, 0);
     assert_lint_err::<NoConstantCondition>(r#"if(-2);"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(true);"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if({});"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(0 < 1);"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(0 || 1);"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(a, 1);"#, 3);
-    // assert_lint_err::<NoConstantCondition>(r#"if(`foo`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(``);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`\\\n`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`${'bar'}`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`${'bar' + `foo`}`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`foo${false || true}`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`foo${bar}`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`${bar}foo`);"#, );
+    assert_lint_err::<NoConstantCondition>(r#"if(`foo`);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(``);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`\\\n`);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`${'bar'}`);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`${'bar' + `foo`}`);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`foo${false || true}`);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`foo${bar}`);"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`${bar}foo`);"#, 3);
 
     assert_lint_err::<NoConstantCondition>(r#"while([]);"#, 6);
     assert_lint_err::<NoConstantCondition>(r#"while(~!0);"#, 6);
@@ -344,20 +406,26 @@ mod tests {
     assert_lint_err::<NoConstantCondition>(r#"while(function(){});"#, 6);
     assert_lint_err::<NoConstantCondition>(r#"while(true);"#, 6);
     assert_lint_err::<NoConstantCondition>(r#"while(() => {});"#, 6);
-    // assert_lint_err::<NoConstantCondition>(r#"while(`foo`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"while(``);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"while(`${'foo'}`);"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"while(`${'foo' + 'bar'}`);"#, );
+    assert_lint_err::<NoConstantCondition>(r#"while(`foo`);"#, 6);
+    assert_lint_err::<NoConstantCondition>(r#"while(``);"#, 6);
+    assert_lint_err::<NoConstantCondition>(r#"while(`${'foo'}`);"#, 6);
+    assert_lint_err::<NoConstantCondition>(r#"while(`${'foo' + 'bar'}`);"#, 6);
 
     // typeof conditions
-    // assert_lint_err::<NoConstantCondition>(r#"if(typeof x){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`${typeof x}`){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(`${''}${typeof x}`){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(typeof 'abc' === 'string'){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(a = typeof b){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(a, typeof b){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"if(typeof 'a' == 'string' || typeof 'b' == 'string'){}"#, );
-    // assert_lint_err::<NoConstantCondition>(r#"while(typeof x){}"#, );
+    assert_lint_err::<NoConstantCondition>(r#"if(typeof x){}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`${typeof x}`){}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(`${''}${typeof x}`){}"#, 3);
+    assert_lint_err::<NoConstantCondition>(
+      r#"if(typeof 'abc' === 'string'){}"#,
+      3,
+    );
+    assert_lint_err::<NoConstantCondition>(r#"if(a = typeof b){}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(a, typeof b){}"#, 3);
+    assert_lint_err::<NoConstantCondition>(
+      r#"if(typeof 'a' == 'string' || typeof 'b' == 'string'){}"#,
+      3,
+    );
+    assert_lint_err::<NoConstantCondition>(r#"while(typeof x){}"#, 6);
 
     // void conditions
     assert_lint_err::<NoConstantCondition>(r#"if(1 || void x);"#, 3);
@@ -406,9 +474,9 @@ mod tests {
     assert_lint_err::<NoConstantCondition>(r#"if([]) {}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(''+['a']) {}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(''+[]) {}"#, 3);
-    // assert_lint_err::<NoConstantCondition>(r#"if([a]==[a]) {}"#, 3);
-    // assert_lint_err::<NoConstantCondition>(r#"if([a] - '') {}"#, 3);
-    // assert_lint_err::<NoConstantCondition>(r#"if(+[a]) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if([a]==[a]) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if([a] - '') {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(+[a]) {}"#, 3);
   }
 
   #[test]
