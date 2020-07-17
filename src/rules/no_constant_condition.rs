@@ -161,7 +161,6 @@ impl NoConstantConditionVisitor {
       let span = condition.span();
       self.add_diagnostic(span);
     } else {
-      ()
     }
   }
 }
@@ -203,7 +202,6 @@ impl Visit for NoConstantConditionVisitor {
     if let Some(cond) = for_stmt.test.as_ref() {
       self.report(cond)
     } else {
-      ()
     }
   }
 }
