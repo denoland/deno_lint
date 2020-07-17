@@ -4,8 +4,9 @@ use super::LintRule;
 use crate::swc_common::Span;
 use crate::swc_common::Spanned;
 use crate::swc_ecma_ast::{
-  Class, ClassMember, ClassMethod, Decl, ExportDecl, FnDecl, Module,
-  ModuleDecl, ModuleItem, Stmt, TsModuleBlock,
+  Class, ClassMember, ClassMethod, Decl, ExportDecl, Expr, FnDecl, Ident, Lit,
+  Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,
+  TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
 };
 use crate::swc_util::Key;
 use std::collections::HashSet;
@@ -109,8 +110,40 @@ impl ExtractMethod for ClassMember {
         name: k,
         is_static: *is_static,
       }),
+      ClassMember::Constructor(_) => Some(Method {
+        name: "conctructor".to_string(),
+        is_static: false,
+      }),
       _ => None,
     }
+  }
+}
+
+impl ExtractMethod for TsTypeElement {
+  fn get_method(&self) -> Option<Method> {
+    let method_name = match self {
+      TsTypeElement::TsMethodSignature(TsMethodSignature {
+        ref key, ..
+      }) => match &**key {
+        Expr::Ident(Ident { ref sym, .. }) => Some(sym.to_string()),
+        Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
+        _ => None,
+      },
+      TsTypeElement::TsCallSignatureDecl(_) => Some("call".to_string()),
+      TsTypeElement::TsConstructSignatureDecl(_) => Some("new".to_string()),
+      _ => None,
+    };
+
+    method_name.map(|mn| Method {
+      name: mn,
+      is_static: false,
+    })
+  }
+}
+
+impl ExtractMethod for TsInterfaceBody {
+  fn get_method(&self) -> Option<Method> {
+    todo!()
   }
 }
 
@@ -133,6 +166,20 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
     self.check(&class.body);
     swc_ecma_visit::visit_class(self, class, parent);
   }
+
+  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, parent: &dyn Node) {
+    self.check(&ts_type_lit.members);
+    swc_ecma_visit::visit_ts_type_lit(self, ts_type_lit, parent);
+  }
+
+  fn visit_ts_interface_body(
+    &mut self,
+    ts_inteface_body: &TsInterfaceBody,
+    parent: &dyn Node,
+  ) {
+    self.check(&ts_inteface_body.body);
+    swc_ecma_visit::visit_ts_interface_body(self, ts_inteface_body, parent);
+  }
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -145,21 +192,6 @@ struct Method {
 mod tests {
   use super::*;
   use crate::test_util::*;
-
-  #[test]
-  fn hogepiyo() {
-    assert_lint_ok::<AdjacentOverloadSignatures>(
-      r#"
-class Foo {
-  foo(s: string): void;
-  ['foo'](n: number): void;
-  foo(sn: string | number): void {}
-  bar(): void {}
-  baz(): void {}
-}
-    "#,
-    );
-  }
 
   #[test]
   fn adjacent_overload_signatures_valid() {
@@ -631,8 +663,8 @@ type Foo = {
   foo(sn: string | number): void;
 };
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -644,8 +676,8 @@ type Foo = {
   foo(sn: string | number): void;
 };
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -658,8 +690,8 @@ type Foo = {
   baz(): void;
 };
       "#,
-      0,
-      0,
+      5,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -672,8 +704,8 @@ interface Foo {
   baz(): void;
 }
       "#,
-      0,
-      0,
+      5,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -685,8 +717,8 @@ interface Foo {
   foo(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -698,8 +730,8 @@ interface Foo {
   foo(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -711,8 +743,8 @@ interface Foo {
   foo(sn: string | number): void;
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -725,8 +757,8 @@ interface Foo {
   baz(): void;
 }
       "#,
-      0,
-      0,
+      5,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -740,8 +772,8 @@ interface Foo {
   };
 }
       "#,
-      0,
-      0,
+      8,
+      4,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -753,10 +785,10 @@ interface Foo {
   new (sn: string | number);
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+    assert_lint_err_on_line_n::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   new (s: string);
@@ -766,8 +798,7 @@ interface Foo {
   new (sn: string | number);
 }
       "#,
-      0,
-      0,
+      vec![(5, 2), (7, 2)],
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -779,8 +810,8 @@ class Foo {
   constructor(sn: string | number) {}
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -792,8 +823,8 @@ class Foo {
   foo(sn: string | number): void {}
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -805,8 +836,8 @@ class Foo {
   foo(sn: string | number): void {}
 }
       "#,
-      0,
-      0,
+      7,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -819,8 +850,8 @@ class Foo {
   foo(sn: string | number): void {}
 }
       "#,
-      0,
-      0,
+      8,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -833,8 +864,8 @@ class Foo {
   baz(): void {}
 }
       "#,
-      0,
-      0,
+      5,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -847,8 +878,8 @@ class Foo {
   baz(): void {}
 }
       "#,
-      0,
-      0,
+      5,
+      2,
     );
     assert_lint_err_on_line::<AdjacentOverloadSignatures>(
       r#"
@@ -861,8 +892,8 @@ class Foo {
   baz(): void {}
 }
       "#,
-      0,
-      0,
+      5,
+      2,
     );
   }
 }
