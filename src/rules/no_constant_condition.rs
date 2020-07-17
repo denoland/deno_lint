@@ -7,6 +7,7 @@ use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::Expr;
 use crate::swc_ecma_ast::Lit;
 use crate::swc_ecma_ast::Module;
+use std::sync::Arc;
 use swc_ecma_visit::{Node, Visit};
 
 pub struct NoConstantCondition;
@@ -20,18 +21,18 @@ impl LintRule for NoConstantCondition {
     "no-constant-condition"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoConstantConditionVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoConstantConditionVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoConstantConditionVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
