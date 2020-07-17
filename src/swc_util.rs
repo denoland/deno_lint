@@ -15,7 +15,8 @@ use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{
-  Expr, ExprOrSpread, Ident, Lit, Prop, PropName, PropOrSpread,
+  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
+  PropOrSpread, Str, Tpl,
 };
 use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
@@ -293,12 +294,25 @@ impl Key for Prop {
 
 impl Key for PropName {
   fn get_key(&self) -> Option<String> {
-    use PropName::*;
     match self {
-      Ident(identifier) => Some(identifier.sym.to_string()),
-      Str(str) => Some(str.value.to_string()),
-      Num(num) => Some(num.to_string()),
-      Computed(_) => None,
+      PropName::Ident(identifier) => Some(identifier.sym.to_string()),
+      PropName::Str(str) => Some(str.value.to_string()),
+      PropName::Num(num) => Some(num.to_string()),
+      PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
+        Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
+        Expr::Tpl(Tpl {
+          ref exprs,
+          ref quasis,
+          ..
+        }) => {
+          if exprs.is_empty() {
+            quasis.iter().next().map(|q| q.raw.value.to_string())
+          } else {
+            None
+          }
+        }
+        _ => None,
+      },
     }
   }
 }

@@ -1,13 +1,11 @@
-#![allow(dead_code, unused)]
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_atoms::JsWord;
+use crate::swc_common::Span;
 use crate::swc_common::Spanned;
-use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{
-  Class, ClassMember, ClassMethod, Decl, ExportDecl, ExprStmt, FnDecl, Module,
-  ModuleDecl, ModuleItem, Program, Stmt, TsModuleBlock, TsNamespaceBody,
+  Class, ClassMember, ClassMethod, Decl, ExportDecl, FnDecl, Module,
+  ModuleDecl, ModuleItem, Stmt, TsModuleBlock,
 };
 use crate::swc_util::Key;
 use std::collections::HashSet;
@@ -39,52 +37,86 @@ impl AdjacentOverloadSignaturesVisitor {
   pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
+
+  fn add_diagnostic(&self, span: Span, fn_name: &str) {
+    self.context.add_diagnostic(
+      span,
+      "adjacent-overload-signatures",
+      &format!("All '{}' signatures should be adjacent", fn_name),
+    );
+  }
+
+  fn check<'a, 'b, T, U>(&'a self, items: T)
+  where
+    T: IntoIterator<Item = &'b U>,
+    U: ExtractMethod + Spanned + 'b,
+  {
+    let mut seen_methods = HashSet::new();
+    let mut last_method = None;
+    for item in items {
+      if let Some(method) = item.get_method() {
+        if seen_methods.contains(&method)
+          && last_method.as_ref() != Some(&method)
+        {
+          self.add_diagnostic(item.span(), &method.name);
+        }
+
+        seen_methods.insert(method.clone());
+        last_method = Some(method);
+      } else {
+        last_method = None;
+      }
+    }
+  }
 }
 
-fn extract_ident(decl: &Decl) -> Option<String> {
-  match decl {
-    Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.to_string()),
-    _ => None,
+trait ExtractMethod {
+  fn get_method(&self) -> Option<Method>;
+}
+
+impl ExtractMethod for ModuleItem {
+  fn get_method(&self) -> Option<Method> {
+    let extract_ident = |decl: &Decl| match decl {
+      Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.to_string()),
+      _ => None,
+    };
+
+    let method_name = match self {
+      ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+        ref decl,
+        ..
+      })) => extract_ident(decl),
+      ModuleItem::Stmt(ref stmt) => match stmt {
+        Stmt::Decl(ref decl) => extract_ident(decl),
+        _ => None,
+      },
+      _ => None,
+    };
+
+    method_name.map(|mn| Method {
+      name: mn,
+      is_static: false,
+    })
+  }
+}
+
+impl ExtractMethod for ClassMember {
+  fn get_method(&self) -> Option<Method> {
+    match self {
+      ClassMember::Method(ClassMethod {
+        ref key, is_static, ..
+      }) => key.get_key().map(|k| Method {
+        name: k,
+        is_static: *is_static,
+      }),
+      _ => None,
+    }
   }
 }
 
 impl Visit for AdjacentOverloadSignaturesVisitor {
   fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
-    let mut seen_methods = HashSet::new();
-    let mut last_method = None;
-    module.body.iter().for_each(|module_item| {
-      let fn_name = match module_item {
-        ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-          ref decl,
-          ..
-        })) => extract_ident(decl),
-        ModuleItem::Stmt(ref stmt) => match stmt {
-          Stmt::Decl(ref decl) => extract_ident(decl),
-          _ => None,
-        },
-        _ => None,
-      };
-
-      if let Some(fn_name) = fn_name {
-        let m = Method {
-          name: fn_name,
-          is_static: false,
-        };
-
-        if seen_methods.contains(&m) && last_method.as_ref() != Some(&m) {
-          self.context.add_diagnostic(
-            module_item.span(),
-            "adjacent-overload-signatures",
-            "piyo", // TODO(magurotuna)
-          );
-        }
-
-        seen_methods.insert(m.clone());
-        last_method = Some(m);
-      } else {
-        last_method = None;
-      }
-    });
+    self.check(&module.body);
     swc_ecma_visit::visit_module(self, module, parent);
   }
 
@@ -93,76 +125,12 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
     ts_module_block: &TsModuleBlock,
     parent: &dyn Node,
   ) {
-    let mut seen_methods = HashSet::new();
-    let mut last_method = None;
-
-    ts_module_block.body.iter().for_each(|module_item| {
-      let fn_name = match module_item {
-        ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-          ref decl,
-          ..
-        })) => extract_ident(decl),
-        ModuleItem::Stmt(ref stmt) => match stmt {
-          Stmt::Decl(ref decl) => extract_ident(decl),
-          _ => None,
-        },
-        _ => None,
-      };
-
-      if let Some(fn_name) = fn_name {
-        let m = Method {
-          name: fn_name,
-          is_static: false,
-        };
-
-        if seen_methods.contains(&m) && last_method.as_ref() != Some(&m) {
-          self.context.add_diagnostic(
-            module_item.span(),
-            "adjacent-overload-signatures",
-            "piyo", // TODO(magurotuna)
-          );
-        }
-
-        seen_methods.insert(m.clone());
-        last_method = Some(m);
-      } else {
-        last_method = None;
-      }
-    });
-
+    self.check(&ts_module_block.body);
     swc_ecma_visit::visit_ts_module_block(self, ts_module_block, parent);
   }
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut seen_methods = HashSet::new();
-    let mut last_method = None;
-
-    class.body.iter().for_each(|member| {
-      let method = match member {
-        ClassMember::Method(ClassMethod {
-          ref key, is_static, ..
-        }) => key.get_key().map(|k| Method {
-          name: dbg!(k),
-          is_static: *is_static,
-        }),
-        _ => None,
-      };
-
-      if let Some(m) = method {
-        if seen_methods.contains(&m) && last_method.as_ref() != Some(&m) {
-          self.context.add_diagnostic(
-            member.span(),
-            "adjacent-overload-signatures",
-            "piyo", // TODO(magurotuna)
-          );
-        }
-
-        seen_methods.insert(m.clone());
-        last_method = Some(m);
-      } else {
-        last_method = None;
-      }
-    });
+    self.check(&class.body);
     swc_ecma_visit::visit_class(self, class, parent);
   }
 }
@@ -414,7 +382,29 @@ class Foo {
       r#"
 class Foo {
   foo(s: string): void;
+  "foo"(n: number): void;
+  foo(sn: string | number): void {}
+  bar(): void {}
+  baz(): void {}
+}
+    "#,
+    );
+    assert_lint_ok::<AdjacentOverloadSignatures>(
+      r#"
+class Foo {
+  foo(s: string): void;
   ['foo'](n: number): void;
+  foo(sn: string | number): void {}
+  bar(): void {}
+  baz(): void {}
+}
+    "#,
+    );
+    assert_lint_ok::<AdjacentOverloadSignatures>(
+      r#"
+class Foo {
+  foo(s: string): void;
+  [`foo`](n: number): void;
   foo(sn: string | number): void {}
   bar(): void {}
   baz(): void {}
