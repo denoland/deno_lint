@@ -160,7 +160,6 @@ impl NoConstantConditionVisitor {
     if self.is_constant(condition, None, true) {
       let span = condition.span();
       self.add_diagnostic(span);
-    } else {
     }
   }
 }
@@ -171,8 +170,10 @@ impl Visit for NoConstantConditionVisitor {
     cond_expr: &swc_ecma_ast::CondExpr,
     _parent: &dyn Node,
   ) {
+    dbg!(cond_expr);
     self.report(&cond_expr.test)
   }
+
   fn visit_if_stmt(
     &mut self,
     if_stmt: &swc_ecma_ast::IfStmt,
@@ -180,28 +181,30 @@ impl Visit for NoConstantConditionVisitor {
   ) {
     self.report(&if_stmt.test)
   }
+
   fn visit_while_stmt(
     &mut self,
     while_stmt: &swc_ecma_ast::WhileStmt,
-    __parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     self.report(&while_stmt.test)
   }
+
   fn visit_do_while_stmt(
     &mut self,
     do_while_stmt: &swc_ecma_ast::DoWhileStmt,
-    __parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     self.report(&do_while_stmt.test)
   }
+
   fn visit_for_stmt(
     &mut self,
     for_stmt: &swc_ecma_ast::ForStmt,
-    __parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     if let Some(cond) = for_stmt.test.as_ref() {
       self.report(cond)
-    } else {
     }
   }
 }
@@ -260,18 +263,6 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"if (a || void a);"#);
     assert_lint_ok::<NoConstantCondition>(r#"if (void a || a);"#);
 
-    // TODO(humancalico) can be uncommented after adding more conditions https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
-    // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' && abc==='str2'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' || abc==='str2'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' || abc==='str2' && pqr === 5){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(typeof abc === 'string' && abc==='str2'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(false || abc==='str'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(true && abc==='str'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(typeof 'str' && abc==='str'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(abc==='str' || false || def ==='str'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(true && abc==='str' || def ==='str'){}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"if(true && typeof abc==='string'){}"#);
-
     // string literals
     assert_lint_ok::<NoConstantCondition>(r#"if('str' || a){}"#);
     assert_lint_ok::<NoConstantCondition>(r#"if('str1' && a){}"#);
@@ -314,21 +305,6 @@ mod tests {
     );
     assert_lint_ok::<NoConstantCondition>(r#"if ([...x]+'' === 'y'){}"#);
 
-    // TODO(humancalico) add a configuration option for { checkLoops: false } https://eslint.org/docs/rules/no-constant-condition#checkloops
-    // assert_lint_ok::<NoConstantCondition>(r#"while(true);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"for(;true;);"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"do{}while(true)"#);
-
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while(true){yield 'foo';}}"#,);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){for(;true;){yield 'foo';}}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){do{yield 'foo';}while(true)}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while (true) { while(true) {yield;}}}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {for (; yield; ) {}}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {for (; ; yield) {}}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {while (true) {function* foo() {yield;}yield;}}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; x < 10; x++) {yield;}yield;}"#);
-    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; ; x++) { yield; }}"#);
-
     assert_lint_err::<NoConstantCondition>(r#"for(;true;);"#, 5);
     assert_lint_err::<NoConstantCondition>(r#"for(;``;);"#, 5);
     assert_lint_err::<NoConstantCondition>(r#"for(;`foo`;);"#, 5);
@@ -340,7 +316,6 @@ mod tests {
     assert_lint_err::<NoConstantCondition>(r#"do{}while(`foo${bar}`)"#, 10);
 
     assert_lint_err::<NoConstantCondition>(r#"true ? 1 : 2;"#, 0);
-    // FIXME(humancalico) Is it supposed to be on column 4
     assert_lint_err::<NoConstantCondition>(r#"q = 0 ? 1 : 2;"#, 4);
     assert_lint_err::<NoConstantCondition>(r#"(q = 0) ? 1 : 2;"#, 0);
     assert_lint_err::<NoConstantCondition>(r#"`` ? 1 : 2;"#, 0);
@@ -413,7 +388,47 @@ mod tests {
     // string literals
     assert_lint_err::<NoConstantCondition>(r#"if('str1' || 'str2'){}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if('str1' && 'str2'){}"#, 3);
-    // TODO(humancalico) make these test pass
+    assert_lint_err::<NoConstantCondition>(r#"if(+1) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if([a]) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if([]) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(''+['a']) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(''+[]) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if([a]==[a]) {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if([a] - '') {}"#, 3);
+    assert_lint_err::<NoConstantCondition>(r#"if(+[a]) {}"#, 3);
+  }
+
+  // TODO(humancalico) make these tests pass
+  #[test]
+  fn failing() {
+    // TODO(humancalico) can be uncommented after adding more conditions https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
+    // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' && abc==='str2'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' || abc==='str2'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(xyz === 'str1' || abc==='str2' && pqr === 5){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(typeof abc === 'string' && abc==='str2'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(false || abc==='str'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(true && abc==='str'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(typeof 'str' && abc==='str'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(abc==='str' || false || def ==='str'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(true && abc==='str' || def ==='str'){}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"if(true && typeof abc==='string'){}"#);
+
+    // TODO(humancalico) add a configuration option for { checkLoops: false } https://eslint.org/docs/rules/no-constant-condition#checkloops
+    // assert_lint_ok::<NoConstantCondition>(r#"while(true);"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"for(;true;);"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"do{}while(true)"#);
+
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while(true){yield 'foo';}}"#,);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){for(;true;){yield 'foo';}}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){do{yield 'foo';}while(true)}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo(){while (true) { while(true) {yield;}}}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {for (; yield; ) {}}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {for (; ; yield) {}}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() {while (true) {function* foo() {yield;}yield;}}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; x < 10; x++) {yield;}yield;}"#);
+    // assert_lint_ok::<NoConstantCondition>(r#"function* foo() { for (let x = yield; ; x++) { yield; }}"#);
+
+    // TODO(humancalico) can be uncommented after adding more conditions https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
     // assert_lint_err::<NoConstantCondition>(r#"if(abc==='str' || 'str'){}"#, 3);
     // assert_lint_err::<NoConstantCondition>(r#"if(a || 'str'){}"#, 3);
 
@@ -429,15 +444,6 @@ mod tests {
     // assert_lint_err::<NoConstantCondition>(r#"function foo() {while (true) {const bar = function*() {while (true) {yield;}}}}"#, );
     // assert_lint_err::<NoConstantCondition>(r#"function* foo() { for (let foo = 1 + 2 + 3 + (yield); true; baz) {}}"#, );
 
-    assert_lint_err::<NoConstantCondition>(r#"if(+1) {}"#, 3);
-    // FIXME(humancalico)
     // assert_lint_err::<NoConstantCondition>(r#"if ([,] + ''){}"#, );
-    assert_lint_err::<NoConstantCondition>(r#"if([a]) {}"#, 3);
-    assert_lint_err::<NoConstantCondition>(r#"if([]) {}"#, 3);
-    assert_lint_err::<NoConstantCondition>(r#"if(''+['a']) {}"#, 3);
-    assert_lint_err::<NoConstantCondition>(r#"if(''+[]) {}"#, 3);
-    assert_lint_err::<NoConstantCondition>(r#"if([a]==[a]) {}"#, 3);
-    assert_lint_err::<NoConstantCondition>(r#"if([a] - '') {}"#, 3);
-    assert_lint_err::<NoConstantCondition>(r#"if(+[a]) {}"#, 3);
   }
 }
