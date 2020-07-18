@@ -170,7 +170,6 @@ impl Visit for NoConstantConditionVisitor {
     cond_expr: &swc_ecma_ast::CondExpr,
     _parent: &dyn Node,
   ) {
-    dbg!(cond_expr);
     self.report(&cond_expr.test)
   }
 
