@@ -59,7 +59,7 @@ impl AdjacentOverloadSignaturesVisitor {
         if seen_methods.contains(&method)
           && last_method.as_ref() != Some(&method)
         {
-          self.add_diagnostic(item.span(), &method.name);
+          self.add_diagnostic(item.span(), method.get_name());
         }
 
         seen_methods.insert(method.clone());
@@ -94,10 +94,7 @@ impl ExtractMethod for ModuleItem {
       _ => None,
     };
 
-    method_name.map(|mn| Method {
-      name: mn,
-      is_static: false,
-    })
+    method_name.map(|mn| Method::Method(mn))
   }
 }
 
@@ -106,14 +103,16 @@ impl ExtractMethod for ClassMember {
     match self {
       ClassMember::Method(ClassMethod {
         ref key, is_static, ..
-      }) => key.get_key().map(|k| Method {
-        name: k,
-        is_static: *is_static,
+      }) => key.get_key().map(|k| {
+        if *is_static {
+          Method::Static(k)
+        } else {
+          Method::Method(k)
+        }
       }),
-      ClassMember::Constructor(_) => Some(Method {
-        name: "conctructor".to_string(),
-        is_static: false,
-      }),
+      ClassMember::Constructor(_) => {
+        Some(Method::Method("constructor".to_string()))
+      }
       _ => None,
     }
   }
@@ -121,29 +120,24 @@ impl ExtractMethod for ClassMember {
 
 impl ExtractMethod for TsTypeElement {
   fn get_method(&self) -> Option<Method> {
-    let method_name = match self {
+    match self {
       TsTypeElement::TsMethodSignature(TsMethodSignature {
         ref key, ..
       }) => match &**key {
-        Expr::Ident(Ident { ref sym, .. }) => Some(sym.to_string()),
-        Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
+        Expr::Ident(Ident { ref sym, .. }) => {
+          Some(Method::Method(sym.to_string()))
+        }
+        Expr::Lit(Lit::Str(Str { ref value, .. })) => {
+          Some(Method::Method(value.to_string()))
+        }
         _ => None,
       },
-      TsTypeElement::TsCallSignatureDecl(_) => Some("call".to_string()),
-      TsTypeElement::TsConstructSignatureDecl(_) => Some("new".to_string()),
+      TsTypeElement::TsCallSignatureDecl(_) => Some(Method::CallSignature),
+      TsTypeElement::TsConstructSignatureDecl(_) => {
+        Some(Method::ConstructSignature)
+      }
       _ => None,
-    };
-
-    method_name.map(|mn| Method {
-      name: mn,
-      is_static: false,
-    })
-  }
-}
-
-impl ExtractMethod for TsInterfaceBody {
-  fn get_method(&self) -> Option<Method> {
-    todo!()
+    }
   }
 }
 
@@ -183,9 +177,21 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
-struct Method {
-  name: String,
-  is_static: bool,
+enum Method {
+  Method(String),
+  Static(String),
+  CallSignature,
+  ConstructSignature,
+}
+
+impl Method {
+  fn get_name(&self) -> &str {
+    match self {
+      Method::Method(ref s) | Method::Static(ref s) => s,
+      Method::CallSignature => "call",
+      Method::ConstructSignature => "new",
+    }
+  }
 }
 
 #[cfg(test)]
@@ -347,6 +353,19 @@ interface Foo {
     assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
+  (s: string): void;
+  (n: number): void;
+  (sn: string | number): void;
+  foo(n: number): void;
+  bar(): void;
+  baz(): void;
+  call(): void;
+}
+    "#,
+    );
+    assert_lint_ok::<AdjacentOverloadSignatures>(
+      r#"
+interface Foo {
   foo(s: string): void;
   foo(n: number): void;
   foo(sn: string | number): void;
@@ -464,6 +483,7 @@ class Foo {
   static foo(sn: string | number): void {}
   bar(): void {}
   baz(): void {}
+  foo() {}
 }
     "#,
     );
@@ -894,6 +914,51 @@ class Foo {
       "#,
       5,
       2,
+    );
+    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+      r#"
+class Foo {
+  foo() {
+    class Bar {
+      bar(): void;
+      baz() {}
+      bar(s: string): void;
+    }
+  }
+}
+      "#,
+      7,
+      6,
+    );
+    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+      r#"
+class Foo {
+  foo() {
+    class Bar {
+      bar(): void;
+      baz() {}
+      bar(s: string): void;
+    }
+  }
+}
+      "#,
+      7,
+      6,
+    );
+    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+      r#"
+type Foo = {
+  foo(): void;
+  bar: {
+    baz(s: string): void;
+    baz(n: number): void;
+    foo(): void;
+    baz(sn: string | number): void;
+  };
+}
+      "#,
+      8,
+      4,
     );
   }
 }
