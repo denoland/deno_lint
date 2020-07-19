@@ -94,7 +94,7 @@ impl ExtractMethod for ModuleItem {
       _ => None,
     };
 
-    method_name.map(|mn| Method::Method(mn))
+    method_name.map(Method::Method)
   }
 }
 
