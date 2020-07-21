@@ -112,16 +112,17 @@ impl ConstructorSuperVisitor {
 }
 
 impl Visit for ConstructorSuperVisitor {
-  fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
+  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     for member in &class.body {
       if let ClassMember::Constructor(constructor) = member {
         self.check_constructor(constructor, class);
       }
     }
+    swc_ecma_visit::visit_class(self, class, parent);
   }
 }
 
-// tests are taken from ESlint, commenting those
+// most tests are taken from ESlint, commenting those
 // requiring code path support
 #[cfg(test)]
 mod tests {
@@ -232,6 +233,66 @@ class Foo extends Object { constructor(method) { super(); this.method = method |
     assert_lint_err::<ConstructorSuper>(
       "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }",
       38,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    class C extends D {
+      constructor() {}
+    }
+    super();
+  }
+}
+        "#,
+      5,
+      20,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    super();
+  }
+  foo() {
+    class C extends D {
+      constructor() {}
+    }
+  }
+}
+        "#,
+      8,
+      20,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    class C extends null {
+      constructor() {
+        super();
+      }
+    }
+    super();
+  }
+}
+        "#,
+      5,
+      20,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    class C extends null {
+      constructor() {}
+    }
+    super();
+  }
+}
+        "#,
+      5,
+      20,
     );
   }
 }
