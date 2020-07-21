@@ -40,27 +40,21 @@ impl NoClassAssignVisitor {
 
 impl Visit for NoClassAssignVisitor {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ident = match &assign_expr.left {
+    let name = match &assign_expr.left {
       PatOrExpr::Expr(_) => return,
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => ident.sym.to_string(),
+        Pat::Ident(ident) => &ident.sym,
         _ => return,
       },
     };
 
-    let scope = self
-      .context
-      .scope_manager
-      .get_scope_for_span(assign_expr.span);
-    if let Some(binding) = self.context.scope_manager.get_binding(scope, &ident)
-    {
-      if binding.kind == BindingKind::Class {
-        self.context.add_diagnostic(
-          assign_expr.span,
-          "no-class-assign",
-          "Reassigning class declaration is not allowed",
-        );
-      }
+    let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
+    if let Some(BindingKind::Class) = scope.get_binding(name) {
+      self.context.add_diagnostic(
+        assign_expr.span,
+        "no-class-assign",
+        "Reassigning class declaration is not allowed",
+      );
     }
   }
 }

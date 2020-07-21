@@ -48,7 +48,7 @@ impl NoUnusedLabelsVisitor {
 
   fn maybe_check_label(&mut self, maybe_label: Option<&Ident>) {
     if let Some(label) = maybe_label {
-      let label_name = label.sym.to_string();
+      let label_name = label.sym.as_ref();
 
       for label_scope in self.label_scopes.iter_mut().rev() {
         if label_scope.name == label_name {
@@ -66,9 +66,9 @@ impl Visit for NoUnusedLabelsVisitor {
     labeled_stmt: &LabeledStmt,
     parent: &dyn Node,
   ) {
-    let name = labeled_stmt.label.sym.to_string();
+    let name = labeled_stmt.label.sym.as_ref();
     let label_scope = LabelScope {
-      name: name.clone(),
+      name: name.to_owned(),
       used: false,
     };
     self.label_scopes.push(label_scope);

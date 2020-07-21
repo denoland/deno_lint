@@ -39,7 +39,7 @@ impl NoAsyncPromiseExecutorVisitor {
 impl Visit for NoAsyncPromiseExecutorVisitor {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
-      let name = ident.sym.to_string();
+      let name = ident.sym.as_ref();
       if name != "Promise" {
         return;
       }

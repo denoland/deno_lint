@@ -80,7 +80,7 @@ impl Visit for NoRegexSpacesVisitor {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) =
-          extract_regex(&self.context.scope_manager, new_expr.span, ident, args)
+          extract_regex(&self.context.root_scope, new_expr.span, ident, args)
         {
           self.check_regex(regex.as_str(), new_expr.span);
         }
@@ -93,7 +93,7 @@ impl Visit for NoRegexSpacesVisitor {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) = extract_regex(
-          &self.context.scope_manager,
+          &self.context.root_scope,
           call_expr.span,
           ident,
           &call_expr.args,
