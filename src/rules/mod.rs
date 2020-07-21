@@ -23,6 +23,7 @@ pub mod no_class_assign;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
 pub mod no_const_assign;
+pub mod no_constant_condition;
 pub mod no_control_regex;
 pub mod no_debugger;
 pub mod no_delete_var;
@@ -133,6 +134,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_inferrable_types::NoInferrableTypes::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
+    no_constant_condition::NoConstantCondition::new(),
   ]
 }
 
@@ -204,5 +206,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_control_regex::NoControlRegex::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
+    no_constant_condition::NoConstantCondition::new(),
   ]
 }
