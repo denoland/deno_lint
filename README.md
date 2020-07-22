@@ -78,6 +78,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-compare-neg-zero`](https://eslint.org/docs/rules/no-compare-neg-zero)
 - [`no-cond-assign`](https://eslint.org/docs/rules/no-cond-assign)
 - [`no-const-assign`](https://eslint.org/docs/rules/no-const-assign)
+- [`no-constant-condition`](https://eslint.org/docs/rules/no-constant-condition)
 - [`no-control-regex`](https://eslint.org/docs/rules/no-control-regex)
 - [`no-debugger`](https://eslint.org/docs/rules/no-debugger)
 - [`no-delete-var`](https://eslint.org/docs/rules/no-delete-var)

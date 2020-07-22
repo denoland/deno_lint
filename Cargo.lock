@@ -205,18 +205,18 @@ dependencies = [
 
 [[package]]
 name = "dprint-core"
-version = "0.24.0"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb13f434a98b4fc4f35ae52d5130c9bbe2a514f56c3d6529df11df91080fbd8f"
+checksum = "61856e0f0bdf8360c36a7875225caaa29aedf3f9d7e79546a083bc11e068151a"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "dprint-plugin-typescript"
-version = "0.19.8"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c227beb41f4c0e3be999c17f9a292765c7d3cfea3186ae55325907e046ad5fc9"
+checksum = "526e6df790887fd30d7cc4389fd48c08776a0f6fe43bb0867fc72244ccb9012a"
 dependencies = [
  "dprint-core",
  "serde",
@@ -372,9 +372,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.8"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14b6052be84e6b71ab17edffc2eeabf5c2c3ae1fdb464aae35ac50c67a44e1f7"
+checksum = "4fabed175da42fed1fa0746b0ea71f412aa9d35e76e95e59b192c64b9dc2bf8b"
 dependencies = [
  "cfg-if",
 ]
