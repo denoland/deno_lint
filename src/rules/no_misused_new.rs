@@ -118,8 +118,8 @@ impl Visit for NoMisusedNewVisitor {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
-          PropName::Ident(ident) => ident.sym.to_string(),
-          PropName::Str(str_) => str_.value.to_string(),
+          PropName::Ident(ident) => ident.sym.as_ref(),
+          PropName::Str(str_) => str_.value.as_ref(),
           _ => continue,
         };
 

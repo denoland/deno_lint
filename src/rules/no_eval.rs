@@ -41,7 +41,7 @@ impl Visit for NoEvalVisitor {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
-        let name = ident.sym.to_string();
+        let name = ident.sym.as_ref();
         if name == "eval" {
           self.context.add_diagnostic(
             call_expr.span,
