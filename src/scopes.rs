@@ -268,8 +268,7 @@ impl<
   ) {
     self.assignments.push(assign_pat.right.clone());
     swc_ecma_visit::visit_pat(self, &*assign_pat.left, assign_pat);
-    swc_ecma_visit::visit_expr(
-      self.scope_visitor,
+    self.scope_visitor.visit_expr(
       &*assign_pat.right,
       assign_pat,
     );
@@ -283,8 +282,7 @@ impl<
   ) {
     self.assignments.push(assign_expr.right.clone());
     swc_ecma_visit::visit_pat_or_expr(self, &assign_expr.left, assign_expr);
-    swc_ecma_visit::visit_expr(
-      self.scope_visitor,
+    self.scope_visitor.visit_expr(
       &*assign_expr.right,
       assign_expr,
     );
