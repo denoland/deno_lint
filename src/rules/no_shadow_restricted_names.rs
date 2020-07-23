@@ -36,7 +36,7 @@ impl NoShadowRestrictedNamesVisitor {
   }
 
   fn is_restricted_names(&self, ident: &Ident) -> bool {
-    match ident.sym.to_string().as_str() {
+    match ident.sym.as_ref() {
       "undefined" | "NaN" | "Infinity" | "arguments" | "eval" => true,
       _ => false,
     }
@@ -47,17 +47,11 @@ impl NoShadowRestrictedNamesVisitor {
       Pat::Ident(ident) => {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
-        if &ident.sym.to_string() == "undefined" && check_scope {
-          let scope = self.context.scope_manager.get_scope_for_span(ident.span);
-
-          if let Some(_binding) = self
-            .context
-            .scope_manager
-            .get_binding(&scope, ident.sym.to_string().as_str())
-          {
+        if &ident.sym == "undefined" && check_scope {
+          let scope = self.context.root_scope.get_scope_for_span(ident.span);
+          if let Some(_binding) = scope.get_binding(&ident.sym) {
             self.report_shadowing(&ident);
           }
-
           return;
         }
 
@@ -105,7 +99,7 @@ impl NoShadowRestrictedNamesVisitor {
     self.context.add_diagnostic(
       ident.span,
       "no-shadow-restricted-names",
-      &format!("Shadowing of global property {}", &ident.sym.to_string()),
+      &format!("Shadowing of global property {}", &ident.sym),
     );
   }
 }
@@ -115,7 +109,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {
         // `undefined` variable declaration without init is have same meaning
-        if decl.init.is_none() && &ident.sym.to_string() == "undefined" {
+        if decl.init.is_none() && &ident.sym == "undefined" {
           continue;
         }
       }

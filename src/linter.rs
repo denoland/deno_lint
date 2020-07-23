@@ -2,7 +2,7 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::diagnostic::Location;
 use crate::rules::LintRule;
-use crate::scopes::ScopeManager;
+use crate::scopes::Scope;
 use crate::scopes::ScopeVisitor;
 use crate::swc_common::comments::Comment;
 use crate::swc_common::comments::CommentKind;
@@ -30,7 +30,7 @@ pub struct Context {
   pub leading_comments: CommentMap,
   pub trailing_comments: CommentMap,
   pub ignore_directives: Vec<IgnoreDirective>,
-  pub scope_manager: ScopeManager,
+  pub root_scope: Scope,
 }
 
 impl Context {
@@ -394,9 +394,9 @@ impl Linter {
 
     let ignore_directives = self.parse_ignore_directives(&leading);
 
-    let mut scope_visitor = ScopeVisitor::new();
+    let mut scope_visitor = ScopeVisitor::default();
+    let root_scope = scope_visitor.get_root_scope();
     scope_visitor.visit_module(&module, &module);
-    let scope_manager = scope_visitor.consume();
 
     let context = Arc::new(Context {
       file_name,
@@ -405,7 +405,7 @@ impl Linter {
       leading_comments: leading,
       trailing_comments: trailing,
       ignore_directives,
-      scope_manager,
+      root_scope,
     });
 
     for rule in &self.rules {

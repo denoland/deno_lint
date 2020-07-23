@@ -44,7 +44,7 @@ impl NoConstAssignVisitor {
   fn check_pat(&mut self, pat: &Pat, span: Span) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_scope_for_const(span, &ident.sym.to_string());
+        self.check_scope_for_const(span, &ident.sym);
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, span);
@@ -65,7 +65,7 @@ impl NoConstAssignVisitor {
         if let ObjectPatProp::Assign(assign_prop) = prop {
           self.check_scope_for_const(
             assign_prop.key.span,
-            &assign_prop.key.sym.to_string(),
+            &assign_prop.key.sym.as_ref(),
           );
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
           self.check_pat(&kv_prop.value, span);
@@ -84,17 +84,14 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_scope_for_const(&mut self, span: Span, ident: &str) {
-    let scope = self.context.scope_manager.get_scope_for_span(span);
-    if let Some(binding) = self.context.scope_manager.get_binding(scope, ident)
-    {
-      if binding.kind == BindingKind::Const {
-        self.context.add_diagnostic(
-          span,
-          "no-const-assign",
-          "Reassigning constant variable is not allowed",
-        );
-      }
+  fn check_scope_for_const(&mut self, span: Span, name: &str) {
+    let scope = self.context.root_scope.get_scope_for_span(span);
+    if let Some(BindingKind::Const) = scope.get_binding(name) {
+      self.context.add_diagnostic(
+        span,
+        "no-const-assign",
+        "Reassigning constant variable is not allowed",
+      );
     }
   }
 }
@@ -104,7 +101,7 @@ impl Visit for NoConstAssignVisitor {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
         if let Expr::Ident(ident) = &**pat_expr {
-          self.check_scope_for_const(assign_expr.span, &ident.sym.to_string());
+          self.check_scope_for_const(assign_expr.span, &ident.sym);
         }
       }
       PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span),
@@ -113,7 +110,7 @@ impl Visit for NoConstAssignVisitor {
 
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _node: &dyn Node) {
     if let Expr::Ident(ident) = &*update_expr.arg {
-      self.check_scope_for_const(update_expr.span, &ident.sym.to_string());
+      self.check_scope_for_const(update_expr.span, &ident.sym);
     }
   }
 }

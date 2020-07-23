@@ -1,5 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use crate::scopes::ScopeManager;
+use crate::scopes::Scope;
 use crate::swc_atoms::js_word;
 use crate::swc_common;
 use crate::swc_common::comments::Comments;
@@ -240,7 +240,7 @@ impl DropSpan for Expr {
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
-  scope_manager: &ScopeManager,
+  root_scope: &Scope,
   expr_span: Span,
   expr_ident: &Ident,
   expr_args: &[ExprOrSpread],
@@ -249,8 +249,8 @@ pub(crate) fn extract_regex(
     return None;
   }
 
-  let scope = scope_manager.get_scope_for_span(expr_span);
-  if scope_manager.get_binding(scope, &expr_ident.sym).is_some() {
+  let scope = root_scope.get_scope_for_span(expr_span);
+  if scope.get_binding(&expr_ident.sym).is_some() {
     return None;
   }
 
