@@ -9,7 +9,9 @@ use crate::swc_ecma_ast::ObjectPatProp;
 use crate::swc_ecma_ast::Pat;
 use crate::swc_ecma_visit::Node;
 use crate::swc_ecma_visit::Visit;
+use std::cell::Ref;
 use std::cell::RefCell;
+use std::cell::RefMut;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
@@ -18,8 +20,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::cell::RefMut;
-use std::cell::Ref;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BindingKind {
@@ -193,17 +193,22 @@ impl Scope {
 
   pub fn get_reference<'a>(&'a self, name: &str) -> Option<Ref<'a, Reference>> {
     let index = self.index.borrow();
-      if index[self.id].references.contains_key(name) {
+    if index[self.id].references.contains_key(name) {
       Some(Ref::map(index, |index| &index[self.id].references[name]))
     } else {
       None
     }
   }
 
-  pub fn get_reference_mut<'a>(&'a self, name: &str) -> Option<RefMut<'a, Reference>> {
+  pub fn get_reference_mut<'a>(
+    &'a self,
+    name: &str,
+  ) -> Option<RefMut<'a, Reference>> {
     let index = self.index.borrow_mut();
-      if index[self.id].references.contains_key(name) {
-      Some(RefMut::map(index, |index| index[self.id].references.get_mut(name).unwrap()))
+    if index[self.id].references.contains_key(name) {
+      Some(RefMut::map(index, |index| {
+        index[self.id].references.get_mut(name).unwrap()
+      }))
     } else {
       None
     }
@@ -477,7 +482,7 @@ impl ScopeVisitor {
       let mut scope = sv.get_current_scope();
       // TODO(bartlomieju): scope for binding should be passed as an arg
       // to `visit_variable_declaration`
-      scope.add_binding(ident.sym.to_string(), kind.clone());
+      scope.add_binding(ident.sym.to_string(), kind);
 
       for assignment in assignments {
         // eprintln!("assignment {:#?}", assignment);
@@ -761,7 +766,7 @@ impl Visit for ScopeVisitor {
     };
 
     for decl in &var_decl.decls {
-      self.visit_variable_declaration(decl, parent, var_kind.clone());
+      self.visit_variable_declaration(decl, parent, var_kind);
       // self.check_pat(&decl.name, var_kind.clone());
       if let Some(boxed_expr) = decl.init.as_ref() {
         swc_ecma_visit::visit_expr(self, &*boxed_expr, decl);
