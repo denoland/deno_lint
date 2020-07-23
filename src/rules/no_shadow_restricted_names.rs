@@ -49,7 +49,9 @@ impl NoShadowRestrictedNamesVisitor {
         // Check is scope is valid for current pattern
         if &ident.sym == "undefined" && check_scope {
           let scope = self.context.root_scope.get_scope_for_span(ident.span);
-          if let Some(_binding) = scope.get_binding(&ident.sym) {
+          if let Some(_binding) =
+            scope.get_bindings().iter().find(|b| b.name == &*ident.sym)
+          {
             self.report_shadowing(&ident);
           }
           return;

@@ -86,12 +86,16 @@ impl NoConstAssignVisitor {
 
   fn check_scope_for_const(&mut self, span: Span, name: &str) {
     let scope = self.context.root_scope.get_scope_for_span(span);
-    if let Some(BindingKind::Const) = scope.get_binding(name) {
-      self.context.add_diagnostic(
-        span,
-        "no-const-assign",
-        "Reassigning constant variable is not allowed",
-      );
+    let bindings = scope.get_bindings();
+    if let Some(binding) = bindings.iter().find(|b| b.name == name)
+    {
+      if binding.kind == BindingKind::Const {
+        self.context.add_diagnostic(
+          span,
+          "no-const-assign",
+          "Reassigning constant variable is not allowed",
+        );
+      }
     }
   }
 }

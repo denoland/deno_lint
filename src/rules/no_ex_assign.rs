@@ -40,15 +40,19 @@ impl NoExAssignVisitor {
   fn check_scope_for_catch_clause(
     &self,
     scope: &Scope,
-    name: impl AsRef<str>,
+    name: String,
     span: swc_common::Span,
   ) {
-    if let Some(BindingKind::CatchClause) = scope.get_binding(name) {
-      self.context.add_diagnostic(
-        span,
-        "no-ex-assign",
-        "Reassigning exception parameter is not allowed",
-      );
+    let bindings = scope.get_bindings();
+    if let Some(binding) = bindings.iter().find(|b| b.name == name)
+    {
+      if binding.kind == BindingKind::CatchClause {
+        self.context.add_diagnostic(
+          span,
+          "no-ex-assign",
+          "Reassigning exception parameter is not allowed",
+        );
+      }
     }
   }
 }
@@ -61,7 +65,7 @@ impl Visit for NoExAssignVisitor {
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
         Pat::Ident(ident) => self.check_scope_for_catch_clause(
           &scope,
-          &ident.sym,
+          ident.sym.to_string(),
           assign_expr.span,
         ),
         Pat::Array(array) => {
@@ -72,7 +76,7 @@ impl Visit for NoExAssignVisitor {
             if let Some(Pat::Ident(ident)) = elem {
               self.check_scope_for_catch_clause(
                 &scope,
-                &ident.sym,
+                ident.sym.to_string(),
                 assign_expr.span,
               );
             }
@@ -88,7 +92,7 @@ impl Visit for NoExAssignVisitor {
                 if let Pat::Ident(ident) = &*assign_pat.left {
                   self.check_scope_for_catch_clause(
                     &scope,
-                    &ident.sym,
+                    ident.sym.to_string(),
                     assign_expr.span,
                   );
                 }

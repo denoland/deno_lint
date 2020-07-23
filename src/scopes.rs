@@ -1,7 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-#![allow(unused)]
-
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
@@ -11,11 +9,8 @@ use crate::swc_ecma_visit::Node;
 use crate::swc_ecma_visit::Visit;
 use std::cell::Ref;
 use std::cell::RefCell;
-use std::cell::RefMut;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
-use std::collections::HashMap;
-use std::fmt::Display;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
@@ -156,32 +151,8 @@ impl Scope {
     self.index.borrow()[self.id].child_scopes.len()
   }
 
-  pub fn add_binding(
-    &mut self,
-    binding: Binding,
-  ) {
-    self.index.borrow_mut()[self.id]
-      .bindings
-      .push(binding);
-  }
-
-  pub fn get_binding<'a>(
-    &'a self,
-    binding_name: impl AsRef<str>,
-  ) -> Option<BindingKind> {
-    let binding_name = binding_name.as_ref();
-    let index = self.index.borrow();
-    let mut scope_id = self.id;
-    loop {
-      let scope_data = &index[scope_id];
-      if let Some(ref binding) = scope_data.bindings.iter().find(|b| b.name == binding_name) {
-        break Some(binding.kind);
-      } else if let Some(parent) = &scope_data.parent_scope {
-        scope_id = parent.id;
-      } else {
-        break None;
-      }
-    }
+  pub fn add_binding(&mut self, binding: Binding) {
+    self.index.borrow_mut()[self.id].bindings.push(binding);
   }
 
   pub fn get_bindings<'a>(&'a self) -> Ref<'a, Vec<Binding>> {
@@ -191,8 +162,7 @@ impl Scope {
 
   pub fn add_reference(&mut self, reference: Reference) {
     let data = &mut self.index.borrow_mut()[self.id];
-    data
-      .references.push(reference);
+    data.references.push(reference);
   }
 
   pub fn get_references<'a>(&'a self) -> Ref<'a, Vec<Reference>> {
@@ -250,6 +220,7 @@ where
   F: FnMut(&mut ScopeVisitor, &swc_ecma_ast::Ident, &[Box<swc_ecma_ast::Expr>]),
 {
   scope_visitor: &'sv mut ScopeVisitor,
+  #[allow(unused)]
   rhs_nodes: Vec<Box<dyn Node>>,
   #[allow(clippy::vec_box)]
   assignments: Vec<Box<swc_ecma_ast::Expr>>,
@@ -270,6 +241,7 @@ impl<
     }
   }
 
+  #[allow(unused)]
   fn get_rhs_nodes(self) -> Vec<Box<dyn Node>> {
     self.rhs_nodes
   }
@@ -469,11 +441,11 @@ impl ScopeVisitor {
       // TODO(bartlomieju): scope for binding should be passed as an arg
       // to `visit_variable_declaration`
       scope.add_binding(Binding {
-        name: ident.sym.to_string(), 
-        kind
+        name: ident.sym.to_string(),
+        kind,
       });
 
-      for assignment in assignments {
+      for _assignment in assignments {
         // eprintln!("assignment {:#?}", assignment);
         let ref_ = Reference {
           name: ident.sym.to_string(),
@@ -502,8 +474,8 @@ impl ScopeVisitor {
     match pat {
       Pat::Ident(ident) => {
         self.get_current_scope().add_binding(Binding {
-          name: ident.sym.to_string(), 
-          kind 
+          name: ident.sym.to_string(),
+          kind,
         });
       }
       Pat::Assign(assign) => {
@@ -531,12 +503,10 @@ impl ScopeVisitor {
       for prop in object.props.iter() {
         match prop {
           ObjectPatProp::Assign(assign_prop) => {
-            self
-              .get_current_scope()
-              .add_binding(Binding {
-                name: assign_prop.key.sym.to_string(), 
-                kind
-               });
+            self.get_current_scope().add_binding(Binding {
+              name: assign_prop.key.sym.to_string(),
+              kind,
+            });
           }
           ObjectPatProp::KeyValue(kv_prop) => {
             self.check_pat(&kv_prop.value, kind);
@@ -628,14 +598,12 @@ impl Visit for ScopeVisitor {
   fn visit_fn_decl(
     &mut self,
     fn_decl: &swc_ecma_ast::FnDecl,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
-    self
-      .get_current_scope()
-      .add_binding(Binding {
-        name: fn_decl.ident.sym.to_string(), 
-        kind: BindingKind::Function
-      });
+    self.get_current_scope().add_binding(Binding {
+      name: fn_decl.ident.sym.to_string(),
+      kind: BindingKind::Function,
+    });
     let fn_scope = Scope::new(
       ScopeKind::Function,
       fn_decl.function.span,
@@ -652,12 +620,10 @@ impl Visit for ScopeVisitor {
     class_decl: &swc_ecma_ast::ClassDecl,
     parent: &dyn Node,
   ) {
-    self
-      .get_current_scope()
-      .add_binding(Binding {
-        name: class_decl.ident.sym.to_string(), 
-        kind: BindingKind::Class
-      });
+    self.get_current_scope().add_binding(Binding {
+      name: class_decl.ident.sym.to_string(),
+      kind: BindingKind::Class,
+    });
     let class_scope = Scope::new(
       ScopeKind::Class,
       class_decl.class.span,
@@ -698,12 +664,10 @@ impl Visit for ScopeVisitor {
       Default(default) => &default.local,
       Namespace(namespace) => &namespace.local,
     };
-    self
-      .get_current_scope()
-      .add_binding(Binding {
-        name: local.sym.to_string(), 
-        kind: BindingKind::Import
-      });
+    self.get_current_scope().add_binding(Binding {
+      name: local.sym.to_string(),
+      kind: BindingKind::Import,
+    });
   }
 
   fn visit_expr(&mut self, expr: &swc_ecma_ast::Expr, parent: &dyn Node) {
@@ -1239,11 +1203,11 @@ switch (foo) {
     let namespaced1 = &bindings[1];
     assert_eq!(namespaced1.name, "namespaced1");
     assert_eq!(namespaced1.kind, BindingKind::Import);
-    
+
     let export1 = &bindings[2];
     assert_eq!(export1.name, "export1");
     assert_eq!(export1.kind, BindingKind::Import);
-    
+
     assert!(bindings.iter().find(|b| b.name == "export2").is_none());
     assert!(bindings.iter().find(|b| b.name == "alias1").is_some());
     assert!(bindings.iter().find(|b| b.name == "export3").is_some());
@@ -1251,9 +1215,15 @@ switch (foo) {
     assert!(bindings.iter().find(|b| b.name == "export5").is_some());
     assert!(bindings.iter().find(|b| b.name == "export6").is_none());
     assert!(bindings.iter().find(|b| b.name == "alias2").is_some());
-    assert!(bindings.iter().find(|b| b.name == "defaultExport2").is_some());
+    assert!(bindings
+      .iter()
+      .find(|b| b.name == "defaultExport2")
+      .is_some());
     assert!(bindings.iter().find(|b| b.name == "export7").is_some());
-    assert!(bindings.iter().find(|b| b.name == "defaultExport3").is_some());
+    assert!(bindings
+      .iter()
+      .find(|b| b.name == "defaultExport3")
+      .is_some());
     assert!(bindings.iter().find(|b| b.name == "namespaced2").is_some());
   }
 
@@ -1281,22 +1251,77 @@ try{} catch({message}){};
 "#;
     let root_scope = test_scopes(source_code);
     let module_scope = root_scope.get_child_scope(0).unwrap();
-    assert!(module_scope.get_binding("a").is_some());
-    assert!(module_scope.get_binding("b").is_some());
-    assert!(module_scope.get_binding("c").is_some());
-    assert!(module_scope.get_binding("d").is_some());
-    assert!(module_scope.get_binding("e").is_some());
-    assert!(module_scope.get_binding("f").is_some());
-    assert!(module_scope.get_binding("g").is_some());
-    assert!(module_scope.get_binding("h").is_some());
-    assert!(module_scope.get_binding("i").is_some());
-    assert!(module_scope.get_binding("j").is_some());
-    assert!(module_scope.get_binding("k").is_some());
-    assert!(module_scope.get_binding("l").is_some());
-    assert!(module_scope.get_binding("m").is_some());
-    assert!(module_scope.get_binding("n").is_some());
-    assert!(module_scope.get_binding("o").is_some());
-    assert!(module_scope.get_binding("p").is_some());
+    let module_scope_bindings = module_scope.get_bindings();
+    assert_eq!(module_scope_bindings.len(), 23);
+
+    assert_eq!(module_scope_bindings[0].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[0].name, "a");
+
+    assert_eq!(module_scope_bindings[1].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[1].name, "a");
+
+    assert_eq!(module_scope_bindings[2].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[2].name, "b");
+
+    assert_eq!(module_scope_bindings[3].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[3].name, "a");
+
+    assert_eq!(module_scope_bindings[4].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[4].name, "b");
+
+    assert_eq!(module_scope_bindings[5].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[5].name, "c");
+
+    assert_eq!(module_scope_bindings[6].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[6].name, "d");
+
+    assert_eq!(module_scope_bindings[7].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[7].name, "e");
+
+    assert_eq!(module_scope_bindings[8].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[8].name, "f");
+
+    assert_eq!(module_scope_bindings[9].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[9].name, "g");
+
+    assert_eq!(module_scope_bindings[10].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[10].name, "a");
+
+    assert_eq!(module_scope_bindings[11].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[11].name, "h");
+
+    assert_eq!(module_scope_bindings[12].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[12].name, "i");
+
+    assert_eq!(module_scope_bindings[13].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[13].name, "j");
+
+    assert_eq!(module_scope_bindings[14].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[14].name, "a");
+
+    assert_eq!(module_scope_bindings[15].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[15].name, "b");
+
+    assert_eq!(module_scope_bindings[16].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[16].name, "k");
+
+    assert_eq!(module_scope_bindings[17].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[17].name, "l");
+
+    assert_eq!(module_scope_bindings[18].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[18].name, "m");
+
+    assert_eq!(module_scope_bindings[19].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[19].name, "n");
+
+    assert_eq!(module_scope_bindings[20].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[20].name, "o");
+
+    assert_eq!(module_scope_bindings[21].kind, BindingKind::Const);
+    assert_eq!(module_scope_bindings[21].name, "p");
+
+    assert_eq!(module_scope_bindings[22].kind, BindingKind::Function);
+    assert_eq!(module_scope_bindings[22].name, "getPerson");
 
     let function_scope = module_scope.get_child_scope(0).unwrap();
     let function_scope_bindings = function_scope.get_bindings();
