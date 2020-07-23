@@ -33,6 +33,12 @@ pub enum BindingKind {
   Import,
 }
 
+#[derive(Clone, Debug)]
+pub struct Binding {
+  pub kind: BindingKind,
+  pub name: String,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum ScopeKind {
   Program,
@@ -65,8 +71,8 @@ pub struct ScopeData {
   pub parent_scope: Option<Scope>,
   pub span: Span,
   pub child_scopes: Vec<Scope>,
-  pub bindings: HashMap<String, BindingKind>,
-  pub references: HashMap<String, Vec<Reference>>,
+  pub bindings: Vec<Binding>,
+  pub references: Vec<Reference>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -86,8 +92,8 @@ impl Scope {
       span,
       parent_scope,
       child_scopes: Vec::default(),
-      bindings: HashMap::default(),
-      references: HashMap::default(),
+      bindings: Vec::default(),
+      references: Vec::default(),
     })
   }
 
@@ -150,29 +156,26 @@ impl Scope {
     self.index.borrow()[self.id].child_scopes.len()
   }
 
-  /// Adds a new binding to this scope. If a binding with the same name has been
-  /// added earlier, that binding is removed and returned.
   pub fn add_binding(
     &mut self,
-    binding_name: impl Display,
-    binding_kind: BindingKind,
-  ) -> Option<BindingKind> {
+    binding: Binding,
+  ) {
     self.index.borrow_mut()[self.id]
       .bindings
-      .insert(binding_name.to_string(), binding_kind)
+      .push(binding);
   }
 
-  pub fn get_binding(
-    &self,
+  pub fn get_binding<'a>(
+    &'a self,
     binding_name: impl AsRef<str>,
   ) -> Option<BindingKind> {
     let binding_name = binding_name.as_ref();
-    let scopes = self.index.borrow();
+    let index = self.index.borrow();
     let mut scope_id = self.id;
     loop {
-      let scope_data = &scopes[scope_id];
-      if let Some(&binding_kind) = scope_data.bindings.get(binding_name) {
-        break Some(binding_kind);
+      let scope_data = &index[scope_id];
+      if let Some(ref binding) = scope_data.bindings.iter().find(|b| b.name == binding_name) {
+        break Some(binding.kind);
       } else if let Some(parent) = &scope_data.parent_scope {
         scope_id = parent.id;
       } else {
@@ -181,40 +184,20 @@ impl Scope {
     }
   }
 
+  pub fn get_bindings<'a>(&'a self) -> Ref<'a, Vec<Binding>> {
+    let index = self.index.borrow();
+    Ref::map(index, |index| &index[self.id].bindings)
+  }
+
   pub fn add_reference(&mut self, reference: Reference) {
     let data = &mut self.index.borrow_mut()[self.id];
     data
-      .references
-      .entry(reference.name.to_string())
-      .or_insert_with(Vec::new)
-      .push(reference);
+      .references.push(reference);
   }
 
-  // FIXME(bartlomieju): should return Vec?
-  pub fn get_reference<'a>(&'a self, name: &str) -> Option<Ref<'a, Reference>> {
+  pub fn get_references<'a>(&'a self) -> Ref<'a, Vec<Reference>> {
     let index = self.index.borrow();
-    if index[self.id].references.contains_key(name) {
-      // FIXME(bartlomieju): hardcoded index access
-      Some(Ref::map(index, |index| &index[self.id].references[name][0]))
-    } else {
-      None
-    }
-  }
-
-  // FIXME(bartlomieju): should return Vec?
-  pub fn get_reference_mut<'a>(
-    &'a self,
-    name: &str,
-  ) -> Option<RefMut<'a, Reference>> {
-    let index = self.index.borrow_mut();
-    if index[self.id].references.contains_key(name) {
-      Some(RefMut::map(index, |index| {
-        // FIXME(bartlomieju): hardcoded index access
-        &mut index[self.id].references.get_mut(name).unwrap()[0]
-      }))
-    } else {
-      None
-    }
+    Ref::map(index, |index| &index[self.id].references)
   }
 }
 
@@ -485,7 +468,10 @@ impl ScopeVisitor {
       let mut scope = sv.get_current_scope();
       // TODO(bartlomieju): scope for binding should be passed as an arg
       // to `visit_variable_declaration`
-      scope.add_binding(ident.sym.to_string(), kind);
+      scope.add_binding(Binding {
+        name: ident.sym.to_string(), 
+        kind
+      });
 
       for assignment in assignments {
         // eprintln!("assignment {:#?}", assignment);
@@ -515,7 +501,10 @@ impl ScopeVisitor {
   fn check_pat(&mut self, pat: &Pat, kind: BindingKind) {
     match pat {
       Pat::Ident(ident) => {
-        self.get_current_scope().add_binding(&ident.sym, kind);
+        self.get_current_scope().add_binding(Binding {
+          name: ident.sym.to_string(), 
+          kind 
+        });
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, kind);
@@ -544,7 +533,10 @@ impl ScopeVisitor {
           ObjectPatProp::Assign(assign_prop) => {
             self
               .get_current_scope()
-              .add_binding(&assign_prop.key.sym, kind);
+              .add_binding(Binding {
+                name: assign_prop.key.sym.to_string(), 
+                kind
+               });
           }
           ObjectPatProp::KeyValue(kv_prop) => {
             self.check_pat(&kv_prop.value, kind);
@@ -640,7 +632,10 @@ impl Visit for ScopeVisitor {
   ) {
     self
       .get_current_scope()
-      .add_binding(&fn_decl.ident.sym, BindingKind::Function);
+      .add_binding(Binding {
+        name: fn_decl.ident.sym.to_string(), 
+        kind: BindingKind::Function
+      });
     let fn_scope = Scope::new(
       ScopeKind::Function,
       fn_decl.function.span,
@@ -659,7 +654,10 @@ impl Visit for ScopeVisitor {
   ) {
     self
       .get_current_scope()
-      .add_binding(&class_decl.ident.sym, BindingKind::Class);
+      .add_binding(Binding {
+        name: class_decl.ident.sym.to_string(), 
+        kind: BindingKind::Class
+      });
     let class_scope = Scope::new(
       ScopeKind::Class,
       class_decl.class.span,
@@ -702,7 +700,10 @@ impl Visit for ScopeVisitor {
     };
     self
       .get_current_scope()
-      .add_binding(&local.sym, BindingKind::Import);
+      .add_binding(Binding {
+        name: local.sym.to_string(), 
+        kind: BindingKind::Import
+      });
   }
 
   fn visit_expr(&mut self, expr: &swc_ecma_ast::Expr, parent: &dyn Node) {
@@ -1009,8 +1010,10 @@ try {
     let catch_scope = module_scope.get_child_scope(3).unwrap();
     assert_eq!(catch_scope.get_kind(), ScopeKind::Catch);
     assert_eq!(catch_scope.child_scope_count(), 0);
-    let catch_clause_e = catch_scope.get_binding("e").unwrap();
-    assert_eq!(catch_clause_e, BindingKind::CatchClause);
+    let bindings = catch_scope.get_bindings();
+    let catch_clause_e = &bindings[0];
+    assert_eq!(catch_clause_e.name, "e");
+    assert_eq!(catch_clause_e.kind, BindingKind::CatchClause);
   }
 
   #[test]
@@ -1040,8 +1043,9 @@ switch (foo) {
     let switch_scope = module_scope.get_child_scope(0).unwrap();
     assert_eq!(switch_scope.get_kind(), ScopeKind::Switch);
     assert_eq!(switch_scope.child_scope_count(), 0);
-    assert!(switch_scope.get_binding("a").is_some());
-    assert!(switch_scope.get_binding("defaultVal").is_some());
+    let switch_bindings = switch_scope.get_bindings();
+    assert_eq!(&switch_bindings[0].name, "a");
+    assert_eq!(&switch_bindings[1].name, "defaultVal");
   }
   #[test]
   fn loop_scopes() {
@@ -1063,17 +1067,17 @@ switch (foo) {
     let for_scope = module_scope.get_child_scope(0).unwrap();
     assert_eq!(for_scope.get_kind(), ScopeKind::Loop);
     assert_eq!(for_scope.child_scope_count(), 0);
-    assert!(for_scope.get_binding("i").is_some());
+    assert_eq!(for_scope.get_bindings()[0].name, "i");
 
     let for_in_scope = module_scope.get_child_scope(1).unwrap();
     assert_eq!(for_in_scope.get_kind(), ScopeKind::Loop);
     assert_eq!(for_in_scope.child_scope_count(), 0);
-    assert!(for_in_scope.get_binding("i").is_some());
+    assert_eq!(for_in_scope.get_bindings()[0].name, "i");
 
     let for_of_scope = module_scope.get_child_scope(2).unwrap();
     assert_eq!(for_of_scope.get_kind(), ScopeKind::Loop);
     assert_eq!(for_of_scope.child_scope_count(), 0);
-    assert!(for_of_scope.get_binding("i").is_some());
+    assert_eq!(for_of_scope.get_bindings()[0].name, "i");
 
     let while_scope = module_scope.get_child_scope(3).unwrap();
     assert_eq!(while_scope.get_kind(), ScopeKind::Loop);
@@ -1139,21 +1143,19 @@ switch (foo) {
 
     let obj_method_scope = module_scope.get_child_scope(0).unwrap();
     assert_eq!(obj_method_scope.get_kind(), ScopeKind::Function);
-    assert!(obj_method_scope.get_binding("e").is_some());
+    assert_eq!(obj_method_scope.get_bindings()[0].name, "e");
 
     let obj_nested_method_scope = module_scope.get_child_scope(1).unwrap();
     assert_eq!(obj_nested_method_scope.get_kind(), ScopeKind::Function);
-    assert!(obj_nested_method_scope.get_binding("f").is_some());
+    assert_eq!(obj_nested_method_scope.get_bindings()[0].name, "f");
 
     let obj_getter_scope = module_scope.get_child_scope(2).unwrap();
     assert_eq!(obj_getter_scope.get_kind(), ScopeKind::Function);
-    assert!(obj_getter_scope.get_binding("g").is_some());
-    assert!(obj_getter_scope.get_binding("h").is_none());
+    assert_eq!(obj_getter_scope.get_bindings()[0].name, "g");
 
     let obj_setter_scope = module_scope.get_child_scope(3).unwrap();
     assert_eq!(obj_setter_scope.get_kind(), ScopeKind::Function);
-    assert!(obj_setter_scope.get_binding("h").is_some());
-    assert!(obj_setter_scope.get_binding("g").is_none());
+    assert_eq!(obj_setter_scope.get_bindings()[0].name, "h");
   }
 
   #[test]
@@ -1183,21 +1185,27 @@ switch (foo) {
 
     let array_fn_scope = module_scope.get_child_scope(0).unwrap();
     assert_eq!(array_fn_scope.get_kind(), ScopeKind::Function);
-    assert!(array_fn_scope.get_binding("a").is_some());
-    assert!(array_fn_scope.get_binding("b").is_none());
+    let array_fn_bindings = array_fn_scope.get_bindings();
+    assert_eq!(array_fn_bindings.len(), 1);
+    assert_eq!(array_fn_bindings[0].name, "a");
 
     let array_arrow_scope = module_scope.get_child_scope(1).unwrap();
     assert_eq!(array_arrow_scope.get_kind(), ScopeKind::Block);
-    assert!(array_arrow_scope.get_binding("b").is_some());
-    assert!(array_arrow_scope.get_binding("c").is_none());
+    let array_arrow_bindings = array_arrow_scope.get_bindings();
+    assert_eq!(array_arrow_bindings.len(), 1);
+    assert_eq!(array_arrow_bindings[0].name, "b");
 
     let array_nested_fn_scope = module_scope.get_child_scope(2).unwrap();
     assert_eq!(array_nested_fn_scope.get_kind(), ScopeKind::Function);
-    assert!(array_nested_fn_scope.get_binding("c").is_some());
+    let array_nested_fn_bindings = array_nested_fn_scope.get_bindings();
+    assert_eq!(array_nested_fn_bindings.len(), 1);
+    assert_eq!(array_nested_fn_bindings[0].name, "c");
 
     let array_object_method_scope = module_scope.get_child_scope(3).unwrap();
     assert_eq!(array_object_method_scope.get_kind(), ScopeKind::Function);
-    assert!(array_object_method_scope.get_binding("d").is_some());
+    let array_object_method_bindings = array_object_method_scope.get_bindings();
+    assert_eq!(array_object_method_bindings.len(), 1);
+    assert_eq!(array_object_method_bindings[0].name, "d");
   }
 
   #[test]
@@ -1222,23 +1230,31 @@ switch (foo) {
     let module_scope = root_scope.get_child_scope(0).unwrap();
     assert_eq!(module_scope.get_kind(), ScopeKind::Module);
     assert_eq!(module_scope.child_scope_count(), 0);
-    let default_export = module_scope.get_binding("defaultExport1").unwrap();
-    assert_eq!(default_export, BindingKind::Import);
-    let namespaced1 = module_scope.get_binding("namespaced1").unwrap();
-    assert_eq!(namespaced1, BindingKind::Import);
-    let export1 = module_scope.get_binding("export1").unwrap();
-    assert_eq!(export1, BindingKind::Import);
-    assert!(module_scope.get_binding("export2").is_none());
-    assert!(module_scope.get_binding("alias1").is_some());
-    assert!(module_scope.get_binding("export3").is_some());
-    assert!(module_scope.get_binding("export4").is_some());
-    assert!(module_scope.get_binding("export5").is_some());
-    assert!(module_scope.get_binding("export6").is_none());
-    assert!(module_scope.get_binding("alias2").is_some());
-    assert!(module_scope.get_binding("defaultExport2").is_some());
-    assert!(module_scope.get_binding("export7").is_some());
-    assert!(module_scope.get_binding("defaultExport3").is_some());
-    assert!(module_scope.get_binding("namespaced2").is_some());
+    let bindings = module_scope.get_bindings();
+
+    let default_export = &bindings[0];
+    assert_eq!(default_export.name, "defaultExport1");
+    assert_eq!(default_export.kind, BindingKind::Import);
+
+    let namespaced1 = &bindings[1];
+    assert_eq!(namespaced1.name, "namespaced1");
+    assert_eq!(namespaced1.kind, BindingKind::Import);
+    
+    let export1 = &bindings[2];
+    assert_eq!(export1.name, "export1");
+    assert_eq!(export1.kind, BindingKind::Import);
+    
+    assert!(bindings.iter().find(|b| b.name == "export2").is_none());
+    assert!(bindings.iter().find(|b| b.name == "alias1").is_some());
+    assert!(bindings.iter().find(|b| b.name == "export3").is_some());
+    assert!(bindings.iter().find(|b| b.name == "export4").is_some());
+    assert!(bindings.iter().find(|b| b.name == "export5").is_some());
+    assert!(bindings.iter().find(|b| b.name == "export6").is_none());
+    assert!(bindings.iter().find(|b| b.name == "alias2").is_some());
+    assert!(bindings.iter().find(|b| b.name == "defaultExport2").is_some());
+    assert!(bindings.iter().find(|b| b.name == "export7").is_some());
+    assert!(bindings.iter().find(|b| b.name == "defaultExport3").is_some());
+    assert!(bindings.iter().find(|b| b.name == "namespaced2").is_some());
   }
 
   #[test]
@@ -1283,15 +1299,21 @@ try{} catch({message}){};
     assert!(module_scope.get_binding("p").is_some());
 
     let function_scope = module_scope.get_child_scope(0).unwrap();
-    assert!(function_scope.get_binding("username").is_some());
-    assert!(function_scope.get_binding("name").is_some());
-    assert!(function_scope.get_binding("family").is_some());
+    let function_scope_bindings = function_scope.get_bindings();
+    assert_eq!(function_scope_bindings.len(), 3);
+    assert_eq!(function_scope_bindings[0].name, "username");
+    assert_eq!(function_scope_bindings[1].name, "name");
+    assert_eq!(function_scope_bindings[2].name, "family");
 
     let function_catch_scope = function_scope.get_child_scope(-1).unwrap();
-    assert!(function_catch_scope.get_binding("e").is_some());
+    let function_catch_bindings = function_catch_scope.get_bindings();
+    assert_eq!(function_catch_bindings.len(), 1);
+    assert_eq!(function_catch_bindings[0].name, "e");
 
     let catch_scope = module_scope.get_child_scope(-1).unwrap();
-    assert!(catch_scope.get_binding("message").is_some());
+    let catch_bindings = catch_scope.get_bindings();
+    assert_eq!(catch_bindings.len(), 1);
+    assert_eq!(catch_bindings[0].name, "message");
   }
 
   #[test]
@@ -1301,10 +1323,13 @@ let a = 0;
 "#;
     let root_scope = test_scopes(source_code);
     let module_scope = root_scope.get_child_scope(0).unwrap();
-    // assert_eq!(module_scope.bindings.len(), 1);
-    assert!(module_scope.get_binding("a").is_some());
-    // assert_eq!(module_scope.references.len(), 1);
-    let a_ref = module_scope.get_reference("a").unwrap();
+    let mod_bindings = module_scope.get_bindings();
+    assert_eq!(mod_bindings.len(), 1);
+    assert_eq!(mod_bindings[0].name, "a");
+    let refs = module_scope.get_references();
+    assert_eq!(refs.len(), 1);
+    let a_ref = &refs[0];
+    assert_eq!(a_ref.name, "a");
     assert_eq!(a_ref.kind, ReferenceKind::Write);
   }
 
@@ -1318,23 +1343,29 @@ function b() {
 "#;
     let root_scope = test_scopes(source_code);
     let module_scope = root_scope.get_child_scope(0).unwrap();
-    // assert_eq!(module_scope.bindings.len(), 2);
-    assert!(module_scope.get_binding("a").is_some());
-    assert!(module_scope.get_binding("b").is_some());
+    let mod_bindings = module_scope.get_bindings();
+    assert_eq!(mod_bindings.len(), 2);
+    assert_eq!(mod_bindings[0].name, "a");
+    assert_eq!(mod_bindings[1].name, "b");
 
-    // assert_eq!(module_scope.references.len(), 1); // a
-    let a_ref = module_scope.get_reference("a").unwrap();
+    let mod_refs = module_scope.get_references();
+    assert_eq!(mod_refs.len(), 1); // a
+    let a_ref = &mod_refs[0];
+    assert_eq!(a_ref.name, "a");
     assert_eq!(a_ref.kind, ReferenceKind::Write);
 
     let fn_scope = module_scope.get_child_scope(0).unwrap();
-    // eprintln!("function scope refs {:#?}", fn_scope);
-    // assert_eq!(fn_scope.bindings.len(), 1); // b
-    assert!(fn_scope.get_binding("c").is_some());
+    let fn_refs = fn_scope.get_references();
+    let fn_bindings = fn_scope.get_bindings();
+    assert_eq!(fn_bindings.len(), 1); // c
+    assert_eq!(fn_bindings[0].name, "c");
 
-    // assert_eq!(fn_scope.references.len(), 2); // c, a
-    let a_ref = fn_scope.get_reference("c").unwrap();
+    assert_eq!(fn_refs.len(), 2); // c, a
+    let c_ref = &fn_refs[0];
+    assert_eq!(c_ref.name, "c");
     assert_eq!(a_ref.kind, ReferenceKind::Write);
-    let a_ref = fn_scope.get_reference("a").unwrap();
+    let a_ref = &fn_refs[1];
+    assert_eq!(a_ref.name, "a");
     assert_eq!(a_ref.kind, ReferenceKind::Read);
   }
 }

@@ -250,7 +250,7 @@ pub(crate) fn extract_regex(
   }
 
   let scope = root_scope.get_scope_for_span(expr_span);
-  if scope.get_binding(&expr_ident.sym).is_some() {
+  if scope.get_bindings().iter().find(|b| b.name == expr_ident.sym.to_string()).is_some() {
     return None;
   }
 
