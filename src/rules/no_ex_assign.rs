@@ -44,8 +44,7 @@ impl NoExAssignVisitor {
     span: swc_common::Span,
   ) {
     let bindings = scope.get_bindings();
-    if let Some(binding) = bindings.iter().find(|b| b.name == name)
-    {
+    if let Some(binding) = bindings.iter().find(|b| b.name == name) {
       if binding.kind == BindingKind::CatchClause {
         self.context.add_diagnostic(
           span,

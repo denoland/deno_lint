@@ -50,8 +50,7 @@ impl Visit for NoFuncAssignVisitor {
 
     let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
     let bindings = scope.get_bindings();
-    if let Some(binding) = bindings.iter().find(|b| b.name == name)
-    {
+    if let Some(binding) = bindings.iter().find(|b| b.name == name) {
       if binding.kind == BindingKind::Function {
         self.context.add_diagnostic(
           assign_expr.span,

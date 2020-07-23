@@ -50,8 +50,7 @@ impl Visit for NoClassAssignVisitor {
 
     let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
     let bindings = scope.get_bindings();
-    if let Some(binding) = bindings.iter().find(|b| b.name == name.to_string())
-    {
+    if let Some(binding) = bindings.iter().find(|b| *b.name == *name) {
       if binding.kind == BindingKind::Class {
         self.context.add_diagnostic(
           assign_expr.span,

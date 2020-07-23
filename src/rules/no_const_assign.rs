@@ -87,8 +87,7 @@ impl NoConstAssignVisitor {
   fn check_scope_for_const(&mut self, span: Span, name: &str) {
     let scope = self.context.root_scope.get_scope_for_span(span);
     let bindings = scope.get_bindings();
-    if let Some(binding) = bindings.iter().find(|b| b.name == name)
-    {
+    if let Some(binding) = bindings.iter().find(|b| b.name == name) {
       if binding.kind == BindingKind::Const {
         self.context.add_diagnostic(
           span,

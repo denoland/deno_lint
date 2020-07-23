@@ -1209,22 +1209,16 @@ switch (foo) {
     assert_eq!(export1.kind, BindingKind::Import);
 
     assert!(bindings.iter().find(|b| b.name == "export2").is_none());
-    assert!(bindings.iter().find(|b| b.name == "alias1").is_some());
-    assert!(bindings.iter().find(|b| b.name == "export3").is_some());
-    assert!(bindings.iter().find(|b| b.name == "export4").is_some());
-    assert!(bindings.iter().find(|b| b.name == "export5").is_some());
+    assert!(bindings.iter().any(|b| b.name == "alias1"));
+    assert!(bindings.iter().any(|b| b.name == "export3"));
+    assert!(bindings.iter().any(|b| b.name == "export4"));
+    assert!(bindings.iter().any(|b| b.name == "export5"));
     assert!(bindings.iter().find(|b| b.name == "export6").is_none());
-    assert!(bindings.iter().find(|b| b.name == "alias2").is_some());
-    assert!(bindings
-      .iter()
-      .find(|b| b.name == "defaultExport2")
-      .is_some());
-    assert!(bindings.iter().find(|b| b.name == "export7").is_some());
-    assert!(bindings
-      .iter()
-      .find(|b| b.name == "defaultExport3")
-      .is_some());
-    assert!(bindings.iter().find(|b| b.name == "namespaced2").is_some());
+    assert!(bindings.iter().any(|b| b.name == "alias2"));
+    assert!(bindings.iter().any(|b| b.name == "defaultExport2"));
+    assert!(bindings.iter().any(|b| b.name == "export7"));
+    assert!(bindings.iter().any(|b| b.name == "defaultExport3"));
+    assert!(bindings.iter().any(|b| b.name == "namespaced2"));
   }
 
   #[test]

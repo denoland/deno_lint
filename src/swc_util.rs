@@ -253,8 +253,7 @@ pub(crate) fn extract_regex(
   if scope
     .get_bindings()
     .iter()
-    .find(|b| b.name == expr_ident.sym.to_string())
-    .is_some()
+    .any(|b| b.name == *expr_ident.sym)
   {
     return None;
   }
