@@ -66,7 +66,7 @@ pub struct ScopeData {
   pub span: Span,
   pub child_scopes: Vec<Scope>,
   pub bindings: HashMap<String, BindingKind>,
-  pub references: HashMap<String, Reference>,
+  pub references: HashMap<String, Vec<Reference>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -182,24 +182,26 @@ impl Scope {
   }
 
   pub fn add_reference(&mut self, reference: Reference) {
-    let existing = self.index.borrow_mut()[self.id]
+    let data = &mut self.index.borrow_mut()[self.id];
+    data
       .references
-      .insert(reference.name.to_string(), reference);
-    assert!(
-      existing.is_none(),
-      "Trying to add duplicate reference".to_string()
-    );
+      .entry(reference.name.to_string())
+      .or_insert_with(Vec::new)
+      .push(reference);
   }
 
+  // FIXME(bartlomieju): should return Vec?
   pub fn get_reference<'a>(&'a self, name: &str) -> Option<Ref<'a, Reference>> {
     let index = self.index.borrow();
     if index[self.id].references.contains_key(name) {
-      Some(Ref::map(index, |index| &index[self.id].references[name]))
+      // FIXME(bartlomieju): hardcoded index access
+      Some(Ref::map(index, |index| &index[self.id].references[name][0]))
     } else {
       None
     }
   }
 
+  // FIXME(bartlomieju): should return Vec?
   pub fn get_reference_mut<'a>(
     &'a self,
     name: &str,
@@ -207,7 +209,8 @@ impl Scope {
     let index = self.index.borrow_mut();
     if index[self.id].references.contains_key(name) {
       Some(RefMut::map(index, |index| {
-        index[self.id].references.get_mut(name).unwrap()
+        // FIXME(bartlomieju): hardcoded index access
+        &mut index[self.id].references.get_mut(name).unwrap()[0]
       }))
     } else {
       None
@@ -703,7 +706,7 @@ impl Visit for ScopeVisitor {
   }
 
   fn visit_expr(&mut self, expr: &swc_ecma_ast::Expr, parent: &dyn Node) {
-    dbg!(&expr);
+    // dbg!(&expr);
     swc_ecma_visit::visit_expr(self, expr, parent);
   }
 
@@ -712,7 +715,7 @@ impl Visit for ScopeVisitor {
     assign_expr: &swc_ecma_ast::AssignExpr,
     parent: &dyn Node,
   ) {
-    dbg!(&assign_expr);
+    // dbg!(&assign_expr);
     swc_ecma_visit::visit_assign_expr(self, assign_expr, parent);
   }
 
