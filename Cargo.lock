@@ -39,9 +39,9 @@ dependencies = [
 
 [[package]]
 name = "ast_node"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa87dd2848313961eec40d0625ac425cd9e8bb75988382a247484b7aa3805e5d"
+checksum = "fd6ee2941db3551563d29eaf5214cd3d7b2f322e0c0e3954f5ae020f860bae8c"
 dependencies = [
  "darling",
  "pmutil",
@@ -214,9 +214,7 @@ dependencies = [
 
 [[package]]
 name = "dprint-plugin-typescript"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "526e6df790887fd30d7cc4389fd48c08776a0f6fe43bb0867fc72244ccb9012a"
+version = "0.21.0"
 dependencies = [
  "dprint-core",
  "serde",
@@ -341,6 +339,19 @@ name = "if_chain"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3360c7b59e5ffa2653671fb74b4741a5d343c03f331c0a4aeda42b5c2b0ec7d"
+
+[[package]]
+name = "is-macro"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04807f3dc9e3ea39af3f8469a5297267faf94859637afb836b33f47d9b2650ee"
+dependencies = [
+ "Inflector",
+ "pmutil",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "itoa"
@@ -922,9 +933,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.6.2"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79e97fcbda03677da4d57519548082bd8ed30d6afcef8e18053ad829e290d252"
+checksum = "f6dfaba645cbfc03f574d154f800952e27f0176d91e24a7c9d3917f1afde7d12"
 dependencies = [
  "ast_node",
  "atty",
@@ -939,17 +950,19 @@ dependencies = [
  "serde",
  "sourcemap",
  "string_cache",
+ "swc_visit",
  "termcolor",
  "unicode-width",
 ]
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.23.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47b0fe7f603d4ddef115f7efe72e9c0823f90d9adae5dd4d754fe1a08686b021"
+checksum = "4aacf20b5d1587fcbfdd5e09c9e9ee55fa862c93f3ddeea9ec847a124eff27a2"
 dependencies = [
  "enum_kind",
+ "is-macro",
  "num-bigint",
  "serde",
  "string_enum",
@@ -959,9 +972,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.27.0"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00871b8900ab4c64b66c81787c95e511e46fb25b54db481a98ab1905160e1edd"
+checksum = "77389b91b7ee1a59b8d424c86c835147da95eccec1ad289860e42ef1a109fd28"
 dependencies = [
  "either",
  "enum_kind",
@@ -975,6 +988,7 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser_macros",
+ "swc_ecma_visit",
  "unicode-xid",
 ]
 
@@ -993,29 +1007,15 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9ce020872b2c0e6b4b65edbb39f523377a67c4532cdde68efbeaa27fade1e44"
+checksum = "2cb14e6a02ccd20b815f79b030b4372a12cb6a2b117a4794fb8d89c3fe1f78fc"
 dependencies = [
  "num-bigint",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
- "swc_ecma_visit_macros",
-]
-
-[[package]]
-name = "swc_ecma_visit_macros"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a32877a341800d772d95858c24344ce00f68361763eae5fa97187e6be136c4b"
-dependencies = [
- "Inflector",
- "pmutil",
- "proc-macro2",
- "quote",
- "swc_macros_common",
- "syn",
+ "swc_visit",
 ]
 
 [[package]]
@@ -1027,6 +1027,30 @@ dependencies = [
  "pmutil",
  "proc-macro2",
  "quote",
+ "syn",
+]
+
+[[package]]
+name = "swc_visit"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6683cd5f6b97498e887e0d4da4c44ddafb755dfb0d950c52af99344fad23fec9"
+dependencies = [
+ "either",
+ "swc_visit_macros",
+]
+
+[[package]]
+name = "swc_visit_macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1802720b0826a2ae6fac5be1305b1277cf1e83418549f465edf075d8016a1548"
+dependencies = [
+ "Inflector",
+ "pmutil",
+ "proc-macro2",
+ "quote",
+ "swc_macros_common",
  "syn",
 ]
 
