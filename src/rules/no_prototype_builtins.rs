@@ -56,9 +56,8 @@ impl Visit for NoPrototypeBuiltinsVisitor {
     };
 
     if let Expr::Ident(ident) = &*member_expr.prop {
-      let prop_name = ident.sym.to_string();
-
-      if BANNED_PROPERTIES.contains(&prop_name.as_str()) {
+      let prop_name = ident.sym.as_ref();
+      if BANNED_PROPERTIES.contains(&prop_name) {
         self.context.add_diagnostic(
           call_expr.span,
           "no-prototype-builtins",

@@ -40,27 +40,21 @@ impl NoFuncAssignVisitor {
 
 impl Visit for NoFuncAssignVisitor {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ident = match &assign_expr.left {
+    let name = match &assign_expr.left {
       PatOrExpr::Expr(_) => return,
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => ident.sym.to_string(),
+        Pat::Ident(ident) => ident.sym.as_ref(),
         _ => return,
       },
     };
 
-    let scope = self
-      .context
-      .scope_manager
-      .get_scope_for_span(assign_expr.span);
-    if let Some(binding) = self.context.scope_manager.get_binding(scope, &ident)
-    {
-      if binding.kind == BindingKind::Function {
-        self.context.add_diagnostic(
-          assign_expr.span,
-          "no-func-assign",
-          "Reassigning function declaration is not allowed",
-        );
-      }
+    let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
+    if let Some(BindingKind::Function) = scope.get_binding(name) {
+      self.context.add_diagnostic(
+        assign_expr.span,
+        "no-func-assign",
+        "Reassigning function declaration is not allowed",
+      );
     }
   }
 }

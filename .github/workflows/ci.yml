@@ -23,7 +23,7 @@ jobs:
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.3
         with:
-          rust-version: "1.44.0"
+          rust-version: "1.45.0"
 
       - name: Install clippy and rustfmt
         run: |

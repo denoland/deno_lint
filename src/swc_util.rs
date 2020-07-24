@@ -1,5 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use crate::scopes::ScopeManager;
+use crate::scopes::Scope;
 use crate::swc_atoms::js_word;
 use crate::swc_common;
 use crate::swc_common::comments::Comments;
@@ -14,7 +14,10 @@ use crate::swc_common::SourceMap;
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{Expr, ExprOrSpread, Ident, Lit};
+use crate::swc_ecma_ast::{
+  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
+  PropOrSpread, Str, Tpl,
+};
 use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
 use crate::swc_ecma_parser::JscTarget;
@@ -237,7 +240,7 @@ impl DropSpan for Expr {
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
-  scope_manager: &ScopeManager,
+  root_scope: &Scope,
   expr_span: Span,
   expr_ident: &Ident,
   expr_args: &[ExprOrSpread],
@@ -246,8 +249,8 @@ pub(crate) fn extract_regex(
     return None;
   }
 
-  let scope = scope_manager.get_scope_for_span(expr_span);
-  if scope_manager.get_binding(scope, &expr_ident.sym).is_some() {
+  let scope = root_scope.get_scope_for_span(expr_span);
+  if scope.get_binding(&expr_ident.sym).is_some() {
     return None;
   }
 
@@ -258,5 +261,58 @@ pub(crate) fn extract_regex(
       _ => None,
     },
     None => None,
+  }
+}
+
+pub(crate) trait Key {
+  fn get_key(&self) -> Option<String>;
+}
+
+impl Key for PropOrSpread {
+  fn get_key(&self) -> Option<String> {
+    use PropOrSpread::*;
+    match self {
+      Prop(p) => (&**p).get_key(),
+      Spread(_) => None,
+    }
+  }
+}
+
+impl Key for Prop {
+  fn get_key(&self) -> Option<String> {
+    use Prop::*;
+    match self {
+      KeyValue(key_value) => key_value.key.get_key(),
+      Getter(getter) => getter.key.get_key(),
+      Setter(setter) => setter.key.get_key(),
+      Method(method) => method.key.get_key(),
+      Shorthand(_) => None,
+      Assign(_) => None,
+    }
+  }
+}
+
+impl Key for PropName {
+  fn get_key(&self) -> Option<String> {
+    match self {
+      PropName::Ident(identifier) => Some(identifier.sym.to_string()),
+      PropName::Str(str) => Some(str.value.to_string()),
+      PropName::Num(num) => Some(num.to_string()),
+      PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
+        Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
+        Expr::Tpl(Tpl {
+          ref exprs,
+          ref quasis,
+          ..
+        }) => {
+          if exprs.is_empty() {
+            quasis.iter().next().map(|q| q.raw.value.to_string())
+          } else {
+            None
+          }
+        }
+        _ => None,
+      },
+    }
   }
 }

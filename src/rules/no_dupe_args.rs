@@ -45,16 +45,12 @@ impl NoDupeArgsVisitor {
     for pat in pats {
       match &pat {
         Pat::Ident(ident) => {
-          let pat_name = ident.sym.to_string();
-
-          if seen.get(&pat_name).is_some() {
+          if !seen.insert(ident.sym.to_string()) {
             self.context.add_diagnostic(
               span,
               "no-dupe-args",
               "Duplicate arguments not allowed",
             );
-          } else {
-            seen.insert(pat_name);
           }
         }
         _ => continue,

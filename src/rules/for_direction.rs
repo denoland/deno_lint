@@ -46,12 +46,12 @@ impl ForDirectionVisitor {
   fn check_update_direction(
     &self,
     update_expr: &UpdateExpr,
-    counter_name: &str,
+    counter_name: impl AsRef<str>,
   ) -> i32 {
     let mut update_direction = 0;
 
     if let Expr::Ident(ident) = &*update_expr.arg {
-      if ident.sym.to_string().as_str() == counter_name {
+      if ident.sym.as_ref() == counter_name.as_ref() {
         match update_expr.op {
           UpdateOp::PlusPlus => {
             update_direction = 1;
@@ -69,22 +69,22 @@ impl ForDirectionVisitor {
   fn check_assign_direction(
     &self,
     assign_expr: &AssignExpr,
-    counter_name: String,
+    counter_name: impl AsRef<str>,
   ) -> i32 {
     let update_direction = 0;
 
     let name = match &assign_expr.left {
       PatOrExpr::Expr(boxed_expr) => match &**boxed_expr {
-        Expr::Ident(ident) => ident.sym.to_string(),
+        Expr::Ident(ident) => ident.sym.as_ref(),
         _ => return update_direction,
       },
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => ident.sym.to_string(),
+        Pat::Ident(ident) => ident.sym.as_ref(),
         _ => return update_direction,
       },
     };
 
-    if name == counter_name {
+    if name == counter_name.as_ref() {
       return match assign_expr.op {
         AssignOp::AddAssign => {
           self.check_assign_right_direction(assign_expr, 1)
@@ -126,7 +126,7 @@ impl Visit for ForDirectionVisitor {
     if let Some(test) = &for_stmt.test {
       if let Expr::Bin(bin_expr) = &**test {
         let counter_name = match &*bin_expr.left {
-          Expr::Ident(ident) => ident.sym.to_string(),
+          Expr::Ident(ident) => ident.sym.as_ref(),
           _ => return,
         };
 
@@ -139,7 +139,7 @@ impl Visit for ForDirectionVisitor {
         let update = for_stmt.update.as_ref().unwrap();
         let update_direction = match &**update {
           Expr::Update(update_expr) => {
-            self.check_update_direction(update_expr, &counter_name)
+            self.check_update_direction(update_expr, counter_name)
           }
           Expr::Assign(assign_expr) => {
             self.check_assign_direction(assign_expr, counter_name)

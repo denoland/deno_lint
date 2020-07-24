@@ -38,8 +38,9 @@ impl NoObjCallsVisitor {
     Self { context }
   }
 
-  fn check_callee(&self, callee_name: String, span: Span) {
-    match callee_name.as_ref() {
+  fn check_callee(&self, callee_name: impl AsRef<str>, span: Span) {
+    let callee_name = callee_name.as_ref();
+    match callee_name {
       "Math" | "JSON" | "Reflect" | "Atomics" => {
         self.context.add_diagnostic(
           span,
@@ -56,16 +57,14 @@ impl Visit for NoObjCallsVisitor {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
-        let name = ident.sym.to_string();
-        self.check_callee(name, call_expr.span);
+        self.check_callee(&ident.sym, call_expr.span);
       }
     }
   }
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
-      let name = ident.sym.to_string();
-      self.check_callee(name, new_expr.span);
+      self.check_callee(&ident.sym, new_expr.span);
     }
   }
 }
