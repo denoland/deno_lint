@@ -216,10 +216,15 @@ dependencies = [
 name = "dprint-plugin-typescript"
 version = "0.21.0"
 <<<<<<< HEAD
+<<<<<<< HEAD
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f71677ecb7ac1522167c60ba7132811b25b03bec76d7b4276a66770ea4063d58"
 =======
 >>>>>>> update swc to latest deps
+=======
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f71677ecb7ac1522167c60ba7132811b25b03bec76d7b4276a66770ea4063d58"
+>>>>>>> dprint
 dependencies = [
  "dprint-core",
  "serde",
