@@ -16,7 +16,7 @@ name = "deno_lint"
 name = "dlint"
 
 [dependencies]
-dprint-plugin-typescript = "0.21.0"
+dprint-plugin-typescript = "0.22.0"
 lazy_static = "1.4.0"
 log = "0.4.11"
 swc_atoms = "0.2.2"
