@@ -22,7 +22,6 @@ use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
 use crate::swc_ecma_parser::JscTarget;
 use crate::swc_ecma_parser::Parser;
-use crate::swc_ecma_parser::Session;
 use crate::swc_ecma_parser::SourceFileInput;
 use crate::swc_ecma_parser::Syntax;
 use crate::swc_ecma_parser::TsConfig;
@@ -168,28 +167,22 @@ impl AstParser {
       );
 
       let buffered_err = self.buffered_error.clone();
-      let session = Session {
-        handler: &self.handler,
-      };
 
       let comments = Comments::default();
       let lexer = Lexer::new(
-        session,
         syntax,
         JscTarget::Es2019,
         SourceFileInput::from(&*swc_source_file),
         Some(&comments),
       );
 
-      let mut parser = Parser::new_from(session, lexer);
+      let mut parser = Parser::new_from(lexer);
 
-      let parse_result =
-        parser
-          .parse_module()
-          .map_err(move |mut err: DiagnosticBuilder| {
-            err.emit();
-            SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
-          });
+      let parse_result = parser.parse_module().map_err(move |err| {
+        let mut diagnostic_builder = err.into_diagnostic(&self.handler);
+        diagnostic_builder.emit();
+        SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+      });
 
       callback(parse_result, comments)
     })
