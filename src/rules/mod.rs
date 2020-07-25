@@ -182,6 +182,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_non_null_assertion::NoNonNullAssertion::new(),
+    no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain::new(),
     no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
