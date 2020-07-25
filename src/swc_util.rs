@@ -178,14 +178,11 @@ impl AstParser {
 
       let mut parser = Parser::new_from(lexer);
 
-      let parse_result =
-        parser
-          .parse_module()
-          .map_err(move |err| {
-            let mut diagnostic_builder = err.into_diagnostic(&self.handler);
-            diagnostic_builder.emit();
-            SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
-          });
+      let parse_result = parser.parse_module().map_err(move |err| {
+        let mut diagnostic_builder = err.into_diagnostic(&self.handler);
+        diagnostic_builder.emit();
+        SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+      });
 
       callback(parse_result, comments)
     })
