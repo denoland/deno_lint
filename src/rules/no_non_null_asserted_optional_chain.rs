@@ -39,14 +39,15 @@ impl Visit for NoNonNullAssertedOptionalChainVisitor {
     non_null_expr: &swc_ecma_ast::TsNonNullExpr,
     _parent: &dyn Node,
   ) {
-    match non_null_expr {
-      swc_ecma_ast::Expr::OptChainExpr(opt_exp) => {
+    match &*non_null_expr.expr {
+      swc_ecma_ast::Expr::OptChain(opt_exp) => {
         self.context.add_diagnostic(
           opt_exp.span,
           "no-non-null-asserted-optional-chain",
           "do not use non-null asserted optional chain",
         );
-      }
+      },
+      _ => return,
     }
   }
 }
@@ -58,11 +59,18 @@ mod tests {
 
   #[test]
   fn should_ok() {
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("instance.doWork();");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>(r#"
+	foo?.bar;
+	(foo?.bar).baz;
+	foo?.bar();
+	foo?.bar();
+	foo?.bar().baz;
+    "#);
   }
 
   #[test]
   fn should_err() {
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("instance!.doWork()", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar!;", 0);
+    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar!();", 0);
   }
 }

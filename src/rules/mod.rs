@@ -48,6 +48,7 @@ pub mod no_misused_new;
 pub mod no_namespace;
 pub mod no_new_symbol;
 pub mod no_non_null_assertion;
+pub mod no_non_null_asserted_optional_chain;
 pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
