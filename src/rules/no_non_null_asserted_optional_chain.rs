@@ -39,15 +39,12 @@ impl Visit for NoNonNullAssertedOptionalChainVisitor {
     non_null_expr: &swc_ecma_ast::TsNonNullExpr,
     _parent: &dyn Node,
   ) {
-    match &*non_null_expr.expr {
-      swc_ecma_ast::Expr::OptChain(opt_exp) => {
-        self.context.add_diagnostic(
+    if let swc_ecma_ast::Expr::OptChain(opt_exp) = &*non_null_expr.expr {
+      self.context.add_diagnostic(
           opt_exp.span,
           "no-non-null-asserted-optional-chain",
-          "do not use non-null asserted optional chain",
+          "disallows using a non-null assertion after an optional chain expression",
         );
-      }
-      _ => return,
     }
   }
 }
