@@ -46,7 +46,7 @@ impl Visit for NoNonNullAssertedOptionalChainVisitor {
           "no-non-null-asserted-optional-chain",
           "do not use non-null asserted optional chain",
         );
-      },
+      }
       _ => return,
     }
   }
@@ -59,13 +59,15 @@ mod tests {
 
   #[test]
   fn should_ok() {
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>(r#"
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>(
+      r#"
 	foo?.bar;
 	(foo?.bar).baz;
 	foo?.bar();
 	foo?.bar();
 	foo?.bar().baz;
-    "#);
+    "#,
+    );
   }
 
   #[test]
