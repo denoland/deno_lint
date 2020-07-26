@@ -10,6 +10,31 @@ use swc_ecma_visit::Visit;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+lazy_static! {
+  static ref MSG_MAP: HashMap<&'static str, &'static str> = {
+    let mut map = HashMap::new();
+    map.insert(
+      "call",
+      "Unexpected newline between function and ( of function call",
+    );
+    map.insert(
+      "member",
+      "Unexpected newline between object and [ of property access",
+    );
+    map.insert(
+      "div",
+      "Unexpected newline between numerator and division operator",
+    );
+    map.insert(
+      "template",
+      "Unexpected newline between template tag and template literal",
+    );
+    map
+  };
+  static ref SLASH_AND_FLAGS: regex::Regex =
+    Regex::new(r"^/[gimsuy]+(?:[\W].*)?$").unwrap();
+}
+
 pub struct NoUnexpectedMultiline;
 
 impl LintRule for NoUnexpectedMultiline {
@@ -37,24 +62,6 @@ impl NoUnexpectedMultilineVisitor {
   }
 
   fn check_for_break_after(&self, outer: Span, after: Span, msg: &str) {
-    lazy_static! {
-      static ref MSG_MAP: HashMap<&'static str, &'static str> = {
-        let mut map = HashMap::new();
-        map.insert(
-          "call",
-          "Unexpected newline between function and ( of function call",
-        );
-        map.insert(
-          "member",
-          "Unexpected newline between object and [ of property access",
-        );
-        map.insert(
-          "div",
-          "Unexpected newline between numerator and division operator",
-        );
-        map
-      };
-    }
     let source_map = &self.context.source_map;
     let before_paren = outer.trim_start(after).unwrap();
     let temp_span = source_map
@@ -78,10 +85,6 @@ impl Visit for NoUnexpectedMultilineVisitor {
     bin_expr: &swc_ecma_ast::BinExpr,
     _parent: &dyn Node,
   ) {
-    lazy_static! {
-      static ref SLASH_AND_FLAGS: regex::Regex =
-        Regex::new(r"^/[gimsuy]+(?:[\W].*)?$").unwrap();
-    }
     self.visit_expr(&bin_expr.left, _parent);
     self.visit_expr(&bin_expr.right, _parent);
 
@@ -168,7 +171,7 @@ impl Visit for NoUnexpectedMultilineVisitor {
       self.context.add_diagnostic(
         quasi.span(),
         "no-unexpected-multiline",
-        "Unexpected newline between template tag and template literal",
+        MSG_MAP["template"],
       );
     }
   }
