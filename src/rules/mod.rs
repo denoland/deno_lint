@@ -58,6 +58,7 @@ pub mod no_sparse_array;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
+pub mod no_unexpected_multiline;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
@@ -122,6 +123,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_setter_return::NoSetterReturn::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
+    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_with::NoWith::new(),
@@ -190,6 +192,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
+    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_var::NoVar::new(),
