@@ -1,14 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
 use crate::swc_common::Span;
+use crate::swc_ecma_ast;
 use crate::swc_ecma_visit::Node;
 use crate::swc_ecma_visit::Visit;
 
 use std::sync::Arc;
 use swc_ecma_ast::{
-  ClassDecl, ClassExpr, Decl, DefaultDecl, Module, ModuleDecl, Function, Expr, VarDecl, ArrowExpr, Pat, TsTypeAnn, TsType, TsKeywordTypeKind,
+  ArrowExpr, ClassDecl, ClassExpr, Decl, DefaultDecl, Expr, Function, Module,
+  ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
 
 pub struct ExplicitModuleBoundaryTypes;
@@ -89,12 +90,12 @@ impl ExplicitModuleBoundaryTypesVisitor {
 
   fn check_pat(&self, pat: &Pat) {
     match pat {
-        Pat::Ident(ident) => self.check_ann(&ident.type_ann, ident.span),
-        Pat::Array(array) => self.check_ann(&array.type_ann, array.span),
-        Pat::Rest(rest) => self.check_ann(&rest.type_ann, rest.span),
-        Pat::Object(object) => self.check_ann(&object.type_ann, object.span),
-        Pat::Assign(assign) => self.check_ann(&assign.type_ann, assign.span),
-        _ => {}
+      Pat::Ident(ident) => self.check_ann(&ident.type_ann, ident.span),
+      Pat::Array(array) => self.check_ann(&array.type_ann, array.span),
+      Pat::Rest(rest) => self.check_ann(&rest.type_ann, rest.span),
+      Pat::Object(object) => self.check_ann(&object.type_ann, object.span),
+      Pat::Assign(assign) => self.check_ann(&assign.type_ann, assign.span),
+      _ => {}
     };
   }
 
