@@ -54,11 +54,15 @@ impl LintRule for NoUnexpectedMultiline {
 
 struct NoUnexpectedMultilineVisitor {
   context: Arc<Context>,
+  current_node_is_optional: bool,
 }
 
 impl NoUnexpectedMultilineVisitor {
   pub fn new(context: Arc<Context>) -> Self {
-    Self { context }
+    Self {
+      context,
+      current_node_is_optional: false,
+    }
   }
 
   fn check_for_break_after(&self, outer: Span, after: Span, msg: &str) {
@@ -80,13 +84,22 @@ impl NoUnexpectedMultilineVisitor {
 }
 
 impl Visit for NoUnexpectedMultilineVisitor {
+  fn visit_opt_chain_expr(
+    &mut self,
+    opt_chain_expr: &swc_ecma_ast::OptChainExpr,
+    parent: &dyn Node,
+  ) {
+    self.current_node_is_optional = true;
+    self.visit_expr(&opt_chain_expr.expr, parent);
+  }
+
   fn visit_bin_expr(
     &mut self,
     bin_expr: &swc_ecma_ast::BinExpr,
     _parent: &dyn Node,
   ) {
-    self.visit_expr(&bin_expr.left, _parent);
-    self.visit_expr(&bin_expr.right, _parent);
+    self.visit_expr(&bin_expr.left, bin_expr);
+    self.visit_expr(&bin_expr.right, bin_expr);
 
     if let swc_ecma_ast::BinaryOp::Div = bin_expr.op {
       if let swc_ecma_ast::Expr::Bin(inner_bin_expr) = &*bin_expr.left {
@@ -118,14 +131,16 @@ impl Visit for NoUnexpectedMultilineVisitor {
     call_expr: &swc_ecma_ast::CallExpr,
     _parent: &dyn Node,
   ) {
+    let optional = self.current_node_is_optional;
+    self.current_node_is_optional = false;
+
     if let swc_ecma_ast::ExprOrSuper::Expr(expr) = &call_expr.callee {
-      self.visit_expr(expr, _parent);
+      self.visit_expr(expr, call_expr);
     }
     for arg in &call_expr.args {
-      self.visit_expr(&arg.expr, _parent);
+      self.visit_expr(&arg.expr, call_expr);
     }
-    // TODO: handle ES2020 optional chaining
-    if call_expr.args.is_empty() {
+    if call_expr.args.is_empty() || optional {
       return;
     }
 
@@ -137,11 +152,13 @@ impl Visit for NoUnexpectedMultilineVisitor {
     member_expr: &swc_ecma_ast::MemberExpr,
     _parent: &dyn Node,
   ) {
+    let optional = self.current_node_is_optional;
+    self.current_node_is_optional = false;
+
     if let swc_ecma_ast::ExprOrSuper::Expr(expr) = &member_expr.obj {
-      self.visit_expr(expr, _parent);
+      self.visit_expr(expr, member_expr);
     }
-    // TODO: handle ES2020 optional chaining
-    if !member_expr.computed {
+    if !member_expr.computed || optional {
       return;
     }
     self.check_for_break_after(
@@ -197,9 +214,9 @@ foo<string>
 (foo
 )(bar);
 
-// (foo).callback
-// ?.
-// (bar)
+(foo).callback
+?.
+(bar)
 
 var hello = 'world';
 [1, 2, 3].forEach(addNumber);
@@ -209,6 +226,12 @@ var hello = 'world';
 
 var hello = 'world'
 void [1, 2, 3].forEach(addNumber);
+
+var a = b
+?.[a, b, c].forEach(doSomething);
+
+var a = b?.
+[a, b, c].forEach(doSomething);
 
 function foo() { return ""; }
 foo
@@ -258,17 +281,23 @@ let x = a
       2,
       1,
     );
-    /*assert_lint_err_on_line::<NoUnexpectedMultiline>(
-          r#"(foo).callback
-    (bar)?.baz"#,
-          2,
-          1,
-        );*/
     assert_lint_err_on_line::<NoUnexpectedMultiline>(
-      r#"var hello = 'world'
-[1, 2, 3].forEach(addNumber);"#,
+      r#"(foo).callback
+(bar)?.baz"#,
       2,
       1,
+    );
+    assert_lint_err_on_line::<NoUnexpectedMultiline>(
+      r#"foo.bar?.baz.bay
+[boo];"#,
+      2,
+      1,
+    );
+    assert_lint_err_on_line::<NoUnexpectedMultiline>(
+      r#"var hello = 'world'
+  [1, 2, 3].forEach(addNumber);"#,
+      2,
+      3,
     );
     assert_lint_err_on_line::<NoUnexpectedMultiline>(
       r#"var a = b
