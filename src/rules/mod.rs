@@ -13,6 +13,7 @@ pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
 pub mod explicit_function_return_type;
+pub mod explicit_module_boundary_types;
 pub mod for_direction;
 pub mod getter_return;
 pub mod no_array_constructor;
@@ -152,6 +153,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     default_param_last::DefaultParamLast::new(),
     eqeqeq::Eqeqeq::new(),
     explicit_function_return_type::ExplicitFunctionReturnType::new(),
+    explicit_module_boundary_types::ExplicitModuleBoundaryTypes::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
     no_array_constructor::NoArrayConstructor::new(),
