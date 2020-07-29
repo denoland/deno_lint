@@ -8,7 +8,7 @@ use crate::swc_ecma_visit::Visit;
 
 use std::sync::Arc;
 use swc_ecma_ast::{
-  ArrowExpr, ClassDecl, ClassExpr, Decl, DefaultDecl, Expr, Function, Module,
+  ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, Module,
   ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
 
@@ -37,9 +37,14 @@ impl ExplicitModuleBoundaryTypesVisitor {
   pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
-  fn check_class_decl(&self, _span: Span, _decl: &ClassDecl) {}
 
-  fn check_class_expr(&self, _expr: &ClassExpr) {}
+  fn check_class(&self, class: &Class) {
+    for member in &class.body {
+      if let ClassMember::Method(method) = member {
+        self.check_fn(&method.function);
+      }
+    }
+  }
 
   fn check_fn(&self, function: &Function) {
     if function.return_type.is_none() {
@@ -116,16 +121,15 @@ impl Visit for ExplicitModuleBoundaryTypesVisitor {
     module_decl: &ModuleDecl,
     _parent: &dyn Node,
   ) {
-    println!("{:#?}\n\n", module_decl);
     match module_decl {
       ModuleDecl::ExportDecl(export) => match &export.decl {
-        Decl::Class(decl) => self.check_class_decl(export.span, decl),
+        Decl::Class(decl) => self.check_class(&decl.class),
         Decl::Fn(decl) => self.check_fn(&decl.function),
         Decl::Var(var) => self.check_var_decl(var),
         _ => {}
       },
       ModuleDecl::ExportDefaultDecl(export) => match &export.decl {
-        DefaultDecl::Class(expr) => self.check_class_expr(expr),
+        DefaultDecl::Class(expr) => self.check_class(&expr.class),
         DefaultDecl::Fn(expr) => self.check_fn(&expr.function),
         _ => {}
       },
@@ -146,7 +150,7 @@ mod tests {
       "export var fn = function (): number { return 1; }",
       "export var arrowFn = (arg: string): string => `test ${arg}`",
       "export var arrowFn = (arg: unknown): string => `test ${arg}`",
-      // "class Test { method() { return; } }",
+      "class Test { method() { return; } }",
     ]);
   }
 
@@ -172,9 +176,9 @@ mod tests {
       "export var arrowFn = (arg: any): string => `test ${arg}`;",
       22,
     );
-    // assert_lint_err::<ExplicitModuleBoundaryTypes>(
-    //   "export class Test { method() { return; } }",
-    //   0,
-    // );
+    assert_lint_err::<ExplicitModuleBoundaryTypes>(
+      "export class Test { method() { return; } }",
+      20,
+    );
   }
 }
