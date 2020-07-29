@@ -2,7 +2,7 @@
 
 A Rust crate for writing fast JavaScript and TypeScript linters.
 
-This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific 
+This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific
 and can be used to write linters for Node as well.
 
 ---
@@ -113,6 +113,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-this-alias`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-this-alias.md)
 - [`no-this-before-super`](https://eslint.org/docs/rules/no-this-before-super)
 - [`no-throw-literal`](https://eslint.org/docs/rules/no-throw-literal)
+- [`no-unexpected-multiline`](https://eslint.org/docs/rules/no-unexpected-multiline)
 - [`no-unsafe-finally`](https://eslint.org/docs/rules/no-unsafe-finally)
 - [`no-unsafe-negation`](https://eslint.org/docs/rules/no-unsafe-negation)
 - [`no-unused-labels`](https://eslint.org/docs/rules/no-unused-labels)
@@ -180,7 +181,7 @@ Specyfing rule code that will be ignored is required.
 ## Example
 
 `examples/dlint/main.rs` provides a minimal standalone binary demonstrating
-how `deno_lint` can be used as a crate. 
+how `deno_lint` can be used as a crate.
 
 ```shell
 $ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
