@@ -268,10 +268,9 @@ impl<
     eprintln!("visit assign pat {:#?}", assign_pat);
     self.assignments.push(assign_pat.right.clone());
     swc_ecma_visit::visit_pat(self, &*assign_pat.left, assign_pat);
-    self.scope_visitor.visit_expr(
-      &*assign_pat.right,
-      assign_pat,
-    );
+    self
+      .scope_visitor
+      .visit_expr(&*assign_pat.right, assign_pat);
     self.assignments.pop();
   }
 
@@ -282,10 +281,9 @@ impl<
   ) {
     self.assignments.push(assign_expr.right.clone());
     swc_ecma_visit::visit_pat_or_expr(self, &assign_expr.left, assign_expr);
-    self.scope_visitor.visit_expr(
-      &*assign_expr.right,
-      assign_expr,
-    );
+    self
+      .scope_visitor
+      .visit_expr(&*assign_expr.right, assign_expr);
     self.assignments.pop();
   }
 
@@ -581,18 +579,20 @@ impl Visit for ScopeVisitor {
     for param in &function.params {
       let cb = |sv: &mut ScopeVisitor,
                 ident: &swc_ecma_ast::Ident,
-                _assignments: &[Box<swc_ecma_ast::Expr>]| {
+                assignments: &[Box<swc_ecma_ast::Expr>]| {
         let mut scope = sv.get_current_scope();
         scope.add_binding(Binding {
           name: ident.sym.to_string(),
           kind: BindingKind::Param,
         });
 
-        let ref_ = Reference {
-          name: ident.sym.to_string(),
-          kind: ReferenceKind::Write,
-        };
-        scope.add_reference(ref_);
+        for _assignment in assignments {
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+        }
       };
       let mut pattern_visitor = PatternVisitor::new(self, cb);
       pattern_visitor.visit_pat(&param.pat, param);
@@ -635,11 +635,11 @@ impl Visit for ScopeVisitor {
     assign_expr: &swc_ecma_ast::AssignExpr,
     _parent: &dyn Node,
   ) {
-    use swc_ecma_ast::PatOrExpr;
     use swc_ecma_ast::AssignOp;
+    use swc_ecma_ast::PatOrExpr;
     let cb = |sv: &mut ScopeVisitor,
               ident: &swc_ecma_ast::Ident,
-              _assignments: &[Box<swc_ecma_ast::Expr>]| {
+              assignments: &[Box<swc_ecma_ast::Expr>]| {
       let mut scope = sv.get_current_scope();
       let ref_ = Reference {
         name: ident.sym.to_string(),
@@ -650,15 +650,25 @@ impl Visit for ScopeVisitor {
         },
       };
       scope.add_reference(ref_);
+
+      if assign_expr.op == AssignOp::Assign {
+        for _assignment in assignments {
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+        }
+      }
     };
     let mut pattern_visitor = PatternVisitor::new(self, cb);
     match &assign_expr.left {
       PatOrExpr::Pat(boxed_pat) => {
         pattern_visitor.visit_pat(&*boxed_pat, assign_expr);
-      },
+      }
       PatOrExpr::Expr(boxed_expr) => {
         pattern_visitor.visit_expr(&*boxed_expr, assign_expr);
-      },
+      }
     };
 
     self.visit_expr(&*assign_expr.right, assign_expr);
@@ -808,7 +818,7 @@ impl Visit for ScopeVisitor {
   fn visit_for_in_stmt(
     &mut self,
     for_in_stmt: &swc_ecma_ast::ForInStmt,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
@@ -816,9 +826,53 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
-      self.visit_var_decl(var_decl, parent);
-    }
+
+    use swc_ecma_ast::VarDeclOrPat;
+
+    match &for_in_stmt.left {
+      VarDeclOrPat::VarDecl(var_decl) => {
+        self.visit_var_decl(var_decl, for_in_stmt);
+
+        let cb = |sv: &mut ScopeVisitor,
+                  ident: &swc_ecma_ast::Ident,
+                  _assignments: &[Box<swc_ecma_ast::Expr>]| {
+          let mut scope = sv.get_current_scope();
+
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+        };
+        let mut pattern_visitor = PatternVisitor::new(self, cb);
+        pattern_visitor.visit_pat(&var_decl.decls[0].name, for_in_stmt);
+      }
+      VarDeclOrPat::Pat(pat) => {
+        let cb = |sv: &mut ScopeVisitor,
+                  ident: &swc_ecma_ast::Ident,
+                  assignments: &[Box<swc_ecma_ast::Expr>]| {
+          let mut scope = sv.get_current_scope();
+
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+          for _assignment in assignments {
+            // eprintln!("assignment {:#?}", assignment);
+            let ref_ = Reference {
+              name: ident.sym.to_string(),
+              kind: ReferenceKind::Write,
+            };
+            scope.add_reference(ref_);
+          }
+        };
+        let mut pattern_visitor = PatternVisitor::new(self, cb);
+        pattern_visitor.visit_pat(&pat, for_in_stmt);
+      }
+    };
+
+    self.visit_expr(&*for_in_stmt.right, for_in_stmt);
     if let swc_ecma_ast::Stmt::Block(body_block) = &*for_in_stmt.body {
       for stmt in &body_block.stmts {
         swc_ecma_visit::visit_stmt(self, &stmt, &for_in_stmt.body);
@@ -830,7 +884,7 @@ impl Visit for ScopeVisitor {
   fn visit_for_of_stmt(
     &mut self,
     for_of_stmt: &swc_ecma_ast::ForOfStmt,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
@@ -838,9 +892,53 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
-      self.visit_var_decl(var_decl, parent);
-    }
+
+    use swc_ecma_ast::VarDeclOrPat;
+
+    match &for_of_stmt.left {
+      VarDeclOrPat::VarDecl(var_decl) => {
+        self.visit_var_decl(var_decl, for_of_stmt);
+
+        let cb = |sv: &mut ScopeVisitor,
+                  ident: &swc_ecma_ast::Ident,
+                  _assignments: &[Box<swc_ecma_ast::Expr>]| {
+          let mut scope = sv.get_current_scope();
+
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+        };
+        let mut pattern_visitor = PatternVisitor::new(self, cb);
+        pattern_visitor.visit_pat(&var_decl.decls[0].name, for_of_stmt);
+      }
+      VarDeclOrPat::Pat(pat) => {
+        let cb = |sv: &mut ScopeVisitor,
+                  ident: &swc_ecma_ast::Ident,
+                  assignments: &[Box<swc_ecma_ast::Expr>]| {
+          let mut scope = sv.get_current_scope();
+
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+          for _assignment in assignments {
+            // eprintln!("assignment {:#?}", assignment);
+            let ref_ = Reference {
+              name: ident.sym.to_string(),
+              kind: ReferenceKind::Write,
+            };
+            scope.add_reference(ref_);
+          }
+        };
+        let mut pattern_visitor = PatternVisitor::new(self, cb);
+        pattern_visitor.visit_pat(&pat, for_of_stmt);
+      }
+    };
+
+    self.visit_expr(&*for_of_stmt.right, for_of_stmt);
     if let swc_ecma_ast::Stmt::Block(body_block) = &*for_of_stmt.body {
       for stmt in &body_block.stmts {
         swc_ecma_visit::visit_stmt(self, &stmt, &for_of_stmt.body);
@@ -1413,5 +1511,43 @@ function b() {
     let c_ref3 = &fn_refs[5];
     assert_eq!(c_ref3.name, "c");
     assert_eq!(c_ref3.kind, ReferenceKind::Write);
+  }
+
+  #[test]
+  fn references3() {
+    let source_code = r#"
+for (const foo in bar) {}
+
+for (const fizz of buzz) {}
+"#;
+    let root_scope = test_scopes(source_code);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    let mod_bindings = module_scope.get_bindings();
+    assert_eq!(mod_bindings.len(), 0);
+
+    let for_in_scope = module_scope.get_child_scope(0).unwrap();
+    let for_in_bindings = for_in_scope.get_bindings();
+    assert_eq!(for_in_bindings.len(), 1); // foo
+    assert_eq!(for_in_bindings[0].name, "foo");
+
+    let for_in_refs = for_in_scope.get_references();
+    eprintln!("for in refs {:#?}", for_in_refs);
+    assert_eq!(for_in_refs.len(), 2); // foo, bar
+    assert_eq!(for_in_refs[0].name, "foo");
+    assert_eq!(for_in_refs[0].kind, ReferenceKind::Write);
+    assert_eq!(for_in_refs[1].name, "bar");
+    assert_eq!(for_in_refs[1].kind, ReferenceKind::Read);
+
+    let for_of_scope = module_scope.get_child_scope(1).unwrap();
+    let for_of_bindings = for_of_scope.get_bindings();
+    assert_eq!(for_of_bindings.len(), 1); // c
+    assert_eq!(for_of_bindings[0].name, "fizz");
+
+    let for_of_refs = for_of_scope.get_references();
+    assert_eq!(for_of_refs.len(), 2); // fizz, buzz
+    assert_eq!(for_of_refs[0].name, "fizz");
+    assert_eq!(for_of_refs[0].kind, ReferenceKind::Write);
+    assert_eq!(for_of_refs[1].name, "buzz");
+    assert_eq!(for_of_refs[1].kind, ReferenceKind::Read);
   }
 }
