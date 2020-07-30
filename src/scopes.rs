@@ -3,8 +3,6 @@
 use crate::swc_common::Span;
 use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::ObjectPatProp;
-use crate::swc_ecma_ast::Pat;
 use crate::swc_ecma_visit::Node;
 use crate::swc_ecma_visit::Visit;
 use std::cell::Ref;
@@ -253,11 +251,12 @@ impl<
   > Visit for PatternVisitor<'sv, F>
 {
   fn visit_pat(&mut self, pat: &swc_ecma_ast::Pat, parent: &dyn Node) {
-    // eprintln!("pat {:#?}", pat);
+    eprintln!("pat {:#?}", pat);
     swc_ecma_visit::visit_pat(self, pat, parent);
   }
 
   fn visit_ident(&mut self, ident: &swc_ecma_ast::Ident, _parent: &dyn Node) {
+    // eprintln!("visit ident! {:#?}", ident);
     (self.callback)(self.scope_visitor, ident, &self.assignments)
   }
 
@@ -266,6 +265,7 @@ impl<
     assign_pat: &swc_ecma_ast::AssignPat,
     _parent: &dyn Node,
   ) {
+    eprintln!("visit assign pat {:#?}", assign_pat);
     self.assignments.push(assign_pat.right.clone());
     swc_ecma_visit::visit_pat(self, &*assign_pat.left, assign_pat);
     self.scope_visitor.visit_expr(
@@ -287,6 +287,22 @@ impl<
       assign_expr,
     );
     self.assignments.pop();
+  }
+
+  fn visit_assign_pat_prop(
+    &mut self,
+    assign_pat_prop: &swc_ecma_ast::AssignPatProp,
+    _parent: &dyn Node,
+  ) {
+    let mut has_assignment = false;
+    if let Some(boxed_expr) = assign_pat_prop.value.as_ref() {
+      self.assignments.push(boxed_expr.clone());
+      has_assignment = true;
+    }
+    self.visit_ident(&assign_pat_prop.key, assign_pat_prop);
+    if has_assignment {
+      self.assignments.pop();
+    }
   }
 }
 
@@ -414,18 +430,6 @@ impl ScopeVisitor {
     }
   }
 
-  // /// This function visits `Pat` and calls provided callback for
-  // /// each found `Ident`.
-  // fn visit_idents_in_pat<'a>(
-  //   &mut self,
-  //   pat: &'a swc_ecma_ast::Pat,
-  //   parent: &'a dyn Node,
-  //   callback: Arc<dyn FnMut(&swc_ecma_ast::Ident)>,
-  // ) {
-  //   let mut pattern_visitor = PatternVisitor::new(callback);
-  //   pattern_visitor.visit_pat(pat, parent);
-  // }
-
   fn visit_variable_declaration(
     &mut self,
     decl: &swc_ecma_ast::VarDeclarator,
@@ -466,69 +470,6 @@ impl ScopeVisitor {
     // for node in rhs_nodes {
     //   swc_ecma_visit::visit(self, node, decl);
     // }
-  }
-
-  fn check_pat(&mut self, pat: &Pat, kind: BindingKind) {
-    match pat {
-      Pat::Ident(ident) => {
-        self.get_current_scope().add_binding(Binding {
-          name: ident.sym.to_string(),
-          kind,
-        });
-      }
-      Pat::Assign(assign) => {
-        self.check_pat(&assign.left, kind);
-      }
-      Pat::Array(array) => {
-        self.check_array_pat(array, kind);
-      }
-      Pat::Object(object) => {
-        self.check_obj_pat(object, kind);
-      }
-      Pat::Rest(rest) => {
-        self.check_pat(&rest.arg, kind);
-      }
-      _ => {}
-    }
-  }
-
-  fn check_obj_pat(
-    &mut self,
-    object: &swc_ecma_ast::ObjectPat,
-    kind: BindingKind,
-  ) {
-    if !object.props.is_empty() {
-      for prop in object.props.iter() {
-        match prop {
-          ObjectPatProp::Assign(assign_prop) => {
-            self.get_current_scope().add_binding(Binding {
-              name: assign_prop.key.sym.to_string(),
-              kind,
-            });
-          }
-          ObjectPatProp::KeyValue(kv_prop) => {
-            self.check_pat(&kv_prop.value, kind);
-          }
-          ObjectPatProp::Rest(rest) => {
-            self.check_pat(&rest.arg, kind);
-          }
-        }
-      }
-    }
-  }
-
-  fn check_array_pat(
-    &mut self,
-    array: &swc_ecma_ast::ArrayPat,
-    kind: BindingKind,
-  ) {
-    if !array.elems.is_empty() {
-      for elem in array.elems.iter() {
-        if let Some(element) = elem {
-          self.check_pat(element, kind);
-        }
-      }
-    }
   }
 }
 
@@ -638,7 +579,23 @@ impl Visit for ScopeVisitor {
     _parent: &dyn Node,
   ) {
     for param in &function.params {
-      self.check_pat(&param.pat, BindingKind::Param);
+      let cb = |sv: &mut ScopeVisitor,
+                ident: &swc_ecma_ast::Ident,
+                _assignments: &[Box<swc_ecma_ast::Expr>]| {
+        let mut scope = sv.get_current_scope();
+        scope.add_binding(Binding {
+          name: ident.sym.to_string(),
+          kind: BindingKind::Param,
+        });
+
+        let ref_ = Reference {
+          name: ident.sym.to_string(),
+          kind: ReferenceKind::Write,
+        };
+        scope.add_reference(ref_);
+      };
+      let mut pattern_visitor = PatternVisitor::new(self, cb);
+      pattern_visitor.visit_pat(&param.pat, param);
     }
 
     // Not calling `swc_ecma_visit::visit_function` but instead
@@ -676,10 +633,35 @@ impl Visit for ScopeVisitor {
   fn visit_assign_expr(
     &mut self,
     assign_expr: &swc_ecma_ast::AssignExpr,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
-    // dbg!(&assign_expr);
-    swc_ecma_visit::visit_assign_expr(self, assign_expr, parent);
+    use swc_ecma_ast::PatOrExpr;
+    use swc_ecma_ast::AssignOp;
+    let cb = |sv: &mut ScopeVisitor,
+              ident: &swc_ecma_ast::Ident,
+              _assignments: &[Box<swc_ecma_ast::Expr>]| {
+      let mut scope = sv.get_current_scope();
+      let ref_ = Reference {
+        name: ident.sym.to_string(),
+        kind: if assign_expr.op == AssignOp::Assign {
+          ReferenceKind::Write
+        } else {
+          ReferenceKind::ReadWrite
+        },
+      };
+      scope.add_reference(ref_);
+    };
+    let mut pattern_visitor = PatternVisitor::new(self, cb);
+    match &assign_expr.left {
+      PatOrExpr::Pat(boxed_pat) => {
+        pattern_visitor.visit_pat(&*boxed_pat, assign_expr);
+      },
+      PatOrExpr::Expr(boxed_expr) => {
+        pattern_visitor.visit_expr(&*boxed_expr, assign_expr);
+      },
+    };
+
+    self.visit_expr(&*assign_expr.right, assign_expr);
   }
 
   fn visit_with_stmt(
@@ -768,7 +750,25 @@ impl Visit for ScopeVisitor {
     self.enter_scope(&catch_scope);
 
     if let Some(pat) = &catch_clause.param {
-      self.check_pat(pat, BindingKind::CatchClause);
+      let cb = |sv: &mut ScopeVisitor,
+                ident: &swc_ecma_ast::Ident,
+                assignments: &[Box<swc_ecma_ast::Expr>]| {
+        let mut scope = sv.get_current_scope();
+        scope.add_binding(Binding {
+          name: ident.sym.to_string(),
+          kind: BindingKind::CatchClause,
+        });
+
+        for _assignment in assignments {
+          let ref_ = Reference {
+            name: ident.sym.to_string(),
+            kind: ReferenceKind::Write,
+          };
+          scope.add_reference(ref_);
+        }
+      };
+      let mut pattern_visitor = PatternVisitor::new(self, cb);
+      pattern_visitor.visit_pat(&pat, catch_clause);
     }
 
     // Not calling `swc_ecma_visit::visit_class` but instead
@@ -1234,7 +1234,7 @@ const {m = "M"} = {};
 const [n = "N"] = [];
 const {...o} = {o : "O"};
 const [...p] = ["p"];
-function getPerson({username="disizali",info: [name, family]}) {
+function getPerson({username="disizali", name, family}, ...restParam) {
   try {
     throw 'TryAgain';
   } catch(e) {}
@@ -1317,10 +1317,12 @@ try{} catch({message}){};
 
     let function_scope = module_scope.get_child_scope(0).unwrap();
     let function_scope_bindings = function_scope.get_bindings();
-    assert_eq!(function_scope_bindings.len(), 3);
+
+    assert_eq!(function_scope_bindings.len(), 4);
     assert_eq!(function_scope_bindings[0].name, "username");
     assert_eq!(function_scope_bindings[1].name, "name");
     assert_eq!(function_scope_bindings[2].name, "family");
+    assert_eq!(function_scope_bindings[3].name, "restParam");
 
     let function_catch_scope = function_scope.get_child_scope(-1).unwrap();
     let function_catch_bindings = function_catch_scope.get_bindings();
@@ -1334,9 +1336,11 @@ try{} catch({message}){};
   }
 
   #[test]
-  fn references() {
+  fn references1() {
     let source_code = r#"
 let a = 0;
+try {}
+catch ({ data = "asdf" }) {}
 "#;
     let root_scope = test_scopes(source_code);
     let module_scope = root_scope.get_child_scope(0).unwrap();
@@ -1348,6 +1352,15 @@ let a = 0;
     let a_ref = &refs[0];
     assert_eq!(a_ref.name, "a");
     assert_eq!(a_ref.kind, ReferenceKind::Write);
+
+    let catch_scope = module_scope.get_child_scope(-1).unwrap();
+    let catch_bindings = catch_scope.get_bindings();
+    assert_eq!(catch_bindings.len(), 1);
+    assert_eq!(catch_bindings[0].name, "data");
+    let catch_refs = catch_scope.get_references();
+    assert_eq!(catch_refs.len(), 1);
+    assert_eq!(catch_refs[0].name, "data");
+    assert_eq!(catch_refs[0].kind, ReferenceKind::Write);
   }
 
   #[test]
@@ -1356,6 +1369,9 @@ let a = 0;
 let a = 0;
 function b() {
   let c = a;
+  let d = 1;
+  c += d;
+  c = 0;
 }
 "#;
     let root_scope = test_scopes(source_code);
@@ -1374,15 +1390,28 @@ function b() {
     let fn_scope = module_scope.get_child_scope(0).unwrap();
     let fn_refs = fn_scope.get_references();
     let fn_bindings = fn_scope.get_bindings();
-    assert_eq!(fn_bindings.len(), 1); // c
+    assert_eq!(fn_bindings.len(), 2); // c
     assert_eq!(fn_bindings[0].name, "c");
+    assert_eq!(fn_bindings[1].name, "d");
 
-    assert_eq!(fn_refs.len(), 2); // c, a
+    assert_eq!(fn_refs.len(), 6);
     let c_ref = &fn_refs[0];
     assert_eq!(c_ref.name, "c");
     assert_eq!(a_ref.kind, ReferenceKind::Write);
     let a_ref = &fn_refs[1];
     assert_eq!(a_ref.name, "a");
     assert_eq!(a_ref.kind, ReferenceKind::Read);
+    let d_ref1 = &fn_refs[2];
+    assert_eq!(d_ref1.name, "d");
+    assert_eq!(d_ref1.kind, ReferenceKind::Write);
+    let c_ref2 = &fn_refs[3];
+    assert_eq!(c_ref2.name, "c");
+    assert_eq!(c_ref2.kind, ReferenceKind::ReadWrite);
+    let d_ref2 = &fn_refs[4];
+    assert_eq!(d_ref2.name, "d");
+    assert_eq!(d_ref2.kind, ReferenceKind::Read);
+    let c_ref3 = &fn_refs[5];
+    assert_eq!(c_ref3.name, "c");
+    assert_eq!(c_ref3.kind, ReferenceKind::Write);
   }
 }
