@@ -3,7 +3,7 @@ use super::Context;
 use super::LintRule;
 use swc_common::Span;
 use swc_common::Spanned;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   Class, ClassMember, ClassMethod, Decl, ExportDecl, Expr, FnDecl, Ident, Lit,
   Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,
   TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,

@@ -1,8 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::TsKeywordType;
+use swc_ecmascript::ast::TsKeywordType;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -19,7 +18,7 @@ impl LintRule for NoExplicitAny {
     "no-explicit-any"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -41,7 +40,7 @@ impl Visit for NoExplicitAnyVisitor {
     ts_keyword_type: &TsKeywordType,
     _parent: &dyn Node,
   ) {
-    use crate::swc_ecma_ast::TsKeywordTypeKind::*;
+    use swc_ecmascript::ast::TsKeywordTypeKind::*;
 
     if ts_keyword_type.kind == TsAnyKeyword {
       self.context.add_diagnostic(

@@ -14,8 +14,6 @@ pub mod rules;
 mod scopes;
 pub mod swc_util;
 
-pub use dprint_plugin_typescript::swc_ecma_ast;
-
 #[cfg(test)]
 mod test_util;
 

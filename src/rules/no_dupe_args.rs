@@ -2,11 +2,10 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::ArrowExpr;
-use crate::swc_ecma_ast::Function;
-use crate::swc_ecma_ast::Param;
-use crate::swc_ecma_ast::Pat;
+use swc_ecmascript::ast::ArrowExpr;
+use swc_ecmascript::ast::Function;
+use swc_ecmascript::ast::Param;
+use swc_ecmascript::ast::Pat;
 use std::collections::HashSet;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -24,7 +23,7 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoDupeArgsVisitor::new(context);
     visitor.visit_module(module, module);
   }

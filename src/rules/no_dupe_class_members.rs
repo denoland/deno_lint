@@ -2,8 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
@@ -25,7 +24,7 @@ impl LintRule for NoDupeClassMembers {
     "no-dupe-class-members"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
     visitor.visit_module(module, module);
   }

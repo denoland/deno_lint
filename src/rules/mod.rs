@@ -1,6 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
-use crate::swc_ecma_ast;
 use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
@@ -75,7 +74,7 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module);
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module);
   fn code(&self) -> &'static str;
 }
 

@@ -3,7 +3,6 @@ use super::Context;
 use super::LintRule;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use crate::swc_ecma_ast;
 
 use std::sync::Arc;
 
@@ -41,7 +40,7 @@ impl LintRule for TripleSlashReference {
     "triple-slash-reference"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecmascript::ast::Module) {
     context.leading_comments.values().for_each(|comments| {
       for comment in comments {
         self.lint_comment(&context, comment);

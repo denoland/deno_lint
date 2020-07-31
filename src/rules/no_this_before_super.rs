@@ -1,8 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   CallExpr, Class, Constructor, ExprOrSuper, Super, ThisExpr,
 };
 use swc_ecmascript::visit::{Node, Visit};
@@ -20,7 +19,7 @@ impl LintRule for NoThisBeforeSuper {
     "no-this-before-super"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
     visitor.visit_module(module, module);
   }

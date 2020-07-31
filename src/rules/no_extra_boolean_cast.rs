@@ -2,8 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
   Ident, IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
@@ -23,7 +22,7 @@ impl LintRule for NoExtraBooleanCast {
     "no-extra-boolean-cast"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoExtraBooleanCastVisitor::new(context);
     visitor.visit_module(module, module);
   }

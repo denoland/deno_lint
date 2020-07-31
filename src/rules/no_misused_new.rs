@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, Module, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},

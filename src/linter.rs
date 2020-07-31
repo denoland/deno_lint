@@ -10,7 +10,6 @@ use swc_common::comments::SingleThreadedComments;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::BytePos;
-use crate::swc_ecma_ast;
 use swc_ecmascript::parser::Syntax;
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
@@ -242,7 +241,7 @@ impl Linter {
   fn has_ignore_file_directive(
     &self,
     comments: &SingleThreadedComments,
-    module: &swc_ecma_ast::Module,
+    module: &swc_ecmascript::ast::Module,
   ) -> bool {
     comments.with_leading(module.span.lo(), |module_leading_comments| {
       for comment in module_leading_comments.iter() {
@@ -375,7 +374,7 @@ impl Linter {
   fn lint_module(
     &self,
     file_name: String,
-    module: swc_ecma_ast::Module,
+    module: swc_ecmascript::ast::Module,
     comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
     if self.has_ignore_file_directive(&comments, &module) {

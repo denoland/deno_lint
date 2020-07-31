@@ -2,8 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use crate::swc_util::extract_regex;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -23,7 +22,7 @@ impl LintRule for NoControlRegex {
     "no-control-regex"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoControlRegexVisitor::new(context);
     visitor.visit_module(module, module);
   }

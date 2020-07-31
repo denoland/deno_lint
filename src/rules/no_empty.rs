@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
   SwitchStmt,
 };

@@ -1,8 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{ArrayPat, ObjectPat, ObjectPatProp};
+use swc_ecmascript::ast::{ArrayPat, ObjectPat, ObjectPatProp};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -19,7 +18,7 @@ impl LintRule for NoEmptyPattern {
     "no-empty-pattern"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -42,9 +41,9 @@ impl Visit for NoEmptyPatternVisitor {
     _parent: &dyn Node,
   ) {
     if let ObjectPatProp::KeyValue(kv_prop) = obj_pat_prop {
-      if let swc_ecma_ast::Pat::Object(obj_pat) = &*kv_prop.value {
+      if let swc_ecmascript::ast::Pat::Object(obj_pat) = &*kv_prop.value {
         self.visit_object_pat(obj_pat, _parent);
-      } else if let swc_ecma_ast::Pat::Array(arr_pat) = &*kv_prop.value {
+      } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = &*kv_prop.value {
         self.visit_array_pat(arr_pat, _parent);
       }
     }
@@ -76,9 +75,9 @@ impl Visit for NoEmptyPatternVisitor {
     } else {
       for elem in &arr_pat.elems {
         if let Some(element) = elem {
-          if let swc_ecma_ast::Pat::Object(obj_pat) = element {
+          if let swc_ecmascript::ast::Pat::Object(obj_pat) = element {
             self.visit_object_pat(&obj_pat, _parent);
-          } else if let swc_ecma_ast::Pat::Array(arr_pat) = element {
+          } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = element {
             self.visit_array_pat(&arr_pat, _parent);
           }
         }

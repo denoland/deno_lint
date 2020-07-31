@@ -2,11 +2,10 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::CallExpr;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::ExprOrSuper;
-use crate::swc_ecma_ast::NewExpr;
+use swc_ecmascript::ast::CallExpr;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::ExprOrSuper;
+use swc_ecmascript::ast::NewExpr;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -23,7 +22,7 @@ impl LintRule for NoObjCalls {
     "no-obj-call"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoObjCallsVisitor::new(context);
     visitor.visit_module(module, module);
   }

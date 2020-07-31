@@ -1,10 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::CallExpr;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::ExprOrSuper;
+use swc_ecmascript::ast::CallExpr;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::ExprOrSuper;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -24,7 +23,7 @@ impl LintRule for NoPrototypeBuiltins {
     "no-prototype-builtins"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoPrototypeBuiltinsVisitor::new(context);
     visitor.visit_module(module, module);
   }

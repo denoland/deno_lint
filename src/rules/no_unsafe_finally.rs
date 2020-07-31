@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_ecma_ast::Module;
-use crate::swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};
-use crate::swc_ecma_ast::TryStmt;
+use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
+use swc_ecmascript::ast::TryStmt;
 use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;

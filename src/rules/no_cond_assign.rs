@@ -1,10 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::Expr::{Assign, Bin, Paren};
-use crate::swc_ecma_ast::Module;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
+use swc_ecmascript::ast::Module;
 use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
@@ -49,7 +48,7 @@ impl NoCondAssignVisitor {
         self.add_diagnostic(assign.span);
       }
       Bin(bin) => {
-        if bin.op == swc_ecma_ast::BinaryOp::LogicalOr {
+        if bin.op == swc_ecmascript::ast::BinaryOp::LogicalOr {
           self.check_condition(&bin.left);
           self.check_condition(&bin.right);
         }
@@ -62,28 +61,28 @@ impl NoCondAssignVisitor {
 impl Visit for NoCondAssignVisitor {
   fn visit_if_stmt(
     &mut self,
-    if_stmt: &swc_ecma_ast::IfStmt,
+    if_stmt: &swc_ecmascript::ast::IfStmt,
     _parent: &dyn Node,
   ) {
     self.check_condition(&if_stmt.test);
   }
   fn visit_while_stmt(
     &mut self,
-    while_stmt: &swc_ecma_ast::WhileStmt,
+    while_stmt: &swc_ecmascript::ast::WhileStmt,
     _parent: &dyn Node,
   ) {
     self.check_condition(&while_stmt.test);
   }
   fn visit_do_while_stmt(
     &mut self,
-    do_while_stmt: &swc_ecma_ast::DoWhileStmt,
+    do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
     _parent: &dyn Node,
   ) {
     self.check_condition(&do_while_stmt.test);
   }
   fn visit_for_stmt(
     &mut self,
-    for_stmt: &swc_ecma_ast::ForStmt,
+    for_stmt: &swc_ecmascript::ast::ForStmt,
     _parent: &dyn Node,
   ) {
     if let Some(for_test) = &for_stmt.test {
@@ -92,7 +91,7 @@ impl Visit for NoCondAssignVisitor {
   }
   fn visit_cond_expr(
     &mut self,
-    cond_expr: &swc_ecma_ast::CondExpr,
+    cond_expr: &swc_ecmascript::ast::CondExpr,
     _parent: &dyn Node,
   ) {
     if let Paren(paren) = &*cond_expr.test {

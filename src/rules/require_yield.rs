@@ -1,14 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::ClassMethod;
-use crate::swc_ecma_ast::FnDecl;
-use crate::swc_ecma_ast::FnExpr;
-use crate::swc_ecma_ast::Function;
-use crate::swc_ecma_ast::MethodProp;
-use crate::swc_ecma_ast::PrivateMethod;
-use crate::swc_ecma_ast::YieldExpr;
+use swc_ecmascript::ast::ClassMethod;
+use swc_ecmascript::ast::FnDecl;
+use swc_ecmascript::ast::FnExpr;
+use swc_ecmascript::ast::Function;
+use swc_ecmascript::ast::MethodProp;
+use swc_ecmascript::ast::PrivateMethod;
+use swc_ecmascript::ast::YieldExpr;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -25,7 +24,7 @@ impl LintRule for RequireYield {
     "require-yield"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = RequireYieldVisitor::new(context);
     visitor.visit_module(module, module);
   }

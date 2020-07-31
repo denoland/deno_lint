@@ -1,9 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::NewExpr;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::NewExpr;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -20,7 +19,7 @@ impl LintRule for NoAsyncPromiseExecutor {
     "no-async-promise-executor"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
     visitor.visit_module(module, module);
   }

@@ -13,8 +13,7 @@ use swc_common::Globals;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
   PropOrSpread, Str, Tpl,
 };
@@ -158,7 +157,7 @@ impl AstParser {
     callback: F,
   ) -> R
   where
-    F: FnOnce(Result<swc_ecma_ast::Module, SwcDiagnosticBuffer>, SingleThreadedComments) -> R,
+    F: FnOnce(Result<swc_ecmascript::ast::Module, SwcDiagnosticBuffer>, SingleThreadedComments) -> R,
   {
     swc_common::GLOBALS.set(&self.globals, || {
       let swc_source_file = self.source_map.new_source_file(

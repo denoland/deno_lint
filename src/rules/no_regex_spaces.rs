@@ -2,8 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use crate::swc_util::extract_regex;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -21,7 +20,7 @@ impl LintRule for NoRegexSpaces {
     "no-regex-spaces"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
     visitor.visit_module(module, module);
   }
