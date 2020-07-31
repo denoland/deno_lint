@@ -2,7 +2,7 @@
 use crate::scopes::Scope;
 use crate::swc_atoms::js_word;
 use crate::swc_common;
-use crate::swc_common::comments::Comments;
+use crate::swc_common::comments::SingleThreadedComments;
 use crate::swc_common::errors::Diagnostic;
 use crate::swc_common::errors::DiagnosticBuilder;
 use crate::swc_common::errors::Emitter;
@@ -22,7 +22,7 @@ use crate::swc_ecma_parser::lexer::Lexer;
 use crate::swc_ecma_parser::EsConfig;
 use crate::swc_ecma_parser::JscTarget;
 use crate::swc_ecma_parser::Parser;
-use crate::swc_ecma_parser::SourceFileInput;
+use crate::swc_ecma_parser::StringInput;
 use crate::swc_ecma_parser::Syntax;
 use crate::swc_ecma_parser::TsConfig;
 use std::error::Error;
@@ -158,7 +158,7 @@ impl AstParser {
     callback: F,
   ) -> R
   where
-    F: FnOnce(Result<swc_ecma_ast::Module, SwcDiagnosticBuffer>, Comments) -> R,
+    F: FnOnce(Result<swc_ecma_ast::Module, SwcDiagnosticBuffer>, SingleThreadedComments) -> R,
   {
     swc_common::GLOBALS.set(&self.globals, || {
       let swc_source_file = self.source_map.new_source_file(
@@ -168,11 +168,11 @@ impl AstParser {
 
       let buffered_err = self.buffered_error.clone();
 
-      let comments = Comments::default();
+      let comments = SingleThreadedComments::default();
       let lexer = Lexer::new(
         syntax,
         JscTarget::Es2019,
-        SourceFileInput::from(&*swc_source_file),
+        StringInput::from(&*swc_source_file),
         Some(&comments),
       );
 

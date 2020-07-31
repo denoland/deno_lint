@@ -101,8 +101,8 @@ impl ContainsComments for BlockStmt {
   fn contains_comments(&self, context: &Context) -> bool {
     context
       .leading_comments
-      .iter()
-      .flat_map(|r| r.value().clone())
+      .values()
+      .flat_map(|r| r)
       .any(|comment| self.span.contains(comment.span))
   }
 }

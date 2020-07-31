@@ -36,13 +36,13 @@ impl LintRule for BanTsIgnore {
   }
 
   fn lint_module(&self, context: Arc<Context>, _module: &swc_ecma_ast::Module) {
-    context.leading_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+    context.leading_comments.values().for_each(|comments| {
+      for comment in comments {
         self.lint_comment(&context, comment);
       }
     });
-    context.trailing_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+    context.trailing_comments.values().for_each(|comments| {
+      for comment in comments {
         self.lint_comment(&context, comment);
       }
     });

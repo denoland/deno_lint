@@ -6,10 +6,10 @@ use crate::scopes::Scope;
 use crate::scopes::ScopeVisitor;
 use crate::swc_common::comments::Comment;
 use crate::swc_common::comments::CommentKind;
-use crate::swc_common::comments::CommentMap;
-use crate::swc_common::comments::Comments;
+use crate::swc_common::comments::SingleThreadedComments;
 use crate::swc_common::SourceMap;
 use crate::swc_common::Span;
+use crate::swc_common::BytePos;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_parser;
 use crate::swc_ecma_parser::Syntax;
@@ -21,14 +21,15 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
 use swc_ecma_visit::Visit;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
-  pub leading_comments: CommentMap,
-  pub trailing_comments: CommentMap,
+  pub leading_comments: HashMap<BytePos, Vec<Comment>>,
+  pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
   pub root_scope: Scope,
 }
@@ -241,12 +242,10 @@ impl Linter {
 
   fn has_ignore_file_directive(
     &self,
-    comments: &Comments,
+    comments: &SingleThreadedComments,
     module: &swc_ecma_ast::Module,
   ) -> bool {
-    if let Some(module_leading_comments) =
-      comments.take_leading_comments(module.span.lo())
-    {
+    comments.with_leading(module.span.lo(), |module_leading_comments| {
       for comment in module_leading_comments.iter() {
         if comment.kind == CommentKind::Line {
           let text = comment.text.trim().to_string();
@@ -255,10 +254,8 @@ impl Linter {
           }
         }
       }
-      comments.add_leading(module.span.lo(), module_leading_comments);
-    }
-
-    false
+      false
+    })
   }
 
   fn parse_ignore_comment(&self, comment: &Comment) -> Option<IgnoreDirective> {
@@ -302,21 +299,18 @@ impl Linter {
 
   fn parse_ignore_directives(
     &self,
-    leading: &CommentMap,
+    leading: &HashMap<BytePos, Vec<Comment>>,
   ) -> Vec<IgnoreDirective> {
     let mut ignore_directives = vec![];
 
-    leading.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+    leading.values().for_each(|comments| {
+      for comment in comments {
         if let Some(ignore) = self.parse_ignore_comment(comment) {
           ignore_directives.push(ignore);
         }
       }
     });
 
-    // TODO(bartlomieju): remove once https://github.com/swc-project/swc/issues/856
-    // is resolved
-    ignore_directives.dedup();
     ignore_directives
   }
 
@@ -383,7 +377,7 @@ impl Linter {
     &self,
     file_name: String,
     module: swc_ecma_ast::Module,
-    comments: Comments,
+    comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
     if self.has_ignore_file_directive(&comments, &module) {
       return vec![];
@@ -391,6 +385,14 @@ impl Linter {
     let start = Instant::now();
 
     let (leading, trailing) = comments.take_all();
+    let leading_coms = Rc::try_unwrap(leading).expect("Failed to get leading comments").into_inner();
+    let leading = leading_coms.into_iter().collect();
+    let trailing_coms = Rc::try_unwrap(trailing).expect("Failed to get leading comments").into_inner();
+    let trailing = trailing_coms.into_iter().collect();
+    // let (leading, trailing) = {
+      
+    //   (l, t)
+    // };
 
     let ignore_directives = self.parse_ignore_directives(&leading);
 
