@@ -25,7 +25,11 @@ impl LintRule for NoConstAssign {
     "no-const-assign"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoConstAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -58,7 +62,11 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_obj_pat(&mut self, object: &swc_ecmascript::ast::ObjectPat, span: Span) {
+  fn check_obj_pat(
+    &mut self,
+    object: &swc_ecmascript::ast::ObjectPat,
+    span: Span,
+  ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
@@ -73,7 +81,11 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_array_pat(&mut self, array: &swc_ecmascript::ast::ArrayPat, span: Span) {
+  fn check_array_pat(
+    &mut self,
+    array: &swc_ecmascript::ast::ArrayPat,
+    span: Span,
+  ) {
     if !array.elems.is_empty() {
       for elem in array.elems.iter() {
         if let Some(element) = elem {

@@ -1,11 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_common::Span;
-use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use crate::swc_util::extract_regex;
 use std::iter::Peekable;
 use std::str::Chars;
+use swc_common::Span;
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -22,7 +22,11 @@ impl LintRule for NoControlRegex {
     "no-control-regex"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoControlRegexVisitor::new(context);
     visitor.visit_module(module, module);
   }

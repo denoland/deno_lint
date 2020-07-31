@@ -21,7 +21,11 @@ impl LintRule for NoAwaitInLoop {
     "no-await-in-loop"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -171,7 +175,11 @@ impl<'a> Visit for FunctionVisitor<'a> {
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
     let mut func_visitor =
       FunctionVisitor::new(&self.root_visitor, arrow_expr.is_async);
-    swc_ecmascript::visit::visit_arrow_expr(&mut func_visitor, arrow_expr, parent);
+    swc_ecmascript::visit::visit_arrow_expr(
+      &mut func_visitor,
+      arrow_expr,
+      parent,
+    );
   }
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {

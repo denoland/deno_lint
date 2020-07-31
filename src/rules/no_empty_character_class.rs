@@ -18,7 +18,11 @@ impl LintRule for NoEmptyCharacterClass {
     "no-empty-character-class"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoEmptyCharacterClassVisitor::new(context);
     visitor.visit_module(module, module);
   }

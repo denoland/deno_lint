@@ -21,7 +21,11 @@ impl LintRule for NoUnusedLabels {
     "no-unused-labels"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoUnusedLabelsVisitor::new(context);
     visitor.visit_module(module, module);
   }

@@ -18,7 +18,11 @@ impl LintRule for Eqeqeq {
     "eqeqeq"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = EqeqeqVisitor::new(context);
     visitor.visit_module(module, module);
   }

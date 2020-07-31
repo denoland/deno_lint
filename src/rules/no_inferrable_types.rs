@@ -1,12 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_common;
+use std::sync::Arc;
+use swc_atoms::JsWord;
 use swc_ecmascript::ast::{
   Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
 };
-use std::sync::Arc;
-use swc_atoms::JsWord;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -21,7 +20,11 @@ impl LintRule for NoInferrableTypes {
     "no-inferrable-types"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -78,22 +81,30 @@ impl NoInferrableTypesVisitor {
         Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "BigInt");
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg {
+        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
+        {
           Expr::Lit(Lit::BigInt(_)) => {
             self.add_diagnostic_helper(span);
           }
           Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "BigInt");
           }
-          Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
+            expr, ..
+          }) => {
+            if let Expr::Call(swc_ecmascript::ast::CallExpr {
+              callee, ..
+            }) = &**expr
+            {
               self.check_callee(callee, span, "BigInt");
             }
           }
           _ => {}
         },
         Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "BigInt");
           }
         }
@@ -112,7 +123,9 @@ impl NoInferrableTypesVisitor {
           }
         }
         Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "Boolean");
           }
         }
@@ -130,7 +143,8 @@ impl NoInferrableTypesVisitor {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg {
+        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
+        {
           Expr::Lit(Lit::Num(_)) => {
             self.add_diagnostic_helper(span);
           }
@@ -142,15 +156,22 @@ impl NoInferrableTypesVisitor {
               self.add_diagnostic_helper(span);
             }
           }
-          Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
+            expr, ..
+          }) => {
+            if let Expr::Call(swc_ecmascript::ast::CallExpr {
+              callee, ..
+            }) = &**expr
+            {
               self.check_callee(callee, span, "Number");
             }
           }
           _ => {}
         },
         Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "Number");
           }
         }
@@ -172,20 +193,27 @@ impl NoInferrableTypesVisitor {
           self.check_callee(callee, span, "String");
         }
         Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "String");
           }
         }
         _ => {}
       },
       TsSymbolKeyword => {
-        if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &*value {
+        if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+          &*value
+        {
           self.check_callee(callee, span, "Symbol");
         } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-          expr, ..
+          expr,
+          ..
         }) = &*value
         {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "Symbol");
           }
         }
@@ -213,7 +241,8 @@ impl NoInferrableTypesVisitor {
     ts_type: &TsTypeRef,
     span: swc_common::Span,
   ) {
-    if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type.type_name {
+    if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type.type_name
+    {
       if ident.sym != JsWord::from("RegExp") {
         return;
       }
@@ -234,13 +263,18 @@ impl NoInferrableTypesVisitor {
             ..
           }) = &**callee
           {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+            if let Expr::Call(swc_ecmascript::ast::CallExpr {
+              callee, ..
+            }) = &**expr
+            {
               self.check_callee(callee, span, "RegExp");
             }
           }
         }
         Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "RegExp");
           }
         }

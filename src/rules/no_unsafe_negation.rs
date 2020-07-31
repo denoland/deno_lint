@@ -21,7 +21,11 @@ impl LintRule for NoUnsafeNegation {
     "no-unsafe-negation"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoUnsafeNegationVisitor::new(context);
     visitor.visit_module(module, module);
   }

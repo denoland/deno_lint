@@ -18,7 +18,11 @@ impl LintRule for BanTypes {
     "ban-types"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = BanTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -50,7 +54,9 @@ impl Visit for BanTypesVisitor {
     ts_type_ref: &swc_ecmascript::ast::TsTypeRef,
     _parent: &dyn Node,
   ) {
-    if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type_ref.type_name {
+    if let swc_ecmascript::ast::TsEntityName::Ident(ident) =
+      &ts_type_ref.type_name
+    {
       if let Some((_, message)) = BANNED_TYPES
         .iter()
         .find(|banned_type| JsWord::from(banned_type.0) == ident.sym)

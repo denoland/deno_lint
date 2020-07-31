@@ -1,12 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_atoms::JsWord;
 use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, Module, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
-use swc_atoms::JsWord;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 

@@ -3,7 +3,6 @@ use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
 use crate::scopes::Scope;
-use swc_common;
 use swc_ecmascript::ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -21,7 +20,11 @@ impl LintRule for NoExAssign {
     "no-ex-assign"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }

@@ -4,22 +4,22 @@ use crate::diagnostic::Location;
 use crate::rules::LintRule;
 use crate::scopes::Scope;
 use crate::scopes::ScopeVisitor;
-use swc_common::comments::Comment;
-use swc_common::comments::CommentKind;
-use swc_common::comments::SingleThreadedComments;
-use swc_common::SourceMap;
-use swc_common::Span;
-use swc_common::BytePos;
-use swc_ecmascript::parser::Syntax;
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
+use swc_common::comments::Comment;
+use swc_common::comments::CommentKind;
+use swc_common::comments::SingleThreadedComments;
+use swc_common::BytePos;
+use swc_common::SourceMap;
+use swc_common::Span;
+use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::visit::Visit;
-use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Context {
@@ -218,24 +218,20 @@ impl Linter {
     );
     self.has_linted = true;
     let start = Instant::now();
-    let r = self.ast_parser.parse_module(
-      &file_name,
-      self.syntax,
-      &source_code,
-      |parse_result, comments| {
-        let end_parse_module = Instant::now();
-        debug!(
-          "ast_parser.parse_module took {:#?}",
-          end_parse_module - start
-        );
-        let module = parse_result?;
-        let diagnostics = self.lint_module(file_name.clone(), module, comments);
-        Ok(diagnostics)
-      },
+    let (parse_result, comments) =
+      self
+        .ast_parser
+        .parse_module(&file_name, self.syntax, &source_code);
+    let end_parse_module = Instant::now();
+    debug!(
+      "ast_parser.parse_module took {:#?}",
+      end_parse_module - start
     );
+    let module = parse_result?;
+    let diagnostics = self.lint_module(file_name, module, comments);
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    r
+    Ok(diagnostics)
   }
 
   fn has_ignore_file_directive(
@@ -383,12 +379,16 @@ impl Linter {
     let start = Instant::now();
 
     let (leading, trailing) = comments.take_all();
-    let leading_coms = Rc::try_unwrap(leading).expect("Failed to get leading comments").into_inner();
+    let leading_coms = Rc::try_unwrap(leading)
+      .expect("Failed to get leading comments")
+      .into_inner();
     let leading = leading_coms.into_iter().collect();
-    let trailing_coms = Rc::try_unwrap(trailing).expect("Failed to get leading comments").into_inner();
+    let trailing_coms = Rc::try_unwrap(trailing)
+      .expect("Failed to get leading comments")
+      .into_inner();
     let trailing = trailing_coms.into_iter().collect();
     // let (leading, trailing) = {
-      
+
     //   (l, t)
     // };
 

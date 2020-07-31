@@ -21,7 +21,11 @@ impl LintRule for NoFuncAssign {
     "no-func-assign"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }

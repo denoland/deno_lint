@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_common::Spanned;
 use std::collections::HashSet;
+use swc_common::Spanned;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -19,7 +19,11 @@ impl LintRule for NoDuplicateCase {
     "no-duplicate-case"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
     visitor.visit_module(module, module);
   }

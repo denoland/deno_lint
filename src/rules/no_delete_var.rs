@@ -20,7 +20,11 @@ impl LintRule for NoDeleteVar {
     "no-delete-var"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoDeleteVarVisitor::new(context);
     visitor.visit_module(module, module);
   }

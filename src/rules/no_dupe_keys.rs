@@ -1,9 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{Module, ObjectLit};
 use crate::swc_util::Key;
 use std::collections::{BTreeSet, HashSet};
+use swc_ecmascript::ast::{Module, ObjectLit};
 use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;

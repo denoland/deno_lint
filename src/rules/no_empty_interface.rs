@@ -18,7 +18,11 @@ impl LintRule for NoEmptyInterface {
     "no-empty-interface"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoEmptyInterfaceVisitor::new(context);
     visitor.visit_module(module, module);
   }

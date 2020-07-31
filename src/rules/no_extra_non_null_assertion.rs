@@ -22,7 +22,11 @@ impl LintRule for NoExtraNonNullAssertion {
     "no-extra-non-null-assertion"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -66,7 +70,11 @@ impl Visit for NoExtraNonNullAssertionVisitor {
       ts_non_null_expr.span,
       &*ts_non_null_expr.expr,
     );
-    swc_ecmascript::visit::visit_ts_non_null_expr(self, ts_non_null_expr, parent);
+    swc_ecmascript::visit::visit_ts_non_null_expr(
+      self,
+      ts_non_null_expr,
+      parent,
+    );
   }
 
   fn visit_opt_chain_expr(

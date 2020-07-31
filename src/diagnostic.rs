@@ -1,5 +1,4 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use swc_common;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Location {

@@ -1,11 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use crate::swc_util::DropSpan;
+use std::collections::HashSet;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
 };
-use crate::swc_util::DropSpan;
-use std::collections::HashSet;
 use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;

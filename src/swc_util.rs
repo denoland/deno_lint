@@ -1,7 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
+use std::error::Error;
+use std::fmt;
+use std::sync::Arc;
+use std::sync::RwLock;
 use swc_atoms::js_word;
-use swc_common;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::Diagnostic;
 use swc_common::errors::DiagnosticBuilder;
@@ -24,10 +27,6 @@ use swc_ecmascript::parser::Parser;
 use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::parser::TsConfig;
-use std::error::Error;
-use std::fmt;
-use std::sync::Arc;
-use std::sync::RwLock;
 use swc_ecmascript::visit::Fold;
 
 #[allow(unused)]
@@ -149,42 +148,39 @@ impl AstParser {
     }
   }
 
-  pub fn parse_module<F, R>(
+  pub fn parse_module(
     &self,
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
-    callback: F,
-  ) -> R
-  where
-    F: FnOnce(Result<swc_ecmascript::ast::Module, SwcDiagnosticBuffer>, SingleThreadedComments) -> R,
-  {
-    swc_common::GLOBALS.set(&self.globals, || {
-      let swc_source_file = self.source_map.new_source_file(
-        FileName::Custom(file_name.to_string()),
-        source_code.to_string(),
-      );
+  ) -> (
+    Result<swc_ecmascript::ast::Module, SwcDiagnosticBuffer>,
+    SingleThreadedComments,
+  ) {
+    let swc_source_file = self.source_map.new_source_file(
+      FileName::Custom(file_name.to_string()),
+      source_code.to_string(),
+    );
 
-      let buffered_err = self.buffered_error.clone();
+    let buffered_err = self.buffered_error.clone();
 
-      let comments = SingleThreadedComments::default();
-      let lexer = Lexer::new(
-        syntax,
-        JscTarget::Es2019,
-        StringInput::from(&*swc_source_file),
-        Some(&comments),
-      );
+    let comments = SingleThreadedComments::default();
+    let lexer = Lexer::new(
+      syntax,
+      JscTarget::Es2019,
+      StringInput::from(&*swc_source_file),
+      Some(&comments),
+    );
 
-      let mut parser = Parser::new_from(lexer);
+    let mut parser = Parser::new_from(lexer);
 
-      let parse_result = parser.parse_module().map_err(move |err| {
-        let mut diagnostic_builder = err.into_diagnostic(&self.handler);
-        diagnostic_builder.emit();
-        SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
-      });
+    let parse_result = parser.parse_module().map_err(move |err| {
+      let mut diagnostic_builder = err.into_diagnostic(&self.handler);
+      diagnostic_builder.emit();
+      SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+    });
 
-      callback(parse_result, comments)
-    })
+    (parse_result, comments)
   }
 
   pub fn get_span_location(&self, span: Span) -> swc_common::Loc {

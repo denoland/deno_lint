@@ -1,12 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use std::sync::Arc;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Lit;
 use swc_ecmascript::ast::Module;
-use std::sync::Arc;
 use swc_ecmascript::visit::{Node, Visit};
 
 pub struct NoConstantCondition;
@@ -51,7 +51,8 @@ impl NoConstantConditionVisitor {
     match expr {
       Expr::Lit(lit) => match lit {
         Lit::Bool(boolean) => {
-          (operator == swc_ecmascript::ast::BinaryOp::LogicalOr && boolean.value)
+          (operator == swc_ecmascript::ast::BinaryOp::LogicalOr
+            && boolean.value)
             || (operator == swc_ecmascript::ast::BinaryOp::LogicalAnd
               && !boolean.value)
         }
@@ -112,7 +113,8 @@ impl NoConstantConditionVisitor {
         if unary.op == swc_ecmascript::ast::UnaryOp::Void {
           true
         } else {
-          (unary.op == swc_ecmascript::ast::UnaryOp::TypeOf && in_boolean_position)
+          (unary.op == swc_ecmascript::ast::UnaryOp::TypeOf
+            && in_boolean_position)
             || self.is_constant(&unary.arg, Some(node), true)
         }
       }

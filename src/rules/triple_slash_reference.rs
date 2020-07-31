@@ -40,7 +40,11 @@ impl LintRule for TripleSlashReference {
     "triple-slash-reference"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    _module: &swc_ecmascript::ast::Module,
+  ) {
     context.leading_comments.values().for_each(|comments| {
       for comment in comments {
         self.lint_comment(&context, comment);

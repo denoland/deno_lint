@@ -102,7 +102,7 @@ impl ContainsComments for BlockStmt {
     context
       .leading_comments
       .values()
-      .flat_map(|r| r)
+      .flatten()
       .any(|comment| self.span.contains(comment.span))
   }
 }

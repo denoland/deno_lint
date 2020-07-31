@@ -18,7 +18,11 @@ impl LintRule for DefaultParamLast {
     "default-param-last"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
     visitor.visit_module(module, module);
   }

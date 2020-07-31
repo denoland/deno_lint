@@ -17,7 +17,11 @@ impl LintRule for UseIsNaN {
     "use-isnan"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = UseIsNaNVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -78,7 +82,8 @@ impl Visit for UseIsNaNVisitor {
     switch_stmt: &swc_ecmascript::ast::SwitchStmt,
     _parent: &dyn Node,
   ) {
-    if let swc_ecmascript::ast::Expr::Ident(ident) = &*switch_stmt.discriminant {
+    if let swc_ecmascript::ast::Expr::Ident(ident) = &*switch_stmt.discriminant
+    {
       if is_nan_identifier(&ident) {
         self.context.add_diagnostic(
           switch_stmt.span,

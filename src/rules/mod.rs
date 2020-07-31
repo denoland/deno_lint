@@ -74,7 +74,11 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module);
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  );
   fn code(&self) -> &'static str;
 }
 

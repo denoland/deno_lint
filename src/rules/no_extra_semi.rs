@@ -21,7 +21,11 @@ impl LintRule for NoExtraSemi {
     "no-extra-semi"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExtraSemiVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -92,7 +96,11 @@ impl Visit for NoExtraSemiVisitor {
 
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, parent: &dyn Node) {
     if matches!(&*for_of_stmt.body, Stmt::Empty(_)) {
-      swc_ecmascript::visit::visit_var_decl_or_pat(self, &for_of_stmt.left, parent);
+      swc_ecmascript::visit::visit_var_decl_or_pat(
+        self,
+        &for_of_stmt.left,
+        parent,
+      );
       swc_ecmascript::visit::visit_expr(self, &*for_of_stmt.right, parent);
     } else {
       swc_ecmascript::visit::visit_for_of_stmt(self, for_of_stmt, parent);
@@ -101,7 +109,11 @@ impl Visit for NoExtraSemiVisitor {
 
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, parent: &dyn Node) {
     if matches!(&*for_in_stmt.body, Stmt::Empty(_)) {
-      swc_ecmascript::visit::visit_var_decl_or_pat(self, &for_in_stmt.left, parent);
+      swc_ecmascript::visit::visit_var_decl_or_pat(
+        self,
+        &for_in_stmt.left,
+        parent,
+      );
       swc_ecmascript::visit::visit_expr(self, &*for_in_stmt.right, parent);
     } else {
       swc_ecmascript::visit::visit_for_in_stmt(self, for_in_stmt, parent);

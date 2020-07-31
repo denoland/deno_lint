@@ -16,7 +16,11 @@ impl LintRule for NoNonNullAssertion {
     "no-non-null-assertion"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoNonNullAssertionVisitor::new(context);
     visitor.visit_module(module, module);
   }

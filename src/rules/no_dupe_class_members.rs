@@ -1,13 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use swc_common::Span;
 use swc_ecmascript::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use std::cmp::Ordering;
-use std::collections::BTreeMap;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -24,7 +24,11 @@ impl LintRule for NoDupeClassMembers {
     "no-dupe-class-members"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
     visitor.visit_module(module, module);
   }

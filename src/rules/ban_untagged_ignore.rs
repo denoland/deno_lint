@@ -15,7 +15,11 @@ impl LintRule for BanUntaggedIgnore {
     "ban-untagged-ignore"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    _module: &swc_ecmascript::ast::Module,
+  ) {
     for ignore_directive in &context.ignore_directives {
       if ignore_directive.codes.is_empty() {
         context.add_diagnostic(

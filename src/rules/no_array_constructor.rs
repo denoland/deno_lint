@@ -19,7 +19,11 @@ impl LintRule for NoArrayConstructor {
     "no-array-constructor"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
     visitor.visit_module(module, module);
   }

@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{Expr, ThrowStmt};
 use swc_atoms::js_word;
+use swc_ecmascript::ast::{Expr, ThrowStmt};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -19,7 +19,11 @@ impl LintRule for NoThrowLiteral {
     "no-throw-literal"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoThrowLiteralVisitor::new(context);
     visitor.visit_module(module, module);
   }

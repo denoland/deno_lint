@@ -1,6 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::swc_util::Key;
+use std::collections::HashSet;
+use std::sync::Arc;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
@@ -8,9 +11,6 @@ use swc_ecmascript::ast::{
   Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,
   TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
 };
-use crate::swc_util::Key;
-use std::collections::HashSet;
-use std::sync::Arc;
 use swc_ecmascript::visit::{Node, Visit};
 
 pub struct AdjacentOverloadSignatures;
@@ -172,7 +172,11 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
     parent: &dyn Node,
   ) {
     self.check(&ts_inteface_body.body);
-    swc_ecmascript::visit::visit_ts_interface_body(self, ts_inteface_body, parent);
+    swc_ecmascript::visit::visit_ts_interface_body(
+      self,
+      ts_inteface_body,
+      parent,
+    );
   }
 }
 

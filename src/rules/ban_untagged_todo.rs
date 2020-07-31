@@ -1,9 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use regex::Regex;
 
 use std::sync::Arc;
 
@@ -43,7 +43,11 @@ impl LintRule for BanUntaggedTodo {
     "ban-untagged-todo"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    _module: &swc_ecmascript::ast::Module,
+  ) {
     context.leading_comments.values().for_each(|comments| {
       for comment in comments {
         self.lint_comment(&context, comment);

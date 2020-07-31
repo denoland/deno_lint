@@ -18,7 +18,11 @@ impl LintRule for NoExplicitAny {
     "no-explicit-any"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecmascript::ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
     visitor.visit_module(module, module);
   }
