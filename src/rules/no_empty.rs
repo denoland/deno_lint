@@ -4,7 +4,7 @@ use crate::swc_ecma_ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
   SwitchStmt,
 };
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ impl Visit for NoEmptyVisitor {
     // for empty function body.
     if let Some(body) = &function.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }
@@ -52,7 +52,7 @@ impl Visit for NoEmptyVisitor {
     // Similar to the above, empty arrow expressions shouldn't be caught.
     if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body {
       for stmt in &block_stmt.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, block_stmt);
+        swc_ecmascript::visit::visit_stmt(self, stmt, block_stmt);
       }
     }
   }
@@ -61,7 +61,7 @@ impl Visit for NoEmptyVisitor {
     // Similar to the above, empty constructors shouldn't be caught.
     if let Some(body) = &cons.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }

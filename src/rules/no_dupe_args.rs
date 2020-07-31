@@ -8,8 +8,8 @@ use crate::swc_ecma_ast::Function;
 use crate::swc_ecma_ast::Param;
 use crate::swc_ecma_ast::Pat;
 use std::collections::HashSet;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

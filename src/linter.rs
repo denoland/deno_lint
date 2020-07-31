@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Visit;
 use std::rc::Rc;
 
 #[derive(Clone)]

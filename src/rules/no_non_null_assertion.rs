@@ -2,8 +2,8 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_ecma_ast;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

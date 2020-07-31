@@ -11,7 +11,7 @@ use crate::swc_ecma_ast::{
 use crate::swc_util::Key;
 use std::collections::HashSet;
 use std::sync::Arc;
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 pub struct AdjacentOverloadSignatures;
 
@@ -144,7 +144,7 @@ impl ExtractMethod for TsTypeElement {
 impl Visit for AdjacentOverloadSignaturesVisitor {
   fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
     self.check(&module.body);
-    swc_ecma_visit::visit_module(self, module, parent);
+    swc_ecmascript::visit::visit_module(self, module, parent);
   }
 
   fn visit_ts_module_block(
@@ -153,17 +153,17 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
     parent: &dyn Node,
   ) {
     self.check(&ts_module_block.body);
-    swc_ecma_visit::visit_ts_module_block(self, ts_module_block, parent);
+    swc_ecmascript::visit::visit_ts_module_block(self, ts_module_block, parent);
   }
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     self.check(&class.body);
-    swc_ecma_visit::visit_class(self, class, parent);
+    swc_ecmascript::visit::visit_class(self, class, parent);
   }
 
   fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, parent: &dyn Node) {
     self.check(&ts_type_lit.members);
-    swc_ecma_visit::visit_ts_type_lit(self, ts_type_lit, parent);
+    swc_ecmascript::visit::visit_ts_type_lit(self, ts_type_lit, parent);
   }
 
   fn visit_ts_interface_body(
@@ -172,7 +172,7 @@ impl Visit for AdjacentOverloadSignaturesVisitor {
     parent: &dyn Node,
   ) {
     self.check(&ts_inteface_body.body);
-    swc_ecma_visit::visit_ts_interface_body(self, ts_inteface_body, parent);
+    swc_ecmascript::visit::visit_ts_interface_body(self, ts_inteface_body, parent);
   }
 }
 

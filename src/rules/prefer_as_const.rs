@@ -8,8 +8,8 @@ use crate::swc_ecma_ast::{
   TsTypeAssertion, VarDecl,
 };
 use std::sync::Arc;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 pub struct PreferAsConst;
 

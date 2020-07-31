@@ -153,7 +153,7 @@ dependencies = [
  "log",
  "regex",
  "swc_atoms",
- "swc_ecma_visit",
+ "swc_ecmascript",
  "termcolor",
 ]
 
@@ -897,6 +897,16 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_visit",
+]
+
+[[package]]
+name = "swc_ecmascript"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bc49662be9e1203d7d95a84468a5f982bf5a7d7f6b02d19b2121f63a3ad4841"
+dependencies = [
+ "swc_ecma_ast",
+ "swc_ecma_visit",
 ]
 
 [[package]]

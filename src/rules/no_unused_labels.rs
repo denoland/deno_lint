@@ -6,8 +6,8 @@ use crate::swc_ecma_ast::BreakStmt;
 use crate::swc_ecma_ast::ContinueStmt;
 use crate::swc_ecma_ast::Ident;
 use crate::swc_ecma_ast::LabeledStmt;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -72,7 +72,7 @@ impl Visit for NoUnusedLabelsVisitor {
       used: false,
     };
     self.label_scopes.push(label_scope);
-    swc_ecma_visit::visit_labeled_stmt(self, labeled_stmt, parent);
+    swc_ecmascript::visit::visit_labeled_stmt(self, labeled_stmt, parent);
     let scope = self.label_scopes.pop().expect("self.label_scopes is empty");
     if !scope.used {
       self.context.add_diagnostic(

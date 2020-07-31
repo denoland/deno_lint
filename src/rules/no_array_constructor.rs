@@ -4,8 +4,8 @@ use super::LintRule;
 use crate::swc_common::Span;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

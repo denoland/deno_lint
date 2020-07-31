@@ -29,7 +29,7 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::RwLock;
-use swc_ecma_visit::Fold;
+use swc_ecmascript::visit::Fold;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {

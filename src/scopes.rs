@@ -5,8 +5,8 @@ use crate::swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::ObjectPatProp;
 use crate::swc_ecma_ast::Pat;
-use crate::swc_ecma_visit::Node;
-use crate::swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 use std::cell::RefCell;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
@@ -399,7 +399,7 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&module_scope);
-    swc_ecma_visit::visit_module(self, module, parent);
+    swc_ecmascript::visit::visit_module(self, module, parent);
     self.exit_scope(&module_scope);
   }
 
@@ -466,7 +466,7 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&fn_scope);
-    swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
+    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
     self.exit_scope(&fn_scope);
   }
 
@@ -484,7 +484,7 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&class_scope);
-    swc_ecma_visit::visit_class_decl(self, class_decl, parent);
+    swc_ecmascript::visit::visit_class_decl(self, class_decl, parent);
     self.exit_scope(&class_scope);
   }
 
@@ -497,12 +497,12 @@ impl Visit for ScopeVisitor {
       self.check_pat(&param.pat, BindingKind::Param);
     }
 
-    // Not calling `swc_ecma_visit::visit_function` but instead
+    // Not calling `swc_ecmascript::visit::visit_function` but instead
     // directly visiting body elements - otherwise additional
     // block scope will be created which is undesirable
     if let Some(body) = &function.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }
@@ -536,7 +536,7 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&with_scope);
-    swc_ecma_visit::visit_stmt(self, &*with_stmt.body, with_stmt);
+    swc_ecmascript::visit::visit_stmt(self, &*with_stmt.body, with_stmt);
     self.exit_scope(&with_scope);
   }
 
@@ -554,7 +554,7 @@ impl Visit for ScopeVisitor {
     );
     self.enter_scope(&switch_scope);
     for case in &switch_stmt.cases {
-      swc_ecma_visit::visit_switch_case(self, case, switch_stmt);
+      swc_ecmascript::visit::visit_switch_case(self, case, switch_stmt);
     }
     self.exit_scope(&switch_scope);
   }
@@ -575,7 +575,7 @@ impl Visit for ScopeVisitor {
     for decl in &var_decl.decls {
       self.check_pat(&decl.name, var_kind);
     }
-    swc_ecma_visit::visit_var_decl(self, var_decl, parent);
+    swc_ecmascript::visit::visit_var_decl(self, var_decl, parent);
   }
 
   fn visit_block_stmt(
@@ -589,7 +589,7 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&block_scope);
-    swc_ecma_visit::visit_block_stmt(self, block_stmt, parent);
+    swc_ecmascript::visit::visit_block_stmt(self, block_stmt, parent);
     self.exit_scope(&block_scope);
   }
 
@@ -609,11 +609,11 @@ impl Visit for ScopeVisitor {
       self.check_pat(pat, BindingKind::CatchClause);
     }
 
-    // Not calling `swc_ecma_visit::visit_class` but instead
+    // Not calling `swc_ecmascript::visit::visit_class` but instead
     // directly visiting body elements - otherwise additional
     // block scope will be created which is undesirable
     for stmt in &catch_clause.body.stmts {
-      swc_ecma_visit::visit_stmt(self, stmt, &catch_clause.body);
+      swc_ecmascript::visit::visit_stmt(self, stmt, &catch_clause.body);
     }
 
     self.exit_scope(&catch_scope);
@@ -637,7 +637,7 @@ impl Visit for ScopeVisitor {
     }
     if let swc_ecma_ast::Stmt::Block(body_block) = &*for_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -659,7 +659,7 @@ impl Visit for ScopeVisitor {
     }
     if let swc_ecma_ast::Stmt::Block(body_block) = &*for_in_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_in_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_in_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -681,7 +681,7 @@ impl Visit for ScopeVisitor {
     }
     if let swc_ecma_ast::Stmt::Block(body_block) = &*for_of_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_of_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_of_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -700,7 +700,7 @@ impl Visit for ScopeVisitor {
     self.enter_scope(&loop_scope);
     if let swc_ecma_ast::Stmt::Block(body_block) = &*while_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &while_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &while_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -719,7 +719,7 @@ impl Visit for ScopeVisitor {
     self.enter_scope(&loop_scope);
     if let swc_ecma_ast::Stmt::Block(body_block) = &*do_while_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &do_while_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &do_while_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);

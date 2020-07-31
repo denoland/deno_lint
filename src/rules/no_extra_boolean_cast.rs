@@ -7,8 +7,8 @@ use crate::swc_ecma_ast::{
   CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
   Ident, IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -113,24 +113,24 @@ impl NoExtraBooleanCastVisitor {
 impl Visit for NoExtraBooleanCastVisitor {
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, parent: &dyn Node) {
     self.check_condition(&*cond_expr.test);
-    swc_ecma_visit::visit_cond_expr(self, cond_expr, parent);
+    swc_ecmascript::visit::visit_cond_expr(self, cond_expr, parent);
   }
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
     if let Some(ref test_expr) = for_stmt.test {
       self.check_condition(&**test_expr);
     }
-    swc_ecma_visit::visit_for_stmt(self, for_stmt, parent);
+    swc_ecmascript::visit::visit_for_stmt(self, for_stmt, parent);
   }
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
     self.check_condition(&*if_stmt.test);
-    swc_ecma_visit::visit_if_stmt(self, if_stmt, parent);
+    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 
   fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, parent: &dyn Node) {
     self.check_condition(&*while_stmt.test);
-    swc_ecma_visit::visit_while_stmt(self, while_stmt, parent);
+    swc_ecmascript::visit::visit_while_stmt(self, while_stmt, parent);
   }
 
   fn visit_do_while_stmt(
@@ -139,7 +139,7 @@ impl Visit for NoExtraBooleanCastVisitor {
     parent: &dyn Node,
   ) {
     self.check_condition(&*do_while_stmt.test);
-    swc_ecma_visit::visit_do_while_stmt(self, do_while_stmt, parent);
+    swc_ecmascript::visit::visit_do_while_stmt(self, do_while_stmt, parent);
   }
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
@@ -148,7 +148,7 @@ impl Visit for NoExtraBooleanCastVisitor {
         self.check_condition(&*expr);
       }
     }
-    swc_ecma_visit::visit_call_expr(self, call_expr, parent);
+    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
@@ -159,12 +159,12 @@ impl Visit for NoExtraBooleanCastVisitor {
         self.check_condition(&*expr);
       }
     }
-    swc_ecma_visit::visit_new_expr(self, new_expr, parent);
+    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
   fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, parent: &dyn Node) {
     self.check_unary_expr(unary_expr);
-    swc_ecma_visit::visit_unary_expr(self, unary_expr, parent);
+    swc_ecmascript::visit::visit_unary_expr(self, unary_expr, parent);
   }
 }
 

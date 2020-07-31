@@ -7,8 +7,8 @@ use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use crate::swc_util::extract_regex;
 use std::iter::Peekable;
 use std::str::Chars;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -110,7 +110,7 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
 impl Visit for NoControlRegexVisitor {
   fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
-    swc_ecma_visit::visit_regex(self, regex, parent);
+    swc_ecmascript::visit::visit_regex(self, regex, parent);
   }
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
@@ -123,7 +123,7 @@ impl Visit for NoControlRegexVisitor {
         }
       }
     }
-    swc_ecma_visit::visit_new_expr(self, new_expr, parent);
+    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
@@ -139,7 +139,7 @@ impl Visit for NoControlRegexVisitor {
         }
       }
     }
-    swc_ecma_visit::visit_call_expr(self, call_expr, parent);
+    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 }
 

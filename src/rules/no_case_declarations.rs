@@ -6,8 +6,8 @@ use crate::swc_ecma_ast::Decl;
 use crate::swc_ecma_ast::Stmt;
 use crate::swc_ecma_ast::SwitchCase;
 use crate::swc_ecma_ast::VarDeclKind;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

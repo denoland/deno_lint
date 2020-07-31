@@ -7,8 +7,8 @@ use crate::swc_ecma_ast::{
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
 use swc_atoms::JsWord;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -111,7 +111,7 @@ impl Visit for NoMisusedNewVisitor {
       }
     }
 
-    swc_ecma_visit::visit_ts_interface_decl(self, n, parent);
+    swc_ecmascript::visit::visit_ts_interface_decl(self, n, parent);
   }
 
   fn visit_class_decl(&mut self, expr: &ClassDecl, parent: &dyn Node) {
@@ -143,7 +143,7 @@ impl Visit for NoMisusedNewVisitor {
       }
     }
 
-    swc_ecma_visit::visit_class_decl(self, expr, parent);
+    swc_ecmascript::visit::visit_class_decl(self, expr, parent);
   }
 }
 

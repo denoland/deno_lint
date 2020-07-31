@@ -6,7 +6,7 @@ use crate::swc_ecma_ast::{
 };
 use crate::swc_util::DropSpan;
 use std::collections::HashSet;
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 
@@ -104,7 +104,7 @@ impl Visit for NoDupeElseIfVisitor {
       }
     }
 
-    swc_ecma_visit::visit_if_stmt(self, if_stmt, parent);
+    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 }
 

@@ -7,8 +7,8 @@ use crate::swc_ecma_ast::Expr;
 use crate::swc_ecma_ast::ExprOrSuper;
 use crate::swc_ecma_ast::OptChainExpr;
 use crate::swc_ecma_ast::TsNonNullExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -67,7 +67,7 @@ impl Visit for NoExtraNonNullAssertionVisitor {
       ts_non_null_expr.span,
       &*ts_non_null_expr.expr,
     );
-    swc_ecma_visit::visit_ts_non_null_expr(self, ts_non_null_expr, parent);
+    swc_ecmascript::visit::visit_ts_non_null_expr(self, ts_non_null_expr, parent);
   }
 
   fn visit_opt_chain_expr(
@@ -87,7 +87,7 @@ impl Visit for NoExtraNonNullAssertionVisitor {
       }
     }
 
-    swc_ecma_visit::visit_opt_chain_expr(self, opt_chain_expr, parent);
+    swc_ecmascript::visit::visit_opt_chain_expr(self, opt_chain_expr, parent);
   }
 }
 

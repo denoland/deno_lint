@@ -7,8 +7,8 @@ use crate::swc_ecma_ast::CallExpr;
 use crate::swc_ecma_ast::Expr;
 use crate::swc_ecma_ast::ExprOrSuper;
 use crate::swc_ecma_ast::NewExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

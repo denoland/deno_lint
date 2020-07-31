@@ -5,8 +5,8 @@ use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::Expr;
 use crate::swc_ecma_ast::UnaryExpr;
 use crate::swc_ecma_ast::UnaryOp;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

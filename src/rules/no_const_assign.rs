@@ -10,8 +10,8 @@ use crate::swc_ecma_ast::ObjectPatProp;
 use crate::swc_ecma_ast::Pat;
 use crate::swc_ecma_ast::PatOrExpr;
 use crate::swc_ecma_ast::UpdateExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

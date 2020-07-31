@@ -6,7 +6,7 @@ use crate::swc_ecma_ast::Lit::Num;
 use crate::swc_ecma_ast::UnaryExpr;
 use crate::swc_ecma_ast::UnaryOp::Minus;
 use crate::swc_ecma_ast::{BinExpr, BinaryOp, Expr, Module};
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 

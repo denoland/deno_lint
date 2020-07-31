@@ -8,8 +8,8 @@ use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{
   Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
 };
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
@@ -118,7 +118,7 @@ impl Visit for ConstructorSuperVisitor {
         self.check_constructor(constructor, class);
       }
     }
-    swc_ecma_visit::visit_class(self, class, parent);
+    swc_ecmascript::visit::visit_class(self, class, parent);
   }
 }
 

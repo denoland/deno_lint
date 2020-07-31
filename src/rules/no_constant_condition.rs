@@ -8,7 +8,7 @@ use crate::swc_ecma_ast::Expr;
 use crate::swc_ecma_ast::Lit;
 use crate::swc_ecma_ast::Module;
 use std::sync::Arc;
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 pub struct NoConstantCondition;
 

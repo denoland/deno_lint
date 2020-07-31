@@ -9,8 +9,8 @@ use crate::swc_ecma_ast::{
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -85,7 +85,7 @@ impl<'a> ClassVisitor<'a> {
 impl<'a> Visit for ClassVisitor<'a> {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut visitor = ClassVisitor::new(self.root_visitor);
-    swc_ecma_visit::visit_class(&mut visitor, class, parent);
+    swc_ecmascript::visit::visit_class(&mut visitor, class, parent);
     visitor.aggregate_dupes();
   }
 
@@ -108,7 +108,7 @@ impl<'a> Visit for ClassVisitor<'a> {
           .push((class_method.span, name));
       }
     }
-    swc_ecma_visit::visit_class_method(self, class_method, parent);
+    swc_ecmascript::visit::visit_class_method(self, class_method, parent);
   }
 }
 

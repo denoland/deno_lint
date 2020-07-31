@@ -4,8 +4,8 @@ use super::LintRule;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{Expr, ThrowStmt};
 use swc_atoms::js_word;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::swc_ecma_ast::Module;
 use crate::swc_ecma_ast::Stmt::{Break, Continue, Return, Throw};
 use crate::swc_ecma_ast::TryStmt;
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 

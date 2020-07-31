@@ -12,8 +12,8 @@ use crate::swc_ecma_ast::GetterProp;
 use crate::swc_ecma_ast::MethodKind;
 use crate::swc_ecma_ast::Stmt;
 use swc_atoms::JsWord;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 

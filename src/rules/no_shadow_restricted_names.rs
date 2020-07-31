@@ -5,7 +5,7 @@ use crate::swc_ecma_ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 
@@ -117,7 +117,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&decl.name, false);
     }
 
-    swc_ecma_visit::visit_var_decl(self, node, parent);
+    swc_ecmascript::visit::visit_var_decl(self, node, parent);
   }
 
   fn visit_fn_decl(&mut self, node: &FnDecl, parent: &dyn Node) {
@@ -127,7 +127,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&param.pat, false);
     }
 
-    swc_ecma_visit::visit_fn_decl(self, node, parent);
+    swc_ecmascript::visit::visit_fn_decl(self, node, parent);
   }
 
   fn visit_fn_expr(&mut self, node: &FnExpr, parent: &dyn Node) {
@@ -139,7 +139,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&param.pat, false);
     }
 
-    swc_ecma_visit::visit_fn_expr(self, node, parent);
+    swc_ecmascript::visit::visit_fn_expr(self, node, parent);
   }
 
   fn visit_arrow_expr(&mut self, node: &ArrowExpr, parent: &dyn Node) {
@@ -147,7 +147,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&param, false);
     }
 
-    swc_ecma_visit::visit_arrow_expr(self, node, parent);
+    swc_ecmascript::visit::visit_arrow_expr(self, node, parent);
   }
 
   fn visit_catch_clause(&mut self, node: &CatchClause, parent: &dyn Node) {
@@ -155,7 +155,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(node.param.as_ref().unwrap(), false);
     }
 
-    swc_ecma_visit::visit_catch_clause(self, node, parent);
+    swc_ecmascript::visit::visit_catch_clause(self, node, parent);
   }
 
   fn visit_assign_expr(&mut self, node: &AssignExpr, _parent: &dyn Node) {

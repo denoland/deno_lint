@@ -6,7 +6,7 @@ use crate::swc_ecma_ast::Expr::{Lit, Unary};
 use crate::swc_ecma_ast::Lit::Str;
 use crate::swc_ecma_ast::UnaryOp::TypeOf;
 use crate::swc_ecma_ast::{BinExpr, Module};
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 

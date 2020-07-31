@@ -5,7 +5,7 @@ use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::Expr;
 use crate::swc_ecma_ast::Expr::{Assign, Bin, Paren};
 use crate::swc_ecma_ast::Module;
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 

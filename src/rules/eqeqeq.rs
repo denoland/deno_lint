@@ -3,8 +3,8 @@ use super::Context;
 use super::LintRule;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{BinExpr, BinaryOp};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -47,7 +47,7 @@ impl Visit for EqeqeqVisitor {
         .context
         .add_diagnostic(bin_expr.span, "eqeqeq", message)
     }
-    swc_ecma_visit::visit_bin_expr(self, bin_expr, parent);
+    swc_ecmascript::visit::visit_bin_expr(self, bin_expr, parent);
   }
 }
 
