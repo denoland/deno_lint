@@ -1,13 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_visit::Node;
-use crate::swc_ecma_visit::Visit;
+use swc_common::Span;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
-use swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, Module,
   ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
