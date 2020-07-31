@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   CallExpr, Class, Constructor, ExprOrSuper, Super, ThisExpr,
 };
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 
@@ -20,7 +19,11 @@ impl LintRule for NoThisBeforeSuper {
     "no-this-before-super"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -40,7 +43,7 @@ impl Visit for NoThisBeforeSuperVisitor {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
       ClassVisitor::new(&self.context, class.super_class.is_some());
-    swc_ecma_visit::visit_class(&mut class_visitor, class, parent);
+    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
   }
 }
 
@@ -62,7 +65,7 @@ impl<'a> Visit for ClassVisitor<'a> {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
       ClassVisitor::new(&self.context, class.super_class.is_some());
-    swc_ecma_visit::visit_class(&mut class_visitor, class, parent);
+    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
   }
 
   fn visit_constructor(&mut self, cons: &Constructor, parent: &dyn Node) {
@@ -70,7 +73,7 @@ impl<'a> Visit for ClassVisitor<'a> {
       let mut cons_visitor = ConstructorVisitor::new(&self.context);
       cons_visitor.visit_constructor(cons, parent);
     } else {
-      swc_ecma_visit::visit_constructor(self, cons, parent);
+      swc_ecmascript::visit::visit_constructor(self, cons, parent);
     }
   }
 }
@@ -93,7 +96,7 @@ impl<'a> Visit for ConstructorVisitor<'a> {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
       ClassVisitor::new(&self.context, class.super_class.is_some());
-    swc_ecma_visit::visit_class(&mut class_visitor, class, parent);
+    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
   }
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {

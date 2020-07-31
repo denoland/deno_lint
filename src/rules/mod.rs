@@ -1,6 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
-use crate::swc_ecma_ast;
 use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
@@ -13,6 +12,7 @@ pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
 pub mod explicit_function_return_type;
+pub mod explicit_module_boundary_types;
 pub mod for_direction;
 pub mod getter_return;
 pub mod no_array_constructor;
@@ -59,6 +59,7 @@ pub mod no_sparse_array;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
+pub mod no_unexpected_multiline;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
@@ -76,7 +77,11 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module);
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  );
   fn code(&self) -> &'static str;
 }
 
@@ -124,6 +129,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_setter_return::NoSetterReturn::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
+    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_with::NoWith::new(),
@@ -152,6 +158,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     default_param_last::DefaultParamLast::new(),
     eqeqeq::Eqeqeq::new(),
     explicit_function_return_type::ExplicitFunctionReturnType::new(),
+    explicit_module_boundary_types::ExplicitModuleBoundaryTypes::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
     no_array_constructor::NoArrayConstructor::new(),
@@ -193,6 +200,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
+    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_var::NoVar::new(),

@@ -1,12 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_common::{Span, Spanned};
-use crate::swc_ecma_ast::{
-  BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
-};
 use crate::swc_util::DropSpan;
 use std::collections::HashSet;
-use swc_ecma_visit::{Node, Visit};
+use swc_common::{Span, Spanned};
+use swc_ecmascript::ast::{
+  BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
+};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 
@@ -104,7 +104,7 @@ impl Visit for NoDupeElseIfVisitor {
       }
     }
 
-    swc_ecma_visit::visit_if_stmt(self, if_stmt, parent);
+    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 }
 
@@ -155,7 +155,7 @@ fn is_subset(arr_a: &[Expr], arr_b: &[Expr]) -> bool {
 /// Determines whether the two given `Expr`s are considered to be equal in if-else condition
 /// context. Note that `expr1` and `expr2` must be span-dropped to be compared properly.
 fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
-  use crate::swc_ecma_ast::Expr::*;
+  use swc_ecmascript::ast::Expr::*;
   match (expr1, expr2) {
     (Bin(ref bin1), Bin(ref bin2))
       if matches!(bin1.op, BinaryOp::LogicalOr | BinaryOp::LogicalAnd)

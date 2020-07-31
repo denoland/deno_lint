@@ -1,9 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -17,7 +16,11 @@ impl LintRule for NoNonNullAssertion {
     "no-non-null-assertion"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoNonNullAssertionVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -36,7 +39,7 @@ impl NoNonNullAssertionVisitor {
 impl Visit for NoNonNullAssertionVisitor {
   fn visit_ts_non_null_expr(
     &mut self,
-    non_null_expr: &swc_ecma_ast::TsNonNullExpr,
+    non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,
     _parent: &dyn Node,
   ) {
     self.context.add_diagnostic(

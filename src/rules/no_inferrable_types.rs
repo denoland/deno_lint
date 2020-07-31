@@ -1,15 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
-  Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
-};
 use std::sync::Arc;
 use swc_atoms::JsWord;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::{
+  Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
+};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 pub struct NoInferrableTypes;
 
@@ -22,7 +20,11 @@ impl LintRule for NoInferrableTypes {
     "no-inferrable-types"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -51,7 +53,7 @@ impl NoInferrableTypesVisitor {
     span: swc_common::Span,
     expected_sym: &str,
   ) {
-    if let swc_ecma_ast::ExprOrSuper::Expr(unboxed) = &callee {
+    if let swc_ecmascript::ast::ExprOrSuper::Expr(unboxed) = &callee {
       if let Expr::Ident(value) = &**unboxed {
         if value.sym == JsWord::from(expected_sym) {
           self.add_diagnostic_helper(span);
@@ -60,7 +62,7 @@ impl NoInferrableTypesVisitor {
     }
   }
 
-  fn is_nan_or_infinity(&self, ident: &swc_ecma_ast::Ident) -> bool {
+  fn is_nan_or_infinity(&self, ident: &swc_ecmascript::ast::Ident) -> bool {
     ident.sym == JsWord::from("NaN") || ident.sym == JsWord::from("Infinity")
   }
 
@@ -70,31 +72,39 @@ impl NoInferrableTypesVisitor {
     ts_type: &TsKeywordType,
     span: swc_common::Span,
   ) {
-    use crate::swc_ecma_ast::TsKeywordTypeKind::*;
+    use swc_ecmascript::ast::TsKeywordTypeKind::*;
     match ts_type.kind {
       TsBigIntKeyword => match &*value {
         Expr::Lit(Lit::BigInt(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "BigInt");
         }
-        Expr::Unary(swc_ecma_ast::UnaryExpr { arg, .. }) => match &**arg {
+        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
+        {
           Expr::Lit(Lit::BigInt(_)) => {
             self.add_diagnostic_helper(span);
           }
-          Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+          Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "BigInt");
           }
-          Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-            if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
+            expr, ..
+          }) => {
+            if let Expr::Call(swc_ecmascript::ast::CallExpr {
+              callee, ..
+            }) = &**expr
+            {
               self.check_callee(callee, span, "BigInt");
             }
           }
           _ => {}
         },
-        Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "BigInt");
           }
         }
@@ -104,16 +114,18 @@ impl NoInferrableTypesVisitor {
         Expr::Lit(Lit::Bool(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "Boolean");
         }
-        Expr::Unary(swc_ecma_ast::UnaryExpr { op, .. }) => {
+        Expr::Unary(swc_ecmascript::ast::UnaryExpr { op, .. }) => {
           if op.to_string() == "!" {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "Boolean");
           }
         }
@@ -123,7 +135,7 @@ impl NoInferrableTypesVisitor {
         Expr::Lit(Lit::Num(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "Number");
         }
         Expr::Ident(ident) => {
@@ -131,11 +143,12 @@ impl NoInferrableTypesVisitor {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecma_ast::UnaryExpr { arg, .. }) => match &**arg {
+        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
+        {
           Expr::Lit(Lit::Num(_)) => {
             self.add_diagnostic_helper(span);
           }
-          Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+          Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "Number");
           }
           Expr::Ident(ident) => {
@@ -143,15 +156,22 @@ impl NoInferrableTypesVisitor {
               self.add_diagnostic_helper(span);
             }
           }
-          Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-            if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
+            expr, ..
+          }) => {
+            if let Expr::Call(swc_ecmascript::ast::CallExpr {
+              callee, ..
+            }) = &**expr
+            {
               self.check_callee(callee, span, "Number");
             }
           }
           _ => {}
         },
-        Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "Number");
           }
         }
@@ -169,24 +189,31 @@ impl NoInferrableTypesVisitor {
         Expr::Tpl(_) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "String");
         }
-        Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "String");
           }
         }
         _ => {}
       },
       TsSymbolKeyword => {
-        if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &*value {
+        if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+          &*value
+        {
           self.check_callee(callee, span, "Symbol");
-        } else if let Expr::OptChain(swc_ecma_ast::OptChainExpr {
-          expr, ..
+        } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
+          expr,
+          ..
         }) = &*value
         {
-          if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "Symbol");
           }
         }
@@ -197,7 +224,7 @@ impl NoInferrableTypesVisitor {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecma_ast::UnaryExpr { op, .. }) => {
+        Expr::Unary(swc_ecmascript::ast::UnaryExpr { op, .. }) => {
           if op.to_string() == "void" {
             self.add_diagnostic_helper(span);
           }
@@ -214,7 +241,8 @@ impl NoInferrableTypesVisitor {
     ts_type: &TsTypeRef,
     span: swc_common::Span,
   ) {
-    if let swc_ecma_ast::TsEntityName::Ident(ident) = &ts_type.type_name {
+    if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type.type_name
+    {
       if ident.sym != JsWord::from("RegExp") {
         return;
       }
@@ -222,26 +250,31 @@ impl NoInferrableTypesVisitor {
         Expr::Lit(Lit::Regex(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) => {
+        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "RegExp");
         }
-        Expr::New(swc_ecma_ast::NewExpr { callee, .. }) => {
+        Expr::New(swc_ecmascript::ast::NewExpr { callee, .. }) => {
           if let Expr::Ident(ident) = &**callee {
             if ident.sym == JsWord::from("RegExp") {
               self.add_diagnostic_helper(span);
             }
-          } else if let Expr::OptChain(swc_ecma_ast::OptChainExpr {
+          } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
             expr,
             ..
           }) = &**callee
           {
-            if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+            if let Expr::Call(swc_ecmascript::ast::CallExpr {
+              callee, ..
+            }) = &**expr
+            {
               self.check_callee(callee, span, "RegExp");
             }
           }
         }
-        Expr::OptChain(swc_ecma_ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecma_ast::CallExpr { callee, .. }) = &**expr {
+        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
+          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
+            &**expr
+          {
             self.check_callee(callee, span, "RegExp");
           }
         }
@@ -253,7 +286,7 @@ impl NoInferrableTypesVisitor {
   fn check_ts_type(
     &self,
     value: &Expr,
-    ts_type: &swc_ecma_ast::TsTypeAnn,
+    ts_type: &swc_ecmascript::ast::TsTypeAnn,
     span: swc_common::Span,
   ) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
@@ -267,12 +300,12 @@ impl NoInferrableTypesVisitor {
 impl Visit for NoInferrableTypesVisitor {
   fn visit_function(
     &mut self,
-    function: &swc_ecma_ast::Function,
+    function: &swc_ecmascript::ast::Function,
     _parent: &dyn Node,
   ) {
     for param in &function.params {
-      if let swc_ecma_ast::Pat::Assign(assign_pat) = &param.pat {
-        if let swc_ecma_ast::Pat::Ident(ident) = &*assign_pat.left {
+      if let swc_ecmascript::ast::Pat::Assign(assign_pat) = &param.pat {
+        if let swc_ecmascript::ast::Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
             self.check_ts_type(&assign_pat.right, ident_type_ann, param.span);
           }
@@ -283,12 +316,12 @@ impl Visit for NoInferrableTypesVisitor {
 
   fn visit_arrow_expr(
     &mut self,
-    arr_expr: &swc_ecma_ast::ArrowExpr,
+    arr_expr: &swc_ecmascript::ast::ArrowExpr,
     _parent: &dyn Node,
   ) {
     for param in &arr_expr.params {
-      if let swc_ecma_ast::Pat::Assign(assign_pat) = &param {
-        if let swc_ecma_ast::Pat::Ident(ident) = &*assign_pat.left {
+      if let swc_ecmascript::ast::Pat::Assign(assign_pat) = &param {
+        if let swc_ecmascript::ast::Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
             self.check_ts_type(
               &assign_pat.right,
@@ -303,7 +336,7 @@ impl Visit for NoInferrableTypesVisitor {
 
   fn visit_class_prop(
     &mut self,
-    prop: &swc_ecma_ast::ClassProp,
+    prop: &swc_ecmascript::ast::ClassProp,
     _parent: &dyn Node,
   ) {
     if prop.readonly || prop.is_optional {
@@ -329,7 +362,7 @@ impl Visit for NoInferrableTypesVisitor {
           self.visit_arrow_expr(&arr_expr, _parent);
         }
       }
-      if let swc_ecma_ast::Pat::Ident(ident) = &var_decl.decls[0].name {
+      if let swc_ecmascript::ast::Pat::Ident(ident) = &var_decl.decls[0].name {
         if let Some(ident_type_ann) = &ident.type_ann {
           self.check_ts_type(init, ident_type_ann, var_decl.span);
         }

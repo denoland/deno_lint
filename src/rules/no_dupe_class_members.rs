@@ -1,16 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use swc_common::Span;
+use swc_ecmascript::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -25,7 +24,11 @@ impl LintRule for NoDupeClassMembers {
     "no-dupe-class-members"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -85,7 +88,7 @@ impl<'a> ClassVisitor<'a> {
 impl<'a> Visit for ClassVisitor<'a> {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut visitor = ClassVisitor::new(self.root_visitor);
-    swc_ecma_visit::visit_class(&mut visitor, class, parent);
+    swc_ecmascript::visit::visit_class(&mut visitor, class, parent);
     visitor.aggregate_dupes();
   }
 
@@ -108,7 +111,7 @@ impl<'a> Visit for ClassVisitor<'a> {
           .push((class_method.span, name));
       }
     }
-    swc_ecma_visit::visit_class_method(self, class_method, parent);
+    swc_ecmascript::visit::visit_class_method(self, class_method, parent);
   }
 }
 

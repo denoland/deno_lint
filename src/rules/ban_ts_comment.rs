@@ -1,10 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::comments::Comment;
-use crate::swc_common::comments::CommentKind;
-use crate::swc_ecma_ast;
 use std::sync::Arc;
+use swc_common::comments::Comment;
+use swc_common::comments::CommentKind;
 
 pub struct BanTsComment;
 
@@ -39,14 +38,18 @@ impl LintRule for BanTsComment {
     "ban-ts-comment"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecma_ast::Module) {
-    context.leading_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    _module: &swc_ecmascript::ast::Module,
+  ) {
+    context.leading_comments.values().for_each(|comments| {
+      for comment in comments {
         self.lint_comment(&context, comment);
       }
     });
-    context.trailing_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+    context.trailing_comments.values().for_each(|comments| {
+      for comment in comments {
         self.lint_comment(&context, comment);
       }
     });

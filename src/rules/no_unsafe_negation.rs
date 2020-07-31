@@ -1,13 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::BinExpr;
-use crate::swc_ecma_ast::BinaryOp;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::UnaryOp;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::BinExpr;
+use swc_ecmascript::ast::BinaryOp;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::UnaryOp;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -22,7 +21,11 @@ impl LintRule for NoUnsafeNegation {
     "no-unsafe-negation"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoUnsafeNegationVisitor::new(context);
     visitor.visit_module(module, module);
   }
