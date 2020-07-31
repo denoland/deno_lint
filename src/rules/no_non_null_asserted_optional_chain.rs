@@ -43,18 +43,9 @@ impl NoNonNullAssertedOptionalChainVisitor {
     );
   }
 
-  #[allow(dead_code)]
   fn check_expr_for_nested_optional_assert(&mut self, span: Span, expr: &Expr) {
     match expr {
       Expr::OptChain(_) => self.add_diagnostic(span),
-      // Expr::Call(call_exp) => {
-      //   if let ExprOrSuper::Expr(expr) = &call_exp.callee {
-      //     self.check_expr_for_nested_optional_assert(span, expr);
-      //   }
-      // }
-      Expr::Paren(paren_expr) => {
-        self.check_expr_for_nested_optional_assert(span, &*paren_expr.expr)
-      }
       _ => {}
     }
   }
@@ -66,24 +57,30 @@ impl Visit for NoNonNullAssertedOptionalChainVisitor {
     ts_non_null_expr: &swc_ecma_ast::TsNonNullExpr,
     _parent: &dyn Node,
   ) {
-    // eprintln!("{:#?}", ts_non_null_expr);
-    let maybe_expr_or_super = match &*ts_non_null_expr.expr {
-      Expr::Member(member_expr) => Some(&member_expr.obj),
-      Expr::Call(call_expr) => Some(&call_expr.callee),
-      _ => None,
-    };
-
-    if let Some(expr_or_super) = maybe_expr_or_super {
-      if let ExprOrSuper::Expr(expr) = &expr_or_super {
-        self.check_expr_for_nested_optional_assert(ts_non_null_expr.span, expr);
+    match &*ts_non_null_expr.expr {
+      Expr::Member(member_expr) => {
+        if let ExprOrSuper::Expr(expr) = &member_expr.obj {
+          self
+            .check_expr_for_nested_optional_assert(ts_non_null_expr.span, expr);
+        }
       }
-    }
+      Expr::Call(call_expr) => {
+        if let ExprOrSuper::Expr(expr) = &call_expr.callee {
+          self
+            .check_expr_for_nested_optional_assert(ts_non_null_expr.span, expr);
+        }
+      }
+      Expr::Paren(paren_expr) => self.check_expr_for_nested_optional_assert(
+        ts_non_null_expr.span,
+        &*paren_expr.expr,
+      ),
+      _ => {}
+    };
 
     self.check_expr_for_nested_optional_assert(
       ts_non_null_expr.span,
       &*ts_non_null_expr.expr,
     );
-    // swc_ecma_visit::visit_ts_non_null_expr(self, ts_non_null_expr, parent);
   }
 }
 
@@ -98,8 +95,8 @@ mod tests {
     assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar()!;");
     assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar();");
     assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar;");
-    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar).baz!;");
-    // assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar()).baz!;");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar).baz!;");
+    assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar()).baz!;");
   }
 
   #[test]
