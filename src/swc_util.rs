@@ -1,30 +1,30 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
-use crate::swc_atoms::js_word;
-use crate::swc_common;
-use crate::swc_common::comments::SingleThreadedComments;
-use crate::swc_common::errors::Diagnostic;
-use crate::swc_common::errors::DiagnosticBuilder;
-use crate::swc_common::errors::Emitter;
-use crate::swc_common::errors::Handler;
-use crate::swc_common::errors::HandlerFlags;
-use crate::swc_common::FileName;
-use crate::swc_common::Globals;
-use crate::swc_common::SourceMap;
-use crate::swc_common::Span;
-use crate::swc_common::DUMMY_SP;
+use swc_atoms::js_word;
+use swc_common;
+use swc_common::comments::SingleThreadedComments;
+use swc_common::errors::Diagnostic;
+use swc_common::errors::DiagnosticBuilder;
+use swc_common::errors::Emitter;
+use swc_common::errors::Handler;
+use swc_common::errors::HandlerFlags;
+use swc_common::FileName;
+use swc_common::Globals;
+use swc_common::SourceMap;
+use swc_common::Span;
+use swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
   PropOrSpread, Str, Tpl,
 };
-use crate::swc_ecma_parser::lexer::Lexer;
-use crate::swc_ecma_parser::EsConfig;
-use crate::swc_ecma_parser::JscTarget;
-use crate::swc_ecma_parser::Parser;
-use crate::swc_ecma_parser::StringInput;
-use crate::swc_ecma_parser::Syntax;
-use crate::swc_ecma_parser::TsConfig;
+use swc_ecmascript::parser::lexer::Lexer;
+use swc_ecmascript::parser::EsConfig;
+use swc_ecmascript::parser::JscTarget;
+use swc_ecmascript::parser::Parser;
+use swc_ecmascript::parser::StringInput;
+use swc_ecmascript::parser::Syntax;
+use swc_ecmascript::parser::TsConfig;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;

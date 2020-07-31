@@ -14,11 +14,7 @@ pub mod rules;
 mod scopes;
 pub mod swc_util;
 
-pub use dprint_plugin_typescript;
-pub use dprint_plugin_typescript::swc_common;
 pub use dprint_plugin_typescript::swc_ecma_ast;
-pub use dprint_plugin_typescript::swc_ecma_parser;
-pub use swc_atoms;
 
 #[cfg(test)]
 mod test_util;

@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-use crate::swc_common::Span;
-use crate::swc_common::DUMMY_SP;
+use swc_common::Span;
+use swc_common::DUMMY_SP;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::ObjectPatProp;
 use crate::swc_ecma_ast::Pat;

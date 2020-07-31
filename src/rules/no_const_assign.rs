@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
-use crate::swc_common::Span;
+use swc_common::Span;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::AssignExpr;
 use crate::swc_ecma_ast::Expr;

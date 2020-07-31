@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_common::{Span, Spanned};
+use swc_common::{Span, Spanned};
 use crate::swc_ecma_ast::{
   BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
 };

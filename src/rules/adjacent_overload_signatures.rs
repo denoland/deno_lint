@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::Span;
-use crate::swc_common::Spanned;
+use swc_common::Span;
+use swc_common::Spanned;
 use crate::swc_ecma_ast::{
   Class, ClassMember, ClassMethod, Decl, ExportDecl, Expr, FnDecl, Ident, Lit,
   Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,

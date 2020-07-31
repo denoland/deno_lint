@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common;
+use swc_common;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::BlockStmt;
 use crate::swc_ecma_ast::Class;

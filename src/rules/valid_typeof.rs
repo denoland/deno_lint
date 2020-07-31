@@ -1,6 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_common::Spanned;
+use swc_common::Spanned;
 use crate::swc_ecma_ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use crate::swc_ecma_ast::Expr::{Lit, Unary};
 use crate::swc_ecma_ast::Lit::Str;

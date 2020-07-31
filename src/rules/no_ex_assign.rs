@@ -3,7 +3,7 @@ use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
 use crate::scopes::Scope;
-use crate::swc_common;
+use swc_common;
 use crate::swc_ecma_ast;
 use crate::swc_ecma_ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
 use swc_ecmascript::visit::Node;

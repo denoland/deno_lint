@@ -4,15 +4,14 @@ use crate::diagnostic::Location;
 use crate::rules::LintRule;
 use crate::scopes::Scope;
 use crate::scopes::ScopeVisitor;
-use crate::swc_common::comments::Comment;
-use crate::swc_common::comments::CommentKind;
-use crate::swc_common::comments::SingleThreadedComments;
-use crate::swc_common::SourceMap;
-use crate::swc_common::Span;
-use crate::swc_common::BytePos;
+use swc_common::comments::Comment;
+use swc_common::comments::CommentKind;
+use swc_common::comments::SingleThreadedComments;
+use swc_common::SourceMap;
+use swc_common::Span;
+use swc_common::BytePos;
 use crate::swc_ecma_ast;
-use crate::swc_ecma_parser;
-use crate::swc_ecma_parser::Syntax;
+use swc_ecmascript::parser::Syntax;
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
@@ -114,7 +113,7 @@ pub struct LinterBuilder {
   ignore_diagnostic_directives: Vec<String>,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
-  syntax: swc_ecma_parser::Syntax,
+  syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
 }
 
