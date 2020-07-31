@@ -1,12 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_common::Span;
+use swc_ecmascript::ast::{Expr, ExprOrSuper};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
-#[allow(unused_imports)]
-use swc_ecma_ast::{Expr, ExprOrSuper};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use std::sync::Arc;
+use swc_common::Span;
 
 pub struct NoNonNullAssertedOptionalChain;
 
@@ -19,19 +19,22 @@ impl LintRule for NoNonNullAssertedOptionalChain {
     "no-non-null-asserted-optional-chain"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoNonNullAssertedOptionalChainVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
-#[allow(dead_code)]
 struct NoNonNullAssertedOptionalChainVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoNonNullAssertedOptionalChainVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
@@ -54,7 +57,7 @@ impl NoNonNullAssertedOptionalChainVisitor {
 impl Visit for NoNonNullAssertedOptionalChainVisitor {
   fn visit_ts_non_null_expr(
     &mut self,
-    ts_non_null_expr: &swc_ecma_ast::TsNonNullExpr,
+    ts_non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,
     _parent: &dyn Node,
   ) {
     match &*ts_non_null_expr.expr {
