@@ -2,12 +2,11 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::AssignExpr;
-use crate::swc_ecma_ast::Pat;
-use crate::swc_ecma_ast::PatOrExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::AssignExpr;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::ast::PatOrExpr;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -22,7 +21,11 @@ impl LintRule for NoFuncAssign {
     "no-func-assign"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }

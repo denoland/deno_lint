@@ -1,9 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -18,7 +17,11 @@ impl LintRule for NoSparseArray {
     "no-sparse-array"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoSparseArrayVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -37,7 +40,7 @@ impl NoSparseArrayVisitor {
 impl Visit for NoSparseArrayVisitor {
   fn visit_array_lit(
     &mut self,
-    array_lit: &swc_ecma_ast::ArrayLit,
+    array_lit: &swc_ecmascript::ast::ArrayLit,
     _parent: &dyn Node,
   ) {
     if array_lit.elems.iter().any(|e| e.is_none()) {

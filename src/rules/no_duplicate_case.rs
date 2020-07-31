@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::Spanned;
-use crate::swc_ecma_ast;
 use std::collections::HashSet;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_common::Spanned;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -20,7 +19,11 @@ impl LintRule for NoDuplicateCase {
     "no-duplicate-case"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -39,7 +42,7 @@ impl NoDuplicateCaseVisitor {
 impl Visit for NoDuplicateCaseVisitor {
   fn visit_switch_stmt(
     &mut self,
-    switch_stmt: &swc_ecma_ast::SwitchStmt,
+    switch_stmt: &swc_ecmascript::ast::SwitchStmt,
     _parent: &dyn Node,
   ) {
     // Works like in ESLint - by comparing text repr of case statement

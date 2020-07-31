@@ -1,14 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::ExprOrSuper;
-use crate::swc_ecma_ast::OptChainExpr;
-use crate::swc_ecma_ast::TsNonNullExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_common::Span;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::ExprOrSuper;
+use swc_ecmascript::ast::OptChainExpr;
+use swc_ecmascript::ast::TsNonNullExpr;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -23,7 +22,11 @@ impl LintRule for NoExtraNonNullAssertion {
     "no-extra-non-null-assertion"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -67,7 +70,11 @@ impl Visit for NoExtraNonNullAssertionVisitor {
       ts_non_null_expr.span,
       &*ts_non_null_expr.expr,
     );
-    swc_ecma_visit::visit_ts_non_null_expr(self, ts_non_null_expr, parent);
+    swc_ecmascript::visit::visit_ts_non_null_expr(
+      self,
+      ts_non_null_expr,
+      parent,
+    );
   }
 
   fn visit_opt_chain_expr(
@@ -87,7 +94,7 @@ impl Visit for NoExtraNonNullAssertionVisitor {
       }
     }
 
-    swc_ecma_visit::visit_opt_chain_expr(self, opt_chain_expr, parent);
+    swc_ecmascript::visit::visit_opt_chain_expr(self, opt_chain_expr, parent);
   }
 }
 

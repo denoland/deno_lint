@@ -1,13 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   DoWhileStmt, EmptyStmt, ForInStmt, ForOfStmt, ForStmt, IfStmt, LabeledStmt,
   Stmt, WhileStmt, WithStmt,
 };
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -22,7 +21,11 @@ impl LintRule for NoExtraSemi {
     "no-extra-semi"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExtraSemiVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -50,24 +53,24 @@ impl Visit for NoExtraSemiVisitor {
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
     if matches!(&*for_stmt.body, Stmt::Empty(_)) {
       if let Some(ref init) = for_stmt.init {
-        swc_ecma_visit::visit_var_decl_or_expr(self, init, parent);
+        swc_ecmascript::visit::visit_var_decl_or_expr(self, init, parent);
       }
       if let Some(ref test) = for_stmt.test {
-        swc_ecma_visit::visit_expr(self, test, parent);
+        swc_ecmascript::visit::visit_expr(self, test, parent);
       }
       if let Some(ref update) = for_stmt.update {
-        swc_ecma_visit::visit_expr(self, update, parent);
+        swc_ecmascript::visit::visit_expr(self, update, parent);
       }
     } else {
-      swc_ecma_visit::visit_for_stmt(self, for_stmt, parent);
+      swc_ecmascript::visit::visit_for_stmt(self, for_stmt, parent);
     }
   }
 
   fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, parent: &dyn Node) {
     if matches!(&*while_stmt.body, Stmt::Empty(_)) {
-      swc_ecma_visit::visit_expr(self, &*while_stmt.test, parent);
+      swc_ecmascript::visit::visit_expr(self, &*while_stmt.test, parent);
     } else {
-      swc_ecma_visit::visit_while_stmt(self, while_stmt, parent);
+      swc_ecmascript::visit::visit_while_stmt(self, while_stmt, parent);
     }
   }
 
@@ -77,50 +80,58 @@ impl Visit for NoExtraSemiVisitor {
     parent: &dyn Node,
   ) {
     if matches!(&*do_while_stmt.body, Stmt::Empty(_)) {
-      swc_ecma_visit::visit_expr(self, &*do_while_stmt.test, parent);
+      swc_ecmascript::visit::visit_expr(self, &*do_while_stmt.test, parent);
     } else {
-      swc_ecma_visit::visit_do_while_stmt(self, do_while_stmt, parent);
+      swc_ecmascript::visit::visit_do_while_stmt(self, do_while_stmt, parent);
     }
   }
 
   fn visit_with_stmt(&mut self, with_stmt: &WithStmt, parent: &dyn Node) {
     if matches!(&*with_stmt.body, Stmt::Empty(_)) {
-      swc_ecma_visit::visit_expr(self, &*with_stmt.obj, parent);
+      swc_ecmascript::visit::visit_expr(self, &*with_stmt.obj, parent);
     } else {
-      swc_ecma_visit::visit_with_stmt(self, with_stmt, parent);
+      swc_ecmascript::visit::visit_with_stmt(self, with_stmt, parent);
     }
   }
 
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, parent: &dyn Node) {
     if matches!(&*for_of_stmt.body, Stmt::Empty(_)) {
-      swc_ecma_visit::visit_var_decl_or_pat(self, &for_of_stmt.left, parent);
-      swc_ecma_visit::visit_expr(self, &*for_of_stmt.right, parent);
+      swc_ecmascript::visit::visit_var_decl_or_pat(
+        self,
+        &for_of_stmt.left,
+        parent,
+      );
+      swc_ecmascript::visit::visit_expr(self, &*for_of_stmt.right, parent);
     } else {
-      swc_ecma_visit::visit_for_of_stmt(self, for_of_stmt, parent);
+      swc_ecmascript::visit::visit_for_of_stmt(self, for_of_stmt, parent);
     }
   }
 
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, parent: &dyn Node) {
     if matches!(&*for_in_stmt.body, Stmt::Empty(_)) {
-      swc_ecma_visit::visit_var_decl_or_pat(self, &for_in_stmt.left, parent);
-      swc_ecma_visit::visit_expr(self, &*for_in_stmt.right, parent);
+      swc_ecmascript::visit::visit_var_decl_or_pat(
+        self,
+        &for_in_stmt.left,
+        parent,
+      );
+      swc_ecmascript::visit::visit_expr(self, &*for_in_stmt.right, parent);
     } else {
-      swc_ecma_visit::visit_for_in_stmt(self, for_in_stmt, parent);
+      swc_ecmascript::visit::visit_for_in_stmt(self, for_in_stmt, parent);
     }
   }
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
-    swc_ecma_visit::visit_expr(self, &*if_stmt.test, parent);
+    swc_ecmascript::visit::visit_expr(self, &*if_stmt.test, parent);
     match &*if_stmt.cons {
       Stmt::Empty(_) => {}
       cons => {
-        swc_ecma_visit::visit_stmt(self, cons, parent);
+        swc_ecmascript::visit::visit_stmt(self, cons, parent);
       }
     }
     match if_stmt.alt.as_deref() {
       None | Some(Stmt::Empty(_)) => {}
       Some(alt) => {
-        swc_ecma_visit::visit_stmt(self, alt, parent);
+        swc_ecmascript::visit::visit_stmt(self, alt, parent);
       }
     }
   }
@@ -130,11 +141,11 @@ impl Visit for NoExtraSemiVisitor {
     labeled_stmt: &LabeledStmt,
     parent: &dyn Node,
   ) {
-    swc_ecma_visit::visit_ident(self, &labeled_stmt.label, parent);
+    swc_ecmascript::visit::visit_ident(self, &labeled_stmt.label, parent);
     match &*labeled_stmt.body {
       Stmt::Empty(_) => {}
       body => {
-        swc_ecma_visit::visit_stmt(self, body, parent);
+        swc_ecmascript::visit::visit_stmt(self, body, parent);
       }
     }
   }

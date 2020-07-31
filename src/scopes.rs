@@ -1,12 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-use crate::swc_common::Span;
-use crate::swc_common::DUMMY_SP;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::ObjectPatProp;
-use crate::swc_ecma_ast::Pat;
-use crate::swc_ecma_visit::Node;
-use crate::swc_ecma_visit::Visit;
 use std::cell::RefCell;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
@@ -16,6 +9,12 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
 use std::rc::Rc;
+use swc_common::Span;
+use swc_common::DUMMY_SP;
+use swc_ecmascript::ast::ObjectPatProp;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BindingKind {
@@ -240,7 +239,7 @@ impl ScopeVisitor {
     self.scope_stack[0].clone()
   }
 
-  fn create_fn_scope(&mut self, function: &swc_ecma_ast::Function) {
+  fn create_fn_scope(&mut self, function: &swc_ecmascript::ast::Function) {
     if let Some(body) = &function.body {
       let fn_scope = Scope::new(
         ScopeKind::Function,
@@ -255,7 +254,7 @@ impl ScopeVisitor {
 
   fn create_getter_or_setter_scope(
     &mut self,
-    body: &Option<swc_ecma_ast::BlockStmt>,
+    body: &Option<swc_ecmascript::ast::BlockStmt>,
   ) {
     if let Some(body) = &body {
       let gs_scope = Scope::new(
@@ -271,19 +270,19 @@ impl ScopeVisitor {
     }
   }
 
-  fn check_object_lit(&mut self, obj: &swc_ecma_ast::ObjectLit) {
+  fn check_object_lit(&mut self, obj: &swc_ecmascript::ast::ObjectLit) {
     if obj.props.is_empty() {
       return;
     }
-    use crate::swc_ecma_ast::Prop::*;
+    use swc_ecmascript::ast::Prop::*;
     for prop in obj.props.iter() {
-      if let swc_ecma_ast::PropOrSpread::Prop(prop_expr) = prop {
+      if let swc_ecmascript::ast::PropOrSpread::Prop(prop_expr) = prop {
         match &**prop_expr {
           Method(method_prop) => {
             self.create_fn_scope(&method_prop.function);
           }
           KeyValue(kv_prop) => {
-            if let swc_ecma_ast::Expr::Fn(fn_expr) = &*kv_prop.value {
+            if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*kv_prop.value {
               self.create_fn_scope(&fn_expr.function);
             } else {
               self.check_expr(&kv_prop.value);
@@ -301,28 +300,28 @@ impl ScopeVisitor {
     }
   }
 
-  fn check_expr(&mut self, expr: &swc_ecma_ast::Expr) {
+  fn check_expr(&mut self, expr: &swc_ecmascript::ast::Expr) {
     match expr {
-      swc_ecma_ast::Expr::Arrow(arrow) => {
+      swc_ecmascript::ast::Expr::Arrow(arrow) => {
         self.visit_block_stmt_or_expr(&arrow.body, arrow);
       }
-      swc_ecma_ast::Expr::Object(obj_lit) => {
+      swc_ecmascript::ast::Expr::Object(obj_lit) => {
         self.check_object_lit(&obj_lit);
       }
-      swc_ecma_ast::Expr::Array(arr_lit) => {
+      swc_ecmascript::ast::Expr::Array(arr_lit) => {
         self.check_array_lit(&arr_lit);
       }
       _ => {}
     }
   }
 
-  fn check_array_lit(&mut self, arr: &swc_ecma_ast::ArrayLit) {
+  fn check_array_lit(&mut self, arr: &swc_ecmascript::ast::ArrayLit) {
     if arr.elems.is_empty() {
       return;
     }
     for elem in arr.elems.iter() {
       if let Some(element) = elem {
-        if let swc_ecma_ast::Expr::Fn(fn_expr) = &*element.expr {
+        if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*element.expr {
           self.create_fn_scope(&fn_expr.function);
         } else {
           self.check_expr(&element.expr);
@@ -354,7 +353,7 @@ impl ScopeVisitor {
 
   fn check_obj_pat(
     &mut self,
-    object: &swc_ecma_ast::ObjectPat,
+    object: &swc_ecmascript::ast::ObjectPat,
     kind: BindingKind,
   ) {
     if !object.props.is_empty() {
@@ -378,7 +377,7 @@ impl ScopeVisitor {
 
   fn check_array_pat(
     &mut self,
-    array: &swc_ecma_ast::ArrayPat,
+    array: &swc_ecmascript::ast::ArrayPat,
     kind: BindingKind,
   ) {
     if !array.elems.is_empty() {
@@ -392,20 +391,24 @@ impl ScopeVisitor {
 }
 
 impl Visit for ScopeVisitor {
-  fn visit_module(&mut self, module: &swc_ecma_ast::Module, parent: &dyn Node) {
+  fn visit_module(
+    &mut self,
+    module: &swc_ecmascript::ast::Module,
+    parent: &dyn Node,
+  ) {
     let module_scope = Scope::new(
       ScopeKind::Module,
       module.span,
       Some(self.get_current_scope()),
     );
     self.enter_scope(&module_scope);
-    swc_ecma_visit::visit_module(self, module, parent);
+    swc_ecmascript::visit::visit_module(self, module, parent);
     self.exit_scope(&module_scope);
   }
 
   fn visit_object_lit(
     &mut self,
-    obj_lit: &swc_ecma_ast::ObjectLit,
+    obj_lit: &swc_ecmascript::ast::ObjectLit,
     _parent: &dyn Node,
   ) {
     self.check_object_lit(obj_lit);
@@ -413,7 +416,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_array_lit(
     &mut self,
-    arr_lit: &swc_ecma_ast::ArrayLit,
+    arr_lit: &swc_ecmascript::ast::ArrayLit,
     _parent: &dyn Node,
   ) {
     self.check_array_lit(arr_lit);
@@ -421,14 +424,14 @@ impl Visit for ScopeVisitor {
 
   fn visit_call_expr(
     &mut self,
-    call_expr: &swc_ecma_ast::CallExpr,
+    call_expr: &swc_ecmascript::ast::CallExpr,
     _parent: &dyn Node,
   ) {
     if call_expr.args.is_empty() {
       return;
     }
     for arg in call_expr.args.iter() {
-      if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
+      if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*arg.expr {
         self.create_fn_scope(&fn_expr.function);
       } else {
         self.check_expr(&arg.expr)
@@ -438,12 +441,12 @@ impl Visit for ScopeVisitor {
 
   fn visit_new_expr(
     &mut self,
-    new_expr: &swc_ecma_ast::NewExpr,
+    new_expr: &swc_ecmascript::ast::NewExpr,
     _parent: &dyn Node,
   ) {
     if let Some(args) = &new_expr.args {
       for arg in args.iter() {
-        if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
+        if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*arg.expr {
           self.create_fn_scope(&fn_expr.function);
         } else {
           self.check_expr(&arg.expr)
@@ -454,7 +457,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_fn_decl(
     &mut self,
-    fn_decl: &swc_ecma_ast::FnDecl,
+    fn_decl: &swc_ecmascript::ast::FnDecl,
     parent: &dyn Node,
   ) {
     self
@@ -466,13 +469,13 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&fn_scope);
-    swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
+    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
     self.exit_scope(&fn_scope);
   }
 
   fn visit_class_decl(
     &mut self,
-    class_decl: &swc_ecma_ast::ClassDecl,
+    class_decl: &swc_ecmascript::ast::ClassDecl,
     parent: &dyn Node,
   ) {
     self
@@ -484,35 +487,35 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&class_scope);
-    swc_ecma_visit::visit_class_decl(self, class_decl, parent);
+    swc_ecmascript::visit::visit_class_decl(self, class_decl, parent);
     self.exit_scope(&class_scope);
   }
 
   fn visit_function(
     &mut self,
-    function: &swc_ecma_ast::Function,
+    function: &swc_ecmascript::ast::Function,
     _parent: &dyn Node,
   ) {
     for param in &function.params {
       self.check_pat(&param.pat, BindingKind::Param);
     }
 
-    // Not calling `swc_ecma_visit::visit_function` but instead
+    // Not calling `swc_ecmascript::visit::visit_function` but instead
     // directly visiting body elements - otherwise additional
     // block scope will be created which is undesirable
     if let Some(body) = &function.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }
 
   fn visit_import_specifier(
     &mut self,
-    import_spec: &swc_ecma_ast::ImportSpecifier,
+    import_spec: &swc_ecmascript::ast::ImportSpecifier,
     _parent: &dyn Node,
   ) {
-    use crate::swc_ecma_ast::ImportSpecifier::*;
+    use swc_ecmascript::ast::ImportSpecifier::*;
     let local = match import_spec {
       Named(named) => &named.local,
       Default(default) => &default.local,
@@ -525,7 +528,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_with_stmt(
     &mut self,
-    with_stmt: &swc_ecma_ast::WithStmt,
+    with_stmt: &swc_ecmascript::ast::WithStmt,
     _parent: &dyn Node,
   ) {
     self.visit_expr(&*with_stmt.obj, with_stmt);
@@ -536,13 +539,13 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&with_scope);
-    swc_ecma_visit::visit_stmt(self, &*with_stmt.body, with_stmt);
+    swc_ecmascript::visit::visit_stmt(self, &*with_stmt.body, with_stmt);
     self.exit_scope(&with_scope);
   }
 
   fn visit_switch_stmt(
     &mut self,
-    switch_stmt: &swc_ecma_ast::SwitchStmt,
+    switch_stmt: &swc_ecmascript::ast::SwitchStmt,
     _parent: &dyn Node,
   ) {
     self.visit_expr(&*switch_stmt.discriminant, switch_stmt);
@@ -554,17 +557,17 @@ impl Visit for ScopeVisitor {
     );
     self.enter_scope(&switch_scope);
     for case in &switch_stmt.cases {
-      swc_ecma_visit::visit_switch_case(self, case, switch_stmt);
+      swc_ecmascript::visit::visit_switch_case(self, case, switch_stmt);
     }
     self.exit_scope(&switch_scope);
   }
 
   fn visit_var_decl(
     &mut self,
-    var_decl: &swc_ecma_ast::VarDecl,
+    var_decl: &swc_ecmascript::ast::VarDecl,
     parent: &dyn Node,
   ) {
-    use crate::swc_ecma_ast::VarDeclKind;
+    use swc_ecmascript::ast::VarDeclKind;
 
     let var_kind = match &var_decl.kind {
       VarDeclKind::Var => BindingKind::Var,
@@ -575,12 +578,12 @@ impl Visit for ScopeVisitor {
     for decl in &var_decl.decls {
       self.check_pat(&decl.name, var_kind);
     }
-    swc_ecma_visit::visit_var_decl(self, var_decl, parent);
+    swc_ecmascript::visit::visit_var_decl(self, var_decl, parent);
   }
 
   fn visit_block_stmt(
     &mut self,
-    block_stmt: &swc_ecma_ast::BlockStmt,
+    block_stmt: &swc_ecmascript::ast::BlockStmt,
     parent: &dyn Node,
   ) {
     let block_scope = Scope::new(
@@ -589,13 +592,13 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&block_scope);
-    swc_ecma_visit::visit_block_stmt(self, block_stmt, parent);
+    swc_ecmascript::visit::visit_block_stmt(self, block_stmt, parent);
     self.exit_scope(&block_scope);
   }
 
   fn visit_catch_clause(
     &mut self,
-    catch_clause: &swc_ecma_ast::CatchClause,
+    catch_clause: &swc_ecmascript::ast::CatchClause,
     _parent: &dyn Node,
   ) {
     let catch_scope = Scope::new(
@@ -609,11 +612,11 @@ impl Visit for ScopeVisitor {
       self.check_pat(pat, BindingKind::CatchClause);
     }
 
-    // Not calling `swc_ecma_visit::visit_class` but instead
+    // Not calling `swc_ecmascript::visit::visit_class` but instead
     // directly visiting body elements - otherwise additional
     // block scope will be created which is undesirable
     for stmt in &catch_clause.body.stmts {
-      swc_ecma_visit::visit_stmt(self, stmt, &catch_clause.body);
+      swc_ecmascript::visit::visit_stmt(self, stmt, &catch_clause.body);
     }
 
     self.exit_scope(&catch_scope);
@@ -621,7 +624,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_for_stmt(
     &mut self,
-    for_stmt: &swc_ecma_ast::ForStmt,
+    for_stmt: &swc_ecmascript::ast::ForStmt,
     parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
@@ -630,14 +633,14 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let Some(swc_ecma_ast::VarDeclOrExpr::VarDecl(var_decl)) =
+    if let Some(swc_ecmascript::ast::VarDeclOrExpr::VarDecl(var_decl)) =
       for_stmt.init.as_ref()
     {
       self.visit_var_decl(var_decl, parent);
     }
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*for_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -645,7 +648,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_for_in_stmt(
     &mut self,
-    for_in_stmt: &swc_ecma_ast::ForInStmt,
+    for_in_stmt: &swc_ecmascript::ast::ForInStmt,
     parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
@@ -654,12 +657,14 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
+    if let swc_ecmascript::ast::VarDeclOrPat::VarDecl(var_decl) =
+      &for_in_stmt.left
+    {
       self.visit_var_decl(var_decl, parent);
     }
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_in_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*for_in_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_in_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_in_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -667,7 +672,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_for_of_stmt(
     &mut self,
-    for_of_stmt: &swc_ecma_ast::ForOfStmt,
+    for_of_stmt: &swc_ecmascript::ast::ForOfStmt,
     parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
@@ -676,12 +681,14 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
+    if let swc_ecmascript::ast::VarDeclOrPat::VarDecl(var_decl) =
+      &for_of_stmt.left
+    {
       self.visit_var_decl(var_decl, parent);
     }
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_of_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*for_of_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_of_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_of_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -689,7 +696,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_while_stmt(
     &mut self,
-    while_stmt: &swc_ecma_ast::WhileStmt,
+    while_stmt: &swc_ecmascript::ast::WhileStmt,
     _parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
@@ -698,9 +705,9 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*while_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*while_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &while_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &while_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -708,7 +715,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_do_while_stmt(
     &mut self,
-    do_while_stmt: &swc_ecma_ast::DoWhileStmt,
+    do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
     _parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
@@ -717,9 +724,9 @@ impl Visit for ScopeVisitor {
       Some(self.get_current_scope()),
     );
     self.enter_scope(&loop_scope);
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*do_while_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*do_while_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &do_while_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &do_while_stmt.body);
       }
     }
     self.exit_scope(&loop_scope);
@@ -731,25 +738,17 @@ mod tests {
   use super::*;
   use crate::swc_util;
   use crate::swc_util::AstParser;
-  use crate::swc_util::SwcDiagnosticBuffer;
 
   fn test_scopes(source_code: &str) -> Scope {
     let ast_parser = AstParser::new();
     let syntax = swc_util::get_default_ts_config();
-    ast_parser
-      .parse_module(
-        "file_name.ts",
-        syntax,
-        source_code,
-        |parse_result, _comments| -> Result<Scope, SwcDiagnosticBuffer> {
-          let module = parse_result?;
-          let mut scope_visitor = ScopeVisitor::default();
-          let root_scope = scope_visitor.get_root_scope();
-          scope_visitor.visit_module(&module, &module);
-          Ok(root_scope)
-        },
-      )
-      .unwrap()
+    let (parse_result, _comments) =
+      ast_parser.parse_module("file_name.ts", syntax, source_code);
+    let module = parse_result.unwrap();
+    let mut scope_visitor = ScopeVisitor::default();
+    let root_scope = scope_visitor.get_root_scope();
+    scope_visitor.visit_module(&module, &module);
+    root_scope
   }
 
   #[test]

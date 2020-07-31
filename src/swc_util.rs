@@ -1,35 +1,33 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
-use crate::swc_atoms::js_word;
-use crate::swc_common;
-use crate::swc_common::comments::Comments;
-use crate::swc_common::errors::Diagnostic;
-use crate::swc_common::errors::DiagnosticBuilder;
-use crate::swc_common::errors::Emitter;
-use crate::swc_common::errors::Handler;
-use crate::swc_common::errors::HandlerFlags;
-use crate::swc_common::FileName;
-use crate::swc_common::Globals;
-use crate::swc_common::SourceMap;
-use crate::swc_common::Span;
-use crate::swc_common::DUMMY_SP;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
-  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
-  PropOrSpread, Str, Tpl,
-};
-use crate::swc_ecma_parser::lexer::Lexer;
-use crate::swc_ecma_parser::EsConfig;
-use crate::swc_ecma_parser::JscTarget;
-use crate::swc_ecma_parser::Parser;
-use crate::swc_ecma_parser::SourceFileInput;
-use crate::swc_ecma_parser::Syntax;
-use crate::swc_ecma_parser::TsConfig;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::RwLock;
-use swc_ecma_visit::Fold;
+use swc_atoms::js_word;
+use swc_common::comments::SingleThreadedComments;
+use swc_common::errors::Diagnostic;
+use swc_common::errors::DiagnosticBuilder;
+use swc_common::errors::Emitter;
+use swc_common::errors::Handler;
+use swc_common::errors::HandlerFlags;
+use swc_common::FileName;
+use swc_common::Globals;
+use swc_common::SourceMap;
+use swc_common::Span;
+use swc_common::DUMMY_SP;
+use swc_ecmascript::ast::{
+  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
+  PropOrSpread, Str, Tpl,
+};
+use swc_ecmascript::parser::lexer::Lexer;
+use swc_ecmascript::parser::EsConfig;
+use swc_ecmascript::parser::JscTarget;
+use swc_ecmascript::parser::Parser;
+use swc_ecmascript::parser::StringInput;
+use swc_ecmascript::parser::Syntax;
+use swc_ecmascript::parser::TsConfig;
+use swc_ecmascript::visit::Fold;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -150,42 +148,39 @@ impl AstParser {
     }
   }
 
-  pub fn parse_module<F, R>(
+  pub fn parse_module(
     &self,
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
-    callback: F,
-  ) -> R
-  where
-    F: FnOnce(Result<swc_ecma_ast::Module, SwcDiagnosticBuffer>, Comments) -> R,
-  {
-    swc_common::GLOBALS.set(&self.globals, || {
-      let swc_source_file = self.source_map.new_source_file(
-        FileName::Custom(file_name.to_string()),
-        source_code.to_string(),
-      );
+  ) -> (
+    Result<swc_ecmascript::ast::Module, SwcDiagnosticBuffer>,
+    SingleThreadedComments,
+  ) {
+    let swc_source_file = self.source_map.new_source_file(
+      FileName::Custom(file_name.to_string()),
+      source_code.to_string(),
+    );
 
-      let buffered_err = self.buffered_error.clone();
+    let buffered_err = self.buffered_error.clone();
 
-      let comments = Comments::default();
-      let lexer = Lexer::new(
-        syntax,
-        JscTarget::Es2019,
-        SourceFileInput::from(&*swc_source_file),
-        Some(&comments),
-      );
+    let comments = SingleThreadedComments::default();
+    let lexer = Lexer::new(
+      syntax,
+      JscTarget::Es2019,
+      StringInput::from(&*swc_source_file),
+      Some(&comments),
+    );
 
-      let mut parser = Parser::new_from(lexer);
+    let mut parser = Parser::new_from(lexer);
 
-      let parse_result = parser.parse_module().map_err(move |err| {
-        let mut diagnostic_builder = err.into_diagnostic(&self.handler);
-        diagnostic_builder.emit();
-        SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
-      });
+    let parse_result = parser.parse_module().map_err(move |err| {
+      let mut diagnostic_builder = err.into_diagnostic(&self.handler);
+      diagnostic_builder.emit();
+      SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+    });
 
-      callback(parse_result, comments)
-    })
+    (parse_result, comments)
   }
 
   pub fn get_span_location(&self, span: Span) -> swc_common::Loc {

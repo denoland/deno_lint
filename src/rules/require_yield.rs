@@ -1,16 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::ClassMethod;
-use crate::swc_ecma_ast::FnDecl;
-use crate::swc_ecma_ast::FnExpr;
-use crate::swc_ecma_ast::Function;
-use crate::swc_ecma_ast::MethodProp;
-use crate::swc_ecma_ast::PrivateMethod;
-use crate::swc_ecma_ast::YieldExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::ClassMethod;
+use swc_ecmascript::ast::FnDecl;
+use swc_ecmascript::ast::FnExpr;
+use swc_ecmascript::ast::Function;
+use swc_ecmascript::ast::MethodProp;
+use swc_ecmascript::ast::PrivateMethod;
+use swc_ecmascript::ast::YieldExpr;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -25,7 +24,11 @@ impl LintRule for RequireYield {
     "require-yield"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = RequireYieldVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -78,13 +81,13 @@ impl Visit for RequireYieldVisitor {
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, parent: &dyn Node) {
     self.enter_function(&fn_decl.function);
-    swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
+    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
     self.exit_function(&fn_decl.function);
   }
 
   fn visit_fn_expr(&mut self, fn_expr: &FnExpr, parent: &dyn Node) {
     self.enter_function(&fn_expr.function);
-    swc_ecma_visit::visit_fn_expr(self, fn_expr, parent);
+    swc_ecmascript::visit::visit_fn_expr(self, fn_expr, parent);
     self.exit_function(&fn_expr.function);
   }
 
@@ -94,7 +97,7 @@ impl Visit for RequireYieldVisitor {
     parent: &dyn Node,
   ) {
     self.enter_function(&class_method.function);
-    swc_ecma_visit::visit_class_method(self, class_method, parent);
+    swc_ecmascript::visit::visit_class_method(self, class_method, parent);
     self.exit_function(&class_method.function);
   }
 
@@ -104,13 +107,13 @@ impl Visit for RequireYieldVisitor {
     parent: &dyn Node,
   ) {
     self.enter_function(&private_method.function);
-    swc_ecma_visit::visit_private_method(self, private_method, parent);
+    swc_ecmascript::visit::visit_private_method(self, private_method, parent);
     self.exit_function(&private_method.function);
   }
 
   fn visit_method_prop(&mut self, method_prop: &MethodProp, parent: &dyn Node) {
     self.enter_function(&method_prop.function);
-    swc_ecma_visit::visit_method_prop(self, method_prop, parent);
+    swc_ecmascript::visit::visit_method_prop(self, method_prop, parent);
     self.exit_function(&method_prop.function);
   }
 }

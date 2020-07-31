@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
 
 use std::sync::Arc;
 
@@ -16,7 +15,11 @@ impl LintRule for BanUntaggedIgnore {
     "ban-untagged-ignore"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    _module: &swc_ecmascript::ast::Module,
+  ) {
     for ignore_directive in &context.ignore_directives {
       if ignore_directive.codes.is_empty() {
         context.add_diagnostic(

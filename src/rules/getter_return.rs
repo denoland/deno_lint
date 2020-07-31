@@ -1,19 +1,17 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::BlockStmt;
-use crate::swc_ecma_ast::Class;
-use crate::swc_ecma_ast::ClassMember;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::ExprOrSuper;
-use crate::swc_ecma_ast::GetterProp;
-use crate::swc_ecma_ast::MethodKind;
-use crate::swc_ecma_ast::Stmt;
 use swc_atoms::JsWord;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::BlockStmt;
+use swc_ecmascript::ast::Class;
+use swc_ecmascript::ast::ClassMember;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::ExprOrSuper;
+use swc_ecmascript::ast::GetterProp;
+use swc_ecmascript::ast::MethodKind;
+use swc_ecmascript::ast::Stmt;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -28,7 +26,11 @@ impl LintRule for GetterReturn {
     "getter-return"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = GetterReturnVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -43,7 +45,10 @@ impl GetterReturnVisitor {
     Self { context }
   }
 
-  fn return_has_arg(&self, return_stmt: &swc_ecma_ast::ReturnStmt) -> bool {
+  fn return_has_arg(
+    &self,
+    return_stmt: &swc_ecmascript::ast::ReturnStmt,
+  ) -> bool {
     return_stmt.arg.is_some()
   }
 
@@ -56,7 +61,7 @@ impl GetterReturnVisitor {
     false
   }
 
-  fn check_if_stmt(&self, if_stmt: &swc_ecma_ast::IfStmt) -> bool {
+  fn check_if_stmt(&self, if_stmt: &swc_ecmascript::ast::IfStmt) -> bool {
     if if_stmt.alt.is_none() {
       return false;
     }
@@ -91,7 +96,10 @@ impl GetterReturnVisitor {
     true
   }
 
-  fn check_switch_stmt(&self, switch_stmt: &swc_ecma_ast::SwitchStmt) -> bool {
+  fn check_switch_stmt(
+    &self,
+    switch_stmt: &swc_ecmascript::ast::SwitchStmt,
+  ) -> bool {
     for case in &switch_stmt.cases {
       if !case.cons.is_empty() && !self.stmts_have_return(&case.cons) {
         return false;
@@ -151,7 +159,7 @@ impl Visit for GetterReturnVisitor {
 
   fn visit_call_expr(
     &mut self,
-    call_expr: &swc_ecma_ast::CallExpr,
+    call_expr: &swc_ecmascript::ast::CallExpr,
     _parent: &dyn Node,
   ) {
     if call_expr.args.len() != 3 {
@@ -175,9 +183,9 @@ impl Visit for GetterReturnVisitor {
     }
     if let Expr::Object(obj_expr) = &*call_expr.args[2].expr {
       for prop in obj_expr.props.iter() {
-        if let swc_ecma_ast::PropOrSpread::Prop(prop_expr) = prop {
-          if let swc_ecma_ast::Prop::KeyValue(kv_prop) = &**prop_expr {
-            if let swc_ecma_ast::PropName::Ident(ident) = &kv_prop.key {
+        if let swc_ecmascript::ast::PropOrSpread::Prop(prop_expr) = prop {
+          if let swc_ecmascript::ast::Prop::KeyValue(kv_prop) = &**prop_expr {
+            if let swc_ecmascript::ast::PropName::Ident(ident) = &kv_prop.key {
               if ident.sym != JsWord::from("get") {
                 return;
               }
@@ -186,15 +194,20 @@ impl Visit for GetterReturnVisitor {
                   self.check_block_stmt(&body, ident.span);
                 }
               } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
-                if let swc_ecma_ast::BlockStmtOrExpr::BlockStmt(block_stmt) =
-                  &arrow_expr.body
+                if let swc_ecmascript::ast::BlockStmtOrExpr::BlockStmt(
+                  block_stmt,
+                ) = &arrow_expr.body
                 {
                   self.check_block_stmt(&block_stmt, ident.span);
                 }
               }
             }
-          } else if let swc_ecma_ast::Prop::Method(method_prop) = &**prop_expr {
-            if let swc_ecma_ast::PropName::Ident(ident) = &method_prop.key {
+          } else if let swc_ecmascript::ast::Prop::Method(method_prop) =
+            &**prop_expr
+          {
+            if let swc_ecmascript::ast::PropName::Ident(ident) =
+              &method_prop.key
+            {
               if ident.sym != JsWord::from("get") {
                 return;
               }

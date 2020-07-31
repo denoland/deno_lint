@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_common::Span;
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -20,7 +19,11 @@ impl LintRule for NoArrayConstructor {
     "no-array-constructor"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
     visitor.visit_module(module, module);
   }

@@ -4,12 +4,11 @@ pub struct ConstructorSuper;
 
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::{
+use swc_ecmascript::ast::{
   Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
 };
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
@@ -22,7 +21,11 @@ impl LintRule for ConstructorSuper {
     "constructor-super"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = ConstructorSuperVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -118,7 +121,7 @@ impl Visit for ConstructorSuperVisitor {
         self.check_constructor(constructor, class);
       }
     }
-    swc_ecma_visit::visit_class(self, class, parent);
+    swc_ecmascript::visit::visit_class(self, class, parent);
   }
 }
 

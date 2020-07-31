@@ -1,12 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_ecma_ast::BinaryOp::*;
-use crate::swc_ecma_ast::Expr::{Lit, Unary};
-use crate::swc_ecma_ast::Lit::Num;
-use crate::swc_ecma_ast::UnaryExpr;
-use crate::swc_ecma_ast::UnaryOp::Minus;
-use crate::swc_ecma_ast::{BinExpr, BinaryOp, Expr, Module};
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::ast::BinaryOp::*;
+use swc_ecmascript::ast::Expr::{Lit, Unary};
+use swc_ecmascript::ast::Lit::Num;
+use swc_ecmascript::ast::UnaryExpr;
+use swc_ecmascript::ast::UnaryOp::Minus;
+use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
+use swc_ecmascript::visit::{Node, Visit};
 
 use std::sync::Arc;
 

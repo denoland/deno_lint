@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::{BytePos, Span, Spanned};
-use crate::swc_ecma_ast;
 use regex::Regex;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_common::{BytePos, Span, Spanned};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -46,7 +45,11 @@ impl LintRule for NoUnexpectedMultiline {
     "no-unexpected-multiline"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoUnexpectedMultilineVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -86,7 +89,7 @@ impl NoUnexpectedMultilineVisitor {
 impl Visit for NoUnexpectedMultilineVisitor {
   fn visit_opt_chain_expr(
     &mut self,
-    opt_chain_expr: &swc_ecma_ast::OptChainExpr,
+    opt_chain_expr: &swc_ecmascript::ast::OptChainExpr,
     parent: &dyn Node,
   ) {
     self.current_node_is_optional = true;
@@ -95,14 +98,14 @@ impl Visit for NoUnexpectedMultilineVisitor {
 
   fn visit_bin_expr(
     &mut self,
-    bin_expr: &swc_ecma_ast::BinExpr,
+    bin_expr: &swc_ecmascript::ast::BinExpr,
     _parent: &dyn Node,
   ) {
     self.visit_expr(&bin_expr.left, bin_expr);
     self.visit_expr(&bin_expr.right, bin_expr);
 
-    if let swc_ecma_ast::BinaryOp::Div = bin_expr.op {
-      if let swc_ecma_ast::Expr::Bin(inner_bin_expr) = &*bin_expr.left {
+    if let swc_ecmascript::ast::BinaryOp::Div = bin_expr.op {
+      if let swc_ecmascript::ast::Expr::Bin(inner_bin_expr) = &*bin_expr.left {
         let temp_span = bin_expr.span.trim_start(bin_expr.left.span()).span();
         let source_map = &self.context.source_map;
         let slash_and_flags = source_map
@@ -112,7 +115,7 @@ impl Visit for NoUnexpectedMultilineVisitor {
               .unwrap(),
           )
           .unwrap();
-        if !matches!(inner_bin_expr.op, swc_ecma_ast::BinaryOp::Div)
+        if !matches!(inner_bin_expr.op, swc_ecmascript::ast::BinaryOp::Div)
           || !SLASH_AND_FLAGS.is_match(&slash_and_flags)
         {
           return;
@@ -128,13 +131,13 @@ impl Visit for NoUnexpectedMultilineVisitor {
 
   fn visit_call_expr(
     &mut self,
-    call_expr: &swc_ecma_ast::CallExpr,
+    call_expr: &swc_ecmascript::ast::CallExpr,
     _parent: &dyn Node,
   ) {
     let optional = self.current_node_is_optional;
     self.current_node_is_optional = false;
 
-    if let swc_ecma_ast::ExprOrSuper::Expr(expr) = &call_expr.callee {
+    if let swc_ecmascript::ast::ExprOrSuper::Expr(expr) = &call_expr.callee {
       self.visit_expr(expr, call_expr);
     }
     for arg in &call_expr.args {
@@ -149,13 +152,13 @@ impl Visit for NoUnexpectedMultilineVisitor {
 
   fn visit_member_expr(
     &mut self,
-    member_expr: &swc_ecma_ast::MemberExpr,
+    member_expr: &swc_ecmascript::ast::MemberExpr,
     _parent: &dyn Node,
   ) {
     let optional = self.current_node_is_optional;
     self.current_node_is_optional = false;
 
-    if let swc_ecma_ast::ExprOrSuper::Expr(expr) = &member_expr.obj {
+    if let swc_ecmascript::ast::ExprOrSuper::Expr(expr) = &member_expr.obj {
       self.visit_expr(expr, member_expr);
     }
     if !member_expr.computed || optional {
@@ -170,7 +173,7 @@ impl Visit for NoUnexpectedMultilineVisitor {
 
   fn visit_tagged_tpl(
     &mut self,
-    tagged_tpl: &swc_ecma_ast::TaggedTpl,
+    tagged_tpl: &swc_ecmascript::ast::TaggedTpl,
     _parent: &dyn Node,
   ) {
     if tagged_tpl.quasis.is_empty() {

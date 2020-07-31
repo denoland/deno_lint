@@ -1,9 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_ecma_ast;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -18,7 +17,11 @@ impl LintRule for ExplicitFunctionReturnType {
     "explicit-function-return-type"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -37,7 +40,7 @@ impl ExplicitFunctionReturnTypeVisitor {
 impl Visit for ExplicitFunctionReturnTypeVisitor {
   fn visit_function(
     &mut self,
-    function: &swc_ecma_ast::Function,
+    function: &swc_ecmascript::ast::Function,
     _parent: &dyn Node,
   ) {
     if function.return_type.is_none() {

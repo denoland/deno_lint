@@ -2,16 +2,15 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
-use crate::swc_common::Span;
-use crate::swc_ecma_ast;
-use crate::swc_ecma_ast::AssignExpr;
-use crate::swc_ecma_ast::Expr;
-use crate::swc_ecma_ast::ObjectPatProp;
-use crate::swc_ecma_ast::Pat;
-use crate::swc_ecma_ast::PatOrExpr;
-use crate::swc_ecma_ast::UpdateExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_common::Span;
+use swc_ecmascript::ast::AssignExpr;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::ObjectPatProp;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::ast::PatOrExpr;
+use swc_ecmascript::ast::UpdateExpr;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
@@ -26,7 +25,11 @@ impl LintRule for NoConstAssign {
     "no-const-assign"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoConstAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -59,7 +62,11 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_obj_pat(&mut self, object: &swc_ecma_ast::ObjectPat, span: Span) {
+  fn check_obj_pat(
+    &mut self,
+    object: &swc_ecmascript::ast::ObjectPat,
+    span: Span,
+  ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
@@ -74,7 +81,11 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_array_pat(&mut self, array: &swc_ecma_ast::ArrayPat, span: Span) {
+  fn check_array_pat(
+    &mut self,
+    array: &swc_ecmascript::ast::ArrayPat,
+    span: Span,
+  ) {
     if !array.elems.is_empty() {
       for elem in array.elems.iter() {
         if let Some(element) = elem {

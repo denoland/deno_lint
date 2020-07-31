@@ -1,9 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_common::comments::Comment;
-use crate::swc_common::comments::CommentKind;
-use crate::swc_ecma_ast;
+use swc_common::comments::Comment;
+use swc_common::comments::CommentKind;
 
 use std::sync::Arc;
 
@@ -41,14 +40,18 @@ impl LintRule for TripleSlashReference {
     "triple-slash-reference"
   }
 
-  fn lint_module(&self, context: Arc<Context>, _module: &swc_ecma_ast::Module) {
-    context.leading_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    _module: &swc_ecmascript::ast::Module,
+  ) {
+    context.leading_comments.values().for_each(|comments| {
+      for comment in comments {
         self.lint_comment(&context, comment);
       }
     });
-    context.trailing_comments.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+    context.trailing_comments.values().for_each(|comments| {
+      for comment in comments {
         self.lint_comment(&context, comment);
       }
     });
