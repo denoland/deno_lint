@@ -2,13 +2,15 @@
 use super::Context;
 use super::LintRule;
 use swc_atoms::JsWord;
-use swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, Module, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoMisusedNew;
 
@@ -17,9 +19,9 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoMisusedNewVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 
   fn code(&self) -> &'static str {
@@ -28,11 +30,11 @@ impl LintRule for NoMisusedNew {
 }
 
 struct NoMisusedNewVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoMisusedNewVisitor {
-  fn new(context: Context) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
@@ -109,15 +111,15 @@ impl Visit for NoMisusedNewVisitor {
       }
     }
 
-    swc_ecma_visit::visit_ts_interface_decl(self, n, parent);
+    swc_ecmascript::visit::visit_ts_interface_decl(self, n, parent);
   }
 
   fn visit_class_decl(&mut self, expr: &ClassDecl, parent: &dyn Node) {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
-          PropName::Ident(ident) => ident.sym.to_string(),
-          PropName::Str(str_) => str_.value.to_string(),
+          PropName::Ident(ident) => ident.sym.as_ref(),
+          PropName::Str(str_) => str_.value.as_ref(),
           _ => continue,
         };
 
@@ -141,7 +143,7 @@ impl Visit for NoMisusedNewVisitor {
       }
     }
 
-    swc_ecma_visit::visit_class_decl(self, expr, parent);
+    swc_ecmascript::visit::visit_class_decl(self, expr, parent);
   }
 }
 

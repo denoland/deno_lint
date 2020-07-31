@@ -3,11 +3,11 @@ use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
 use crate::scopes::Scope;
-use crate::scopes::ScopeManager;
-use crate::scopes::ScopeVisitor;
-use swc_ecma_ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoExAssign;
 
@@ -20,55 +20,50 @@ impl LintRule for NoExAssign {
     "no-ex-assign"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(&module, &module);
-    let scope_manager = scope_visitor.consume();
-    let mut visitor = NoExAssignVisitor::new(context, scope_manager);
-    visitor.visit_module(&module, &module);
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
+    let mut visitor = NoExAssignVisitor::new(context);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoExAssignVisitor {
-  context: Context,
-  scope_manager: ScopeManager,
+  context: Arc<Context>,
 }
 
 impl NoExAssignVisitor {
-  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  pub fn new(context: Arc<Context>) -> Self {
+    Self { context }
   }
 
   fn check_scope_for_catch_clause(
     &self,
     scope: &Scope,
-    ident: &str,
+    name: impl AsRef<str>,
     span: swc_common::Span,
   ) {
-    if let Some(binding) = self.scope_manager.get_binding(scope, ident) {
-      if binding.kind == BindingKind::CatchClause {
-        self.context.add_diagnostic(
-          span,
-          "no-ex-assign",
-          "Reassigning exception parameter is not allowed",
-        );
-      }
+    if let Some(BindingKind::CatchClause) = scope.get_binding(name) {
+      self.context.add_diagnostic(
+        span,
+        "no-ex-assign",
+        "Reassigning exception parameter is not allowed",
+      );
     }
   }
 }
 
 impl Visit for NoExAssignVisitor {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let scope = self.scope_manager.get_scope_for_span(assign_expr.span);
+    let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
     match &assign_expr.left {
       PatOrExpr::Expr(_) => {}
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
         Pat::Ident(ident) => self.check_scope_for_catch_clause(
-          scope,
-          ident.sym.to_string().as_ref(),
+          &scope,
+          &ident.sym,
           assign_expr.span,
         ),
         Pat::Array(array) => {
@@ -78,8 +73,8 @@ impl Visit for NoExAssignVisitor {
           for elem in array.elems.iter() {
             if let Some(Pat::Ident(ident)) = elem {
               self.check_scope_for_catch_clause(
-                scope,
-                ident.sym.to_string().as_ref(),
+                &scope,
+                &ident.sym,
                 assign_expr.span,
               );
             }
@@ -94,8 +89,8 @@ impl Visit for NoExAssignVisitor {
               if let Pat::Assign(assign_pat) = &*kv.value {
                 if let Pat::Ident(ident) = &*assign_pat.left {
                   self.check_scope_for_catch_clause(
-                    scope,
-                    ident.sym.to_string().as_ref(),
+                    &scope,
+                    &ident.sym,
                     assign_expr.span,
                   );
                 }

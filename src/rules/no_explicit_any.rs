@@ -1,9 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::TsKeywordType;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::TsKeywordType;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoExplicitAny;
 
@@ -16,18 +18,22 @@ impl LintRule for NoExplicitAny {
     "no-explicit-any"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoExplicitAnyVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoExplicitAnyVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }
@@ -38,7 +44,7 @@ impl Visit for NoExplicitAnyVisitor {
     ts_keyword_type: &TsKeywordType,
     _parent: &dyn Node,
   ) {
-    use swc_ecma_ast::TsKeywordTypeKind::*;
+    use swc_ecmascript::ast::TsKeywordTypeKind::*;
 
     if ts_keyword_type.kind == TsAnyKeyword {
       self.context.add_diagnostic(

@@ -2,9 +2,11 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use swc_ecma_ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoArrayConstructor;
 
@@ -17,18 +19,22 @@ impl LintRule for NoArrayConstructor {
     "no-array-constructor"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoArrayConstructorVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoArrayConstructorVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
@@ -46,7 +52,7 @@ impl NoArrayConstructorVisitor {
 impl Visit for NoArrayConstructorVisitor {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
-      let name = ident.sym.to_string();
+      let name = ident.sym.as_ref();
       if name != "Array" {
         return;
       }
@@ -65,7 +71,7 @@ impl Visit for NoArrayConstructorVisitor {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
-        let name = ident.sym.to_string();
+        let name = ident.sym.as_ref();
         if name != "Array" {
           return;
         }

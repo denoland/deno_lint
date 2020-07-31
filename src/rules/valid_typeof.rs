@@ -1,12 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Spanned;
-use swc_ecma_ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecma_ast::Expr::{Lit, Unary};
-use swc_ecma_ast::Lit::Str;
-use swc_ecma_ast::UnaryOp::TypeOf;
-use swc_ecma_ast::{BinExpr, Module};
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
+use swc_ecmascript::ast::Expr::{Lit, Unary};
+use swc_ecmascript::ast::Lit::Str;
+use swc_ecmascript::ast::UnaryOp::TypeOf;
+use swc_ecmascript::ast::{BinExpr, Module};
+use swc_ecmascript::visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct ValidTypeof;
 
@@ -19,18 +21,18 @@ impl LintRule for ValidTypeof {
     "valid-typeof"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = ValidTypeofVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct ValidTypeofVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl ValidTypeofVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

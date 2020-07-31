@@ -2,7 +2,7 @@
 
 A Rust crate for writing fast JavaScript and TypeScript linters.
 
-This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific 
+This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific
 and can be used to write linters for Node as well.
 
 ---
@@ -23,32 +23,32 @@ Blazing fast, see comparison with ESLint:
 
 ```
 [
-   {
-      "name":"deno_lint",
-      "totalMs":12.234113999999863,
-      "runsCount":5,
-      "runsAvgMs":2.4468227999999725,
-      "runsMs":[
-         3.500347000000147,
-         2.2351940000000923,
-         2.2010919999997896,
-         2.1718909999999596,
-         2.1255899999998746
-      ]
-   },
-   {
-      "name":"eslint",
-      "totalMs":11414.694615999999,
-      "runsCount":5,
-      "runsAvgMs":2282.9389232,
-      "runsMs":[
-         2489.383729,
-         2225.3896830000003,
-         2226.8073840000006,
-         2252.641211,
-         2220.4726089999986
-      ]
-   }
+  {
+    "name": "deno_lint",
+    "totalMs": 830.5838349999995,
+    "runsCount": 5,
+    "runsAvgMs": 166.1167669999999,
+    "runsMs": [
+      163.71872200000007,
+      160.46893499999987,
+      169.2397719999999,
+      167.75393099999974,
+      169.40247499999987
+    ]
+  },
+  {
+    "name": "eslint",
+    "totalMs": 11783.570954999997,
+    "runsCount": 5,
+    "runsAvgMs": 2356.7141909999996,
+    "runsMs": [
+      2559.053129,
+      2383.412156999999,
+      2261.1746249999997,
+      2306.645263999999,
+      2273.28578
+    ]
+  }
 ]
 ```
 
@@ -58,11 +58,12 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 
 ## Supported rules
 
+- [`adjacent-overload-signatures`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/adjacent-overload-signatures.md)
 - [`ban-ts-comment`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-ts-comment.md)
 - `ban-ts-ignore`
+- [`ban-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-types.md)
 - `ban-untagged-ignore`
 - `ban-untagged-todo`
-- [`ban-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-types.md)
 - [`constructor-super`](https://eslint.org/docs/rules/constructor-super)
 - [`default-param-last`](https://eslint.org/docs/rules/default-param-last)
 - [`eqeqeq`](https://eslint.org/docs/rules/eqeqeq)
@@ -77,6 +78,8 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-compare-neg-zero`](https://eslint.org/docs/rules/no-compare-neg-zero)
 - [`no-cond-assign`](https://eslint.org/docs/rules/no-cond-assign)
 - [`no-const-assign`](https://eslint.org/docs/rules/no-const-assign)
+- [`no-constant-condition`](https://eslint.org/docs/rules/no-constant-condition)
+- [`no-control-regex`](https://eslint.org/docs/rules/no-control-regex)
 - [`no-debugger`](https://eslint.org/docs/rules/no-debugger)
 - [`no-delete-var`](https://eslint.org/docs/rules/no-delete-var)
 - [`no-dupe-args`](https://eslint.org/docs/rules/no-dupe-args)
@@ -92,26 +95,31 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-ex-assign`](https://eslint.org/docs/rules/no-ex-assign)
 - [`no-explicit-any`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-explicit-any.md)
 - [`no-extra-boolean-cast`](https://eslint.org/docs/rules/no-extra-boolean-cast)
+- [`no-extra-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-extra-non-null-assertion.md)
+- [`no-extra-semi`](https://eslint.org/docs/rules/no-extra-semi)
 - [`no-func-assign`](https://eslint.org/docs/rules/no-func-assign)
 - [`no-inferrable-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-inferrable-types.md)
 - [`no-misused-new`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-misused-new.md)
 - [`no-namespace`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-namespace.md)
 - [`no-new-symbol`](https://eslint.org/docs/rules/no-new-symbol)
 - [`no-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-non-null-assertion.md)
-- `no-obj-call`
+- [`no-obj-calls`](https://eslint.org/docs/rules/no-obj-calls)
 - [`no-octal`](https://eslint.org/docs/rules/no-octal)
 - [`no-prototype-builtins`](https://eslint.org/docs/rules/no-prototype-builtins)
 - [`no-regex-spaces`](https://eslint.org/docs/rules/no-regex-spaces)
 - [`no-setter-return`](https://eslint.org/docs/rules/no-setter-return)
+- [`no-shadow-restricted-names`](https://eslint.org/docs/rules/no-shadow-restricted-names)
 - `no-sparse-array`
 - [`no-this-alias`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-this-alias.md)
 - [`no-this-before-super`](https://eslint.org/docs/rules/no-this-before-super)
 - [`no-throw-literal`](https://eslint.org/docs/rules/no-throw-literal)
+- [`no-unexpected-multiline`](https://eslint.org/docs/rules/no-unexpected-multiline)
 - [`no-unsafe-finally`](https://eslint.org/docs/rules/no-unsafe-finally)
 - [`no-unsafe-negation`](https://eslint.org/docs/rules/no-unsafe-negation)
 - [`no-unused-labels`](https://eslint.org/docs/rules/no-unused-labels)
 - [`no-var`](https://eslint.org/docs/rules/no-var)
 - [`no-with`](https://eslint.org/docs/rules/no-with)
+- [`prefer-as-const`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-as-const.md)
 - [`prefer-namespace-keyword`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-namespace-keyword.md)
 - [`require-yield`](https://eslint.org/docs/rules/require-yield)
 - `single-var-declarator`
@@ -173,7 +181,7 @@ Specyfing rule code that will be ignored is required.
 ## Example
 
 `examples/dlint/main.rs` provides a minimal standalone binary demonstrating
-how `deno_lint` can be used as a crate. 
+how `deno_lint` can be used as a crate.
 
 ```shell
 $ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
@@ -239,6 +247,20 @@ $ cargo build --all-targets
 // test it
 $ cargo test
 ```
+
+### Generating flamegraph (Linux)
+
+Prerequisites:
+
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), (`stackcollapse-perf`)[https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl], [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+
+```shell
+$ RUSTFLAGS='-g' cargo build --release --all-targets # build target
+$ sudo perf record --call-graph dwarf ./target/release/examples/dlint benchmarks/oak/**.ts # create performance profile
+$ perf script | stackcollapse-perf | rust-unmangle | flamegraph > flame.svg # generate flamegraph
+```
+
+These commands can take a few minutes to run.
 
 ## Contributing
 

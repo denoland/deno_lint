@@ -2,28 +2,34 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::diagnostic::Location;
 use crate::rules::LintRule;
+use crate::scopes::Scope;
+use crate::scopes::ScopeVisitor;
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::swc_util::SwcDiagnosticBuffer;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Instant;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use swc_common::comments::CommentMap;
-use swc_common::comments::Comments;
+use swc_common::comments::SingleThreadedComments;
+use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
-use swc_ecma_parser::Syntax;
+use swc_ecmascript::parser::Syntax;
+use swc_ecmascript::visit::Visit;
 
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
-  pub leading_comments: CommentMap,
-  pub trailing_comments: CommentMap,
+  pub leading_comments: HashMap<BytePos, Vec<Comment>>,
+  pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
+  pub root_scope: Scope,
 }
 
 impl Context {
@@ -33,6 +39,7 @@ impl Context {
     code: &str,
     message: &str,
   ) -> LintDiagnostic {
+    let start = Instant::now();
     let location = self.source_map.lookup_char_pos(span.lo());
     let line_src = self
       .source_map
@@ -47,13 +54,17 @@ impl Context {
       .expect("error loading snippet")
       .len();
 
-    LintDiagnostic {
+    let diagnostic = LintDiagnostic {
       location: location.into(),
       message: message.to_string(),
       code: code.to_string(),
       line_src,
       snippet_length,
-    }
+    };
+
+    let end = Instant::now();
+    debug!("Context::create_diagnostic took {:?}", end - start);
+    diagnostic
   }
 
   pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
@@ -101,7 +112,7 @@ pub struct LinterBuilder {
   ignore_diagnostic_directives: Vec<String>,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
-  syntax: swc_ecma_parser::Syntax,
+  syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
 }
 
@@ -206,26 +217,29 @@ impl Linter {
       "Linter can be used only on a single module."
     );
     self.has_linted = true;
-    self.ast_parser.parse_module(
-      &file_name,
-      self.syntax,
-      &source_code,
-      |parse_result, comments| {
-        let module = parse_result?;
-        let diagnostics = self.lint_module(file_name.clone(), module, comments);
-        Ok(diagnostics)
-      },
-    )
+    let start = Instant::now();
+    let (parse_result, comments) =
+      self
+        .ast_parser
+        .parse_module(&file_name, self.syntax, &source_code);
+    let end_parse_module = Instant::now();
+    debug!(
+      "ast_parser.parse_module took {:#?}",
+      end_parse_module - start
+    );
+    let module = parse_result?;
+    let diagnostics = self.lint_module(file_name, module, comments);
+    let end = Instant::now();
+    debug!("Linter::lint took {:#?}", end - start);
+    Ok(diagnostics)
   }
 
   fn has_ignore_file_directive(
     &self,
-    comments: &Comments,
-    module: &swc_ecma_ast::Module,
+    comments: &SingleThreadedComments,
+    module: &swc_ecmascript::ast::Module,
   ) -> bool {
-    if let Some(module_leading_comments) =
-      comments.take_leading_comments(module.span.lo())
-    {
+    comments.with_leading(module.span.lo(), |module_leading_comments| {
       for comment in module_leading_comments.iter() {
         if comment.kind == CommentKind::Line {
           let text = comment.text.trim().to_string();
@@ -234,10 +248,8 @@ impl Linter {
           }
         }
       }
-      comments.add_leading(module.span.lo(), module_leading_comments);
-    }
-
-    false
+      false
+    })
   }
 
   fn parse_ignore_comment(&self, comment: &Comment) -> Option<IgnoreDirective> {
@@ -281,29 +293,27 @@ impl Linter {
 
   fn parse_ignore_directives(
     &self,
-    leading: &CommentMap,
+    leading: &HashMap<BytePos, Vec<Comment>>,
   ) -> Vec<IgnoreDirective> {
     let mut ignore_directives = vec![];
 
-    leading.iter().for_each(|ref_multi| {
-      for comment in ref_multi.value() {
+    leading.values().for_each(|comments| {
+      for comment in comments {
         if let Some(ignore) = self.parse_ignore_comment(comment) {
           ignore_directives.push(ignore);
         }
       }
     });
 
-    // TODO(bartlomieju): remove once https://github.com/swc-project/swc/issues/856
-    // is resolved
-    ignore_directives.dedup();
     ignore_directives
   }
 
   fn filter_diagnostics(
     &self,
-    context: Context,
+    context: Arc<Context>,
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
+    let start = Instant::now();
     let mut ignore_directives = context.ignore_directives.clone();
     let diagnostics = context.diagnostics.lock().unwrap();
 
@@ -351,36 +361,61 @@ impl Linter {
 
     filtered_diagnostics.sort_by(|a, b| a.location.line.cmp(&b.location.line));
 
+    let end = Instant::now();
+    debug!("Linter::filter_diagnostics took {:#?}", end - start);
+
     filtered_diagnostics
   }
 
   fn lint_module(
     &self,
     file_name: String,
-    module: swc_ecma_ast::Module,
-    comments: Comments,
+    module: swc_ecmascript::ast::Module,
+    comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
     if self.has_ignore_file_directive(&comments, &module) {
       return vec![];
     }
+    let start = Instant::now();
 
     let (leading, trailing) = comments.take_all();
+    let leading_coms = Rc::try_unwrap(leading)
+      .expect("Failed to get leading comments")
+      .into_inner();
+    let leading = leading_coms.into_iter().collect();
+    let trailing_coms = Rc::try_unwrap(trailing)
+      .expect("Failed to get leading comments")
+      .into_inner();
+    let trailing = trailing_coms.into_iter().collect();
+    // let (leading, trailing) = {
+
+    //   (l, t)
+    // };
 
     let ignore_directives = self.parse_ignore_directives(&leading);
 
-    let context = Context {
+    let mut scope_visitor = ScopeVisitor::default();
+    let root_scope = scope_visitor.get_root_scope();
+    scope_visitor.visit_module(&module, &module);
+
+    let context = Arc::new(Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.ast_parser.source_map.clone(),
       leading_comments: leading,
       trailing_comments: trailing,
       ignore_directives,
-    };
+      root_scope,
+    });
 
     for rule in &self.rules {
-      rule.lint_module(context.clone(), module.clone());
+      rule.lint_module(context.clone(), &module);
     }
 
-    self.filter_diagnostics(context, &self.rules)
+    let d = self.filter_diagnostics(context, &self.rules);
+    let end = Instant::now();
+    debug!("Linter::lint_module took {:#?}", end - start);
+
+    d
   }
 }

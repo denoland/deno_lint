@@ -1,10 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
   SwitchStmt,
 };
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct NoEmpty;
 
@@ -17,18 +19,18 @@ impl LintRule for NoEmpty {
     "no-empty"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoEmptyVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoEmptyVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoEmptyVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }
@@ -41,7 +43,7 @@ impl Visit for NoEmptyVisitor {
     // for empty function body.
     if let Some(body) = &function.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }
@@ -50,7 +52,7 @@ impl Visit for NoEmptyVisitor {
     // Similar to the above, empty arrow expressions shouldn't be caught.
     if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body {
       for stmt in &block_stmt.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, block_stmt);
+        swc_ecmascript::visit::visit_stmt(self, stmt, block_stmt);
       }
     }
   }
@@ -59,7 +61,7 @@ impl Visit for NoEmptyVisitor {
     // Similar to the above, empty constructors shouldn't be caught.
     if let Some(body) = &cons.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }
@@ -99,8 +101,8 @@ impl ContainsComments for BlockStmt {
   fn contains_comments(&self, context: &Context) -> bool {
     context
       .leading_comments
-      .iter()
-      .flat_map(|r| r.value().clone())
+      .values()
+      .flatten()
       .any(|comment| self.span.contains(comment.span))
   }
 }

@@ -1,6 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
+use std::sync::Arc;
 
+pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
 pub mod ban_ts_ignore;
 pub mod ban_types;
@@ -10,6 +12,7 @@ pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
 pub mod explicit_function_return_type;
+pub mod explicit_module_boundary_types;
 pub mod for_direction;
 pub mod getter_return;
 pub mod no_array_constructor;
@@ -20,6 +23,8 @@ pub mod no_class_assign;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
 pub mod no_const_assign;
+pub mod no_constant_condition;
+pub mod no_control_regex;
 pub mod no_debugger;
 pub mod no_delete_var;
 pub mod no_dupe_args;
@@ -36,6 +41,7 @@ pub mod no_ex_assign;
 pub mod no_explicit_any;
 pub mod no_extra_boolean_cast;
 pub mod no_extra_non_null_assertion;
+pub mod no_extra_semi;
 pub mod no_func_assign;
 pub mod no_inferrable_types;
 pub mod no_misused_new;
@@ -43,7 +49,7 @@ pub mod no_namespace;
 pub mod no_new_symbol;
 pub mod no_non_null_asserted_optional_chain;
 pub mod no_non_null_assertion;
-pub mod no_obj_call;
+pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
 pub mod no_regex_spaces;
@@ -53,6 +59,7 @@ pub mod no_sparse_array;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
+pub mod no_unexpected_multiline;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
@@ -70,12 +77,17 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module);
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  );
   fn code(&self) -> &'static str;
 }
 
 pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
   vec![
+    adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_types::BanTypes::new(),
@@ -88,6 +100,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_class_assign::NoClassAssign::new(),
     no_compare_neg_zero::NoCompareNegZero::new(),
     no_cond_assign::NoCondAssign::new(),
+    no_control_regex::NoControlRegex::new(),
     no_debugger::NoDebugger::new(),
     no_delete_var::NoDeleteVar::new(),
     no_dupe_args::NoDupeArgs::new(),
@@ -103,17 +116,19 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_explicit_any::NoExplicitAny::new(),
     no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
+    no_extra_semi::NoExtraSemi::new(),
     no_func_assign::NoFuncAssign::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
-    no_obj_call::NoObjCall::new(),
+    no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
+    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_with::NoWith::new(),
@@ -126,11 +141,13 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_inferrable_types::NoInferrableTypes::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
+    no_constant_condition::NoConstantCondition::new(),
   ]
 }
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   vec![
+    adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
     ban_ts_ignore::BanTsIgnore::new(),
     ban_types::BanTypes::new(),
@@ -140,6 +157,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     default_param_last::DefaultParamLast::new(),
     eqeqeq::Eqeqeq::new(),
     explicit_function_return_type::ExplicitFunctionReturnType::new(),
+    explicit_module_boundary_types::ExplicitModuleBoundaryTypes::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
     no_array_constructor::NoArrayConstructor::new(),
@@ -165,13 +183,14 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_explicit_any::NoExplicitAny::new(),
     no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
+    no_extra_semi::NoExtraSemi::new(),
     no_func_assign::NoFuncAssign::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_non_null_assertion::NoNonNullAssertion::new(),
     no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain::new(),
-    no_obj_call::NoObjCall::new(),
+    no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
@@ -180,6 +199,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
+    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
     no_var::NoVar::new(),
@@ -193,7 +213,9 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_const_assign::NoConstAssign::new(),
+    no_control_regex::NoControlRegex::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
+    no_constant_condition::NoConstantCondition::new(),
   ]
 }

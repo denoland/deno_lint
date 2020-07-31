@@ -3,12 +3,14 @@ use super::Context;
 use super::LintRule;
 use std::collections::HashSet;
 use swc_common::Span;
-use swc_ecma_ast::ArrowExpr;
-use swc_ecma_ast::Function;
-use swc_ecma_ast::Param;
-use swc_ecma_ast::Pat;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::ArrowExpr;
+use swc_ecmascript::ast::Function;
+use swc_ecmascript::ast::Param;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoDupeArgs;
 
@@ -21,18 +23,22 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoDupeArgsVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoDupeArgsVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
@@ -42,16 +48,12 @@ impl NoDupeArgsVisitor {
     for pat in pats {
       match &pat {
         Pat::Ident(ident) => {
-          let pat_name = ident.sym.to_string();
-
-          if seen.get(&pat_name).is_some() {
+          if !seen.insert(ident.sym.to_string()) {
             self.context.add_diagnostic(
               span,
               "no-dupe-args",
               "Duplicate arguments not allowed",
             );
-          } else {
-            seen.insert(pat_name);
           }
         }
         _ => continue,

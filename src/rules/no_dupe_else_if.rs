@@ -3,8 +3,12 @@ use super::{Context, LintRule};
 use crate::swc_util::DropSpan;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
-use swc_ecma_ast::{BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt};
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::ast::{
+  BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
+};
+use swc_ecmascript::visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct NoDupeElseIf;
 
@@ -17,21 +21,21 @@ impl LintRule for NoDupeElseIf {
     "no-dupe-else-if"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 /// A visitor to check the `no-dupe-else-if` rule.
 /// Determination logic is ported from ESLint's implementation. For more, see [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
 struct NoDupeElseIfVisitor {
-  context: Context,
+  context: Arc<Context>,
   checked_span: HashSet<Span>,
 }
 
 impl NoDupeElseIfVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       checked_span: HashSet::new(),
@@ -100,7 +104,7 @@ impl Visit for NoDupeElseIfVisitor {
       }
     }
 
-    swc_ecma_visit::visit_if_stmt(self, if_stmt, parent);
+    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 }
 
@@ -151,7 +155,7 @@ fn is_subset(arr_a: &[Expr], arr_b: &[Expr]) -> bool {
 /// Determines whether the two given `Expr`s are considered to be equal in if-else condition
 /// context. Note that `expr1` and `expr2` must be span-dropped to be compared properly.
 fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
-  use swc_ecma_ast::Expr::*;
+  use swc_ecmascript::ast::Expr::*;
   match (expr1, expr2) {
     (Bin(ref bin1), Bin(ref bin2))
       if matches!(bin1.op, BinaryOp::LogicalOr | BinaryOp::LogicalAnd)

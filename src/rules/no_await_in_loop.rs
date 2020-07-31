@@ -2,11 +2,13 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
-use swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ArrowExpr, AwaitExpr, DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Function,
   WhileStmt,
 };
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct NoAwaitInLoop;
 
@@ -19,18 +21,22 @@ impl LintRule for NoAwaitInLoop {
     "no-await-in-loop"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoAwaitInLoopVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoAwaitInLoopVisitor {
-  fn new(context: Context) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
@@ -141,7 +147,7 @@ impl<'a> Visit for LoopVisitor<'a> {
 
   fn visit_await_expr(&mut self, await_expr: &AwaitExpr, parent: &dyn Node) {
     self.root_visitor.add_diagnostic(await_expr.span);
-    swc_ecma_visit::visit_await_expr(self, await_expr, parent);
+    swc_ecmascript::visit::visit_await_expr(self, await_expr, parent);
   }
 }
 
@@ -163,13 +169,17 @@ impl<'a> Visit for FunctionVisitor<'a> {
   fn visit_function(&mut self, func: &Function, parent: &dyn Node) {
     let mut func_visitor =
       FunctionVisitor::new(&self.root_visitor, func.is_async);
-    swc_ecma_visit::visit_function(&mut func_visitor, func, parent);
+    swc_ecmascript::visit::visit_function(&mut func_visitor, func, parent);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
     let mut func_visitor =
       FunctionVisitor::new(&self.root_visitor, arrow_expr.is_async);
-    swc_ecma_visit::visit_arrow_expr(&mut func_visitor, arrow_expr, parent);
+    swc_ecmascript::visit::visit_arrow_expr(
+      &mut func_visitor,
+      arrow_expr,
+      parent,
+    );
   }
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
@@ -177,7 +187,7 @@ impl<'a> Visit for FunctionVisitor<'a> {
       let mut loop_visitor = LoopVisitor::new(&self.root_visitor);
       loop_visitor.visit_for_stmt(for_stmt, parent);
     } else {
-      swc_ecma_visit::visit_for_stmt(self, for_stmt, parent);
+      swc_ecmascript::visit::visit_for_stmt(self, for_stmt, parent);
     }
   }
 
@@ -186,7 +196,7 @@ impl<'a> Visit for FunctionVisitor<'a> {
       let mut loop_visitor = LoopVisitor::new(&self.root_visitor);
       loop_visitor.visit_for_of_stmt(for_of_stmt, parent);
     } else {
-      swc_ecma_visit::visit_for_of_stmt(self, for_of_stmt, parent);
+      swc_ecmascript::visit::visit_for_of_stmt(self, for_of_stmt, parent);
     }
   }
 
@@ -195,7 +205,7 @@ impl<'a> Visit for FunctionVisitor<'a> {
       let mut loop_visitor = LoopVisitor::new(&self.root_visitor);
       loop_visitor.visit_for_in_stmt(for_in_stmt, parent);
     } else {
-      swc_ecma_visit::visit_for_in_stmt(self, for_in_stmt, parent);
+      swc_ecmascript::visit::visit_for_in_stmt(self, for_in_stmt, parent);
     }
   }
 
@@ -204,7 +214,7 @@ impl<'a> Visit for FunctionVisitor<'a> {
       let mut loop_visitor = LoopVisitor::new(&self.root_visitor);
       loop_visitor.visit_while_stmt(while_stmt, parent);
     } else {
-      swc_ecma_visit::visit_while_stmt(self, while_stmt, parent);
+      swc_ecmascript::visit::visit_while_stmt(self, while_stmt, parent);
     }
   }
 
@@ -217,7 +227,7 @@ impl<'a> Visit for FunctionVisitor<'a> {
       let mut loop_visitor = LoopVisitor::new(&self.root_visitor);
       loop_visitor.visit_do_while_stmt(do_while_stmt, parent);
     } else {
-      swc_ecma_visit::visit_do_while_stmt(self, do_while_stmt, parent);
+      swc_ecmascript::visit::visit_do_while_stmt(self, do_while_stmt, parent);
     }
   }
 }

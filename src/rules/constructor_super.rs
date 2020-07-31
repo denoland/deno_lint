@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 pub struct ConstructorSuper;
 
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::{Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::{
+  Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
+};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
@@ -17,18 +21,22 @@ impl LintRule for ConstructorSuper {
     "constructor-super"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = ConstructorSuperVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct ConstructorSuperVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl ConstructorSuperVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
   fn check_constructor(&self, constructor: &Constructor, class: &Class) {
@@ -107,16 +115,17 @@ impl ConstructorSuperVisitor {
 }
 
 impl Visit for ConstructorSuperVisitor {
-  fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
+  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     for member in &class.body {
       if let ClassMember::Constructor(constructor) = member {
         self.check_constructor(constructor, class);
       }
     }
+    swc_ecmascript::visit::visit_class(self, class, parent);
   }
 }
 
-// tests are taken from ESlint, commenting those
+// most tests are taken from ESlint, commenting those
 // requiring code path support
 #[cfg(test)]
 mod tests {
@@ -227,6 +236,66 @@ class Foo extends Object { constructor(method) { super(); this.method = method |
     assert_lint_err::<ConstructorSuper>(
       "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }",
       38,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    class C extends D {
+      constructor() {}
+    }
+    super();
+  }
+}
+        "#,
+      5,
+      20,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    super();
+  }
+  foo() {
+    class C extends D {
+      constructor() {}
+    }
+  }
+}
+        "#,
+      8,
+      20,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    class C extends null {
+      constructor() {
+        super();
+      }
+    }
+    super();
+  }
+}
+        "#,
+      5,
+      20,
+    );
+    assert_lint_err_on_line::<ConstructorSuper>(
+      r#"
+class A extends B {
+  constructor() {
+    class C extends null {
+      constructor() {}
+    }
+    super();
+  }
+}
+        "#,
+      5,
+      20,
     );
   }
 }

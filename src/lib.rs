@@ -5,6 +5,9 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate log;
+
 pub mod diagnostic;
 pub mod linter;
 pub mod rules;

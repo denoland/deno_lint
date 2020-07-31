@@ -1,19 +1,22 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+use std::cell::RefCell;
+use std::cmp::Eq;
+use std::cmp::PartialEq;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::Ordering;
+use std::fmt::Display;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::ops::Deref;
+use std::rc::Rc;
 use swc_common::Span;
-use swc_ecma_ast::ObjectPatProp;
-use swc_ecma_ast::Pat;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_common::DUMMY_SP;
+use swc_ecmascript::ast::ObjectPatProp;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
-lazy_static! {
-  static ref NEXT_ID: AtomicU32 = AtomicU32::new(0);
-}
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BindingKind {
   Var,
   Const,
@@ -25,13 +28,7 @@ pub enum BindingKind {
   Import,
 }
 
-#[derive(Clone, Debug)]
-pub struct Binding {
-  pub kind: BindingKind,
-  pub name: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum ScopeKind {
   Program,
   Module,
@@ -45,226 +42,247 @@ pub enum ScopeKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct Scope {
+pub struct ScopeData {
   pub kind: ScopeKind,
-  pub id: u32,
-  pub parent_id: Option<u32>,
+  pub parent_scope: Option<Scope>,
   pub span: Span,
-  pub child_scopes: Vec<u32>,
-  pub bindings: HashMap<String, Binding>,
+  pub child_scopes: Vec<Scope>,
+  pub bindings: HashMap<String, BindingKind>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Scope {
+  id: usize,
+  index: ScopeIndex,
 }
 
 impl Scope {
-  pub fn new(kind: ScopeKind, span: Span, parent_id: Option<u32>) -> Self {
-    Self {
+  pub fn new(kind: ScopeKind, span: Span, parent_scope: Option<Self>) -> Self {
+    let index = parent_scope
+      .as_ref()
+      .map(|p| p.index.clone())
+      .unwrap_or_else(ScopeIndex::default);
+    index.add_scope(ScopeData {
       kind,
       span,
-      parent_id,
-      id: next_id(),
-      child_scopes: vec![],
-      bindings: HashMap::new(),
+      parent_scope,
+      child_scopes: Vec::default(),
+      bindings: HashMap::default(),
+    })
+  }
+
+  pub fn get_kind(&self) -> ScopeKind {
+    self.index.borrow()[self.id].kind
+  }
+
+  pub fn get_span(&self) -> Span {
+    self.index.borrow()[self.id].span
+  }
+
+  pub fn get_scope_for_span(&self, span: Span) -> Scope {
+    let scopes = self.index.borrow();
+    let mut scope_id = self.id;
+    'descend: loop {
+      let scope_data = &scopes[scope_id];
+      for child_scope in &scope_data.child_scopes {
+        if child_scope.get_span().contains(span) {
+          scope_id = child_scope.id;
+          continue 'descend;
+        }
+      }
+      break;
+    }
+    let scope = Scope {
+      id: scope_id,
+      index: self.index.clone(),
+    };
+    assert!(scope.get_span().contains(span));
+    scope
+  }
+
+  pub fn get_parent_scope(&self) -> Option<Scope> {
+    self.index.borrow()[self.id]
+      .parent_scope
+      .as_ref()
+      .map(Scope::clone)
+  }
+
+  pub fn add_child_scope(&self, child_scope: &Scope) {
+    self.index.borrow_mut()[self.id]
+      .child_scopes
+      .push(child_scope.clone())
+  }
+
+  /// Use a negative value to specify an index that is relative to the end of
+  /// the list. E.g. `scope.get_child_scope(-1)` returns the last child scope.
+  pub fn get_child_scope(&self, index: isize) -> Option<Scope> {
+    let scopes = self.index.borrow();
+    let child_scopes = &scopes[self.id].child_scopes;
+    let index: usize = if index >= 0 {
+      index as usize
+    } else {
+      child_scopes.len() - (-index as usize)
+    };
+    child_scopes.get(index).map(Scope::clone)
+  }
+
+  pub fn child_scope_count(&self) -> usize {
+    self.index.borrow()[self.id].child_scopes.len()
+  }
+
+  /// Adds a new binding to this scope. If a binding with the same name has been
+  /// added earlier, that binding is removed and returned.
+  pub fn add_binding(
+    &mut self,
+    binding_name: impl Display,
+    binding_kind: BindingKind,
+  ) -> Option<BindingKind> {
+    self.index.borrow_mut()[self.id]
+      .bindings
+      .insert(binding_name.to_string(), binding_kind)
+  }
+
+  pub fn get_binding(
+    &self,
+    binding_name: impl AsRef<str>,
+  ) -> Option<BindingKind> {
+    let binding_name = binding_name.as_ref();
+    let scopes = self.index.borrow();
+    let mut scope_id = self.id;
+    loop {
+      let scope_data = &scopes[scope_id];
+      if let Some(&binding_kind) = scope_data.bindings.get(binding_name) {
+        break Some(binding_kind);
+      } else if let Some(parent) = &scope_data.parent_scope {
+        scope_id = parent.id;
+      } else {
+        break None;
+      }
     }
   }
+}
 
-  pub fn add_binding(&mut self, binding: Binding) {
-    self.bindings.insert(binding.name.to_string(), binding);
+#[derive(Clone, Debug, Default)]
+struct ScopeIndex(Rc<RefCell<Vec<ScopeData>>>);
+
+impl Deref for ScopeIndex {
+  type Target = RefCell<Vec<ScopeData>>;
+  fn deref(&self) -> &Self::Target {
+    &self.0
   }
+}
 
-  pub fn get_binding(&self, name: &str) -> Option<&Binding> {
-    self.bindings.get(name)
+impl Eq for ScopeIndex {}
+
+impl PartialEq for ScopeIndex {
+  fn eq(&self, other: &Self) -> bool {
+    Rc::as_ptr(&self.0) == Rc::as_ptr(&other.0)
+  }
+}
+
+impl Hash for ScopeIndex {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    Rc::as_ptr(&self.0).hash(state)
+  }
+}
+
+impl ScopeIndex {
+  fn add_scope(&self, scope_data: ScopeData) -> Scope {
+    let mut parent_scope = scope_data.parent_scope.clone();
+    let scope = {
+      let scopes = &mut self.borrow_mut();
+      let id = scopes.len();
+      scopes.push(scope_data);
+      Scope {
+        id,
+        index: self.clone(),
+      }
+    };
+    match parent_scope.as_mut() {
+      Some(p) => p.add_child_scope(&scope),
+      None => assert_eq!(scope.id, 0),
+    };
+    scope
   }
 }
 
 #[derive(Debug)]
-pub struct ScopeManager {
-  pub scopes: HashMap<u32, Scope>,
-  pub scope_stack: Vec<u32>,
-}
-
-impl ScopeManager {
-  pub fn default() -> Self {
-    Self {
-      scopes: HashMap::new(),
-      scope_stack: vec![],
-    }
-  }
-
-  pub fn set_root_scope(&mut self, scope: Scope) {
-    self.scope_stack.push(scope.id);
-    self.scopes.insert(scope.id, scope);
-  }
-
-  pub fn enter_scope(&mut self, scope: Scope) {
-    let current_scope = self.get_current_scope_mut();
-    current_scope.child_scopes.push(scope.id);
-    self.scope_stack.push(scope.id);
-    self.scopes.insert(scope.id, scope);
-  }
-
-  pub fn exit_scope(&mut self, scope_id: u32) {
-    assert!(self.scope_stack.len() > 1);
-    let exit_id = self.scope_stack.pop().unwrap();
-    assert_eq!(exit_id, scope_id);
-  }
-
-  pub fn get_root_scope(&self) -> &Scope {
-    self.get_scope(*self.scope_stack.first().unwrap()).unwrap()
-  }
-
-  pub fn get_current_scope_id(&self) -> u32 {
-    assert!(!self.scope_stack.is_empty());
-    *self.scope_stack.last().unwrap()
-  }
-
-  #[allow(unused)]
-  pub fn get_current_scope(&self) -> &Scope {
-    self.get_scope(self.get_current_scope_id()).unwrap()
-  }
-
-  pub fn get_current_scope_mut(&mut self) -> &mut Scope {
-    self.get_scope_mut(self.get_current_scope_id()).unwrap()
-  }
-
-  pub fn get_scope(&self, id: u32) -> Option<&Scope> {
-    self.scopes.get(&id)
-  }
-
-  pub fn get_scope_mut(&mut self, id: u32) -> Option<&mut Scope> {
-    self.scopes.get_mut(&id)
-  }
-
-  pub fn add_binding(&mut self, binding: Binding) {
-    let current_scope = self.get_current_scope_mut();
-    current_scope.add_binding(binding);
-  }
-
-  #[allow(unused)]
-  pub fn get_parent_scope(&self, scope: &Scope) -> Option<&Scope> {
-    if let Some(parent_scope_id) = scope.parent_id {
-      return self.get_scope(parent_scope_id);
-    }
-    None
-  }
-
-  pub fn get_binding<'a>(
-    &'a self,
-    s: &'a Scope,
-    name: &str,
-  ) -> Option<&'a Binding> {
-    let mut scope = s;
-
-    loop {
-      if let Some(binding) = scope.get_binding(name) {
-        return Some(binding);
-      }
-      if let Some(parent_id) = scope.parent_id {
-        scope = self.get_scope(parent_id).unwrap();
-      } else {
-        break;
-      }
-    }
-
-    None
-  }
-
-  fn find_scope(&self, child_scopes: &[u32], span: Span) -> Option<u32> {
-    for scope_id in child_scopes {
-      let child_scope = self.get_scope(*scope_id).unwrap();
-      if child_scope.span.contains(span) {
-        let found_scope_id =
-          match self.find_scope(&child_scope.child_scopes, span) {
-            Some(id) => id,
-            None => child_scope.id,
-          };
-        return Some(found_scope_id);
-      }
-    }
-
-    None
-  }
-
-  pub fn get_scope_for_span(&self, span: Span) -> &Scope {
-    let root_scope = self.get_root_scope();
-
-    let scope_id = match self.find_scope(&root_scope.child_scopes, span) {
-      Some(id) => id,
-      None => root_scope.id,
-    };
-
-    let scope = self.get_scope(scope_id).unwrap();
-    &scope
-  }
-}
-
 pub struct ScopeVisitor {
-  pub scope_manager: ScopeManager,
+  pub scope_stack: Vec<Scope>,
 }
 
-fn next_id() -> u32 {
-  NEXT_ID.fetch_add(1, Ordering::Relaxed)
+impl Default for ScopeVisitor {
+  fn default() -> Self {
+    let program_scope = Scope::new(ScopeKind::Program, DUMMY_SP, None);
+    let scope_stack = vec![program_scope];
+    Self { scope_stack }
+  }
 }
 
 impl ScopeVisitor {
-  fn create_fn_scope(&mut self, function: &swc_ecma_ast::Function) {
+  pub fn enter_scope(&mut self, scope: &Scope) {
+    self.scope_stack.push(scope.clone());
+  }
+
+  pub fn exit_scope(&mut self, scope: &Scope) {
+    assert!(self.scope_stack.len() > 1);
+    let exited_scope = self.scope_stack.pop().unwrap();
+    assert_eq!(&exited_scope, scope);
+  }
+
+  pub fn get_current_scope(&self) -> Scope {
+    assert!(!self.scope_stack.is_empty());
+    self.scope_stack.last().unwrap().clone()
+  }
+
+  pub fn get_root_scope(&self) -> Scope {
+    self.scope_stack[0].clone()
+  }
+
+  fn create_fn_scope(&mut self, function: &swc_ecmascript::ast::Function) {
     if let Some(body) = &function.body {
       let fn_scope = Scope::new(
         ScopeKind::Function,
         function.span,
-        Some(self.scope_manager.get_current_scope_id()),
+        Some(self.get_current_scope()),
       );
-      let fn_scope_id = fn_scope.id;
-      self.scope_manager.enter_scope(fn_scope);
-
+      self.enter_scope(&fn_scope);
       self.visit_function(&function, body);
-
-      self.scope_manager.exit_scope(fn_scope_id);
+      self.exit_scope(&fn_scope);
     }
   }
 
   fn create_getter_or_setter_scope(
     &mut self,
-    body: &Option<swc_ecma_ast::BlockStmt>,
+    body: &Option<swc_ecmascript::ast::BlockStmt>,
   ) {
     if let Some(body) = &body {
       let gs_scope = Scope::new(
         ScopeKind::Function,
         body.span,
-        Some(self.scope_manager.get_current_scope_id()),
+        Some(self.get_current_scope()),
       );
-      let gs_scope_id = gs_scope.id;
-      self.scope_manager.enter_scope(gs_scope);
+      self.enter_scope(&gs_scope);
       for stmt in body.stmts.iter() {
         self.visit_stmt(stmt, body);
       }
-      self.scope_manager.exit_scope(gs_scope_id);
-    }
-  }
-}
-
-impl ScopeVisitor {
-  pub fn new() -> Self {
-    Self {
-      scope_manager: ScopeManager::default(),
+      self.exit_scope(&gs_scope);
     }
   }
 
-  pub fn consume(self) -> ScopeManager {
-    self.scope_manager
-  }
-
-  fn check_object_lit(&mut self, obj: &swc_ecma_ast::ObjectLit) {
+  fn check_object_lit(&mut self, obj: &swc_ecmascript::ast::ObjectLit) {
     if obj.props.is_empty() {
       return;
     }
-    use swc_ecma_ast::Prop::*;
+    use swc_ecmascript::ast::Prop::*;
     for prop in obj.props.iter() {
-      if let swc_ecma_ast::PropOrSpread::Prop(prop_expr) = prop {
+      if let swc_ecmascript::ast::PropOrSpread::Prop(prop_expr) = prop {
         match &**prop_expr {
           Method(method_prop) => {
             self.create_fn_scope(&method_prop.function);
           }
           KeyValue(kv_prop) => {
-            if let swc_ecma_ast::Expr::Fn(fn_expr) = &*kv_prop.value {
+            if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*kv_prop.value {
               self.create_fn_scope(&fn_expr.function);
             } else {
               self.check_expr(&kv_prop.value);
@@ -282,28 +300,28 @@ impl ScopeVisitor {
     }
   }
 
-  fn check_expr(&mut self, expr: &swc_ecma_ast::Expr) {
+  fn check_expr(&mut self, expr: &swc_ecmascript::ast::Expr) {
     match expr {
-      swc_ecma_ast::Expr::Arrow(arrow) => {
+      swc_ecmascript::ast::Expr::Arrow(arrow) => {
         self.visit_block_stmt_or_expr(&arrow.body, arrow);
       }
-      swc_ecma_ast::Expr::Object(obj_lit) => {
+      swc_ecmascript::ast::Expr::Object(obj_lit) => {
         self.check_object_lit(&obj_lit);
       }
-      swc_ecma_ast::Expr::Array(arr_lit) => {
+      swc_ecmascript::ast::Expr::Array(arr_lit) => {
         self.check_array_lit(&arr_lit);
       }
       _ => {}
     }
   }
 
-  fn check_array_lit(&mut self, arr: &swc_ecma_ast::ArrayLit) {
+  fn check_array_lit(&mut self, arr: &swc_ecmascript::ast::ArrayLit) {
     if arr.elems.is_empty() {
       return;
     }
     for elem in arr.elems.iter() {
       if let Some(element) = elem {
-        if let swc_ecma_ast::Expr::Fn(fn_expr) = &*element.expr {
+        if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*element.expr {
           self.create_fn_scope(&fn_expr.function);
         } else {
           self.check_expr(&element.expr);
@@ -315,10 +333,7 @@ impl ScopeVisitor {
   fn check_pat(&mut self, pat: &Pat, kind: BindingKind) {
     match pat {
       Pat::Ident(ident) => {
-        self.scope_manager.add_binding(Binding {
-          kind,
-          name: ident.sym.to_string(),
-        });
+        self.get_current_scope().add_binding(&ident.sym, kind);
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, kind);
@@ -338,23 +353,22 @@ impl ScopeVisitor {
 
   fn check_obj_pat(
     &mut self,
-    object: &swc_ecma_ast::ObjectPat,
+    object: &swc_ecmascript::ast::ObjectPat,
     kind: BindingKind,
   ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         match prop {
           ObjectPatProp::Assign(assign_prop) => {
-            self.scope_manager.add_binding(Binding {
-              kind: kind.clone(),
-              name: assign_prop.key.sym.to_string(),
-            });
+            self
+              .get_current_scope()
+              .add_binding(&assign_prop.key.sym, kind);
           }
           ObjectPatProp::KeyValue(kv_prop) => {
-            self.check_pat(&kv_prop.value, kind.clone());
+            self.check_pat(&kv_prop.value, kind);
           }
           ObjectPatProp::Rest(rest) => {
-            self.check_pat(&rest.arg, kind.clone());
+            self.check_pat(&rest.arg, kind);
           }
         }
       }
@@ -363,13 +377,13 @@ impl ScopeVisitor {
 
   fn check_array_pat(
     &mut self,
-    array: &swc_ecma_ast::ArrayPat,
+    array: &swc_ecmascript::ast::ArrayPat,
     kind: BindingKind,
   ) {
     if !array.elems.is_empty() {
       for elem in array.elems.iter() {
         if let Some(element) = elem {
-          self.check_pat(element, kind.clone());
+          self.check_pat(element, kind);
         }
       }
     }
@@ -377,27 +391,24 @@ impl ScopeVisitor {
 }
 
 impl Visit for ScopeVisitor {
-  fn visit_module(&mut self, module: &swc_ecma_ast::Module, parent: &dyn Node) {
-    let program_scope = Scope::new(ScopeKind::Program, module.span, None);
-    self.scope_manager.set_root_scope(program_scope);
-
+  fn visit_module(
+    &mut self,
+    module: &swc_ecmascript::ast::Module,
+    parent: &dyn Node,
+  ) {
     let module_scope = Scope::new(
       ScopeKind::Module,
       module.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let module_scope_id = module_scope.id;
-    self.scope_manager.enter_scope(module_scope);
-
-    swc_ecma_visit::visit_module(self, module, parent);
-
-    self.scope_manager.exit_scope(module_scope_id);
-    // program scope is left on stack
+    self.enter_scope(&module_scope);
+    swc_ecmascript::visit::visit_module(self, module, parent);
+    self.exit_scope(&module_scope);
   }
 
   fn visit_object_lit(
     &mut self,
-    obj_lit: &swc_ecma_ast::ObjectLit,
+    obj_lit: &swc_ecmascript::ast::ObjectLit,
     _parent: &dyn Node,
   ) {
     self.check_object_lit(obj_lit);
@@ -405,7 +416,7 @@ impl Visit for ScopeVisitor {
 
   fn visit_array_lit(
     &mut self,
-    arr_lit: &swc_ecma_ast::ArrayLit,
+    arr_lit: &swc_ecmascript::ast::ArrayLit,
     _parent: &dyn Node,
   ) {
     self.check_array_lit(arr_lit);
@@ -413,14 +424,14 @@ impl Visit for ScopeVisitor {
 
   fn visit_call_expr(
     &mut self,
-    call_expr: &swc_ecma_ast::CallExpr,
+    call_expr: &swc_ecmascript::ast::CallExpr,
     _parent: &dyn Node,
   ) {
     if call_expr.args.is_empty() {
       return;
     }
     for arg in call_expr.args.iter() {
-      if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
+      if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*arg.expr {
         self.create_fn_scope(&fn_expr.function);
       } else {
         self.check_expr(&arg.expr)
@@ -430,12 +441,12 @@ impl Visit for ScopeVisitor {
 
   fn visit_new_expr(
     &mut self,
-    new_expr: &swc_ecma_ast::NewExpr,
+    new_expr: &swc_ecmascript::ast::NewExpr,
     _parent: &dyn Node,
   ) {
     if let Some(args) = &new_expr.args {
       for arg in args.iter() {
-        if let swc_ecma_ast::Expr::Fn(fn_expr) = &*arg.expr {
+        if let swc_ecmascript::ast::Expr::Fn(fn_expr) = &*arg.expr {
           self.create_fn_scope(&fn_expr.function);
         } else {
           self.check_expr(&arg.expr)
@@ -446,92 +457,78 @@ impl Visit for ScopeVisitor {
 
   fn visit_fn_decl(
     &mut self,
-    fn_decl: &swc_ecma_ast::FnDecl,
+    fn_decl: &swc_ecmascript::ast::FnDecl,
     parent: &dyn Node,
   ) {
-    let name = fn_decl.ident.sym.to_string();
-    let fn_binding = Binding {
-      kind: BindingKind::Function,
-      name,
-    };
-    self.scope_manager.add_binding(fn_binding);
-
+    self
+      .get_current_scope()
+      .add_binding(&fn_decl.ident.sym, BindingKind::Function);
     let fn_scope = Scope::new(
       ScopeKind::Function,
       fn_decl.function.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let fn_scope_id = fn_scope.id;
-    self.scope_manager.enter_scope(fn_scope);
-
-    swc_ecma_visit::visit_fn_decl(self, fn_decl, parent);
-
-    self.scope_manager.exit_scope(fn_scope_id);
+    self.enter_scope(&fn_scope);
+    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
+    self.exit_scope(&fn_scope);
   }
 
   fn visit_class_decl(
     &mut self,
-    class_decl: &swc_ecma_ast::ClassDecl,
+    class_decl: &swc_ecmascript::ast::ClassDecl,
     parent: &dyn Node,
   ) {
-    let class_binding = Binding {
-      kind: BindingKind::Class,
-      name: class_decl.ident.sym.to_string(),
-    };
-    self.scope_manager.add_binding(class_binding);
-
+    self
+      .get_current_scope()
+      .add_binding(&class_decl.ident.sym, BindingKind::Class);
     let class_scope = Scope::new(
       ScopeKind::Class,
       class_decl.class.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let class_scope_id = class_scope.id;
-    self.scope_manager.enter_scope(class_scope);
-
-    swc_ecma_visit::visit_class_decl(self, class_decl, parent);
-
-    self.scope_manager.exit_scope(class_scope_id);
+    self.enter_scope(&class_scope);
+    swc_ecmascript::visit::visit_class_decl(self, class_decl, parent);
+    self.exit_scope(&class_scope);
   }
 
   fn visit_function(
     &mut self,
-    function: &swc_ecma_ast::Function,
+    function: &swc_ecmascript::ast::Function,
     _parent: &dyn Node,
   ) {
     for param in &function.params {
       self.check_pat(&param.pat, BindingKind::Param);
     }
 
-    // Not calling `swc_ecma_visit::visit_function` but instead
+    // Not calling `swc_ecmascript::visit::visit_function` but instead
     // directly visiting body elements - otherwise additional
     // block scope will be created which is undesirable
     if let Some(body) = &function.body {
       for stmt in &body.stmts {
-        swc_ecma_visit::visit_stmt(self, stmt, body);
+        swc_ecmascript::visit::visit_stmt(self, stmt, body);
       }
     }
   }
 
   fn visit_import_specifier(
     &mut self,
-    import_spec: &swc_ecma_ast::ImportSpecifier,
+    import_spec: &swc_ecmascript::ast::ImportSpecifier,
     _parent: &dyn Node,
   ) {
-    use swc_ecma_ast::ImportSpecifier::*;
+    use swc_ecmascript::ast::ImportSpecifier::*;
     let local = match import_spec {
       Named(named) => &named.local,
       Default(default) => &default.local,
       Namespace(namespace) => &namespace.local,
     };
-    self.scope_manager.add_binding(Binding {
-      kind: BindingKind::Import,
-      name: local.sym.to_string(),
-    });
+    self
+      .get_current_scope()
+      .add_binding(&local.sym, BindingKind::Import);
   }
 
   fn visit_with_stmt(
     &mut self,
-    with_stmt: &swc_ecma_ast::WithStmt,
+    with_stmt: &swc_ecmascript::ast::WithStmt,
     _parent: &dyn Node,
   ) {
     self.visit_expr(&*with_stmt.obj, with_stmt);
@@ -539,17 +536,16 @@ impl Visit for ScopeVisitor {
     let with_scope = Scope::new(
       ScopeKind::With,
       with_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let with_scope_id = with_scope.id;
-    self.scope_manager.enter_scope(with_scope);
-    swc_ecma_visit::visit_stmt(self, &*with_stmt.body, with_stmt);
-    self.scope_manager.exit_scope(with_scope_id);
+    self.enter_scope(&with_scope);
+    swc_ecmascript::visit::visit_stmt(self, &*with_stmt.body, with_stmt);
+    self.exit_scope(&with_scope);
   }
 
   fn visit_switch_stmt(
     &mut self,
-    switch_stmt: &swc_ecma_ast::SwitchStmt,
+    switch_stmt: &swc_ecmascript::ast::SwitchStmt,
     _parent: &dyn Node,
   ) {
     self.visit_expr(&*switch_stmt.discriminant, switch_stmt);
@@ -557,22 +553,21 @@ impl Visit for ScopeVisitor {
     let switch_scope = Scope::new(
       ScopeKind::Switch,
       switch_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let switch_scope_id = switch_scope.id;
-    self.scope_manager.enter_scope(switch_scope);
+    self.enter_scope(&switch_scope);
     for case in &switch_stmt.cases {
-      swc_ecma_visit::visit_switch_case(self, case, switch_stmt);
+      swc_ecmascript::visit::visit_switch_case(self, case, switch_stmt);
     }
-    self.scope_manager.exit_scope(switch_scope_id);
+    self.exit_scope(&switch_scope);
   }
 
   fn visit_var_decl(
     &mut self,
-    var_decl: &swc_ecma_ast::VarDecl,
+    var_decl: &swc_ecmascript::ast::VarDecl,
     parent: &dyn Node,
   ) {
-    use swc_ecma_ast::VarDeclKind;
+    use swc_ecmascript::ast::VarDeclKind;
 
     let var_kind = match &var_decl.kind {
       VarDeclKind::Var => BindingKind::Var,
@@ -581,164 +576,160 @@ impl Visit for ScopeVisitor {
     };
 
     for decl in &var_decl.decls {
-      self.check_pat(&decl.name, var_kind.clone());
+      self.check_pat(&decl.name, var_kind);
     }
-    swc_ecma_visit::visit_var_decl(self, var_decl, parent);
+    swc_ecmascript::visit::visit_var_decl(self, var_decl, parent);
   }
 
   fn visit_block_stmt(
     &mut self,
-    block_stmt: &swc_ecma_ast::BlockStmt,
+    block_stmt: &swc_ecmascript::ast::BlockStmt,
     parent: &dyn Node,
   ) {
     let block_scope = Scope::new(
       ScopeKind::Block,
       block_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let block_scope_id = block_scope.id;
-    self.scope_manager.enter_scope(block_scope);
-
-    swc_ecma_visit::visit_block_stmt(self, block_stmt, parent);
-    self.scope_manager.exit_scope(block_scope_id);
+    self.enter_scope(&block_scope);
+    swc_ecmascript::visit::visit_block_stmt(self, block_stmt, parent);
+    self.exit_scope(&block_scope);
   }
 
   fn visit_catch_clause(
     &mut self,
-    catch_clause: &swc_ecma_ast::CatchClause,
+    catch_clause: &swc_ecmascript::ast::CatchClause,
     _parent: &dyn Node,
   ) {
     let catch_scope = Scope::new(
       ScopeKind::Catch,
       catch_clause.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let catch_scope_id = catch_scope.id;
-    self.scope_manager.enter_scope(catch_scope);
+    self.enter_scope(&catch_scope);
 
     if let Some(pat) = &catch_clause.param {
       self.check_pat(pat, BindingKind::CatchClause);
     }
 
-    // Not calling `swc_ecma_visit::visit_class` but instead
+    // Not calling `swc_ecmascript::visit::visit_class` but instead
     // directly visiting body elements - otherwise additional
     // block scope will be created which is undesirable
     for stmt in &catch_clause.body.stmts {
-      swc_ecma_visit::visit_stmt(self, stmt, &catch_clause.body);
+      swc_ecmascript::visit::visit_stmt(self, stmt, &catch_clause.body);
     }
 
-    self.scope_manager.exit_scope(catch_scope_id);
+    self.exit_scope(&catch_scope);
   }
 
   fn visit_for_stmt(
     &mut self,
-    for_stmt: &swc_ecma_ast::ForStmt,
+    for_stmt: &swc_ecmascript::ast::ForStmt,
     parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
       for_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let loop_scope_id = loop_scope.id;
-    self.scope_manager.enter_scope(loop_scope);
-    if let Some(swc_ecma_ast::VarDeclOrExpr::VarDecl(var_decl)) =
+    self.enter_scope(&loop_scope);
+    if let Some(swc_ecmascript::ast::VarDeclOrExpr::VarDecl(var_decl)) =
       for_stmt.init.as_ref()
     {
       self.visit_var_decl(var_decl, parent);
     }
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*for_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_stmt.body);
       }
     }
-    self.scope_manager.exit_scope(loop_scope_id);
+    self.exit_scope(&loop_scope);
   }
 
   fn visit_for_in_stmt(
     &mut self,
-    for_in_stmt: &swc_ecma_ast::ForInStmt,
+    for_in_stmt: &swc_ecmascript::ast::ForInStmt,
     parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
       for_in_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let loop_scope_id = loop_scope.id;
-    self.scope_manager.enter_scope(loop_scope);
-    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
+    self.enter_scope(&loop_scope);
+    if let swc_ecmascript::ast::VarDeclOrPat::VarDecl(var_decl) =
+      &for_in_stmt.left
+    {
       self.visit_var_decl(var_decl, parent);
     }
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_in_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*for_in_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_in_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_in_stmt.body);
       }
     }
-    self.scope_manager.exit_scope(loop_scope_id);
+    self.exit_scope(&loop_scope);
   }
 
   fn visit_for_of_stmt(
     &mut self,
-    for_of_stmt: &swc_ecma_ast::ForOfStmt,
+    for_of_stmt: &swc_ecmascript::ast::ForOfStmt,
     parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
       for_of_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let loop_scope_id = loop_scope.id;
-    self.scope_manager.enter_scope(loop_scope);
-    if let swc_ecma_ast::VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
+    self.enter_scope(&loop_scope);
+    if let swc_ecmascript::ast::VarDeclOrPat::VarDecl(var_decl) =
+      &for_of_stmt.left
+    {
       self.visit_var_decl(var_decl, parent);
     }
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*for_of_stmt.body {
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*for_of_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &for_of_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &for_of_stmt.body);
       }
     }
-    self.scope_manager.exit_scope(loop_scope_id);
+    self.exit_scope(&loop_scope);
   }
 
   fn visit_while_stmt(
     &mut self,
-    while_stmt: &swc_ecma_ast::WhileStmt,
+    while_stmt: &swc_ecmascript::ast::WhileStmt,
     _parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
       while_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let loop_scope_id = loop_scope.id;
-    self.scope_manager.enter_scope(loop_scope);
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*while_stmt.body {
+    self.enter_scope(&loop_scope);
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*while_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &while_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &while_stmt.body);
       }
     }
-    self.scope_manager.exit_scope(loop_scope_id);
+    self.exit_scope(&loop_scope);
   }
 
   fn visit_do_while_stmt(
     &mut self,
-    do_while_stmt: &swc_ecma_ast::DoWhileStmt,
+    do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
     _parent: &dyn Node,
   ) {
     let loop_scope = Scope::new(
       ScopeKind::Loop,
       do_while_stmt.span,
-      Some(self.scope_manager.get_current_scope_id()),
+      Some(self.get_current_scope()),
     );
-    let loop_scope_id = loop_scope.id;
-    self.scope_manager.enter_scope(loop_scope);
-    if let swc_ecma_ast::Stmt::Block(body_block) = &*do_while_stmt.body {
+    self.enter_scope(&loop_scope);
+    if let swc_ecmascript::ast::Stmt::Block(body_block) = &*do_while_stmt.body {
       for stmt in &body_block.stmts {
-        swc_ecma_visit::visit_stmt(self, &stmt, &do_while_stmt.body);
+        swc_ecmascript::visit::visit_stmt(self, &stmt, &do_while_stmt.body);
       }
     }
-    self.scope_manager.exit_scope(loop_scope_id);
+    self.exit_scope(&loop_scope);
   }
 }
 
@@ -747,26 +738,17 @@ mod tests {
   use super::*;
   use crate::swc_util;
   use crate::swc_util::AstParser;
-  use crate::swc_util::SwcDiagnosticBuffer;
 
-  fn test_scopes(source_code: &str) -> ScopeManager {
+  fn test_scopes(source_code: &str) -> Scope {
     let ast_parser = AstParser::new();
     let syntax = swc_util::get_default_ts_config();
-
-    let r: Result<ScopeManager, SwcDiagnosticBuffer> = ast_parser.parse_module(
-      "file_name.ts",
-      syntax,
-      source_code,
-      |parse_result, _comments| {
-        let module = parse_result?;
-        let mut scope_visitor = ScopeVisitor::new();
-        scope_visitor.visit_module(&module, &module);
-        let root_scope = scope_visitor.consume();
-        Ok(root_scope)
-      },
-    );
-    assert!(r.is_ok());
-    r.unwrap()
+    let (parse_result, _comments) =
+      ast_parser.parse_module("file_name.ts", syntax, source_code);
+    let module = parse_result.unwrap();
+    let mut scope_visitor = ScopeVisitor::default();
+    let root_scope = scope_visitor.get_root_scope();
+    scope_visitor.visit_module(&module, &module);
+    root_scope
   }
 
   #[test]
@@ -794,38 +776,31 @@ try {
   const msg = "asdf " + e.message;
 }
 "#;
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 4);
 
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 4);
+    let fn_scope = module_scope.get_child_scope(0).unwrap();
+    assert_eq!(fn_scope.get_kind(), ScopeKind::Function);
+    assert_eq!(fn_scope.child_scope_count(), 1);
 
-    let fn_scope_id = *module_scope.child_scopes.first().unwrap();
-    let fn_scope = scope_manager.get_scope(fn_scope_id).unwrap();
-    assert_eq!(fn_scope.kind, ScopeKind::Function);
-    assert_eq!(fn_scope.child_scopes.len(), 1);
+    let block_scope = fn_scope.get_child_scope(0).unwrap();
+    assert_eq!(block_scope.get_kind(), ScopeKind::Block);
+    assert_eq!(block_scope.child_scope_count(), 0);
 
-    let block_scope_id = *fn_scope.child_scopes.first().unwrap();
-    let block_scope = scope_manager.get_scope(block_scope_id).unwrap();
-    assert_eq!(block_scope.kind, ScopeKind::Block);
-    assert_eq!(block_scope.child_scopes.len(), 0);
+    let class_scope = module_scope.get_child_scope(1).unwrap();
+    assert_eq!(class_scope.get_kind(), ScopeKind::Class);
+    assert_eq!(class_scope.child_scope_count(), 0);
 
-    let class_scope_id = *module_scope.child_scopes.get(1).unwrap();
-    let class_scope = scope_manager.get_scope(class_scope_id).unwrap();
-    assert_eq!(class_scope.kind, ScopeKind::Class);
-    assert_eq!(class_scope.child_scopes.len(), 0);
-
-    let catch_scope_id = *module_scope.child_scopes.get(3).unwrap();
-    let catch_scope = scope_manager.get_scope(catch_scope_id).unwrap();
-    assert_eq!(catch_scope.kind, ScopeKind::Catch);
-    assert_eq!(catch_scope.child_scopes.len(), 0);
+    let catch_scope = module_scope.get_child_scope(3).unwrap();
+    assert_eq!(catch_scope.get_kind(), ScopeKind::Catch);
+    assert_eq!(catch_scope.child_scope_count(), 0);
     let catch_clause_e = catch_scope.get_binding("e").unwrap();
-    assert_eq!(catch_clause_e.kind, BindingKind::CatchClause);
+    assert_eq!(catch_clause_e, BindingKind::CatchClause);
   }
 
   #[test]
@@ -844,21 +819,17 @@ switch (foo) {
     return defaultVal;
 }
 "#;
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 1);
 
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 1);
-
-    let switch_scope_id = *module_scope.child_scopes.first().unwrap();
-    let switch_scope = scope_manager.get_scope(switch_scope_id).unwrap();
-    assert_eq!(switch_scope.kind, ScopeKind::Switch);
-    assert_eq!(switch_scope.child_scopes.len(), 0);
+    let switch_scope = module_scope.get_child_scope(0).unwrap();
+    assert_eq!(switch_scope.get_kind(), ScopeKind::Switch);
+    assert_eq!(switch_scope.child_scope_count(), 0);
     assert!(switch_scope.get_binding("a").is_some());
     assert!(switch_scope.get_binding("defaultVal").is_some());
   }
@@ -871,44 +842,36 @@ switch (foo) {
     while (i > 1) {}
     do {} while (i > 1)
 "#;
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 5);
 
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 5);
-
-    let for_scope_id = *module_scope.child_scopes.first().unwrap();
-    let for_scope = scope_manager.get_scope(for_scope_id).unwrap();
-    assert_eq!(for_scope.kind, ScopeKind::Loop);
-    assert_eq!(for_scope.child_scopes.len(), 0);
+    let for_scope = module_scope.get_child_scope(0).unwrap();
+    assert_eq!(for_scope.get_kind(), ScopeKind::Loop);
+    assert_eq!(for_scope.child_scope_count(), 0);
     assert!(for_scope.get_binding("i").is_some());
 
-    let for_in_scope_id = *module_scope.child_scopes.get(1).unwrap();
-    let for_in_scope = scope_manager.get_scope(for_in_scope_id).unwrap();
-    assert_eq!(for_in_scope.kind, ScopeKind::Loop);
-    assert_eq!(for_in_scope.child_scopes.len(), 0);
+    let for_in_scope = module_scope.get_child_scope(1).unwrap();
+    assert_eq!(for_in_scope.get_kind(), ScopeKind::Loop);
+    assert_eq!(for_in_scope.child_scope_count(), 0);
     assert!(for_in_scope.get_binding("i").is_some());
 
-    let for_of_scope_id = *module_scope.child_scopes.get(2).unwrap();
-    let for_of_scope = scope_manager.get_scope(for_of_scope_id).unwrap();
-    assert_eq!(for_of_scope.kind, ScopeKind::Loop);
-    assert_eq!(for_of_scope.child_scopes.len(), 0);
+    let for_of_scope = module_scope.get_child_scope(2).unwrap();
+    assert_eq!(for_of_scope.get_kind(), ScopeKind::Loop);
+    assert_eq!(for_of_scope.child_scope_count(), 0);
     assert!(for_of_scope.get_binding("i").is_some());
 
-    let while_scope_id = *module_scope.child_scopes.get(3).unwrap();
-    let while_scope = scope_manager.get_scope(while_scope_id).unwrap();
-    assert_eq!(while_scope.kind, ScopeKind::Loop);
-    assert_eq!(while_scope.child_scopes.len(), 0);
+    let while_scope = module_scope.get_child_scope(3).unwrap();
+    assert_eq!(while_scope.get_kind(), ScopeKind::Loop);
+    assert_eq!(while_scope.child_scope_count(), 0);
 
-    let do_while_scope_id = *module_scope.child_scopes.last().unwrap();
-    let do_while_scope = scope_manager.get_scope(do_while_scope_id).unwrap();
-    assert_eq!(do_while_scope.kind, ScopeKind::Loop);
-    assert_eq!(do_while_scope.child_scopes.len(), 0);
+    let do_while_scope = module_scope.get_child_scope(-1).unwrap();
+    assert_eq!(do_while_scope.get_kind(), ScopeKind::Loop);
+    assert_eq!(do_while_scope.child_scope_count(), 0);
   }
 
   #[test]
@@ -918,24 +881,19 @@ switch (foo) {
     new Deno(function(){});
     "#;
 
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 2);
 
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 2);
+    let call_fn_scope = module_scope.get_child_scope(0).unwrap();
+    assert_eq!(call_fn_scope.get_kind(), ScopeKind::Function);
 
-    let call_fn_scope_id = *module_scope.child_scopes.first().unwrap();
-    let call_fn_scope = scope_manager.get_scope(call_fn_scope_id).unwrap();
-    assert_eq!(call_fn_scope.kind, ScopeKind::Function);
-
-    let new_fn_scope_id = *module_scope.child_scopes.last().unwrap();
-    let new_fn_scope = scope_manager.get_scope(new_fn_scope_id).unwrap();
-    assert_eq!(new_fn_scope.kind, ScopeKind::Function);
+    let new_fn_scope = module_scope.get_child_scope(-1).unwrap();
+    assert_eq!(new_fn_scope.get_kind(), ScopeKind::Function);
   }
 
   #[test]
@@ -961,40 +919,29 @@ switch (foo) {
       }
     }
     "#;
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 4);
 
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 4);
-
-    let obj_method_scope_id = *module_scope.child_scopes.first().unwrap();
-    let obj_method_scope =
-      scope_manager.get_scope(obj_method_scope_id).unwrap();
-    assert_eq!(obj_method_scope.kind, ScopeKind::Function);
+    let obj_method_scope = module_scope.get_child_scope(0).unwrap();
+    assert_eq!(obj_method_scope.get_kind(), ScopeKind::Function);
     assert!(obj_method_scope.get_binding("e").is_some());
 
-    let obj_nested_method_scope_id = *module_scope.child_scopes.get(1).unwrap();
-    let obj_nested_method_scope =
-      scope_manager.get_scope(obj_nested_method_scope_id).unwrap();
-    assert_eq!(obj_nested_method_scope.kind, ScopeKind::Function);
+    let obj_nested_method_scope = module_scope.get_child_scope(1).unwrap();
+    assert_eq!(obj_nested_method_scope.get_kind(), ScopeKind::Function);
     assert!(obj_nested_method_scope.get_binding("f").is_some());
 
-    let obj_getter_scope_id = *module_scope.child_scopes.get(2).unwrap();
-    let obj_getter_scope =
-      scope_manager.get_scope(obj_getter_scope_id).unwrap();
-    assert_eq!(obj_getter_scope.kind, ScopeKind::Function);
+    let obj_getter_scope = module_scope.get_child_scope(2).unwrap();
+    assert_eq!(obj_getter_scope.get_kind(), ScopeKind::Function);
     assert!(obj_getter_scope.get_binding("g").is_some());
     assert!(obj_getter_scope.get_binding("h").is_none());
 
-    let obj_setter_scope_id = *module_scope.child_scopes.get(3).unwrap();
-    let obj_setter_scope =
-      scope_manager.get_scope(obj_setter_scope_id).unwrap();
-    assert_eq!(obj_setter_scope.kind, ScopeKind::Function);
+    let obj_setter_scope = module_scope.get_child_scope(3).unwrap();
+    assert_eq!(obj_setter_scope.get_kind(), ScopeKind::Function);
     assert!(obj_setter_scope.get_binding("h").is_some());
     assert!(obj_setter_scope.get_binding("g").is_none());
   }
@@ -1016,42 +963,30 @@ switch (foo) {
     ]
     "#;
 
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 4);
 
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 4);
-
-    let array_fn_scope_id = *module_scope.child_scopes.first().unwrap();
-    let array_fn_scope = scope_manager.get_scope(array_fn_scope_id).unwrap();
-    assert_eq!(array_fn_scope.kind, ScopeKind::Function);
+    let array_fn_scope = module_scope.get_child_scope(0).unwrap();
+    assert_eq!(array_fn_scope.get_kind(), ScopeKind::Function);
     assert!(array_fn_scope.get_binding("a").is_some());
     assert!(array_fn_scope.get_binding("b").is_none());
 
-    let array_arrow_scope_id = *module_scope.child_scopes.get(1).unwrap();
-    let array_arrow_scope =
-      scope_manager.get_scope(array_arrow_scope_id).unwrap();
-    assert_eq!(array_arrow_scope.kind, ScopeKind::Block);
+    let array_arrow_scope = module_scope.get_child_scope(1).unwrap();
+    assert_eq!(array_arrow_scope.get_kind(), ScopeKind::Block);
     assert!(array_arrow_scope.get_binding("b").is_some());
     assert!(array_arrow_scope.get_binding("c").is_none());
 
-    let array_nested_fn_scope_id = *module_scope.child_scopes.get(2).unwrap();
-    let array_nested_fn_scope =
-      scope_manager.get_scope(array_nested_fn_scope_id).unwrap();
-    assert_eq!(array_nested_fn_scope.kind, ScopeKind::Function);
+    let array_nested_fn_scope = module_scope.get_child_scope(2).unwrap();
+    assert_eq!(array_nested_fn_scope.get_kind(), ScopeKind::Function);
     assert!(array_nested_fn_scope.get_binding("c").is_some());
 
-    let array_object_method_scope_id =
-      *module_scope.child_scopes.get(3).unwrap();
-    let array_object_method_scope = scope_manager
-      .get_scope(array_object_method_scope_id)
-      .unwrap();
-    assert_eq!(array_object_method_scope.kind, ScopeKind::Function);
+    let array_object_method_scope = module_scope.get_child_scope(3).unwrap();
+    assert_eq!(array_object_method_scope.get_kind(), ScopeKind::Function);
     assert!(array_object_method_scope.get_binding("d").is_some());
   }
 
@@ -1070,23 +1005,19 @@ switch (foo) {
     var promise = import("module-name");
     "#;
 
-    let scope_manager = test_scopes(source_code);
+    let root_scope = test_scopes(source_code);
+    assert_eq!(root_scope.get_kind(), ScopeKind::Program);
+    assert_eq!(root_scope.child_scope_count(), 1);
 
-    let root_scope = scope_manager.get_root_scope();
-    assert_eq!(root_scope.kind, ScopeKind::Program);
-    assert_eq!(root_scope.child_scopes.len(), 1);
-
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
-    assert_eq!(module_scope.kind, ScopeKind::Module);
-    assert_eq!(module_scope.child_scopes.len(), 0);
-    assert!(module_scope.get_binding("defaultExport1").is_some());
+    let module_scope = root_scope.get_child_scope(0).unwrap();
+    assert_eq!(module_scope.get_kind(), ScopeKind::Module);
+    assert_eq!(module_scope.child_scope_count(), 0);
     let default_export = module_scope.get_binding("defaultExport1").unwrap();
-    assert_eq!(default_export.kind, BindingKind::Import);
+    assert_eq!(default_export, BindingKind::Import);
     let namespaced1 = module_scope.get_binding("namespaced1").unwrap();
-    assert_eq!(namespaced1.kind, BindingKind::Import);
+    assert_eq!(namespaced1, BindingKind::Import);
     let export1 = module_scope.get_binding("export1").unwrap();
-    assert_eq!(export1.kind, BindingKind::Import);
+    assert_eq!(export1, BindingKind::Import);
     assert!(module_scope.get_binding("export2").is_none());
     assert!(module_scope.get_binding("alias1").is_some());
     assert!(module_scope.get_binding("export3").is_some());
@@ -1122,10 +1053,8 @@ function getPerson({username="disizali",info: [name, family]}) {
 }
 try{} catch({message}){};
 "#;
-    let scope_manager = test_scopes(source_code);
-    let root_scope = scope_manager.get_root_scope();
-    let module_scope_id = *root_scope.child_scopes.first().unwrap();
-    let module_scope = scope_manager.get_scope(module_scope_id).unwrap();
+    let root_scope = test_scopes(source_code);
+    let module_scope = root_scope.get_child_scope(0).unwrap();
     assert!(module_scope.get_binding("a").is_some());
     assert!(module_scope.get_binding("b").is_some());
     assert!(module_scope.get_binding("c").is_some());
@@ -1143,19 +1072,15 @@ try{} catch({message}){};
     assert!(module_scope.get_binding("o").is_some());
     assert!(module_scope.get_binding("p").is_some());
 
-    let function_scope_id = *module_scope.child_scopes.first().unwrap();
-    let function_scope = scope_manager.get_scope(function_scope_id).unwrap();
+    let function_scope = module_scope.get_child_scope(0).unwrap();
     assert!(function_scope.get_binding("username").is_some());
     assert!(function_scope.get_binding("name").is_some());
     assert!(function_scope.get_binding("family").is_some());
 
-    let function_catch_scope_id = *function_scope.child_scopes.last().unwrap();
-    let function_catch_scope =
-      scope_manager.get_scope(function_catch_scope_id).unwrap();
+    let function_catch_scope = function_scope.get_child_scope(-1).unwrap();
     assert!(function_catch_scope.get_binding("e").is_some());
 
-    let catch_scope_id = *module_scope.child_scopes.last().unwrap();
-    let catch_scope = scope_manager.get_scope(catch_scope_id).unwrap();
+    let catch_scope = module_scope.get_child_scope(-1).unwrap();
     assert!(catch_scope.get_binding("message").is_some());
   }
 }

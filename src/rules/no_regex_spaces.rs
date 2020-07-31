@@ -1,10 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::{ScopeManager, ScopeVisitor};
-use swc_ecma_ast::{CallExpr, Expr, ExprOrSuper, Lit, NewExpr, Regex};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use crate::swc_util::extract_regex;
+use swc_common::Span;
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoRegexSpaces;
 
@@ -17,29 +20,26 @@ impl LintRule for NoRegexSpaces {
     "no-regex-spaces"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(&module, &module);
-    let scope_manager = scope_visitor.consume();
-    let mut visitor = NoRegexSpacesVisitor::new(context, scope_manager);
-    visitor.visit_module(&module, &module);
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
+    let mut visitor = NoRegexSpacesVisitor::new(context);
+    visitor.visit_module(module, module);
   }
 }
 
-pub struct NoRegexSpacesVisitor {
-  context: Context,
-  scope_manager: ScopeManager,
+struct NoRegexSpacesVisitor {
+  context: Arc<Context>,
 }
 
 impl NoRegexSpacesVisitor {
-  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  pub fn new(context: Arc<Context>) -> Self {
+    Self { context }
   }
 
-  fn check_regex(&self, regex: &str) -> bool {
+  fn check_regex(&self, regex: &str, span: Span) {
     lazy_static! {
       static ref DOUBLE_SPACE: regex::Regex =
         regex::Regex::new(r"(?u) {2}").unwrap();
@@ -49,7 +49,7 @@ impl NoRegexSpacesVisitor {
         regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap();
     }
     if !DOUBLE_SPACE.is_match(regex) {
-      return false;
+      return;
     }
 
     let mut character_classes = vec![];
@@ -62,91 +62,50 @@ impl NoRegexSpacesVisitor {
         .iter()
         .all(|ref v| mtch.start() < v.0 || v.1 <= mtch.start());
       if *not_in_classes {
-        return true;
+        self.context.add_diagnostic(
+          span,
+          "no-regex-spaces",
+          "more than one consecutive spaces in RegExp is not allowed",
+        );
+        return;
       }
     }
-    false
   }
 }
 
 impl Visit for NoRegexSpacesVisitor {
-  fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
-    if self.check_regex(regex.exp.to_string().as_ref()) {
-      self.context.add_diagnostic(
-        regex.span,
-        "no-regex-spaces",
-        "more than one consecutive spaces in RegExp is not allowed",
-      );
-    }
+  fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
+    self.check_regex(regex.exp.to_string().as_str(), regex.span);
+    swc_ecmascript::visit::visit_regex(self, regex, parent);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
-      let name = ident.sym.to_string();
-      if name != "RegExp" {
-        return;
-      }
-      let scope = self.scope_manager.get_scope_for_span(new_expr.span);
-      if self.scope_manager.get_binding(scope, &ident.sym).is_some() {
-        return;
-      }
       if let Some(args) = &new_expr.args {
-        if let Some(first_arg) = args.get(0) {
-          let regex_literal =
-            if let Expr::Lit(Lit::Str(literal)) = &*first_arg.expr {
-              &literal.value
-            } else if let Expr::Lit(Lit::Regex(regex)) = &*first_arg.expr {
-              &regex.exp
-            } else {
-              return;
-            };
-
-          if self.check_regex(regex_literal.as_ref()) {
-            self.context.add_diagnostic(
-              new_expr.span,
-              "no-regex-spaces",
-              "more than one consecutive spaces in RegExp is not allowed",
-            );
-          }
+        if let Some(regex) =
+          extract_regex(&self.context.root_scope, new_expr.span, ident, args)
+        {
+          self.check_regex(regex.as_str(), new_expr.span);
         }
       }
     }
+    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
-        let name = ident.sym.to_string();
-        if name != "RegExp" {
-          return;
+        if let Some(regex) = extract_regex(
+          &self.context.root_scope,
+          call_expr.span,
+          ident,
+          &call_expr.args,
+        ) {
+          self.check_regex(regex.as_str(), call_expr.span);
         }
-        let scope = self.scope_manager.get_scope_for_span(call_expr.span);
-        if self.scope_manager.get_binding(scope, &ident.sym).is_some() {
-          return;
-        }
-
-        if !call_expr.args.is_empty() {
-          if let Some(first_arg) = call_expr.args.get(0) {
-            let regex_literal =
-              if let Expr::Lit(Lit::Str(literal)) = &*first_arg.expr {
-                &literal.value
-              } else if let Expr::Lit(Lit::Regex(regex)) = &*first_arg.expr {
-                &regex.exp
-              } else {
-                return;
-              };
-
-            if self.check_regex(regex_literal.as_ref()) {
-              self.context.add_diagnostic(
-                call_expr.span,
-                "no-regex-spaces",
-                "more than one consecutive spaces in RegExp is not allowed",
-              );
-            }
-          }
-        };
       }
     }
+    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 }
 

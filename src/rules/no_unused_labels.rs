@@ -1,12 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::BreakStmt;
-use swc_ecma_ast::ContinueStmt;
-use swc_ecma_ast::Ident;
-use swc_ecma_ast::LabeledStmt;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::BreakStmt;
+use swc_ecmascript::ast::ContinueStmt;
+use swc_ecmascript::ast::Ident;
+use swc_ecmascript::ast::LabeledStmt;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoUnusedLabels;
 
@@ -19,9 +21,13 @@ impl LintRule for NoUnusedLabels {
     "no-unused-labels"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoUnusedLabelsVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
@@ -31,12 +37,12 @@ struct LabelScope {
 }
 
 struct NoUnusedLabelsVisitor {
-  context: Context,
+  context: Arc<Context>,
   label_scopes: Vec<LabelScope>,
 }
 
 impl NoUnusedLabelsVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       label_scopes: vec![],
@@ -45,7 +51,7 @@ impl NoUnusedLabelsVisitor {
 
   fn maybe_check_label(&mut self, maybe_label: Option<&Ident>) {
     if let Some(label) = maybe_label {
-      let label_name = label.sym.to_string();
+      let label_name = label.sym.as_ref();
 
       for label_scope in self.label_scopes.iter_mut().rev() {
         if label_scope.name == label_name {
@@ -63,13 +69,13 @@ impl Visit for NoUnusedLabelsVisitor {
     labeled_stmt: &LabeledStmt,
     parent: &dyn Node,
   ) {
-    let name = labeled_stmt.label.sym.to_string();
+    let name = labeled_stmt.label.sym.as_ref();
     let label_scope = LabelScope {
-      name: name.clone(),
+      name: name.to_owned(),
       used: false,
     };
     self.label_scopes.push(label_scope);
-    swc_ecma_visit::visit_labeled_stmt(self, labeled_stmt, parent);
+    swc_ecmascript::visit::visit_labeled_stmt(self, labeled_stmt, parent);
     let scope = self.label_scopes.pop().expect("self.label_scopes is empty");
     if !scope.used {
       self.context.add_diagnostic(

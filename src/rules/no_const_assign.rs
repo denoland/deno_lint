@@ -2,17 +2,17 @@
 use super::Context;
 use super::LintRule;
 use crate::scopes::BindingKind;
-use crate::scopes::ScopeManager;
-use crate::scopes::ScopeVisitor;
 use swc_common::Span;
-use swc_ecma_ast::AssignExpr;
-use swc_ecma_ast::Expr;
-use swc_ecma_ast::ObjectPatProp;
-use swc_ecma_ast::Pat;
-use swc_ecma_ast::PatOrExpr;
-use swc_ecma_ast::UpdateExpr;
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::AssignExpr;
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::ObjectPatProp;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::ast::PatOrExpr;
+use swc_ecmascript::ast::UpdateExpr;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoConstAssign;
 
@@ -25,32 +25,29 @@ impl LintRule for NoConstAssign {
     "no-const-assign"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(&module, &module);
-    let scope_manager = scope_visitor.consume();
-    let mut visitor = NoConstAssignVisitor::new(context, scope_manager);
-    visitor.visit_module(&module, &module);
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
+    let mut visitor = NoConstAssignVisitor::new(context);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoConstAssignVisitor {
-  context: Context,
-  scope_manager: ScopeManager,
+  context: Arc<Context>,
 }
 
 impl NoConstAssignVisitor {
-  pub fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  pub fn new(context: Arc<Context>) -> Self {
+    Self { context }
   }
 
   fn check_pat(&mut self, pat: &Pat, span: Span) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_scope_for_const(span, &ident.sym.to_string());
+        self.check_scope_for_const(span, &ident.sym);
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, span);
@@ -65,13 +62,17 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_obj_pat(&mut self, object: &swc_ecma_ast::ObjectPat, span: Span) {
+  fn check_obj_pat(
+    &mut self,
+    object: &swc_ecmascript::ast::ObjectPat,
+    span: Span,
+  ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
           self.check_scope_for_const(
             assign_prop.key.span,
-            &assign_prop.key.sym.to_string(),
+            &assign_prop.key.sym.as_ref(),
           );
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
           self.check_pat(&kv_prop.value, span);
@@ -80,7 +81,11 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_array_pat(&mut self, array: &swc_ecma_ast::ArrayPat, span: Span) {
+  fn check_array_pat(
+    &mut self,
+    array: &swc_ecmascript::ast::ArrayPat,
+    span: Span,
+  ) {
     if !array.elems.is_empty() {
       for elem in array.elems.iter() {
         if let Some(element) = elem {
@@ -90,16 +95,14 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_scope_for_const(&mut self, span: Span, ident: &str) {
-    let scope = self.scope_manager.get_scope_for_span(span);
-    if let Some(binding) = self.scope_manager.get_binding(scope, ident) {
-      if binding.kind == BindingKind::Const {
-        self.context.add_diagnostic(
-          span,
-          "no-const-assign",
-          "Reassigning constant variable is not allowed",
-        );
-      }
+  fn check_scope_for_const(&mut self, span: Span, name: &str) {
+    let scope = self.context.root_scope.get_scope_for_span(span);
+    if let Some(BindingKind::Const) = scope.get_binding(name) {
+      self.context.add_diagnostic(
+        span,
+        "no-const-assign",
+        "Reassigning constant variable is not allowed",
+      );
     }
   }
 }
@@ -109,7 +112,7 @@ impl Visit for NoConstAssignVisitor {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
         if let Expr::Ident(ident) = &**pat_expr {
-          self.check_scope_for_const(assign_expr.span, &ident.sym.to_string());
+          self.check_scope_for_const(assign_expr.span, &ident.sym);
         }
       }
       PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span),
@@ -118,7 +121,7 @@ impl Visit for NoConstAssignVisitor {
 
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _node: &dyn Node) {
     if let Expr::Ident(ident) = &*update_expr.arg {
-      self.check_scope_for_const(update_expr.span, &ident.sym.to_string());
+      self.check_scope_for_const(update_expr.span, &ident.sym);
     }
   }
 }

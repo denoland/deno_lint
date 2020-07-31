@@ -1,12 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecma_ast::{
+use std::sync::Arc;
+use swc_ecmascript::ast::{
   ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAssertion, VarDecl,
 };
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
 
 pub struct PreferAsConst;
 
@@ -19,18 +20,22 @@ impl LintRule for PreferAsConst {
     "prefer-as-const"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = PreferAsConstVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
-pub struct PreferAsConstVisitor {
-  context: Context,
+struct PreferAsConstVisitor {
+  context: Arc<Context>,
 }
 
 impl PreferAsConstVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
@@ -103,7 +108,8 @@ impl Visit for PreferAsConstVisitor {
       | Pat::Object(ObjectPat { type_ann, .. })
       | Pat::Ident(Ident { type_ann, .. }) = &var_decl.decls[0].name
       {
-        if let Some(swc_ecma_ast::TsTypeAnn { type_ann, .. }) = &type_ann {
+        if let Some(swc_ecmascript::ast::TsTypeAnn { type_ann, .. }) = &type_ann
+        {
           self.compare(type_ann, &init, var_decl.span);
         }
       }

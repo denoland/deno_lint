@@ -2,9 +2,11 @@
 use super::Context;
 use super::LintRule;
 use swc_atoms::js_word;
-use swc_ecma_ast::{Expr, ThrowStmt};
-use swc_ecma_visit::Node;
-use swc_ecma_visit::Visit;
+use swc_ecmascript::ast::{Expr, ThrowStmt};
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+
+use std::sync::Arc;
 
 pub struct NoThrowLiteral;
 
@@ -17,18 +19,22 @@ impl LintRule for NoThrowLiteral {
     "no-throw-literal"
   }
 
-  fn lint_module(&self, context: Context, module: swc_ecma_ast::Module) {
+  fn lint_module(
+    &self,
+    context: Arc<Context>,
+    module: &swc_ecmascript::ast::Module,
+  ) {
     let mut visitor = NoThrowLiteralVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoThrowLiteralVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoThrowLiteralVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

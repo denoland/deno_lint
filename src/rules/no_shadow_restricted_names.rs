@@ -1,12 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::{ScopeManager, ScopeVisitor};
-use swc_ecma_ast::{
+use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct NoShadowRestrictedNames;
 
@@ -15,14 +16,9 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
-    let mut scope_visitor = ScopeVisitor::new();
-    scope_visitor.visit_module(&module, &module);
-
-    let scope_manager = scope_visitor.consume();
-    let mut visitor =
-      NoShadowRestrictedNamesVisitor::new(context, scope_manager);
-    visitor.visit_module(&module, &module);
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+    let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
+    visitor.visit_module(module, module);
   }
 
   fn code(&self) -> &'static str {
@@ -30,22 +26,17 @@ impl LintRule for NoShadowRestrictedNames {
   }
 }
 
-#[allow(dead_code)]
-pub struct NoShadowRestrictedNamesVisitor {
-  context: Context,
-  scope_manager: ScopeManager,
+struct NoShadowRestrictedNamesVisitor {
+  context: Arc<Context>,
 }
 
 impl NoShadowRestrictedNamesVisitor {
-  fn new(context: Context, scope_manager: ScopeManager) -> Self {
-    Self {
-      context,
-      scope_manager,
-    }
+  fn new(context: Arc<Context>) -> Self {
+    Self { context }
   }
 
   fn is_restricted_names(&self, ident: &Ident) -> bool {
-    match ident.sym.to_string().as_str() {
+    match ident.sym.as_ref() {
       "undefined" | "NaN" | "Infinity" | "arguments" | "eval" => true,
       _ => false,
     }
@@ -56,16 +47,11 @@ impl NoShadowRestrictedNamesVisitor {
       Pat::Ident(ident) => {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
-        if &ident.sym.to_string() == "undefined" && check_scope {
-          let scope = self.scope_manager.get_scope_for_span(ident.span);
-
-          if let Some(_binding) = self
-            .scope_manager
-            .get_binding(&scope, ident.sym.to_string().as_str())
-          {
+        if &ident.sym == "undefined" && check_scope {
+          let scope = self.context.root_scope.get_scope_for_span(ident.span);
+          if let Some(_binding) = scope.get_binding(&ident.sym) {
             self.report_shadowing(&ident);
           }
-
           return;
         }
 
@@ -113,7 +99,7 @@ impl NoShadowRestrictedNamesVisitor {
     self.context.add_diagnostic(
       ident.span,
       "no-shadow-restricted-names",
-      &format!("Shadowing of global property {}", &ident.sym.to_string()),
+      &format!("Shadowing of global property {}", &ident.sym),
     );
   }
 }
@@ -123,7 +109,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {
         // `undefined` variable declaration without init is have same meaning
-        if decl.init.is_none() && &ident.sym.to_string() == "undefined" {
+        if decl.init.is_none() && &ident.sym == "undefined" {
           continue;
         }
       }
@@ -131,7 +117,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&decl.name, false);
     }
 
-    swc_ecma_visit::visit_var_decl(self, node, parent);
+    swc_ecmascript::visit::visit_var_decl(self, node, parent);
   }
 
   fn visit_fn_decl(&mut self, node: &FnDecl, parent: &dyn Node) {
@@ -141,7 +127,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&param.pat, false);
     }
 
-    swc_ecma_visit::visit_fn_decl(self, node, parent);
+    swc_ecmascript::visit::visit_fn_decl(self, node, parent);
   }
 
   fn visit_fn_expr(&mut self, node: &FnExpr, parent: &dyn Node) {
@@ -153,7 +139,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&param.pat, false);
     }
 
-    swc_ecma_visit::visit_fn_expr(self, node, parent);
+    swc_ecmascript::visit::visit_fn_expr(self, node, parent);
   }
 
   fn visit_arrow_expr(&mut self, node: &ArrowExpr, parent: &dyn Node) {
@@ -161,7 +147,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(&param, false);
     }
 
-    swc_ecma_visit::visit_arrow_expr(self, node, parent);
+    swc_ecmascript::visit::visit_arrow_expr(self, node, parent);
   }
 
   fn visit_catch_clause(&mut self, node: &CatchClause, parent: &dyn Node) {
@@ -169,7 +155,7 @@ impl Visit for NoShadowRestrictedNamesVisitor {
       self.check_pat(node.param.as_ref().unwrap(), false);
     }
 
-    swc_ecma_visit::visit_catch_clause(self, node, parent);
+    swc_ecmascript::visit::visit_catch_clause(self, node, parent);
   }
 
   fn visit_assign_expr(&mut self, node: &AssignExpr, _parent: &dyn Node) {

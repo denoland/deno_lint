@@ -1,14 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::swc_util::Key;
 use std::collections::{BTreeSet, HashSet};
-use swc_ecma_ast::Prop;
-use swc_ecma_ast::Prop::*;
-use swc_ecma_ast::PropName;
-use swc_ecma_ast::PropName::*;
-use swc_ecma_ast::PropOrSpread::{Prop as PropVariant, Spread};
-use swc_ecma_ast::{Module, ObjectLit, PropOrSpread};
-use swc_ecma_visit::{Node, Visit};
+use swc_ecmascript::ast::{Module, ObjectLit};
+use swc_ecmascript::visit::{Node, Visit};
+
+use std::sync::Arc;
 
 pub struct NoDupeKeys;
 
@@ -21,18 +19,18 @@ impl LintRule for NoDupeKeys {
     "no-dupe-keys"
   }
 
-  fn lint_module(&self, context: Context, module: Module) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    visitor.visit_module(&module, &module);
+    visitor.visit_module(module, module);
   }
 }
 
 struct NoDupeKeysVisitor {
-  context: Context,
+  context: Arc<Context>,
 }
 
 impl NoDupeKeysVisitor {
-  pub fn new(context: Context) -> Self {
+  pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }
@@ -58,43 +56,6 @@ impl Visit for NoDupeKeysVisitor {
         "no-dupe-keys",
         format!("Duplicate key '{}'", key).as_str(),
       );
-    }
-  }
-}
-
-trait Key {
-  fn get_key(&self) -> Option<String>;
-}
-
-impl Key for PropOrSpread {
-  fn get_key(&self) -> Option<String> {
-    match self {
-      PropVariant(p) => (&**p).get_key(),
-      Spread(_) => None,
-    }
-  }
-}
-
-impl Key for Prop {
-  fn get_key(&self) -> Option<String> {
-    match self {
-      KeyValue(key_value) => key_value.key.get_key(),
-      Getter(getter) => getter.key.get_key(),
-      Setter(setter) => setter.key.get_key(),
-      Method(method) => method.key.get_key(),
-      Shorthand(_) => None,
-      Assign(_) => None,
-    }
-  }
-}
-
-impl Key for PropName {
-  fn get_key(&self) -> Option<String> {
-    match self {
-      Ident(identifier) => Some(identifier.sym.to_string()),
-      Str(str) => Some(str.value.to_string()),
-      Num(num) => Some(num.to_string()),
-      Computed(_) => None,
     }
   }
 }
