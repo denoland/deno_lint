@@ -47,9 +47,8 @@ impl NoNonNullAssertedOptionalChainVisitor {
   }
 
   fn check_expr_for_nested_optional_assert(&mut self, span: Span, expr: &Expr) {
-    match expr {
-      Expr::OptChain(_) => self.add_diagnostic(span),
-      _ => {}
+    if let Expr::OptChain(_) = expr {
+      self.add_diagnostic(span)
     }
   }
 }
