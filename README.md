@@ -10,8 +10,8 @@ and can be used to write linters for Node as well.
 **NOTE**
 Work-in-progress
 
-*Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
-working out of the box.*
+_Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
+working out of the box._
 
 See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
@@ -21,40 +21,40 @@ See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
 Blazing fast, see comparison with ESLint:
 
-```
+```json
 [
   {
     "name": "deno_lint",
-    "totalMs": 830.5838349999995,
+    "totalMs": 247.20262200000025,
     "runsCount": 5,
-    "runsAvgMs": 166.1167669999999,
-    "runsMs": [
-      163.71872200000007,
-      160.46893499999987,
-      169.2397719999999,
-      167.75393099999974,
-      169.40247499999987
+    "measuredRunsAvgMs": 49.44052440000005,
+    "measuredRunsMs": [
+      49.016501999999946,
+      49.56810500000006,
+      49.68610600000011,
+      48.97360200000003,
+      49.958307000000104
     ]
   },
   {
     "name": "eslint",
-    "totalMs": 11783.570954999997,
+    "totalMs": 12214.295835,
     "runsCount": 5,
-    "runsAvgMs": 2356.7141909999996,
-    "runsMs": [
-      2559.053129,
-      2383.412156999999,
-      2261.1746249999997,
-      2306.645263999999,
-      2273.28578
+    "measuredRunsAvgMs": 2442.859167,
+    "measuredRunsMs": [
+      2703.5126729999997,
+      2380.431925,
+      2369.1452910000007,
+      2362.1451909999996,
+      2399.0607550000004
     ]
   }
 ]
 ```
 
-*Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
+_Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
 Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
-See [`./benchmarks/`](./benchmarks/) directory for more info.*
+See [`./benchmarks/`](./benchmarks/) directory for more info._
 
 ## Supported rules
 
@@ -68,6 +68,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`default-param-last`](https://eslint.org/docs/rules/default-param-last)
 - [`eqeqeq`](https://eslint.org/docs/rules/eqeqeq)
 - [`explicit-function-return-type`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/explicit-function-return-type.md)
+- [`explicit-module-boundary-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/explicit-module-boundary-types.md)
 - [`for-direction`](https://eslint.org/docs/rules/for-direction)
 - [`getter-return`](https://eslint.org/docs/rules/getter-return)
 - [`no-array-constructor`](https://eslint.org/docs/rules/no-array-constructor)
@@ -87,10 +88,10 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-dupe-else-if`](https://eslint.org/docs/rules/no-dupe-else-if)
 - [`no-dupe-keys`](https://eslint.org/docs/rules/no-dupe-keys)
 - [`no-duplicate-case`](https://eslint.org/docs/rules/no-duplicate-case)
+- [`no-empty`](https://eslint.org/docs/rules/no-empty)
 - [`no-empty-character-class`](https://eslint.org/docs/rules/no-empty-character-class)
 - [`no-empty-interface`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-empty-interface.md)
 - [`no-empty-pattern`](https://eslint.org/docs/rules/no-empty-pattern)
-- [`no-empty`](https://eslint.org/docs/rules/no-empty)
 - [`no-eval`](https://eslint.org/docs/rules/no-eval)
 - [`no-ex-assign`](https://eslint.org/docs/rules/no-ex-assign)
 - [`no-explicit-any`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-explicit-any.md)
@@ -102,6 +103,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-misused-new`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-misused-new.md)
 - [`no-namespace`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-namespace.md)
 - [`no-new-symbol`](https://eslint.org/docs/rules/no-new-symbol)
+- [`no-non-null-asserted-optional-chain`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-non-null-asserted-optional-chain.md)
 - [`no-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-non-null-assertion.md)
 - [`no-obj-calls`](https://eslint.org/docs/rules/no-obj-calls)
 - [`no-octal`](https://eslint.org/docs/rules/no-octal)
@@ -109,7 +111,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info.*
 - [`no-regex-spaces`](https://eslint.org/docs/rules/no-regex-spaces)
 - [`no-setter-return`](https://eslint.org/docs/rules/no-setter-return)
 - [`no-shadow-restricted-names`](https://eslint.org/docs/rules/no-shadow-restricted-names)
-- `no-sparse-array`
+- [`no-sparse-arrays`](https://eslint.org/docs/rules/no-sparse-arrays)
 - [`no-this-alias`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-this-alias.md)
 - [`no-this-before-super`](https://eslint.org/docs/rules/no-this-before-super)
 - [`no-throw-literal`](https://eslint.org/docs/rules/no-throw-literal)
