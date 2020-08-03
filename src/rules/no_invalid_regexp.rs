@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use js_regex::*;
+use crate::js_regex::*;
 use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;

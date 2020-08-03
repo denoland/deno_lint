@@ -148,7 +148,6 @@ version = "0.1.20"
 dependencies = [
  "clap",
  "env_logger",
- "js-regex",
  "lazy_static",
  "log",
  "regex",
@@ -268,15 +267,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "js-regex"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4756ffaebb16653e5ce3d9a4d088629071c7378d259aa2d4f91859c16788adc0"
-dependencies = [
- "lazy_static",
 ]
 
 [[package]]
