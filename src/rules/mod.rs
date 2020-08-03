@@ -213,6 +213,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
+    no_inferrable_types::NoInferrableTypes::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
     no_const_assign::NoConstAssign::new(),
     no_control_regex::NoControlRegex::new(),
