@@ -100,6 +100,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 - [`no-extra-semi`](https://eslint.org/docs/rules/no-extra-semi)
 - [`no-func-assign`](https://eslint.org/docs/rules/no-func-assign)
 - [`no-inferrable-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-inferrable-types.md)
+- [`no-invalid-regexp`](https://eslint.org/docs/rules/no-invalid-regexp)
 - [`no-misused-new`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-misused-new.md)
 - [`no-namespace`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-namespace.md)
 - [`no-new-symbol`](https://eslint.org/docs/rules/no-new-symbol)

@@ -44,6 +44,7 @@ pub mod no_extra_non_null_assertion;
 pub mod no_extra_semi;
 pub mod no_func_assign;
 pub mod no_inferrable_types;
+pub mod no_invalid_regexp;
 pub mod no_misused_new;
 pub mod no_namespace;
 pub mod no_new_symbol;
@@ -139,6 +140,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
     no_inferrable_types::NoInferrableTypes::new(),
+    no_invalid_regexp::NoInvalidRegexp::new(),
     no_unused_labels::NoUnusedLabels::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
     no_constant_condition::NoConstantCondition::new(),
@@ -211,7 +213,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
-    no_inferrable_types::NoInferrableTypes::new(),
+    no_invalid_regexp::NoInvalidRegexp::new(),
     no_const_assign::NoConstAssign::new(),
     no_control_regex::NoControlRegex::new(),
     no_unused_labels::NoUnusedLabels::new(),
