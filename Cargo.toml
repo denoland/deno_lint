@@ -15,9 +15,15 @@ name = "deno_lint"
 [[example]]
 name = "dlint"
 
+[features]
+# Adds ability to Serialize LintDiagnostic
+json = ["serde", "serde_json"]
+
 [dependencies]
 lazy_static = "1.4.0"
 log = "0.4.11"
+serde = { version = "1.0.88", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
 swc_atoms = "0.2.2"
 swc_common = "=0.8.0"
 swc_ecmascript = { version = "=0.1.0", features = ["parser", "visit"] }
