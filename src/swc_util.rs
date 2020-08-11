@@ -280,27 +280,33 @@ impl Key for Prop {
   }
 }
 
+impl Key for Expr {
+  fn get_key(&self) -> Option<String> {
+    match self {
+      Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
+      Expr::Tpl(Tpl {
+        ref exprs,
+        ref quasis,
+        ..
+      }) => {
+        if exprs.is_empty() {
+          quasis.iter().next().map(|q| q.raw.value.to_string())
+        } else {
+          None
+        }
+      }
+      _ => None,
+    }
+  }
+}
+
 impl Key for PropName {
   fn get_key(&self) -> Option<String> {
     match self {
       PropName::Ident(identifier) => Some(identifier.sym.to_string()),
       PropName::Str(str) => Some(str.value.to_string()),
       PropName::Num(num) => Some(num.to_string()),
-      PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-        Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
-        Expr::Tpl(Tpl {
-          ref exprs,
-          ref quasis,
-          ..
-        }) => {
-          if exprs.is_empty() {
-            quasis.iter().next().map(|q| q.raw.value.to_string())
-          } else {
-            None
-          }
-        }
-        _ => None,
-      },
+      PropName::Computed(ComputedPropName { ref expr, .. }) => (&*expr).get_key()
     }
   }
 }
