@@ -53,9 +53,10 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_valid() {
-    assert_lint_ok::<NoIrregularWhitespace>(
+    assert_lint_err::<NoIrregularWhitespace>(
       "const name = 'space';
       console.log(`The last ${space} in this literal will make it　fail`);",
+      0,
     );
   }
 }
