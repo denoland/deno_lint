@@ -1,6 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+#[cfg(feature = "json")]
+use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Location {
   pub filename: String,
   pub line: usize,
@@ -30,6 +33,7 @@ impl Into<Location> for swc_common::Loc {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct LintDiagnostic {
   pub location: Location,
   pub message: String,

@@ -53,7 +53,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-
 
       - name: Environment
         run: |
@@ -65,10 +66,10 @@ jobs:
         run: deno run --allow-run ./tools/format.ts --check
 
       - name: Build
-        run: cargo build --locked --release --all-targets
+        run: cargo build --locked --release --all-targets --features "json"
 
       - name: Test
-        run: cargo test --locked --release --all-targets
+        run: cargo test --locked --release --all-targets --features "json"
 
       - name: Lint
         run: deno run --allow-run ./tools/lint.ts --release
