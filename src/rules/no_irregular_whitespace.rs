@@ -1,13 +1,12 @@
 use super::{Context, LintRule};
 use regex::Regex;
-use std::borrow::Cow;
 use std::sync::Arc;
 use swc_common::BytePos;
 use swc_ecmascript::ast::Module;
 
 pub struct NoIrregularWhitespace;
 
-fn test_for_whitespace(value: &Cow<str>) -> bool {
+fn test_for_whitespace(value: &str) -> bool {
   lazy_static! {
     static ref ALL_IRREGULARS: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]").unwrap();
     static ref LINE_BREAK_MATCHER: Regex = Regex::new(r"[^\r\n]+").unwrap();
@@ -35,7 +34,7 @@ impl LintRule for NoIrregularWhitespace {
         .sf
         .get_line(line_info.line_index)
         .unwrap();
-      if test_for_whitespace(&source_code) {
+      if test_for_whitespace(&*source_code) {
         context.add_diagnostic(
           module.span,
           "no-irregular-whitespace",
