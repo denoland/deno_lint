@@ -1,17 +1,22 @@
 use super::{Context, LintRule};
-use regex::Regex;
+use regex::{Matches, Regex};
 use std::sync::Arc;
-use swc_common::BytePos;
+use swc_common::{hygiene::SyntaxContext, BytePos, Span};
 use swc_ecmascript::ast::Module;
 
 pub struct NoIrregularWhitespace;
 
-fn test_for_whitespace(value: &str) -> bool {
+fn test_for_whitespace(value: &str) -> Option<Matches> {
   lazy_static! {
     static ref ALL_IRREGULARS: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]").unwrap();
     static ref LINE_BREAK_MATCHER: Regex = Regex::new(r"[^\r\n]+").unwrap();
   }
-  ALL_IRREGULARS.is_match(value)
+  if ALL_IRREGULARS.is_match(value) {
+    let matches = ALL_IRREGULARS.find_iter(value);
+    Some(matches)
+  } else {
+    None
+  }
 }
 
 impl LintRule for NoIrregularWhitespace {
@@ -34,12 +39,19 @@ impl LintRule for NoIrregularWhitespace {
         .sf
         .get_line(line_info.line_index)
         .unwrap();
-      if test_for_whitespace(&*source_code) {
-        context.add_diagnostic(
-          module.span,
-          "no-irregular-whitespace",
-          "Irregular whitespace not allowed.",
-        );
+      if let Some(whitespace_matches) = test_for_whitespace(&*source_code) {
+        for whitespace_match in whitespace_matches {
+          let range = whitespace_match.range();
+          context.add_diagnostic(
+            Span::new(
+              BytePos(range.start as u32),
+              BytePos(range.end as u32),
+              SyntaxContext::empty(),
+            ),
+            "no-irregular-whitespace",
+            "Irregular whitespace not allowed.",
+          );
+        }
       }
     }
   }
@@ -52,10 +64,11 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_valid() {
-    assert_lint_err::<NoIrregularWhitespace>(
+    assert_lint_err_on_line::<NoIrregularWhitespace>(
       "const name = 'space';
-      console.log(`The last ${space} in this literal will make it　fail`);",
-      0,
+console.log(`The last ${space} in this literal will make it　fail`);",
+      2,
+      37,
     );
   }
 }
