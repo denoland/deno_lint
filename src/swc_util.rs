@@ -17,7 +17,7 @@ use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
-  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, Prop, PropName,
+  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, Prop, PropName,
   PropOrSpread, Str, Tpl,
 };
 use swc_ecmascript::parser::lexer::Lexer;
@@ -280,6 +280,49 @@ impl Key for Prop {
   }
 }
 
+impl Key for Lit {
+  fn get_key(&self) -> Option<String> {
+    use swc_ecmascript::ast::BigInt;
+    use swc_ecmascript::ast::Bool;
+    use swc_ecmascript::ast::JSXText;
+    use swc_ecmascript::ast::Number;
+    use swc_ecmascript::ast::Regex;
+    match self {
+      Lit::Str(Str { ref value, .. }) => Some(value.to_string()),
+      Lit::Bool(Bool { ref value, .. }) => {
+        let str_val = if *value { "true" } else { "false" };
+        Some(str_val.to_string())
+      }
+      Lit::Null(_) => Some("null".to_string()),
+      Lit::Num(Number { ref value, .. }) => Some(value.to_string()),
+      Lit::BigInt(BigInt { ref value, .. }) => Some(value.to_string()),
+      Lit::Regex(Regex { ref exp, .. }) => Some(format!("/{}/", exp)),
+      Lit::JSXText(JSXText { ref raw, .. }) => Some(raw.to_string()),
+    }
+  }
+}
+
+impl Key for Tpl {
+  fn get_key(&self) -> Option<String> {
+    if self.exprs.is_empty() {
+      self.quasis.iter().next().map(|q| q.raw.value.to_string())
+    } else {
+      None
+    }
+  }
+}
+
+impl Key for Expr {
+  fn get_key(&self) -> Option<String> {
+    match self {
+      Expr::Ident(ident) => Some(ident.sym.to_string()),
+      Expr::Lit(lit) => lit.get_key(),
+      Expr::Tpl(tpl) => tpl.get_key(),
+      _ => None,
+    }
+  }
+}
+
 impl Key for PropName {
   fn get_key(&self) -> Option<String> {
     match self {
@@ -287,20 +330,22 @@ impl Key for PropName {
       PropName::Str(str) => Some(str.value.to_string()),
       PropName::Num(num) => Some(num.to_string()),
       PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-        Expr::Lit(Lit::Str(Str { ref value, .. })) => Some(value.to_string()),
-        Expr::Tpl(Tpl {
-          ref exprs,
-          ref quasis,
-          ..
-        }) => {
-          if exprs.is_empty() {
-            quasis.iter().next().map(|q| q.raw.value.to_string())
-          } else {
-            None
-          }
-        }
+        Expr::Lit(lit) => lit.get_key(),
+        Expr::Tpl(tpl) => tpl.get_key(),
         _ => None,
       },
     }
+  }
+}
+
+impl Key for MemberExpr {
+  fn get_key(&self) -> Option<String> {
+    if let Expr::Ident(ident) = &*self.prop {
+      if !self.computed {
+        return Some(ident.sym.to_string());
+      }
+    }
+
+    (&*self.prop).get_key()
   }
 }
