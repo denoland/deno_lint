@@ -18,10 +18,14 @@ name = "dlint"
 [features]
 # Adds ability to Serialize LintDiagnostic
 json = ["serde", "serde_json"]
+# Adds ability for usage with wasm-bindgen
+stdweb = [ "instant/stdweb" ]
+wasm-bindgen = [ "instant/wasm-bindgen" ]
 
 [dependencies]
 lazy_static = "1.4.0"
 log = "0.4.11"
+instant = "0.1"
 serde = { version = "1.0.88", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 swc_atoms = "0.2.2"
