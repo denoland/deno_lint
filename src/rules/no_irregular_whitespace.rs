@@ -6,10 +6,12 @@ use swc_ecmascript::ast::Module;
 
 pub struct NoIrregularWhitespace;
 
+// TODO(Akin)
+// Allow irregular whitespace in strings
+
 fn test_for_whitespace(value: &str) -> Option<Matches> {
   lazy_static! {
     static ref ALL_IRREGULARS: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]").unwrap();
-    static ref LINE_BREAK_MATCHER: Regex = Regex::new(r"[^\r\n]+").unwrap();
   }
   if ALL_IRREGULARS.is_match(value) {
     let matches = ALL_IRREGULARS.find_iter(value);
@@ -64,10 +66,7 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_valid() {
-    assert_lint_err_on_line::<NoIrregularWhitespace>(
-      "console.log('The last space in this string will make it　fail');",
-      1,
-      55,
-    );
+    assert_lint_err::<NoIrregularWhitespace>("function thing()　{};", 16);
+    assert_lint_err::<NoIrregularWhitespace>("const foo = () => { };", 19);
   }
 }
