@@ -399,24 +399,40 @@ mod tests {
   }
 
   #[test]
-  fn no_unused_vars_err_2() {
+  fn no_unused_vars_err_2_1() {
     assert_lint_err::<NoUnusedVars>("function foox() { return foox(); }", 0);
     assert_lint_err::<NoUnusedVars>(
       "(function() { function foox() { if (true) { return foox(); } } }())",
       0,
     );
+  }
+
+  #[test]
+  fn no_unused_vars_err_2_2() {
     assert_lint_err::<NoUnusedVars>("var a=10", 0);
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(a *= 2); }; }",
       0,
     );
+  }
+
+  #[test]
+  fn no_unused_vars_err_2_3() {
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(++a); }; }",
       0,
     );
     assert_lint_err::<NoUnusedVars>("function foo(first, second) {\ndoStuff(function() {\nconsole.log(second);});};", 0);
+  }
+
+  #[test]
+  fn no_unused_vars_err_2_4() {
     assert_lint_err::<NoUnusedVars>("var a=10;", 0);
     assert_lint_err::<NoUnusedVars>("var a=10; a=20;", 0);
+  }
+
+  #[test]
+  fn no_unused_vars_err_2_5() {
     assert_lint_err::<NoUnusedVars>(
       "var a=10; (function() { var a = 1; alert(a); })();",
       0,
