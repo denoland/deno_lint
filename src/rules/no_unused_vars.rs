@@ -90,12 +90,19 @@ impl Visit for Collector {
     self.used_vars.insert(export.orig.to_id());
   }
 
-  /// For in/of loops
+  /// Handl for-in/of loops
   fn visit_var_decl_or_pat(&mut self, node: &VarDeclOrPat, _: &dyn Node) {
+    // We need this because find_ids searches ids only in the pattern.
+    node.visit_children_with(self);
+
     match node {
-      VarDeclOrPat::VarDecl(v) => v.visit_children_with(self),
+      VarDeclOrPat::VarDecl(v) => {
+        // This is declaration, but cannot be removed.
+        let ids = find_ids(v);
+        self.used_vars.extend(ids);
+      }
       VarDeclOrPat::Pat(p) => {
-        // This is usage
+        // This is assignment, but cannot be removed
         let ids = find_ids(p);
         self.used_vars.extend(ids);
       }
