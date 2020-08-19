@@ -129,7 +129,7 @@ impl Visit for NoUnusedVarVisitor {
     let declared_idents: Vec<Ident> = find_ids(&declarator.name);
 
     for ident in declared_idents {
-      if ident.sym.starts_with("_") {
+      if ident.sym.starts_with('_') {
         continue;
       }
 
@@ -388,13 +388,250 @@ mod tests {
   }
 
   #[test]
-  fn no_unused_vars_err() {
+  fn no_unused_vars_err_1() {
     assert_lint_err::<NoUnusedVars>("var a = 0", 4);
 
     // variable shadowing
     assert_lint_err::<NoUnusedVars>(
       "var a = 1; function foo() { var a = 2; console.log(a); }",
       4,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_err_2() {
+    assert_lint_err::<NoUnusedVars>("function foox() { return foox(); }", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "(function() { function foox() { if (true) { return foox(); } } }())",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("var a=10", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "function f() { var a = 1; return function(){ f(a *= 2); }; }",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "function f() { var a = 1; return function(){ f(++a); }; }",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("function foo(first, second) {\ndoStuff(function() {\nconsole.log(second);});};", 0);
+    assert_lint_err::<NoUnusedVars>("var a=10;", 0);
+    assert_lint_err::<NoUnusedVars>("var a=10; a=20;", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "var a=10; (function() { var a = 1; alert(a); })();",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; alert(a+b)", 0);
+  }
+
+  #[test]
+  fn no_unused_vars_err_3() {
+    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);", 0);
+    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; var c=2; alert(a+b+c); }, 0);", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "function f(){var a=[];return a.map(function(){});}",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "function f(){var a=[];return a.map(function g(){});}",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "function f(){var x;function a(){x=42;}function b(){alert(x);}}",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("function f(a) {}; f();", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "function a(x, y, z){ return y; }; a();",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("var min = Math.min", 0);
+    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "Foo.bar = function(baz) { return 1; };",
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_err_4() {
+    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "function gg(baz, bar) { return baz; }; gg();",
+      0,
+    );
+    assert_lint_err_n::<NoUnusedVars>(
+      "(function(foo, baz, bar) { return baz; })();",
+      vec![0, 1],
+    );
+    assert_lint_err_n::<NoUnusedVars>(
+      "(function z(foo) { var bar = 33; })();",
+      vec![0, 1],
+    );
+    assert_lint_err::<NoUnusedVars>("(function z(foo) { z(); })();", 0);
+    assert_lint_err_n::<NoUnusedVars>(
+      "function f() { var a = 1; return function(){ f(a = 2); }; }",
+      vec![0, 1],
+    );
+    assert_lint_err::<NoUnusedVars>("import x from \"y\";", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "export function fn2({ x, y }) {\n console.log(x); \n};",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "export function fn2( x, y ) {\n console.log(x); \n};",
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_err_5() {
+    assert_lint_err::<NoUnusedVars>("var _a; var b;", 0);
+    assert_lint_err::<NoUnusedVars>("function foo(a, _b) { } foo()", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "function foo(a, _b, c) { return a; } foo();",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("function foo(_a) { } foo();", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "(function(obj) { var name; for ( name in obj ) { } })({});",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "(function(obj) { for ( var name in obj ) { } })({});",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("const data = { type: 'coords', x: 1, y: 2 }; const { type, ...coords } = data;\n console.log(coords);", 0);
+    assert_lint_err::<NoUnusedVars>("const data = { type: 'coords', x: 3, y: 2 }; const { type, ...coords } = data;\n console.log(type)", 0);
+    assert_lint_err::<NoUnusedVars>("const data = { vars: ['x','y'], x: 1, y: 2 }; const { vars: [x], ...coords } = data;\n console.log(coords)", 0);
+  }
+
+  #[test]
+  fn no_unused_vars_err_6() {
+    assert_lint_err::<NoUnusedVars>("const data = { defaults: { x: 0 }, x: 1, y: 2 }; const { defaults: { x }, ...coords } = data;\n console.log(coords)", 0);
+    assert_lint_err::<NoUnusedVars>("export default function(a) {}", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "export default function(a, b) { console.log(a); }",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("export default (function(a) {});", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "export default (function(a, b) { console.log(a); });",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("export default (a) => {};", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "export default (a, b) => { console.log(a); };",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("try{}catch(err){};", 0);
+  }
+
+  #[test]
+  fn no_unused_vars_err_7() {
+    assert_lint_err::<NoUnusedVars>("var a = 0; a = a + 1;", 0);
+    assert_lint_err::<NoUnusedVars>("var a = 0; a = a + a;", 0);
+    assert_lint_err::<NoUnusedVars>("var a = 0; a += a + 1", 0);
+    assert_lint_err::<NoUnusedVars>("var a = 0; a++;", 0);
+    assert_lint_err::<NoUnusedVars>("function foo(a) { a = a + 1 } foo();", 0);
+    assert_lint_err::<NoUnusedVars>("function foo(a) { a += a + 1 } foo();", 0);
+    assert_lint_err::<NoUnusedVars>("function foo(a) { a++ } foo();", 0);
+    assert_lint_err::<NoUnusedVars>("var a = 3; a = a * 5 + 6;", 0);
+    assert_lint_err::<NoUnusedVars>("var a = 2, b = 4; a = a * 2 + b;", 0);
+  }
+  #[test]
+  fn no_unused_vars_err_9() {
+    assert_lint_err::<NoUnusedVars>("function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "function foo(cb) { cb = (function(a) { cb(1 + a); }, cb); } foo();",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "function foo(cb) { cb = (0, function(a) { cb(1 + a); }); } foo();",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "(function ({ a }, b ) { return b; })();",
+      0,
+    );
+    assert_lint_err_n::<NoUnusedVars>(
+      "(function ({ a }, { b, c } ) { return b; })();",
+      vec![0, 1],
+    );
+    assert_lint_err_n::<NoUnusedVars>(
+      "(function ({ a, b }, { c } ) { return b; })();",
+      vec![0, 1],
+    );
+    assert_lint_err::<NoUnusedVars>(
+      "(function ([ a ], b ) { return b; })();",
+      0,
+    );
+    assert_lint_err_n::<NoUnusedVars>(
+      "(function ([ a ], [ b, c ] ) { return b; })();",
+      vec![0, 1],
+    );
+    assert_lint_err_n::<NoUnusedVars>(
+      "(function ([ a, b ], [ c ] ) { return b; })();",
+      vec![0, 1],
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_err_10() {
+    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "var a = function(){ return function() { a(); } };",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 14);
+    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>(
+      "var a = function(){ return function() { a(); } };",
+      0,
+    );
+    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 0);
+  }
+
+  #[test]
+  fn no_unused_vars_err_8() {
+    assert_lint_err_on_line_n::<NoUnusedVars>(
+      "let a = 'a';
+    a = 10;
+    function foo(){
+        a = 11;
+        a = () => {
+            a = 13
+        }
+    }",
+      vec![(3, 22), (6, 21)],
+    );
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "let c = 'c'
+    c = 10
+    function foo1() {
+      c = 11
+      c = () => {
+        c = 13
+      }
+    }
+    c = foo1",
+      10,
+      1,
     );
   }
 }
