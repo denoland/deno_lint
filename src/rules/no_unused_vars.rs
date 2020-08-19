@@ -289,9 +289,6 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>("function foo(_a) { } foo();");
     assert_lint_ok::<NoUnusedVars>("function foo(a, _b) { return a; } foo();");
     assert_lint_ok::<NoUnusedVars>(
-      "var [ firstItemIgnored, secondItem ] = items;\nconsole.log(secondItem);",
-    );
-    assert_lint_ok::<NoUnusedVars>(
       "(function(obj) { var name; for ( name in obj ) return; })({});",
     );
   }
