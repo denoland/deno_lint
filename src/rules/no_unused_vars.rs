@@ -683,13 +683,13 @@ mod tests {
     assert_lint_err::<NoUnusedVars>(
       "const data = { type: 'coords', x: 3, y: 2 };\
         const { type, ...coords } = data;\n console.log(type)",
-      0,
+      61,
     );
     assert_lint_err::<NoUnusedVars>(
       "const data = { vars: \
       ['x','y'], x: 1, y: 2 }; const { vars: [x], ...coords } = data;\n\
        console.log(coords)",
-      0,
+      61,
     );
   }
 
@@ -709,7 +709,7 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("export default (a) => {};", 16);
     assert_lint_err::<NoUnusedVars>(
       "export default (a, b) => { console.log(a); };",
-      0,
+      19,
     );
     assert_lint_err::<NoUnusedVars>("try{}catch(err){};", 0);
   }
