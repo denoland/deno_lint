@@ -110,6 +110,10 @@ impl Visit for NoUnusedVarVisitor {
     let declared_idents: Vec<Ident> = find_ids(&declarator.name);
 
     for ident in declared_idents {
+      if ident.sym.starts_with("_") {
+        continue;
+      }
+
       if !self.used_vars.contains(&ident.to_id()) {
         // The variable is not used.
         self.context.add_diagnostic(
@@ -282,7 +286,6 @@ mod tests {
       "var x = 1; function foo(y = function() { bar(x); }) { y(); } foo();",
     );
     assert_lint_ok::<NoUnusedVars>("var _a");
-    assert_lint_ok::<NoUnusedVars>("var a; function foo() { var _b; } foo();");
     assert_lint_ok::<NoUnusedVars>("function foo(_a) { } foo();");
     assert_lint_ok::<NoUnusedVars>("function foo(a, _b) { return a; } foo();");
     assert_lint_ok::<NoUnusedVars>(
