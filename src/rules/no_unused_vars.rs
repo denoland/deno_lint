@@ -4,11 +4,11 @@ use super::LintRule;
 use swc_ecmascript::ast::ExportDecl;
 use swc_ecmascript::ast::ExportNamedSpecifier;
 use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::FnDecl;
 use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
-use swc_ecmascript::ast::Pat;
-use swc_ecmascript::ast::{VarDeclOrPat, VarDeclarator};
+use swc_ecmascript::ast::{FnExpr, Pat, VarDeclOrPat, VarDeclarator};
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
@@ -37,6 +37,7 @@ impl LintRule for NoUnusedVars {
   ) {
     let mut collector = Collector {
       used_vars: Default::default(),
+      cur_defining: Default::default(),
     };
     module.visit_with(module, &mut collector);
 
@@ -48,6 +49,17 @@ impl LintRule for NoUnusedVars {
 /// Collects information about variable usages.
 struct Collector {
   used_vars: HashSet<Id>,
+  /// Currently defining functions or variables.
+  ///
+  ///
+  /// Note: As resolver handles binding-binding conflict of identifiers,
+  /// we can safely remove an ident from the set after declaration.
+  /// I mean, all binding identifiers are unique up to symbol and syntax context.
+  ///
+  ///
+  /// Type of this should be hashset, but we don't have a way to
+  /// restore hashset after handling bindings
+  cur_defining: Vec<Id>,
 }
 
 impl Visit for Collector {
@@ -58,8 +70,15 @@ impl Visit for Collector {
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
     match expr {
       Expr::Ident(i) => {
+        let id = i.to_id();
+
+        // Recursive calls are not usage
+        if self.cur_defining.contains(&id) {
+          return;
+        }
+
         // Mark the variable as used.
-        self.used_vars.insert(i.to_id());
+        self.used_vars.insert(id);
       }
       _ => expr.visit_children_with(self),
     }
@@ -108,6 +127,35 @@ impl Visit for Collector {
       }
     }
   }
+
+  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
+    let id = decl.ident.to_id();
+    self.cur_defining.push(id);
+    decl.function.visit_with(decl, self);
+    self.cur_defining.pop();
+  }
+
+  fn visit_fn_expr(&mut self, expr: &FnExpr, _: &dyn Node) {
+    if let Some(ident) = &expr.ident {
+      let id = ident.to_id();
+      self.cur_defining.push(id);
+      expr.function.visit_with(expr, self);
+      self.cur_defining.pop();
+    } else {
+      expr.function.visit_with(expr, self);
+    }
+  }
+
+  fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
+    let prev_len = self.cur_defining.len();
+    let declaring_ids: Vec<Id> = find_ids(&declarator.name);
+    self.cur_defining.extend(declaring_ids);
+
+    declarator.init.visit_with(declarator, self);
+
+    // Restore the original state
+    self.cur_defining.drain(..prev_len);
+  }
 }
 
 struct NoUnusedVarVisitor {
@@ -121,26 +169,37 @@ impl NoUnusedVarVisitor {
   }
 }
 
+impl NoUnusedVarVisitor {
+  fn handle_id(&mut self, ident: &Ident) {
+    if ident.sym.starts_with('_') {
+      return;
+    }
+
+    if !self.used_vars.contains(&ident.to_id()) {
+      // The variable is not used.
+      self.context.add_diagnostic(
+        ident.span,
+        "no-unused-vars",
+        &format!("\"{}\" is never used", ident.sym),
+      );
+    }
+  }
+}
+
 /// As we only care about variables, only variable declrations are checked.
 impl Visit for NoUnusedVarVisitor {
   // TODO(kdy1): swc_ecmascript::visit::noop_visit_type!() after updating swc
+
+  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
+    self.handle_id(&decl.ident);
+    decl.function.visit_with(decl, self);
+  }
 
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
     let declared_idents: Vec<Ident> = find_ids(&declarator.name);
 
     for ident in declared_idents {
-      if ident.sym.starts_with('_') {
-        continue;
-      }
-
-      if !self.used_vars.contains(&ident.to_id()) {
-        // The variable is not used.
-        self.context.add_diagnostic(
-          ident.span,
-          "no-unused-vars",
-          &format!("\"{}\" is never used", ident.sym),
-        );
-      }
+      self.handle_id(&ident);
     }
   }
 
@@ -400,19 +459,19 @@ mod tests {
 
   #[test]
   fn no_unused_vars_err_2_1() {
-    assert_lint_err::<NoUnusedVars>("function foox() { return foox(); }", 0);
+    assert_lint_err::<NoUnusedVars>("function foox() { return foox(); }", 9);
     assert_lint_err::<NoUnusedVars>(
       "(function() { function foox() { if (true) { return foox(); } } }())",
-      0,
+      23,
     );
   }
 
   #[test]
   fn no_unused_vars_err_2_2() {
-    assert_lint_err::<NoUnusedVars>("var a=10", 0);
+    assert_lint_err::<NoUnusedVars>("var a=10", 4);
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(a *= 2); }; }",
-      0,
+      19,
     );
   }
 
