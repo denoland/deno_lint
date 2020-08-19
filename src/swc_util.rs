@@ -15,6 +15,7 @@ use swc_common::Globals;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
+use swc_common::GLOBALS;
 use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, Prop, PropName,
   PropOrSpread, Str, Tpl,
@@ -26,7 +27,9 @@ use swc_ecmascript::parser::Parser;
 use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::parser::TsConfig;
+use swc_ecmascript::transforms::resolver;
 use swc_ecmascript::visit::Fold;
+use swc_ecmascript::visit::FoldWith;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -177,6 +180,10 @@ impl AstParser {
       let mut diagnostic_builder = err.into_diagnostic(&self.handler);
       diagnostic_builder.emit();
       SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+    });
+
+    let parse_result = parse_result.map(|module| {
+      GLOBALS.set(&self.globals, || module.fold_with(&mut resolver()))
     });
 
     (parse_result, comments)
