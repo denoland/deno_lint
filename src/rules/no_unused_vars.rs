@@ -116,7 +116,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_unused_vars_ok() {
+  fn no_unused_vars_ok_1() {
     assert_lint_ok::<NoUnusedVars>("var a = 1; console.log(a)");
     assert_lint_ok::<NoUnusedVars>(
       "var a = 1; function foo() { console.log(a) } ",
@@ -127,7 +127,9 @@ mod tests {
 
     // Hoisting. This code is wrong, but it's not related with unused-vars
     assert_lint_ok::<NoUnusedVars>("console.log(a); var a = 1;");
-
+  }
+  #[test]
+  fn no_unused_vars_ok_2() {
     // Ported form eslint
 
     assert_lint_ok::<NoUnusedVars>("var foo = 5;\n\nlabel: while (true) {\n  console.log(foo);\n  break label;\n}");
@@ -153,6 +155,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "var c = 0; function f(a){ var b = a; return b; }; f(c);",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_3() {
     assert_lint_ok::<NoUnusedVars>("function a(x, y){ return y; }; a();");
     assert_lint_ok::<NoUnusedVars>("var arr1 = [1, 2]; var arr2 = [3, 4]; for (var i in arr1) { arr1[i] = 5; } for (var i in arr2) { arr2[i] = 10; }");
     assert_lint_ok::<NoUnusedVars>("var a=10;");
@@ -169,6 +175,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "function g(bar, baz) { return bar; }; g();",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_4() {
     assert_lint_ok::<NoUnusedVars>("(function z() { z(); })();");
     assert_lint_ok::<NoUnusedVars>(
       "var who = \"Paul\";\nmodule.exports = `Hello ${who}!`;",
@@ -203,6 +213,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "const x = 1; const {z: [y = x]} = {}; foo(y);",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_5() {
     assert_lint_ok::<NoUnusedVars>(
       "const x = []; const {z: [y] = x} = {}; foo(y);",
     );
@@ -236,6 +250,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "var x = [], y; ({z: [y] = x} = {}); foo(y);",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_6() {
     assert_lint_ok::<NoUnusedVars>(
       "var x = 1; function foo(y = x) { bar(y); } foo();",
     );
@@ -256,6 +274,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "(function(obj) { var name; for ( name in obj ) return; })({});",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_7() {
     assert_lint_ok::<NoUnusedVars>(
       "(function(obj) { var name; for ( name in obj ) { return; } })({});",
     );
@@ -268,6 +290,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "(function(obj) { let name; for ( name in obj ) return; })({});",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_8() {
     assert_lint_ok::<NoUnusedVars>(
       "(function(obj) { let name; for ( name in obj ) { return; } })({});",
     );
@@ -301,6 +327,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "function* foo(cb) { cb = yield function(a) { cb(1 + a); }; } foo();",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_9() {
     assert_lint_ok::<NoUnusedVars>("function foo(cb) { cb = tag`hello${function(a) { cb(1 + a); }}`; } foo();");
     assert_lint_ok::<NoUnusedVars>("function foo(cb) { var b; cb = b = function(a) { cb(1 + a); }; b(); } foo();");
     assert_lint_ok::<NoUnusedVars>("(class { set foo(UNUSED) {} })");
@@ -311,6 +341,10 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>(
       "var a = function(){ return function () { a(); } }; a();",
     );
+  }
+
+  #[test]
+  fn no_unused_vars_ok_10() {
     assert_lint_ok::<NoUnusedVars>("const a = () => { a(); }; a();");
     assert_lint_ok::<NoUnusedVars>("const a = () => () => { a(); }; a();");
     assert_lint_ok::<NoUnusedVars>(r#"export * as ns from "source""#);
