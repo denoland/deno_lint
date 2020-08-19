@@ -716,7 +716,7 @@ mod tests {
             a = 13
         }
     }",
-      vec![(3, 22), (6, 21)],
+      vec![(1, 4), (3, 13)],
     );
     assert_lint_err_on_line::<NoUnusedVars>(
       "let c = 'c'
@@ -728,8 +728,8 @@ mod tests {
       }
     }
     c = foo1",
-      10,
       1,
+      4,
     );
   }
 }
