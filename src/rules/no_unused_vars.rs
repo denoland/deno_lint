@@ -265,7 +265,23 @@ impl Visit for NoUnusedVarVisitor {
   }
 
   /// no-op as export is kind of usage
-  fn visit_export_decl(&mut self, _: &ExportDecl, _: &dyn Node) {}
+  fn visit_export_decl(&mut self, export: &ExportDecl, _: &dyn Node) {
+    match &export.decl {
+      swc_ecmascript::ast::Decl::Class(c) => {
+        c.class.visit_with(c, self);
+      }
+      swc_ecmascript::ast::Decl::Fn(f) => {
+        f.function.visit_with(f, self);
+      }
+      swc_ecmascript::ast::Decl::Var(v) => {
+        for decl in &v.decls {
+          decl.name.visit_with(decl, self);
+          decl.init.visit_with(decl, self);
+        }
+      }
+      _ => {}
+    }
+  }
 
   /// no-op as export is kind of usage
   fn visit_named_export(&mut self, _: &NamedExport, _: &dyn Node) {}
@@ -597,7 +613,7 @@ mod tests {
       "function f() { var a = 1; return function(){ f(a = 2); }; }",
       vec![9, 19],
     );
-    assert_lint_err::<NoUnusedVars>("import x from \"y\";", 0);
+    assert_lint_err::<NoUnusedVars>("import x from \"y\";", 7);
     assert_lint_err::<NoUnusedVars>(
       "export function fn2({ x, y }) {\n console.log(x); \n};",
       0,
