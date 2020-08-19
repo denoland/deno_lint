@@ -1,16 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::ExportDecl;
-use swc_ecmascript::ast::ExportNamedSpecifier;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::FnDecl;
-use swc_ecmascript::ast::Ident;
-use swc_ecmascript::ast::MemberExpr;
-use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::{
-  ArrowExpr, CatchClause, ClassMethod, FnExpr, ImportDefaultSpecifier,
-  ImportNamedSpecifier, ImportStarAsSpecifier, Param, Pat, SetterProp,
+  ArrowExpr, CatchClause, ClassMethod, ExportDecl, ExportNamedSpecifier, Expr,
+  FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, MemberExpr, NamedExport, Param, Pat, SetterProp,
   VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::find_ids;
@@ -834,4 +828,513 @@ mod tests {
       vec![(1, 4)],
     );
   }
+
+  #[test]
+  fn no_unused_vars_ts_ok_1() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { ClassDecoratorFactory } from 'decorators';
+@ClassDecoratorFactory()
+export class Foo {}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { ClassDecorator } from 'decorators';
+@ClassDecorator
+export class Foo {}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { AccessorDecoratorFactory } from 'decorators';
+export class Foo {
+  @AccessorDecoratorFactory(true)
+  get bar() {}
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { AccessorDecorator } from 'decorators';
+export class Foo {
+  @AccessorDecorator
+  set bar() {}
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { MethodDecoratorFactory } from 'decorators';
+export class Foo {
+  @MethodDecoratorFactory(false)
+  bar() {}
+}
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_2() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { MethodDecorator } from 'decorators';
+export class Foo {
+  @MethodDecorator
+  static bar() {}
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { ConstructorParameterDecoratorFactory } from 'decorators';
+export class Service {
+  constructor(
+    @ConstructorParameterDecoratorFactory(APP_CONFIG) config: AppConfig,
+  ) {
+    this.title = config.title;
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { ConstructorParameterDecorator } from 'decorators';
+export class Foo {
+  constructor(@ConstructorParameterDecorator bar) {
+    this.bar = bar;
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { ParameterDecoratorFactory } from 'decorators';
+export class Qux {
+  bar(@ParameterDecoratorFactory(true) baz: number) {
+    console.log(baz);
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { ParameterDecorator } from 'decorators';
+export class Foo {
+  static greet(@ParameterDecorator name: string) {
+    return name;
+  }
+}
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_3() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Input, Output, EventEmitter } from 'decorators';
+export class SomeComponent {
+  @Input() data;
+  @Output()
+  click = new EventEmitter();
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { configurable } from 'decorators';
+export class A {
+  @configurable(true) static prop1;
+  @configurable(false)
+  static prop2;
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { foo, bar } from 'decorators';
+export class B {
+  @foo x;
+  @bar
+  y;
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+interface Base {}
+class Thing implements Base {}
+new Thing();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+interface Base {}
+const a: Base = {};
+console.log(a);
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_4() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from 'foo';
+function bar<T>() {}
+bar<Foo>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from 'foo';
+const bar = function <T>() {};
+bar<Foo>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from 'foo';
+const bar = <T>() => {};
+bar<Foo>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from 'foo';
+<Foo>(<T>() => {})();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Nullable<string> = 'hello';
+console.log(a);
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_5() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+const a: Nullable<SomeOther> = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Nullable | undefined = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Nullable & undefined = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+const a: Nullable<SomeOther[]> = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+const a: Nullable<Array<SomeOther>> = 'hello';
+console.log(a);
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_6() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Array<Nullable> = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Nullable[] = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Array<Nullable[]> = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: Array<Array<Nullable>> = 'hello';
+console.log(a);
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+const a: Array<Nullable<SomeOther>> = 'hello';
+console.log(a);
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_7() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Component } from 'react';
+class Foo implements Component<Nullable> {}
+new Foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Component } from 'react';
+class Foo extends Component<Nullable, {}> {}
+new Foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Component } from 'react';
+class Foo extends Component<Nullable<SomeOther>, {}> {}
+new Foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Component } from 'react';
+class Foo implements Component<Nullable<SomeOther>, {}> {}
+new Foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Component, Component2 } from 'react';
+class Foo implements Component<Nullable<SomeOther>, {}>, Component2 {}
+new Foo();
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_8() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+class A {
+  do = (a: Nullable<Another>) => {
+    console.log(a);
+  };
+}
+new A();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+class A {
+  do(a: Nullable<Another>) {
+    console.log(a);
+  }
+}
+new A();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+class A {
+  do(): Nullable<Another> {
+    return null;
+  }
+}
+new A();
+      ",
+    );
+
+    // TODO(kdy1): Copy https://github.com/typescript-eslint/typescript-eslint/blob/6f397df42cbcf05c10f304c9bbfdae4803aa0ce2/packages/eslint-plugin/tests/rules/no-unused-vars.test.ts#L277-L998
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+function foo(a: Nullable) {
+  console.log(a);
+}
+foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+function foo(): Nullable {
+  return null;
+}
+foo();
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_9() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+function foo(): Nullable {
+  return null;
+}
+foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Another } from 'some';
+class A extends Nullable<SomeOther> {
+  do(a: Nullable<Another>) {
+    console.log(a);
+  }
+}
+new A();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Another } from 'some';
+interface A extends Nullable<SomeOther> {
+  other: Nullable<Another>;
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Another } from 'some';
+interface A extends Nullable<SomeOther> {
+  do(a: Nullable<Another>);
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from './types';
+class Bar<T extends Foo> {}
+new Bar<number>();
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_10() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo, Bar } from './types';
+class Baz<T extends Foo & Bar> {}
+new Baz<any>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from './types';
+class Bar<T = Foo> {}
+new Bar<number>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from './types';
+class Foo<T = any> {}
+new Foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from './types';
+class Foo<T = {}> {}
+new Foo();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from './types';
+class Foo<T extends {} = {}> {}
+new Foo();
+      ",
+    );
+  }
+
+  // TODO: Copy https://github.com/typescript-eslint/typescript-eslint/blob/6f397df42cbcf05c10f304c9bbfdae4803aa0ce2/packages/eslint-plugin/tests/rules/no-unused-vars.test.ts#L372
 }
