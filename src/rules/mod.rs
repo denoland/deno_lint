@@ -149,7 +149,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_inferrable_types::NoInferrableTypes::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
     no_unused_labels::NoUnusedLabels::new(),
-    no_unused_vars::NoUnusedVars::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
     no_constant_condition::NoConstantCondition::new(),
   ]
