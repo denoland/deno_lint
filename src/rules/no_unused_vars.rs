@@ -9,8 +9,9 @@ use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::{
-  ArrowExpr, ClassMethod, FnExpr, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
+  ArrowExpr, CatchClause, ClassMethod, FnExpr, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, Param, Pat, SetterProp,
+  VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -215,7 +216,7 @@ impl Visit for NoUnusedVarVisitor {
     for ident in declared_idents {
       self.handle_id(&ident);
     }
-    expr.body.visit_children_with(self)
+    expr.body.visit_with(expr, self)
   }
 
   fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
@@ -231,6 +232,16 @@ impl Visit for NoUnusedVarVisitor {
     }
     declarator.name.visit_with(declarator, self);
     declarator.init.visit_with(declarator, self);
+  }
+
+  fn visit_catch_clause(&mut self, clause: &CatchClause, _: &dyn Node) {
+    let declared_idents: Vec<Ident> = find_ids(&clause.param);
+
+    for ident in declared_idents {
+      self.handle_id(&ident);
+    }
+
+    clause.body.visit_with(clause, self);
   }
 
   fn visit_setter_prop(&mut self, prop: &SetterProp, _: &dyn Node) {
@@ -361,7 +372,6 @@ mod tests {
     assert_lint_ok::<NoUnusedVars>("myFunc(function foo() {}.bind(this))");
     assert_lint_ok::<NoUnusedVars>("myFunc(function foo(){}.toString())");
     assert_lint_ok::<NoUnusedVars>("(function() { var doSomething = function doSomething() {}; doSomething() }())");
-    assert_lint_ok::<NoUnusedVars>("try {} catch(e) {}");
     assert_lint_ok::<NoUnusedVars>("/*global a */ a;");
     assert_lint_ok::<NoUnusedVars>("var a=10; (function() { alert(a); })();");
     assert_lint_ok::<NoUnusedVars>("var a=10; (function() { alert(a); })();");
