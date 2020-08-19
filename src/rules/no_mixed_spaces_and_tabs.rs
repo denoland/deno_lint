@@ -35,10 +35,48 @@ impl LintRule for NoMixedSpacesAndTabs {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
     visitor.visit_module(module, module);
 
-    let mut excluded_ranges = visitor.ranges.iter();
-
     let file_and_lines = context.source_map.span_to_lines(module.span).unwrap();
     let file = file_and_lines.file;
+
+    let mut excluded_ranges = visitor.ranges;
+
+    eprintln!("comments! {:#?}", context.leading_comments);
+    eprintln!("tcomments! {:#?}", context.trailing_comments);
+
+    context.leading_comments.values().for_each(|comments| {
+      eprintln!("comments! {:#?}", comments);
+      for comment in comments {
+        let lines = context.source_map.span_to_lines(comment.span).unwrap().lines;
+        for line in lines.iter().skip(1) {
+          let (lo, hi) = file.line_bounds(line.line_index as usize);
+          excluded_ranges.push(Span::new(
+            lo,
+            hi,
+            SyntaxContext::empty(),
+          ));
+        }
+      }
+    });
+    context.trailing_comments.values().for_each(|comments| {
+      eprintln!("comments! {:#?}", comments);
+      for comment in comments {
+        let lines = context.source_map.span_to_lines(comment.span).unwrap().lines;
+        eprintln!("lines {:#?}", lines);
+        for line in lines.iter().skip(1) {
+          let (lo, hi) = file.line_bounds(line.line_index as usize);
+          eprintln!("hi lo {:#?} {:#?}", hi, lo);
+          excluded_ranges.push(Span::new(
+            lo,
+            hi,
+            SyntaxContext::empty(),
+          ));
+        }
+      }
+    });
+
+
+    let excluded_ranges = excluded_ranges.iter();
+    eprintln!("excluded ranges {:#?}", excluded_ranges);
     // let lines = file_and_lines.lines;
     for line_index in 0..file.count_lines() {
       let line = file.get_line(line_index).unwrap();
@@ -54,14 +92,19 @@ impl LintRule for NoMixedSpacesAndTabs {
       //   .unwrap();
       let whitespace_matches = RE.find_iter(&line);
       for whitespace_match in whitespace_matches {
+        eprintln!("whitespace match {:#?}", whitespace_match);
         let range = whitespace_match.range();
         let span = Span::new(
           byte_pos + BytePos(range.start as u32),
           byte_pos + BytePos(range.end as u32),
           SyntaxContext::empty(),
         );
-        
-        if !excluded_ranges.any(|range| range.contains(span)) {
+        eprintln!("span {:#?}", span);
+        let is_excluded = excluded_ranges.clone().any(|range| {
+          eprintln!("{:#?} {:#?} {:#?} {:#?}", range.lo, span.lo, span.hi, range.hi);
+          range.lo <= span.lo && span.hi <= range.hi
+        });
+        if !is_excluded {
           context.add_diagnostic(
             span,
             "no-mixed-spaces-and-tabs",
