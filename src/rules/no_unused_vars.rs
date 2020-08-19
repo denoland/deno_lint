@@ -9,7 +9,7 @@ use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::{
-  ClassMethod, FnExpr, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ArrowExpr, ClassMethod, FnExpr, ImportDefaultSpecifier, ImportNamedSpecifier,
   ImportStarAsSpecifier, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::find_ids;
@@ -208,6 +208,15 @@ impl NoUnusedVarVisitor {
 /// As we only care about variables, only variable declrations are checked.
 impl Visit for NoUnusedVarVisitor {
   // TODO(kdy1): swc_ecmascript::visit::noop_visit_type!() after updating swc
+
+  fn visit_arrow_expr(&mut self, expr: &ArrowExpr, _: &dyn Node) {
+    let declared_idents: Vec<Ident> = find_ids(&expr.params);
+
+    for ident in declared_idents {
+      self.handle_id(&ident);
+    }
+    expr.body.visit_children_with(self)
+  }
 
   fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
     self.handle_id(&decl.ident);
@@ -669,7 +678,7 @@ mod tests {
     assert_lint_err::<NoUnusedVars>(
       "const data = { type: 'coords', x: 1, y: 2 };\
      const { type, ...coords } = data;\n console.log(coords);",
-      0,
+      52,
     );
     assert_lint_err::<NoUnusedVars>(
       "const data = { type: 'coords', x: 3, y: 2 };\
@@ -687,17 +696,17 @@ mod tests {
   #[test]
   fn no_unused_vars_err_6() {
     assert_lint_err::<NoUnusedVars>("const data = { defaults: { x: 0 }, x: 1, y: 2 }; const { defaults: { x }, ...coords } = data;\n console.log(coords)", 69);
-    assert_lint_err::<NoUnusedVars>("export default function(a) {}", 12);
+    assert_lint_err::<NoUnusedVars>("export default function(a) {}", 24);
     assert_lint_err::<NoUnusedVars>(
       "export default function(a, b) { console.log(a); }",
-      0,
+      27,
     );
-    assert_lint_err::<NoUnusedVars>("export default (function(a) {});", 0);
+    assert_lint_err::<NoUnusedVars>("export default (function(a) {});", 25);
     assert_lint_err::<NoUnusedVars>(
       "export default (function(a, b) { console.log(a); });",
-      0,
+      28,
     );
-    assert_lint_err::<NoUnusedVars>("export default (a) => {};", 0);
+    assert_lint_err::<NoUnusedVars>("export default (a) => {};", 16);
     assert_lint_err::<NoUnusedVars>(
       "export default (a, b) => { console.log(a); };",
       0,
