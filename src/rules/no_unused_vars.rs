@@ -161,7 +161,6 @@ mod tests {
   fn no_unused_vars_ok_3() {
     assert_lint_ok::<NoUnusedVars>("function a(x, y){ return y; }; a();");
     assert_lint_ok::<NoUnusedVars>("var arr1 = [1, 2]; var arr2 = [3, 4]; for (var i in arr1) { arr1[i] = 5; } for (var i in arr2) { arr2[i] = 10; }");
-    assert_lint_ok::<NoUnusedVars>("var a=10;");
     assert_lint_ok::<NoUnusedVars>("var min = \"min\"; Math[min];");
     assert_lint_ok::<NoUnusedVars>("Foo.bar = function(baz) { return baz; };");
     assert_lint_ok::<NoUnusedVars>("myFunc(function foo() {}.bind(this))");
