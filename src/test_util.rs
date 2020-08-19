@@ -67,7 +67,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
   let rule = T::new();
   let rule_code = rule.code();
   let diagnostics = lint(rule, source);
-  assert!(diagnostics.len() == 1);
+  assert_eq!(diagnostics.len(), 1);
   assert_diagnostic(&diagnostics[0], rule_code, line, col);
 }
 
