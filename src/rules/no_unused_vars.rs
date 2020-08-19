@@ -206,7 +206,8 @@ impl Visit for NoUnusedVarVisitor {
     for ident in declared_idents {
       self.handle_id(&ident);
     }
-    declarator.init.visit_with(declarator, self)
+    declarator.name.visit_with(declarator, self);
+    declarator.init.visit_with(declarator, self);
   }
 
   fn visit_setter_prop(&mut self, prop: &SetterProp, _: &dyn Node) {
@@ -513,7 +514,7 @@ mod tests {
 
     assert_lint_err_n::<NoUnusedVars>(
       "var a=10; (function() { var a = 1; alert(a); })();",
-      vec![4, 28],
+      vec![4],
     );
     assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; alert(a+b)", 15);
   }
@@ -718,7 +719,7 @@ mod tests {
     }",
       vec![(1, 4), (3, 13)],
     );
-    assert_lint_err_on_line::<NoUnusedVars>(
+    assert_lint_err_on_line_n::<NoUnusedVars>(
       "let c = 'c'
     c = 10
     function foo1() {
@@ -728,8 +729,7 @@ mod tests {
       }
     }
     c = foo1",
-      1,
-      4,
+      vec![(1, 4)],
     );
   }
 }
