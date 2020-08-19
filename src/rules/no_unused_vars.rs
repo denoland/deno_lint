@@ -8,7 +8,7 @@ use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::Pat;
-use swc_ecmascript::ast::VarDeclarator;
+use swc_ecmascript::ast::{VarDeclOrPat, VarDeclarator};
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
@@ -88,6 +88,18 @@ impl Visit for Collector {
     _: &dyn Node,
   ) {
     self.used_vars.insert(export.orig.to_id());
+  }
+
+  /// For in/of loops
+  fn visit_var_decl_or_pat(&mut self, node: &VarDeclOrPat, _: &dyn Node) {
+    match node {
+      VarDeclOrPat::VarDecl(v) => v.visit_children_with(self),
+      VarDeclOrPat::Pat(p) => {
+        // This is usage
+        let ids = find_ids(p);
+        self.used_vars.extend(ids);
+      }
+    }
   }
 }
 
