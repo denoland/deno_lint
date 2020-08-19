@@ -2,9 +2,11 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::ExportDecl;
+use swc_ecmascript::ast::ExportNamedSpecifier;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
+use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::ast::VarDeclarator;
 use swc_ecmascript::utils::find_ids;
@@ -78,6 +80,15 @@ impl Visit for Collector {
       member_expr.prop.visit_with(member_expr, self);
     }
   }
+
+  /// export is kind of usage
+  fn visit_export_named_specifier(
+    &mut self,
+    export: &ExportNamedSpecifier,
+    _: &dyn Node,
+  ) {
+    self.used_vars.insert(export.orig.to_id());
+  }
 }
 
 struct NoUnusedVarVisitor {
@@ -112,6 +123,9 @@ impl Visit for NoUnusedVarVisitor {
 
   /// no-op as export is kind of usage
   fn visit_export_decl(&mut self, _: &ExportDecl, _: &dyn Node) {}
+
+  /// no-op as export is kind of usage
+  fn visit_named_export(&mut self, _: &NamedExport, _: &dyn Node) {}
 }
 
 #[cfg(test)]
