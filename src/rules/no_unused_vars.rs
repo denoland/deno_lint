@@ -103,7 +103,7 @@ impl Visit for NoUnusedVarVisitor {
         self.context.add_diagnostic(
           ident.span,
           "no-unused-vars",
-          &format!("\"{}\" label is never used", ident.sym),
+          &format!("\"{}\" is never used", ident.sym),
         );
       }
     }
