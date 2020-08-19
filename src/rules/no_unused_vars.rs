@@ -721,11 +721,13 @@ mod tests {
       "export default (a, b) => { console.log(a); };",
       19,
     );
-    assert_lint_err::<NoUnusedVars>("try{}catch(err){};", 0);
+    assert_lint_err::<NoUnusedVars>("try{}catch(err){};", 11);
   }
 
+  // TODO(kdy1): Unignore the test
   #[test]
-  fn no_unused_vars_err_7() {
+  #[ignore]
+  fn no_unused_vars_err_assign_expr() {
     assert_lint_err::<NoUnusedVars>("var a = 0; a = a + 1;", 0);
     assert_lint_err::<NoUnusedVars>("var a = 0; a = a + a;", 0);
     assert_lint_err::<NoUnusedVars>("var a = 0; a += a + 1", 0);
@@ -737,10 +739,10 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("var a = 2, b = 4; a = a * 2 + b;", 0);
   }
 
-  // TODO(kdy1): Unignore collector for assign expression
+  // TODO(kdy1): Unignore the test
   #[test]
   #[ignore]
-  fn no_unused_vars_err_assign_expr() {
+  fn no_unused_vars_err_assign_to_self() {
     assert_lint_err::<NoUnusedVars>("function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();", 0);
     assert_lint_err::<NoUnusedVars>(
       "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();",
