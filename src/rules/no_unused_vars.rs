@@ -643,36 +643,44 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("function foo(a, _b) { } foo()", 13);
     assert_lint_err::<NoUnusedVars>(
       "function foo(a, _b, c) { return a; } foo();",
-      0,
+      20,
     );
-    assert_lint_err::<NoUnusedVars>("function foo(_a) { } foo();", 20);
+  }
+
+  #[test]
+  #[ignore]
+  fn no_unused_vars_err_for_loop_control_flow() {
     assert_lint_err::<NoUnusedVars>(
       "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});",
-      20,
+      0,
     );
     assert_lint_err::<NoUnusedVars>(
       "(function(obj) { var name; for ( name in obj ) { } })({});",
-      20,
+      0,
     );
     assert_lint_err::<NoUnusedVars>(
       "(function(obj) { for ( var name in obj ) { } })({});",
-      20,
+      0,
     );
+  }
+
+  #[test]
+  fn no_unused_vars_err_destructuring() {
     assert_lint_err::<NoUnusedVars>(
       "const data = { type: 'coords', x: 1, y: 2 };\
      const { type, ...coords } = data;\n console.log(coords);",
-      20,
+      0,
     );
     assert_lint_err::<NoUnusedVars>(
       "const data = { type: 'coords', x: 3, y: 2 };\
         const { type, ...coords } = data;\n console.log(type)",
-      20,
+      0,
     );
     assert_lint_err::<NoUnusedVars>(
       "const data = { vars: \
       ['x','y'], x: 1, y: 2 }; const { vars: [x], ...coords } = data;\n\
        console.log(coords)",
-      20,
+      0,
     );
   }
 
