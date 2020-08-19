@@ -74,9 +74,11 @@ impl Visit for Collector {
 
         // Recursive calls are not usage
         if self.cur_defining.contains(&id) {
+          dbg!(&id);
           return;
         }
 
+        dbg!(&id);
         // Mark the variable as used.
         self.used_vars.insert(id);
       }
@@ -177,6 +179,7 @@ impl NoUnusedVarVisitor {
     }
 
     if !self.used_vars.contains(&ident.to_id()) {
+      dbg!(&ident.to_id());
       // The variable is not used.
       self.context.add_diagnostic(
         ident.span,
@@ -491,14 +494,18 @@ mod tests {
   #[test]
   fn no_unused_vars_err_3() {
     assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);", 10);
-    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; var c=2; alert(a+b+c); }, 0);", 0);
+    assert_lint_err_n::<NoUnusedVars>(
+      "var a=10, b=0, c=null; setTimeout(function() \
+      { var b=2; var c=2; alert(a+b+c); }, 0);",
+      vec![10, 15],
+    );
     assert_lint_err::<NoUnusedVars>(
       "function f(){var a=[];return a.map(function(){});}",
-      0,
+      9,
     );
     assert_lint_err::<NoUnusedVars>(
       "function f(){var a=[];return a.map(function g(){});}",
-      0,
+      9,
     );
     assert_lint_err::<NoUnusedVars>(
       "function f(){var x;function a(){x=42;}function b(){alert(x);}}",
