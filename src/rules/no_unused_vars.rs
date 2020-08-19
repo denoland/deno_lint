@@ -154,7 +154,8 @@ impl Visit for Collector {
     declarator.init.visit_with(declarator, self);
 
     // Restore the original state
-    self.cur_defining.drain(..prev_len);
+    self.cur_defining.drain(prev_len..);
+    assert_eq!(self.cur_defining.len(), prev_len);
   }
 }
 
@@ -452,13 +453,13 @@ mod tests {
 
     // variable shadowing
     assert_lint_err::<NoUnusedVars>(
-      "var a = 1; function foo() { var a = 2; console.log(a); }",
+      "var a = 1; function foo() { var a = 2; console.log(a); }; use(foo);",
       4,
     );
   }
 
   #[test]
-  fn no_unused_vars_err_2_1() {
+  fn no_unused_vars_err_2() {
     assert_lint_err::<NoUnusedVars>("function foox() { return foox(); }", 9);
     assert_lint_err::<NoUnusedVars>(
       "(function() { function foox() { if (true) { return foox(); } } }())",
@@ -489,7 +490,7 @@ mod tests {
 
   #[test]
   fn no_unused_vars_err_3() {
-    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);", 0);
+    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);", 10);
     assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; var c=2; alert(a+b+c); }, 0);", 0);
     assert_lint_err::<NoUnusedVars>(
       "function f(){var a=[];return a.map(function(){});}",
@@ -649,25 +650,25 @@ mod tests {
 
   #[test]
   fn no_unused_vars_err_10() {
-    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 4);
     assert_lint_err::<NoUnusedVars>(
       "var a = function(){ return function() { a(); } };",
-      0,
+      4,
     );
-    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 0);
-    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 6);
+    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 6);
     assert_lint_err::<NoUnusedVars>(
       "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);",
-      0,
+      4,
     );
-    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 14);
-    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 6);
+    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 4);
     assert_lint_err::<NoUnusedVars>(
       "var a = function(){ return function() { a(); } };",
-      0,
+      4,
     );
-    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 0);
-    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 0);
+    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 6);
+    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 6);
   }
 
   #[test]
