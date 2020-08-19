@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_ecmascript::ast::ExportDecl;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
@@ -108,6 +109,9 @@ impl Visit for NoUnusedVarVisitor {
       }
     }
   }
+
+  /// no-op as export is kind of usage
+  fn visit_export_decl(&mut self, _: &ExportDecl, _: &dyn Node) {}
 }
 
 #[cfg(test)]
