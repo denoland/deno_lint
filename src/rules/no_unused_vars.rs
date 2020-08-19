@@ -8,7 +8,9 @@ use swc_ecmascript::ast::FnDecl;
 use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
-use swc_ecmascript::ast::{FnExpr, Param, Pat, VarDeclOrPat, VarDeclarator};
+use swc_ecmascript::ast::{
+  FnExpr, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
+};
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
@@ -205,6 +207,12 @@ impl Visit for NoUnusedVarVisitor {
     for ident in declared_idents {
       self.handle_id(&ident);
     }
+    declarator.init.visit_with(declarator, self)
+  }
+
+  fn visit_setter_prop(&mut self, prop: &SetterProp, _: &dyn Node) {
+    prop.key.visit_with(prop, self);
+    prop.body.visit_with(prop, self);
   }
 
   fn visit_param(&mut self, param: &Param, _: &dyn Node) {
@@ -213,6 +221,7 @@ impl Visit for NoUnusedVarVisitor {
     for ident in declared_idents {
       self.handle_id(&ident);
     }
+    param.visit_children_with(self)
   }
 
   /// no-op as export is kind of usage
@@ -480,14 +489,18 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("var a=10", 4);
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(a *= 2); }; }",
-      19,
+      9,
     );
 
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(++a); }; }",
-      19,
+      9,
     );
-    assert_lint_err::<NoUnusedVars>("function foo(first, second) {\ndoStuff(function() {\nconsole.log(second);});};", 9);
+    assert_lint_err_n::<NoUnusedVars>(
+      "function foo(first, second) {\ndoStuff(function()\
+       {\nconsole.log(second);});};",
+      vec![9, 13],
+    );
 
     assert_lint_err::<NoUnusedVars>("var a=10;", 4);
     assert_lint_err::<NoUnusedVars>("var a=10; a=20;", 4);
@@ -519,16 +532,16 @@ mod tests {
       "function f(){var x;function a(){x=42;}function b(){alert(x);}}",
       vec![9, 28, 47],
     );
-    assert_lint_err::<NoUnusedVars>("function f(a) {}; f();", 0);
-    assert_lint_err::<NoUnusedVars>(
+    assert_lint_err::<NoUnusedVars>("function f(a) {}; f();", 11);
+    assert_lint_err_n::<NoUnusedVars>(
       "function a(x, y, z){ return y; }; a();",
-      0,
+      vec![11, 17],
     );
-    assert_lint_err::<NoUnusedVars>("var min = Math.min", 0);
-    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 0);
+    assert_lint_err::<NoUnusedVars>("var min = Math.min", 4);
+    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 4);
     assert_lint_err::<NoUnusedVars>(
       "Foo.bar = function(baz) { return 1; };",
-      0,
+      19,
     );
   }
 
