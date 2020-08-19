@@ -76,11 +76,9 @@ impl Visit for Collector {
 
         // Recursive calls are not usage
         if self.cur_defining.contains(&id) {
-          dbg!(&id);
           return;
         }
 
-        dbg!(&id);
         // Mark the variable as used.
         self.used_vars.insert(id);
       }
@@ -155,6 +153,7 @@ impl Visit for Collector {
     let declaring_ids: Vec<Id> = find_ids(&declarator.name);
     self.cur_defining.extend(declaring_ids);
 
+    declarator.name.visit_with(declarator, self);
     declarator.init.visit_with(declarator, self);
 
     // Restore the original state
@@ -255,9 +254,6 @@ mod tests {
   fn no_unused_vars_ok_1() {
     assert_lint_ok::<NoUnusedVars>("var a = 1; console.log(a)");
     assert_lint_ok::<NoUnusedVars>(
-      "var a = 1; function foo() { console.log(a) } ",
-    );
-    assert_lint_ok::<NoUnusedVars>(
       "var a = 1; const arrow = () => a; console.log(arrow)",
     );
 
@@ -295,21 +291,16 @@ mod tests {
 
   #[test]
   fn no_unused_vars_ok_3() {
-    assert_lint_ok::<NoUnusedVars>("function a(x, y){ return y; }; a();");
     assert_lint_ok::<NoUnusedVars>("var arr1 = [1, 2]; var arr2 = [3, 4]; for (var i in arr1) { arr1[i] = 5; } for (var i in arr2) { arr2[i] = 10; }");
     assert_lint_ok::<NoUnusedVars>("var min = \"min\"; Math[min];");
     assert_lint_ok::<NoUnusedVars>("Foo.bar = function(baz) { return baz; };");
     assert_lint_ok::<NoUnusedVars>("myFunc(function foo() {}.bind(this))");
     assert_lint_ok::<NoUnusedVars>("myFunc(function foo(){}.toString())");
-    assert_lint_ok::<NoUnusedVars>("function foo(first, second) {\ndoStuff(function() {\nconsole.log(second);});}; foo()");
     assert_lint_ok::<NoUnusedVars>("(function() { var doSomething = function doSomething() {}; doSomething() }())");
     assert_lint_ok::<NoUnusedVars>("try {} catch(e) {}");
     assert_lint_ok::<NoUnusedVars>("/*global a */ a;");
     assert_lint_ok::<NoUnusedVars>("var a=10; (function() { alert(a); })();");
     assert_lint_ok::<NoUnusedVars>("var a=10; (function() { alert(a); })();");
-    assert_lint_ok::<NoUnusedVars>(
-      "function g(bar, baz) { return bar; }; g();",
-    );
   }
 
   #[test]
