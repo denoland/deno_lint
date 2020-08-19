@@ -195,7 +195,6 @@ impl NoUnusedVarVisitor {
     }
 
     if !self.used_vars.contains(&ident.to_id()) {
-      dbg!(&ident.to_id());
       // The variable is not used.
       self.context.add_diagnostic(
         ident.span,
