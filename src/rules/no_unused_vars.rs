@@ -464,39 +464,27 @@ mod tests {
       "(function() { function foox() { if (true) { return foox(); } } }())",
       23,
     );
-  }
 
-  #[test]
-  fn no_unused_vars_err_2_2() {
     assert_lint_err::<NoUnusedVars>("var a=10", 4);
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(a *= 2); }; }",
       19,
     );
-  }
 
-  #[test]
-  fn no_unused_vars_err_2_3() {
     assert_lint_err::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(++a); }; }",
-      0,
+      19,
     );
-    assert_lint_err::<NoUnusedVars>("function foo(first, second) {\ndoStuff(function() {\nconsole.log(second);});};", 0);
-  }
+    assert_lint_err::<NoUnusedVars>("function foo(first, second) {\ndoStuff(function() {\nconsole.log(second);});};", 9);
 
-  #[test]
-  fn no_unused_vars_err_2_4() {
-    assert_lint_err::<NoUnusedVars>("var a=10;", 0);
-    assert_lint_err::<NoUnusedVars>("var a=10; a=20;", 0);
-  }
+    assert_lint_err::<NoUnusedVars>("var a=10;", 4);
+    assert_lint_err::<NoUnusedVars>("var a=10; a=20;", 4);
 
-  #[test]
-  fn no_unused_vars_err_2_5() {
-    assert_lint_err::<NoUnusedVars>(
+    assert_lint_err_n::<NoUnusedVars>(
       "var a=10; (function() { var a = 1; alert(a); })();",
-      0,
+      vec![4, 28],
     );
-    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; alert(a+b)", 0);
+    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; alert(a+b)", 15);
   }
 
   #[test]
