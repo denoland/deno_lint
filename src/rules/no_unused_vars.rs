@@ -9,7 +9,8 @@ use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::{
-  ClassMethod, FnExpr, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
+  ClassMethod, FnExpr, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -237,6 +238,30 @@ impl Visit for NoUnusedVarVisitor {
       self.handle_id(&ident);
     }
     param.visit_children_with(self)
+  }
+
+  fn visit_import_named_specifier(
+    &mut self,
+    import: &ImportNamedSpecifier,
+    _: &dyn Node,
+  ) {
+    self.handle_id(&import.local);
+  }
+
+  fn visit_import_default_specifier(
+    &mut self,
+    import: &ImportDefaultSpecifier,
+    _: &dyn Node,
+  ) {
+    self.handle_id(&import.local);
+  }
+
+  fn visit_import_star_as_specifier(
+    &mut self,
+    import: &ImportStarAsSpecifier,
+    _: &dyn Node,
+  ) {
+    self.handle_id(&import.local);
   }
 
   /// no-op as export is kind of usage
@@ -554,23 +579,23 @@ mod tests {
 
   #[test]
   fn no_unused_vars_err_4() {
-    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 0);
+    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 4);
     assert_lint_err::<NoUnusedVars>(
       "function gg(baz, bar) { return baz; }; gg();",
-      0,
+      17,
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function(foo, baz, bar) { return baz; })();",
-      vec![0, 1],
+      vec![10, 20],
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function z(foo) { var bar = 33; })();",
-      vec![0, 1],
+      vec![12, 23],
     );
-    assert_lint_err::<NoUnusedVars>("(function z(foo) { z(); })();", 0);
+    assert_lint_err::<NoUnusedVars>("(function z(foo) { z(); })();", 12);
     assert_lint_err_n::<NoUnusedVars>(
       "function f() { var a = 1; return function(){ f(a = 2); }; }",
-      vec![0, 1],
+      vec![9, 19],
     );
     assert_lint_err::<NoUnusedVars>("import x from \"y\";", 0);
     assert_lint_err::<NoUnusedVars>(
@@ -663,11 +688,11 @@ mod tests {
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function ({ a }, { b, c } ) { return b; })();",
-      vec![0, 1],
+      vec![0, 0],
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function ({ a, b }, { c } ) { return b; })();",
-      vec![0, 1],
+      vec![0, 0],
     );
     assert_lint_err::<NoUnusedVars>(
       "(function ([ a ], b ) { return b; })();",
@@ -675,11 +700,11 @@ mod tests {
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function ([ a ], [ b, c ] ) { return b; })();",
-      vec![0, 1],
+      vec![0, 0],
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function ([ a, b ], [ c ] ) { return b; })();",
-      vec![0, 1],
+      vec![0, 0],
     );
   }
 
