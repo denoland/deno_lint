@@ -1,8 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{Expr, Ident, MemberExpr, Pat, VarDeclarator};
-use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
+use swc_ecmascript::ast::Expr;
+use swc_ecmascript::ast::Ident;
+use swc_ecmascript::ast::MemberExpr;
+use swc_ecmascript::ast::Pat;
+use swc_ecmascript::ast::VarDeclarator;
+use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::utils::Id;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
@@ -59,7 +64,7 @@ impl Visit for Collector {
   fn visit_pat(&mut self, pat: &Pat, _: &dyn Node) {
     match pat {
       // Ignore patterns
-      Pat::Ident(..) | Pat::Invalid(..) => return,
+      Pat::Ident(..) | Pat::Invalid(..) => {}
       //
       _ => pat.visit_children_with(self),
     }
