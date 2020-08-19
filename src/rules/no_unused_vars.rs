@@ -9,7 +9,7 @@ use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
 use swc_ecmascript::ast::{
-  FnExpr, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
+  ClassMethod, FnExpr, Param, Pat, SetterProp, VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -213,6 +213,21 @@ impl Visit for NoUnusedVarVisitor {
   fn visit_setter_prop(&mut self, prop: &SetterProp, _: &dyn Node) {
     prop.key.visit_with(prop, self);
     prop.body.visit_with(prop, self);
+  }
+
+  fn visit_class_method(&mut self, method: &ClassMethod, _: &dyn Node) {
+    method.function.decorators.visit_with(method, self);
+    method.key.visit_with(method, self);
+
+    match method.kind {
+      swc_ecmascript::ast::MethodKind::Method => {
+        method.function.params.visit_children_with(self)
+      }
+      swc_ecmascript::ast::MethodKind::Getter => {}
+      swc_ecmascript::ast::MethodKind::Setter => {}
+    }
+
+    method.function.body.visit_with(method, self);
   }
 
   fn visit_param(&mut self, param: &Param, _: &dyn Node) {
