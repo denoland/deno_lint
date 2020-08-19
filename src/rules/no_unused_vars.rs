@@ -762,27 +762,19 @@ mod tests {
   fn no_unused_vars_err_10() {
     assert_lint_err::<NoUnusedVars>(
       "(function ({ a }, b ) { return b; })();",
-      0,
+      13,
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function ({ a }, { b, c } ) { return b; })();",
-      vec![0, 0],
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "(function ({ a, b }, { c } ) { return b; })();",
-      vec![0, 0],
+      vec![13, 23],
     );
     assert_lint_err::<NoUnusedVars>(
       "(function ([ a ], b ) { return b; })();",
-      0,
+      13,
     );
     assert_lint_err_n::<NoUnusedVars>(
       "(function ([ a ], [ b, c ] ) { return b; })();",
-      vec![0, 0],
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "(function ([ a, b ], [ c ] ) { return b; })();",
-      vec![0, 0],
+      vec![13, 23],
     );
   }
 
