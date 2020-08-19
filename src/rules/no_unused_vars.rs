@@ -737,6 +737,8 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("function foo(a) { a++ } foo();", 0);
     assert_lint_err::<NoUnusedVars>("var a = 3; a = a * 5 + 6;", 0);
     assert_lint_err::<NoUnusedVars>("var a = 2, b = 4; a = a * 2 + b;", 0);
+
+    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 6);
   }
 
   // TODO(kdy1): Unignore the test
@@ -788,7 +790,6 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 6);
     assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 6);
 
-    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 6);
     assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 4);
     assert_lint_err::<NoUnusedVars>(
       "var a = function(){ return function() { a(); } };",
