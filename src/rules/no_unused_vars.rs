@@ -6,6 +6,7 @@ use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::ast::VarDeclarator;
+use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
 use swc_ecmascript::visit::Node;
