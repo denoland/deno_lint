@@ -8,7 +8,7 @@ use swc_ecmascript::ast::FnDecl;
 use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::MemberExpr;
 use swc_ecmascript::ast::NamedExport;
-use swc_ecmascript::ast::{FnExpr, Pat, VarDeclOrPat, VarDeclarator};
+use swc_ecmascript::ast::{FnExpr, Param, Pat, VarDeclOrPat, VarDeclarator};
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
@@ -201,6 +201,14 @@ impl Visit for NoUnusedVarVisitor {
 
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
     let declared_idents: Vec<Ident> = find_ids(&declarator.name);
+
+    for ident in declared_idents {
+      self.handle_id(&ident);
+    }
+  }
+
+  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
+    let declared_idents: Vec<Ident> = find_ids(&param.pat);
 
     for ident in declared_idents {
       self.handle_id(&ident);
@@ -507,9 +515,9 @@ mod tests {
       "function f(){var a=[];return a.map(function g(){});}",
       9,
     );
-    assert_lint_err::<NoUnusedVars>(
+    assert_lint_err_n::<NoUnusedVars>(
       "function f(){var x;function a(){x=42;}function b(){alert(x);}}",
-      0,
+      vec![9, 28, 47],
     );
     assert_lint_err::<NoUnusedVars>("function f(a) {}; f();", 0);
     assert_lint_err::<NoUnusedVars>(
