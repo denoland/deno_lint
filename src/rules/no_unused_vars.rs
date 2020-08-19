@@ -616,11 +616,11 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("import x from \"y\";", 7);
     assert_lint_err::<NoUnusedVars>(
       "export function fn2({ x, y }) {\n console.log(x); \n};",
-      0,
+      25,
     );
     assert_lint_err::<NoUnusedVars>(
       "export function fn2( x, y ) {\n console.log(x); \n};",
-      0,
+      24,
     );
   }
 
