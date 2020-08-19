@@ -96,10 +96,41 @@ impl Visit for NoUnusedVarVisitor {
         // The variable is not used.
         self.context.add_diagnostic(
           ident.span,
-          "no-unused-varss",
+          "no-unused-vars",
           &format!("\"{}\" label is never used", ident.sym),
         );
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_util::*;
+
+  #[test]
+  fn no_unused_vars_ok() {
+    assert_lint_ok::<NoUnusedVars>("var a = 1; console.log(a)");
+    assert_lint_ok::<NoUnusedVars>(
+      "var a = 1; function foo() { console.log(a) } ",
+    );
+    assert_lint_ok::<NoUnusedVars>(
+      "var a = 1; const arrow = () => a; console.log(arrow)",
+    );
+
+    // Hoisting. This code is wrong, but it's not related with unused-vars
+    assert_lint_ok::<NoUnusedVars>("console.log(a); var a = 1;");
+  }
+
+  #[test]
+  fn no_unused_vars_err() {
+    assert_lint_err::<NoUnusedVars>("var a = 0", 4);
+
+    // variable shadowing
+    assert_lint_err::<NoUnusedVars>(
+      "var a = 1; function foo() { var a = 2; console.log(a); }",
+      4,
+    );
   }
 }
