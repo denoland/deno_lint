@@ -47,6 +47,7 @@ pub mod no_inferrable_types;
 pub mod no_invalid_regexp;
 pub mod no_irregular_whitespace;
 pub mod no_misused_new;
+pub mod no_mixed_spaces_and_tabs;
 pub mod no_namespace;
 pub mod no_new_symbol;
 pub mod no_non_null_asserted_optional_chain;
@@ -55,6 +56,7 @@ pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
 pub mod no_regex_spaces;
+pub mod no_self_assign;
 pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
 pub mod no_sparse_array;
@@ -119,6 +121,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_extra_boolean_cast::NoExtraBooleanCast::new(),
     no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
     no_extra_semi::NoExtraSemi::new(),
+    no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
     no_func_assign::NoFuncAssign::new(),
     no_irregular_whitespace::NoIrregularWhitespace::new(),
     no_misused_new::NoMisusedNew::new(),
@@ -129,6 +132,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
+    no_self_assign::NoSelfAssign::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_unexpected_multiline::NoUnexpectedMultiline::new(),
@@ -180,6 +184,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_duplicate_case::NoDuplicateCase::new(),
     no_empty_character_class::NoEmptyCharacterClass::new(),
     no_empty_interface::NoEmptyInterface::new(),
+    no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
     no_empty_pattern::NoEmptyPattern::new(),
     no_empty::NoEmpty::new(),
     no_eval::NoEval::new(),
@@ -201,6 +206,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_regex_spaces::NoRegexSpaces::new(),
     no_setter_return::NoSetterReturn::new(),
     no_sparse_array::NoSparseArray::new(),
+    no_self_assign::NoSelfAssign::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),

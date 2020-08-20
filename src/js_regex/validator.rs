@@ -832,7 +832,6 @@ impl EcmaRegexValidator {
         continue;
       }
 
-      println!("min: {},  max: {}", min, max);
       if min > max {
         return Err("Range out of order in character class".to_string());
       }
