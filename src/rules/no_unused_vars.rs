@@ -1554,31 +1554,47 @@ interface IFoo {
   fn no_unused_vars_ts_ok_15() {
     assert_lint_ok::<NoUnusedVars>(
       "
-
+import * as fastify from 'fastify';
+import { Server, IncomingMessage, ServerResponse } from 'http';
+const server: fastify.FastifyInstance<
+  Server,
+  IncomingMessage,
+  ServerResponse
+> = fastify({});
+server.get('/ping');
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
-
+declare function foo();
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
-
+declare namespace Foo {
+  function bar(line: string, index: number | null, tabSize: number): number;
+  var baz: string;
+}
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
-
+declare var Foo: {
+  new (value?: any): Object;
+  foo(): string;
+};
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
-
+declare class Foo {
+  constructor(value?: any): Object;
+  foo(): string;
+}
       ",
     );
   }
@@ -1587,26 +1603,46 @@ interface IFoo {
   fn no_unused_vars_ts_ok_16() {
     assert_lint_ok::<NoUnusedVars>(
       "
+import foo from 'foo';
+export interface Bar extends foo.i18n {}
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
+import foo from 'foo';
+import bar from 'foo';
+export interface Bar extends foo.i18n<bar> {}
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
+import { TypeA } from './interface';
+export const a = <GenericComponent<TypeA> />;
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
+const text = 'text';
+export function Foo() {
+  return (
+    <div>
+      <input type=\"search\" size={30} placeholder={text} />
+    </div>
+  );
+}
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
+import { observable } from 'mobx';
+export default class ListModalStore {
+  @observable
+  orderList: IObservableArray<BizPurchaseOrderTO> = observable([]);
+}
       ",
     );
   }
@@ -1615,225 +1651,30 @@ interface IFoo {
   fn no_unused_vars_ts_ok_17() {
     assert_lint_ok::<NoUnusedVars>(
       "
+import { Dec, TypeA, Class } from 'test';
+export default class Foo {
+  constructor(
+    @Dec(Class)
+    private readonly prop: TypeA<Class>,
+  ) {}
+}
       ",
     );
 
     assert_lint_ok::<NoUnusedVars>(
       "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
+import { Dec, TypeA, Class } from 'test';
+export default class Foo {
+  constructor(
+    @Dec(Class)
+    ...prop: TypeA<Class>
+  ) {
+    prop();
+  }
+}
       ",
     );
   }
 
-  #[test]
-  fn no_unused_vars_ts_ok_18() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  #[test]
-  fn no_unused_vars_ts_ok_19() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  #[test]
-  fn no_unused_vars_ts_ok_20() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  #[test]
-  fn no_unused_vars_ts_ok_21() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  #[test]
-  fn no_unused_vars_ts_ok_22() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  #[test]
-  fn no_unused_vars_ts_ok_23() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  #[test]
-  fn no_unused_vars_ts_ok_24() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
-      ",
-    );
-  }
-
-  // TODO: Copy https://github.com/typescript-eslint/typescript-eslint/blob/6f397df42cbcf05c10f304c9bbfdae4803aa0ce2/packages/eslint-plugin/tests/rules/no-unused-vars.test.ts#L372
+  // TODO: Copy https://github.com/typescript-eslint/typescript-eslint/blob/6f397df42cbcf05c10f304c9bbfdae4803aa0ce2/packages/eslint-plugin/tests/rules/no-unused-vars.test.ts#L621
 }
