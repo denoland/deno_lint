@@ -1213,8 +1213,6 @@ new A();
       ",
     );
 
-    // TODO(kdy1): Copy https://github.com/typescript-eslint/typescript-eslint/blob/6f397df42cbcf05c10f304c9bbfdae4803aa0ce2/packages/eslint-plugin/tests/rules/no-unused-vars.test.ts#L277-L998
-
     assert_lint_ok::<NoUnusedVars>(
       "
 import { Nullable } from 'nullable';
@@ -1332,6 +1330,507 @@ new Foo();
 import { Foo } from './types';
 class Foo<T extends {} = {}> {}
 new Foo();
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_11() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+type Foo = 'a' | 'b' | 'c';
+type Bar = number;
+export const map: { [name in Foo]: Bar } = {
+  a: 1,
+  b: 2,
+  c: 3,
+};
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+class A<T> {
+  bar: T;
+}
+new A<Nullable>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+function foo<T extends Nullable>() {}
+foo<SomeOther>();
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+class A<T extends Nullable> {
+  bar: T;
+}
+new A<SomeOther>()
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+interface A<T extends Nullable> {
+  bar: T;
+}
+export const a: A<SomeOther> = {
+  foo: 'bar',
+};
+
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_12() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+export class App {
+  constructor(private logger: Logger) {
+    console.log(this.logger);
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+export class App {
+  constructor(bar: string);
+  constructor(private logger: Logger) {
+    console.log(this.logger);
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+export class App {
+  constructor(baz: string, private logger: Logger) {
+    console.log(baz);
+    console.log(this.logger);
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+export class App {
+  constructor(baz: string, private logger: Logger, private bar: () => void) {
+    console.log(this.logger);
+    this.bar();
+  }
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+export class App {
+  constructor(private logger: Logger) {}
+  meth() {
+    console.log(this.logger);
+  }
+}
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_13() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Component, Vue } from 'vue-property-decorator';
+import HelloWorld from './components/HelloWorld.vue';
+@Component({
+  components: {
+    HelloWorld,
+  },
+})
+export default class App extends Vue {}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import firebase, { User } from 'firebase/app';
+// initialize firebase project
+firebase.initializeApp({});
+export function authenticated(cb: (user: User | null) => void): void {
+  firebase.auth().onAuthStateChanged(user => cb(user));
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo } from './types';
+export class Bar<T extends Foo> {}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import webpack from 'webpack';
+export default function webpackLoader(this: webpack.loader.LoaderContext) {}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import execa, { Options as ExecaOptions } from 'execa';
+export function foo(options: ExecaOptions): execa {
+  options();
+}
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_14() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Foo, Bar } from './types';
+export class Baz<F = Foo & Bar> {}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+// warning 'B' is defined but never used
+export const a: Array<{ b: B }> = [];
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+export enum FormFieldIds {
+  PHONE = 'phone',
+  EMAIL = 'email',
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+enum FormFieldIds {
+  PHONE = 'phone',
+  EMAIL = 'email',
+}
+interface IFoo {
+  fieldName: FormFieldIds;
+}
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+enum FormFieldIds {
+  PHONE = 'phone',
+  EMAIL = 'email',
+}
+interface IFoo {
+  fieldName: FormFieldIds.EMAIL;
+}
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_15() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_16() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_17() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_18() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_19() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_20() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_21() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_22() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_23() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_ok_24() {
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
+      ",
+    );
+
+    assert_lint_ok::<NoUnusedVars>(
+      "
       ",
     );
   }
