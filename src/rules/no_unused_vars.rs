@@ -659,7 +659,7 @@ mod tests {
   }
 
   #[test]
-  #[ignore]
+  #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_for_loop_control_flow() {
     assert_lint_err::<NoUnusedVars>(
       "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});",
@@ -716,9 +716,8 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("try{}catch(err){};", 11);
   }
 
-  // TODO(kdy1): Unignore the test
   #[test]
-  #[ignore]
+  #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_assign_expr() {
     assert_lint_err::<NoUnusedVars>("var a = 0; a = a + 1;", 0);
     assert_lint_err::<NoUnusedVars>("var a = 0; a = a + a;", 0);
@@ -733,9 +732,8 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 6);
   }
 
-  // TODO(kdy1): Unignore the test
   #[test]
-  #[ignore]
+  #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_assign_to_self() {
     assert_lint_err::<NoUnusedVars>("function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();", 0);
     assert_lint_err::<NoUnusedVars>(
@@ -791,9 +789,8 @@ mod tests {
     assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 6);
   }
 
-  // TODO(kdy1): Handle some pure methods.
   #[test]
-  #[ignore]
+  #[ignore = "pure method analysis is not implemented yet"]
   fn no_unused_vars_err_array_methods() {
     assert_lint_err::<NoUnusedVars>(
       "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);",
