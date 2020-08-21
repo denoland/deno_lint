@@ -61,23 +61,6 @@ struct Collector {
 }
 
 impl Visit for Collector {
-  // TODO(kdy1): swc_ecmascript::visit::noop_visit_type!() after updating swc
-  // It will make binary much smaller. In case of swc, binary size is reduced to 18mb from 29mb.
-  // noop_visit_type!();
-
-  // TODO(kdy1): Detect only assignment to itself. It may require another visitor.
-  //
-  // fn visit_assign_expr(&mut self, expr: &AssignExpr, _: &dyn Node) {
-  //   let prev_len = self.cur_defining.len();
-  //   let declaring_ids: Vec<Id> = find_ids(&expr.left);
-  //   self.cur_defining.extend(declaring_ids);
-  //   expr.left.visit_with(expr, self);
-  //   expr.right.visit_with(expr, self);
-  //   // Restore the original state
-  //   self.cur_defining.drain(prev_len..);
-  //   assert_eq!(self.cur_defining.len(), prev_len);
-  // }
-
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
     match expr {
       Expr::Ident(i) => {
@@ -200,8 +183,6 @@ impl NoUnusedVarVisitor {
 }
 
 impl Visit for NoUnusedVarVisitor {
-  // TODO(kdy1): swc_ecmascript::visit::noop_visit_type!() after updating swc
-
   fn visit_arrow_expr(&mut self, expr: &ArrowExpr, _: &dyn Node) {
     let declared_idents: Vec<Ident> = find_ids(&expr.params);
 
