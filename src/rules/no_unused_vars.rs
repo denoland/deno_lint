@@ -199,7 +199,6 @@ impl NoUnusedVarVisitor {
   }
 }
 
-/// As we only care about variables, only variable declrations are checked.
 impl Visit for NoUnusedVarVisitor {
   // TODO(kdy1): swc_ecmascript::visit::noop_visit_type!() after updating swc
 
