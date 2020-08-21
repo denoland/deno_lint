@@ -62,7 +62,7 @@ pub fn format_diagnostic(diagnostic: &LintDiagnostic) -> String {
     diagnostic.message
   );
 
-  let file_name = &diagnostic.location.filename;
+  let file_name = &diagnostic.filename;
   let location = if file_name.contains('/')
     || file_name.contains('\\')
     || file_name.starts_with("./")

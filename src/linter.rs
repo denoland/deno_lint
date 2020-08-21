@@ -56,6 +56,7 @@ impl Context {
 
     let diagnostic = LintDiagnostic {
       location: location.into(),
+      filename: self.file_name.clone(),
       message: message.to_string(),
       code: code.to_string(),
       line_src,
@@ -89,10 +90,6 @@ impl IgnoreDirective {
     &mut self,
     diagnostic: &LintDiagnostic,
   ) -> bool {
-    if self.location.filename != diagnostic.location.filename {
-      return false;
-    }
-
     if self.location.line != diagnostic.location.line - 1 {
       return false;
     }
@@ -252,62 +249,6 @@ impl Linter {
     })
   }
 
-  fn parse_ignore_comment(&self, comment: &Comment) -> Option<IgnoreDirective> {
-    if comment.kind != CommentKind::Line {
-      return None;
-    }
-
-    let comment_text = comment.text.trim();
-
-    for ignore_dir in &self.ignore_diagnostic_directives {
-      if comment_text.starts_with(ignore_dir) {
-        let codes = comment_text
-          .split(' ')
-          // TODO(bartlomieju): this is make-shift, make it configurable
-          .map(|s| s.trim_start_matches("@typescript-eslint/"))
-          .map(String::from)
-          .skip(1)
-          .collect::<Vec<String>>();
-
-        let location = self
-          .ast_parser
-          .source_map
-          .lookup_char_pos(comment.span.lo());
-
-        let mut used_codes = HashMap::new();
-        codes.iter().for_each(|code| {
-          used_codes.insert(code.to_string(), false);
-        });
-
-        return Some(IgnoreDirective {
-          location: location.into(),
-          span: comment.span,
-          codes,
-          used_codes,
-        });
-      }
-    }
-
-    None
-  }
-
-  fn parse_ignore_directives(
-    &self,
-    leading: &HashMap<BytePos, Vec<Comment>>,
-  ) -> Vec<IgnoreDirective> {
-    let mut ignore_directives = vec![];
-
-    leading.values().for_each(|comments| {
-      for comment in comments {
-        if let Some(ignore) = self.parse_ignore_comment(comment) {
-          ignore_directives.push(ignore);
-        }
-      }
-    });
-
-    ignore_directives
-  }
-
   fn filter_diagnostics(
     &self,
     context: Arc<Context>,
@@ -387,12 +328,12 @@ impl Linter {
       .expect("Failed to get leading comments")
       .into_inner();
     let trailing = trailing_coms.into_iter().collect();
-    // let (leading, trailing) = {
 
-    //   (l, t)
-    // };
-
-    let ignore_directives = self.parse_ignore_directives(&leading);
+    let ignore_directives = parse_ignore_directives(
+      &self.ignore_diagnostic_directives,
+      &self.ast_parser.source_map,
+      &leading,
+    );
 
     let mut scope_visitor = ScopeVisitor::default();
     let root_scope = scope_visitor.get_root_scope();
@@ -418,4 +359,64 @@ impl Linter {
 
     d
   }
+}
+
+fn parse_ignore_directives(
+  ignore_diagnostic_directives: &[String],
+  source_map: &SourceMap,
+  comments: &HashMap<BytePos, Vec<Comment>>,
+) -> Vec<IgnoreDirective> {
+  let mut ignore_directives = vec![];
+
+  comments.values().for_each(|comments| {
+    for comment in comments {
+      if let Some(ignore) =
+        parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
+      {
+        ignore_directives.push(ignore);
+      }
+    }
+  });
+
+  ignore_directives
+}
+
+fn parse_ignore_comment(
+  ignore_diagnostic_directives: &[String],
+  source_map: &SourceMap,
+  comment: &Comment,
+) -> Option<IgnoreDirective> {
+  if comment.kind != CommentKind::Line {
+    return None;
+  }
+
+  let comment_text = comment.text.trim();
+
+  for ignore_dir in ignore_diagnostic_directives {
+    if comment_text.starts_with(ignore_dir) {
+      let codes = comment_text
+        .split(' ')
+        // TODO(bartlomieju): this is make-shift, make it configurable
+        .map(|s| s.trim_start_matches("@typescript-eslint/"))
+        .map(String::from)
+        .skip(1)
+        .collect::<Vec<String>>();
+
+      let location = source_map.lookup_char_pos(comment.span.lo());
+
+      let mut used_codes = HashMap::new();
+      codes.iter().for_each(|code| {
+        used_codes.insert(code.to_string(), false);
+      });
+
+      return Some(IgnoreDirective {
+        location: location.into(),
+        span: comment.span,
+        codes,
+        used_codes,
+      });
+    }
+  }
+
+  None
 }
