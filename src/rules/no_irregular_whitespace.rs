@@ -4,7 +4,6 @@ use std::sync::Arc;
 use swc_common::{hygiene::SyntaxContext, BytePos, Span};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Str;
-use swc_ecmascript::ast::Tpl;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -38,23 +37,18 @@ impl LintRule for NoIrregularWhitespace {
 
     let excluded_ranges = visitor.ranges.iter();
 
-    let lines = context.source_map.span_to_lines(module.span).unwrap().lines;
+    let file_and_lines = context.source_map.span_to_lines(module.span).unwrap();
+    let file = file_and_lines.file;
 
-    for line_info in lines.into_iter() {
-      let source_file_and_index = context
-        .source_map
-        .lookup_line(BytePos(line_info.line_index as u32))
-        .unwrap();
-      let source_code = source_file_and_index
-        .sf
-        .get_line(line_info.line_index)
-        .unwrap();
-      if let Some(whitespace_matches) = test_for_whitespace(&*source_code) {
+    for line_index in 0..file.count_lines() {
+      let line = file.get_line(line_index).unwrap();
+      let (byte_pos, _hi) = file.line_bounds(line_index);
+      if let Some(whitespace_matches) = test_for_whitespace(&line) {
         for whitespace_match in whitespace_matches {
           let range = whitespace_match.range();
           let span = Span::new(
-            BytePos(range.start as u32),
-            BytePos(range.end as u32),
+            byte_pos + BytePos(range.start as u32),
+            byte_pos + BytePos(range.end as u32),
             SyntaxContext::empty(),
           );
           let is_excluded =
@@ -86,10 +80,6 @@ impl Visit for NoIrregularWhitespaceVisitor {
   fn visit_str(&mut self, string_literal: &Str, _parent: &dyn Node) {
     self.ranges.push(string_literal.span);
   }
-
-  fn visit_tpl(&mut self, tpl: &Tpl, _parent: &dyn Node) {
-    self.ranges.push(tpl.span);
-  }
 }
 
 #[cfg(test)]
@@ -99,8 +89,83 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_valid() {
-    assert_lint_err::<NoIrregularWhitespace>("function thing()　{};", 16);
-    assert_lint_err::<NoIrregularWhitespace>("const foo = () => { };", 19);
-    assert_lint_ok::<NoIrregularWhitespace>("function thing() {return '　'};");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{000B}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{000C}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{0085}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{00A0}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{180E}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{feff}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2000}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2001}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2002}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2003}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2004}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2005}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2006}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2007}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2008}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2009}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{200A}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{200B}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2028}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{2029}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{202F}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{205f}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\u{3000}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{000B}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{000C}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{0085}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{00A0}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{180E}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{feff}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2000}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2001}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2002}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2003}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2004}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2005}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2006}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2007}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2008}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{2009}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{200A}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{200B}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\\u{2028}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\\\u{2029}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{202F}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{205f}';");
+    assert_lint_ok::<NoIrregularWhitespace>("'\u{3000}';");
+  }
+
+  #[test]
+  fn no_irregular_whitespace_invalid() {
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{000B} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{000C} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{00A0} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{feff} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2000} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2001} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2002} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2003} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2004} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2005} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2006} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2007} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2008} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2009} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{200A} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2028} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{2029} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{202F} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{205f} = 'thing';", 8);
+    assert_lint_err::<NoIrregularWhitespace>("var any \u{3000} = 'thing';", 8);
+    assert_lint_err_on_line_n::<NoIrregularWhitespace>(
+      "var a = 'b',\u{2028}c = 'd',\ne = 'f'\u{2028}",
+      vec![(1, 12), (3, 7)],
+    );
+    assert_lint_err_on_line_n::<NoIrregularWhitespace>(
+      "var any \u{3000} = 'thing', other \u{3000} = 'thing';\nvar third \u{3000} = 'thing';",
+      vec![(1, 8), (1, 27), (2, 10)],
+    );
   }
 }
