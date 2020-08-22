@@ -2,7 +2,6 @@
 use super::Context;
 use super::LintRule;
 use crate::js_regex::*;
-use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSpread;
@@ -62,7 +61,7 @@ impl NoInvalidRegexpVisitor {
     span: Span,
   ) {
     if let Expr::Ident(ident) = callee {
-      if ident.sym != JsWord::from("RegExp") || args.is_empty() {
+      if ident.sym != *"RegExp" || args.is_empty() {
         return;
       }
       if let Some(pattern) = &check_expr_for_string_literal(&*args[0].expr) {

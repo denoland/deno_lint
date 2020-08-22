@@ -2,7 +2,6 @@
 use super::Context;
 use super::LintRule;
 use std::sync::Arc;
-use swc_atoms::JsWord;
 use swc_ecmascript::ast::{
   Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
 };
@@ -55,7 +54,7 @@ impl NoInferrableTypesVisitor {
   ) {
     if let swc_ecmascript::ast::ExprOrSuper::Expr(unboxed) = &callee {
       if let Expr::Ident(value) = &**unboxed {
-        if value.sym == JsWord::from(expected_sym) {
+        if value.sym == *expected_sym {
           self.add_diagnostic_helper(span);
         }
       }
@@ -63,7 +62,7 @@ impl NoInferrableTypesVisitor {
   }
 
   fn is_nan_or_infinity(&self, ident: &swc_ecmascript::ast::Ident) -> bool {
-    ident.sym == JsWord::from("NaN") || ident.sym == JsWord::from("Infinity")
+    ident.sym == *"NaN" || ident.sym == *"Infinity"
   }
 
   fn check_keyword_type(
@@ -220,7 +219,7 @@ impl NoInferrableTypesVisitor {
       }
       TsUndefinedKeyword => match &*value {
         Expr::Ident(ident) => {
-          if ident.sym == JsWord::from("undefined") {
+          if ident.sym == *"undefined" {
             self.add_diagnostic_helper(span);
           }
         }
@@ -243,7 +242,7 @@ impl NoInferrableTypesVisitor {
   ) {
     if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type.type_name
     {
-      if ident.sym != JsWord::from("RegExp") {
+      if ident.sym != *"RegExp" {
         return;
       }
       match &*value {
@@ -255,7 +254,7 @@ impl NoInferrableTypesVisitor {
         }
         Expr::New(swc_ecmascript::ast::NewExpr { callee, .. }) => {
           if let Expr::Ident(ident) = &**callee {
-            if ident.sym == JsWord::from("RegExp") {
+            if ident.sym == *"RegExp" {
               self.add_diagnostic_helper(span);
             }
           } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {

@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::js_word;
 use swc_ecmascript::ast::{Expr, NewExpr};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -42,7 +41,7 @@ impl NoNewSymbolVisitor {
 impl Visit for NoNewSymbolVisitor {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
-      if ident.sym == js_word!("Symbol") {
+      if ident.sym == *"Symbol" {
         self.context.add_diagnostic(
           new_expr.span,
           "no-new-symbol",

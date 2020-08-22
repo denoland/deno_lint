@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::js_word;
 use swc_ecmascript::ast::{Expr, ThrowStmt};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -47,7 +46,7 @@ impl Visit for NoThrowLiteralVisitor {
         "no-throw-literal",
         "expected an error object to be thrown",
       ),
-      Expr::Ident(ident) if ident.sym == js_word!("undefined") => {
+      Expr::Ident(ident) if ident.sym == *"undefined" => {
         self.context.add_diagnostic(
           throw_stmt.span,
           "no-throw-literal",

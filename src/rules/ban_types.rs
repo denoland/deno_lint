@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::JsWord;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -59,7 +58,7 @@ impl Visit for BanTypesVisitor {
     {
       if let Some((_, message)) = BANNED_TYPES
         .iter()
-        .find(|banned_type| JsWord::from(banned_type.0) == ident.sym)
+        .find(|banned_type| *banned_type.0 == ident.sym)
       {
         self
           .context

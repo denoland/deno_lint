@@ -38,7 +38,7 @@ impl UseIsNaNVisitor {
 }
 
 fn is_nan_identifier(ident: &swc_ecmascript::ast::Ident) -> bool {
-  ident.sym == swc_atoms::js_word!("NaN")
+  ident.sym == *"NaN"
 }
 
 impl Visit for UseIsNaNVisitor {
