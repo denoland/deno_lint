@@ -10,13 +10,22 @@ use swc_ecmascript::visit::Visit;
 pub struct NoIrregularWhitespace;
 
 lazy_static! {
-  static ref ALL_IRREGULARS: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]").unwrap();
+  static ref IRREGULAR_WHITESPACE: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap();
+  static ref IRREGULAR_LINE_TERMINATORS: Regex = Regex::new(r"[\u2028\u2029]").unwrap();
 }
 
-fn test_for_whitespace(value: &str) -> Option<Matches> {
-  if ALL_IRREGULARS.is_match(value) {
-    let matches = ALL_IRREGULARS.find_iter(value);
-    Some(matches)
+fn test_for_whitespace(value: &str) -> Option<Vec<Matches>> {
+  let mut matches_vector: Vec<Matches> = vec![];
+  if IRREGULAR_WHITESPACE.is_match(value) {
+    let matches = IRREGULAR_WHITESPACE.find_iter(value);
+    matches_vector.push(matches);
+  }
+  if IRREGULAR_LINE_TERMINATORS.is_match(value) {
+    let matches = IRREGULAR_LINE_TERMINATORS.find_iter(value);
+    matches_vector.push(matches);
+  }
+  if matches_vector.len() > 0 {
+    Some(matches_vector)
   } else {
     None
   }
@@ -43,22 +52,25 @@ impl LintRule for NoIrregularWhitespace {
     for line_index in 0..file.count_lines() {
       let line = file.get_line(line_index).unwrap();
       let (byte_pos, _hi) = file.line_bounds(line_index);
-      if let Some(whitespace_matches) = test_for_whitespace(&line) {
-        for whitespace_match in whitespace_matches {
-          let range = whitespace_match.range();
-          let span = Span::new(
-            byte_pos + BytePos(range.start as u32),
-            byte_pos + BytePos(range.end as u32),
-            SyntaxContext::empty(),
-          );
-          let is_excluded =
-            excluded_ranges.clone().any(|range| range.contains(span));
-          if !is_excluded {
-            context.add_diagnostic(
-              span,
-              "no-irregular-whitespace",
-              "Irregular whitespace not allowed.",
+
+      if let Some(whitespace_results) = test_for_whitespace(&line) {
+        for whitespace_matches in whitespace_results.into_iter() {
+          for whitespace_match in whitespace_matches {
+            let range = whitespace_match.range();
+            let span = Span::new(
+              byte_pos + BytePos(range.start as u32),
+              byte_pos + BytePos(range.end as u32),
+              SyntaxContext::empty(),
             );
+            let is_excluded =
+              excluded_ranges.clone().any(|range| range.contains(span));
+            if !is_excluded {
+              context.add_diagnostic(
+                span,
+                "no-irregular-whitespace",
+                "Irregular whitespace not allowed.",
+              );
+            }
           }
         }
       }
