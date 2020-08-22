@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::JsWord;
 use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, Module, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
@@ -49,7 +48,7 @@ impl NoMisusedNewVisitor {
   }
 
   fn is_constructor_keyword(&self, ident: &Ident) -> bool {
-    JsWord::from("constructor") == ident.sym
+    *"constructor" == ident.sym
   }
 }
 

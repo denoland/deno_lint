@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::JsWord;
 use swc_ecmascript::ast::BlockStmt;
 use swc_ecmascript::ast::Class;
 use swc_ecmascript::ast::ClassMember;
@@ -169,13 +168,13 @@ impl Visit for GetterReturnVisitor {
       if let Expr::Member(member) = &**callee_expr {
         if let ExprOrSuper::Expr(member_obj) = &member.obj {
           if let Expr::Ident(ident) = &**member_obj {
-            if ident.sym != JsWord::from("Object") {
+            if ident.sym != *"Object" {
               return;
             }
           }
         }
         if let Expr::Ident(ident) = &*member.prop {
-          if ident.sym != JsWord::from("defineProperty") {
+          if ident.sym != *"defineProperty" {
             return;
           }
         }
@@ -186,7 +185,7 @@ impl Visit for GetterReturnVisitor {
         if let swc_ecmascript::ast::PropOrSpread::Prop(prop_expr) = prop {
           if let swc_ecmascript::ast::Prop::KeyValue(kv_prop) = &**prop_expr {
             if let swc_ecmascript::ast::PropName::Ident(ident) = &kv_prop.key {
-              if ident.sym != JsWord::from("get") {
+              if ident.sym != *"get" {
                 return;
               }
               if let Expr::Fn(fn_expr) = &*kv_prop.value {
@@ -208,7 +207,7 @@ impl Visit for GetterReturnVisitor {
             if let swc_ecmascript::ast::PropName::Ident(ident) =
               &method_prop.key
             {
-              if ident.sym != JsWord::from("get") {
+              if ident.sym != *"get" {
                 return;
               }
               if let Some(body) = &method_prop.function.body {

@@ -4,7 +4,6 @@ use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::RwLock;
-use swc_atoms::js_word;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::Diagnostic;
 use swc_common::errors::DiagnosticBuilder;
@@ -233,7 +232,7 @@ pub(crate) fn extract_regex(
   expr_ident: &Ident,
   expr_args: &[ExprOrSpread],
 ) -> Option<String> {
-  if expr_ident.sym != js_word!("RegExp") {
+  if expr_ident.sym != *"RegExp" {
     return None;
   }
 
