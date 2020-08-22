@@ -161,7 +161,7 @@ mod tests {
     assert_lint_err::<NoIrregularWhitespace>("var any \u{3000} = 'thing';", 8);
     assert_lint_err_on_line_n::<NoIrregularWhitespace>(
       "var a = 'b',\u{2028}c = 'd',\ne = 'f'\u{2028}",
-      vec![(1, 12), (3, 7)],
+      vec![(1, 12), (2, 7)],
     );
     assert_lint_err_on_line_n::<NoIrregularWhitespace>(
       "var any \u{3000} = 'thing', other \u{3000} = 'thing';\nvar third \u{3000} = 'thing';",
