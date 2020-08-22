@@ -24,7 +24,7 @@ fn test_for_whitespace(value: &str) -> Option<Vec<Matches>> {
     let matches = IRREGULAR_LINE_TERMINATORS.find_iter(value);
     matches_vector.push(matches);
   }
-  if matches_vector.len() > 0 {
+  if !matches_vector.is_empty() {
     Some(matches_vector)
   } else {
     None
