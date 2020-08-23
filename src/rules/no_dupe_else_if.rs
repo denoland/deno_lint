@@ -6,7 +6,7 @@ use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
 };
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -44,6 +44,8 @@ impl NoDupeElseIfVisitor {
 }
 
 impl Visit for NoDupeElseIfVisitor {
+  noop_visit_type!();
+
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
     let span = if_stmt.test.span();
 

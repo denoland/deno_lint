@@ -5,7 +5,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -105,6 +105,8 @@ impl NoShadowRestrictedNamesVisitor {
 }
 
 impl Visit for NoShadowRestrictedNamesVisitor {
+  noop_visit_type!();
+
   fn visit_var_decl(&mut self, node: &VarDecl, parent: &dyn Node) {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {

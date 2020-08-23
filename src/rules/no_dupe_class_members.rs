@@ -8,6 +8,7 @@ use swc_ecmascript::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -53,6 +54,8 @@ impl NoDupeClassMembersVisitor {
 }
 
 impl Visit for NoDupeClassMembersVisitor {
+  noop_visit_type!();
+
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut visitor = ClassVisitor::new(self);
     visitor.visit_class(class, parent);
@@ -86,6 +89,8 @@ impl<'a> ClassVisitor<'a> {
 }
 
 impl<'a> Visit for ClassVisitor<'a> {
+  noop_visit_type!();
+
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut visitor = ClassVisitor::new(self.root_visitor);
     swc_ecmascript::visit::visit_class(&mut visitor, class, parent);

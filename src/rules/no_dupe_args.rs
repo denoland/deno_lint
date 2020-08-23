@@ -7,6 +7,7 @@ use swc_ecmascript::ast::ArrowExpr;
 use swc_ecmascript::ast::Function;
 use swc_ecmascript::ast::Param;
 use swc_ecmascript::ast::Pat;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -71,6 +72,8 @@ impl NoDupeArgsVisitor {
 }
 
 impl Visit for NoDupeArgsVisitor {
+  noop_visit_type!();
+
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.check_params(function.span, &function.params);
   }

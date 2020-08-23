@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::VarDecl;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl SingleVarDeclaratorVisitor {
 }
 
 impl Visit for SingleVarDeclaratorVisitor {
+  noop_visit_type!();
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(

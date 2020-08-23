@@ -16,6 +16,7 @@ use swc_ecmascript::ast::Pat;
 use swc_ecmascript::ast::PatOrExpr;
 use swc_ecmascript::ast::Prop;
 use swc_ecmascript::ast::PropOrSpread;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -264,6 +265,8 @@ impl NoSelfAssignVisitor {
 }
 
 impl Visit for NoSelfAssignVisitor {
+  noop_visit_type!();
+
   fn visit_assign_expr(
     &mut self,
     assign_expr: &AssignExpr,

@@ -4,6 +4,7 @@ use super::LintRule;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -41,6 +42,8 @@ impl NoDeleteVarVisitor {
 }
 
 impl Visit for NoDeleteVarVisitor {
+  noop_visit_type!();
+
   fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _parent: &dyn Node) {
     if unary_expr.op != UnaryOp::Delete {
       return;

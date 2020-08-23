@@ -6,6 +6,7 @@ use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
 use swc_ecmascript::ast::NewExpr;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -57,6 +58,8 @@ impl NoObjCallsVisitor {
 }
 
 impl Visit for NoObjCallsVisitor {
+  noop_visit_type!();
+
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {

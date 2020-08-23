@@ -6,6 +6,7 @@ use std::iter::Peekable;
 use std::str::Chars;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -111,6 +112,8 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
 }
 
 impl Visit for NoControlRegexVisitor {
+  noop_visit_type!();
+
   fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
     swc_ecmascript::visit::visit_regex(self, regex, parent);

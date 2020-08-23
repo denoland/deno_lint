@@ -5,6 +5,7 @@ use swc_ecmascript::ast::Decl;
 use swc_ecmascript::ast::Stmt;
 use swc_ecmascript::ast::SwitchCase;
 use swc_ecmascript::ast::VarDeclKind;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -42,6 +43,8 @@ impl NoCaseDeclarationsVisitor {
 }
 
 impl Visit for NoCaseDeclarationsVisitor {
+  noop_visit_type!();
+
   fn visit_switch_case(
     &mut self,
     switch_case: &SwitchCase,

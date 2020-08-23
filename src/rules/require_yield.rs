@@ -8,6 +8,7 @@ use swc_ecmascript::ast::Function;
 use swc_ecmascript::ast::MethodProp;
 use swc_ecmascript::ast::PrivateMethod;
 use swc_ecmascript::ast::YieldExpr;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -73,6 +74,8 @@ impl RequireYieldVisitor {
 }
 
 impl Visit for RequireYieldVisitor {
+  noop_visit_type!();
+
   fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr, _parent: &dyn Node) {
     if let Some(last) = self.yield_stack.last_mut() {
       *last += 1;

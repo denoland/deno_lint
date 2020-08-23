@@ -6,6 +6,7 @@ use swc_ecmascript::ast::{
   CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
   Ident, IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -114,6 +115,8 @@ impl NoExtraBooleanCastVisitor {
 }
 
 impl Visit for NoExtraBooleanCastVisitor {
+  noop_visit_type!();
+
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, parent: &dyn Node) {
     self.check_condition(&*cond_expr.test);
     swc_ecmascript::visit::visit_cond_expr(self, cond_expr, parent);

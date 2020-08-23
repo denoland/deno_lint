@@ -7,6 +7,7 @@ use super::LintRule;
 use swc_ecmascript::ast::{
   Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
 };
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -115,6 +116,8 @@ impl ConstructorSuperVisitor {
 }
 
 impl Visit for ConstructorSuperVisitor {
+  noop_visit_type!();
+
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     for member in &class.body {
       if let ClassMember::Constructor(constructor) = member {

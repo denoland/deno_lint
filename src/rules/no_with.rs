@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::WithStmt;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl NoWithVisitor {
 }
 
 impl Visit for NoWithVisitor {
+  noop_visit_type!();
+
   fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
     self.context.add_diagnostic(
       with_stmt.span,

@@ -6,7 +6,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, AwaitExpr, DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Function,
   WhileStmt,
 };
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -50,6 +50,8 @@ impl NoAwaitInLoopVisitor {
 }
 
 impl Visit for NoAwaitInLoopVisitor {
+  noop_visit_type!();
+
   fn visit_function(&mut self, func: &Function, parent: &dyn Node) {
     let mut func_visitor = FunctionVisitor::new(&self, func.is_async);
     func_visitor.visit_function(func, parent);

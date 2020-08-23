@@ -7,7 +7,7 @@ use swc_common::Spanned;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Lit;
 use swc_ecmascript::ast::Module;
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct NoConstantCondition;
 
@@ -166,6 +166,8 @@ impl NoConstantConditionVisitor {
 }
 
 impl Visit for NoConstantConditionVisitor {
+  noop_visit_type!();
+
   fn visit_cond_expr(
     &mut self,
     cond_expr: &swc_ecmascript::ast::CondExpr,

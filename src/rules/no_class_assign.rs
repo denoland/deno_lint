@@ -5,6 +5,7 @@ use crate::scopes::BindingKind;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::ast::PatOrExpr;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -42,6 +43,8 @@ impl NoClassAssignVisitor {
 }
 
 impl Visit for NoClassAssignVisitor {
+  noop_visit_type!();
+
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     let name = match &assign_expr.left {
       PatOrExpr::Expr(_) => return,

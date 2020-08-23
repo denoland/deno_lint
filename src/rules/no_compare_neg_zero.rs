@@ -6,7 +6,7 @@ use swc_ecmascript::ast::Lit::Num;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp::Minus;
 use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -38,6 +38,8 @@ impl NoCompareNegZeroVisitor {
 }
 
 impl Visit for NoCompareNegZeroVisitor {
+  noop_visit_type!();
+
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
     if !bin_expr.op.is_comparator() {
       return;

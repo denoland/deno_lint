@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -35,6 +35,8 @@ impl NoUnsafeFinallyVisitor {
 }
 
 impl Visit for NoUnsafeFinallyVisitor {
+  noop_visit_type!();
+
   fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
       // Convenience function for providing different diagnostic message

@@ -11,6 +11,7 @@ use swc_ecmascript::ast::PatOrExpr;
 use swc_ecmascript::ast::UnaryOp;
 use swc_ecmascript::ast::UpdateExpr;
 use swc_ecmascript::ast::UpdateOp;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -121,6 +122,8 @@ impl ForDirectionVisitor {
 }
 
 impl Visit for ForDirectionVisitor {
+  noop_visit_type!();
+
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
     if for_stmt.update.is_none() {
       return;

@@ -4,7 +4,7 @@ use super::LintRule;
 use swc_ecmascript::ast::{
   CallExpr, Class, Constructor, ExprOrSuper, Super, ThisExpr,
 };
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -40,6 +40,8 @@ impl NoThisBeforeSuperVisitor {
 }
 
 impl Visit for NoThisBeforeSuperVisitor {
+  noop_visit_type!();
+
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
       ClassVisitor::new(&self.context, class.super_class.is_some());
@@ -62,6 +64,8 @@ impl<'a> ClassVisitor<'a> {
 }
 
 impl<'a> Visit for ClassVisitor<'a> {
+  noop_visit_type!();
+
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
       ClassVisitor::new(&self.context, class.super_class.is_some());

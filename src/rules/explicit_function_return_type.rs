@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -38,6 +39,8 @@ impl ExplicitFunctionReturnTypeVisitor {
 }
 
 impl Visit for ExplicitFunctionReturnTypeVisitor {
+  noop_visit_type!();
+
   fn visit_function(
     &mut self,
     function: &swc_ecmascript::ast::Function,

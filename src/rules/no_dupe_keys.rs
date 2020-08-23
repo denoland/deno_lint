@@ -4,7 +4,7 @@ use super::LintRule;
 use crate::swc_util::Key;
 use std::collections::{BTreeSet, HashSet};
 use swc_ecmascript::ast::{Module, ObjectLit};
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -36,6 +36,8 @@ impl NoDupeKeysVisitor {
 }
 
 impl Visit for NoDupeKeysVisitor {
+  noop_visit_type!();
+
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
     let mut keys: HashSet<String> = HashSet::new();
     let mut duplicates: BTreeSet<String> = BTreeSet::new();
