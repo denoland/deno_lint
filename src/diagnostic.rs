@@ -6,7 +6,6 @@ use serde::Serialize;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Location {
-  // pub filename: String,
   pub line: usize,
   pub col: usize,
 }

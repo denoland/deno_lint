@@ -408,7 +408,7 @@ fn parse_ignore_comment(
       let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
       let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
       let codes = comment_text
-        .split(",")
+        .split(',')
         .filter(|code| !code.is_empty())
         .map(|code| String::from(code.trim()))
         .collect::<Vec<String>>();
@@ -471,7 +471,6 @@ function foo(): any {}
     );
 
     assert_eq!(directives.len(), 3);
-    eprintln!("directives {:#?}", directives);
     let d = &directives[0];
     assert_eq!(d.location, Location { line: 2, col: 0 });
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
