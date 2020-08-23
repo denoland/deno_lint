@@ -282,9 +282,9 @@ checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
 name = "jsdoc"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a40710985b4e2509e65982a32dd64e97ee5cb7f9d485903c56218aa33932464c"
+checksum = "c4e7d036004e0fd899c705945f16a1ad6c1d45e52fbdeeea054ad60e8db152c4"
 dependencies = [
  "nom",
  "serde",
@@ -737,9 +737,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.19.8"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56bc73bae45080c3bbada54844cc14951cd0a6d8047d6bd2308a82eed540c442"
+checksum = "55ead6107d1d3a8d6c208007cf010c4dbd4fffbd483171b1a64056458647737e"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -767,9 +767,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "0.17.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a5197416d71cfd6a957dd156c250ecc666c9859c946ead9965f4676f17e4157"
+checksum = "955c573b290af6880cf465c350a9058f1302640ed67f3230b0affebf1558b7c1"
 dependencies = [
  "once_cell",
  "scoped-tls",
