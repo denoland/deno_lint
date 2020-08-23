@@ -45,6 +45,7 @@ pub mod no_extra_semi;
 pub mod no_func_assign;
 pub mod no_inferrable_types;
 pub mod no_invalid_regexp;
+pub mod no_irregular_whitespace;
 pub mod no_misused_new;
 pub mod no_mixed_spaces_and_tabs;
 pub mod no_namespace;
@@ -122,6 +123,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_extra_semi::NoExtraSemi::new(),
     no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
     no_func_assign::NoFuncAssign::new(),
+    no_irregular_whitespace::NoIrregularWhitespace::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
@@ -192,6 +194,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
     no_extra_semi::NoExtraSemi::new(),
     no_func_assign::NoFuncAssign::new(),
+    no_irregular_whitespace::NoIrregularWhitespace::new(),
     no_misused_new::NoMisusedNew::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
