@@ -5,7 +5,7 @@ use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
 
-fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
+fn lint(rule: Box<dyn LintRule + Sync>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
@@ -41,7 +41,7 @@ pub fn assert_diagnostic(
   ))
 }
 
-pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
+pub fn assert_lint_ok<T: LintRule + 'static + Sync>(source: &str) {
   let rule = T::new();
   let diagnostics = lint(rule, source);
   if !diagnostics.is_empty() {
@@ -49,17 +49,17 @@ pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
   }
 }
 
-pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {
+pub fn assert_lint_ok_n<T: LintRule + 'static + Sync>(cases: Vec<&str>) {
   for source in cases {
     assert_lint_ok::<T>(source);
   }
 }
 
-pub fn assert_lint_err<T: LintRule + 'static>(source: &str, col: usize) {
+pub fn assert_lint_err<T: LintRule + 'static + Sync>(source: &str, col: usize) {
   assert_lint_err_on_line::<T>(source, 1, col)
 }
 
-pub fn assert_lint_err_on_line<T: LintRule + 'static>(
+pub fn assert_lint_err_on_line<T: LintRule + 'static + Sync>(
   source: &str,
   line: usize,
   col: usize,
@@ -71,7 +71,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
   assert_diagnostic(&diagnostics[0], rule_code, line, col);
 }
 
-pub fn assert_lint_err_n<T: LintRule + 'static>(
+pub fn assert_lint_err_n<T: LintRule + 'static + Sync>(
   source: &str,
   expected: Vec<usize>,
 ) {
@@ -82,7 +82,7 @@ pub fn assert_lint_err_n<T: LintRule + 'static>(
   assert_lint_err_on_line_n::<T>(source, real)
 }
 
-pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
+pub fn assert_lint_err_on_line_n<T: LintRule + 'static + Sync>(
   source: &str,
   expected: Vec<(usize, usize)>,
 ) {
