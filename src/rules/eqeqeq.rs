@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{BinExpr, BinaryOp};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl EqeqeqVisitor {
 }
 
 impl Visit for EqeqeqVisitor {
+  noop_visit_type!();
+
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, parent: &dyn Node) {
     if matches!(bin_expr.op, BinaryOp::EqEq | BinaryOp::NotEq) {
       let message = if bin_expr.op == BinaryOp::EqEq {

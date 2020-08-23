@@ -4,6 +4,7 @@ use super::LintRule;
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -44,6 +45,8 @@ impl NoPrototypeBuiltinsVisitor {
 }
 
 impl Visit for NoPrototypeBuiltinsVisitor {
+  noop_visit_type!();
+
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     let member_expr = match &call_expr.callee {
       ExprOrSuper::Expr(boxed_expr) => match &**boxed_expr {

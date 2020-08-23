@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -50,6 +51,8 @@ impl NoArrayConstructorVisitor {
 }
 
 impl Visit for NoArrayConstructorVisitor {
+  noop_visit_type!();
+
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.as_ref();

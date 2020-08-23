@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -42,6 +43,8 @@ fn is_nan_identifier(ident: &swc_ecmascript::ast::Ident) -> bool {
 }
 
 impl Visit for UseIsNaNVisitor {
+  noop_visit_type!();
+
   fn visit_bin_expr(
     &mut self,
     bin_expr: &swc_ecmascript::ast::BinExpr,

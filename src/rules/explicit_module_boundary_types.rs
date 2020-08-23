@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -115,6 +116,8 @@ impl ExplicitModuleBoundaryTypesVisitor {
 }
 
 impl Visit for ExplicitModuleBoundaryTypesVisitor {
+  noop_visit_type!();
+
   fn visit_module_decl(
     &mut self,
     module_decl: &ModuleDecl,

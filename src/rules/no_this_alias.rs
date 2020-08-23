@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{ArrowExpr, Expr, Function, Pat, VarDecl};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl NoThisAliasVisitor {
 }
 
 impl Visit for NoThisAliasVisitor {
+  noop_visit_type!();
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     for decl in &var_decl.decls {
       if let Some(init) = &decl.init {

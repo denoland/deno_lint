@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::NewExpr;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -40,6 +41,8 @@ impl NoAsyncPromiseExecutorVisitor {
 }
 
 impl Visit for NoAsyncPromiseExecutorVisitor {
+  noop_visit_type!();
+
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.as_ref();

@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use std::collections::HashSet;
 use swc_common::Spanned;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -40,6 +41,8 @@ impl NoDuplicateCaseVisitor {
 }
 
 impl Visit for NoDuplicateCaseVisitor {
+  noop_visit_type!();
+
   fn visit_switch_stmt(
     &mut self,
     switch_stmt: &swc_ecmascript::ast::SwitchStmt,

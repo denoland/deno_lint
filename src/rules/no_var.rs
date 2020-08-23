@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::VarDecl;
 use swc_ecmascript::ast::VarDeclKind;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -40,6 +41,8 @@ impl NoVarVisitor {
 }
 
 impl Visit for NoVarVisitor {
+  noop_visit_type!();
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.kind == VarDeclKind::Var {
       self.context.add_diagnostic(

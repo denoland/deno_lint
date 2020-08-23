@@ -4,6 +4,7 @@ use super::LintRule;
 use crate::scopes::BindingKind;
 use crate::scopes::Scope;
 use swc_ecmascript::ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -56,6 +57,8 @@ impl NoExAssignVisitor {
 }
 
 impl Visit for NoExAssignVisitor {
+  noop_visit_type!();
+
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
     match &assign_expr.left {

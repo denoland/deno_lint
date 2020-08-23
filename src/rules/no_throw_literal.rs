@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{Expr, ThrowStmt};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl NoThrowLiteralVisitor {
 }
 
 impl Visit for NoThrowLiteralVisitor {
+  noop_visit_type!();
+
   fn visit_throw_stmt(&mut self, throw_stmt: &ThrowStmt, _parent: &dyn Node) {
     match &*throw_stmt.arg {
       Expr::Lit(_) => self.context.add_diagnostic(

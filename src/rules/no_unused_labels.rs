@@ -5,6 +5,7 @@ use swc_ecmascript::ast::BreakStmt;
 use swc_ecmascript::ast::ContinueStmt;
 use swc_ecmascript::ast::Ident;
 use swc_ecmascript::ast::LabeledStmt;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -64,6 +65,8 @@ impl NoUnusedLabelsVisitor {
 }
 
 impl Visit for NoUnusedLabelsVisitor {
+  noop_visit_type!();
+
   fn visit_labeled_stmt(
     &mut self,
     labeled_stmt: &LabeledStmt,

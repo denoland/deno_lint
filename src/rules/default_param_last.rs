@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{Function, Pat};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl DefaultParamLastVisitor {
 }
 
 impl Visit for DefaultParamLastVisitor {
+  noop_visit_type!();
+
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     let mut has_normal_param = false;
     let pat = function

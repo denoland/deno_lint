@@ -4,7 +4,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
 use swc_ecmascript::ast::Module;
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -59,6 +59,8 @@ impl NoCondAssignVisitor {
 }
 
 impl Visit for NoCondAssignVisitor {
+  noop_visit_type!();
+
   fn visit_if_stmt(
     &mut self,
     if_stmt: &swc_ecmascript::ast::IfStmt,

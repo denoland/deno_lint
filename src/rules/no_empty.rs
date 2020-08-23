@@ -4,7 +4,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
   SwitchStmt,
 };
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -36,6 +36,8 @@ impl NoEmptyVisitor {
 }
 
 impl Visit for NoEmptyVisitor {
+  noop_visit_type!();
+
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     // Empty functions shouldn't be caught by this rule.
     // Because function's body is a block statement, we're gonna

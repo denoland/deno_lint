@@ -9,6 +9,7 @@ use swc_ecmascript::ast::ExprOrSuper;
 use swc_ecmascript::ast::GetterProp;
 use swc_ecmascript::ast::MethodKind;
 use swc_ecmascript::ast::Stmt;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -124,6 +125,8 @@ impl GetterReturnVisitor {
 }
 
 impl Visit for GetterReturnVisitor {
+  noop_visit_type!();
+
   fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
     for member in &class.body {
       match member {

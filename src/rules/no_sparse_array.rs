@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -38,6 +39,8 @@ impl NoSparseArrayVisitor {
 }
 
 impl Visit for NoSparseArrayVisitor {
+  noop_visit_type!();
+
   fn visit_array_lit(
     &mut self,
     array_lit: &swc_ecmascript::ast::ArrayLit,

@@ -4,6 +4,7 @@ use super::LintRule;
 use crate::swc_util::extract_regex;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -74,6 +75,8 @@ impl NoRegexSpacesVisitor {
 }
 
 impl Visit for NoRegexSpacesVisitor {
+  noop_visit_type!();
+
   fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
     swc_ecmascript::visit::visit_regex(self, regex, parent);

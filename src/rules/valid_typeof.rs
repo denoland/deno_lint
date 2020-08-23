@@ -6,7 +6,7 @@ use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
 use swc_ecmascript::ast::{BinExpr, Module};
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -38,6 +38,8 @@ impl ValidTypeofVisitor {
 }
 
 impl Visit for ValidTypeofVisitor {
+  noop_visit_type!();
+
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
     if !bin_expr.is_eq_expr() {
       return;

@@ -5,6 +5,7 @@ use crate::js_regex::*;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSpread;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -101,6 +102,8 @@ impl NoInvalidRegexpVisitor {
 }
 
 impl Visit for NoInvalidRegexpVisitor {
+  noop_visit_type!();
+
   fn visit_regex(
     &mut self,
     regex: &swc_ecmascript::ast::Regex,

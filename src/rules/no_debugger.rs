@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::DebuggerStmt;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -38,6 +39,8 @@ impl NoDebuggerVisitor {
 }
 
 impl Visit for NoDebuggerVisitor {
+  noop_visit_type!();
+
   fn visit_debugger_stmt(
     &mut self,
     debugger_stmt: &DebuggerStmt,

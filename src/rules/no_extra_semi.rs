@@ -5,6 +5,7 @@ use swc_ecmascript::ast::{
   DoWhileStmt, EmptyStmt, ForInStmt, ForOfStmt, ForStmt, IfStmt, LabeledStmt,
   Stmt, WhileStmt, WithStmt,
 };
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -42,6 +43,8 @@ impl NoExtraSemiVisitor {
 }
 
 impl Visit for NoExtraSemiVisitor {
+  noop_visit_type!();
+
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt, _parent: &dyn Node) {
     self.context.add_diagnostic(
       empty_stmt.span,

@@ -5,6 +5,7 @@ use swc_ecmascript::ast::BinExpr;
 use swc_ecmascript::ast::BinaryOp;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::UnaryOp;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -42,6 +43,8 @@ impl NoUnsafeNegationVisitor {
 }
 
 impl Visit for NoUnsafeNegationVisitor {
+  noop_visit_type!();
+
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
     if bin_expr.op == BinaryOp::In || bin_expr.op == BinaryOp::InstanceOf {
       if let Expr::Unary(unary_expr) = &*bin_expr.left {

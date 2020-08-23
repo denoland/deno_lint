@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{ArrayPat, ObjectPat, ObjectPatProp};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl NoEmptyPatternVisitor {
 }
 
 impl Visit for NoEmptyPatternVisitor {
+  noop_visit_type!();
+
   fn visit_object_pat_prop(
     &mut self,
     obj_pat_prop: &ObjectPatProp,

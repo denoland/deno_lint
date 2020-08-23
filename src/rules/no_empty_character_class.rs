@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::Regex;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -39,6 +40,8 @@ impl NoEmptyCharacterClassVisitor {
 }
 
 impl Visit for NoEmptyCharacterClassVisitor {
+  noop_visit_type!();
+
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
     let raw_regex = self
       .context
