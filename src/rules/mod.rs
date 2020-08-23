@@ -88,7 +88,7 @@ pub trait LintRule {
   fn code(&self) -> &'static str;
 }
 
-pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_recommended_rules() -> Vec<Box<dyn LintRule + Sync>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
@@ -151,7 +151,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
   ]
 }
 
-pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_all_rules() -> Vec<Box<dyn LintRule + Sync>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),

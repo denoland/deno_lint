@@ -113,7 +113,7 @@ pub struct LinterBuilder {
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
-  rules: Vec<Box<dyn LintRule>>,
+  rules: Vec<Box<dyn LintRule + Sync>>,
 }
 
 impl LinterBuilder {
@@ -169,7 +169,7 @@ impl LinterBuilder {
     self
   }
 
-  pub fn rules(mut self, rules: Vec<Box<dyn LintRule>>) -> Self {
+  pub fn rules(mut self, rules: Vec<Box<dyn LintRule + Sync>>) -> Self {
     self.rules = rules;
     self
   }
@@ -183,7 +183,7 @@ pub struct Linter {
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: Syntax,
-  rules: Vec<Box<dyn LintRule>>,
+  rules: Vec<Box<dyn LintRule + Sync>>,
 }
 
 impl Linter {
@@ -193,7 +193,7 @@ impl Linter {
     lint_unused_ignore_directives: bool,
     lint_unknown_rules: bool,
     syntax: Syntax,
-    rules: Vec<Box<dyn LintRule>>,
+    rules: Vec<Box<dyn LintRule + Sync>>,
   ) -> Self {
     Linter {
       has_linted: false,
@@ -311,27 +311,29 @@ impl Linter {
   fn filter_diagnostics(
     &self,
     context: Arc<Context>,
-    rules: &[Box<dyn LintRule>],
+    rules: &[Box<dyn LintRule + Sync>],
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let mut ignore_directives = context.ignore_directives.clone();
-    let diagnostics = context.diagnostics.lock().unwrap();
 
     let rule_codes = rules
       .iter()
       .map(|r| r.code().to_string())
       .collect::<Vec<String>>();
 
-    let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
-      .as_slice()
-      .iter()
-      .cloned()
-      .filter(|diagnostic| {
-        !ignore_directives.iter_mut().any(|ignore_directive| {
-          ignore_directive.maybe_ignore_diagnostic(&diagnostic)
+    let mut filtered_diagnostics: Vec<LintDiagnostic> = {
+      let diagnostics = context.diagnostics.lock().unwrap();
+      diagnostics
+        .as_slice()
+        .iter()
+        .cloned()
+        .filter(|diagnostic| {
+          !ignore_directives.iter_mut().any(|ignore_directive| {
+            ignore_directive.maybe_ignore_diagnostic(&diagnostic)
+          })
         })
-      })
-      .collect();
+        .collect()
+    };
 
     if self.lint_unused_ignore_directives || self.lint_unknown_rules {
       for ignore_directive in ignore_directives {
@@ -408,9 +410,10 @@ impl Linter {
       root_scope,
     });
 
-    for rule in &self.rules {
-      rule.lint_module(context.clone(), &module);
-    }
+    use rayon::prelude::*;
+    self.rules.into_par_iter().for_each(|rule| {
+      rule.lint_module(Arc::clone(&context), &module);
+    });
 
     let d = self.filter_diagnostics(context, &self.rules);
     let end = Instant::now();

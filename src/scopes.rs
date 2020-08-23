@@ -1,6 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-use std::cell::RefCell;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
@@ -8,7 +7,8 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::ObjectPatProp;
@@ -72,25 +72,27 @@ impl Scope {
   }
 
   pub fn get_kind(&self) -> ScopeKind {
-    self.index.borrow()[self.id].kind
+    self.index.read().unwrap()[self.id].kind
   }
 
   pub fn get_span(&self) -> Span {
-    self.index.borrow()[self.id].span
+    self.index.read().unwrap()[self.id].span
   }
 
   pub fn get_scope_for_span(&self, span: Span) -> Scope {
-    let scopes = self.index.borrow();
     let mut scope_id = self.id;
-    'descend: loop {
-      let scope_data = &scopes[scope_id];
-      for child_scope in &scope_data.child_scopes {
-        if child_scope.get_span().contains(span) {
-          scope_id = child_scope.id;
-          continue 'descend;
+    {
+      let scopes = self.index.read().unwrap();
+      'descend: loop {
+        let scope_data = &scopes[scope_id];
+        for child_scope in &scope_data.child_scopes {
+          if child_scope.get_span().contains(span) {
+            scope_id = child_scope.id;
+            continue 'descend;
+          }
         }
+        break;
       }
-      break;
     }
     let scope = Scope {
       id: scope_id,
@@ -101,22 +103,22 @@ impl Scope {
   }
 
   pub fn get_parent_scope(&self) -> Option<Scope> {
-    self.index.borrow()[self.id]
+    self.index.read().unwrap()[self.id]
       .parent_scope
       .as_ref()
       .map(Scope::clone)
   }
 
   pub fn add_child_scope(&self, child_scope: &Scope) {
-    self.index.borrow_mut()[self.id]
+    self.index.write().unwrap()[self.id]
       .child_scopes
-      .push(child_scope.clone())
+      .push(child_scope.clone());
   }
 
   /// Use a negative value to specify an index that is relative to the end of
   /// the list. E.g. `scope.get_child_scope(-1)` returns the last child scope.
   pub fn get_child_scope(&self, index: isize) -> Option<Scope> {
-    let scopes = self.index.borrow();
+    let scopes = self.index.read().unwrap();
     let child_scopes = &scopes[self.id].child_scopes;
     let index: usize = if index >= 0 {
       index as usize
@@ -127,7 +129,7 @@ impl Scope {
   }
 
   pub fn child_scope_count(&self) -> usize {
-    self.index.borrow()[self.id].child_scopes.len()
+    self.index.read().unwrap()[self.id].child_scopes.len()
   }
 
   /// Adds a new binding to this scope. If a binding with the same name has been
@@ -137,7 +139,7 @@ impl Scope {
     binding_name: impl Display,
     binding_kind: BindingKind,
   ) -> Option<BindingKind> {
-    self.index.borrow_mut()[self.id]
+    self.index.write().unwrap()[self.id]
       .bindings
       .insert(binding_name.to_string(), binding_kind)
   }
@@ -147,7 +149,7 @@ impl Scope {
     binding_name: impl AsRef<str>,
   ) -> Option<BindingKind> {
     let binding_name = binding_name.as_ref();
-    let scopes = self.index.borrow();
+    let scopes = self.index.read().unwrap();
     let mut scope_id = self.id;
     loop {
       let scope_data = &scopes[scope_id];
@@ -163,10 +165,10 @@ impl Scope {
 }
 
 #[derive(Clone, Debug, Default)]
-struct ScopeIndex(Rc<RefCell<Vec<ScopeData>>>);
+struct ScopeIndex(Arc<RwLock<Vec<ScopeData>>>);
 
 impl Deref for ScopeIndex {
-  type Target = RefCell<Vec<ScopeData>>;
+  type Target = RwLock<Vec<ScopeData>>;
   fn deref(&self) -> &Self::Target {
     &self.0
   }
@@ -176,13 +178,13 @@ impl Eq for ScopeIndex {}
 
 impl PartialEq for ScopeIndex {
   fn eq(&self, other: &Self) -> bool {
-    Rc::as_ptr(&self.0) == Rc::as_ptr(&other.0)
+    Arc::as_ptr(&self.0) == Arc::as_ptr(&other.0)
   }
 }
 
 impl Hash for ScopeIndex {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    Rc::as_ptr(&self.0).hash(state)
+    Arc::as_ptr(&self.0).hash(state)
   }
 }
 
@@ -190,7 +192,7 @@ impl ScopeIndex {
   fn add_scope(&self, scope_data: ScopeData) -> Scope {
     let mut parent_scope = scope_data.parent_scope.clone();
     let scope = {
-      let scopes = &mut self.borrow_mut();
+      let mut scopes = self.write().unwrap();
       let id = scopes.len();
       scopes.push(scope_data);
       Scope {
