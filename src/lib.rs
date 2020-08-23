@@ -89,6 +89,7 @@ mod lint_tests {
       true,
     );
 
+    assert_eq!(diagnostics.len(), 2);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1);
     assert_diagnostic(&diagnostics[1], "ban-unused-ignore", 4, 3);
   }

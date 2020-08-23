@@ -21,6 +21,11 @@ use swc_common::Span;
 use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::visit::Visit;
 
+lazy_static! {
+  static ref IGNORE_COMMENT_CODE_RE: regex::Regex =
+    regex::Regex::new(r",\s*|\s").unwrap();
+}
+
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
@@ -56,6 +61,7 @@ impl Context {
 
     let diagnostic = LintDiagnostic {
       location: location.into(),
+      filename: self.file_name.clone(),
       message: message.to_string(),
       code: code.to_string(),
       line_src,
@@ -89,18 +95,18 @@ impl IgnoreDirective {
     &mut self,
     diagnostic: &LintDiagnostic,
   ) -> bool {
-    if self.location.filename != diagnostic.location.filename {
-      return false;
-    }
-
     if self.location.line != diagnostic.location.line - 1 {
       return false;
     }
 
-    let should_ignore = self.codes.contains(&diagnostic.code);
-
-    if should_ignore {
-      *self.used_codes.get_mut(&diagnostic.code).unwrap() = true;
+    let mut should_ignore = false;
+    for code in self.codes.iter() {
+      // `ends_with` allows to skip `@typescript-eslint` prefix - not ideal
+      // but works for now
+      if code.ends_with(&diagnostic.code) {
+        should_ignore = true;
+        *self.used_codes.get_mut(code).unwrap() = true;
+      }
     }
 
     should_ignore
@@ -252,62 +258,6 @@ impl Linter {
     })
   }
 
-  fn parse_ignore_comment(&self, comment: &Comment) -> Option<IgnoreDirective> {
-    if comment.kind != CommentKind::Line {
-      return None;
-    }
-
-    let comment_text = comment.text.trim();
-
-    for ignore_dir in &self.ignore_diagnostic_directives {
-      if comment_text.starts_with(ignore_dir) {
-        let codes = comment_text
-          .split(' ')
-          // TODO(bartlomieju): this is make-shift, make it configurable
-          .map(|s| s.trim_start_matches("@typescript-eslint/"))
-          .map(String::from)
-          .skip(1)
-          .collect::<Vec<String>>();
-
-        let location = self
-          .ast_parser
-          .source_map
-          .lookup_char_pos(comment.span.lo());
-
-        let mut used_codes = HashMap::new();
-        codes.iter().for_each(|code| {
-          used_codes.insert(code.to_string(), false);
-        });
-
-        return Some(IgnoreDirective {
-          location: location.into(),
-          span: comment.span,
-          codes,
-          used_codes,
-        });
-      }
-    }
-
-    None
-  }
-
-  fn parse_ignore_directives(
-    &self,
-    leading: &HashMap<BytePos, Vec<Comment>>,
-  ) -> Vec<IgnoreDirective> {
-    let mut ignore_directives = vec![];
-
-    leading.values().for_each(|comments| {
-      for comment in comments {
-        if let Some(ignore) = self.parse_ignore_comment(comment) {
-          ignore_directives.push(ignore);
-        }
-      }
-    });
-
-    ignore_directives
-  }
-
   fn filter_diagnostics(
     &self,
     context: Arc<Context>,
@@ -387,12 +337,12 @@ impl Linter {
       .expect("Failed to get leading comments")
       .into_inner();
     let trailing = trailing_coms.into_iter().collect();
-    // let (leading, trailing) = {
 
-    //   (l, t)
-    // };
-
-    let ignore_directives = self.parse_ignore_directives(&leading);
+    let ignore_directives = parse_ignore_directives(
+      &self.ignore_diagnostic_directives,
+      &self.ast_parser.source_map,
+      &leading,
+    );
 
     let mut scope_visitor = ScopeVisitor::default();
     let root_scope = scope_visitor.get_root_scope();
@@ -417,5 +367,118 @@ impl Linter {
     debug!("Linter::lint_module took {:#?}", end - start);
 
     d
+  }
+}
+
+fn parse_ignore_directives(
+  ignore_diagnostic_directives: &[String],
+  source_map: &SourceMap,
+  comments: &HashMap<BytePos, Vec<Comment>>,
+) -> Vec<IgnoreDirective> {
+  let mut ignore_directives = vec![];
+
+  comments.values().for_each(|comments| {
+    for comment in comments {
+      if let Some(ignore) =
+        parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
+      {
+        ignore_directives.push(ignore);
+      }
+    }
+  });
+
+  ignore_directives
+    .sort_by(|a, b| a.location.line.partial_cmp(&b.location.line).unwrap());
+  ignore_directives
+}
+
+fn parse_ignore_comment(
+  ignore_diagnostic_directives: &[String],
+  source_map: &SourceMap,
+  comment: &Comment,
+) -> Option<IgnoreDirective> {
+  if comment.kind != CommentKind::Line {
+    return None;
+  }
+
+  let comment_text = comment.text.trim();
+
+  for ignore_dir in ignore_diagnostic_directives {
+    if comment_text.starts_with(ignore_dir) {
+      let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
+      let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
+      let codes = comment_text
+        .split(',')
+        .filter(|code| !code.is_empty())
+        .map(|code| String::from(code.trim()))
+        .collect::<Vec<String>>();
+
+      let location = source_map.lookup_char_pos(comment.span.lo());
+
+      let mut used_codes = HashMap::new();
+      codes.iter().for_each(|code| {
+        used_codes.insert(code.to_string(), false);
+      });
+
+      return Some(IgnoreDirective {
+        location: location.into(),
+        span: comment.span,
+        codes,
+        used_codes,
+      });
+    }
+  }
+
+  None
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::swc_util;
+
+  #[test]
+  fn test_parse_ignore_comments() {
+    let source_code = r#"
+// deno-lint-ignore no-explicit-any no-empty no-debugger
+function foo(): any {}
+
+// not-deno-lint-ignore no-explicit-any
+function foo(): any {}
+
+// deno-lint-ignore no-explicit-any, no-empty, no-debugger
+function foo(): any {}
+
+// deno-lint-ignore no-explicit-any,no-empty,no-debugger
+function foo(): any {}
+"#;
+    let ast_parser = AstParser::new();
+    let (parse_result, comments) = ast_parser.parse_module(
+      "test.ts",
+      swc_util::get_default_ts_config(),
+      &source_code,
+    );
+    parse_result.expect("Failed to parse");
+    let (leading, _) = comments.take_all();
+    let leading_coms = Rc::try_unwrap(leading)
+      .expect("Failed to get leading comments")
+      .into_inner();
+    let leading = leading_coms.into_iter().collect();
+    let directives = parse_ignore_directives(
+      &["deno-lint-ignore".to_string()],
+      &ast_parser.source_map,
+      &leading,
+    );
+
+    assert_eq!(directives.len(), 3);
+    let d = &directives[0];
+    assert_eq!(d.location, Location { line: 2, col: 0 });
+    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+    let d = &directives[1];
+    assert_eq!(d.location, Location { line: 8, col: 0 });
+    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+    let d = &directives[2];
+    assert_eq!(d.location, Location { line: 11, col: 0 });
+    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
   }
 }
