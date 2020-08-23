@@ -21,6 +21,11 @@ use swc_common::Span;
 use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::visit::Visit;
 
+lazy_static! {
+  static ref IGNORE_COMMENT_CODE_RE: regex::Regex =
+    regex::Regex::new(r",\s*|\s").unwrap();
+}
+
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
@@ -94,10 +99,14 @@ impl IgnoreDirective {
       return false;
     }
 
-    let should_ignore = self.codes.contains(&diagnostic.code);
-
-    if should_ignore {
-      *self.used_codes.get_mut(&diagnostic.code).unwrap() = true;
+    let mut should_ignore = false;
+    for code in self.codes.iter() {
+      // `ends_with` allows to skip `@typescript-eslint` prefix - not ideal
+      // but works for now
+      if code.ends_with(&diagnostic.code) {
+        should_ignore = true;
+        *self.used_codes.get_mut(code).unwrap() = true;
+      }
     }
 
     should_ignore
@@ -379,6 +388,8 @@ fn parse_ignore_directives(
   });
 
   ignore_directives
+    .sort_by(|a, b| a.location.line.partial_cmp(&b.location.line).unwrap());
+  ignore_directives
 }
 
 fn parse_ignore_comment(
@@ -394,12 +405,12 @@ fn parse_ignore_comment(
 
   for ignore_dir in ignore_diagnostic_directives {
     if comment_text.starts_with(ignore_dir) {
+      let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
+      let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
       let codes = comment_text
-        .split(' ')
-        // TODO(bartlomieju): this is make-shift, make it configurable
-        .map(|s| s.trim_start_matches("@typescript-eslint/"))
-        .map(String::from)
-        .skip(1)
+        .split(",")
+        .filter(|code| !code.is_empty())
+        .map(|code| String::from(code.trim()))
         .collect::<Vec<String>>();
 
       let location = source_map.lookup_char_pos(comment.span.lo());
@@ -419,4 +430,56 @@ fn parse_ignore_comment(
   }
 
   None
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::swc_util;
+
+  #[test]
+  fn test_parse_ignore_comments() {
+    let source_code = r#"
+// deno-lint-ignore no-explicit-any no-empty no-debugger
+function foo(): any {}
+
+// not-deno-lint-ignore no-explicit-any
+function foo(): any {}
+
+// deno-lint-ignore no-explicit-any, no-empty, no-debugger
+function foo(): any {}
+
+// deno-lint-ignore no-explicit-any,no-empty,no-debugger
+function foo(): any {}
+"#;
+    let ast_parser = AstParser::new();
+    let (parse_result, comments) = ast_parser.parse_module(
+      "test.ts",
+      swc_util::get_default_ts_config(),
+      &source_code,
+    );
+    parse_result.expect("Failed to parse");
+    let (leading, _) = comments.take_all();
+    let leading_coms = Rc::try_unwrap(leading)
+      .expect("Failed to get leading comments")
+      .into_inner();
+    let leading = leading_coms.into_iter().collect();
+    let directives = parse_ignore_directives(
+      &["deno-lint-ignore".to_string()],
+      &ast_parser.source_map,
+      &leading,
+    );
+
+    assert_eq!(directives.len(), 3);
+    eprintln!("directives {:#?}", directives);
+    let d = &directives[0];
+    assert_eq!(d.location, Location { line: 2, col: 0 });
+    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+    let d = &directives[1];
+    assert_eq!(d.location, Location { line: 8, col: 0 });
+    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+    let d = &directives[2];
+    assert_eq!(d.location, Location { line: 11, col: 0 });
+    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+  }
 }
