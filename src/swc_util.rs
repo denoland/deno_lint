@@ -27,7 +27,7 @@ use swc_ecmascript::parser::Parser;
 use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::parser::TsConfig;
-use swc_ecmascript::transforms::resolver;
+use swc_ecmascript::transforms::resolver::ts_resolver;
 use swc_ecmascript::visit::Fold;
 use swc_ecmascript::visit::FoldWith;
 
@@ -183,7 +183,10 @@ impl AstParser {
     });
 
     let parse_result = parse_result.map(|module| {
-      GLOBALS.set(&self.globals, || module.fold_with(&mut resolver()))
+      GLOBALS.set(&self.globals, || {
+        let mark = Mark::fresh(Mark::root());
+        module.fold_with(&mut ts_resolver(mark))
+      })
     });
 
     (parse_result, comments)
