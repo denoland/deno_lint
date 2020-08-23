@@ -807,7 +807,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_1() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -857,7 +856,6 @@ export class Foo {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_2() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -917,7 +915,6 @@ export class Foo {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_3() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -970,7 +967,6 @@ console.log(a);
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_4() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1013,7 +1009,6 @@ console.log(a);
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_5() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1060,7 +1055,6 @@ console.log(a);
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_6() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1105,7 +1099,6 @@ console.log(a);
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_7() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1157,7 +1150,6 @@ new Foo();
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_8() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1220,7 +1212,6 @@ foo();
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_9() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1278,7 +1269,6 @@ new Bar<number>();
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_10() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1322,7 +1312,6 @@ new Foo();
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_11() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1382,7 +1371,6 @@ export const a: A<SomeOther> = {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_12() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1440,7 +1428,6 @@ export class App {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_13() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1491,7 +1478,6 @@ export function foo(options: ExecaOptions): execa {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_14() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1542,7 +1528,6 @@ interface IFoo {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_15() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1592,7 +1577,6 @@ declare class Foo {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_16() {
     assert_lint_ok::<NoUnusedVars>(
       "
@@ -1641,7 +1625,6 @@ export default class ListModalStore {
   }
 
   #[test]
-  #[ignore = "typescript support is not implemented yet"]
   fn no_unused_vars_ts_ok_17() {
     assert_lint_ok::<NoUnusedVars>(
       "
