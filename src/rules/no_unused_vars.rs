@@ -40,8 +40,6 @@ impl LintRule for NoUnusedVars {
     };
     module.visit_with(module, &mut collector);
 
-    dbg!(&collector.used_vars, &collector.used_types);
-
     let mut visitor = NoUnusedVarVisitor::new(
       context,
       collector.used_vars,
@@ -1946,8 +1944,8 @@ class A extends Nullable {
 }
 new A();
         ",
-      0,
-      0,
+      3,
+      9,
     );
   }
 
@@ -1963,8 +1961,8 @@ abstract class A extends Nullable {
 }
 new A();
         ",
-      0,
-      0,
+      3,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
