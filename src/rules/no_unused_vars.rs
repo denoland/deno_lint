@@ -8,8 +8,8 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::{
   ast::{
-    ArrowExpr, CatchClause, ClassDecl, ClassMethod, Constructor, Decl,
-    ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
+    ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor,
+    Decl, ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
     ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
     KeyValueProp, MemberExpr, MethodKind, Module, NamedExport, Param, Pat,
     Prop, SetterProp, TsEntityName, TsExprWithTypeArgs, TsModuleDecl,
@@ -39,6 +39,8 @@ impl LintRule for NoUnusedVars {
       used_types: Default::default(),
     };
     module.visit_with(module, &mut collector);
+
+    dbg!(&collector.used_vars, &collector.used_types);
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
@@ -82,6 +84,15 @@ impl Collector {
 }
 
 impl Visit for Collector {
+  fn visit_class_prop(&mut self, n: &ClassProp, _: &dyn Node) {
+    if n.computed {
+      n.key.visit_with(n, self);
+    }
+
+    n.value.visit_with(n, self);
+    n.type_ann.visit_with(n, self);
+  }
+
   fn visit_ts_type_ref(&mut self, ty: &TsTypeRef, _: &dyn Node) {
     ty.type_params.visit_with(ty, self);
 
