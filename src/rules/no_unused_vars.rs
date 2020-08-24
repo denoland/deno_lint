@@ -428,6 +428,9 @@ impl Visit for NoUnusedVarVisitor {
       return;
     }
 
+    if self.used_types.contains(&n.id.to_id()) {
+      return;
+    }
     self.handle_id(&n.id);
   }
 
