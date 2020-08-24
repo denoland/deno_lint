@@ -1781,5 +1781,233 @@ export default class Foo {
     );
   }
 
-  // TODO: Copy https://github.com/typescript-eslint/typescript-eslint/blob/6f397df42cbcf05c10f304c9bbfdae4803aa0ce2/packages/eslint-plugin/tests/rules/no-unused-vars.test.ts#L621
+  #[test]
+  fn no_unused_vars_ts_err_01() {
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { ClassDecoratorFactory } from 'decorators';
+export class Foo {}
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Foo, Bar } from 'foo';
+function baz<Foo>() {}
+baz<Bar>();
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+const a: string = 'hello';
+console.log(a);
+      ",
+      0,
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_err_02() {
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'other';
+const a: Nullable<string> = 'hello';
+console.log(a);
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+class A {
+  do = (a: Nullable) => {
+    console.log(a);
+  };
+}
+new A();
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+class A {
+  do(a: Nullable) {
+    console.log(a);
+  }
+}
+new A();
+        ",
+      0,
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_err_03() {
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+class A {
+  do(): Nullable {
+    return null;
+  }
+}
+new A();
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+interface A {
+  do(a: Nullable);
+}
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Another } from 'some';
+interface A {
+  other: Nullable;
+}
+        ",
+      0,
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_err_04() {
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+function foo(a: string) {
+  console.log(a);
+}
+foo();
+        ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+function foo(): string | null {
+  return null;
+}
+foo();
+        ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Another } from 'some';
+class A extends Nullable {
+  other: Nullable<Another>;
+}
+new A();
+        ",
+      0,
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_err_05() {
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { SomeOther } from 'some';
+import { Another } from 'some';
+abstract class A extends Nullable {
+  other: Nullable<Another>;
+}
+new A();
+        ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+enum FormFieldIds {
+  PHONE = 'phone',
+  EMAIL = 'email',
+}
+        ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import test from 'test';
+import baz from 'baz';
+export interface Bar extends baz.test {}
+        ",
+      0,
+      0,
+    );
+  }
+
+  #[test]
+  fn no_unused_vars_ts_err_06() {
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import test from 'test';
+import baz from 'baz';
+export interface Bar extends baz().test {}
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import test from 'test';
+import baz from 'baz';
+export class Bar implements baz.test {}
+      ",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnusedVars>(
+      "
+import test from 'test';
+import baz from 'baz';
+export class Bar implements baz().test {}
+      ",
+      0,
+      0,
+    );
+  }
 }
