@@ -217,20 +217,6 @@ impl NoUnusedVarVisitor {
 }
 
 impl NoUnusedVarVisitor {
-  // fn handle_type_id(&mut self, ident: &Ident) {
-  //   if ident.sym.starts_with('_') {
-  //     return;
-  //   }
-  //   if !self.used_types.contains(&ident.to_id()) {
-  //     // The variable is not used.
-  //     self.context.add_diagnostic(
-  //       ident.span,
-  //       "no-unused-vars",
-  //       &format!("\"{}\" is never used", ident.sym),
-  //     );
-  //   }
-  // }
-
   fn handle_id(&mut self, ident: &Ident) {
     if ident.sym.starts_with('_') {
       return;
