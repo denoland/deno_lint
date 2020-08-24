@@ -12,8 +12,9 @@ use swc_ecmascript::{
     Decl, ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
     ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
     KeyValueProp, MemberExpr, MethodKind, Module, NamedExport, Param, Pat,
-    Prop, SetterProp, TsEntityName, TsExprWithTypeArgs, TsModuleDecl,
-    TsNamespaceDecl, TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
+    Prop, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
+    TsModuleDecl, TsNamespaceDecl, TsTypeRef, VarDecl, VarDeclOrPat,
+    VarDeclarator,
   },
   visit::VisitWith,
 };
@@ -403,6 +404,14 @@ impl Visit for NoUnusedVarVisitor {
         .iter()
         .for_each(|param| param.visit_with(parent, self)),
     }
+  }
+
+  fn visit_ts_enum_decl(&mut self, n: &TsEnumDecl, _: &dyn Node) {
+    if n.declare {
+      return;
+    }
+
+    self.handle_id(&n.id);
   }
 
   fn visit_ts_module_decl(&mut self, n: &TsModuleDecl, _: &dyn Node) {
@@ -1972,8 +1981,8 @@ enum FormFieldIds {
   EMAIL = 'email',
 }
         ",
-      0,
-      0,
+      2,
+      5,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1982,8 +1991,8 @@ import test from 'test';
 import baz from 'baz';
 export interface Bar extends baz.test {}
         ",
-      0,
-      0,
+      2,
+      7,
     );
   }
 
