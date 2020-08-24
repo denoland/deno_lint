@@ -13,8 +13,8 @@ use swc_ecmascript::{
     ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
     KeyValueProp, MemberExpr, MethodKind, Module, NamedExport, Param, Pat,
     Prop, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
-    TsModuleDecl, TsNamespaceDecl, TsTypeRef, VarDecl, VarDeclOrPat,
-    VarDeclarator,
+    TsModuleDecl, TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl,
+    VarDeclOrPat, VarDeclarator,
   },
   visit::VisitWith,
 };
@@ -92,6 +92,21 @@ impl Visit for Collector {
 
     n.value.visit_with(n, self);
     n.type_ann.visit_with(n, self);
+  }
+
+  fn visit_ts_property_signature(
+    &mut self,
+    n: &TsPropertySignature,
+    _: &dyn Node,
+  ) {
+    if n.computed {
+      n.key.visit_with(n, self);
+    }
+
+    n.type_params.visit_with(n, self);
+    n.type_ann.visit_with(n, self);
+    n.params.visit_with(n, self);
+    n.init.visit_with(n, self);
   }
 
   fn visit_ts_type_ref(&mut self, ty: &TsTypeRef, _: &dyn Node) {
@@ -375,7 +390,7 @@ impl Visit for NoUnusedVarVisitor {
     self.handle_id(&import.local);
   }
 
-  /// no-op as export is kind of usage
+  /// No error as export is kind of usage
   fn visit_export_decl(&mut self, export: &ExportDecl, _: &dyn Node) {
     match &export.decl {
       Decl::Class(c) => {
