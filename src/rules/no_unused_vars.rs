@@ -1798,8 +1798,8 @@ import { Foo, Bar } from 'foo';
 function baz<Foo>() {}
 baz<Bar>();
       ",
-      0,
-      0,
+      2,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1808,8 +1808,8 @@ import { Nullable } from 'nullable';
 const a: string = 'hello';
 console.log(a);
       ",
-      0,
-      0,
+      2,
+      9,
     );
   }
 
@@ -1837,8 +1837,8 @@ class A {
 }
 new A();
       ",
-      0,
-      0,
+      3,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1852,8 +1852,8 @@ class A {
 }
 new A();
         ",
-      0,
-      0,
+      3,
+      9,
     );
   }
 
@@ -1882,8 +1882,8 @@ interface A {
   do(a: Nullable);
 }
       ",
-      0,
-      0,
+      2,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1894,8 +1894,8 @@ interface A {
   other: Nullable;
 }
         ",
-      0,
-      0,
+      3,
+      9,
     );
   }
 
@@ -1921,8 +1921,8 @@ function foo(): string | null {
 }
 foo();
         ",
-      0,
-      0,
+      2,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
