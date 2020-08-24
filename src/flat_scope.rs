@@ -1,24 +1,52 @@
 use std::collections::HashMap;
 use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::{Invalid, Module};
-use swc_ecmascript::utils::Id;
+use swc_ecmascript::ast::{
+  BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, FnDecl, Function, Ident,
+  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
+  Module, Param, Pat,
+};
+use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
 use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::{Node, VisitWith};
 
 #[derive(Debug)]
 pub struct FlatScope {
-  vars: HashMap<Id, VarInfo>,
+  vars: HashMap<Id, Var>,
 }
 
 #[derive(Debug)]
-struct VarInfo {
-  path: Vec<BindingKind>,
+pub struct Var {
+  path: Vec<ScopeKind>,
+  kind: BindingKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl Var {
+  /// Empty path means root scope.
+  pub fn path(&self) -> &[ScopeKind] {
+    &self.path
+  }
+
+  pub fn kind(&self) -> BindingKind {
+    self.kind
+  }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BindingKind {
-  Program,
+  Var,
+  Const,
+  Let,
+  Function,
+  Param,
+  Class,
+  CatchClause,
+  Import,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum ScopeKind {
   Module,
+  Arrow,
   Function,
   Block,
   Loop,
@@ -27,15 +55,18 @@ pub enum BindingKind {
   With,
   Catch,
 }
-
 pub fn analyze(module: &Module) -> FlatScope {
   let mut scope = FlatScope {
     vars: Default::default(),
   };
+  let mut path = vec![];
 
   module.visit_with(
     &Invalid { span: DUMMY_SP },
-    &mut Analyzer { scope: &mut scope },
+    &mut Analyzer {
+      scope: &mut scope,
+      path: &mut path,
+    },
   );
 
   scope
@@ -43,6 +74,121 @@ pub fn analyze(module: &Module) -> FlatScope {
 
 struct Analyzer<'a> {
   scope: &'a mut FlatScope,
+  path: &'a mut Vec<ScopeKind>,
 }
 
-impl Visit for Analyzer<'_> {}
+impl Analyzer<'_> {
+  fn declare(&mut self, kind: BindingKind, i: &Ident) {
+    self.scope.vars.insert(
+      i.to_id(),
+      Var {
+        kind,
+        path: self.path.clone(),
+      },
+    );
+  }
+
+  fn declare_pat(&mut self, kind: BindingKind, pat: &Pat) {
+    let ids: Vec<Id> = find_ids(pat);
+    let path = self.path.clone();
+
+    self.scope.vars.extend(ids.into_iter().map(|id| {
+      let var = Var {
+        kind,
+        path: path.clone(),
+      };
+      (id, var)
+    }));
+  }
+
+  fn visit_with_path<T>(&mut self, kind: ScopeKind, node: &T)
+  where
+    T: 'static + for<'any> VisitWith<Analyzer<'any>>,
+  {
+    self.path.push(kind);
+    node.visit_with(node, self);
+    self.path.pop();
+  }
+
+  fn with<F>(&mut self, kind: ScopeKind, op: F)
+  where
+    F: FnOnce(&mut Analyzer),
+  {
+    self.path.push(kind);
+    op(self);
+    self.path.pop();
+  }
+}
+
+impl Visit for Analyzer<'_> {
+  /// Overriden not to add ScopeKind::Block
+  fn visit_block_stmt_or_expr(&mut self, n: &BlockStmtOrExpr, _: &dyn Node) {
+    match n {
+      BlockStmtOrExpr::BlockStmt(s) => s.stmts.visit_with(n, self),
+      BlockStmtOrExpr::Expr(e) => e.visit_with(n, self),
+    }
+  }
+
+  /// Overriden not to add ScopeKind::Block
+  fn visit_function(&mut self, n: &Function, _: &dyn Node) {
+    n.decorators.visit_with(n, self);
+    n.params.visit_with(n, self);
+
+    // Don't add ScopeKind::Block
+    match &n.body {
+      Some(s) => s.stmts.visit_with(n, self),
+      None => {}
+    }
+  }
+
+  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
+    self.declare(BindingKind::Function, &n.ident);
+
+    self.visit_with_path(ScopeKind::Function, &n.function);
+  }
+
+  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
+    self.declare(BindingKind::Class, &n.ident);
+
+    self.visit_with_path(ScopeKind::Class, &n.class);
+  }
+
+  fn visit_block_stmt(&mut self, n: &BlockStmt, _: &dyn Node) {
+    self.visit_with_path(ScopeKind::Block, &n.stmts)
+  }
+
+  fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
+    if let Some(pat) = &n.param {
+      self.declare_pat(BindingKind::CatchClause, pat);
+    }
+    self.visit_with_path(ScopeKind::Catch, &n.body)
+  }
+
+  fn visit_param(&mut self, n: &Param, _: &dyn Node) {
+    self.declare_pat(BindingKind::Param, &n.pat);
+  }
+
+  fn visit_import_named_specifier(
+    &mut self,
+    n: &ImportNamedSpecifier,
+    _: &dyn Node,
+  ) {
+    self.declare(BindingKind::Import, &n.local);
+  }
+
+  fn visit_import_default_specifier(
+    &mut self,
+    n: &ImportDefaultSpecifier,
+    _: &dyn Node,
+  ) {
+    self.declare(BindingKind::Import, &n.local);
+  }
+
+  fn visit_import_star_as_specifier(
+    &mut self,
+    n: &ImportStarAsSpecifier,
+    _: &dyn Node,
+  ) {
+    self.declare(BindingKind::Import, &n.local);
+  }
+}
