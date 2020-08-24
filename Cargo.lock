@@ -532,12 +532,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26412eb97c6b088a6997e05f69403a802a92d520de2f8e63c2b65f9e0f47c4e8"
 
 [[package]]
-name = "retain_mut"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e005d658ad26eacc2b6c506dfde519f4e277e328d0eb3379ca61647d70a8f531"
-
-[[package]]
 name = "ryu"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -693,7 +687,7 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.35.1"
+version = "0.35.0"
 dependencies = [
  "either",
  "enum_kind",
@@ -723,7 +717,7 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.21.1"
+version = "0.21.0"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -736,7 +730,6 @@ dependencies = [
  "once_cell",
  "ordered-float",
  "regex",
- "retain_mut",
  "scoped-tls",
  "serde",
  "serde_json",
