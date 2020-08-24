@@ -9,6 +9,7 @@ extern crate lazy_static;
 extern crate log;
 
 pub mod diagnostic;
+mod flat_scope;
 pub mod js_regex;
 pub mod linter;
 pub mod rules;
