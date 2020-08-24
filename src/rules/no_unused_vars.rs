@@ -8,11 +8,12 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::{
   ast::{
-    ArrowExpr, CatchClause, ClassMethod, Constructor, Decl, ExportDecl,
-    ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
-    ImportNamedSpecifier, ImportStarAsSpecifier, KeyValueProp, MemberExpr,
-    MethodKind, Module, NamedExport, Param, Pat, Prop, SetterProp,
-    TsEntityName, TsExprWithTypeArgs, TsTypeRef, VarDeclOrPat, VarDeclarator,
+    ArrowExpr, CatchClause, ClassDecl, ClassMethod, Constructor, Decl,
+    ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
+    ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
+    KeyValueProp, MemberExpr, MethodKind, Module, NamedExport, Param, Pat,
+    Prop, SetterProp, TsEntityName, TsExprWithTypeArgs, TsModuleDecl,
+    TsNamespaceDecl, TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
   },
   visit::VisitWith,
 };
@@ -38,8 +39,6 @@ impl LintRule for NoUnusedVars {
       used_types: Default::default(),
     };
     module.visit_with(module, &mut collector);
-
-    dbg!(&collector.used_vars, &collector.used_types);
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
@@ -261,8 +260,19 @@ impl Visit for NoUnusedVarVisitor {
   }
 
   fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
+    if decl.declare {
+      return;
+    }
     self.handle_id(&decl.ident);
     decl.function.visit_with(decl, self);
+  }
+
+  fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
+    if n.declare {
+      return;
+    }
+
+    n.decls.visit_with(n, self);
   }
 
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
@@ -273,6 +283,14 @@ impl Visit for NoUnusedVarVisitor {
     }
     declarator.name.visit_with(declarator, self);
     declarator.init.visit_with(declarator, self);
+  }
+
+  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
+    if n.declare {
+      return;
+    }
+
+    n.visit_children_with(self);
   }
 
   fn visit_catch_clause(&mut self, clause: &CatchClause, _: &dyn Node) {
@@ -376,6 +394,22 @@ impl Visit for NoUnusedVarVisitor {
         .iter()
         .for_each(|param| param.visit_with(parent, self)),
     }
+  }
+
+  fn visit_ts_module_decl(&mut self, n: &TsModuleDecl, _: &dyn Node) {
+    if n.declare {
+      return;
+    }
+
+    n.body.visit_with(n, self);
+  }
+
+  fn visit_ts_namespace_decl(&mut self, n: &TsNamespaceDecl, _: &dyn Node) {
+    if n.declare {
+      return;
+    }
+
+    n.body.visit_with(n, self);
   }
 
   /// no-op as export is kind of usage
