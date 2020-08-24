@@ -84,6 +84,8 @@ impl Collector {
 
 impl Visit for Collector {
   fn visit_class_prop(&mut self, n: &ClassProp, _: &dyn Node) {
+    n.decorators.visit_with(n, self);
+
     if n.computed {
       n.key.visit_with(n, self);
     }
