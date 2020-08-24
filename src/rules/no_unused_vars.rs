@@ -8,7 +8,7 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::{
   ast::{
-    ArrowExpr, CatchClause, ClassMethod, Decl, ExportDecl,
+    ArrowExpr, CatchClause, ClassMethod, Constructor, Decl, ExportDecl,
     ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
     ImportNamedSpecifier, ImportStarAsSpecifier, MemberExpr, MethodKind,
     Module, NamedExport, Param, Pat, SetterProp, TsEntityName,
@@ -178,6 +178,14 @@ impl Visit for Collector {
     // Restore the original state
     self.cur_defining.drain(prev_len..);
     assert_eq!(self.cur_defining.len(), prev_len);
+  }
+
+  fn visit_constructor(&mut self, c: &Constructor, _: &dyn Node) {
+    if c.body.is_none() {
+      return;
+    }
+
+    c.visit_children_with(self);
   }
 }
 
