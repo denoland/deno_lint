@@ -11,8 +11,8 @@ use swc_ecmascript::{
     ArrowExpr, CatchClause, ClassMethod, Constructor, Decl, ExportDecl,
     ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
     ImportNamedSpecifier, ImportStarAsSpecifier, KeyValueProp, MemberExpr,
-    MethodKind, Module, NamedExport, Param, Pat, SetterProp, TsEntityName,
-    TsExprWithTypeArgs, TsTypeRef, VarDeclOrPat, VarDeclarator,
+    MethodKind, Module, NamedExport, Param, Pat, Prop, SetterProp,
+    TsEntityName, TsExprWithTypeArgs, TsTypeRef, VarDeclOrPat, VarDeclarator,
   },
   visit::VisitWith,
 };
@@ -67,6 +67,21 @@ struct Collector {
   cur_defining: Vec<Id>,
 }
 
+impl Collector {
+  fn mark_as_usage(&mut self, i: &Ident) {
+    i.type_ann.visit_with(i, self);
+    let id = i.to_id();
+
+    // Recursive calls are not usage
+    if self.cur_defining.contains(&id) {
+      return;
+    }
+
+    // Mark the variable as used.
+    self.used_vars.insert(id);
+  }
+}
+
 impl Visit for Collector {
   fn visit_ts_type_ref(&mut self, ty: &TsTypeRef, _: &dyn Node) {
     ty.type_params.visit_with(ty, self);
@@ -90,20 +105,16 @@ impl Visit for Collector {
     n.value.visit_with(n, self);
   }
 
+  fn visit_prop(&mut self, n: &Prop, _: &dyn Node) {
+    match n {
+      Prop::Shorthand(i) => self.mark_as_usage(i),
+      _ => n.visit_children_with(self),
+    }
+  }
+
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
     match expr {
-      Expr::Ident(i) => {
-        i.type_ann.visit_with(i, self);
-        let id = i.to_id();
-
-        // Recursive calls are not usage
-        if self.cur_defining.contains(&id) {
-          return;
-        }
-
-        // Mark the variable as used.
-        self.used_vars.insert(id);
-      }
+      Expr::Ident(i) => self.mark_as_usage(i),
       _ => expr.visit_children_with(self),
     }
   }
