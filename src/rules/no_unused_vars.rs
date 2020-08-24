@@ -1173,16 +1173,14 @@ new Foo();
       ",
     );
 
-    // TODO(kdy1): Unignore this
-    // I'm not sure why it does not work, while code above works
-    //     assert_lint_ok::<NoUnusedVars>(
-    //       "
-    // import { Nullable } from 'nullable';
-    // import { Component } from 'react';
-    // class Foo extends Component<Nullable, {}> {}
-    // new Foo();
-    //       ",
-    //     );
+    assert_lint_ok::<NoUnusedVars>(
+      "
+import { Nullable } from 'nullable';
+import { Component } from 'react';
+class Foo extends Component<Nullable, {}> {}
+new Foo();
+          ",
+    );
 
     assert_lint_ok::<NoUnusedVars>(
       "
