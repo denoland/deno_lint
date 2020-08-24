@@ -67,6 +67,7 @@ pub mod no_unexpected_multiline;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
+pub mod no_unused_vars;
 pub mod no_var;
 pub mod no_with;
 pub mod prefer_as_const;
@@ -227,6 +228,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_const_assign::NoConstAssign::new(),
     no_control_regex::NoControlRegex::new(),
     no_unused_labels::NoUnusedLabels::new(),
+    no_unused_vars::NoUnusedVars::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
     no_constant_condition::NoConstantCondition::new(),
   ]
