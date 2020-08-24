@@ -10,8 +10,8 @@ use swc_ecmascript::{
   ast::{
     ArrowExpr, CatchClause, ClassMethod, Constructor, Decl, ExportDecl,
     ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
-    ImportNamedSpecifier, ImportStarAsSpecifier, MemberExpr, MethodKind,
-    Module, NamedExport, Param, Pat, SetterProp, TsEntityName,
+    ImportNamedSpecifier, ImportStarAsSpecifier, KeyValueProp, MemberExpr,
+    MethodKind, Module, NamedExport, Param, Pat, SetterProp, TsEntityName,
     TsExprWithTypeArgs, TsTypeRef, VarDeclOrPat, VarDeclarator,
   },
   visit::VisitWith,
@@ -85,9 +85,15 @@ impl Visit for Collector {
     n.type_args.visit_with(n, self);
   }
 
+  /// Ignore key
+  fn visit_key_value_prop(&mut self, n: &KeyValueProp, _: &dyn Node) {
+    n.value.visit_with(n, self);
+  }
+
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
     match expr {
       Expr::Ident(i) => {
+        i.type_ann.visit_with(i, self);
         let id = i.to_id();
 
         // Recursive calls are not usage
