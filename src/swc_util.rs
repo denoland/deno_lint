@@ -15,7 +15,7 @@ use swc_common::Globals;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
-use swc_common::GLOBALS;
+use swc_common::{Mark, GLOBALS};
 use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, Prop, PropName,
   PropOrSpread, Str, Tpl,

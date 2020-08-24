@@ -5,7 +5,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassMethod, ExportDecl, ExportNamedSpecifier, Expr,
   FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
   ImportStarAsSpecifier, MemberExpr, NamedExport, Param, Pat, SetterProp,
-  VarDeclOrPat, VarDeclarator,
+  TsEntityName, TsTypeRef, VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -36,10 +36,15 @@ impl LintRule for NoUnusedVars {
     let mut collector = Collector {
       used_vars: Default::default(),
       cur_defining: Default::default(),
+      used_types: Default::default(),
     };
     module.visit_with(module, &mut collector);
 
-    let mut visitor = NoUnusedVarVisitor::new(context, collector.used_vars);
+    let mut visitor = NoUnusedVarVisitor::new(
+      context,
+      collector.used_vars,
+      collector.used_types,
+    );
     module.visit_with(module, &mut visitor);
   }
 }
@@ -47,6 +52,7 @@ impl LintRule for NoUnusedVars {
 /// Collects information about variable usages.
 struct Collector {
   used_vars: HashSet<Id>,
+  used_types: HashSet<Id>,
   /// Currently defining functions or variables.
   ///
   ///
@@ -61,6 +67,18 @@ struct Collector {
 }
 
 impl Visit for Collector {
+  fn visit_ts_type_ref(&mut self, ty: &TsTypeRef, _: &dyn Node) {
+    fn get_id(r: &TsEntityName) -> Id {
+      match r {
+        TsEntityName::TsQualifiedName(q) => get_id(&q.left),
+        TsEntityName::Ident(i) => i.to_id(),
+      }
+    }
+
+    let id = get_id(&ty.type_name);
+    self.used_types.insert(id);
+  }
+
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
     match expr {
       Expr::Ident(i) => {
@@ -157,11 +175,20 @@ impl Visit for Collector {
 struct NoUnusedVarVisitor {
   context: Arc<Context>,
   used_vars: HashSet<Id>,
+  used_types: HashSet<Id>,
 }
 
 impl NoUnusedVarVisitor {
-  fn new(context: Arc<Context>, used_vars: HashSet<Id>) -> Self {
-    Self { context, used_vars }
+  fn new(
+    context: Arc<Context>,
+    used_vars: HashSet<Id>,
+    used_types: HashSet<Id>,
+  ) -> Self {
+    Self {
+      context,
+      used_vars,
+      used_types,
+    }
   }
 }
 
