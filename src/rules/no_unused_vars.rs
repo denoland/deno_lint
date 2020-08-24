@@ -39,7 +39,7 @@ impl LintRule for NoUnusedVars {
     };
     module.visit_with(module, &mut collector);
 
-    dbg!(&collector.used_types);
+    dbg!(&collector.used_vars, &collector.used_types);
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
