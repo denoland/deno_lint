@@ -364,6 +364,20 @@ impl Visit for NoUnusedVarVisitor {
     }
   }
 
+  fn visit_params(&mut self, params: &[Param], parent: &dyn Node) {
+    match params.first() {
+      Some(Param {
+        pat: Pat::Ident(i), ..
+      }) if i.sym == *"this" => params
+        .iter()
+        .skip(1)
+        .for_each(|param| param.visit_with(parent, self)),
+      _ => params
+        .iter()
+        .for_each(|param| param.visit_with(parent, self)),
+    }
+  }
+
   /// no-op as export is kind of usage
   fn visit_named_export(&mut self, _: &NamedExport, _: &dyn Node) {}
 }
