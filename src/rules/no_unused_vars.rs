@@ -1788,8 +1788,8 @@ export default class Foo {
 import { ClassDecoratorFactory } from 'decorators';
 export class Foo {}
       ",
-      0,
-      0,
+      2,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1822,8 +1822,8 @@ import { SomeOther } from 'other';
 const a: Nullable<string> = 'hello';
 console.log(a);
       ",
-      0,
-      0,
+      3,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1870,8 +1870,8 @@ class A {
 }
 new A();
       ",
-      0,
-      0,
+      3,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
@@ -1909,8 +1909,8 @@ function foo(a: string) {
 }
 foo();
         ",
-      0,
-      0,
+      2,
+      9,
     );
 
     assert_lint_err_on_line::<NoUnusedVars>(
