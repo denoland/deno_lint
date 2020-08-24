@@ -248,8 +248,12 @@ impl Linter {
     comments.with_leading(module.span.lo(), |module_leading_comments| {
       for comment in module_leading_comments.iter() {
         if comment.kind == CommentKind::Line {
-          let text = comment.text.trim().to_string();
-          if self.ignore_file_directives.contains(&text) {
+          let text = comment.text.trim();
+          if self
+            .ignore_file_directives
+            .iter()
+            .any(|directive| directive == text)
+          {
             return true;
           }
         }
