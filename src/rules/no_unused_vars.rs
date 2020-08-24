@@ -40,6 +40,8 @@ impl LintRule for NoUnusedVars {
     };
     module.visit_with(module, &mut collector);
 
+    dbg!(&collector.used_types);
+
     let mut visitor = NoUnusedVarVisitor::new(
       context,
       collector.used_vars,
@@ -74,6 +76,7 @@ impl Visit for Collector {
         TsEntityName::Ident(i) => i.to_id(),
       }
     }
+    ty.type_params.visit_with(ty, self);
 
     let id = get_id(&ty.type_name);
     self.used_types.insert(id);
@@ -99,7 +102,10 @@ impl Visit for Collector {
   fn visit_pat(&mut self, pat: &Pat, _: &dyn Node) {
     match pat {
       // Ignore patterns
-      Pat::Ident(..) | Pat::Invalid(..) => {}
+      Pat::Ident(i) => {
+        i.type_ann.visit_with(pat, self);
+      }
+      Pat::Invalid(..) => {}
       //
       _ => pat.visit_children_with(self),
     }
@@ -193,6 +199,20 @@ impl NoUnusedVarVisitor {
 }
 
 impl NoUnusedVarVisitor {
+  // fn handle_type_id(&mut self, ident: &Ident) {
+  //   if ident.sym.starts_with('_') {
+  //     return;
+  //   }
+  //   if !self.used_types.contains(&ident.to_id()) {
+  //     // The variable is not used.
+  //     self.context.add_diagnostic(
+  //       ident.span,
+  //       "no-unused-vars",
+  //       &format!("\"{}\" is never used", ident.sym),
+  //     );
+  //   }
+  // }
+
   fn handle_id(&mut self, ident: &Ident) {
     if ident.sym.starts_with('_') {
       return;
@@ -278,6 +298,9 @@ impl Visit for NoUnusedVarVisitor {
     import: &ImportNamedSpecifier,
     _: &dyn Node,
   ) {
+    if self.used_types.contains(&import.local.to_id()) {
+      return;
+    }
     self.handle_id(&import.local);
   }
 
@@ -286,6 +309,9 @@ impl Visit for NoUnusedVarVisitor {
     import: &ImportDefaultSpecifier,
     _: &dyn Node,
   ) {
+    if self.used_types.contains(&import.local.to_id()) {
+      return;
+    }
     self.handle_id(&import.local);
   }
 
@@ -294,6 +320,9 @@ impl Visit for NoUnusedVarVisitor {
     import: &ImportStarAsSpecifier,
     _: &dyn Node,
   ) {
+    if self.used_types.contains(&import.local.to_id()) {
+      return;
+    }
     self.handle_id(&import.local);
   }
 
