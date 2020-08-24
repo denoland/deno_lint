@@ -1,18 +1,21 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{
-  ArrowExpr, CatchClause, ClassMethod, ExportDecl, ExportNamedSpecifier, Expr,
-  FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, MemberExpr, NamedExport, Param, Pat, SetterProp,
-  TsEntityName, TsTypeRef, VarDeclOrPat, VarDeclarator,
-};
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::{
+  ast::{
+    ArrowExpr, CatchClause, ClassMethod, Decl, ExportDecl,
+    ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
+    ImportNamedSpecifier, ImportStarAsSpecifier, MemberExpr, MethodKind,
+    Module, NamedExport, Param, Pat, SetterProp, TsEntityName, TsTypeRef,
+    VarDeclOrPat, VarDeclarator,
+  },
+  visit::VisitWith,
+};
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -28,11 +31,7 @@ impl LintRule for NoUnusedVars {
     "no-unused-vars"
   }
 
-  fn lint_module(
-    &self,
-    context: Arc<Context>,
-    module: &swc_ecmascript::ast::Module,
-  ) {
+  fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut collector = Collector {
       used_vars: Default::default(),
       cur_defining: Default::default(),
@@ -274,11 +273,9 @@ impl Visit for NoUnusedVarVisitor {
     method.key.visit_with(method, self);
 
     match method.kind {
-      swc_ecmascript::ast::MethodKind::Method => {
-        method.function.params.visit_children_with(self)
-      }
-      swc_ecmascript::ast::MethodKind::Getter => {}
-      swc_ecmascript::ast::MethodKind::Setter => {}
+      MethodKind::Method => method.function.params.visit_children_with(self),
+      MethodKind::Getter => {}
+      MethodKind::Setter => {}
     }
 
     method.function.body.visit_with(method, self);
@@ -329,13 +326,13 @@ impl Visit for NoUnusedVarVisitor {
   /// no-op as export is kind of usage
   fn visit_export_decl(&mut self, export: &ExportDecl, _: &dyn Node) {
     match &export.decl {
-      swc_ecmascript::ast::Decl::Class(c) => {
+      Decl::Class(c) => {
         c.class.visit_with(c, self);
       }
-      swc_ecmascript::ast::Decl::Fn(f) => {
+      Decl::Fn(f) => {
         f.function.visit_with(f, self);
       }
-      swc_ecmascript::ast::Decl::Var(v) => {
+      Decl::Var(v) => {
         for decl in &v.decls {
           decl.name.visit_with(decl, self);
           decl.init.visit_with(decl, self);
