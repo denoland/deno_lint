@@ -17,8 +17,8 @@ use swc_common::Span;
 use swc_common::DUMMY_SP;
 use swc_common::{Mark, GLOBALS};
 use swc_ecmascript::ast::{
-  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, Prop, PropName,
-  PropOrSpread, Str, Tpl,
+  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
+  Prop, PropName, PropOrSpread, Str, Tpl,
 };
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::EsConfig;
@@ -29,7 +29,10 @@ use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::parser::TsConfig;
 use swc_ecmascript::transforms::resolver::ts_resolver;
 use swc_ecmascript::visit::Fold;
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::{
+  utils::{find_ids, ident::IdentLike, Id},
+  visit::FoldWith,
+};
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -356,5 +359,16 @@ impl Key for MemberExpr {
     }
 
     (&*self.prop).get_key()
+  }
+}
+
+/// Find [Id]s in the lhs of an assigmnet expression.
+pub(crate) fn find_lhs_ids(n: &PatOrExpr) -> Vec<Id> {
+  match &n {
+    PatOrExpr::Expr(e) => match &**e {
+      Expr::Ident(i) => vec![i.to_id()],
+      _ => vec![],
+    },
+    PatOrExpr::Pat(p) => find_ids(p),
   }
 }

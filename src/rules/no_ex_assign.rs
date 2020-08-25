@@ -1,14 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{AssignExpr, Expr, PatOrExpr};
-use swc_ecmascript::utils::find_ids;
-use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use crate::flat_scope::BindingKind;
+use crate::{flat_scope::BindingKind, swc_util::find_lhs_ids};
 use std::sync::Arc;
 
 pub struct NoExAssign;
@@ -46,13 +44,7 @@ impl Visit for NoExAssignVisitor {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ids = match &assign_expr.left {
-      PatOrExpr::Expr(e) => match &**e {
-        Expr::Ident(i) => vec![i.to_id()],
-        _ => vec![],
-      },
-      PatOrExpr::Pat(p) => find_ids(p),
-    };
+    let ids = find_lhs_ids(&assign_expr.left);
 
     let span = assign_expr.span;
 
