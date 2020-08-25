@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
-  BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, FnDecl, Function, Ident,
-  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
-  Module, Param, Pat,
+  ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, FnDecl,
+  Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, Invalid, Module, Param, Pat, VarDecl, VarDeclKind,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
 use swc_ecmascript::visit::Visit;
@@ -121,12 +121,31 @@ impl Analyzer<'_> {
 }
 
 impl Visit for Analyzer<'_> {
+  fn visit_arrow_expr(&mut self, n: &ArrowExpr, _: &dyn Node) {
+    self.with(ScopeKind::Arrow, |a| n.visit_children_with(a))
+  }
+
   /// Overriden not to add ScopeKind::Block
   fn visit_block_stmt_or_expr(&mut self, n: &BlockStmtOrExpr, _: &dyn Node) {
     match n {
       BlockStmtOrExpr::BlockStmt(s) => s.stmts.visit_with(n, self),
       BlockStmtOrExpr::Expr(e) => e.visit_with(n, self),
     }
+  }
+
+  fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
+    n.decls.iter().for_each(|v| {
+      v.init.visit_with(n, self);
+
+      self.declare_pat(
+        match n.kind {
+          VarDeclKind::Var => BindingKind::Var,
+          VarDeclKind::Let => BindingKind::Let,
+          VarDeclKind::Const => BindingKind::Const,
+        },
+        &v.name,
+      );
+    });
   }
 
   /// Overriden not to add ScopeKind::Block
