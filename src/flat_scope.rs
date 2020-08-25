@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, FnDecl,
-  Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, Invalid, Module, Param, Pat, VarDecl, VarDeclKind,
-  WithStmt,
+  ForInStmt, ForOfStmt, ForStmt, Function, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, Invalid, Module, Param, Pat,
+  VarDecl, VarDeclKind, WithStmt,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
 use swc_ecmascript::visit::Visit;
@@ -216,5 +216,27 @@ impl Visit for Analyzer<'_> {
   fn visit_with_stmt(&mut self, n: &WithStmt, _: &dyn Node) {
     n.obj.visit_with(n, self);
     self.with(ScopeKind::With, |a| n.body.visit_children_with(a))
+  }
+
+  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {
+    n.init.visit_with(n, self);
+    n.update.visit_with(n, self);
+    n.test.visit_with(n, self);
+
+    self.visit_with_path(ScopeKind::Loop, &n.body);
+  }
+
+  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
+    n.left.visit_with(n, self);
+    n.right.visit_with(n, self);
+
+    self.visit_with_path(ScopeKind::Loop, &n.body);
+  }
+
+  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
+    n.left.visit_with(n, self);
+    n.right.visit_with(n, self);
+
+    self.visit_with_path(ScopeKind::Loop, &n.body);
   }
 }
