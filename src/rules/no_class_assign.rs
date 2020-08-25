@@ -1,10 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::BindingKind;
+use crate::{flat_scope::BindingKind, swc_util::find_lhs_ids};
 use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::ast::Pat;
-use swc_ecmascript::ast::PatOrExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -46,21 +44,26 @@ impl Visit for NoClassAssignVisitor {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let name = match &assign_expr.left {
-      PatOrExpr::Expr(_) => return,
-      PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => &ident.sym,
-        _ => return,
-      },
-    };
+    let ids = find_lhs_ids(&assign_expr.left);
 
-    let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
-    if let Some(BindingKind::Class) = scope.get_binding(name) {
-      self.context.add_diagnostic(
-        assign_expr.span,
-        "no-class-assign",
-        "Reassigning class declaration is not allowed",
-      );
+    for id in ids {
+      let var = self.context.scope.var(&id);
+      match var {
+        Some(var) => {
+          //
+          match var.kind() {
+            BindingKind::Class => {
+              self.context.add_diagnostic(
+                assign_expr.span,
+                "no-class-assign",
+                "Reassigning class declaration is not allowed",
+              );
+            }
+            _ => {}
+          }
+        }
+        None => {}
+      }
     }
   }
 }
