@@ -275,3 +275,80 @@ impl Visit for Analyzer<'_> {
     self.visit_with_path(ScopeKind::Switch, &n.cases);
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::{analyze, BindingKind, Scope, ScopeKind, Var};
+  use crate::swc_util::{self, AstParser};
+  use swc_ecmascript::utils::Id;
+
+  fn test_scope(source_code: &str) -> Scope {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+    let (parse_result, _comments) =
+      ast_parser.parse_module("file_name.ts", syntax, source_code);
+    let module = parse_result.unwrap();
+
+    analyze(&module)
+  }
+
+  fn id(scope: &Scope, s: &str) -> Id {
+    let ids = scope.ids_with_symbol(&s.into());
+    if ids.is_none() {
+      panic!("No identifier named {}", s);
+    }
+    let ids = ids.unwrap();
+    if ids.len() > 1 {
+      panic!("Multiple identifers named {} found", s);
+    }
+
+    ids.first().unwrap().clone()
+  }
+
+  fn var<'a>(scope: &'a Scope, symbol: &str) -> &'a Var {
+    scope.var(&id(scope, symbol)).unwrap().clone()
+  }
+
+  #[test]
+  fn scopes() {
+    let source_code = r#"
+const a = "a";
+const unused = "unused";
+function asdf(b: number, c: string): number {
+    console.log(a, b);
+    {
+      const c = 1;
+      let d = 2;
+    }
+    return 1;
+}
+class Foo {
+  #fizz = "fizz";
+  bar() {
+  }
+}
+try {
+  // some code that might throw
+  throw new Error("asdf");
+} catch (e) {
+  const msg = "asdf " + e.message;
+}
+"#;
+    let scope = test_scope(source_code);
+    assert_eq!(var(&scope, "a").kind(), BindingKind::Const);
+    assert_eq!(var(&scope, "a").path(), &[]);
+
+    assert_eq!(var(&scope, "b").kind(), BindingKind::Param);
+    assert_eq!(scope.ids_with_symbol(&"c".into()).unwrap().len(), 2);
+    assert_eq!(
+      var(&scope, "d").path(),
+      &[ScopeKind::Function, ScopeKind::Block]
+    );
+
+    assert_eq!(var(&scope, "Foo").kind(), BindingKind::Class);
+    assert_eq!(var(&scope, "Foo").path(), &[]);
+
+    assert_eq!(var(&scope, "e").kind(), BindingKind::CatchClause);
+    assert_eq!(var(&scope, "e").path(), &[]);
+  }
+}
