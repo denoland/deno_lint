@@ -16,9 +16,16 @@ use swc_ecmascript::visit::VisitWith;
 #[derive(Debug)]
 pub struct FlatScope {
   vars: HashMap<Id, Var>,
+  // TODO(kdy1): Maybe change this to swc_atoms::JsWord
+  symbols: HashMap<String, Vec<Id>>,
 }
 
 impl FlatScope {
+  // Get all declarations with a symbol.
+  pub fn ids_with_symbol(&self, sym: &str) -> Option<&Vec<Id>> {
+    self.symbols.get(sym)
+  }
+
   pub fn var(&self, id: &Id) -> Option<&Var> {
     self.vars.get(id)
   }
@@ -69,6 +76,7 @@ pub enum ScopeKind {
 pub fn analyze(module: &Module) -> FlatScope {
   let mut scope = FlatScope {
     vars: Default::default(),
+    symbols: Default::default(),
   };
   let mut path = vec![];
 
@@ -89,27 +97,32 @@ struct Analyzer<'a> {
 }
 
 impl Analyzer<'_> {
-  fn declare(&mut self, kind: BindingKind, i: &Ident) {
+  fn declare_id(&mut self, kind: BindingKind, i: Id) {
     self.scope.vars.insert(
-      i.to_id(),
+      i.clone(),
       Var {
         kind,
         path: self.path.clone(),
       },
     );
+    self
+      .scope
+      .symbols
+      .entry(i.0.to_string())
+      .or_default()
+      .push(i);
+  }
+
+  fn declare(&mut self, kind: BindingKind, i: &Ident) {
+    self.declare_id(kind, i.to_id());
   }
 
   fn declare_pat(&mut self, kind: BindingKind, pat: &Pat) {
     let ids: Vec<Id> = find_ids(pat);
-    let path = self.path.clone();
 
-    self.scope.vars.extend(ids.into_iter().map(|id| {
-      let var = Var {
-        kind,
-        path: path.clone(),
-      };
-      (id, var)
-    }));
+    for id in ids {
+      self.declare_id(kind, id);
+    }
   }
 
   fn visit_with_path<T>(&mut self, kind: ScopeKind, node: &T)
