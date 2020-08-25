@@ -1,14 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::BindingKind;
+use crate::flat_scope::BindingKind;
 use swc_common::Span;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ObjectPatProp;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::ast::PatOrExpr;
-use swc_ecmascript::ast::UpdateExpr;
+use swc_ecmascript::ast::{Ident, UpdateExpr};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -47,7 +47,7 @@ impl NoConstAssignVisitor {
   fn check_pat(&mut self, pat: &Pat, span: Span) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_scope_for_const(span, &ident.sym);
+        self.check_scope_for_const(span, ident);
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, span);
@@ -70,10 +70,7 @@ impl NoConstAssignVisitor {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
-          self.check_scope_for_const(
-            assign_prop.key.span,
-            &assign_prop.key.sym.as_ref(),
-          );
+          self.check_scope_for_const(assign_prop.key.span, &assign_prop.key);
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
           self.check_pat(&kv_prop.value, span);
         }
@@ -95,14 +92,20 @@ impl NoConstAssignVisitor {
     }
   }
 
-  fn check_scope_for_const(&mut self, span: Span, name: &str) {
-    let scope = self.context.root_scope.get_scope_for_span(span);
-    if let Some(BindingKind::Const) = scope.get_binding(name) {
-      self.context.add_diagnostic(
-        span,
-        "no-const-assign",
-        "Reassigning constant variable is not allowed",
-      );
+  fn check_scope_for_const(&mut self, span: Span, name: &Ident) {
+    let id = name.to_id();
+    match self.context.scope.var(&id) {
+      Some(v) => match v.kind() {
+        BindingKind::Function => {
+          self.context.add_diagnostic(
+            span,
+            "no-const-assign",
+            "Reassigning constant variable is not allowed",
+          );
+        }
+        _ => {}
+      },
+      None => {}
     }
   }
 }
@@ -112,7 +115,7 @@ impl Visit for NoConstAssignVisitor {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
         if let Expr::Ident(ident) = &**pat_expr {
-          self.check_scope_for_const(assign_expr.span, &ident.sym);
+          self.check_scope_for_const(assign_expr.span, &ident);
         }
       }
       PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span),
@@ -121,7 +124,7 @@ impl Visit for NoConstAssignVisitor {
 
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _node: &dyn Node) {
     if let Expr::Ident(ident) = &*update_expr.arg {
-      self.check_scope_for_const(update_expr.span, &ident.sym);
+      self.check_scope_for_const(update_expr.span, &ident);
     }
   }
 }
