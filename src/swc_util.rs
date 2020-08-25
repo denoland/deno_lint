@@ -1,5 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use crate::scopes::Scope;
+use crate::flat_scope::FlatScope;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
@@ -240,8 +240,7 @@ impl DropSpan for Expr {
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
-  root_scope: &Scope,
-  expr_span: Span,
+  scope: &FlatScope,
   expr_ident: &Ident,
   expr_args: &[ExprOrSpread],
 ) -> Option<String> {
@@ -249,8 +248,7 @@ pub(crate) fn extract_regex(
     return None;
   }
 
-  let scope = root_scope.get_scope_for_span(expr_span);
-  if scope.get_binding(&expr_ident.sym).is_some() {
+  if scope.var(&expr_ident.to_id()).is_some() {
     return None;
   }
 
