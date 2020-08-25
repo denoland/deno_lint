@@ -1,14 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::scopes::BindingKind;
-use crate::scopes::Scope;
-use swc_ecmascript::ast::{AssignExpr, ObjectPatProp, Pat, PatOrExpr};
+use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use std::sync::Arc;
+use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
-
-use std::sync::Arc;
 
 pub struct NoExAssign;
 
@@ -39,71 +37,27 @@ impl NoExAssignVisitor {
   pub fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
-
-  fn check_scope_for_catch_clause(
-    &self,
-    scope: &Scope,
-    name: impl AsRef<str>,
-    span: swc_common::Span,
-  ) {
-    if let Some(BindingKind::CatchClause) = scope.get_binding(name) {
-      self.context.add_diagnostic(
-        span,
-        "no-ex-assign",
-        "Reassigning exception parameter is not allowed",
-      );
-    }
-  }
 }
 
 impl Visit for NoExAssignVisitor {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let scope = self.context.root_scope.get_scope_for_span(assign_expr.span);
-    match &assign_expr.left {
-      PatOrExpr::Expr(_) => {}
-      PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => self.check_scope_for_catch_clause(
-          &scope,
-          &ident.sym,
-          assign_expr.span,
-        ),
-        Pat::Array(array) => {
-          if array.elems.is_empty() {
-            return;
-          }
-          for elem in array.elems.iter() {
-            if let Some(Pat::Ident(ident)) = elem {
-              self.check_scope_for_catch_clause(
-                &scope,
-                &ident.sym,
-                assign_expr.span,
-              );
-            }
-          }
+    let ids = find_lhs_ids(&assign_expr.left);
+
+    for id in ids {
+      let var = self.context.scope.var(&id);
+
+      if let Some(var) = var {
+        if let BindingKind::CatchClause = var.kind() {
+          self.context.add_diagnostic(
+            assign_expr.span,
+            "no-ex-assign",
+            "Reassigning exception parameter is not allowed",
+          );
         }
-        Pat::Object(object) => {
-          if object.props.is_empty() {
-            return;
-          }
-          for prop in object.props.iter() {
-            if let ObjectPatProp::KeyValue(kv) = prop {
-              if let Pat::Assign(assign_pat) = &*kv.value {
-                if let Pat::Ident(ident) = &*assign_pat.left {
-                  self.check_scope_for_catch_clause(
-                    &scope,
-                    &ident.sym,
-                    assign_expr.span,
-                  );
-                }
-              }
-            }
-          }
-        }
-        _ => {}
-      },
-    };
+      }
+    }
   }
 }
 

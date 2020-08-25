@@ -5,7 +5,10 @@ use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::{
+  utils::ident::IdentLike,
+  visit::{noop_visit_type, Node, Visit},
+};
 
 use std::sync::Arc;
 
@@ -48,8 +51,7 @@ impl NoShadowRestrictedNamesVisitor {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
         if &ident.sym == "undefined" && check_scope {
-          let scope = self.context.root_scope.get_scope_for_span(ident.span);
-          if let Some(_binding) = scope.get_binding(&ident.sym) {
+          if let Some(_binding) = self.context.scope.var(&ident.to_id()) {
             self.report_shadowing(&ident);
           }
           return;

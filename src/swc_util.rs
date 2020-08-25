@@ -17,8 +17,8 @@ use swc_common::Span;
 use swc_common::DUMMY_SP;
 use swc_common::{Mark, GLOBALS};
 use swc_ecmascript::ast::{
-  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, Prop, PropName,
-  PropOrSpread, Str, Tpl,
+  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
+  Prop, PropName, PropOrSpread, Str, Tpl,
 };
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::EsConfig;
@@ -29,7 +29,10 @@ use swc_ecmascript::parser::Syntax;
 use swc_ecmascript::parser::TsConfig;
 use swc_ecmascript::transforms::resolver::ts_resolver;
 use swc_ecmascript::visit::Fold;
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::{
+  utils::{find_ids, ident::IdentLike, Id},
+  visit::FoldWith,
+};
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -237,8 +240,7 @@ impl DropSpan for Expr {
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
-  root_scope: &Scope,
-  expr_span: Span,
+  scope: &Scope,
   expr_ident: &Ident,
   expr_args: &[ExprOrSpread],
 ) -> Option<String> {
@@ -246,8 +248,7 @@ pub(crate) fn extract_regex(
     return None;
   }
 
-  let scope = root_scope.get_scope_for_span(expr_span);
-  if scope.get_binding(&expr_ident.sym).is_some() {
+  if scope.var(&expr_ident.to_id()).is_some() {
     return None;
   }
 
@@ -356,5 +357,16 @@ impl Key for MemberExpr {
     }
 
     (&*self.prop).get_key()
+  }
+}
+
+/// Find [Id]s in the lhs of an assigmnet expression.
+pub(crate) fn find_lhs_ids(n: &PatOrExpr) -> Vec<Id> {
+  match &n {
+    PatOrExpr::Expr(e) => match &**e {
+      Expr::Ident(i) => vec![i.to_id()],
+      _ => vec![],
+    },
+    PatOrExpr::Pat(p) => find_ids(p),
   }
 }
