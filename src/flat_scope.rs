@@ -9,8 +9,9 @@ use swc_ecmascript::ast::{
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
+use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::{Node, VisitWith};
+use swc_ecmascript::visit::VisitWith;
 
 #[derive(Debug)]
 pub struct FlatScope {
