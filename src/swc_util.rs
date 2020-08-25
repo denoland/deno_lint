@@ -240,7 +240,7 @@ impl DropSpan for Expr {
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
-  scope: &FlatScope,
+  scope: &Scope,
   expr_ident: &Ident,
   expr_args: &[ExprOrSpread],
 ) -> Option<String> {
