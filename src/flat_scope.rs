@@ -6,7 +6,9 @@ use swc_ecmascript::ast::{
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
   Module, Param, Pat, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
 };
-use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
+use swc_ecmascript::utils::find_ids;
+use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::utils::Id;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::{Node, VisitWith};
 
