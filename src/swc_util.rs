@@ -1,5 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use crate::flat_scope::FlatScope;
+use crate::scopes::Scope;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;

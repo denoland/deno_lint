@@ -1,13 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use std::sync::Arc;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
-
-use crate::{flat_scope::BindingKind, swc_util::find_lhs_ids};
-use std::sync::Arc;
 
 pub struct NoExAssign;
 
