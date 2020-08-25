@@ -37,6 +37,7 @@ pub struct Context {
   pub leading_comments: HashMap<BytePos, Vec<Comment>>,
   pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
+  #[deprecated = "Use scope instead"]
   pub root_scope: Scope,
   /// Arc as it's not modified
   pub scope: Arc<FlatScope>,
