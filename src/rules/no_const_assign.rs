@@ -10,7 +10,7 @@ use swc_ecmascript::ast::Pat;
 use swc_ecmascript::ast::PatOrExpr;
 use swc_ecmascript::ast::{Ident, UpdateExpr};
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::{utils::ident::IdentLike, visit::Visit};
 
 use std::sync::Arc;
 
