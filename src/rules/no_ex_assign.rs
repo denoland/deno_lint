@@ -46,25 +46,17 @@ impl Visit for NoExAssignVisitor {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     let ids = find_lhs_ids(&assign_expr.left);
 
-    let span = assign_expr.span;
-
     for id in ids {
       let var = self.context.scope.var(&id);
-      match var {
-        Some(var) => {
-          //
-          match var.kind() {
-            BindingKind::CatchClause => {
-              self.context.add_diagnostic(
-                span,
-                "no-ex-assign",
-                "Reassigning exception parameter is not allowed",
-              );
-            }
-            _ => {}
-          }
+
+      if let Some(var) = var {
+        if let BindingKind::CatchClause = var.kind() {
+          self.context.add_diagnostic(
+            assign_expr.span,
+            "no-ex-assign",
+            "Reassigning exception parameter is not allowed",
+          );
         }
-        None => {}
       }
     }
   }

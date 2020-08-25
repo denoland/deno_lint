@@ -48,21 +48,14 @@ impl Visit for NoFuncAssignVisitor {
 
     for id in ids {
       let var = self.context.scope.var(&id);
-      match var {
-        Some(var) => {
-          //
-          match var.kind() {
-            BindingKind::Function => {
-              self.context.add_diagnostic(
-                assign_expr.span,
-                "no-func-assign",
-                "Reassigning function declaration is not allowed",
-              );
-            }
-            _ => {}
-          }
+      if let Some(var) = var {
+        if let BindingKind::Function = var.kind() {
+          self.context.add_diagnostic(
+            assign_expr.span,
+            "no-func-assign",
+            "Reassigning function declaration is not allowed",
+          );
         }
-        None => {}
       }
     }
   }

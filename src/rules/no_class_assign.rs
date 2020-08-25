@@ -48,21 +48,14 @@ impl Visit for NoClassAssignVisitor {
 
     for id in ids {
       let var = self.context.scope.var(&id);
-      match var {
-        Some(var) => {
-          //
-          match var.kind() {
-            BindingKind::Class => {
-              self.context.add_diagnostic(
-                assign_expr.span,
-                "no-class-assign",
-                "Reassigning class declaration is not allowed",
-              );
-            }
-            _ => {}
-          }
+      if let Some(var) = var {
+        if let BindingKind::Class = var.kind() {
+          self.context.add_diagnostic(
+            assign_expr.span,
+            "no-class-assign",
+            "Reassigning class declaration is not allowed",
+          );
         }
-        None => {}
       }
     }
   }
