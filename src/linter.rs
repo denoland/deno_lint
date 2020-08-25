@@ -6,7 +6,10 @@ use crate::scopes::Scope;
 use crate::scopes::ScopeVisitor;
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
-use crate::swc_util::SwcDiagnosticBuffer;
+use crate::{
+  flat_scope::{analyze, FlatScope},
+  swc_util::SwcDiagnosticBuffer,
+};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -35,6 +38,8 @@ pub struct Context {
   pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
   pub root_scope: Scope,
+  /// Arc as it's not modified
+  pub scope: Arc<FlatScope>,
 }
 
 impl Context {
@@ -347,6 +352,7 @@ impl Linter {
     let mut scope_visitor = ScopeVisitor::default();
     let root_scope = scope_visitor.get_root_scope();
     scope_visitor.visit_module(&module, &module);
+    let scope = Arc::new(analyze(&module));
 
     let context = Arc::new(Context {
       file_name,
@@ -356,6 +362,7 @@ impl Linter {
       trailing_comments: trailing,
       ignore_directives,
       root_scope,
+      scope,
     });
 
     for rule in &self.rules {
