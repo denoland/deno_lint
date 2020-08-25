@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, DoWhileStmt,
@@ -16,13 +17,12 @@ use swc_ecmascript::visit::VisitWith;
 #[derive(Debug)]
 pub struct Scope {
   vars: HashMap<Id, Var>,
-  // TODO(kdy1): Maybe change this to swc_atoms::JsWord
-  symbols: HashMap<String, Vec<Id>>,
+  symbols: HashMap<JsWord, Vec<Id>>,
 }
 
 impl Scope {
   // Get all declarations with a symbol.
-  pub fn ids_with_symbol(&self, sym: &str) -> Option<&Vec<Id>> {
+  pub fn ids_with_symbol(&self, sym: &JsWord) -> Option<&Vec<Id>> {
     self.symbols.get(sym)
   }
 
@@ -105,12 +105,7 @@ impl Analyzer<'_> {
         path: self.path.clone(),
       },
     );
-    self
-      .scope
-      .symbols
-      .entry(i.0.to_string())
-      .or_default()
-      .push(i);
+    self.scope.symbols.entry(i.0.clone()).or_default().push(i);
   }
 
   fn declare(&mut self, kind: BindingKind, i: &Ident) {

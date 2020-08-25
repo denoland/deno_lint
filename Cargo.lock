@@ -144,6 +144,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "swc_atoms",
  "swc_common",
  "swc_ecmascript",
  "termcolor",
