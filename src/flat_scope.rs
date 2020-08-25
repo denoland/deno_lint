@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
-  ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, FnDecl,
-  ForInStmt, ForOfStmt, ForStmt, Function, Ident, ImportDefaultSpecifier,
-  ImportNamedSpecifier, ImportStarAsSpecifier, Invalid, Module, Param, Pat,
-  VarDecl, VarDeclKind, WithStmt,
+  ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, DoWhileStmt,
+  FnDecl, ForInStmt, ForOfStmt, ForStmt, Function, Ident,
+  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
+  Module, Param, Pat, VarDecl, VarDeclKind, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
 use swc_ecmascript::visit::Visit;
@@ -236,6 +236,18 @@ impl Visit for Analyzer<'_> {
   fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
     n.left.visit_with(n, self);
     n.right.visit_with(n, self);
+
+    self.visit_with_path(ScopeKind::Loop, &n.body);
+  }
+
+  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
+    n.test.visit_with(n, self);
+
+    self.visit_with_path(ScopeKind::Loop, &n.body);
+  }
+
+  fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
+    n.test.visit_with(n, self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
   }
