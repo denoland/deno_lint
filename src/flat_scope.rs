@@ -18,6 +18,12 @@ pub struct FlatScope {
   vars: HashMap<Id, Var>,
 }
 
+impl FlatScope {
+  pub fn var(&self, id: &Id) -> Option<&Var> {
+    self.vars.get(id)
+  }
+}
+
 #[derive(Debug)]
 pub struct Var {
   path: Vec<ScopeKind>,
