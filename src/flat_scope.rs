@@ -4,7 +4,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, DoWhileStmt,
   FnDecl, ForInStmt, ForOfStmt, ForStmt, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
-  Module, Param, Pat, VarDecl, VarDeclKind, WhileStmt, WithStmt,
+  Module, Param, Pat, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
 use swc_ecmascript::visit::Visit;
@@ -250,5 +250,11 @@ impl Visit for Analyzer<'_> {
     n.test.visit_with(n, self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
+  }
+
+  fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
+    n.discriminant.visit_with(n, self);
+
+    self.visit_with_path(ScopeKind::Switch, &n.cases);
   }
 }
