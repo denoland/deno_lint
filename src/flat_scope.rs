@@ -4,6 +4,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, FnDecl,
   Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
   ImportStarAsSpecifier, Invalid, Module, Param, Pat, VarDecl, VarDeclKind,
+  WithStmt,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike, Id};
 use swc_ecmascript::visit::Visit;
@@ -45,7 +46,7 @@ pub enum BindingKind {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum ScopeKind {
-  Module,
+  // Module,
   Arrow,
   Function,
   Block,
@@ -55,6 +56,7 @@ pub enum ScopeKind {
   With,
   Catch,
 }
+
 pub fn analyze(module: &Module) -> FlatScope {
   let mut scope = FlatScope {
     vars: Default::default(),
@@ -209,5 +211,10 @@ impl Visit for Analyzer<'_> {
     _: &dyn Node,
   ) {
     self.declare(BindingKind::Import, &n.local);
+  }
+
+  fn visit_with_stmt(&mut self, n: &WithStmt, _: &dyn Node) {
+    n.obj.visit_with(n, self);
+    self.with(ScopeKind::With, |a| n.body.visit_children_with(a))
   }
 }
