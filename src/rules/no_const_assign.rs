@@ -96,7 +96,7 @@ impl NoConstAssignVisitor {
     let id = name.to_id();
     match self.context.scope.var(&id) {
       Some(v) => match v.kind() {
-        BindingKind::Function => {
+        BindingKind::Const => {
           self.context.add_diagnostic(
             span,
             "no-const-assign",
