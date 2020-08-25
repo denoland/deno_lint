@@ -223,17 +223,22 @@ impl Linter {
     );
     self.has_linted = true;
     let start = Instant::now();
-    let (parse_result, comments) =
+    let diagnostics = if source_code.is_empty() {
+      vec![]
+    } else {
+      let (parse_result, comments) =
       self
         .ast_parser
         .parse_module(&file_name, self.syntax, &source_code);
-    let end_parse_module = Instant::now();
-    debug!(
-      "ast_parser.parse_module took {:#?}",
-      end_parse_module - start
-    );
-    let module = parse_result?;
-    let diagnostics = self.lint_module(file_name, module, comments);
+      let end_parse_module = Instant::now();
+      debug!(
+        "ast_parser.parse_module took {:#?}",
+        end_parse_module - start
+      );
+      let module = parse_result?;
+      self.lint_module(file_name, module, comments)
+    };
+    
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
     Ok(diagnostics)
