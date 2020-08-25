@@ -306,7 +306,7 @@ mod tests {
   }
 
   fn var<'a>(scope: &'a Scope, symbol: &str) -> &'a Var {
-    scope.var(&id(scope, symbol)).unwrap().clone()
+    scope.var(&id(scope, symbol)).unwrap()
   }
 
   #[test]
