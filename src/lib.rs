@@ -42,6 +42,12 @@ mod lint_tests {
   }
 
   #[test]
+  fn empty_file() {
+    let diagnostics = lint("", true, false);
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
   fn warn_unknown_rules() {
     let diagnostics = lint(
       r#"
