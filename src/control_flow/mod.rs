@@ -10,6 +10,10 @@ pub struct ControlFlow {
 }
 
 impl ControlFlow {
+  /// lo can be extracted from span of
+  ///
+  /// - All statements (including stmt.span())
+  /// - [SwitchCase]
   pub fn meta(&self, lo: BytePos) -> Option<&Metadata> {
     self.meta.get(&lo)
   }
@@ -27,13 +31,14 @@ pub enum BlockKind {
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
   unreachable: bool,
-  path: Vec<BlockKind>,
+  finished: bool,
+  // path: Vec<BlockKind>,
 }
 
 impl Metadata {
-  pub fn path(&self) -> &[BlockKind] {
-    &self.path
-  }
+  // pub fn path(&self) -> &[BlockKind] {
+  //   &self.path
+  // }
 }
 
 struct Analyzer<'a> {
@@ -42,7 +47,7 @@ struct Analyzer<'a> {
 }
 
 struct Scope<'a> {
-  parent: Option<&'a Scope<'a>>,
+  _parent: Option<&'a Scope<'a>>,
   path: Vec<BlockKind>,
   /// Unconditionally ends with return, throw, brak or continue
   finished: bool,
@@ -57,6 +62,10 @@ impl Analyzer<'_> {
 
     self.info.extend(info);
     self.scope.path.pop();
+  }
+
+  fn is_finished(&self, lo: BytePos) -> bool {
+    self.info.get(&lo).map(|md| md.finished).unwrap_or(false)
   }
 }
 
@@ -80,8 +89,48 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Function, |a| n.function.visit_with(n, a))
   }
 
+  fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
+    n.visit_children_with(self);
+
+    // SwitchStmt finishes execution if all cases finishes execution
+    let is_finished = n
+      .cases
+      .iter()
+      .map(|case| case.span.lo)
+      .all(|lo| self.is_finished(lo));
+
+    if is_finished {
+      self.info.entry(n.span.lo).or_default().finished = true;
+    }
+  }
+
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
     self.with_child_scope(BlockKind::Case, |a| n.cons.visit_with(n, a));
+  }
+
+  fn visit_if_stmt(&mut self, n: &IfStmt, _: &dyn Node) {
+    n.test.visit_with(n, self);
+
+    self.with_child_scope(BlockKind::If, |a| {
+      n.cons.visit_with(n, a);
+    });
+
+    let is_cons_finished = self.is_finished(n.cons.span().lo);
+
+    match &n.alt {
+      Some(alt) => {
+        self.with_child_scope(BlockKind::If, |a| {
+          //
+          alt.visit_with(n, a);
+        });
+        let is_alt_finished = self.is_finished(alt.span().lo);
+
+        if is_cons_finished && is_alt_finished {
+          self.info.entry(n.span.lo).or_default().finished = true;
+        }
+      }
+      None => {}
+    }
   }
 
   fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
