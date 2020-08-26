@@ -111,8 +111,7 @@ impl NoSelfAssignVisitor {
           (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
             self.is_same_member(&l_member_expr, &r_member_expr)
           }
-          (Expr::This(_), Expr::Ident(_)) => false,
-          (Expr::This(_), _) => true,
+          (Expr::This(_), Expr::This(_)) => true,
           (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
             self.is_same_ident(&l_ident, &r_ident)
           }
