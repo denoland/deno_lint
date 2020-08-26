@@ -350,6 +350,7 @@ impl Linter {
       &self.ignore_diagnostic_directives,
       &self.ast_parser.source_map,
       &leading,
+      &trailing,
     );
 
     let scope = Arc::new(analyze(&module));
@@ -379,11 +380,22 @@ impl Linter {
 fn parse_ignore_directives(
   ignore_diagnostic_directives: &[String],
   source_map: &SourceMap,
-  comments: &HashMap<BytePos, Vec<Comment>>,
+  leading_comments: &HashMap<BytePos, Vec<Comment>>,
+  trailing_comments: &HashMap<BytePos, Vec<Comment>>,
 ) -> Vec<IgnoreDirective> {
   let mut ignore_directives = vec![];
 
-  comments.values().for_each(|comments| {
+  leading_comments.values().for_each(|comments| {
+    for comment in comments {
+      if let Some(ignore) =
+        parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
+      {
+        ignore_directives.push(ignore);
+      }
+    }
+  });
+
+  trailing_comments.values().for_each(|comments| {
     for comment in comments {
       if let Some(ignore) =
         parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
@@ -457,6 +469,12 @@ function foo(): any {}
 
 // deno-lint-ignore no-explicit-any,no-empty,no-debugger
 function foo(): any {}
+
+export function deepAssign(
+  target: Record<string, any>,
+  ...sources: any[]
+): // deno-lint-ignore ban-types
+object | undefined {}
 "#;
     let ast_parser = AstParser::new();
     let (parse_result, comments) = ast_parser.parse_module(
@@ -465,18 +483,23 @@ function foo(): any {}
       &source_code,
     );
     parse_result.expect("Failed to parse");
-    let (leading, _) = comments.take_all();
+    let (leading, trailing) = comments.take_all();
     let leading_coms = Rc::try_unwrap(leading)
       .expect("Failed to get leading comments")
       .into_inner();
+    let trailing_coms = Rc::try_unwrap(trailing)
+      .expect("Failed to get trailing comments")
+      .into_inner();
     let leading = leading_coms.into_iter().collect();
+    let trailing = trailing_coms.into_iter().collect();
     let directives = parse_ignore_directives(
       &["deno-lint-ignore".to_string()],
       &ast_parser.source_map,
       &leading,
+      &trailing,
     );
 
-    assert_eq!(directives.len(), 3);
+    assert_eq!(directives.len(), 4);
     let d = &directives[0];
     assert_eq!(d.location, Location { line: 2, col: 0 });
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
@@ -486,5 +509,8 @@ function foo(): any {}
     let d = &directives[2];
     assert_eq!(d.location, Location { line: 11, col: 0 });
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+    let d = &directives[3];
+    assert_eq!(d.location, Location { line: 17, col: 3 });
+    assert_eq!(d.codes, vec!["ban-types"]);
   }
 }
