@@ -227,9 +227,9 @@ impl Linter {
       vec![]
     } else {
       let (parse_result, comments) =
-      self
-        .ast_parser
-        .parse_module(&file_name, self.syntax, &source_code);
+        self
+          .ast_parser
+          .parse_module(&file_name, self.syntax, &source_code);
       let end_parse_module = Instant::now();
       debug!(
         "ast_parser.parse_module took {:#?}",
@@ -238,7 +238,7 @@ impl Linter {
       let module = parse_result?;
       self.lint_module(file_name, module, comments)
     };
-    
+
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
     Ok(diagnostics)

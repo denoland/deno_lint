@@ -327,7 +327,7 @@ mod tests {
       "a[b + 1] = a[b + 1]",
       "this.x = this.y",
       "this.x = options.x",
-      "this.name = this.constructor.name"
+      "this.name = this.constructor.name",
     ]);
   }
 

@@ -43,11 +43,7 @@ mod lint_tests {
 
   #[test]
   fn empty_file() {
-    let diagnostics = lint(
-      "",
-      true,
-      false,
-    );
+    let diagnostics = lint("", true, false);
     assert!(diagnostics.is_empty());
   }
 
