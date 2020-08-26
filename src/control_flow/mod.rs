@@ -1,7 +1,4 @@
-use std::{
-  collections::{hash_map::Entry, HashMap},
-  mem::take,
-};
+use std::{collections::HashMap, mem::take};
 use swc_common::BytePos;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
