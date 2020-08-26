@@ -159,13 +159,45 @@ impl Visit for Analyzer<'_> {
 
   // loops
 
-  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {}
+  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {
+    n.init.visit_with(n, self);
+    n.update.visit_with(n, self);
+    n.test.visit_with(n, self);
 
-  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {}
+    self.with_child_scope(BlockKind::Loop, |a| {
+      n.body.visit_with(n, a);
+    });
+  }
 
-  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {}
+  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
+    n.right.visit_with(n, self);
 
-  fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {}
+    self.with_child_scope(BlockKind::Loop, |a| {
+      n.body.visit_with(n, a);
+    });
+  }
 
-  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {}
+  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
+    n.right.visit_with(n, self);
+
+    self.with_child_scope(BlockKind::Loop, |a| {
+      n.body.visit_with(n, a);
+    });
+  }
+
+  fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
+    n.test.visit_with(n, self);
+
+    self.with_child_scope(BlockKind::Loop, |a| {
+      n.body.visit_with(n, a);
+    });
+  }
+
+  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
+    n.test.visit_with(n, self);
+
+    self.with_child_scope(BlockKind::Loop, |a| {
+      n.body.visit_with(n, a);
+    });
+  }
 }
