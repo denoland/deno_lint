@@ -1,39 +1,4 @@
-use std::collections::HashMap;
-use swc_common::BytePos;
 use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{Node, Visit};
-
-pub struct Info {
-  stmts: HashMap<BytePos, StmtInfo>,
-}
-
-impl Info {
-  pub fn stmt(&self, lo: BytePos) -> Option<&StmtInfo> {
-    self.stmts.get(&lo)
-  }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlockKind {}
-
-#[derive(Debug, Clone)]
-pub struct StmtInfo {
-  path: Vec<BlockKind>,
-}
-
-impl StmtInfo {
-  pub fn path(&self) -> &[BlockKind] {
-    &self.path
-  }
-}
-
-struct Scope<'a> {
-  parent: Option<&'a Scope<'a>>,
-}
-
-impl Visit for Info {
-  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {}
-}
 
 pub(crate) trait EndsWithRet {
   /// Does a node ends with return, throw, break, continue?
