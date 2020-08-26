@@ -47,8 +47,8 @@ struct Analyzer<'a> {
 struct Scope<'a> {
   parent: Option<&'a Scope<'a>>,
   path: Vec<BlockKind>,
-  /// Unconditionall ends with return, throw, brak or continue
-  ends_with_ret: bool,
+  /// Unconditionally ends with return, throw, brak or continue
+  finished: bool,
 }
 
 impl Analyzer<'_> {
@@ -63,10 +63,10 @@ impl Analyzer<'_> {
   }
 }
 
-macro_rules! mark_as_end {
+macro_rules! mark_as_finished {
   ($name:ident, $T:ty) => {
     fn $name(&mut self, _: &$T, _: &dyn Node) {
-      self.scope.ends_with_ret = true;
+      self.scope.finished = true;
     }
   };
 }
@@ -74,10 +74,10 @@ macro_rules! mark_as_end {
 impl Visit for Analyzer<'_> {
   noop_visit_type!();
 
-  mark_as_end!(visit_return_stmt, ReturnStmt);
-  mark_as_end!(visit_throw_stmt, ThrowStmt);
-  mark_as_end!(visit_break_stmt, BreakStmt);
-  mark_as_end!(visit_continue_stmt, ContinueStmt);
+  mark_as_finished!(visit_return_stmt, ReturnStmt);
+  mark_as_finished!(visit_throw_stmt, ThrowStmt);
+  mark_as_finished!(visit_break_stmt, BreakStmt);
+  mark_as_finished!(visit_continue_stmt, ContinueStmt);
 
   fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
     self.with_child_scope(BlockKind::Function, |a| n.function.visit_with(n, a))
