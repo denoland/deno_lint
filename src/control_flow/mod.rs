@@ -39,12 +39,14 @@ pub enum BlockKind {
   Function,
   Case,
   If,
+  /// Body of a loop
+  Loop,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
-  unreachable: bool,
-  finished: bool,
+  pub unreachable: bool,
+  pub finished: bool,
   // path: Vec<BlockKind>,
 }
 
@@ -154,4 +156,16 @@ impl Visit for Analyzer<'_> {
 
     n.visit_children_with(self);
   }
+
+  // loops
+
+  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {}
+
+  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {}
+
+  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {}
+
+  fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {}
+
+  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {}
 }

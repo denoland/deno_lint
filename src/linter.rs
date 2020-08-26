@@ -5,7 +5,7 @@ use crate::rules::LintRule;
 use crate::scopes::{analyze, Scope};
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
-use crate::swc_util::SwcDiagnosticBuffer;
+use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -34,6 +34,7 @@ pub struct Context {
   pub ignore_directives: Vec<IgnoreDirective>,
   /// Arc as it's not modified
   pub scope: Arc<Scope>,
+  pub control_flow: Arc<ControlFlow>,
 }
 
 impl Context {
@@ -354,6 +355,7 @@ impl Linter {
     );
 
     let scope = Arc::new(analyze(&module));
+    let control_flow = Arc::new(ControlFlow::analyze(&module));
 
     let context = Arc::new(Context {
       file_name,
@@ -363,6 +365,7 @@ impl Linter {
       trailing_comments: trailing,
       ignore_directives,
       scope,
+      control_flow,
     });
 
     for rule in &self.rules {

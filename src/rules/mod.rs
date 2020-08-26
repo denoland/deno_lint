@@ -64,6 +64,7 @@ pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
 pub mod no_unexpected_multiline;
+pub mod no_unreachable;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
