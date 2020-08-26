@@ -1,5 +1,5 @@
 use std::{collections::HashMap, mem::take};
-use swc_common::{BytePos, Spanned};
+use swc_common::{BytePos, Spanned, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -10,6 +10,19 @@ pub struct ControlFlow {
 }
 
 impl ControlFlow {
+  pub fn analyze(m: &Module) -> Self {
+    let mut v = Analyzer {
+      scope: Scope {
+        _parent: None,
+        path: vec![],
+        finished: false,
+      },
+      info: Default::default(),
+    };
+    m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+    ControlFlow { meta: v.info }
+  }
+
   /// lo can be extracted from span of
   ///
   /// - All statements (including stmt.span())
