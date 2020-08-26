@@ -163,4 +163,111 @@ mod tests {
 
     assert_lint_ok::<NoUnreachable>("function foo() { try { a.b.c = 1; return; } catch (err) { return err; } }");
   }
+
+  #[test]
+  fn err_1() {
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { return x; var x = 1; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { return x; var x, y = 1; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "while (true) { continue; var x = 1; }",
+      0,
+    );
+  }
+
+  #[test]
+  fn err_2() {
+    assert_lint_err::<NoUnreachable>("function foo() { return; x = 1; }", 0);
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { throw error; x = 1; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>("while (true) { break; x = 1; }", 0);
+  }
+
+  #[test]
+  fn err_3() {
+    assert_lint_err::<NoUnreachable>("while (true) { continue; x = 1; }", 0);
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { switch (foo) { case 1: return; x = 1; } }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { switch (foo) { case 1: throw e; x = 1; } }",
+      0,
+    );
+  }
+
+  #[test]
+  fn err_4() {
+    assert_lint_err::<NoUnreachable>(
+      "while (true) { switch (foo) { case 1: break; x = 1; } }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "while (true) { switch (foo) { case 1: continue; x = 1; } }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>("var x = 1; throw 'uh oh'; var y = 2;", 0);
+  }
+
+  #[test]
+  fn err_5() {
+    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; if (x) { return; } else { throw e; } x = 2; }", 0);
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { var x = 1; if (x) return; else throw -1; x = 2; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { var x = 1; try { return; } finally {} x = 2; }",
+      0,
+    );
+  }
+
+  #[test]
+  fn err_6() {
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { var x = 1; try { } finally { return; } x = 2; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { var x = 1; do { return; } while (x); x = 2; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }", 0);
+  }
+
+  #[test]
+  fn err_7() {
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { var x = 1; for (;;) { if (x) continue; } x = 2; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>(
+      "function foo() { var x = 1; while (true) { } x = 2; }",
+      0,
+    );
+
+    assert_lint_err::<NoUnreachable>("const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }", 0);
+  }
+
+  // TODO: Copy https://github.com/eslint/eslint/blob/4111d21a046b73892e2c84f92815a21ef4db63e1/tests/lib/rules/no-unreachable.js#L106
 }
