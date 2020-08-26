@@ -184,6 +184,8 @@ impl Visit for NoConstantConditionVisitor {
     self.report(&if_stmt.test)
   }
 
+  /* TODO(bartlomieju): temporarly disabled because
+    deno_std uses while (true) {} loops
   fn visit_while_stmt(
     &mut self,
     while_stmt: &swc_ecmascript::ast::WhileStmt,
@@ -209,6 +211,7 @@ impl Visit for NoConstantConditionVisitor {
       self.report(cond)
     }
   }
+  */
 }
 
 #[cfg(test)]
