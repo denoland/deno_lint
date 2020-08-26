@@ -1,5 +1,5 @@
 use std::{collections::HashMap, mem::take};
-use swc_common::BytePos;
+use swc_common::{BytePos, Spanned};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -24,7 +24,7 @@ pub enum BlockKind {
   If,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Metadata {
   unreachable: bool,
   path: Vec<BlockKind>,
@@ -82,5 +82,14 @@ impl Visit for Analyzer<'_> {
 
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
     self.with_child_scope(BlockKind::Case, |a| n.cons.visit_with(n, a));
+  }
+
+  fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
+    if self.scope.finished {
+      // It's unreachable
+      self.info.entry(n.span().lo).or_default().unreachable = true;
+    }
+
+    n.visit_children_with(self);
   }
 }
