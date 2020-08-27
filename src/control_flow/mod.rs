@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use swc_common::{BytePos, Spanned, DUMMY_SP};
 use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::{
+  utils::{ExprExt, Value},
+  visit::{noop_visit_type, Node, Visit, VisitWith},
+};
 
 mod util;
 
@@ -140,6 +143,7 @@ impl Visit for Analyzer<'_> {
       .map(|case| case.span.lo)
       .all(|lo| self.is_finished(lo));
 
+    self.scope.finished |= is_finished;
     if is_finished {
       self.info.entry(n.span.lo).or_default().finished = true;
     }
@@ -198,6 +202,16 @@ impl Visit for Analyzer<'_> {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
+
+      if !a.scope.found_break {
+        if n.test.is_none() {
+          a.scope.finished = true;
+        } else if let (_, Value::Known(true)) =
+          n.test.as_ref().unwrap().as_bool()
+        {
+          a.scope.finished = true;
+        }
+      }
     });
   }
 
@@ -226,6 +240,15 @@ impl Visit for Analyzer<'_> {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
+
+      dbg!(a.scope.found_break);
+      if !a.scope.found_break {
+        if let (_, Value::Known(true)) = n.test.as_bool() {
+          dbg!();
+          a.scope.finished = true;
+          a.info.entry(n.span.lo).or_default().finished = true;
+        }
+      }
     });
   }
 

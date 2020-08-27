@@ -274,7 +274,7 @@ mod tests {
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { var x = 1; while (true) { } x = 2; }",
-      0,
+      45,
     );
 
     assert_lint_err::<NoUnreachable>("const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }", 0);
@@ -366,7 +366,7 @@ mod tests {
           return err;
       }
   }",
-      vec![(0, 0), (0, 0)],
+      vec![(4, 10), (0, 0)],
     );
   }
 }
