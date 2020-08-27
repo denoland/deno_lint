@@ -186,14 +186,14 @@ mod tests {
 
   #[test]
   fn err_2() {
-    assert_lint_err::<NoUnreachable>("function foo() { return; x = 1; }", 0);
+    assert_lint_err::<NoUnreachable>("function foo() { return; x = 1; }", 25);
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { throw error; x = 1; }",
-      0,
+      30,
     );
 
-    assert_lint_err::<NoUnreachable>("while (true) { break; x = 1; }", 0);
+    assert_lint_err::<NoUnreachable>("while (true) { break; x = 1; }", 22);
   }
 
   #[test]
