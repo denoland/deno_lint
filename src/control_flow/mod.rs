@@ -16,6 +16,7 @@ impl ControlFlow {
         _parent: None,
         path: vec![],
         finished: false,
+        continue_pos: Default::default(),
       },
       info: Default::default(),
     };
@@ -66,6 +67,8 @@ struct Scope<'a> {
   path: Vec<BlockKind>,
   /// Unconditionally ends with return, throw, brak or continue
   finished: bool,
+  // What should happen when loop ends with a continue
+  continue_pos: Option<BytePos>,
 }
 
 impl Analyzer<'_> {
@@ -74,6 +77,7 @@ impl Analyzer<'_> {
     let info = take(&mut self.info);
 
     op(self);
+    self.scope.continue_pos = None;
 
     self.info.extend(info);
     self.scope.path.pop();
@@ -165,6 +169,8 @@ impl Visit for Analyzer<'_> {
     n.test.visit_with(n, self);
 
     self.with_child_scope(BlockKind::Loop, |a| {
+      a.scope.continue_pos = Some(n.span.lo);
+
       n.body.visit_with(n, a);
     });
   }
@@ -173,6 +179,8 @@ impl Visit for Analyzer<'_> {
     n.right.visit_with(n, self);
 
     self.with_child_scope(BlockKind::Loop, |a| {
+      a.scope.continue_pos = Some(n.span.lo);
+
       n.body.visit_with(n, a);
     });
   }
@@ -189,6 +197,8 @@ impl Visit for Analyzer<'_> {
     n.test.visit_with(n, self);
 
     self.with_child_scope(BlockKind::Loop, |a| {
+      a.scope.continue_pos = Some(n.span.lo);
+
       n.body.visit_with(n, a);
     });
   }
@@ -197,6 +207,8 @@ impl Visit for Analyzer<'_> {
     n.test.visit_with(n, self);
 
     self.with_child_scope(BlockKind::Loop, |a| {
+      a.scope.continue_pos = Some(n.span.lo);
+
       n.body.visit_with(n, a);
     });
   }
