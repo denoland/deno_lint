@@ -237,16 +237,16 @@ mod tests {
 
   #[test]
   fn err_5() {
-    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; if (x) { return; } else { throw e; } x = 2; }", 0);
+    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; if (x) { return; } else { throw e; } x = 2; }", 65);
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { var x = 1; if (x) return; else throw -1; x = 2; }",
-      0,
+      58,
     );
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { var x = 1; try { return; } finally {} x = 2; }",
-      0,
+      55,
     );
   }
 
@@ -259,17 +259,17 @@ mod tests {
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { var x = 1; do { return; } while (x); x = 2; }",
-      0,
+      54,
     );
 
-    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }", 0);
+    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }", 69);
   }
 
   #[test]
   fn err_7() {
     assert_lint_err::<NoUnreachable>(
       "function foo() { var x = 1; for (;;) { if (x) continue; } x = 2; }",
-      0,
+      58,
     );
 
     assert_lint_err::<NoUnreachable>(

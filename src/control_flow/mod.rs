@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem::take};
+use std::collections::HashMap;
 use swc_common::{BytePos, Spanned, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
@@ -72,14 +72,23 @@ struct Scope<'a> {
 }
 
 impl Analyzer<'_> {
-  fn with_child_scope(&mut self, kind: BlockKind, op: impl Fn(&mut Analyzer)) {
+  /// `lo` is used when child operation is `finished`
+  fn with_child_scope(
+    &mut self,
+    kind: BlockKind,
+    lo: BytePos,
+    op: impl Fn(&mut Analyzer),
+  ) {
     self.scope.path.push(kind);
-    let info = take(&mut self.info);
 
+    self.scope.finished = false;
     op(self);
+    if self.scope.finished {
+      self.info.entry(lo).or_default().finished = true;
+      eprintln!("Finished");
+    }
     self.scope.continue_pos = None;
 
-    self.info.extend(info);
     self.scope.path.pop();
   }
 
@@ -105,7 +114,9 @@ impl Visit for Analyzer<'_> {
   mark_as_finished!(visit_continue_stmt, ContinueStmt);
 
   fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
-    self.with_child_scope(BlockKind::Function, |a| n.function.visit_with(n, a))
+    self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
+      n.function.visit_with(n, a)
+    })
   }
 
   fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
@@ -124,13 +135,15 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
-    self.with_child_scope(BlockKind::Case, |a| n.cons.visit_with(n, a));
+    self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
+      n.cons.visit_with(n, a)
+    });
   }
 
   fn visit_if_stmt(&mut self, n: &IfStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::If, |a| {
+    self.with_child_scope(BlockKind::If, n.cons.span().lo, |a| {
       n.cons.visit_with(n, a);
     });
 
@@ -138,13 +151,14 @@ impl Visit for Analyzer<'_> {
 
     match &n.alt {
       Some(alt) => {
-        self.with_child_scope(BlockKind::If, |a| {
+        self.with_child_scope(BlockKind::If, alt.span().lo, |a| {
           //
           alt.visit_with(n, a);
         });
         let is_alt_finished = self.is_finished(alt.span().lo);
 
         if is_cons_finished && is_alt_finished {
+          self.scope.finished = true;
           self.info.entry(n.span.lo).or_default().finished = true;
         }
       }
@@ -155,6 +169,8 @@ impl Visit for Analyzer<'_> {
   fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
     if self.scope.finished {
       // It's unreachable
+
+      eprintln!("Unreachable: {:?}", n.span().lo);
       self.info.entry(n.span().lo).or_default().unreachable = true;
     }
 
@@ -168,7 +184,7 @@ impl Visit for Analyzer<'_> {
     n.update.visit_with(n, self);
     n.test.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, |a| {
+    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
@@ -178,7 +194,7 @@ impl Visit for Analyzer<'_> {
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
     n.right.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, |a| {
+    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
@@ -188,7 +204,7 @@ impl Visit for Analyzer<'_> {
   fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
     n.right.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, |a| {
+    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       n.body.visit_with(n, a);
     });
   }
@@ -196,7 +212,7 @@ impl Visit for Analyzer<'_> {
   fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, |a| {
+    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
@@ -206,7 +222,7 @@ impl Visit for Analyzer<'_> {
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, |a| {
+    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
