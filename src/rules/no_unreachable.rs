@@ -44,6 +44,12 @@ impl Visit for NoUnreachableVisitor {
   fn visit_stmt(&mut self, stmt: &Stmt, _: &dyn Node) {
     stmt.visit_children_with(self);
 
+    match stmt {
+      // Don't print unused error for block statements
+      Stmt::Block(_) => return,
+      _ => {}
+    }
+
     if let Some(meta) = self.context.control_flow.meta(stmt.span().lo) {
       if meta.unreachable {
         self.context.add_diagnostic(
@@ -248,7 +254,7 @@ mod tests {
   fn err_6() {
     assert_lint_err::<NoUnreachable>(
       "function foo() { var x = 1; try { } finally { return; } x = 2; }",
-      0,
+      56,
     );
 
     assert_lint_err::<NoUnreachable>(
