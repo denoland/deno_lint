@@ -332,7 +332,7 @@ mod tests {
       }
       e();
   }",
-      vec![(0, 0), (0, 0), (0, 0)],
+      vec![(4, 10), (5, 10), (8, 10), (10, 6)],
     );
 
     assert_lint_err_on_line::<NoUnreachable>(
@@ -343,8 +343,8 @@ mod tests {
           return err;
       }
   }",
-      0,
-      0,
+      5,
+      10,
     );
 
     assert_lint_err_on_line::<NoUnreachable>(
@@ -355,8 +355,8 @@ mod tests {
           return err;
       }
   }",
-      0,
-      0,
+      5,
+      10,
     );
   }
 
