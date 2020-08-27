@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use swc_common::{BytePos, Spanned, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::{
-  utils::{ExprExt, Value},
+  utils::{ident::IdentLike, ExprExt, Id, Value},
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
@@ -21,6 +21,7 @@ impl ControlFlow {
         finished: false,
         continue_pos: Default::default(),
         found_break: false,
+        used_hoistable_ids: Default::default(),
       },
       info: Default::default(),
     };
@@ -68,6 +69,11 @@ struct Analyzer<'a> {
 
 struct Scope<'a> {
   _parent: Option<&'a Scope<'a>>,
+  /// This field exists to handle code like
+  ///
+  /// `function foo() { return bar(); function bar() { return 1; } }`
+  used_hoistable_ids: HashSet<Id>,
+
   path: Vec<BlockKind>,
   /// Unconditionally ends with return, throw, brak or continue
   finished: bool,
@@ -97,6 +103,11 @@ impl Analyzer<'_> {
     self.scope.found_break |= found_break;
     self.scope.continue_pos = None;
 
+    if kind == BlockKind::Function {
+      self.scope.finished = false;
+      self.scope.found_break = false;
+    }
+
     self.scope.path.pop();
   }
 
@@ -116,9 +127,34 @@ macro_rules! mark_as_finished {
 impl Visit for Analyzer<'_> {
   noop_visit_type!();
 
-  mark_as_finished!(visit_return_stmt, ReturnStmt);
   mark_as_finished!(visit_throw_stmt, ThrowStmt);
   mark_as_finished!(visit_continue_stmt, ContinueStmt);
+
+  fn visit_return_stmt(&mut self, r: &ReturnStmt, _: &dyn Node) {
+    r.visit_children_with(self);
+
+    self.scope.finished = true;
+  }
+
+  fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
+    n.visit_children_with(self);
+
+    if !self.scope.finished {
+      match n {
+        Expr::Ident(i) => {
+          self.scope.used_hoistable_ids.insert(i.to_id());
+        }
+        _ => {}
+      }
+    }
+  }
+
+  fn visit_member_expr(&mut self, n: &MemberExpr, _: &dyn Node) {
+    n.obj.visit_with(n, self);
+    if n.computed {
+      n.prop.visit_with(n, self);
+    }
+  }
 
   fn visit_break_stmt(&mut self, _: &BreakStmt, _: &dyn Node) {
     self.scope.found_break = true;
@@ -180,9 +216,22 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
-    if self.scope.finished {
-      // It's unreachable
+    let unreachable = if self.scope.finished {
+      // Although execution is done, we should handle hoisting.
+      match n {
+        Stmt::Decl(Decl::Fn(FnDecl { ident, .. }))
+          if self.scope.used_hoistable_ids.contains(&ident.to_id()) =>
+        {
+          false
+        }
+        // It's unreachable
+        _ => true,
+      }
+    } else {
+      false
+    };
 
+    if unreachable {
       self.info.entry(n.span().lo).or_default().unreachable = true;
     }
 
@@ -200,17 +249,16 @@ impl Visit for Analyzer<'_> {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
-
-      if !a.scope.found_break {
-        if n.test.is_none() {
-          a.scope.finished = true;
-        } else if let (_, Value::Known(true)) =
-          n.test.as_ref().unwrap().as_bool()
-        {
-          a.scope.finished = true;
-        }
-      }
     });
+
+    if !self.scope.found_break {
+      if n.test.is_none() {
+        self.scope.finished = true;
+      } else if let (_, Value::Known(true)) = n.test.as_ref().unwrap().as_bool()
+      {
+        self.scope.finished = true;
+      }
+    }
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {

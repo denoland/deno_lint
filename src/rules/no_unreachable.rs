@@ -70,7 +70,10 @@ mod tests {
   #[test]
   fn ok_1() {
     assert_lint_ok::<NoUnreachable>(
-      "function foo() { function bar() { return 1; } return bar(); }",
+      "function foo() {
+          function bar() { return 1; }
+          return bar();
+      }",
     );
 
     assert_lint_ok::<NoUnreachable>(
