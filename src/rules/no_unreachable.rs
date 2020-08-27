@@ -2,10 +2,10 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Spanned;
-use swc_ecmascript::{
-  ast::Stmt,
-  visit::{Node, Visit},
-};
+use swc_ecmascript::ast::Stmt;
+use swc_ecmascript::visit::Node;
+use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -42,6 +42,8 @@ impl NoUnreachableVisitor {
 
 impl Visit for NoUnreachableVisitor {
   fn visit_stmt(&mut self, stmt: &Stmt, _: &dyn Node) {
+    stmt.visit_children_with(self);
+
     if let Some(meta) = self.context.control_flow.meta(stmt.span().lo) {
       if meta.unreachable {
         self.context.add_diagnostic(
@@ -168,17 +170,17 @@ mod tests {
   fn err_1() {
     assert_lint_err::<NoUnreachable>(
       "function foo() { return x; var x = 1; }",
-      0,
+      27,
     );
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { return x; var x, y = 1; }",
-      0,
+      27,
     );
 
     assert_lint_err::<NoUnreachable>(
       "while (true) { continue; var x = 1; }",
-      0,
+      25,
     );
   }
 
