@@ -198,16 +198,16 @@ mod tests {
 
   #[test]
   fn err_3() {
-    assert_lint_err::<NoUnreachable>("while (true) { continue; x = 1; }", 0);
+    assert_lint_err::<NoUnreachable>("while (true) { continue; x = 1; }", 25);
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { switch (foo) { case 1: return; x = 1; } }",
-      0,
+      48,
     );
 
     assert_lint_err::<NoUnreachable>(
       "function foo() { switch (foo) { case 1: throw e; x = 1; } }",
-      0,
+      49,
     );
   }
 
