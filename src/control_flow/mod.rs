@@ -17,6 +17,7 @@ impl ControlFlow {
         path: vec![],
         finished: false,
         continue_pos: Default::default(),
+        found_break: false,
       },
       info: Default::default(),
     };
@@ -69,6 +70,8 @@ struct Scope<'a> {
   finished: bool,
   // What should happen when loop ends with a continue
   continue_pos: Option<BytePos>,
+
+  found_break: bool,
 }
 
 impl Analyzer<'_> {
@@ -79,14 +82,18 @@ impl Analyzer<'_> {
     lo: BytePos,
     op: impl Fn(&mut Analyzer),
   ) {
+    let found_break = self.scope.found_break;
     self.scope.path.push(kind);
 
+    self.scope.found_break = false;
     self.scope.finished = false;
     op(self);
-    if self.scope.finished {
+    if self.scope.finished
+      || (kind == BlockKind::Loop && !self.scope.found_break)
+    {
       self.info.entry(lo).or_default().finished = true;
-      eprintln!("Finished");
     }
+    self.scope.found_break = found_break;
     self.scope.continue_pos = None;
 
     self.scope.path.pop();
@@ -110,8 +117,12 @@ impl Visit for Analyzer<'_> {
 
   mark_as_finished!(visit_return_stmt, ReturnStmt);
   mark_as_finished!(visit_throw_stmt, ThrowStmt);
-  mark_as_finished!(visit_break_stmt, BreakStmt);
   mark_as_finished!(visit_continue_stmt, ContinueStmt);
+
+  fn visit_break_stmt(&mut self, _: &BreakStmt, _: &dyn Node) {
+    self.scope.found_break = true;
+    self.scope.finished = true;
+  }
 
   fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
     self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
@@ -170,7 +181,6 @@ impl Visit for Analyzer<'_> {
     if self.scope.finished {
       // It's unreachable
 
-      eprintln!("Unreachable: {:?}", n.span().lo);
       self.info.entry(n.span().lo).or_default().unreachable = true;
     }
 
