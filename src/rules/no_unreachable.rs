@@ -277,7 +277,17 @@ mod tests {
       45,
     );
 
-    assert_lint_err::<NoUnreachable>("const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }", 0);
+    assert_lint_err_on_line::<NoUnreachable>(
+      "const arrow_direction = arrow => {
+        switch (arrow) {
+          default:
+            throw new Error();
+        }
+        g()
+      }",
+      6,
+      8,
+    );
   }
 
   #[test]
