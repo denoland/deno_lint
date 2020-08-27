@@ -292,21 +292,16 @@ mod tests {
 
   #[test]
   fn err_8() {
-    assert_lint_err_on_line::<NoUnreachable>("function foo() {
+    assert_lint_err_on_line_n::<NoUnreachable>(
+      "function foo() {
       return;
-      a();  // ← ERROR: Unreachable code. (no-unreachable)
-      b()   // ↑ ';' token is included in the unreachable code, so this statement will be merged.
+      a();
+      b()
       // comment
-      c();  // ↑ ')' token is included in the unreachable code, so this statement will be merged.
-  }", 0, 0);
-
-    assert_lint_err_on_line::<NoUnreachable>("function foo() {
-      return;
-      a();  // ← ERROR: Unreachable code. (no-unreachable)
-      b()   // ↑ ';' token is included in the unreachable code, so this statement will be merged.
-      // comment
-      c();  // ↑ ')' token is included in the unreachable code, so this statement will be merged.
-  }", 0, 0);
+      c();
+  }",
+      vec![(3, 6), (4, 6), (6, 6)],
+    );
 
     assert_lint_err_on_line_n::<NoUnreachable>(
       "function foo() {
@@ -319,7 +314,7 @@ mod tests {
           d();
       }
   }",
-      vec![(0, 0), (0, 0)],
+      vec![(4, 10), (5, 10), (8, 10)],
     );
   }
 
