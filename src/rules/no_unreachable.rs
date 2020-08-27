@@ -215,15 +215,18 @@ mod tests {
   fn err_4() {
     assert_lint_err::<NoUnreachable>(
       "while (true) { switch (foo) { case 1: break; x = 1; } }",
-      0,
+      45,
     );
 
     assert_lint_err::<NoUnreachable>(
       "while (true) { switch (foo) { case 1: continue; x = 1; } }",
-      0,
+      48,
     );
 
-    assert_lint_err::<NoUnreachable>("var x = 1; throw 'uh oh'; var y = 2;", 0);
+    assert_lint_err::<NoUnreachable>(
+      "var x = 1; throw 'uh oh'; var y = 2;",
+      26,
+    );
   }
 
   #[test]
