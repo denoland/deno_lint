@@ -91,12 +91,10 @@ impl Analyzer<'_> {
     self.scope.found_break = false;
     self.scope.finished = false;
     op(self);
-    if self.scope.finished
-      || (kind == BlockKind::Loop && !self.scope.found_break)
-    {
+    if self.scope.finished {
       self.info.entry(lo).or_default().finished = true;
     }
-    self.scope.found_break = found_break;
+    self.scope.found_break |= found_break;
     self.scope.continue_pos = None;
 
     self.scope.path.pop();
