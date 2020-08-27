@@ -280,5 +280,93 @@ mod tests {
     assert_lint_err::<NoUnreachable>("const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }", 0);
   }
 
-  // TODO: Copy https://github.com/eslint/eslint/blob/4111d21a046b73892e2c84f92815a21ef4db63e1/tests/lib/rules/no-unreachable.js#L106
+  #[test]
+  fn err_8() {
+    assert_lint_err_on_line::<NoUnreachable>("function foo() {
+      return;
+      a();  // ← ERROR: Unreachable code. (no-unreachable)
+      b()   // ↑ ';' token is included in the unreachable code, so this statement will be merged.
+      // comment
+      c();  // ↑ ')' token is included in the unreachable code, so this statement will be merged.
+  }", 0, 0);
+
+    assert_lint_err_on_line::<NoUnreachable>("function foo() {
+      return;
+      a();  // ← ERROR: Unreachable code. (no-unreachable)
+      b()   // ↑ ';' token is included in the unreachable code, so this statement will be merged.
+      // comment
+      c();  // ↑ ')' token is included in the unreachable code, so this statement will be merged.
+  }", 0, 0);
+
+    assert_lint_err_on_line_n::<NoUnreachable>(
+      "function foo() {
+      if (a) {
+          return
+          b();
+          c();
+      } else {
+          throw err
+          d();
+      }
+  }",
+      vec![(0, 0), (0, 0)],
+    );
+  }
+
+  #[test]
+  fn err_9() {
+    assert_lint_err_on_line_n::<NoUnreachable>(
+      "function foo() {
+      if (a) {
+          return
+          b();
+          c();
+      } else {
+          throw err
+          d();
+      }
+      e();
+  }",
+      vec![(0, 0), (0, 0), (0, 0)],
+    );
+
+    assert_lint_err_on_line::<NoUnreachable>(
+      "function* foo() {
+      try {
+          return;
+      } catch (err) {
+          return err;
+      }
+  }",
+      0,
+      0,
+    );
+
+    assert_lint_err_on_line::<NoUnreachable>(
+      "function foo() {
+      try {
+          return;
+      } catch (err) {
+          return err;
+      }
+  }",
+      0,
+      0,
+    );
+  }
+
+  #[test]
+  fn err_10() {
+    assert_lint_err_on_line_n::<NoUnreachable>(
+      "function foo() {
+      try {
+          return;
+          let a = 1;
+      } catch (err) {
+          return err;
+      }
+  }",
+      vec![(0, 0), (0, 0)],
+    );
+  }
 }
