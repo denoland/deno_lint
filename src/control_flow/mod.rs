@@ -168,19 +168,19 @@ impl Visit for Analyzer<'_> {
     self.scope.found_continue = true;
   }
 
-  // fn visit_stmts(&mut self, stmts: &[Stmt], _: &dyn Node) {
-  //   for stmt in stmts {
-  //     stmt.visit_with(&Invalid { span: DUMMY_SP }, self);
+  fn visit_stmts(&mut self, stmts: &[Stmt], _: &dyn Node) {
+    for stmt in stmts {
+      stmt.visit_with(&Invalid { span: DUMMY_SP }, self);
 
-  //     // break, continue **may** make execution done
-  //     match stmt {
-  //       Stmt::Break(..) | Stmt::Continue(..) => {
-  //         self.scope.done = true;
-  //       }
-  //       _ => {}
-  //     }
-  //   }
-  // }
+      // break, continue **may** make execution done
+      match stmt {
+        Stmt::Break(..) | Stmt::Continue(..) => {
+          self.scope.done = true;
+        }
+        _ => {}
+      }
+    }
+  }
 
   fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
     n.visit_children_with(self);
