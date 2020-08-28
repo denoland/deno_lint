@@ -203,8 +203,6 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  // ^^^^^ ~ Dpne
-
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
       n.cons.visit_with(n, a)
