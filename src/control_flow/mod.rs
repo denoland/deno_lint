@@ -117,6 +117,11 @@ impl Analyzer<'_> {
   fn is_done(&self, lo: BytePos) -> bool {
     self.info.get(&lo).map(|md| md.done).unwrap_or(false)
   }
+
+  fn mark_as_done(&mut self, lo: BytePos) {
+    self.scope.done = true;
+    self.info.entry(lo).or_default().done = true;
+  }
 }
 
 macro_rules! mark_as_done {
@@ -135,6 +140,14 @@ impl Visit for Analyzer<'_> {
   mark_as_done!(visit_return_stmt, ReturnStmt);
   mark_as_done!(visit_throw_stmt, ThrowStmt);
 
+  fn visit_break_stmt(&mut self, _: &BreakStmt, _: &dyn Node) {
+    self.scope.found_break = true;
+  }
+
+  fn visit_continue_stmt(&mut self, _: &ContinueStmt, _: &dyn Node) {
+    self.scope.found_continue = true;
+  }
+
   // fn visit_stmts(&mut self, stmts: &[Stmt], _: &dyn Node) {
   //   for stmt in stmts {
   //     stmt.visit_with(&Invalid { span: DUMMY_SP }, self);
@@ -148,14 +161,6 @@ impl Visit for Analyzer<'_> {
   //     }
   //   }
   // }
-
-  fn visit_break_stmt(&mut self, _: &BreakStmt, _: &dyn Node) {
-    self.scope.found_break = true;
-  }
-
-  fn visit_continue_stmt(&mut self, _: &ContinueStmt, _: &dyn Node) {
-    self.scope.found_continue = true;
-  }
 
   fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
     n.visit_children_with(self);
@@ -193,11 +198,12 @@ impl Visit for Analyzer<'_> {
       .map(|case| case.span.lo)
       .all(|lo| self.is_done(lo));
 
-    self.scope.done |= is_done;
     if is_done {
-      self.info.entry(n.span.lo).or_default().done = true;
+      self.mark_as_done(n.span.lo);
     }
   }
+
+  // ^^^^^ ~ Dpne
 
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
