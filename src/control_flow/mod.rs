@@ -166,14 +166,7 @@ impl Analyzer<'_> {
 
     // break, continue **may** make execution done
     match s {
-      Stmt::Break(..) => match self.scope.kind {
-        BlockKind::Case => {
-          self.scope.found_break = true;
-        }
-        BlockKind::Function | BlockKind::Loop | BlockKind::If => {
-          self.mark_as_done(s.span().lo, Done::Break)
-        }
-      },
+      Stmt::Break(..) => self.mark_as_done(s.span().lo, Done::Break),
       Stmt::Continue(..) => self.mark_as_done(s.span().lo, Done::Break),
       _ => {}
     }
@@ -273,7 +266,7 @@ impl Visit for Analyzer<'_> {
       a.visit_stmt_or_block(&n.cons);
     });
 
-    let is_cons_finished = self.is_forced_done(n.cons.span().lo);
+    let cons_reason = self.get_done_reason(n.cons.span().lo);
 
     match &n.alt {
       Some(alt) => {
@@ -281,10 +274,17 @@ impl Visit for Analyzer<'_> {
           //
           a.visit_stmt_or_block(&alt);
         });
-        let is_alt_finished = self.is_forced_done(alt.span().lo);
+        let alt_reason = self.get_done_reason(alt.span().lo);
 
-        if is_cons_finished && is_alt_finished {
-          self.mark_as_done(n.span.lo, Done::Forced);
+        match (cons_reason, alt_reason) {
+          (Some(Done::Forced), Some(Done::Forced)) => {
+            self.mark_as_done(n.span.lo, Done::Forced);
+          }
+          (Some(Done::Break), _) | (_, Some(Done::Break)) => {
+            self.mark_as_done(n.span.lo, Done::Break);
+          }
+          // TODO: Check for continue
+          _ => {}
         }
       }
       None => {}
