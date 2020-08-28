@@ -20,7 +20,7 @@ impl LintRule for NoObjCalls {
   }
 
   fn code(&self) -> &'static str {
-    "no-obj-call"
+    "no-obj-calls"
   }
 
   fn lint_module(
