@@ -74,6 +74,8 @@ struct Scope<'a> {
   // What should happen when loop ends with a continue
   continue_pos: Option<BytePos>,
 
+  may_throw: bool,
+
   found_break: bool,
   found_continue: bool,
 }
@@ -93,6 +95,7 @@ impl<'a> Scope<'a> {
       continue_pos: Default::default(),
       used_hoistable_ids: Default::default(),
       done: None,
+      may_throw: false,
       found_break: false,
       found_continue: false,
     }
@@ -109,7 +112,7 @@ impl Analyzer<'_> {
   ) where
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
-    let (info, done, hoist, found_break, found_continue) = {
+    let (info, done, hoist, found_break, found_continue, may_throw) = {
       dbg!(self.scope.parent.is_some());
       dbg!(self.scope.kind);
       let mut child = Analyzer {
@@ -125,8 +128,11 @@ impl Analyzer<'_> {
         child.scope.used_hoistable_ids,
         child.scope.found_break,
         child.scope.found_continue,
+        child.scope.may_throw,
       )
     };
+
+    self.scope.may_throw |= may_throw;
 
     self.scope.used_hoistable_ids.extend(hoist);
 
@@ -222,7 +228,10 @@ impl Visit for Analyzer<'_> {
         Expr::Ident(i) => {
           self.scope.used_hoistable_ids.insert(i.to_id());
         }
-        _ => {}
+        Expr::This(..) => {}
+        _ => {
+          self.scope.may_throw = true;
+        }
       }
     }
   }
@@ -436,7 +445,22 @@ impl Visit for Analyzer<'_> {
 
   fn visit_try_stmt(&mut self, n: &TryStmt, _: &dyn Node) {
     n.finalizer.visit_with(n, self);
+
+    let prev_done = self.scope.done;
+    dbg!(prev_done);
+
     n.block.visit_with(n, self);
+
+    dbg!(self.scope.done);
+
+    if self.scope.may_throw {
+      if let Some(..) = self.scope.done {
+        self.scope.done = prev_done;
+      }
+    }
+
+    dbg!(self.scope.done);
+
     n.handler.visit_with(n, self);
   }
 }
