@@ -244,7 +244,7 @@ impl Visit for Analyzer<'_> {
     n.test.visit_with(n, self);
 
     self.with_child_scope(BlockKind::If, n.cons.span().lo, |a| {
-      n.cons.visit_with(n, a);
+      a.visit_stmt_or_block(&n.cons);
     });
 
     let is_cons_finished = self.is_done(n.cons.span().lo);
@@ -253,7 +253,7 @@ impl Visit for Analyzer<'_> {
       Some(alt) => {
         self.with_child_scope(BlockKind::If, alt.span().lo, |a| {
           //
-          alt.visit_with(n, a);
+          a.visit_stmt_or_block(&alt);
         });
         let is_alt_finished = self.is_done(alt.span().lo);
 
