@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_common::Spanned;
-use swc_ecmascript::ast::Stmt;
+use swc_ecmascript::ast::{Decl, Stmt, VarDecl, VarDeclKind};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
@@ -47,6 +47,15 @@ impl Visit for NoUnreachableVisitor {
     match stmt {
       // Don't print unused error for block statements
       Stmt::Block(_) => return,
+      Stmt::Decl(Decl::Var(VarDecl {
+        kind: VarDeclKind::Var,
+        decls,
+        ..
+      }))
+        if decls.iter().all(|decl| decl.init.is_none()) =>
+      {
+        return;
+      }
       _ => {}
     }
 
