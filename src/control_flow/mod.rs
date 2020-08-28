@@ -9,8 +9,6 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
-mod util;
-
 pub struct ControlFlow {
   meta: HashMap<BytePos, Metadata>,
 }
