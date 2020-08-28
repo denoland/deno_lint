@@ -72,12 +72,21 @@ struct Scope<'a> {
 
   kind: BlockKind,
   /// Unconditionally ends with return, throw
-  done: bool,
+  done: Option<Done>,
   // What should happen when loop ends with a continue
   continue_pos: Option<BytePos>,
 
   found_break: bool,
   found_continue: bool,
+}
+#[derive(Debug, Copy, Clone)]
+enum Done {
+  /// Return, Throw
+  Forced,
+  // Break or continue
+  Break,
+  /// Infinite loop
+  Loop,
 }
 
 impl<'a> Scope<'a> {
@@ -87,7 +96,7 @@ impl<'a> Scope<'a> {
       kind,
       continue_pos: Default::default(),
       used_hoistable_ids: Default::default(),
-      done: false,
+      done: None,
       found_break: false,
       found_continue: false,
     }
@@ -123,10 +132,10 @@ impl Analyzer<'_> {
 
     self.scope.used_hoistable_ids.extend(hoist);
 
-    if done {
+    if let Some(done) = done {
       match kind {
         BlockKind::Case | BlockKind::Loop => {
-          self.mark_as_done(lo);
+          self.mark_as_done(lo, done);
         }
         _ => {}
       }
@@ -139,8 +148,10 @@ impl Analyzer<'_> {
     self.info.get(&lo).map(|md| md.done).unwrap_or(false)
   }
 
-  fn mark_as_done(&mut self, lo: BytePos) {
-    self.scope.done = true;
+  fn mark_as_done(&mut self, lo: BytePos, kind: Done) {
+    if self.scope.done.is_none() {
+      self.scope.done = Some(kind);
+    }
     self.info.entry(lo).or_default().done = true;
   }
 
@@ -155,10 +166,10 @@ impl Analyzer<'_> {
           self.scope.found_break = true;
         }
         BlockKind::Function | BlockKind::Loop | BlockKind::If => {
-          self.mark_as_done(s.span().lo)
+          self.mark_as_done(s.span().lo, Done::Break)
         }
       },
-      Stmt::Continue(..) => self.mark_as_done(s.span().lo),
+      Stmt::Continue(..) => self.mark_as_done(s.span().lo, Done::Break),
       _ => {}
     }
   }
@@ -169,7 +180,7 @@ macro_rules! mark_as_done {
     fn $name(&mut self, s: &$T, _: &dyn Node) {
       s.visit_children_with(self);
 
-      self.mark_as_done(s.span().lo);
+      self.mark_as_done(s.span().lo, Done::Forced);
     }
   };
 }
@@ -191,8 +202,8 @@ impl Visit for Analyzer<'_> {
   fn visit_block_stmt(&mut self, s: &BlockStmt, _: &dyn Node) {
     s.visit_children_with(self);
 
-    if self.scope.done {
-      self.mark_as_done(s.span.lo);
+    if let Some(done) = self.scope.done {
+      self.mark_as_done(s.span.lo, done);
     }
   }
 
@@ -205,7 +216,7 @@ impl Visit for Analyzer<'_> {
   fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
     n.visit_children_with(self);
 
-    if !self.scope.done {
+    if self.scope.done.is_none() {
       match n {
         Expr::Ident(i) => {
           self.scope.used_hoistable_ids.insert(i.to_id());
@@ -239,6 +250,7 @@ impl Visit for Analyzer<'_> {
       .all(|lo| self.is_done(lo));
 
     if is_done {
+      // TODO: Check if a case ended with break
       self.mark_as_done(n.span.lo);
     }
   }
@@ -276,7 +288,7 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
-    let unreachable = if self.scope.done {
+    let unreachable = if self.scope.done.is_some() {
       // Although execution is done, we should handle hoisting.
       match n {
         Stmt::Decl(Decl::Fn(FnDecl { ident, .. }))
@@ -362,7 +374,7 @@ impl Visit for Analyzer<'_> {
       dbg!(a.scope.found_break);
       if !a.scope.found_break {
         if let (_, Value::Known(true)) = n.test.as_bool() {
-          a.scope.done = true;
+          a.scope.done = Done::Loop;
           a.info.entry(n.span.lo).or_default().done = true;
         }
       }
