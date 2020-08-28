@@ -300,6 +300,7 @@ impl Visit for Analyzer<'_> {
     let unreachable = if self.scope.done.is_some() {
       // Although execution is done, we should handle hoisting.
       match n {
+        Stmt::Empty(..) => false,
         Stmt::Decl(Decl::Fn(FnDecl { ident, .. }))
           if self.scope.used_hoistable_ids.contains(&ident.to_id()) =>
         {
