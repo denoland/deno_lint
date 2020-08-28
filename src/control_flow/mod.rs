@@ -433,4 +433,10 @@ impl Visit for Analyzer<'_> {
       self.scope.done = Some(done);
     }
   }
+
+  fn visit_try_stmt(&mut self, n: &TryStmt, _: &dyn Node) {
+    n.finalizer.visit_with(n, self);
+    n.block.visit_with(n, self);
+    n.handler.visit_with(n, self);
+  }
 }
