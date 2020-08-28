@@ -224,6 +224,15 @@ impl Visit for Analyzer<'_> {
         {
           false
         }
+        Stmt::Decl(Decl::Var(VarDecl {
+          kind: VarDeclKind::Var,
+          decls,
+          ..
+        }))
+          if decls.iter().all(|decl| decl.init.is_none()) =>
+        {
+          false
+        }
         // It's unreachable
         _ => true,
       }
