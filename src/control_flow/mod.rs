@@ -253,8 +253,15 @@ impl Visit for Analyzer<'_> {
       .all(|lo| self.is_forced_done(lo));
 
     if is_done {
-      // TODO: Check if a case ended with break
       self.mark_as_done(n.span.lo, Done::Forced);
+    }
+
+    match self.scope.done {
+      Some(Done::Break) => {
+        // Eat break statements
+        self.scope.done = None;
+      }
+      _ => {}
     }
   }
 
