@@ -49,7 +49,7 @@ pub enum BlockKind {
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
   pub unreachable: bool,
-  pub done: bool,
+  done: Option<Done>,
   // path: Vec<BlockKind>,
 }
 
@@ -81,12 +81,10 @@ struct Scope<'a> {
 }
 #[derive(Debug, Copy, Clone)]
 enum Done {
-  /// Return, Throw
+  /// Return, Throw, or infinite loop
   Forced,
   // Break or continue
   Break,
-  /// Infinite loop
-  Loop,
 }
 
 impl<'a> Scope<'a> {
@@ -144,15 +142,22 @@ impl Analyzer<'_> {
     self.info = info;
   }
 
-  fn is_done(&self, lo: BytePos) -> bool {
-    self.info.get(&lo).map(|md| md.done).unwrap_or(false)
+  fn is_forced_done(&self, lo: BytePos) -> bool {
+    match self.get_done_reason(lo) {
+      Some(Done::Forced) => true,
+      _ => false,
+    }
   }
 
-  fn mark_as_done(&mut self, lo: BytePos, kind: Done) {
+  fn get_done_reason(&self, lo: BytePos) -> Option<Done> {
+    self.info.get(&lo).map(|md| md.done).flatten()
+  }
+
+  fn mark_as_done(&mut self, lo: BytePos, done: Done) {
     if self.scope.done.is_none() {
-      self.scope.done = Some(kind);
+      self.scope.done = Some(done);
     }
-    self.info.entry(lo).or_default().done = true;
+    self.info.entry(lo).or_default().done = Some(done);
   }
 
   /// Visits statement or block. This method handles break and continue
@@ -247,11 +252,11 @@ impl Visit for Analyzer<'_> {
       .cases
       .iter()
       .map(|case| case.span.lo)
-      .all(|lo| self.is_done(lo));
+      .all(|lo| self.is_forced_done(lo));
 
     if is_done {
       // TODO: Check if a case ended with break
-      self.mark_as_done(n.span.lo);
+      self.mark_as_done(n.span.lo, Done::Forced);
     }
   }
 
@@ -268,7 +273,7 @@ impl Visit for Analyzer<'_> {
       a.visit_stmt_or_block(&n.cons);
     });
 
-    let is_cons_finished = self.is_done(n.cons.span().lo);
+    let is_cons_finished = self.is_forced_done(n.cons.span().lo);
 
     match &n.alt {
       Some(alt) => {
@@ -276,11 +281,10 @@ impl Visit for Analyzer<'_> {
           //
           a.visit_stmt_or_block(&alt);
         });
-        let is_alt_finished = self.is_done(alt.span().lo);
+        let is_alt_finished = self.is_forced_done(alt.span().lo);
 
         if is_cons_finished && is_alt_finished {
-          self.scope.done = true;
-          self.info.entry(n.span.lo).or_default().done = true;
+          self.mark_as_done(n.span.lo, Done::Forced);
         }
       }
       None => {}
@@ -333,11 +337,11 @@ impl Visit for Analyzer<'_> {
 
       if !a.scope.found_break {
         if n.test.is_none() {
-          a.scope.done = true;
+          a.mark_as_done(n.span.lo, Done::Forced);
         } else if let (_, Value::Known(true)) =
           n.test.as_ref().unwrap().as_bool()
         {
-          a.scope.done = true;
+          a.mark_as_done(n.span.lo, Done::Forced);
         }
       }
     });
@@ -364,23 +368,17 @@ impl Visit for Analyzer<'_> {
   fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
-    let done = self.scope.done;
-
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
 
-      dbg!(a.scope.found_break);
       if !a.scope.found_break {
         if let (_, Value::Known(true)) = n.test.as_bool() {
-          a.scope.done = Done::Loop;
-          a.info.entry(n.span.lo).or_default().done = true;
+          a.mark_as_done(n.span.lo, Done::Forced);
         }
       }
     });
-
-    self.scope.done |= done;
   }
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
