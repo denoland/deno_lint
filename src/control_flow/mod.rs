@@ -445,13 +445,12 @@ impl Visit for Analyzer<'_> {
 
   fn visit_try_stmt(&mut self, n: &TryStmt, _: &dyn Node) {
     n.finalizer.visit_with(n, self);
+    let old_throw = self.scope.may_throw;
 
     let prev_done = self.scope.done;
-    dbg!(prev_done);
 
+    self.scope.may_throw = false;
     n.block.visit_with(n, self);
-
-    dbg!(self.scope.done);
 
     if self.scope.may_throw {
       if let Some(..) = self.scope.done {
@@ -459,8 +458,8 @@ impl Visit for Analyzer<'_> {
       }
     }
 
-    dbg!(self.scope.done);
-
     n.handler.visit_with(n, self);
+
+    self.scope.may_throw = old_throw;
   }
 }
