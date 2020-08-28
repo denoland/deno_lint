@@ -114,12 +114,27 @@ impl Analyzer<'_> {
   fn is_finished(&self, lo: BytePos) -> bool {
     self.info.get(&lo).map(|md| md.finished).unwrap_or(false)
   }
+
+  fn is_conditional(&self) -> bool {
+    for kind in self.scope.path.iter().rev() {
+      match kind {
+        BlockKind::Function => return false,
+        BlockKind::Case => return true,
+        BlockKind::If => return true,
+        BlockKind::Loop => {}
+      }
+    }
+
+    false
+  }
 }
 
 macro_rules! mark_as_finished {
   ($name:ident, $T:ty) => {
     fn $name(&mut self, _: &$T, _: &dyn Node) {
-      self.scope.finished = true;
+      if !self.is_conditional() {
+        self.scope.finished = true;
+      }
     }
   };
 }
@@ -133,7 +148,9 @@ impl Visit for Analyzer<'_> {
   fn visit_return_stmt(&mut self, r: &ReturnStmt, _: &dyn Node) {
     r.visit_children_with(self);
 
-    self.scope.finished = true;
+    if !self.is_conditional() {
+      self.scope.finished = true;
+    }
   }
 
   fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
@@ -158,7 +175,10 @@ impl Visit for Analyzer<'_> {
 
   fn visit_break_stmt(&mut self, _: &BreakStmt, _: &dyn Node) {
     self.scope.found_break = true;
-    self.scope.finished = true;
+
+    if !self.is_conditional() {
+      self.scope.finished = true;
+    }
   }
 
   fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
