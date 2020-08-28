@@ -149,7 +149,7 @@ macro_rules! mark_as_done {
     fn $name(&mut self, s: &$T, _: &dyn Node) {
       s.visit_children_with(self);
 
-      self.scope.done = true;
+      self.mark_as_done(s.span().lo);
     }
   };
 }
