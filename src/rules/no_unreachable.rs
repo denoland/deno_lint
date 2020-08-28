@@ -128,7 +128,7 @@ mod tests {
   #[test]
   fn ok_5() {
     assert_lint_ok::<NoUnreachable>(
-      "switch (foo) { case 1: break; var x; default: throw true; };",
+      "switch (foo) { case 1: break; var x; default: throw true; }",
     );
 
     assert_lint_ok::<NoUnreachable>("const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  };}");

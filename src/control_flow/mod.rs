@@ -322,6 +322,7 @@ impl Visit for Analyzer<'_> {
     };
 
     if unreachable {
+      dbg!(n);
       self.info.entry(n.span().lo).or_default().unreachable = true;
     }
 
