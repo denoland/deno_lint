@@ -62,15 +62,19 @@ struct Analyzer<'a> {
   info: HashMap<BytePos, Metadata>,
 }
 struct Scope<'a> {
-  parent: Option<&'a Scope<'a>>,
+  /// This will be used in future, I (kdy1) think.
+  _parent: Option<&'a Scope<'a>>,
   /// This field exists to handle code like
   ///
   /// `function foo() { return bar(); function bar() { return 1; } }`
   used_hoistable_ids: HashSet<Id>,
 
-  kind: BlockKind,
+  /// This will be used in future, I (kdy1) think.
+  _kind: BlockKind,
+
   /// Unconditionally ends with return, throw
   done: Option<Done>,
+
   // What should happen when loop ends with a continue
   continue_pos: Option<BytePos>,
 
@@ -90,8 +94,8 @@ enum Done {
 impl<'a> Scope<'a> {
   pub fn new(parent: Option<&'a Scope<'a>>, kind: BlockKind) -> Self {
     Self {
-      parent,
-      kind,
+      _parent: parent,
+      _kind: kind,
       continue_pos: Default::default(),
       used_hoistable_ids: Default::default(),
       done: None,
@@ -113,8 +117,6 @@ impl Analyzer<'_> {
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
     let (info, done, hoist, found_break, found_continue, may_throw) = {
-      dbg!(self.scope.parent.is_some());
-      dbg!(self.scope.kind);
       let mut child = Analyzer {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind),
@@ -337,7 +339,6 @@ impl Visit for Analyzer<'_> {
     };
 
     if unreachable {
-      dbg!(n);
       self.info.entry(n.span().lo).or_default().unreachable = true;
     }
 
