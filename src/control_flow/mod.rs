@@ -111,7 +111,7 @@ impl Analyzer<'_> {
   ) where
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
-    let (info, done, hoist) = {
+    let (info, done, hoist, found_break, found_continue) = {
       dbg!(self.scope.parent.is_some());
       dbg!(self.scope.kind);
       let mut child = Analyzer {
@@ -125,10 +125,15 @@ impl Analyzer<'_> {
         take(&mut child.info),
         child.scope.done,
         child.scope.used_hoistable_ids,
+        child.scope.found_break,
+        child.scope.found_continue,
       )
     };
 
     self.scope.used_hoistable_ids.extend(hoist);
+
+    self.scope.found_break |= found_break;
+    self.scope.found_continue |= found_continue;
 
     if let Some(done) = done {
       match kind {
@@ -335,6 +340,7 @@ impl Visit for Analyzer<'_> {
 
       n.body.visit_with(n, a);
 
+      dbg!(a.scope.found_break);
       if !a.scope.found_break {
         if n.test.is_none() {
           a.mark_as_done(n.span.lo, Done::Forced);
