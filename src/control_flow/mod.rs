@@ -119,7 +119,7 @@ impl Analyzer<'_> {
     for kind in self.scope.path.iter().rev() {
       match kind {
         BlockKind::Function => return false,
-        BlockKind::Case => return true,
+        BlockKind::Case => return false,
         BlockKind::If => return true,
         BlockKind::Loop => {}
       }
