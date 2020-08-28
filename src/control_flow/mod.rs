@@ -137,11 +137,8 @@ impl Analyzer<'_> {
     self.scope.found_continue |= found_continue;
 
     if let Some(done) = done {
-      match kind {
-        BlockKind::Case => {
-          self.mark_as_done(lo, done);
-        }
-        _ => {}
+      if let BlockKind::Case = kind {
+        self.mark_as_done(lo, done);
       }
     }
 
@@ -264,12 +261,9 @@ impl Visit for Analyzer<'_> {
       self.mark_as_done(n.span.lo, Done::Forced);
     }
 
-    match self.scope.done {
-      Some(Done::Break) => {
-        // Eat break statements
-        self.scope.done = None;
-      }
-      _ => {}
+    if let Some(Done::Break) = self.scope.done {
+      // Eat break statements
+      self.scope.done = None;
     }
   }
 
