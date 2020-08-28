@@ -168,6 +168,14 @@ impl Visit for Analyzer<'_> {
     self.scope.found_continue = true;
   }
 
+  fn visit_block_stmt(&mut self, s: &BlockStmt, _: &dyn Node) {
+    s.visit_children_with(self);
+
+    if self.scope.done {
+      self.mark_as_done(s.span.lo);
+    }
+  }
+
   fn visit_stmts(&mut self, stmts: &[Stmt], _: &dyn Node) {
     for stmt in stmts {
       stmt.visit_with(&Invalid { span: DUMMY_SP }, self);
