@@ -94,15 +94,16 @@ impl<'a> Scope<'a> {
 }
 
 impl Analyzer<'_> {
+  /// `lo` is marked as done if child scope is unconditionally finished
   pub(super) fn with_child_scope<F>(
     &mut self,
     kind: BlockKind,
-    _: BytePos,
+    lo: BytePos,
     op: F,
   ) where
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
-    let info = {
+    let (info, done, hoist) = {
       dbg!(self.scope.parent.is_some());
       dbg!(self.scope.kind);
       let mut child = Analyzer {
@@ -112,8 +113,23 @@ impl Analyzer<'_> {
 
       op(&mut child);
 
-      take(&mut child.info)
+      (
+        take(&mut child.info),
+        child.scope.done,
+        child.scope.used_hoistable_ids,
+      )
     };
+
+    self.scope.used_hoistable_ids.extend(hoist);
+
+    if done {
+      match kind {
+        BlockKind::Case | BlockKind::Loop => {
+          self.mark_as_done(lo);
+        }
+        _ => {}
+      }
+    }
 
     self.info = info;
   }
