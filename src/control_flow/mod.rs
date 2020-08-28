@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+  collections::{HashMap, HashSet},
+  mem::take,
+};
 use swc_common::{BytePos, Spanned, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::{
@@ -15,15 +18,7 @@ pub struct ControlFlow {
 impl ControlFlow {
   pub fn analyze(m: &Module) -> Self {
     let mut v = Analyzer {
-      scope: Scope {
-        _parent: None,
-        path: vec![],
-        continue_pos: Default::default(),
-        used_hoistable_ids: Default::default(),
-        done: false,
-        found_break: false,
-        found_continue: false,
-      },
+      scope: Scope::new(None, BlockKind::Function),
       info: Default::default(),
     };
     m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
@@ -67,15 +62,14 @@ struct Analyzer<'a> {
   scope: Scope<'a>,
   info: HashMap<BytePos, Metadata>,
 }
-
 struct Scope<'a> {
-  _parent: Option<&'a Scope<'a>>,
+  parent: Option<&'a Scope<'a>>,
   /// This field exists to handle code like
   ///
   /// `function foo() { return bar(); function bar() { return 1; } }`
   used_hoistable_ids: HashSet<Id>,
 
-  path: Vec<BlockKind>,
+  kind: BlockKind,
   /// Unconditionally ends with return, throw
   done: bool,
   // What should happen when loop ends with a continue
@@ -85,33 +79,43 @@ struct Scope<'a> {
   found_continue: bool,
 }
 
+impl<'a> Scope<'a> {
+  pub fn new(parent: Option<&'a Scope<'a>>, kind: BlockKind) -> Self {
+    Self {
+      parent,
+      kind,
+      continue_pos: Default::default(),
+      used_hoistable_ids: Default::default(),
+      done: false,
+      found_break: false,
+      found_continue: false,
+    }
+  }
+}
+
 impl Analyzer<'_> {
-  /// `lo` is used when child operation is `finished`
-  fn with_child_scope(
+  pub(super) fn with_child_scope<F>(
     &mut self,
     kind: BlockKind,
-    lo: BytePos,
-    op: impl FnOnce(&mut Analyzer),
-  ) {
-    let found_break = self.scope.found_break;
-    self.scope.path.push(kind);
+    _: BytePos,
+    op: F,
+  ) where
+    F: for<'any> FnOnce(&mut Analyzer<'any>),
+  {
+    let info = {
+      dbg!(self.scope.parent.is_some());
+      dbg!(self.scope.kind);
+      let mut child = Analyzer {
+        info: take(&mut self.info),
+        scope: Scope::new(Some(&self.scope), kind),
+      };
 
-    self.scope.found_break = false;
-    self.scope.done = false;
-    op(self);
-    if self.scope.done {
-      self.info.entry(lo).or_default().done = true;
-    }
-    self.scope.found_break |= found_break;
-    self.scope.continue_pos = None;
+      op(&mut child);
 
-    if kind == BlockKind::Function {
-      self.scope.done = false;
-      self.scope.found_break = false;
-      self.scope.found_continue = false;
-    }
+      take(&mut child.info)
+    };
 
-    self.scope.path.pop();
+    self.info = info;
   }
 
   fn is_done(&self, lo: BytePos) -> bool {
@@ -278,16 +282,17 @@ impl Visit for Analyzer<'_> {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
-    });
 
-    if !self.scope.found_break {
-      if n.test.is_none() {
-        self.scope.done = true;
-      } else if let (_, Value::Known(true)) = n.test.as_ref().unwrap().as_bool()
-      {
-        self.scope.done = true;
+      if !a.scope.found_break {
+        if n.test.is_none() {
+          a.scope.done = true;
+        } else if let (_, Value::Known(true)) =
+          n.test.as_ref().unwrap().as_bool()
+        {
+          a.scope.done = true;
+        }
       }
-    }
+    });
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
