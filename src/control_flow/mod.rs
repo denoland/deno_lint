@@ -39,6 +39,7 @@ impl ControlFlow {
 pub enum BlockKind {
   /// Function's body
   Function,
+  /// Switch case
   Case,
   If,
   /// Body of a loop
@@ -149,7 +150,15 @@ impl Analyzer<'_> {
 
     // break, continue **may** make execution done
     match s {
-      Stmt::Break(..) | Stmt::Continue(..) => self.mark_as_done(s.span().lo),
+      Stmt::Break(..) => match self.scope.kind {
+        BlockKind::Case => {
+          self.scope.found_break = true;
+        }
+        BlockKind::Function | BlockKind::Loop | BlockKind::If => {
+          self.mark_as_done(s.span().lo)
+        }
+      },
+      Stmt::Continue(..) => self.mark_as_done(s.span().lo),
       _ => {}
     }
   }
