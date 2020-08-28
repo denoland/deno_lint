@@ -335,24 +335,31 @@ impl Visit for Analyzer<'_> {
     n.update.visit_with(n, self);
     n.test.visit_with(n, self);
 
+    let mut stmt_done = None;
+
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
 
-      dbg!(a.scope.found_break);
       if !a.scope.found_break {
         if n.test.is_none() {
           // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
+          stmt_done = Some(Done::Forced);
         } else if let (_, Value::Known(true)) =
           n.test.as_ref().unwrap().as_bool()
         {
           // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
+          stmt_done = Some(Done::Forced);
         }
       }
     });
+
+    if let Some(done) = stmt_done {
+      self.scope.done = Some(done)
+    }
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
