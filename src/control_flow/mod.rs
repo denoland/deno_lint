@@ -142,6 +142,17 @@ impl Analyzer<'_> {
     self.scope.done = true;
     self.info.entry(lo).or_default().done = true;
   }
+
+  /// Visits statement or block. This method handles break and continue
+  fn visit_stmt_or_block(&mut self, s: &Stmt) {
+    s.visit_with(&Invalid { span: DUMMY_SP }, self);
+
+    // break, continue **may** make execution done
+    match s {
+      Stmt::Break(..) | Stmt::Continue(..) => self.mark_as_done(s.span().lo),
+      _ => {}
+    }
+  }
 }
 
 macro_rules! mark_as_done {
@@ -178,15 +189,7 @@ impl Visit for Analyzer<'_> {
 
   fn visit_stmts(&mut self, stmts: &[Stmt], _: &dyn Node) {
     for stmt in stmts {
-      stmt.visit_with(&Invalid { span: DUMMY_SP }, self);
-
-      // break, continue **may** make execution done
-      match stmt {
-        Stmt::Break(..) | Stmt::Continue(..) => {
-          self.scope.done = true;
-        }
-        _ => {}
-      }
+      self.visit_stmt_or_block(stmt);
     }
   }
 
