@@ -59,7 +59,7 @@ pub mod no_regex_spaces;
 pub mod no_self_assign;
 pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
-pub mod no_sparse_array;
+pub mod no_sparse_arrays;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
@@ -213,7 +213,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_self_assign::NoSelfAssign::new(),
     no_setter_return::NoSetterReturn::new(),
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
-    no_sparse_array::NoSparseArray::new(),
+    no_sparse_arrays::NoSparseArrays::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
