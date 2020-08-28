@@ -383,17 +383,29 @@ impl Visit for Analyzer<'_> {
   fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
+    let mut stmt_done = None;
+
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
       n.body.visit_with(n, a);
-
-      if let Some(Done::Forced) = a.get_done_reason(n.body.span().lo) {
-        if let (_, Value::Known(true)) = n.test.as_bool() {
+      if let (_, Value::Known(true)) = n.test.as_bool() {
+        if let Some(Done::Forced) = a.get_done_reason(n.body.span().lo) {
           a.mark_as_done(n.span.lo, Done::Forced);
+          stmt_done = Some(Done::Forced);
+        }
+
+        if !a.scope.found_break {
+          // Infinite loop
+          a.mark_as_done(n.span.lo, Done::Forced);
+          stmt_done = Some(Done::Forced);
         }
       }
     });
+
+    if let Some(done) = stmt_done {
+      self.scope.done = Some(done)
+    }
   }
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
