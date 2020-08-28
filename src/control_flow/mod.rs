@@ -116,15 +116,14 @@ impl Analyzer<'_> {
   }
 
   fn is_conditional(&self) -> bool {
-    for kind in self.scope.path.iter().rev() {
-      match kind {
-        BlockKind::Function => return false,
-        BlockKind::Case => return false,
-        BlockKind::If => return true,
-        BlockKind::Loop => {}
-      }
-    }
-
+    // for kind in self.scope.path.iter().rev() {
+    //   match kind {
+    //     BlockKind::Function => return false,
+    //     BlockKind::Case => return false,
+    //     BlockKind::If => return true,
+    //     BlockKind::Loop => {}
+    //   }
+    // }
     false
   }
 }
