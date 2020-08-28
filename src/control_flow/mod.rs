@@ -8,7 +8,6 @@ use swc_ecmascript::{
   utils::{ident::IdentLike, ExprExt, Id, Value},
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
-
 pub struct ControlFlow {
   meta: HashMap<BytePos, Metadata>,
 }
@@ -75,9 +74,6 @@ struct Scope<'a> {
   /// Unconditionally ends with return, throw
   done: Option<Done>,
 
-  // What should happen when loop ends with a continue
-  continue_pos: Option<BytePos>,
-
   may_throw: bool,
 
   found_break: bool,
@@ -96,7 +92,6 @@ impl<'a> Scope<'a> {
     Self {
       _parent: parent,
       _kind: kind,
-      continue_pos: Default::default(),
       used_hoistable_ids: Default::default(),
       done: None,
       may_throw: false,
@@ -134,10 +129,10 @@ impl Analyzer<'_> {
       )
     };
 
-    self.scope.may_throw |= may_throw;
-
     self.scope.used_hoistable_ids.extend(hoist);
 
+    // Preserve information about visited ast nodes.
+    self.scope.may_throw |= may_throw;
     self.scope.found_break |= found_break;
     self.scope.found_continue |= found_continue;
 
@@ -164,6 +159,7 @@ impl Analyzer<'_> {
     self.info.get(&lo).map(|md| md.done).flatten()
   }
 
+  /// Mark a statement as finisher - finishes execution - and expose it.
   fn mark_as_done(&mut self, lo: BytePos, done: Done) {
     if self.scope.done.is_none() {
       self.scope.done = Some(done);
@@ -171,7 +167,10 @@ impl Analyzer<'_> {
     self.info.entry(lo).or_default().done = Some(done);
   }
 
-  /// Visits statement or block. This method handles break and continue
+  /// Visits statement or block. This method handles break and continue.
+  ///
+  /// This cannot be done in visit_stmt of Visit because
+  ///  this operation is very opinionated.
   fn visit_stmt_or_block(&mut self, s: &Stmt) {
     s.visit_with(&Invalid { span: DUMMY_SP }, self);
 
@@ -355,8 +354,6 @@ impl Visit for Analyzer<'_> {
     let mut stmt_done = None;
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
-      a.scope.continue_pos = Some(n.span.lo);
-
       n.body.visit_with(n, a);
 
       if !a.scope.found_break {
@@ -383,8 +380,6 @@ impl Visit for Analyzer<'_> {
     n.right.visit_with(n, self);
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
-      a.scope.continue_pos = Some(n.span.lo);
-
       n.body.visit_with(n, a);
     });
   }
@@ -403,8 +398,6 @@ impl Visit for Analyzer<'_> {
     let mut stmt_done = None;
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
-      a.scope.continue_pos = Some(n.span.lo);
-
       n.body.visit_with(n, a);
       if let (_, Value::Known(true)) = n.test.as_bool() {
         if let Some(Done::Forced) = a.get_done_reason(n.body.span().lo) {
@@ -430,8 +423,6 @@ impl Visit for Analyzer<'_> {
 
     let mut stmt_done = None;
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
-      a.scope.continue_pos = Some(n.span.lo);
-
       a.visit_stmt_or_block(&n.body);
 
       if let Some(done) = a.scope.done {
