@@ -137,7 +137,7 @@ impl Analyzer<'_> {
 
     if let Some(done) = done {
       match kind {
-        BlockKind::Case | BlockKind::Loop => {
+        BlockKind::Case => {
           self.mark_as_done(lo, done);
         }
         _ => {}
@@ -343,10 +343,12 @@ impl Visit for Analyzer<'_> {
       dbg!(a.scope.found_break);
       if !a.scope.found_break {
         if n.test.is_none() {
+          // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
         } else if let (_, Value::Known(true)) =
           n.test.as_ref().unwrap().as_bool()
         {
+          // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
         }
       }
@@ -379,7 +381,7 @@ impl Visit for Analyzer<'_> {
 
       n.body.visit_with(n, a);
 
-      if !a.scope.found_break {
+      if let Some(Done::Forced) = a.get_done_reason(n.body.span().lo) {
         if let (_, Value::Known(true)) = n.test.as_bool() {
           a.mark_as_done(n.span.lo, Done::Forced);
         }
@@ -390,10 +392,19 @@ impl Visit for Analyzer<'_> {
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
+    let mut stmt_done = None;
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.scope.continue_pos = Some(n.span.lo);
 
-      n.body.visit_with(n, a);
+      a.visit_stmt_or_block(&n.body);
+
+      if let Some(done) = a.scope.done {
+        stmt_done = Some(done);
+        a.mark_as_done(n.span.lo, done);
+      }
     });
+    if let Some(done) = stmt_done {
+      self.scope.done = Some(done);
+    }
   }
 }
