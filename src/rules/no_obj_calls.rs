@@ -20,7 +20,7 @@ impl LintRule for NoObjCalls {
   }
 
   fn code(&self) -> &'static str {
-    "no-obj-call"
+    "no-obj-calls"
   }
 
   fn lint_module(
@@ -48,7 +48,7 @@ impl NoObjCallsVisitor {
       "Math" | "JSON" | "Reflect" | "Atomics" => {
         self.context.add_diagnostic(
           span,
-          "no-obj-call",
+          "no-obj-calls",
           format!("`{}` call as function is not allowed", callee_name).as_ref(),
         );
       }
