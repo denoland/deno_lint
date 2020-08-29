@@ -438,4 +438,47 @@ mod tests {
       vec![(4, 10), (6, 10)],
     );
   }
+
+  #[test]
+  fn deno_ok_1() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+      switch (vers) {
+        case "HTTP/1.1":
+          return [1, 1];
+
+        case "HTTP/1.0":
+          return [1, 0];
+
+        default: {
+          const Big = 1000000; // arbitrary upper bound
+
+          if (!vers.startsWith("HTTP/")) {
+            break;
+          }
+
+          const dot = vers.indexOf(".");
+          if (dot < 0) {
+            break;
+          }
+
+          const majorStr = vers.substring(vers.indexOf("/") + 1, dot);
+          const major = Number(majorStr);
+          if (!Number.isInteger(major) || major < 0 || major > Big) {
+            break;
+          }
+
+          const minorStr = vers.substring(dot + 1);
+          const minor = Number(minorStr);
+          if (!Number.isInteger(minor) || minor < 0 || minor > Big) {
+            break;
+          }
+
+          return [major, minor];
+        }
+      }
+
+      throw new Error(`malformed HTTP version ${vers}`);"#,
+    )
+  }
 }

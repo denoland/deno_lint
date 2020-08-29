@@ -345,7 +345,9 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
       n.cons.visit_with(n, a);
 
-      if let Some(Done::Forced) = a.scope.done {
+      if a.scope.found_break.is_some() {
+        case_done = Some(Done::Break);
+      } else if let Some(Done::Forced) = a.scope.done {
         case_done = Some(Done::Forced);
       }
     });
