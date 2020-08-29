@@ -146,7 +146,13 @@ impl Analyzer<'_> {
 
     if let Some(done) = done {
       if let BlockKind::Case = kind {
-        self.mark_as_done(lo, done);
+        if let Done::Forced = done {
+          self.mark_as_done(lo, done);
+        } else {
+          if self.scope.done.is_none() {
+            self.scope.done = Some(Done::Break)
+          }
+        }
       } else if let BlockKind::Label(label) = kind {
         if let Some(Some(id)) = &self.scope.found_break {
           if *id == label {
