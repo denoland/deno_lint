@@ -1,10 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+pub mod ecma_versions;
 mod reader;
 mod unicode;
 mod validator;
 
-pub use validator::{EcmaRegexValidator, EcmaVersion};
+pub use ecma_versions::EcmaVersion;
+pub use validator::EcmaRegexValidator;
 
 #[cfg(test)]
 mod tests {

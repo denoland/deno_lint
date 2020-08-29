@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 
+use super::ecma_versions::EcmaVersion;
 use super::reader::Reader;
 use super::unicode::*;
 
@@ -89,18 +90,6 @@ fn is_trail_surrogate(cp: i64) -> bool {
 
 fn combine_surrogate_pair(lead: i64, trail: i64) -> i64 {
   (lead - 0xd800) * 0x400 + (trail - 0xdc00) + 0x10000
-}
-
-#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum EcmaVersion {
-  ES5,
-  ES2015,
-  ES2016,
-  ES2017,
-  ES2018,
-  ES2019,
-  ES2020,
-  ES2021,
 }
 
 #[derive(Debug)]
