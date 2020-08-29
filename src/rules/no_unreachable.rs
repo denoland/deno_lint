@@ -159,7 +159,17 @@ mod tests {
       "function foo() { var x = 1; if (x) { } else { return; } x = 2; }",
     );
 
-    assert_lint_ok::<NoUnreachable>("function foo() { var x = 1; switch (x) { case 0: break; default: return; } x = 2; }");
+    assert_lint_ok::<NoUnreachable>(
+      "function foo() {
+      var x = 1;
+      switch (x) {
+        case 0:
+          break;
+        default:
+          return;
+      }
+      x = 2; }",
+    );
   }
 
   #[test]

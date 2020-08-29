@@ -118,7 +118,7 @@ impl Analyzer<'_> {
   ) where
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
-    let done = self.scope.done;
+    let prev_done = self.scope.done;
     let (info, done, hoist, found_break, found_continue, may_throw) = {
       let mut child = Analyzer {
         info: take(&mut self.info),
@@ -127,7 +127,7 @@ impl Analyzer<'_> {
       match kind {
         BlockKind::Function => {}
         _ => {
-          if let Some(Done::Forced) = done {
+          if let Some(Done::Forced) = prev_done {
             child.scope.done = Some(Done::Forced);
           }
         }
@@ -169,11 +169,10 @@ impl Analyzer<'_> {
         BlockKind::Case => {
           if let Done::Forced = done {
             self.mark_as_done(lo, done);
-          } else {
-            if self.scope.done.is_none() {
-              self.scope.done = Some(Done::Break)
-            }
           }
+
+          // Restore
+          self.scope.done = prev_done;
         }
         BlockKind::If => {}
         BlockKind::Loop => {}
@@ -337,9 +336,7 @@ impl Visit for Analyzer<'_> {
     // A switch statement is finisher or not.
     if is_done {
       self.mark_as_done(n.span.lo, Done::Forced);
-    }
-
-    if let Some(Done::Break) = self.scope.done {
+    } else {
       self.scope.done = prev_done;
     }
   }
