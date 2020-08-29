@@ -307,12 +307,10 @@ impl Visit for Analyzer<'_> {
       .map(|case| case.span.lo)
       .all(|lo| self.is_forced_done(lo));
 
+    // A switch statement is finisher or not.
     if is_done {
       self.mark_as_done(n.span.lo, Done::Forced);
-    }
-
-    if let Some(Done::Break) = self.scope.done {
-      // Eat break statements
+    } else {
       self.scope.done = None;
     }
   }
@@ -351,7 +349,9 @@ impl Visit for Analyzer<'_> {
           _ => {}
         }
       }
-      None => {}
+      None => {
+        self.scope.done = None;
+      }
     }
   }
 
