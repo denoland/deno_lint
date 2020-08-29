@@ -170,9 +170,6 @@ impl Analyzer<'_> {
           if let Done::Forced = done {
             self.mark_as_done(lo, done);
           }
-
-          // Restore
-          self.scope.done = prev_done;
         }
         BlockKind::If => {}
         BlockKind::Loop => {}
@@ -307,7 +304,7 @@ impl Visit for Analyzer<'_> {
   fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
     self.with_child_scope(BlockKind::Block, n.span().lo, |a| {
       n.visit_children_with(a);
-    })
+    });
   }
 
   fn visit_getter_prop(&mut self, n: &GetterProp, _: &dyn Node) {
@@ -538,7 +535,16 @@ impl Visit for Analyzer<'_> {
       }
     }
 
+    let before_catch = self.scope.done;
     n.handler.visit_with(n, self);
+    match (before_catch, self.scope.done) {
+      (Some(Done::Forced), Some(Done::Forced)) => {
+        self.mark_as_done(n.span.lo, Done::Forced);
+      }
+      _ => {
+        self.scope.done = prev_done;
+      }
+    }
 
     self.scope.may_throw = old_throw;
   }
