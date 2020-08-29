@@ -273,6 +273,18 @@ impl Visit for Analyzer<'_> {
     })
   }
 
+  fn visit_getter_prop(&mut self, n: &GetterProp, _: &dyn Node) {
+    self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
+      n.visit_children_with(a);
+    })
+  }
+
+  fn visit_setter_prop(&mut self, n: &SetterProp, _: &dyn Node) {
+    self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
+      n.visit_children_with(a);
+    })
+  }
+
   fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
     n.visit_children_with(self);
 
