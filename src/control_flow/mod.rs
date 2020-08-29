@@ -118,11 +118,13 @@ impl Analyzer<'_> {
   ) where
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
+    let done = self.scope.done;
     let (info, done, hoist, found_break, found_continue, may_throw) = {
       let mut child = Analyzer {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind.clone()),
       };
+      child.scope.done = done;
 
       op(&mut child);
 
