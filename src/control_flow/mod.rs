@@ -261,6 +261,12 @@ impl Visit for Analyzer<'_> {
     }
   }
 
+  fn visit_arrow_expr(&mut self, n: &ArrowExpr, _: &dyn Node) {
+    self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
+      n.visit_children_with(a);
+    })
+  }
+
   fn visit_function(&mut self, n: &Function, _: &dyn Node) {
     self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
       n.visit_children_with(a);
