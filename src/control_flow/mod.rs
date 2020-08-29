@@ -188,8 +188,8 @@ impl Analyzer<'_> {
 
     // break, continue **may** make execution done
     match s {
-      Stmt::Break(..) => self.mark_as_done(s.span().lo, Done::Break),
-      Stmt::Continue(..) => self.mark_as_done(s.span().lo, Done::Break),
+      Stmt::Break(..) => self.scope.done = Some(Done::Break),
+      Stmt::Continue(..) => self.scope.done = Some(Done::Break),
       _ => {}
     }
   }
