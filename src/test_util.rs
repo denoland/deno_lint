@@ -56,7 +56,6 @@ pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {
 }
 
 pub fn assert_lint_err<T: LintRule + 'static>(source: &str, col: usize) {
-  eprintln!("----- -----\n{}", source);
   assert_lint_err_on_line::<T>(source, 1, col)
 }
 
@@ -65,7 +64,6 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
   line: usize,
   col: usize,
 ) {
-  eprintln!("----- -----\n{}", source);
   let rule = T::new();
   let rule_code = rule.code();
   let diagnostics = lint(rule, source);
@@ -88,7 +86,6 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   source: &str,
   expected: Vec<(usize, usize)>,
 ) {
-  eprintln!("----- -----\n{}", source);
   let rule = T::new();
   let rule_code = rule.code();
   let diagnostics = lint(rule, source);

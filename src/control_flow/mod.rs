@@ -455,7 +455,6 @@ impl Visit for Analyzer<'_> {
     if let Some(done) = stmt_done {
       self.scope.done = Some(done)
     }
-    dbg!(self.scope.done);
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
@@ -483,12 +482,10 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(n, a);
       if let (_, Value::Known(true)) = n.test.as_bool() {
         if let Some(Done::Forced) = a.get_done_reason(n.body.span().lo) {
-          dbg!();
           a.mark_as_done(n.span.lo, Done::Forced);
           stmt_done = Some(Done::Forced);
         }
 
-        dbg!(&a.scope.found_break);
         if a.scope.found_break.is_none() {
           // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
@@ -500,7 +497,6 @@ impl Visit for Analyzer<'_> {
     if let Some(done) = stmt_done {
       self.scope.done = Some(done)
     }
-    dbg!(self.scope.done);
   }
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
