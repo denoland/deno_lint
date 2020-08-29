@@ -315,6 +315,7 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
+    let prev_done = self.scope.done;
     n.visit_children_with(self);
 
     // SwitchStmt finishes execution if all cases finishes execution
@@ -324,11 +325,13 @@ impl Visit for Analyzer<'_> {
       .map(|case| case.span.lo)
       .all(|lo| self.is_forced_done(lo));
 
-    dbg!(&self.info);
-
     // A switch statement is finisher or not.
     if is_done {
       self.mark_as_done(n.span.lo, Done::Forced);
+    }
+
+    if let Some(Done::Break) = self.scope.done {
+      self.scope.done = prev_done;
     }
   }
 
