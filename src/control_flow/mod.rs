@@ -273,6 +273,12 @@ impl Visit for Analyzer<'_> {
     })
   }
 
+  fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
+    self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
+      n.visit_children_with(a);
+    })
+  }
+
   fn visit_getter_prop(&mut self, n: &GetterProp, _: &dyn Node) {
     self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
       n.visit_children_with(a);
