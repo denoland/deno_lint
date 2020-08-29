@@ -47,6 +47,8 @@ impl Visit for NoUnreachableVisitor {
     match stmt {
       // Don't print unused error for block statements
       Stmt::Block(_) => return,
+      // Hoisted, so reachable.
+      Stmt::Decl(Decl::Fn(..)) => return,
       Stmt::Decl(Decl::Var(VarDecl {
         kind: VarDeclKind::Var,
         decls,
