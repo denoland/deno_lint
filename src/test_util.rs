@@ -65,6 +65,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
   line: usize,
   col: usize,
 ) {
+  eprintln!("----- -----\n{}", source);
   let rule = T::new();
   let rule_code = rule.code();
   let diagnostics = lint(rule, source);
