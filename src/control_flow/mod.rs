@@ -324,18 +324,28 @@ impl Visit for Analyzer<'_> {
       .map(|case| case.span.lo)
       .all(|lo| self.is_forced_done(lo));
 
+    dbg!(&self.info);
+
     // A switch statement is finisher or not.
     if is_done {
       self.mark_as_done(n.span.lo, Done::Forced);
-    } else {
-      self.scope.done = None;
     }
   }
 
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
+    let mut case_done = None;
+
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
-      n.cons.visit_with(n, a)
+      n.cons.visit_with(n, a);
+
+      if let Some(Done::Forced) = a.scope.done {
+        case_done = Some(Done::Forced);
+      }
     });
+
+    if let Some(Done::Forced) = case_done {
+      self.mark_as_done(n.span.lo, Done::Forced);
+    }
   }
 
   fn visit_if_stmt(&mut self, n: &IfStmt, _: &dyn Node) {
@@ -401,10 +411,7 @@ impl Visit for Analyzer<'_> {
     };
 
     if unreachable {
-      dbg!("Unreachable", n.span().lo);
       self.info.entry(n.span().lo).or_default().unreachable = true;
-    } else {
-      dbg!("Reachable", n.span().lo);
     }
 
     n.visit_children_with(self);
