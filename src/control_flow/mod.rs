@@ -342,6 +342,7 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
+    let prev_done = self.scope.done;
     let mut case_done = None;
 
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
@@ -355,6 +356,7 @@ impl Visit for Analyzer<'_> {
     if let Some(Done::Forced) = case_done {
       self.mark_as_done(n.span.lo, Done::Forced);
     }
+    self.scope.done = prev_done;
   }
 
   fn visit_if_stmt(&mut self, n: &IfStmt, _: &dyn Node) {
