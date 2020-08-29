@@ -8,6 +8,7 @@ use swc_ecmascript::{
   utils::{ident::IdentLike, ExprExt, Id, Value},
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
+
 pub struct ControlFlow {
   meta: HashMap<BytePos, Metadata>,
 }
@@ -32,7 +33,7 @@ impl ControlFlow {
 }
 
 /// Kind of a basic block.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockKind {
   /// Function's body
   Function,
@@ -41,6 +42,7 @@ pub enum BlockKind {
   If,
   /// Body of a loop
   Loop,
+  Label(Id),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -60,15 +62,15 @@ struct Analyzer<'a> {
   scope: Scope<'a>,
   info: HashMap<BytePos, Metadata>,
 }
+
+#[derive(Debug)]
 struct Scope<'a> {
-  /// This will be used in future, I (kdy1) think.
   _parent: Option<&'a Scope<'a>>,
   /// This field exists to handle code like
   ///
   /// `function foo() { return bar(); function bar() { return 1; } }`
   used_hoistable_ids: HashSet<Id>,
 
-  /// This will be used in future, I (kdy1) think.
   _kind: BlockKind,
 
   /// Unconditionally ends with return, throw
@@ -76,7 +78,11 @@ struct Scope<'a> {
 
   may_throw: bool,
 
-  found_break: bool,
+  ///
+  /// - None: Not found
+  /// - Some(None): Stopped at a break statement without label
+  /// - Some(Somd(id)): Stopped at a break statement with label id
+  found_break: Option<Option<Id>>,
   found_continue: bool,
 }
 #[derive(Debug, Copy, Clone)]
@@ -95,7 +101,7 @@ impl<'a> Scope<'a> {
       used_hoistable_ids: Default::default(),
       done: None,
       may_throw: false,
-      found_break: false,
+      found_break: None,
       found_continue: false,
     }
   }
@@ -114,7 +120,7 @@ impl Analyzer<'_> {
     let (info, done, hoist, found_break, found_continue, may_throw) = {
       let mut child = Analyzer {
         info: take(&mut self.info),
-        scope: Scope::new(Some(&self.scope), kind),
+        scope: Scope::new(Some(&self.scope), kind.clone()),
       };
 
       op(&mut child);
@@ -133,11 +139,16 @@ impl Analyzer<'_> {
 
     // Preserve information about visited ast nodes.
     self.scope.may_throw |= may_throw;
-    self.scope.found_break |= found_break;
+    if self.scope.found_break.is_none() {
+      self.scope.found_break = found_break;
+    }
     self.scope.found_continue |= found_continue;
 
     if let Some(done) = done {
       if let BlockKind::Case = kind {
+        self.mark_as_done(lo, done);
+      }
+      if let BlockKind::Label(..) = kind {
         self.mark_as_done(lo, done);
       }
     }
@@ -196,8 +207,13 @@ impl Visit for Analyzer<'_> {
   mark_as_done!(visit_return_stmt, ReturnStmt);
   mark_as_done!(visit_throw_stmt, ThrowStmt);
 
-  fn visit_break_stmt(&mut self, _: &BreakStmt, _: &dyn Node) {
-    self.scope.found_break = true;
+  fn visit_break_stmt(&mut self, n: &BreakStmt, _: &dyn Node) {
+    if let Some(label) = &n.label {
+      let label = label.to_id();
+      self.scope.found_break = Some(Some(label));
+    } else {
+      self.scope.found_break = Some(None);
+    }
   }
 
   fn visit_continue_stmt(&mut self, _: &ContinueStmt, _: &dyn Node) {
@@ -350,7 +366,7 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       n.body.visit_with(n, a);
 
-      if !a.scope.found_break {
+      if a.scope.found_break.is_none() {
         if n.test.is_none() {
           // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
@@ -399,7 +415,7 @@ impl Visit for Analyzer<'_> {
           stmt_done = Some(Done::Forced);
         }
 
-        if !a.scope.found_break {
+        if a.scope.found_break.is_none() {
           // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
           stmt_done = Some(Done::Forced);
@@ -447,5 +463,11 @@ impl Visit for Analyzer<'_> {
     n.handler.visit_with(n, self);
 
     self.scope.may_throw = old_throw;
+  }
+
+  fn visit_labeled_stmt(&mut self, n: &LabeledStmt, _: &dyn Node) {
+    self.with_child_scope(BlockKind::Label(n.label.to_id()), n.span.lo, |a| {
+      a.visit_stmt_or_block(&n.body);
+    });
   }
 }

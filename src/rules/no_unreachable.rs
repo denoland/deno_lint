@@ -165,7 +165,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "Labelled statement is not supported yet"]
   fn ok_8() {
     assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; for (;;) { if (x) break; } x = 2; }",
