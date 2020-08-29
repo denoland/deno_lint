@@ -261,9 +261,9 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
+  fn visit_function(&mut self, n: &Function, _: &dyn Node) {
     self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
-      n.function.visit_with(n, a)
+      n.visit_children_with(a);
     })
   }
 
