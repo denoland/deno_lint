@@ -37,6 +37,7 @@ impl ControlFlow {
 pub enum BlockKind {
   /// Function's body
   Function,
+  Block,
   /// Switch case
   Case,
   If,
@@ -145,19 +146,34 @@ impl Analyzer<'_> {
     self.scope.found_continue |= found_continue;
 
     if let Some(done) = done {
-      if let BlockKind::Case = kind {
-        if let Done::Forced = done {
-          self.mark_as_done(lo, done);
-        } else {
-          if self.scope.done.is_none() {
-            self.scope.done = Some(Done::Break)
+      match kind {
+        BlockKind::Function => {}
+        BlockKind::Block => {
+          if let Done::Forced = done {
+            self.mark_as_done(lo, done);
+          } else {
+            if self.scope.done.is_none() {
+              self.scope.done = Some(Done::Break)
+            }
           }
         }
-      } else if let BlockKind::Label(label) = kind {
-        if let Some(Some(id)) = &self.scope.found_break {
-          if *id == label {
-            // Eat break statemnt
-            self.scope.found_break = None;
+        BlockKind::Case => {
+          if let Done::Forced = done {
+            self.mark_as_done(lo, done);
+          } else {
+            if self.scope.done.is_none() {
+              self.scope.done = Some(Done::Break)
+            }
+          }
+        }
+        BlockKind::If => {}
+        BlockKind::Loop => {}
+        BlockKind::Label(label) => {
+          if let Some(Some(id)) = &self.scope.found_break {
+            if *id == label {
+              // Eat break statemnt
+              self.scope.found_break = None;
+            }
           }
         }
       }
@@ -194,8 +210,9 @@ impl Analyzer<'_> {
 
     // break, continue **may** make execution done
     match s {
-      Stmt::Break(..) => self.scope.done = Some(Done::Break),
-      Stmt::Continue(..) => self.scope.done = Some(Done::Break),
+      Stmt::Break(..) | Stmt::Continue(..) => {
+        self.mark_as_done(s.span().lo, Done::Break)
+      }
       _ => {}
     }
   }
@@ -280,7 +297,7 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
-    self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
+    self.with_child_scope(BlockKind::Block, n.span().lo, |a| {
       n.visit_children_with(a);
     })
   }
@@ -324,6 +341,8 @@ impl Visit for Analyzer<'_> {
   fn visit_if_stmt(&mut self, n: &IfStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
+    let prev_done = self.scope.done;
+
     self.with_child_scope(BlockKind::If, n.cons.span().lo, |a| {
       a.visit_stmt_or_block(&n.cons);
     });
@@ -350,7 +369,7 @@ impl Visit for Analyzer<'_> {
         }
       }
       None => {
-        self.scope.done = None;
+        self.scope.done = prev_done;
       }
     }
   }
@@ -382,7 +401,10 @@ impl Visit for Analyzer<'_> {
     };
 
     if unreachable {
+      dbg!("Unreachable", n.span().lo);
       self.info.entry(n.span().lo).or_default().unreachable = true;
+    } else {
+      dbg!("Reachable", n.span().lo);
     }
 
     n.visit_children_with(self);
@@ -418,6 +440,7 @@ impl Visit for Analyzer<'_> {
     if let Some(done) = stmt_done {
       self.scope.done = Some(done)
     }
+    dbg!(self.scope.done);
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
@@ -445,10 +468,12 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(n, a);
       if let (_, Value::Known(true)) = n.test.as_bool() {
         if let Some(Done::Forced) = a.get_done_reason(n.body.span().lo) {
+          dbg!();
           a.mark_as_done(n.span.lo, Done::Forced);
           stmt_done = Some(Done::Forced);
         }
 
+        dbg!(&a.scope.found_break);
         if a.scope.found_break.is_none() {
           // Infinite loop
           a.mark_as_done(n.span.lo, Done::Forced);
@@ -460,6 +485,7 @@ impl Visit for Analyzer<'_> {
     if let Some(done) = stmt_done {
       self.scope.done = Some(done)
     }
+    dbg!(self.scope.done);
   }
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
