@@ -185,6 +185,35 @@ mod tests {
   }
 
   #[test]
+  fn ok_break_labeled() {
+    assert_lint_ok::<NoUnreachable>(
+      "A: {
+        switch (5) {
+          case 1:
+            return 'foo';
+          case 5:
+            break A;
+        }
+      }
+      call();
+      ",
+    );
+
+    assert_lint_ok::<NoUnreachable>(
+      "A: {
+        switch (5) {
+          case 1:
+            break
+          case 5:
+            break A;
+        }
+      }
+      call();
+      ",
+    );
+  }
+
+  #[test]
   fn err_1() {
     assert_lint_err::<NoUnreachable>(
       "function foo() { return x; var x = 1; }",
