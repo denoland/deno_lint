@@ -127,7 +127,9 @@ impl Analyzer<'_> {
       match kind {
         BlockKind::Function => {}
         _ => {
-          child.scope.done = done;
+          if let Some(Done::Forced) = done {
+            child.scope.done = Some(Done::Forced);
+          }
         }
       }
 
