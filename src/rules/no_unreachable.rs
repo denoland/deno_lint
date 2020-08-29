@@ -88,7 +88,12 @@ mod tests {
     );
 
     assert_lint_ok::<NoUnreachable>(
-      "function foo() { return bar(); function bar() { return 1; } }",
+      "function foo() {
+        return bar();
+        function bar() {
+          return 1;
+        }
+      }",
     );
 
     assert_lint_ok::<NoUnreachable>("function foo() { return x; var x; }");

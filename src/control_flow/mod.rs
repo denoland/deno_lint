@@ -124,7 +124,12 @@ impl Analyzer<'_> {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind.clone()),
       };
-      child.scope.done = done;
+      match kind {
+        BlockKind::Function => {}
+        _ => {
+          child.scope.done = done;
+        }
+      }
 
       op(&mut child);
 
