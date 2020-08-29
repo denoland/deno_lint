@@ -160,10 +160,8 @@ impl Analyzer<'_> {
         BlockKind::Block => {
           if let Done::Forced = done {
             self.mark_as_done(lo, done);
-          } else {
-            if self.scope.done.is_none() {
-              self.scope.done = Some(Done::Break)
-            }
+          } else if self.scope.done.is_none() {
+            self.scope.done = Some(Done::Break)
           }
         }
         BlockKind::Case => {
