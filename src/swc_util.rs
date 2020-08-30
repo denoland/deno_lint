@@ -35,7 +35,7 @@ use swc_ecmascript::{
 };
 
 #[allow(unused)]
-pub(crate) fn get_default_es_config() -> Syntax {
+pub fn get_default_es_config() -> Syntax {
   let mut config = EsConfig::default();
   config.num_sep = true;
   config.class_private_props = false;
@@ -51,7 +51,7 @@ pub(crate) fn get_default_es_config() -> Syntax {
   Syntax::Es(config)
 }
 
-pub(crate) fn get_default_ts_config() -> Syntax {
+pub fn get_default_ts_config() -> Syntax {
   let mut ts_config = TsConfig::default();
   ts_config.dynamic_import = true;
   ts_config.decorators = true;
