@@ -30,7 +30,7 @@ struct NoEmptyVisitor {
 }
 
 impl NoEmptyVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

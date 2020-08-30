@@ -10,11 +10,11 @@ extern crate log;
 
 mod control_flow;
 pub mod diagnostic;
-pub mod js_regex;
+mod js_regex;
 pub mod linter;
 pub mod rules;
 mod scopes;
-pub mod swc_util;
+mod swc_util;
 
 #[cfg(test)]
 mod test_util;

@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use std::sync::Arc;
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
@@ -8,10 +9,8 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-pub const BANNED_PROPERTIES: &[&str] =
+const BANNED_PROPERTIES: &[&str] =
   &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumberable"];
-
-use std::sync::Arc;
 
 pub struct NoPrototypeBuiltins;
 
@@ -39,7 +38,7 @@ struct NoPrototypeBuiltinsVisitor {
 }
 
 impl NoPrototypeBuiltinsVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

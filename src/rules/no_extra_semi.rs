@@ -37,7 +37,7 @@ struct NoExtraSemiVisitor {
 }
 
 impl NoExtraSemiVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

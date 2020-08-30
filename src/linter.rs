@@ -38,7 +38,7 @@ pub struct Context {
 }
 
 impl Context {
-  pub fn create_diagnostic(
+  fn create_diagnostic(
     &self,
     span: Span,
     code: &str,
@@ -73,7 +73,7 @@ impl Context {
     diagnostic
   }
 
-  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+  fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
     let diagnostic = self.create_diagnostic(span, code, message);
     let mut diags = self.diagnostics.lock().unwrap();
     diags.push(diagnostic);
