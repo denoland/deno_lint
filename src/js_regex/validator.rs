@@ -91,6 +91,7 @@ fn combine_surrogate_pair(lead: i64, trail: i64) -> i64 {
   (lead - 0xd800) * 0x400 + (trail - 0xdc00) + 0x10000
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum EcmaVersion {
   ES5,
