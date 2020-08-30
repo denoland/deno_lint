@@ -38,6 +38,12 @@ pub struct Context {
 }
 
 impl Context {
+  pub(crate) fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+    let diagnostic = self.create_diagnostic(span, code, message);
+    let mut diags = self.diagnostics.lock().unwrap();
+    diags.push(diagnostic);
+  }
+
   fn create_diagnostic(
     &self,
     span: Span,
@@ -71,12 +77,6 @@ impl Context {
     let end = Instant::now();
     debug!("Context::create_diagnostic took {:?}", end - start);
     diagnostic
-  }
-
-  fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
-    let diagnostic = self.create_diagnostic(span, code, message);
-    let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(diagnostic);
   }
 }
 
