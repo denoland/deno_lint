@@ -22,36 +22,34 @@ pub struct Scope {
 
 impl Scope {
   // Get all declarations with a symbol.
-  #[allow(dead_code)]
-  pub(crate) fn ids_with_symbol(&self, sym: &JsWord) -> Option<&Vec<Id>> {
+  pub fn ids_with_symbol(&self, sym: &JsWord) -> Option<&Vec<Id>> {
     self.symbols.get(sym)
   }
 
-  pub(crate) fn var(&self, id: &Id) -> Option<&Var> {
+  pub fn var(&self, id: &Id) -> Option<&Var> {
     self.vars.get(id)
   }
 }
 
 #[derive(Debug)]
-pub(crate) struct Var {
+pub struct Var {
   path: Vec<ScopeKind>,
   kind: BindingKind,
 }
 
 impl Var {
   /// Empty path means root scope.
-  #[allow(dead_code)]
-  pub(crate) fn path(&self) -> &[ScopeKind] {
+  pub fn path(&self) -> &[ScopeKind] {
     &self.path
   }
 
-  pub(crate) fn kind(&self) -> BindingKind {
+  pub fn kind(&self) -> BindingKind {
     self.kind
   }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub(crate) enum BindingKind {
+pub enum BindingKind {
   Var,
   Const,
   Let,
@@ -63,7 +61,7 @@ pub(crate) enum BindingKind {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub(crate) enum ScopeKind {
+pub enum ScopeKind {
   // Module,
   Arrow,
   Function,
@@ -75,7 +73,7 @@ pub(crate) enum ScopeKind {
   Catch,
 }
 
-pub(crate) fn analyze(module: &Module) -> Scope {
+pub fn analyze(module: &Module) -> Scope {
   let mut scope = Scope {
     vars: Default::default(),
     symbols: Default::default(),
