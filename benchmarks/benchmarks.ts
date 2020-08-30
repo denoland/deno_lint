@@ -20,13 +20,14 @@ bench({
     b.start();
     const proc = Deno.run({
       cmd: ["./target/release/examples/dlint", ...files],
-      stdout: "piped",
-      stderr: "piped",
+      stdout: "inherit",
+      stderr: "inherit",
     });
-    const { success } = await proc.status();
 
     // No assert on success, cause dlint returns exit
     // code 1 if there's any problem.
+    //
+    await proc.status();
     //
     // if (!success) {
     //   await Deno.copy(proc.stdout!, Deno.stdout);
@@ -46,8 +47,8 @@ bench({
     const proc = Deno.run({
       cmd: ["npm", "run", "eslint", ...files],
       cwd: Deno.build.os === "windows" ? ".\\benchmarks" : "./benchmarks",
-      stdout: "null",
-      stderr: "null",
+      stdout: "inherit",
+      stderr: "inherit",
     });
     const { success } = await proc.status();
     if (!success) {
