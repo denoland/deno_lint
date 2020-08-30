@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 
 #[derive(Debug, Default)]
-pub(crate) struct Reader {
+pub struct Reader {
   unicode: bool,
   src: String,
   index: usize,
@@ -12,7 +12,7 @@ pub(crate) struct Reader {
 }
 
 impl Reader {
-  pub(crate) fn new() -> Self {
+  pub fn new() -> Self {
     Self {
       unicode: false,
       src: "".to_owned(),
@@ -22,20 +22,19 @@ impl Reader {
     }
   }
 
-  #[allow(dead_code)]
-  pub(crate) fn source(&self) -> &str {
+  pub fn source(&self) -> &str {
     &self.src
   }
 
-  pub(crate) fn index(&self) -> usize {
+  pub fn index(&self) -> usize {
     self.index
   }
 
-  pub(crate) fn code_point_with_offset(&self, offset: usize) -> Option<char> {
+  pub fn code_point_with_offset(&self, offset: usize) -> Option<char> {
     self.cps.get(offset).cloned()
   }
 
-  pub(crate) fn reset(
+  pub fn reset(
     &mut self,
     source: &str,
     start: usize,
@@ -61,7 +60,7 @@ impl Reader {
     }
   }
 
-  pub(crate) fn advance(&mut self) {
+  pub fn advance(&mut self) {
     if self.cps.get(0).is_some() {
       self.index += 1;
       self.cps.pop_front();
@@ -71,7 +70,7 @@ impl Reader {
     }
   }
 
-  pub(crate) fn eat(&mut self, cp: char) -> bool {
+  pub fn eat(&mut self, cp: char) -> bool {
     let opt = self.cps.get(0);
     if opt.is_some() && *opt.unwrap() == cp {
       self.advance();
@@ -81,7 +80,7 @@ impl Reader {
     }
   }
 
-  pub(crate) fn eat2(&mut self, cp1: char, cp2: char) -> bool {
+  pub fn eat2(&mut self, cp1: char, cp2: char) -> bool {
     let (opt1, opt2) = (self.cps.get(0), self.cps.get(1));
     if opt1.is_some()
       && opt2.is_some()
@@ -96,7 +95,7 @@ impl Reader {
     }
   }
 
-  pub(crate) fn eat3(&mut self, cp1: char, cp2: char, cp3: char) -> bool {
+  pub fn eat3(&mut self, cp1: char, cp2: char, cp3: char) -> bool {
     let (opt1, opt2, opt3) =
       (self.cps.get(0), self.cps.get(1), self.cps.get(2));
     if opt1.is_some()

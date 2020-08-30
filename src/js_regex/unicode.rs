@@ -537,7 +537,7 @@ lazy_static! {
     );
 }
 
-pub(crate) fn is_valid_unicode_property(
+pub fn is_valid_unicode_property(
   version: EcmaVersion,
   name: &str,
   value: &str,
@@ -558,7 +558,7 @@ pub(crate) fn is_valid_unicode_property(
   }
 }
 
-pub(crate) fn is_valid_lone_unicode_property(
+pub fn is_valid_lone_unicode_property(
   version: EcmaVersion,
   value: &str,
 ) -> bool {
@@ -568,11 +568,11 @@ pub(crate) fn is_valid_lone_unicode_property(
       && BIN_PROPERTY_PATTERNS.es2019.contains(value))
 }
 
-pub(crate) fn is_large_id_start(cp: char) -> bool {
+pub fn is_large_id_start(cp: char) -> bool {
   is_in_range(cp as u32, &LARGE_ID_START_RANGES)
 }
 
-pub(crate) fn is_large_id_continue(cp: char) -> bool {
+pub fn is_large_id_continue(cp: char) -> bool {
   is_in_range(cp as u32, &LARGE_ID_CONTINUE_RANGES)
 }
 

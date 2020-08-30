@@ -92,8 +92,7 @@ fn combine_surrogate_pair(lead: i64, trail: i64) -> i64 {
 }
 
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
-#[allow(dead_code)]
-pub(crate) enum EcmaVersion {
+pub enum EcmaVersion {
   ES5,
   ES2015,
   ES2016,
@@ -105,7 +104,7 @@ pub(crate) enum EcmaVersion {
 }
 
 #[derive(Debug)]
-pub(crate) struct EcmaRegexValidator {
+pub struct EcmaRegexValidator {
   reader: Reader,
   strict: bool,
   ecma_version: EcmaVersion,
@@ -138,7 +137,7 @@ impl DerefMut for EcmaRegexValidator {
 }
 
 impl EcmaRegexValidator {
-  pub(crate) fn new(ecma_version: EcmaVersion) -> Self {
+  pub fn new(ecma_version: EcmaVersion) -> Self {
     EcmaRegexValidator {
       reader: Reader::new(),
       strict: false,
@@ -159,7 +158,7 @@ impl EcmaRegexValidator {
   }
 
   /// Validates flags of a EcmaScript regular expression.
-  pub(crate) fn validate_flags(&self, flags: &str) -> Result<(), String> {
+  pub fn validate_flags(&self, flags: &str) -> Result<(), String> {
     let mut existing_flags = HashSet::<char>::new();
 
     for flag in flags.chars() {
@@ -184,7 +183,7 @@ impl EcmaRegexValidator {
   }
 
   /// Validates the pattern of a EcmaScript regular expression.
-  pub(crate) fn validate_pattern(
+  pub fn validate_pattern(
     &mut self,
     source: &str,
     u_flag: bool,
