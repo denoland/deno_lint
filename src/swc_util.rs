@@ -315,7 +315,7 @@ impl Key for Lit {
 impl Key for Tpl {
   fn get_key(&self) -> Option<String> {
     if self.exprs.is_empty() {
-      self.quasis.iter().next().map(|q| q.raw.value.to_string())
+      self.quasis.get(0).map(|q| q.raw.value.to_string())
     } else {
       None
     }
