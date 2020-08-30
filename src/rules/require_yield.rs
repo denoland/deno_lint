@@ -41,7 +41,7 @@ struct RequireYieldVisitor {
 }
 
 impl RequireYieldVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       yield_stack: vec![],

@@ -29,16 +29,22 @@ pub struct Context {
   pub file_name: String,
   pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
-  pub leading_comments: HashMap<BytePos, Vec<Comment>>,
-  pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
   /// Arc as it's not modified
-  pub scope: Arc<Scope>,
-  pub control_flow: Arc<ControlFlow>,
+  pub(crate) scope: Arc<Scope>,
+  pub(crate) control_flow: Arc<ControlFlow>,
 }
 
 impl Context {
-  pub fn create_diagnostic(
+  pub(crate) fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+    let diagnostic = self.create_diagnostic(span, code, message);
+    let mut diags = self.diagnostics.lock().unwrap();
+    diags.push(diagnostic);
+  }
+
+  fn create_diagnostic(
     &self,
     span: Span,
     code: &str,
@@ -71,12 +77,6 @@ impl Context {
     let end = Instant::now();
     debug!("Context::create_diagnostic took {:?}", end - start);
     diagnostic
-  }
-
-  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
-    let diagnostic = self.create_diagnostic(span, code, message);
-    let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(diagnostic);
   }
 }
 

@@ -22,6 +22,7 @@ impl Reader {
     }
   }
 
+  #[allow(dead_code)]
   pub fn source(&self) -> &str {
     &self.src
   }

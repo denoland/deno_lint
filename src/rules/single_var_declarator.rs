@@ -34,7 +34,7 @@ struct SingleVarDeclaratorVisitor {
 }
 
 impl SingleVarDeclaratorVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

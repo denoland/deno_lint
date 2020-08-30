@@ -83,7 +83,7 @@ struct NoIrregularWhitespaceVisitor {
 }
 
 impl NoIrregularWhitespaceVisitor {
-  pub fn default() -> Self {
+  fn default() -> Self {
     Self { ranges: vec![] }
   }
 }

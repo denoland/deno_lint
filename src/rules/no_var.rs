@@ -35,7 +35,7 @@ struct NoVarVisitor {
 }
 
 impl NoVarVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }

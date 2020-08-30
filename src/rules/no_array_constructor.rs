@@ -35,11 +35,11 @@ struct NoArrayConstructorVisitor {
 }
 
 impl NoArrayConstructorVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 
-  pub fn check_args(&self, args: Vec<ExprOrSpread>, span: Span) {
+  fn check_args(&self, args: Vec<ExprOrSpread>, span: Span) {
     if args.len() != 1 {
       self.context.add_diagnostic(
         span,
