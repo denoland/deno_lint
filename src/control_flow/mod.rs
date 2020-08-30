@@ -9,12 +9,12 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
-pub(crate) struct ControlFlow {
+pub struct ControlFlow {
   meta: HashMap<BytePos, Metadata>,
 }
 
 impl ControlFlow {
-  pub(crate) fn analyze(m: &Module) -> Self {
+  pub fn analyze(m: &Module) -> Self {
     let mut v = Analyzer {
       scope: Scope::new(None, BlockKind::Function),
       info: Default::default(),
@@ -27,14 +27,14 @@ impl ControlFlow {
   ///
   /// - All statements (including stmt.span())
   /// - [SwitchCase]
-  pub(crate) fn meta(&self, lo: BytePos) -> Option<&Metadata> {
+  pub fn meta(&self, lo: BytePos) -> Option<&Metadata> {
     self.meta.get(&lo)
   }
 }
 
 /// Kind of a basic block.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum BlockKind {
+pub enum BlockKind {
   /// Function's body
   Function,
   Block,
@@ -47,14 +47,14 @@ pub(crate) enum BlockKind {
 }
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct Metadata {
-  pub(crate) unreachable: bool,
+pub struct Metadata {
+  pub unreachable: bool,
   done: Option<Done>,
   // path: Vec<BlockKind>,
 }
 
 impl Metadata {
-  // pub(crate) fn path(&self) -> &[BlockKind] {
+  // pub fn path(&self) -> &[BlockKind] {
   //   &self.path
   // }
 }
@@ -95,7 +95,7 @@ enum Done {
 }
 
 impl<'a> Scope<'a> {
-  pub(crate) fn new(parent: Option<&'a Scope<'a>>, kind: BlockKind) -> Self {
+  pub fn new(parent: Option<&'a Scope<'a>>, kind: BlockKind) -> Self {
     Self {
       _parent: parent,
       _kind: kind,
