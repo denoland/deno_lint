@@ -4,7 +4,7 @@ mod reader;
 mod unicode;
 mod validator;
 
-pub use validator::{EcmaRegexValidator, EcmaVersion};
+pub(crate) use validator::{EcmaRegexValidator, EcmaVersion};
 
 #[cfg(test)]
 mod tests {
