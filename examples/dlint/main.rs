@@ -4,8 +4,11 @@ use clap::Arg;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
+use rayon::prelude::*;
 use std::fmt;
 use std::io::Write;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use termcolor::Color::{Ansi256, Red};
 use termcolor::{Ansi, ColorSpec, WriteColor};
 
@@ -123,29 +126,37 @@ fn main() {
   let rule_list = rule_names.join("\n");
   let cli_app = create_cli_app(&rule_list);
   let matches = cli_app.get_matches();
-  let file_names = matches.values_of("FILES").unwrap();
+  let paths: Vec<String> = matches
+    .values_of("FILES")
+    .unwrap()
+    .map(|p| p.to_string())
+    .collect();
 
-  let mut error_counts = 0;
+  let error_counts = Arc::new(AtomicUsize::new(0));
+  let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
-  for file_name in file_names {
+  paths.par_iter().for_each(|file_path| {
     let source_code =
-      std::fs::read_to_string(&file_name).expect("Failed to read file");
+      std::fs::read_to_string(&file_path).expect("Failed to read file");
 
     let mut linter = LinterBuilder::default()
       .rules(get_recommended_rules())
       .build();
 
     let file_diagnostics = linter
-      .lint(file_name.to_string(), source_code)
+      .lint(file_path.to_string(), source_code)
       .expect("Failed to lint");
 
-    error_counts += file_diagnostics.len();
+    error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
+    let _g = output_lock.lock().unwrap();
     for d in file_diagnostics.iter() {
       eprintln!("{}", format_diagnostic(d));
     }
-  }
+  });
 
-  if error_counts > 0 {
-    eprintln!("Found {} problems", error_counts);
+  let err_count = error_counts.load(Ordering::Relaxed);
+  if err_count > 0 {
+    eprintln!("Found {} problems", err_count);
+    std::process::exit(1);
   }
 }

@@ -2,8 +2,8 @@ import {
   BenchmarkTimer,
   bench,
   runBenchmarks,
-} from "https://deno.land/std@0.61.0/testing/bench.ts";
-import { expandGlobSync } from "https://deno.land/std@0.61.0/fs/expand_glob.ts";
+} from "https://deno.land/std@0.67.0/testing/bench.ts";
+import { expandGlobSync } from "https://deno.land/std@0.67.0/fs/expand_glob.ts";
 
 const RUN_COUNT = 5;
 
@@ -20,15 +20,20 @@ bench({
     b.start();
     const proc = Deno.run({
       cmd: ["./target/release/examples/dlint", ...files],
-      stdout: "null",
-      stderr: "null",
+      stdout: "piped",
+      stderr: "piped",
     });
     const { success } = await proc.status();
-    if (!success) {
-      // await Deno.copy(proc.stdout!, Deno.stdout);
-      // await Deno.copy(proc.stderr!, Deno.stderr);
-      throw Error("Failed to run deno_lint");
-    }
+
+    // No assert on success, cause dlint returns exit
+    // code 1 if there's any problem.
+    //
+    // if (!success) {
+    //   await Deno.copy(proc.stdout!, Deno.stdout);
+    //   await Deno.copy(proc.stderr!, Deno.stderr);
+    //   throw Error("Failed to run dlint");
+    // }
+
     b.stop();
   },
 });
