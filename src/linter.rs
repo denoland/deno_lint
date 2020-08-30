@@ -29,12 +29,12 @@ pub struct Context {
   pub file_name: String,
   pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
-  pub leading_comments: HashMap<BytePos, Vec<Comment>>,
-  pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
   /// Arc as it's not modified
-  pub scope: Arc<Scope>,
-  pub control_flow: Arc<ControlFlow>,
+  pub(crate) scope: Arc<Scope>,
+  pub(crate) control_flow: Arc<ControlFlow>,
 }
 
 impl Context {

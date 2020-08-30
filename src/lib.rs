@@ -14,7 +14,7 @@ mod js_regex;
 pub mod linter;
 pub mod rules;
 mod scopes;
-mod swc_util;
+pub mod swc_util;
 
 #[cfg(test)]
 mod test_util;

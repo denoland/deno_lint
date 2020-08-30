@@ -4,7 +4,6 @@ use clap::Arg;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
-use deno_lint::swc_util::get_default_ts_config;
 use std::fmt;
 use std::io::Write;
 use termcolor::Color::{Ansi256, Red};
@@ -134,7 +133,6 @@ fn main() {
 
     let mut linter = LinterBuilder::default()
       .rules(get_recommended_rules())
-      .syntax(get_default_ts_config())
       .build();
 
     let file_diagnostics = linter
