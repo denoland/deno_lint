@@ -44,6 +44,7 @@ pub mod no_extra_non_null_assertion;
 pub mod no_extra_semi;
 pub mod no_func_assign;
 pub mod no_inferrable_types;
+pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
 pub mod no_irregular_whitespace;
 pub mod no_misused_new;
@@ -134,6 +135,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_new_symbol::NoNewSymbol::new(),
     no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
+    no_inner_declarations::NoInnerDeclarations::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_self_assign::NoSelfAssign::new(),
@@ -192,6 +194,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_empty_character_class::NoEmptyCharacterClass::new(),
     no_empty_interface::NoEmptyInterface::new(),
     no_empty_pattern::NoEmptyPattern::new(),
+    no_inner_declarations::NoInnerDeclarations::new(),
     no_eval::NoEval::new(),
     no_ex_assign::NoExAssign::new(),
     no_explicit_any::NoExplicitAny::new(),
