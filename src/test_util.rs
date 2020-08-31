@@ -25,16 +25,16 @@ pub fn assert_diagnostic(
   col: usize,
 ) {
   if diagnostic.code == code
-    && diagnostic.location.line == line
-    && diagnostic.location.col == col
+    && diagnostic.range.start.line == line
+    && diagnostic.range.start.col == col
   {
     return;
   }
   panic!(format!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}",
     diagnostic.code,
-    diagnostic.location.line,
-    diagnostic.location.col,
+    diagnostic.range.start.line,
+    diagnostic.range.start.col,
     code,
     line,
     col
