@@ -168,6 +168,13 @@ impl NoInnerDeclarationsVisitor {
 impl Visit for NoInnerDeclarationsVisitor {
   noop_visit_type!();
 
+  fn visit_arrow_expr(&mut self, fn_: &ast::ArrowExpr, parent: &dyn Node) {
+    let old = self.in_function;
+    self.in_function = true;
+    swc_ecmascript::visit::visit_arrow_expr(self, fn_, parent);
+    self.in_function = old;
+  }
+
   fn visit_function(&mut self, fn_: &ast::Function, parent: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
