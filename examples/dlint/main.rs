@@ -205,7 +205,9 @@ fn main() {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
-    let mut linter = LinterBuilder::default().rules(get_recommended_rules()).build();
+    let mut linter = LinterBuilder::default()
+      .rules(get_recommended_rules())
+      .build();
 
     let file_diagnostics = linter
       .lint(file_path.to_string(), source_code.clone())
