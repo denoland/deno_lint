@@ -143,7 +143,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
-    no_unexpected_multiline::NoUnexpectedMultiline::new(),
     no_unreachable::NoUnreachable::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
