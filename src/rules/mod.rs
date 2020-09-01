@@ -74,6 +74,7 @@ pub mod prefer_as_const;
 pub mod prefer_namespace_keyword;
 pub mod require_yield;
 pub mod single_var_declarator;
+pub mod sort_imports;
 pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
@@ -220,6 +221,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
+    sort_imports::SortImports::new(),
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
