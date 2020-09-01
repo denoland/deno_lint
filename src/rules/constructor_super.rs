@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-pub struct ConstructorSuper;
-
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{
@@ -10,6 +8,8 @@ use swc_ecmascript::ast::{
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+
+pub struct ConstructorSuper;
 
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
@@ -37,7 +37,7 @@ struct ConstructorSuperVisitor {
 }
 
 impl ConstructorSuperVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
   fn check_constructor(&self, constructor: &Constructor, class: &Class) {

@@ -98,7 +98,7 @@ struct NoMixedSpacesAndTabsVisitor {
 }
 
 impl NoMixedSpacesAndTabsVisitor {
-  pub fn default() -> Self {
+  fn default() -> Self {
     Self { ranges: vec![] }
   }
 }

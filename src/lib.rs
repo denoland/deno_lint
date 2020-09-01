@@ -8,8 +8,9 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+mod control_flow;
 pub mod diagnostic;
-pub mod js_regex;
+mod js_regex;
 pub mod linter;
 pub mod rules;
 mod scopes;
@@ -39,6 +40,12 @@ mod lint_tests {
     linter
       .lint("lint_test.ts".to_string(), source.to_string())
       .expect("Failed to lint")
+  }
+
+  #[test]
+  fn empty_file() {
+    let diagnostics = lint("", true, false);
+    assert!(diagnostics.is_empty());
   }
 
   #[test]

@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use crate::diagnostic::LintDiagnostic;
-use crate::diagnostic::Location;
+use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::rules::LintRule;
 use crate::scopes::{analyze, Scope};
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
-use crate::swc_util::SwcDiagnosticBuffer;
+use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -29,59 +28,50 @@ pub struct Context {
   pub file_name: String,
   pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
   pub source_map: Arc<SourceMap>,
-  pub leading_comments: HashMap<BytePos, Vec<Comment>>,
-  pub trailing_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: Vec<IgnoreDirective>,
   /// Arc as it's not modified
-  pub scope: Arc<Scope>,
+  pub(crate) scope: Arc<Scope>,
+  pub(crate) control_flow: Arc<ControlFlow>,
 }
 
 impl Context {
-  pub fn create_diagnostic(
+  pub(crate) fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+    let diagnostic = self.create_diagnostic(span, code, message);
+    let mut diags = self.diagnostics.lock().unwrap();
+    diags.push(diagnostic);
+  }
+
+  fn create_diagnostic(
     &self,
     span: Span,
     code: &str,
     message: &str,
   ) -> LintDiagnostic {
-    let start = Instant::now();
-    let location = self.source_map.lookup_char_pos(span.lo());
-    let line_src = self
-      .source_map
-      .lookup_source_file(span.lo())
-      .get_line(location.line - 1)
-      .expect("error loading line soruce")
-      .to_string();
-
-    let snippet_length = self
-      .source_map
-      .span_to_snippet(self.source_map.span_until_char(span, '\n'))
-      .expect("error loading snippet")
-      .len();
+    let time_start = Instant::now();
+    let start: Position = self.source_map.lookup_char_pos(span.lo()).into();
+    let end: Position = self.source_map.lookup_char_pos(span.hi()).into();
 
     let diagnostic = LintDiagnostic {
-      location: location.into(),
+      range: Range { start, end },
       filename: self.file_name.clone(),
       message: message.to_string(),
       code: code.to_string(),
-      line_src,
-      snippet_length,
     };
 
-    let end = Instant::now();
-    debug!("Context::create_diagnostic took {:?}", end - start);
+    let time_end = Instant::now();
+    debug!(
+      "Context::create_diagnostic took {:?}",
+      time_end - time_start
+    );
     diagnostic
-  }
-
-  pub fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
-    let diagnostic = self.create_diagnostic(span, code, message);
-    let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(diagnostic);
   }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IgnoreDirective {
-  pub location: Location,
+  pub position: Position,
   pub span: Span,
   pub codes: Vec<String>,
   pub used_codes: HashMap<String, bool>,
@@ -94,7 +84,7 @@ impl IgnoreDirective {
     &mut self,
     diagnostic: &LintDiagnostic,
   ) -> bool {
-    if self.location.line != diagnostic.location.line - 1 {
+    if self.position.line != diagnostic.range.start.line - 1 {
       return false;
     }
 
@@ -223,17 +213,22 @@ impl Linter {
     );
     self.has_linted = true;
     let start = Instant::now();
-    let (parse_result, comments) =
-      self
-        .ast_parser
-        .parse_module(&file_name, self.syntax, &source_code);
-    let end_parse_module = Instant::now();
-    debug!(
-      "ast_parser.parse_module took {:#?}",
-      end_parse_module - start
-    );
-    let module = parse_result?;
-    let diagnostics = self.lint_module(file_name, module, comments);
+    let diagnostics = if source_code.is_empty() {
+      vec![]
+    } else {
+      let (parse_result, comments) =
+        self
+          .ast_parser
+          .parse_module(&file_name, self.syntax, &source_code);
+      let end_parse_module = Instant::now();
+      debug!(
+        "ast_parser.parse_module took {:#?}",
+        end_parse_module - start
+      );
+      let module = parse_result?;
+      self.lint_module(file_name, module, comments)
+    };
+
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
     Ok(diagnostics)
@@ -312,7 +307,8 @@ impl Linter {
       }
     }
 
-    filtered_diagnostics.sort_by(|a, b| a.location.line.cmp(&b.location.line));
+    filtered_diagnostics
+      .sort_by(|a, b| a.range.start.line.cmp(&b.range.start.line));
 
     let end = Instant::now();
     debug!("Linter::filter_diagnostics took {:#?}", end - start);
@@ -345,9 +341,11 @@ impl Linter {
       &self.ignore_diagnostic_directives,
       &self.ast_parser.source_map,
       &leading,
+      &trailing,
     );
 
     let scope = Arc::new(analyze(&module));
+    let control_flow = Arc::new(ControlFlow::analyze(&module));
 
     let context = Arc::new(Context {
       file_name,
@@ -357,6 +355,7 @@ impl Linter {
       trailing_comments: trailing,
       ignore_directives,
       scope,
+      control_flow,
     });
 
     for rule in &self.rules {
@@ -374,11 +373,22 @@ impl Linter {
 fn parse_ignore_directives(
   ignore_diagnostic_directives: &[String],
   source_map: &SourceMap,
-  comments: &HashMap<BytePos, Vec<Comment>>,
+  leading_comments: &HashMap<BytePos, Vec<Comment>>,
+  trailing_comments: &HashMap<BytePos, Vec<Comment>>,
 ) -> Vec<IgnoreDirective> {
   let mut ignore_directives = vec![];
 
-  comments.values().for_each(|comments| {
+  leading_comments.values().for_each(|comments| {
+    for comment in comments {
+      if let Some(ignore) =
+        parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
+      {
+        ignore_directives.push(ignore);
+      }
+    }
+  });
+
+  trailing_comments.values().for_each(|comments| {
     for comment in comments {
       if let Some(ignore) =
         parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
@@ -389,7 +399,7 @@ fn parse_ignore_directives(
   });
 
   ignore_directives
-    .sort_by(|a, b| a.location.line.partial_cmp(&b.location.line).unwrap());
+    .sort_by(|a, b| a.position.line.partial_cmp(&b.position.line).unwrap());
   ignore_directives
 }
 
@@ -422,7 +432,7 @@ fn parse_ignore_comment(
       });
 
       return Some(IgnoreDirective {
-        location: location.into(),
+        position: location.into(),
         span: comment.span,
         codes,
         used_codes,
@@ -452,6 +462,12 @@ function foo(): any {}
 
 // deno-lint-ignore no-explicit-any,no-empty,no-debugger
 function foo(): any {}
+
+export function deepAssign(
+  target: Record<string, any>,
+  ...sources: any[]
+): // deno-lint-ignore ban-types
+object | undefined {}
 "#;
     let ast_parser = AstParser::new();
     let (parse_result, comments) = ast_parser.parse_module(
@@ -460,26 +476,34 @@ function foo(): any {}
       &source_code,
     );
     parse_result.expect("Failed to parse");
-    let (leading, _) = comments.take_all();
+    let (leading, trailing) = comments.take_all();
     let leading_coms = Rc::try_unwrap(leading)
       .expect("Failed to get leading comments")
       .into_inner();
+    let trailing_coms = Rc::try_unwrap(trailing)
+      .expect("Failed to get trailing comments")
+      .into_inner();
     let leading = leading_coms.into_iter().collect();
+    let trailing = trailing_coms.into_iter().collect();
     let directives = parse_ignore_directives(
       &["deno-lint-ignore".to_string()],
       &ast_parser.source_map,
       &leading,
+      &trailing,
     );
 
-    assert_eq!(directives.len(), 3);
+    assert_eq!(directives.len(), 4);
     let d = &directives[0];
-    assert_eq!(d.location, Location { line: 2, col: 0 });
+    assert_eq!(d.position, Position { line: 2, col: 0 });
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[1];
-    assert_eq!(d.location, Location { line: 8, col: 0 });
+    assert_eq!(d.position, Position { line: 8, col: 0 });
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[2];
-    assert_eq!(d.location, Location { line: 11, col: 0 });
+    assert_eq!(d.position, Position { line: 11, col: 0 });
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+    let d = &directives[3];
+    assert_eq!(d.position, Position { line: 17, col: 3 });
+    assert_eq!(d.codes, vec!["ban-types"]);
   }
 }

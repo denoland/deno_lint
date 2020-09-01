@@ -43,7 +43,7 @@ struct NoUnusedLabelsVisitor {
 }
 
 impl NoUnusedLabelsVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       label_scopes: vec![],

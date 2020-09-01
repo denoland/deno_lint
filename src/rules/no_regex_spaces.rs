@@ -36,7 +36,7 @@ struct NoRegexSpacesVisitor {
 }
 
 impl NoRegexSpacesVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 

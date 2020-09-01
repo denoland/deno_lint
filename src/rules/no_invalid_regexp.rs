@@ -48,7 +48,7 @@ struct NoInvalidRegexpVisitor {
 }
 
 impl NoInvalidRegexpVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       validator: EcmaRegexValidator::new(EcmaVersion::ES2018),

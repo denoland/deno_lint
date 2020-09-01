@@ -7,15 +7,15 @@ use swc_ecmascript::visit::Visit;
 
 use std::sync::Arc;
 
-pub struct NoSparseArray;
+pub struct NoSparseArrays;
 
-impl LintRule for NoSparseArray {
+impl LintRule for NoSparseArrays {
   fn new() -> Box<Self> {
-    Box::new(NoSparseArray)
+    Box::new(NoSparseArrays)
   }
 
   fn code(&self) -> &'static str {
-    "no-sparse-array"
+    "no-sparse-arrays"
   }
 
   fn lint_module(
@@ -23,22 +23,22 @@ impl LintRule for NoSparseArray {
     context: Arc<Context>,
     module: &swc_ecmascript::ast::Module,
   ) {
-    let mut visitor = NoSparseArrayVisitor::new(context);
+    let mut visitor = NoSparseArraysVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-struct NoSparseArrayVisitor {
+struct NoSparseArraysVisitor {
   context: Arc<Context>,
 }
 
-impl NoSparseArrayVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+impl NoSparseArraysVisitor {
+  fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoSparseArrayVisitor {
+impl Visit for NoSparseArraysVisitor {
   noop_visit_type!();
 
   fn visit_array_lit(
@@ -49,7 +49,7 @@ impl Visit for NoSparseArrayVisitor {
     if array_lit.elems.iter().any(|e| e.is_none()) {
       self.context.add_diagnostic(
         array_lit.span,
-        "no-sparse-array",
+        "no-sparse-arrays",
         "Sparse arrays are not allowed",
       );
     }
@@ -62,8 +62,8 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_sparse_array_test() {
-    assert_lint_ok::<NoSparseArray>("const sparseArray1 = [1,null,3];");
-    assert_lint_err::<NoSparseArray>("const sparseArray = [1,,3];", 20);
+  fn no_sparse_arrays_test() {
+    assert_lint_ok::<NoSparseArrays>("const sparseArray1 = [1,null,3];");
+    assert_lint_err::<NoSparseArrays>("const sparseArray = [1,,3];", 20);
   }
 }

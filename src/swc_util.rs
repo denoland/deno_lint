@@ -51,7 +51,6 @@ pub fn get_default_es_config() -> Syntax {
   Syntax::Es(config)
 }
 
-#[allow(unused)]
 pub fn get_default_ts_config() -> Syntax {
   let mut ts_config = TsConfig::default();
   ts_config.dynamic_import = true;
@@ -75,7 +74,7 @@ impl fmt::Display for SwcDiagnosticBuffer {
 }
 
 impl SwcDiagnosticBuffer {
-  pub fn from_swc_error(
+  pub(crate) fn from_swc_error(
     error_buffer: SwcErrorBuffer,
     parser: &AstParser,
   ) -> Self {
@@ -107,10 +106,10 @@ impl SwcDiagnosticBuffer {
 }
 
 #[derive(Clone)]
-pub struct SwcErrorBuffer(Arc<RwLock<Vec<Diagnostic>>>);
+pub(crate) struct SwcErrorBuffer(Arc<RwLock<Vec<Diagnostic>>>);
 
 impl SwcErrorBuffer {
-  pub fn default() -> Self {
+  pub(crate) fn default() -> Self {
     Self(Arc::new(RwLock::new(vec![])))
   }
 }
@@ -125,15 +124,15 @@ impl Emitter for SwcErrorBuffer {
 ///
 /// Allows to build more complicated parser by providing a callback
 /// to `parse_module`.
-pub struct AstParser {
-  pub buffered_error: SwcErrorBuffer,
-  pub source_map: Arc<SourceMap>,
-  pub handler: Handler,
-  pub globals: Globals,
+pub(crate) struct AstParser {
+  pub(crate) buffered_error: SwcErrorBuffer,
+  pub(crate) source_map: Arc<SourceMap>,
+  pub(crate) handler: Handler,
+  pub(crate) globals: Globals,
 }
 
 impl AstParser {
-  pub fn new() -> Self {
+  pub(crate) fn new() -> Self {
     let buffered_error = SwcErrorBuffer::default();
 
     let handler = Handler::with_emitter_and_flags(
@@ -153,7 +152,7 @@ impl AstParser {
     }
   }
 
-  pub fn parse_module(
+  pub(crate) fn parse_module(
     &self,
     file_name: &str,
     syntax: Syntax,
@@ -195,11 +194,11 @@ impl AstParser {
     (parse_result, comments)
   }
 
-  pub fn get_span_location(&self, span: Span) -> swc_common::Loc {
+  pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
     self.source_map.lookup_char_pos(span.lo())
   }
 
-  // pub fn get_span_comments(
+  // pub(crate) fn get_span_comments(
   //   &self,
   //   span: Span,
   // ) -> Vec<swc_common::comments::Comment> {
@@ -315,7 +314,7 @@ impl Key for Lit {
 impl Key for Tpl {
   fn get_key(&self) -> Option<String> {
     if self.exprs.is_empty() {
-      self.quasis.iter().next().map(|q| q.raw.value.to_string())
+      self.quasis.get(0).map(|q| q.raw.value.to_string())
     } else {
       None
     }

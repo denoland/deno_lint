@@ -61,7 +61,7 @@ struct NoUnexpectedMultilineVisitor {
 }
 
 impl NoUnexpectedMultilineVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>) -> Self {
     Self {
       context,
       current_node_is_optional: false,
