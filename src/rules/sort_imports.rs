@@ -33,12 +33,6 @@ pub struct SortImportsOptions {
 
 pub struct SortImports;
 
-struct SortImportsVisitor {
-  context: Arc<Context>,
-  options: SortImportsOptions,
-  line_imports: Vec<ImportIdent>,
-}
-
 impl LintRule for SortImports {
   fn new() -> Box<Self> {
     Box::new(SortImports)
@@ -53,13 +47,20 @@ impl LintRule for SortImports {
     context: Arc<Context>,
     module: &swc_ecmascript::ast::Module,
   ) {
-    let mut visitor = SortImportsVisitor::new(context);
+    let mut visitor = SortImportsVisitor::default(context);
     visitor.visit_module(module, module);
+    visitor.sort_import_ident(None);
   }
 }
 
+struct SortImportsVisitor {
+  context: Arc<Context>,
+  options: SortImportsOptions,
+  line_imports: Vec<ImportIdent>,
+}
+
 impl SortImportsVisitor {
-  pub fn new(context: Arc<Context>) -> Self {
+  pub fn default(context: Arc<Context>) -> Self {
     Self {
       context,
       options: SortImportsOptions {
@@ -77,24 +78,14 @@ impl SortImportsVisitor {
       line_imports: vec![],
     }
   }
-  fn handle_import_decl(&mut self, import_stmt: &ImportDecl) -> () {
-    let specifiers = &import_stmt.specifiers;
-    let mut import_ident_vec: Vec<ImportIdent> = vec![];
-    for specifier in specifiers.iter() {
-      if let ImportSpecifier::Named(named_specifier) = &specifier {
-        match &named_specifier.imported {
-          Some(renamed_import) => import_ident_vec.push(ImportIdent::new(
-            renamed_import.sym.get(0..).unwrap().to_string(),
-            renamed_import.span,
-          )),
-          None => import_ident_vec.push(ImportIdent::new(
-            named_specifier.local.sym.get(0..).unwrap().to_string(),
-            named_specifier.local.span,
-          )),
-        }
-      }
-    }
-    let mut vec_srings: Vec<String> = import_ident_vec
+
+  fn sort_import_ident(&mut self, import_ident_vec: Option<&Vec<ImportIdent>>) {
+    let ident_vec = match import_ident_vec {
+      Some(vec) => vec,
+      None => &self.line_imports,
+    };
+
+    let mut vec_srings: Vec<String> = ident_vec
       .iter()
       .map(|s| {
         if self.options.ignore_case {
@@ -106,7 +97,7 @@ impl SortImportsVisitor {
       .collect();
     vec_srings.sort();
     for (index, s) in vec_srings.iter().enumerate() {
-      let mut import_decl = import_ident_vec[index].import_decl.to_string();
+      let mut import_decl = ident_vec[index].import_decl.to_string();
       if self.options.ignore_case {
         import_decl = import_decl.to_lowercase();
       }
@@ -117,18 +108,54 @@ impl SortImportsVisitor {
           " of the import declaration should be sorted alphabetically.",
         );
         self.context.add_diagnostic(
-          import_ident_vec[index].span,
+          ident_vec[index].span,
           "sort-imports",
           &err_string,
         );
       }
     }
   }
-  fn handle_import_default(&self, default_specifier: &ImportDefaultSpecifier) {
-    // self.line_imports.push(ImportIdent::new(
-    //   default_specifier.local.sym.get(0..).unwrap().to_string(),
-    //   default_specifier.local.span,
-    // ))
+
+  fn handle_import_decl(&mut self, import_stmt: &ImportDecl) -> () {
+    let specifiers = &import_stmt.specifiers;
+    let mut import_ident_vec: Vec<ImportIdent> = vec![];
+    for specifier in specifiers.iter() {
+      if let ImportSpecifier::Named(named_specifier) = &specifier {
+        match &named_specifier.imported {
+          Some(renamed_import) => {
+            import_ident_vec.push(ImportIdent::new(
+              renamed_import.sym.get(0..).unwrap().to_string(),
+              renamed_import.span,
+            ));
+            self.line_imports.push(ImportIdent::new(
+              renamed_import.sym.get(0..).unwrap().to_string(),
+              import_stmt.span,
+            ));
+          }
+          None => {
+            import_ident_vec.push(ImportIdent::new(
+              named_specifier.local.sym.get(0..).unwrap().to_string(),
+              named_specifier.local.span,
+            ));
+            self.line_imports.push(ImportIdent::new(
+              named_specifier.local.sym.get(0..).unwrap().to_string(),
+              import_stmt.span,
+            ));
+          }
+        }
+      }
+    }
+
+    self.sort_import_ident(Some(&import_ident_vec));
+  }
+  fn handle_import_default(
+    &mut self,
+    default_specifier: &ImportDefaultSpecifier,
+  ) {
+    self.line_imports.push(ImportIdent::new(
+      default_specifier.local.sym.get(0..).unwrap().to_string(),
+      default_specifier.span,
+    ));
     println!(
       "{} a {}",
       default_specifier.local.sym.get(0..).unwrap().to_string(),
@@ -188,6 +215,9 @@ mod tests {
 
   #[test]
   fn sort_imports_test() {
-    assert_lint_ok::<SortImports>(r#"import { a, A } from 'react';"#);
+    assert_lint_ok::<SortImports>(
+      r#"import { b, B } from 'react';
+    import {a, A} from 'react'; "#,
+    );
   }
 }
