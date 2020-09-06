@@ -11,6 +11,11 @@ use swc_ecmascript::ast::ImportStarAsSpecifier;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
+enum ErrMsgTypes {
+  SortImportsAlphabetically,
+  SortMembersAlphabetically,
+}
+
 struct ImportIdent {
   import_decl: String,
   span: Span,
@@ -80,9 +85,13 @@ impl SortImportsVisitor {
   }
 
   fn sort_import_ident(&mut self, import_ident_vec: Option<&Vec<ImportIdent>>) {
+    let mut err_type: ErrMsgTypes = ErrMsgTypes::SortMembersAlphabetically;
     let ident_vec = match import_ident_vec {
       Some(vec) => vec,
-      None => &self.line_imports,
+      None => {
+        err_type = ErrMsgTypes::SortImportsAlphabetically;
+        &self.line_imports
+      }
     };
 
     let mut vec_srings: Vec<String> = ident_vec
@@ -102,11 +111,19 @@ impl SortImportsVisitor {
         import_decl = import_decl.to_lowercase();
       }
       if s != &import_decl {
-        let mut err_string = String::from("Member ");
-        err_string.push_str(s);
-        err_string.push_str(
-          " of the import declaration should be sorted alphabetically.",
-        );
+        let mut err_string = String::from("");
+        match err_type {
+          ErrMsgTypes::SortImportsAlphabetically => {
+            err_string.push_str("Imports should be sorted alphabetically.");
+          }
+          ErrMsgTypes::SortMembersAlphabetically => {
+            err_string.push_str("Member ");
+            err_string.push_str(s);
+            err_string.push_str(
+              " of the import declaration should be sorted alphabetically.",
+            );
+          }
+        }
         self.context.add_diagnostic(
           ident_vec[index].span,
           "sort-imports",
