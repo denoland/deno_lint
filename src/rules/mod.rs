@@ -8,6 +8,7 @@ pub mod ban_ts_ignore;
 pub mod ban_types;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
+pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
