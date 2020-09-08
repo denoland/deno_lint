@@ -42,6 +42,7 @@ pub mod no_explicit_any;
 pub mod no_extra_boolean_cast;
 pub mod no_extra_non_null_assertion;
 pub mod no_extra_semi;
+pub mod no_fallthrough;
 pub mod no_func_assign;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
