@@ -182,7 +182,7 @@ mod tests {
 
   #[test]
   fn ok_5() {
-    assert_lint_ok::<NoUndef>("typeof a === 'undefined");
+    assert_lint_ok::<NoUndef>("typeof a === 'undefined'");
 
     assert_lint_ok::<NoUndef>("if (typeof a === 'undefined') {}");
 
