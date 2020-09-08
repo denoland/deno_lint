@@ -148,11 +148,21 @@ impl Visit for NoGlobalAssignVisitor {
 
         // Globals
         match &*ident.sym {
-          // I don't know why
-          "Object" | "Array" | "Promise" | "Date" | "NaN" | "isNaN"
-          | "hasOwnProperty" | "eval" | "toString" | "WeakRef" | "Map" => {
-            return
-          }
+          "Object"
+          | "Array"
+          | "Number"
+          | "Boolean"
+          | "String"
+          | "Promise"
+          | "Date"
+          | "NaN"
+          | "isNaN"
+          | "hasOwnProperty"
+          | "eval"
+          | "toString"
+          | "WeakRef"
+          | "Map"
+          | "FinalizationRegistry" => return,
           _ => {}
         }
 
