@@ -120,7 +120,7 @@ impl Visit for NoGlobalAssignVisitor {
   }
 
   fn visit_unary_expr(&mut self, e: &UnaryExpr, _: &dyn Node) {
-    if e.op == UnaryOp::Void {
+    if e.op == UnaryOp::TypeOf {
       return;
     }
 
@@ -150,7 +150,9 @@ impl Visit for NoGlobalAssignVisitor {
         match &*ident.sym {
           // I don't know why
           "Object" | "Array" | "Promise" | "Date" | "NaN" | "isNaN"
-          | "hasOwnProperty" | "eval" | "toString" => return,
+          | "hasOwnProperty" | "eval" | "toString" | "WeakRef" | "Map" => {
+            return
+          }
           _ => {}
         }
 
