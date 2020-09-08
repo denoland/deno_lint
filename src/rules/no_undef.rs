@@ -35,6 +35,7 @@ static GLOBALS: &[&str] = &[
   "TextDecoder",
   "undefined",
   "Uint8Array",
+  "setTimeout",
 ];
 
 pub struct NoUndef;
