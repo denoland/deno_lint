@@ -172,19 +172,16 @@ impl Visit for NoGlobalAssignVisitor {
   fn visit_expr(&mut self, e: &Expr, _: &dyn Node) {
     e.visit_children_with(self);
 
-    match e {
-      Expr::Ident(ident) => self.check(ident),
-
-      _ => {}
+    if let Expr::Ident(ident) = e {
+      self.check(ident)
     }
   }
 
   fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
     p.visit_children_with(self);
 
-    match p {
-      Pat::Ident(ident) => self.check(ident),
-      _ => {}
+    if let Pat::Ident(ident) = p {
+      self.check(ident)
     }
   }
 
