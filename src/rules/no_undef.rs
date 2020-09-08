@@ -353,15 +353,15 @@ mod tests {
 
     assert_lint_err::<NoUndef>("require(\"a\");", 0);
 
-    assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
+    // assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
   }
 
   #[test]
   fn err_3() {
-    assert_lint_err::<NoUndef>(
-      "var React, App; React.render(<App attr={a} />);",
-      0,
-    );
+    // assert_lint_err::<NoUndef>(
+    //   "var React, App; React.render(<App attr={a} />);",
+    //   0,
+    // );
 
     assert_lint_err::<NoUndef>("[a] = [0];", 1);
 
