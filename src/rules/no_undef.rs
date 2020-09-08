@@ -1,4 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use super::Context;
+use super::LintRule;
+use crate::swc_util::find_lhs_ids;
 use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
@@ -8,23 +11,18 @@ use swc_ecmascript::{
 };
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
-use crate::swc_util::find_lhs_ids;
-
-use super::Context;
-use super::LintRule;
-
 use std::collections::HashSet;
 use std::sync::Arc;
 
-pub struct NoGlobalAssign;
+pub struct NoUndef;
 
-impl LintRule for NoGlobalAssign {
+impl LintRule for NoUndef {
   fn new() -> Box<Self> {
-    Box::new(NoGlobalAssign)
+    Box::new(NoUndef)
   }
 
   fn code(&self) -> &'static str {
-    "no-global-assign"
+    "no-undef"
   }
 
   fn lint_module(&self, context: Arc<Context>, module: &Module) {
@@ -134,8 +132,8 @@ impl Visit for NoGlobalAssignVisitor {
 
       self.context.add_diagnostic(
         ident.span,
-        "no-global-assign",
-        "Assigning to global is not allowed",
+        "no-undef",
+        &format!("{} is not defined", ident.sym),
       )
     }
   }
@@ -148,11 +146,147 @@ mod tests {
 
   #[test]
   fn ok_1() {
-    assert_lint_ok::<NoGlobalAssign>("");
+    assert_lint_ok::<NoUndef>("var a = 1, b = 2; a;");
+
+    assert_lint_ok::<NoUndef>("function a(){}  a();");
+
+    assert_lint_ok::<NoUndef>("function f(b) { b; }");
+  }
+
+  #[test]
+  fn ok_2() {
+    assert_lint_ok::<NoUndef>("var a; a = 1; a++;");
+
+    assert_lint_ok::<NoUndef>("var a; function f() { a = 1; }");
+
+    assert_lint_ok::<NoUndef>("Object; isNaN();");
+  }
+
+  #[test]
+  fn ok_3() {
+    assert_lint_ok::<NoUndef>("toString()");
+
+    assert_lint_ok::<NoUndef>("hasOwnProperty()");
+
+    assert_lint_ok::<NoUndef>("function evilEval(stuffToEval) { var ultimateAnswer; ultimateAnswer = 42; eval(stuffToEval); }");
+  }
+
+  #[test]
+  fn ok_4() {
+    assert_lint_ok::<NoUndef>("typeof a");
+
+    assert_lint_ok::<NoUndef>("typeof (a)");
+
+    assert_lint_ok::<NoUndef>("var b = typeof a");
+  }
+
+  #[test]
+  fn ok_5() {
+    assert_lint_ok::<NoUndef>("typeof a === 'undefined");
+
+    assert_lint_ok::<NoUndef>("if (typeof a === 'undefined') {}");
+
+    assert_lint_ok::<NoUndef>(
+      "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
+    );
+  }
+
+  #[test]
+  fn ok_6() {
+    assert_lint_ok::<NoUndef>("var toString = 1;");
+
+    assert_lint_ok::<NoUndef>("function myFunc(...foo) {  return foo;}");
+
+    // TODO(kdy1): Parse as jsx
+    // assert_lint_ok::<NoUndef>(
+    //   "var React, App, a=1; React.render(<App attr={a} />);",
+    // );
+  }
+
+  #[test]
+  fn ok_7() {
+    assert_lint_ok::<NoUndef>(
+      "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
+    );
+
+    assert_lint_ok::<NoUndef>(
+      "var Foo; class Bar extends Foo { constructor() { super();  }}",
+    );
+
+    assert_lint_ok::<NoUndef>(
+      "import Warning from '../lib/warning'; var warn = new Warning('text');",
+    );
+  }
+
+  #[test]
+  fn ok_8() {
+    assert_lint_ok::<NoUndef>("import * as Warning from '../lib/warning'; var warn = new Warning('text');");
+
+    assert_lint_ok::<NoUndef>("var a; [a] = [0];");
+
+    assert_lint_ok::<NoUndef>("var a; ({a} = {});");
+  }
+
+  #[test]
+  fn ok_9() {
+    assert_lint_ok::<NoUndef>("var a; ({b: a} = {});");
+
+    assert_lint_ok::<NoUndef>("var obj; [obj.a, obj.b] = [0, 1];");
+
+    assert_lint_ok::<NoUndef>(
+      "(foo, bar) => { foo ||= WeakRef; bar ??= FinalizationRegistry; }",
+    );
+  }
+
+  #[test]
+  fn ok_10() {
+    assert_lint_ok::<NoUndef>("Array = 1;");
+
+    assert_lint_ok::<NoUndef>("class A { constructor() { new.target; } }");
+
+    assert_lint_ok::<NoUndef>(r#"export * as ns from "source""#);
+  }
+
+  #[test]
+  fn ok_11() {
+    assert_lint_ok::<NoUndef>("import.meta");
   }
 
   #[test]
   fn err_1() {
-    assert_lint_err("", col)
+    assert_lint_err::<NoUndef>("a = 1;", 0);
+
+    assert_lint_err::<NoUndef>("var a = b;", 0);
+
+    assert_lint_err::<NoUndef>("function f() { b; }", 0);
+  }
+
+  #[test]
+  fn err_2() {
+    assert_lint_err::<NoUndef>("window;", 0);
+
+    assert_lint_err::<NoUndef>("require(\"a\");", 0);
+
+    // TODO(kdy1): parse as jsx
+    // assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
+  }
+
+  #[test]
+  fn err_3() {
+    // TODO(kdy1): parse as jsx
+    // assert_lint_err::<NoUndef>("var React, App; React.render(<App attr={a} />);", 0);
+
+    assert_lint_err::<NoUndef>("[a] = [0];", 0);
+
+    assert_lint_err::<NoUndef>("({a} = {});", 0);
+  }
+
+  #[test]
+  fn err_4() {
+    assert_lint_err::<NoUndef>("({b: a} = {});", 0);
+
+    assert_lint_err::<NoUndef>("[obj.a, obj.b] = [0, 1];", 0);
+
+    assert_lint_err::<NoUndef>("const c = 0; const a = {...b, c};", 0);
   }
 }
