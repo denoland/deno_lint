@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::find_lhs_ids;
 use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
@@ -113,28 +112,37 @@ impl NoGlobalAssignVisitor {
 impl Visit for NoGlobalAssignVisitor {
   noop_visit_type!();
 
-  fn visit_assign_expr(&mut self, e: &AssignExpr, _: &dyn Node) {
+  fn visit_unary_expr(&mut self, e: &UnaryExpr, _: &dyn Node) {
+    if e.op == UnaryOp::Void {
+      return;
+    }
+
+    e.visit_children_with(self);
+  }
+
+  fn visit_expr(&mut self, e: &Expr, _: &dyn Node) {
     e.visit_children_with(self);
 
-    // We need span
-    let idents: Vec<Ident> = find_lhs_ids(&e.left);
+    match e {
+      Expr::Ident(ident) => {
+        // We don't care about local references
+        if ident.span.ctxt != self.context.top_level_ctxt {
+          return;
+        }
 
-    for ident in idents {
-      // We don't care about local references
-      if ident.span.ctxt != self.context.top_level_ctxt {
-        continue;
+        // Ignore top level bindings declared in the file.
+        if self.declared.contains(&ident.to_id()) {
+          return;
+        }
+
+        self.context.add_diagnostic(
+          ident.span,
+          "no-undef",
+          &format!("{} is not defined", ident.sym),
+        )
       }
 
-      // Ignore top level bindings declared in the file.
-      if self.declared.contains(&ident.to_id()) {
-        continue;
-      }
-
-      self.context.add_diagnostic(
-        ident.span,
-        "no-undef",
-        &format!("{} is not defined", ident.sym),
-      )
+      _ => {}
     }
   }
 }
