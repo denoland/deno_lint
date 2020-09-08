@@ -357,8 +357,9 @@ impl Linter {
       ignore_directives,
       scope,
       control_flow,
-      top_level_ctxt: SyntaxContext::empty()
-        .apply_mark(self.ast_parser.top_level_mark),
+      top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
+        SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
+      }),
     });
 
     for rule in &self.rules {

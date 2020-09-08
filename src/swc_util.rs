@@ -148,12 +148,16 @@ impl AstParser {
       },
     );
 
+    let globals = Globals::new();
+    let top_level_mark =
+      swc_common::GLOBALS.set(&globals, || Mark::fresh(Mark::root()));
+
     AstParser {
       buffered_error,
       source_map: Arc::new(SourceMap::default()),
       handler,
-      globals: Globals::new(),
-      top_level_mark: Mark::fresh(Mark::root()),
+      globals,
+      top_level_mark,
     }
   }
 
