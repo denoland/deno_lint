@@ -3,8 +3,8 @@
 #![allow(unused)]
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::ast::{FnDecl, FnExpr, Ident, Pat, VarDecl};
+use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -33,13 +33,65 @@ struct CamelcaseVisitor {
   context: Arc<Context>,
 }
 
+/// Check if it contains underscores, except for leading and trailing ones
+fn is_underscored(ident: &Ident) -> bool {
+  let trimmed_ident = ident.as_ref().trim_matches('_');
+  trimmed_ident.contains('_')
+    && trimmed_ident != trimmed_ident.to_ascii_uppercase()
+}
+
 impl CamelcaseVisitor {
   fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
+
+  fn report(&self, ident: &Ident) {
+    self.context.add_diagnostic(
+      ident.span,
+      "camelcase",
+      &format!("Identifier '{}' is not in camel case.", ident.as_ref()),
+    );
+  }
 }
 
-impl Visit for CamelcaseVisitor {}
+impl Visit for CamelcaseVisitor {
+  noop_visit_type!();
+
+  // TODO(magurotuna): Checking via visit_ident causes lots of false positives
+  // Seems that I have to impelement various function such as visit_fn_decl, visit_call_expr, etc.
+  fn visit_ident(&mut self, ident: &Ident, parent: &dyn Node) {
+    if is_underscored(ident) {
+      self.report(ident);
+    }
+    visit::visit_ident(self, ident, parent);
+  }
+
+  //fn visit_var_decl(&mut self, var_decl: &VarDecl, parent: &dyn Node) {
+  //for decl in &var_decl.decls {
+  //match decl.name {
+  //Pat::Ident(ref ident) => {
+  //if is_underscored(ident) {
+  //self.report(ident);
+  //}
+  //},
+  //Pat::Array()
+  //}
+  //}
+  //if is_underscored(&var_decl.ident) {
+  //self.report(&var_decl.ident);
+  //}
+  //visit::visit_var_decl(self, var_decl, parent);
+  //}
+
+  //fn visit_fn_decl(&mut self, fn_decl: &FnDecl, parent: &dyn Node) {
+  //visit::visit_fn_decl(self, fn_decl, parent);
+  //}
+
+  //fn visit_fn_expr(&mut self, fn_expr: &FnExpr, parent: &dyn Node) {
+  //todo!();
+  //visit::visit_fn_expr(self, fn_expr, parent);
+  //}
+}
 
 #[cfg(test)]
 mod tests {
