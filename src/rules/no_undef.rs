@@ -107,6 +107,48 @@ impl NoGlobalAssignVisitor {
   fn new(context: Arc<Context>, declared: HashSet<Id>) -> Self {
     Self { context, declared }
   }
+
+  fn check(&self, ident: &Ident) {
+    // We don't care about local references
+    // Because of this if statement, we can check for Map in
+    //
+    // function foo(Map) { ... }
+    //
+    if ident.span.ctxt != self.context.top_level_ctxt {
+      return;
+    }
+
+    // Ignore top level bindings declared in the file.
+    if self.declared.contains(&ident.to_id()) {
+      return;
+    }
+
+    // Globals
+    match &*ident.sym {
+      "Object"
+      | "Array"
+      | "Number"
+      | "Boolean"
+      | "String"
+      | "Promise"
+      | "Date"
+      | "NaN"
+      | "isNaN"
+      | "hasOwnProperty"
+      | "eval"
+      | "toString"
+      | "WeakRef"
+      | "Map"
+      | "FinalizationRegistry" => return,
+      _ => {}
+    }
+
+    self.context.add_diagnostic(
+      ident.span,
+      "no-undef",
+      &format!("{} is not defined", ident.sym),
+    )
+  }
 }
 
 impl Visit for NoGlobalAssignVisitor {
@@ -131,50 +173,25 @@ impl Visit for NoGlobalAssignVisitor {
     e.visit_children_with(self);
 
     match e {
-      Expr::Ident(ident) => {
-        // We don't care about local references
-        // Because of this if statement, we can check for Map in
-        //
-        // function foo(Map) { ... }
-        //
-        if ident.span.ctxt != self.context.top_level_ctxt {
-          return;
-        }
-
-        // Ignore top level bindings declared in the file.
-        if self.declared.contains(&ident.to_id()) {
-          return;
-        }
-
-        // Globals
-        match &*ident.sym {
-          "Object"
-          | "Array"
-          | "Number"
-          | "Boolean"
-          | "String"
-          | "Promise"
-          | "Date"
-          | "NaN"
-          | "isNaN"
-          | "hasOwnProperty"
-          | "eval"
-          | "toString"
-          | "WeakRef"
-          | "Map"
-          | "FinalizationRegistry" => return,
-          _ => {}
-        }
-
-        self.context.add_diagnostic(
-          ident.span,
-          "no-undef",
-          &format!("{} is not defined", ident.sym),
-        )
-      }
+      Expr::Ident(ident) => self.check(ident),
 
       _ => {}
     }
+  }
+
+  fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
+    p.visit_children_with(self);
+
+    match p {
+      Pat::Ident(ident) => self.check(ident),
+      _ => {}
+    }
+  }
+
+  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
+    p.visit_children_with(self);
+
+    self.check(&p.key);
   }
 }
 
@@ -295,9 +312,9 @@ mod tests {
   fn err_1() {
     assert_lint_err::<NoUndef>("a = 1;", 0);
 
-    assert_lint_err::<NoUndef>("var a = b;", 0);
+    assert_lint_err::<NoUndef>("var a = b;", 8);
 
-    assert_lint_err::<NoUndef>("function f() { b; }", 0);
+    assert_lint_err::<NoUndef>("function f() { b; }", 15);
   }
 
   #[test]
@@ -315,17 +332,17 @@ mod tests {
     // TODO(kdy1): parse as jsx
     // assert_lint_err::<NoUndef>("var React, App; React.render(<App attr={a} />);", 0);
 
-    assert_lint_err::<NoUndef>("[a] = [0];", 0);
+    assert_lint_err::<NoUndef>("[a] = [0];", 1);
 
-    assert_lint_err::<NoUndef>("({a} = {});", 0);
+    assert_lint_err::<NoUndef>("({a} = {});", 2);
   }
 
   #[test]
   fn err_4() {
-    assert_lint_err::<NoUndef>("({b: a} = {});", 0);
+    assert_lint_err::<NoUndef>("({b: a} = {});", 5);
 
-    assert_lint_err::<NoUndef>("[obj.a, obj.b] = [0, 1];", 0);
+    assert_lint_err_n::<NoUndef>("[obj.a, obj.b] = [0, 1];", vec![1, 8]);
 
-    assert_lint_err::<NoUndef>("const c = 0; const a = {...b, c};", 0);
+    assert_lint_err::<NoUndef>("const c = 0; const a = {...b, c};", 27);
   }
 }
