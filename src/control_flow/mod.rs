@@ -50,7 +50,7 @@ pub enum BlockKind {
 pub struct Metadata {
   pub unreachable: bool,
   done: Option<Done>,
-  // path: Vec<BlockKind>,
+  pub fallthrough: bool,
 }
 
 impl Metadata {
