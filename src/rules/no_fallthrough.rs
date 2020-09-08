@@ -1,6 +1,6 @@
 use super::LintRule;
 use crate::linter::Context;
-use swc_common::Spanned;
+use swc_common::{comments::Comment, Spanned};
 use swc_ecmascript::{
   ast::*,
   visit::{noop_visit_type, Node, Visit, VisitWith},
@@ -47,15 +47,20 @@ impl Visit for NoFallthroughVisitor {
       }
 
       if should_emit_err {
+        let mut emit = true;
         if let Some(comments) = self.context.leading_comments.get(&case.span.lo)
         {
-          dbg!(comments);
+          if allow_fall_through(&comments) {
+            emit = false;
+          }
         }
-        self.context.add_diagnostic(
-          case.span(),
-          "no-fallthrough",
-          "Fallthrough is not allowed",
-        );
+        if emit {
+          self.context.add_diagnostic(
+            case.span(),
+            "no-fallthrough",
+            "Fallthrough is not allowed",
+          );
+        }
       }
       should_emit_err = true;
 
@@ -73,18 +78,25 @@ impl Visit for NoFallthroughVisitor {
           if let Some(comments) =
             self.context.trailing_comments.get(&stmt.span().hi)
           {
-            for comment in comments {
-              let l = comment.text.to_ascii_lowercase();
-              if l.contains("fallthrough") || l.contains("falls through") {
-                should_emit_err = false;
-                continue 'cases;
-              }
+            if allow_fall_through(&comments) {
+              should_emit_err = false;
+              continue 'cases;
             }
           }
         }
       }
     }
   }
+}
+
+fn allow_fall_through(comments: &[Comment]) -> bool {
+  for comment in comments {
+    let l = comment.text.to_ascii_lowercase();
+    if l.contains("fallthrough") || l.contains("falls through") {
+      return true;
+    }
+  }
+  false
 }
 
 #[cfg(test)]
