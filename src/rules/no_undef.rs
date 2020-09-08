@@ -13,6 +13,27 @@ use swc_ecmascript::{utils::find_ids, utils::Id};
 use std::collections::HashSet;
 use std::sync::Arc;
 
+static GLOBALS: &[&str] = &[
+  "Object",
+  "Array",
+  "Number",
+  "Boolean",
+  "String",
+  "Promise",
+  "Date",
+  "NaN",
+  "isNaN",
+  "hasOwnProperty",
+  "eval",
+  "toString",
+  "WeakRef",
+  "Map",
+  "FinalizationRegistry",
+  "Deno",
+  "Error",
+  "Deno",
+];
+
 pub struct NoUndef;
 
 impl LintRule for NoUndef {
@@ -124,23 +145,8 @@ impl NoGlobalAssignVisitor {
     }
 
     // Globals
-    match &*ident.sym {
-      "Object"
-      | "Array"
-      | "Number"
-      | "Boolean"
-      | "String"
-      | "Promise"
-      | "Date"
-      | "NaN"
-      | "isNaN"
-      | "hasOwnProperty"
-      | "eval"
-      | "toString"
-      | "WeakRef"
-      | "Map"
-      | "FinalizationRegistry" => return,
-      _ => {}
+    if GLOBALS.contains(&&*ident.sym) {
+      return;
     }
 
     self.context.add_diagnostic(
@@ -320,14 +326,15 @@ mod tests {
 
     assert_lint_err::<NoUndef>("require(\"a\");", 0);
 
-    // TODO(kdy1): parse as jsx
-    // assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
+    assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
   }
 
   #[test]
   fn err_3() {
-    // TODO(kdy1): parse as jsx
-    // assert_lint_err::<NoUndef>("var React, App; React.render(<App attr={a} />);", 0);
+    assert_lint_err::<NoUndef>(
+      "var React, App; React.render(<App attr={a} />);",
+      0,
+    );
 
     assert_lint_err::<NoUndef>("[a] = [0];", 1);
 
