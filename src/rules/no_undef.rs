@@ -31,7 +31,10 @@ static GLOBALS: &[&str] = &[
   "FinalizationRegistry",
   "Deno",
   "Error",
-  "Deno",
+  "TextEncoder",
+  "TextDecoder",
+  "undefined",
+  "Uint8Array",
 ];
 
 pub struct NoUndef;
