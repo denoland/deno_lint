@@ -10,12 +10,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Instant;
-use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
 lazy_static! {
@@ -34,6 +34,7 @@ pub struct Context {
   /// Arc as it's not modified
   pub(crate) scope: Arc<Scope>,
   pub(crate) control_flow: Arc<ControlFlow>,
+  pub(crate) top_level_ctxt: SyntaxContext,
 }
 
 impl Context {
@@ -356,6 +357,8 @@ impl Linter {
       ignore_directives,
       scope,
       control_flow,
+      top_level_ctxt: SyntaxContext::empty()
+        .apply_mark(self.ast_parser.top_level_mark),
     });
 
     for rule in &self.rules {

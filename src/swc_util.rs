@@ -30,7 +30,7 @@ use swc_ecmascript::parser::TsConfig;
 use swc_ecmascript::transforms::resolver::ts_resolver;
 use swc_ecmascript::visit::Fold;
 use swc_ecmascript::{
-  utils::{find_ids, ident::IdentLike, Id},
+  utils::{find_ids, ident::IdentLike},
   visit::FoldWith,
 };
 
@@ -364,10 +364,13 @@ impl Key for MemberExpr {
 }
 
 /// Find [Id]s in the lhs of an assigmnet expression.
-pub(crate) fn find_lhs_ids(n: &PatOrExpr) -> Vec<Id> {
+pub(crate) fn find_lhs_ids<I>(n: &PatOrExpr) -> Vec<I>
+where
+  I: IdentLike,
+{
   match &n {
     PatOrExpr::Expr(e) => match &**e {
-      Expr::Ident(i) => vec![i.to_id()],
+      Expr::Ident(i) => vec![I::from_ident(i)],
       _ => vec![],
     },
     PatOrExpr::Pat(p) => find_ids(p),
