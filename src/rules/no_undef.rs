@@ -148,12 +148,7 @@ mod tests {
 
   #[test]
   fn ok_1() {
-    assert_lint_ok::<NoGlobalAssign>(
-      r#"
-      string = 'hello world';",
-      var string;
-    "#,
-    );
+    assert_lint_ok::<NoGlobalAssign>("");
   }
 
   #[test]
