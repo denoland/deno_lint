@@ -312,6 +312,29 @@ mod tests {
   #[test]
   fn ok_11() {
     assert_lint_ok::<NoUndef>("import.meta");
+
+    assert_lint_ok::<NoUndef>(
+      "
+      await new Promise((resolve: () => void, _) => {
+        setTimeout(resolve, 100);
+      });
+      ",
+    );
+
+    assert_lint_ok::<NoUndef>(
+      r#"
+      const checkErr = (e: Error): void => {
+        if (e.message === "Listener has been closed") {
+          assertEquals(acceptErrCount, 1);
+        } else if (e.message === "Another accept task is ongoing") {
+          acceptErrCount++;
+        } else {
+          throw new Error("Unexpected error message");
+        }
+      };
+
+      "#,
+    );
   }
 
   #[test]
