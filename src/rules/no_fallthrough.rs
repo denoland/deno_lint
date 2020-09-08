@@ -37,7 +37,7 @@ impl Visit for NoFallthroughVisitor {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
-    let mut is_prev_finished = true;
+    let mut should_emit_err = false;
     'cases: for case in cases {
       case.visit_with(parent, self);
 
@@ -46,22 +46,41 @@ impl Visit for NoFallthroughVisitor {
         continue;
       }
 
-      if !is_prev_finished {
+      if should_emit_err {
+        if let Some(comments) = self.context.leading_comments.get(&case.span.lo)
+        {
+          dbg!(comments);
+        }
         self.context.add_diagnostic(
           case.span(),
           "no-fallthrough",
           "Fallthrough is not allowed",
         );
       }
-      is_prev_finished = false;
+      should_emit_err = true;
 
       // Handle return / throw / break / continue
-      for stmt in &case.cons {
+      for (idx, stmt) in case.cons.iter().enumerate() {
+        let last = idx + 1 == case.cons.len();
         let metadata = self.context.control_flow.meta(stmt.span().lo);
         let stops_exec = metadata.map(|v| v.stops_execution()).unwrap_or(false);
         if stops_exec {
-          is_prev_finished = true;
+          should_emit_err = false;
           continue 'cases;
+        }
+
+        if last {
+          if let Some(comments) =
+            self.context.trailing_comments.get(&stmt.span().hi)
+          {
+            for comment in comments {
+              let l = comment.text.to_ascii_lowercase();
+              if l.contains("fallthrough") || l.contains("falls through") {
+                should_emit_err = false;
+                continue 'cases;
+              }
+            }
+          }
         }
       }
     }
