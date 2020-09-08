@@ -112,6 +112,13 @@ impl NoGlobalAssignVisitor {
 impl Visit for NoGlobalAssignVisitor {
   noop_visit_type!();
 
+  fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
+    e.obj.visit_with(e, self);
+    if e.computed {
+      e.prop.visit_with(e, self);
+    }
+  }
+
   fn visit_unary_expr(&mut self, e: &UnaryExpr, _: &dyn Node) {
     if e.op == UnaryOp::Void {
       return;
@@ -126,6 +133,10 @@ impl Visit for NoGlobalAssignVisitor {
     match e {
       Expr::Ident(ident) => {
         // We don't care about local references
+        // Because of this if statement, we can check for Map in
+        //
+        // function foo(Map) { ... }
+        //
         if ident.span.ctxt != self.context.top_level_ctxt {
           return;
         }
@@ -133,6 +144,14 @@ impl Visit for NoGlobalAssignVisitor {
         // Ignore top level bindings declared in the file.
         if self.declared.contains(&ident.to_id()) {
           return;
+        }
+
+        // Globals
+        match &*ident.sym {
+          // I don't know why
+          "Object" | "Array" | "Promise" | "Date" | "NaN" | "isNaN"
+          | "hasOwnProperty" | "eval" | "toString" => return,
+          _ => {}
         }
 
         self.context.add_diagnostic(
