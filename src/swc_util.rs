@@ -129,6 +129,10 @@ pub(crate) struct AstParser {
   pub(crate) source_map: Arc<SourceMap>,
   pub(crate) handler: Handler,
   pub(crate) globals: Globals,
+  /// The marker passed to the resolver (from swc).
+  ///
+  /// This mark is applied to top level bindings and unresolved references.
+  pub(crate) top_level_mark: Mark,
 }
 
 impl AstParser {
@@ -149,6 +153,7 @@ impl AstParser {
       source_map: Arc::new(SourceMap::default()),
       handler,
       globals: Globals::new(),
+      top_level_mark: Mark::fresh(Mark::root()),
     }
   }
 
@@ -186,8 +191,7 @@ impl AstParser {
 
     let parse_result = parse_result.map(|module| {
       GLOBALS.set(&self.globals, || {
-        let mark = Mark::fresh(Mark::root());
-        module.fold_with(&mut ts_resolver(mark))
+        module.fold_with(&mut ts_resolver(self.top_level_mark))
       })
     });
 
