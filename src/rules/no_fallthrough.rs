@@ -2,10 +2,7 @@ use super::LintRule;
 use crate::linter::Context;
 use swc_common::Spanned;
 use swc_ecmascript::{
-  ast::Decl,
-  ast::Stmt,
-  ast::VarDecl,
-  ast::VarDeclKind,
+  ast::*,
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
@@ -39,33 +36,33 @@ struct NoFallthroughVisitor {
 impl Visit for NoFallthroughVisitor {
   noop_visit_type!();
 
-  fn visit_stmt(&mut self, stmt: &Stmt, _: &dyn Node) {
-    stmt.visit_children_with(self);
+  fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
+    let mut is_prev_finished = true;
+    'cases: for case in cases {
+      case.visit_with(parent, self);
 
-    match stmt {
-      // Don't print unused error for block statements
-      Stmt::Block(_) => return,
-      // Hoisted, so reachable.
-      Stmt::Decl(Decl::Fn(..)) => return,
-      Stmt::Decl(Decl::Var(VarDecl {
-        kind: VarDeclKind::Var,
-        decls,
-        ..
-      }))
-        if decls.iter().all(|decl| decl.init.is_none()) =>
-      {
-        return;
+      // Fallthrough
+      if case.cons.is_empty() {
+        continue;
       }
-      _ => {}
-    }
 
-    if let Some(meta) = self.context.control_flow.meta(stmt.span().lo) {
-      if meta.fallthrough {
+      if !is_prev_finished {
         self.context.add_diagnostic(
-          stmt.span(),
+          case.span(),
           "no-fallthrough",
           "Fallthrough is not allowed",
-        )
+        );
+      }
+      is_prev_finished = false;
+
+      // Handle return / throw / break / continue
+      for stmt in &case.cons {
+        let metadata = self.context.control_flow.meta(stmt.span().lo);
+        let stops_exec = metadata.map(|v| v.stops_execution()).unwrap_or(false);
+        if stops_exec {
+          is_prev_finished = true;
+          continue 'cases;
+        }
       }
     }
   }

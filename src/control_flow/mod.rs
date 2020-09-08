@@ -50,13 +50,13 @@ pub enum BlockKind {
 pub struct Metadata {
   pub unreachable: bool,
   done: Option<Done>,
-  pub fallthrough: bool,
 }
 
 impl Metadata {
-  // pub fn path(&self) -> &[BlockKind] {
-  //   &self.path
-  // }
+  /// Returns true if a node prevents further execution.
+  pub fn stops_execution(&self) -> bool {
+    self.done.is_some()
+  }
 }
 
 struct Analyzer<'a> {
