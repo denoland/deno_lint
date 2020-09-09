@@ -157,7 +157,7 @@ mod tests {
       0,
     );
 
-    assert_lint_err::<NoRedeclare>("var globalThis = 0;", 0);
+    assert_lint_err::<NoRedeclare>("var globalThis = 0;", 4);
   }
 
   #[test]
@@ -171,7 +171,7 @@ mod tests {
 
   #[test]
   fn err_8() {
-    assert_lint_err::<NoRedeclare>("function f() { var a; var a; }", 0);
+    assert_lint_err::<NoRedeclare>("function f() { var a; var a; }", 26);
 
     assert_lint_err::<NoRedeclare>("function f(a) { var a; }", 0);
 
@@ -221,7 +221,7 @@ mod tests {
   fn err_13() {
     assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 13);
 
-    assert_lint_err::<NoRedeclare>("function f() { let a; let a; }", 0);
+    assert_lint_err::<NoRedeclare>("function f() { let a; let a; }", 26);
 
     assert_lint_err::<NoRedeclare>("function f(a) { let a; }", 0);
   }
