@@ -532,11 +532,9 @@ impl Visit for Analyzer<'_> {
         block_done = Some(done);
         self.scope.done = prev_done;
       }
-    } else {
-      if let Some(done) = self.scope.done {
-        block_done = Some(done);
-        self.mark_as_done(n.span.lo, done);
-      }
+    } else if let Some(done) = self.scope.done {
+      block_done = Some(done);
+      self.mark_as_done(n.span.lo, done);
     }
 
     n.handler.visit_with(n, self);
