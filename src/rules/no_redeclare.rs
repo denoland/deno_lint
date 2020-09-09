@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::globals::GLOBALS;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::{
   ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
@@ -38,7 +39,7 @@ struct NoRedeclareVisitor {
 
 impl NoRedeclareVisitor {
   fn declare(&mut self, i: &Ident) {
-    if !self.bindings.insert(i.to_id()) {
+    if !self.bindings.insert(i.to_id()) || GLOBALS.contains(&&*i.sym) {
       self.context.add_diagnostic(
         i.span,
         "no-redeclare",
