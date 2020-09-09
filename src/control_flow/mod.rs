@@ -541,6 +541,9 @@ impl Visit for Analyzer<'_> {
       (Some(Done::Forced), Some(Done::Forced)) => {
         self.mark_as_done(n.span.lo, Done::Forced);
       }
+      (Some(_try_done), Some(_catch_done)) => {
+        self.mark_as_done(n.span.lo, Done::Break);
+      }
       _ => {
         self.scope.done = prev_done;
       }
