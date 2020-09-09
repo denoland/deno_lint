@@ -55,6 +55,10 @@ impl Visit for NoRedeclareVisitor {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
+    if f.function.body.is_none() {
+      return;
+    }
+
     self.declare(&f.ident);
 
     f.visit_children_with(self);
