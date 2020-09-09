@@ -87,45 +87,49 @@ mod tests {
 
   #[test]
   fn err_1() {
-    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 0);
+    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 15);
 
-    assert_lint_err::<NoRedeclare>(
+    assert_lint_err_on_line::<NoRedeclare>(
       "switch(foo) { case a: var b = 3;\ncase b: var b = 4}",
-      0,
+      2,
+      12,
     );
 
-    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 0);
+    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 15);
   }
 
   #[test]
   fn err_2() {
-    assert_lint_err::<NoRedeclare>("var a = {}; var a = [];", 0);
+    assert_lint_err::<NoRedeclare>("var a = {}; var a = [];", 16);
 
-    assert_lint_err::<NoRedeclare>("var a; function a() {}", 0);
+    assert_lint_err::<NoRedeclare>("var a; function a() {}", 16);
 
-    assert_lint_err::<NoRedeclare>("function a() {} function a() {}", 0);
+    assert_lint_err::<NoRedeclare>("function a() {} function a() {}", 25);
   }
 
   #[test]
   fn err_3() {
     assert_lint_err::<NoRedeclare>(
       "var a = function() { }; var a = function() { }",
-      0,
+      28,
     );
 
     assert_lint_err::<NoRedeclare>(
       "var a = function() { }; var a = new Date();",
-      0,
+      28,
     );
 
-    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10; var a = 15;", 0);
+    assert_lint_err_n::<NoRedeclare>(
+      "var a = 3; var a = 10; var a = 15;",
+      vec![15, 27],
+    );
   }
 
   #[test]
   fn err_4() {
-    assert_lint_err::<NoRedeclare>("var a; var a;", 0);
+    assert_lint_err::<NoRedeclare>("var a; var a;", 11);
 
-    assert_lint_err::<NoRedeclare>("export var a; var a;", 0);
+    assert_lint_err::<NoRedeclare>("export var a; var a;", 18);
   }
 
   #[test]
@@ -180,11 +184,11 @@ mod tests {
 
   #[test]
   fn err_9() {
-    assert_lint_err::<NoRedeclare>("for (var a, a;;);", 0);
+    assert_lint_err::<NoRedeclare>("for (var a, a;;);", 12);
 
-    assert_lint_err::<NoRedeclare>("let a; let a;", 0);
+    assert_lint_err::<NoRedeclare>("let a; let a;", 11);
 
-    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 0);
+    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 13);
   }
 
   #[test]
@@ -195,28 +199,28 @@ mod tests {
 
   #[test]
   fn err_11() {
-    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 0);
+    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 13);
 
-    assert_lint_err::<NoRedeclare>("const a = 0; const a = 0;", 0);
+    assert_lint_err::<NoRedeclare>("const a = 0; const a = 0;", 19);
 
-    assert_lint_err::<NoRedeclare>("if (test) { let a; let a; }", 0);
+    assert_lint_err::<NoRedeclare>("if (test) { let a; let a; }", 23);
   }
 
   #[test]
   fn err_12() {
     assert_lint_err::<NoRedeclare>(
       "switch (test) { case 0: let a; let a; }",
-      0,
+      35,
     );
 
-    assert_lint_err::<NoRedeclare>("for (let a, a;;);", 0);
+    assert_lint_err::<NoRedeclare>("for (let a, a;;);", 12);
 
-    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 0);
+    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 13);
   }
 
   #[test]
   fn err_13() {
-    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 0);
+    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 13);
 
     assert_lint_err::<NoRedeclare>("function f() { let a; let a; }", 0);
 
