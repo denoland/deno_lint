@@ -142,36 +142,34 @@ mod tests {
 
   #[test]
   fn err_5() {
-    assert_lint_err::<NoRedeclare>("var Object = 0;", 0);
-
-    assert_lint_err::<NoRedeclare>("var top = 0;", 0);
+    assert_lint_err::<NoRedeclare>("var Object = 0;", 4);
 
     assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(0, 0), (0, 0)],
+      vec![(1, 12), (1, 22)],
     );
   }
 
   #[test]
   fn err_6() {
-    assert_lint_err::<NoRedeclare>(
+    assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
-      0,
+      vec![(1, 12), (1, 22)],
     );
 
-    assert_lint_err::<NoRedeclare>(
+    assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
-      0,
+      vec![(1, 12), (1, 22)],
     );
 
-    assert_lint_err::<NoRedeclare>("var globalThis = 0;", 4);
+    assert_lint_err::<NoRedeclare>("var globalThis = 0;", 5);
   }
 
   #[test]
   fn err_7() {
-    assert_lint_err::<NoRedeclare>(
+    assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: globalThis = 0} = {};",
-      0,
+      vec![(1, 12), (1, 22)],
     );
   }
 
@@ -198,7 +196,7 @@ mod tests {
 
   #[test]
   fn err_10() {
-    assert_lint_err::<NoRedeclare>("var Object = 0;", 0);
+    assert_lint_err::<NoRedeclare>("var Object = 0;", 4);
   }
 
   #[test]
