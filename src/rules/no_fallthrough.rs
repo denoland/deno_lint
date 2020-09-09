@@ -82,15 +82,21 @@ impl Visit for NoFallthroughVisitor {
         }
       }
 
+      let empty = case.cons.is_empty()
+        || match &case.cons[0] {
+          Stmt::Block(b) => b.stmts.is_empty(),
+          _ => false,
+        };
+
       if case_idx + 1 < cases.len() {
         // A case is not allowed to fall through to default handler
         if cases[case_idx + 1].test.is_none() {
-          if case.cons.is_empty() {
+          if empty {
             should_emit_err = true;
           }
         } else {
           // Fallthrough
-          if case.cons.is_empty() {
+          if empty {
             should_emit_err = false;
           }
         }
