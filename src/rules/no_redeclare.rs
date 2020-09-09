@@ -72,132 +72,154 @@ mod tests {
 
     assert_lint_ok::<NoRedeclare>("var a = 3; a = 10;");
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_ok::<NoRedeclare>(
+      "if (true) {\n    let b = 2;\n} else {    \nlet b = 3;\n}",
+    );
   }
 
   #[test]
-  fn ok_2() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_1() {
+    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>(
+      "switch(foo) { case a: var b = 3;\ncase b: var b = 4}",
+      0,
+    );
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 0);
   }
 
   #[test]
-  fn ok_3() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_2() {
+    assert_lint_err::<NoRedeclare>("var a = {}; var a = [];", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("var a; function a() {}", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("function a() {} function a() {}", 0);
   }
 
   #[test]
-  fn ok_4() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_3() {
+    assert_lint_err::<NoRedeclare>(
+      "var a = function() { }; var a = function() { }",
+      0,
+    );
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>(
+      "var a = function() { }; var a = new Date();",
+      0,
+    );
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10; var a = 15;", 0);
   }
 
   #[test]
-  fn ok_5() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_4() {
+    assert_lint_err::<NoRedeclare>("var a; var a;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("export var a; var a;", 0);
   }
 
   #[test]
-  fn ok_6() {
-    assert_lint_ok::<NoRedeclare>("");
+  #[ignore = "List of globals will be added by #304"]
+  fn err_5() {
+    assert_lint_err::<NoRedeclare>("var Object = 0;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("var top = 0;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err_on_line_n::<NoRedeclare>(
+      "var a; var {a = 0, b: Object = 0} = {};",
+      vec![(0, 0), (0, 0)],
+    );
   }
 
   #[test]
-  fn ok_7() {
-    assert_lint_ok::<NoRedeclare>("");
+  #[ignore = "List of globals will be added by #304"]
+  fn err_6() {
+    assert_lint_err::<NoRedeclare>(
+      "var a; var {a = 0, b: Object = 0} = {};",
+      0,
+    );
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>(
+      "var a; var {a = 0, b: Object = 0} = {};",
+      0,
+    );
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("var globalThis = 0;", 0);
   }
 
   #[test]
-  fn ok_8() {
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
+  #[ignore = "List of globals will be added by #304"]
+  fn err_7() {
+    assert_lint_err::<NoRedeclare>(
+      "var a; var {a = 0, b: globalThis = 0} = {};",
+      0,
+    );
   }
 
   #[test]
-  fn ok_9() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_8() {
+    assert_lint_err::<NoRedeclare>("function f() { var a; var a; }", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("function f(a) { var a; }", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>(
+      "function f() { var a; if (test) { var a; } }",
+      0,
+    );
   }
 
   #[test]
-  fn ok_10() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_9() {
+    assert_lint_err::<NoRedeclare>("for (var a, a;;);", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("let a; let a;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 0);
   }
 
   #[test]
-  fn ok_11() {
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
+  #[ignore = "List of globals will be added by #304"]
+  fn err_10() {
+    assert_lint_err::<NoRedeclare>("var Object = 0;", 0);
   }
 
   #[test]
-  fn ok_12() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_11() {
+    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("const a = 0; const a = 0;", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("if (test) { let a; let a; }", 0);
   }
 
   #[test]
-  fn ok_13() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_12() {
+    assert_lint_err::<NoRedeclare>(
+      "switch (test) { case 0: let a; let a; }",
+      0,
+    );
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("for (let a, a;;);", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 0);
   }
 
   #[test]
-  fn ok_14() {
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_13() {
+    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("function f() { let a; let a; }", 0);
 
-    assert_lint_ok::<NoRedeclare>("");
+    assert_lint_err::<NoRedeclare>("function f(a) { let a; }", 0);
   }
 
   #[test]
-  fn ok_15() {
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
-
-    assert_lint_ok::<NoRedeclare>("");
+  fn err_14() {
+    assert_lint_err::<NoRedeclare>(
+      "function f() { if (test) { let a; let a; } }",
+      0,
+    );
   }
 }
