@@ -83,13 +83,8 @@ fn check_pat(pat: &Pat) -> Vec<Ident> {
       Pat::Object(ObjectPat { ref props, .. }) => {
         for prop in props {
           match prop {
-            ObjectPatProp::KeyValue(KeyValuePatProp { ref key, .. }) => {
-              match key {
-                PropName::Ident(ref ident) => {
-                  check_ident(ident, errors);
-                }
-                _ => {}
-              }
+            ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
+              inner_check_pat(&**value, errors);
             }
             ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
               check_ident(key, errors);
@@ -116,21 +111,47 @@ fn check_pat(pat: &Pat) -> Vec<Ident> {
 }
 
 fn check_expr(expr: &Expr) -> Vec<Ident> {
-  fn inner_check_expr(expr: &Expr, errors: &mut Vec<Ident>) {
-    match expr {
-      Expr::Member(MemberExpr { ref prop, .. }) => {
-        inner_check_expr(&**prop, errors);
-      }
-      Expr::Ident(ref ident) => {
-        if is_underscored(ident) {
-          errors.push(ident.clone());
+  let mut errors = Vec::new();
+
+  match expr {
+    Expr::Member(MemberExpr {
+      ref obj, ref prop, ..
+    }) => {
+      // Extract first ident from object if exists.
+      // For example: foo.bar.baz -> foo
+      fn extract_first_ident(o: &ExprOrSuper) -> Option<&Ident> {
+        match o {
+          ExprOrSuper::Super(_) => None,
+          ExprOrSuper::Expr(ref expr) => match &**expr {
+            Expr::Ident(ref ident) => Some(ident),
+            Expr::Member(MemberExpr { ref obj, .. }) => {
+              extract_first_ident(obj)
+            }
+            _ => None,
+          },
         }
       }
-      _ => {}
+
+      if let Expr::Ident(ref first_ident) = &**prop {
+        if is_underscored(first_ident) {
+          errors.push(first_ident.clone());
+        }
+      }
+
+      if let Some(last_ident) = extract_first_ident(obj) {
+        if is_underscored(last_ident) {
+          errors.push(last_ident.clone());
+        }
+      }
     }
+    Expr::Ident(ref ident) => {
+      if is_underscored(ident) {
+        errors.push(ident.clone());
+      }
+    }
+    _ => {}
   }
-  let mut errors = Vec::new();
-  inner_check_expr(expr, &mut errors);
+
   errors
 }
 
@@ -275,8 +296,8 @@ mod tests {
   fn camelcase_invalid() {
     assert_lint_err::<Camelcase>(r#"first_name = "Akari""#, 0);
     assert_lint_err::<Camelcase>(r#"__private_first_name = "Akari""#, 0);
-    assert_lint_err::<Camelcase>(r#"function foo_bar(){}"#, 0);
-    assert_lint_err::<Camelcase>(r#"obj.foo_bar = function(){};"#, 0);
+    assert_lint_err::<Camelcase>(r#"function foo_bar(){}"#, 9);
+    assert_lint_err::<Camelcase>(r#"obj.foo_bar = function(){};"#, 4);
     assert_lint_err::<Camelcase>(r#"bar_baz.foo = function(){};"#, 0);
     assert_lint_err::<Camelcase>(r#"[foo_bar.baz]"#, 0);
     assert_lint_err::<Camelcase>(
@@ -402,7 +423,8 @@ mod tests {
   fn hogepiyo() {
     //assert_lint_ok::<Camelcase>(r#"const [a, ...b] = foo;"#);
     //assert_lint_err::<Camelcase>(r#"[a.fo_o.z] = b;"#, 3);
-    assert_lint_ok::<Camelcase>(r#"foo.qu_x.boompow = { bar: boom.bam_pow }"#);
-    assert_lint_ok::<Camelcase>(r#"var { category_id: category } = query;"#);
+    //assert_lint_ok::<Camelcase>(r#"foo.qu_x.boompow = { bar: boom.bam_pow }"#);
+    //assert_lint_ok::<Camelcase>(r#"var { category_id: category } = query;"#);
+    assert_lint_err::<Camelcase>(r#"bar_baz.b.foo = function(){};"#, 0);
   }
 }
