@@ -379,8 +379,12 @@ impl Visit for Analyzer<'_> {
           (Some(Done::Forced), Some(Done::Forced)) => {
             self.mark_as_done(n.span.lo, Done::Forced);
           }
-          (Some(Done::Break), _) | (_, Some(Done::Break)) => {
-            self.mark_as_done(n.span.lo, Done::Break);
+          (Some(Done::Break), another) | (another, Some(Done::Break)) => {
+            if another.is_some() {
+              self.mark_as_done(n.span.lo, Done::Break);
+            } else {
+              self.scope.done = Some(Done::Break)
+            }
           }
           // TODO: Check for continue
           _ => {}
