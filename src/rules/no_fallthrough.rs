@@ -38,13 +38,8 @@ impl Visit for NoFallthroughVisitor {
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
     let mut should_emit_err = false;
-    'cases: for case in cases {
+    'cases: for (case_idx, case) in cases.iter().enumerate() {
       case.visit_with(parent, self);
-
-      // Fallthrough
-      if case.cons.is_empty() {
-        continue;
-      }
 
       if should_emit_err {
         let mut emit = true;
@@ -71,7 +66,6 @@ impl Visit for NoFallthroughVisitor {
         let stops_exec = metadata.map(|v| v.stops_execution()).unwrap_or(false);
         if stops_exec {
           should_emit_err = false;
-          continue 'cases;
         }
 
         if last {
@@ -80,7 +74,20 @@ impl Visit for NoFallthroughVisitor {
           {
             if allow_fall_through(&comments) {
               should_emit_err = false;
+              // User comment beats everything
               continue 'cases;
+            }
+          }
+        }
+
+        if case_idx + 1 < cases.len() {
+          // A case is not allowed to fall through to default handler
+          if cases[case_idx + 1].test.is_none() {
+            should_emit_err = true;
+          } else {
+            // Fallthrough
+            if case.cons.is_empty() {
+              should_emit_err = false;
             }
           }
         }
@@ -246,19 +253,21 @@ mod tests {
 
   #[test]
   fn err_1() {
-    assert_lint_err::<NoFallthrough>(
+    assert_lint_err_on_line::<NoFallthrough>(
       "switch(foo) { case 0: a();\ncase 1: b() }",
+      2,
       0,
     );
 
-    assert_lint_err::<NoFallthrough>(
+    assert_lint_err_on_line::<NoFallthrough>(
       "switch(foo) { case 0: a();\ndefault: b() }",
+      2,
       0,
     );
 
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a(); default: b() }",
-      0,
+      27,
     );
   }
 
@@ -266,17 +275,17 @@ mod tests {
   fn err_2() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: if (a) { break; } default: b() }",
-      0,
+      40,
     );
 
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: try { throw 0; } catch (err) {} default: b() }",
-      0,
+      54,
     );
 
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: while (a) { break; } default: b() }",
-      0,
+      43,
     );
   }
 
@@ -284,17 +293,19 @@ mod tests {
   fn err_3() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: do { break; } while (a); default: b() }",
-      0,
+      47,
     );
 
-    assert_lint_err::<NoFallthrough>(
+    assert_lint_err_on_line::<NoFallthrough>(
       "switch(foo) { case 0:\n\n default: b() }",
-      0,
+      3,
+      1,
     );
 
-    assert_lint_err::<NoFallthrough>(
+    assert_lint_err_on_line::<NoFallthrough>(
       "switch(foo) { case 0:\n // comment\n default: b() }",
-      0,
+      3,
+      1,
     );
   }
 
@@ -302,7 +313,7 @@ mod tests {
   fn err_4() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a(); /* falling through */ default: b() }",
-      0,
+      49,
     );
   }
 }
