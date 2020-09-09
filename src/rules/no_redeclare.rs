@@ -1,11 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_atoms::JsWord;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::{
+  ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
+  visit::Visit,
+};
 use swc_ecmascript::{
   ast::{Ident, Module},
-  visit::{noop_visit_type, Visit, VisitWith},
+  visit::{noop_visit_type, VisitWith},
 };
 
 use std::collections::HashSet;
@@ -23,40 +25,46 @@ impl LintRule for NoRedeclare {
   }
 
   fn lint_module(&self, context: Arc<Context>, module: &Module) {
-    let mut collector = Collector {
-      decalred_vars: Default::default(),
-    };
-    module.visit_with(module, &mut collector);
-
     let mut visitor = NoRedeclareVisitor {
       context: context,
-      decalred_vars: collector.decalred_vars,
+      bindings: Default::default(),
     };
     module.visit_with(module, &mut visitor);
   }
 }
 
-/// Collects information about variable usages.
-struct Collector {
-  // TODO(kdy1): Change this to HashMap<JsWord, Span> and point previous declaration
-  decalred_vars: HashSet<JsWord>,
-}
-
-impl Collector {
-  fn decare(&mut self, i: &Ident) {
-    self.decalred_vars.insert(i.sym.clone());
-  }
-}
-
-impl Visit for Collector {}
-
 struct NoRedeclareVisitor {
   context: Arc<Context>,
-  decalred_vars: HashSet<JsWord>,
+  /// TODO(kdy1): Change this to HashMap<Id, Vec<Span>> and use those spans to point previous bindings/
+  bindings: HashSet<Id>,
+}
+
+impl NoRedeclareVisitor {
+  fn declare(&mut self, i: &Ident) {
+    if !self.bindings.insert(i.to_id()) {
+      self.context.add_diagnostic(
+        i.span,
+        "no-redeclare",
+        "Redeclaration is not allowed",
+      );
+    }
+  }
 }
 
 impl Visit for NoRedeclareVisitor {
   noop_visit_type!();
+
+  fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
+    self.declare(&f.ident)
+  }
+
+  fn visit_var_decl(&mut self, v: &VarDecl, _: &dyn Node) {
+    let ids: Vec<Ident> = find_ids(&v.decls);
+
+    for id in ids {
+      self.declare(&id);
+    }
+  }
 }
 
 #[cfg(test)]
