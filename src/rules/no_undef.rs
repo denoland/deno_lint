@@ -311,8 +311,6 @@ mod tests {
 
   #[test]
   fn err_2() {
-    assert_lint_err::<NoUndef>("window;", 0);
-
     // assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
   }
 
