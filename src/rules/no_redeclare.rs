@@ -1,13 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::{
   ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
-  visit::Visit,
-};
-use swc_ecmascript::{
-  ast::{Ident, Module},
-  visit::{noop_visit_type, VisitWith},
+  visit::Visit, visit::VisitWith,
 };
 
 use std::collections::HashSet;
@@ -55,7 +52,9 @@ impl Visit for NoRedeclareVisitor {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
-    self.declare(&f.ident)
+    self.declare(&f.ident);
+
+    f.visit_children_with(self);
   }
 
   fn visit_var_decl(&mut self, v: &VarDecl, _: &dyn Node) {
@@ -231,7 +230,7 @@ mod tests {
   fn err_14() {
     assert_lint_err::<NoRedeclare>(
       "function f() { if (test) { let a; let a; } }",
-      0,
+      38,
     );
   }
 }
