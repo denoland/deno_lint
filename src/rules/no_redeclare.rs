@@ -40,7 +40,6 @@ struct NoRedeclareVisitor {
 impl NoRedeclareVisitor {
   fn declare(&mut self, i: &Ident) {
     let id = i.to_id();
-    dbg!(&id);
 
     if !self.bindings.insert(id) || GLOBALS.contains(&&*i.sym) {
       self.context.add_diagnostic(
@@ -67,6 +66,22 @@ impl Visit for NoRedeclareVisitor {
     for id in ids {
       self.declare(&id);
     }
+  }
+
+  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {
+    n.test.visit_with(n, self);
+    n.update.visit_with(n, self);
+    n.body.visit_with(n, self);
+  }
+
+  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
+    n.right.visit_with(n, self);
+    n.body.visit_with(n, self);
+  }
+
+  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
+    n.right.visit_with(n, self);
+    n.body.visit_with(n, self);
   }
 
   fn visit_param(&mut self, p: &Param, _: &dyn Node) {
