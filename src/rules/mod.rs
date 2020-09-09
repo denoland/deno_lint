@@ -57,6 +57,7 @@ pub mod no_non_null_assertion;
 pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
+pub mod no_redeclare;
 pub mod no_regex_spaces;
 pub mod no_self_assign;
 pub mod no_setter_return;
