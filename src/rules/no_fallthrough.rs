@@ -276,21 +276,19 @@ mod tests {
 
   #[test]
   fn err_1() {
-    assert_lint_err_on_line::<NoFallthrough>(
+    assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a();\ncase 1: b() }",
-      2,
-      0,
+      14,
     );
 
-    assert_lint_err_on_line::<NoFallthrough>(
+    assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a();\ndefault: b() }",
-      2,
-      0,
+      14,
     );
 
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a(); default: b() }",
-      27,
+      14,
     );
   }
 
@@ -298,17 +296,17 @@ mod tests {
   fn err_2() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: if (a) { break; } default: b() }",
-      40,
+      14,
     );
 
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: try { throw 0; } catch (err) {} default: b() }",
-      54,
+      14,
     );
 
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: while (a) { break; } default: b() }",
-      43,
+      14,
     );
   }
 
@@ -323,16 +321,14 @@ mod tests {
 
   #[test]
   fn err_3() {
-    assert_lint_err_on_line::<NoFallthrough>(
+    assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0:\n\n default: b() }",
-      3,
-      1,
+      14,
     );
 
-    assert_lint_err_on_line::<NoFallthrough>(
+    assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0:\n // comment\n default: b() }",
-      3,
-      1,
+      14,
     );
   }
 
@@ -340,7 +336,7 @@ mod tests {
   fn err_4() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a(); /* falling through */ default: b() }",
-      49,
+      14,
     );
   }
 }
