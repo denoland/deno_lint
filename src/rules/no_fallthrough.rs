@@ -79,16 +79,18 @@ impl Visit for NoFallthroughVisitor {
             }
           }
         }
+      }
 
-        if case_idx + 1 < cases.len() {
-          // A case is not allowed to fall through to default handler
-          if cases[case_idx + 1].test.is_none() {
+      if case_idx + 1 < cases.len() {
+        // A case is not allowed to fall through to default handler
+        if cases[case_idx + 1].test.is_none() {
+          if case.cons.is_empty() {
             should_emit_err = true;
-          } else {
-            // Fallthrough
-            if case.cons.is_empty() {
-              should_emit_err = false;
-            }
+          }
+        } else {
+          // Fallthrough
+          if case.cons.is_empty() {
+            should_emit_err = false;
           }
         }
       }
@@ -99,7 +101,10 @@ impl Visit for NoFallthroughVisitor {
 fn allow_fall_through(comments: &[Comment]) -> bool {
   for comment in comments {
     let l = comment.text.to_ascii_lowercase();
-    if l.contains("fallthrough") || l.contains("falls through") {
+    if l.contains("fallthrough")
+      || l.contains("falls through")
+      || l.contains("fall through")
+    {
       return true;
     }
   }
