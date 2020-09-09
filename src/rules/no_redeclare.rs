@@ -64,6 +64,14 @@ impl Visit for NoRedeclareVisitor {
       self.declare(&id);
     }
   }
+
+  fn visit_param(&mut self, p: &Param, _: &dyn Node) {
+    let ids: Vec<Ident> = find_ids(&p.pat);
+
+    for id in ids {
+      self.declare(&id);
+    }
+  }
 }
 
 #[cfg(test)]
@@ -173,11 +181,11 @@ mod tests {
   fn err_8() {
     assert_lint_err::<NoRedeclare>("function f() { var a; var a; }", 26);
 
-    assert_lint_err::<NoRedeclare>("function f(a) { var a; }", 0);
+    assert_lint_err::<NoRedeclare>("function f(a) { var a; }", 20);
 
     assert_lint_err::<NoRedeclare>(
       "function f() { var a; if (test) { var a; } }",
-      0,
+      38,
     );
   }
 
@@ -223,7 +231,7 @@ mod tests {
 
     assert_lint_err::<NoRedeclare>("function f() { let a; let a; }", 26);
 
-    assert_lint_err::<NoRedeclare>("function f(a) { let a; }", 0);
+    assert_lint_err::<NoRedeclare>("function f(a) { let a; }", 20);
   }
 
   #[test]
