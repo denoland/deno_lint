@@ -529,6 +529,10 @@ impl Visit for Analyzer<'_> {
       if let Some(..) = self.scope.done {
         self.scope.done = prev_done;
       }
+    } else {
+      if let Some(done) = self.scope.done {
+        self.mark_as_done(n.span.lo, done);
+      }
     }
 
     let before_catch = self.scope.done;
