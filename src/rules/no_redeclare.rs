@@ -140,7 +140,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "List of globals will be added by #304"]
   fn err_5() {
     assert_lint_err::<NoRedeclare>("var Object = 0;", 0);
 
@@ -153,7 +152,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "List of globals will be added by #304"]
   fn err_6() {
     assert_lint_err::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
@@ -169,7 +167,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "List of globals will be added by #304"]
   fn err_7() {
     assert_lint_err::<NoRedeclare>(
       "var a; var {a = 0, b: globalThis = 0} = {};",
@@ -199,7 +196,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "List of globals will be added by #304"]
   fn err_10() {
     assert_lint_err::<NoRedeclare>("var Object = 0;", 0);
   }
