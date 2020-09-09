@@ -172,6 +172,10 @@ impl Visit for NoGlobalAssignVisitor {
     }
   }
 
+  fn visit_class_prop(&mut self, p: &ClassProp, _: &dyn Node) {
+    p.value.visit_with(p, self)
+  }
+
   fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
     p.visit_children_with(self);
 
