@@ -23,7 +23,7 @@ impl LintRule for NoRedeclare {
 
   fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = NoRedeclareVisitor {
-      context: context,
+      context,
       bindings: Default::default(),
     };
     module.visit_with(module, &mut visitor);
