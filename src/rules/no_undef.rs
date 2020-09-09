@@ -1,4 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::globals::GLOBALS;
+
 use super::Context;
 use super::LintRule;
 use swc_common::SyntaxContext;
@@ -12,31 +14,6 @@ use swc_ecmascript::{utils::find_ids, utils::Id};
 
 use std::collections::HashSet;
 use std::sync::Arc;
-
-static GLOBALS: &[&str] = &[
-  "Object",
-  "Array",
-  "Number",
-  "Boolean",
-  "String",
-  "Promise",
-  "Date",
-  "NaN",
-  "isNaN",
-  "hasOwnProperty",
-  "eval",
-  "toString",
-  "WeakRef",
-  "Map",
-  "FinalizationRegistry",
-  "Deno",
-  "Error",
-  "TextEncoder",
-  "TextDecoder",
-  "undefined",
-  "Uint8Array",
-  "setTimeout",
-];
 
 pub struct NoUndef;
 
@@ -335,8 +312,6 @@ mod tests {
   #[test]
   fn err_2() {
     assert_lint_err::<NoUndef>("window;", 0);
-
-    assert_lint_err::<NoUndef>("require(\"a\");", 0);
 
     // assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
   }
