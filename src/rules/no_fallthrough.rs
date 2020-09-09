@@ -1,6 +1,6 @@
 use super::LintRule;
 use crate::linter::Context;
-use swc_common::{comments::Comment, Spanned};
+use swc_common::{comments::Comment, Spanned, DUMMY_SP};
 use swc_ecmascript::{
   ast::*,
   visit::{noop_visit_type, Node, Visit, VisitWith},
@@ -38,6 +38,8 @@ impl Visit for NoFallthroughVisitor {
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
     let mut should_emit_err = false;
+    let mut prev_span = DUMMY_SP;
+
     'cases: for (case_idx, case) in cases.iter().enumerate() {
       case.visit_with(parent, self);
 
@@ -51,7 +53,7 @@ impl Visit for NoFallthroughVisitor {
         }
         if emit {
           self.context.add_diagnostic(
-            case.span(),
+            prev_span,
             "no-fallthrough",
             "Fallthrough is not allowed",
           );
@@ -76,6 +78,7 @@ impl Visit for NoFallthroughVisitor {
             if allow_fall_through(&comments) {
               should_emit_err = false;
               // User comment beats everything
+              prev_span = case.span;
               continue 'cases;
             }
           }
@@ -101,6 +104,8 @@ impl Visit for NoFallthroughVisitor {
           }
         }
       }
+
+      prev_span = case.span;
     }
   }
 }
