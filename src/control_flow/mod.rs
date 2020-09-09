@@ -50,13 +50,13 @@ pub enum BlockKind {
 pub struct Metadata {
   pub unreachable: bool,
   done: Option<Done>,
-  // path: Vec<BlockKind>,
 }
 
 impl Metadata {
-  // pub fn path(&self) -> &[BlockKind] {
-  //   &self.path
-  // }
+  /// Returns true if a node prevents further execution.
+  pub fn stops_execution(&self) -> bool {
+    self.done.is_some()
+  }
 }
 
 struct Analyzer<'a> {
@@ -379,8 +379,12 @@ impl Visit for Analyzer<'_> {
           (Some(Done::Forced), Some(Done::Forced)) => {
             self.mark_as_done(n.span.lo, Done::Forced);
           }
-          (Some(Done::Break), _) | (_, Some(Done::Break)) => {
-            self.scope.done = Some(Done::Break);
+          (Some(Done::Break), another) | (another, Some(Done::Break)) => {
+            if another.is_some() {
+              self.mark_as_done(n.span.lo, Done::Break);
+            } else {
+              self.scope.done = Some(Done::Break)
+            }
           }
           // TODO: Check for continue
           _ => {}
@@ -525,17 +529,25 @@ impl Visit for Analyzer<'_> {
     self.scope.may_throw = false;
     n.block.visit_with(n, self);
 
+    let mut block_done = None;
+
     if self.scope.may_throw {
-      if let Some(..) = self.scope.done {
+      if let Some(done) = self.scope.done {
+        block_done = Some(done);
         self.scope.done = prev_done;
       }
+    } else if let Some(done) = self.scope.done {
+      block_done = Some(done);
+      self.mark_as_done(n.span.lo, done);
     }
 
-    let before_catch = self.scope.done;
     n.handler.visit_with(n, self);
-    match (before_catch, self.scope.done) {
+    match (block_done, self.scope.done) {
       (Some(Done::Forced), Some(Done::Forced)) => {
         self.mark_as_done(n.span.lo, Done::Forced);
+      }
+      (Some(_try_done), Some(_catch_done)) => {
+        self.mark_as_done(n.span.lo, Done::Break);
       }
       _ => {
         self.scope.done = prev_done;
