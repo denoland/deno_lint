@@ -3,11 +3,14 @@
 #![allow(unused)]
 use super::Context;
 use super::LintRule;
+use std::collections::{HashMap, HashSet};
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  ArrayPat, AssignExpr, AssignPat, AssignPatProp, Expr, ExprOrSuper, FnDecl,
-  FnExpr, Ident, KeyValuePatProp, MemberExpr, ObjectPat, ObjectPatProp, Pat,
-  PatOrExpr, PropName, RestPat, VarDecl,
+  ArrayLit, ArrayPat, AssignExpr, AssignPat, AssignPatProp, Expr, ExprOrSpread,
+  ExprOrSuper, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier,
+  KeyValuePatProp, KeyValueProp, MemberExpr, Module, ObjectPat, ObjectPatProp,
+  Pat, PatOrExpr, Prop, PropName, RestPat, VarDecl,
 };
 use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
@@ -31,11 +34,8 @@ impl LintRule for Camelcase {
   ) {
     let mut visitor = CamelcaseVisitor::new(context);
     visitor.visit_module(module, module);
+    visitor.report_errors();
   }
-}
-
-struct CamelcaseVisitor {
-  context: Arc<Context>,
 }
 
 /// Check if it contains underscores, except for leading and trailing ones
@@ -45,17 +45,58 @@ fn is_underscored(ident: &Ident) -> bool {
     && trimmed_ident != trimmed_ident.to_ascii_uppercase()
 }
 
+struct CamelcaseVisitor {
+  context: Arc<Context>,
+  errors: HashMap<Span, String>,
+  // Already checked identifiers
+  checked: HashSet<Span>,
+}
 impl CamelcaseVisitor {
   fn new(context: Arc<Context>) -> Self {
-    Self { context }
+    Self {
+      context,
+      errors: HashMap::new(),
+      checked: HashSet::new(),
+    }
   }
 
-  fn report(&self, ident: &Ident) {
-    self.context.add_diagnostic(
-      ident.span,
-      "camelcase",
-      &format!("Identifier '{}' is not in camel case.", ident.as_ref()),
-    );
+  fn report_errors(&self) {
+    for (span, ident_name) in &self.errors {
+      self.context.add_diagnostic(
+        *span,
+        "camelcase",
+        &format!("Identifier '{}' is not in camel case.", ident_name),
+      );
+    }
+  }
+
+  fn check_and_insert(&mut self, ident: &Ident) {
+    if self.checked.insert(ident.span) {
+      if is_underscored(ident) {
+        self.errors.insert(ident.span, ident.as_ref().to_string());
+      }
+    }
+  }
+
+  fn check_ident_in_member_expr(&mut self, member_expr: &MemberExpr) {
+    let MemberExpr {
+      ref obj, ref prop, ..
+    } = member_expr;
+    if let ExprOrSuper::Expr(ref expr) = obj {
+      match &**expr {
+        Expr::Member(ref m) => {
+          self.check_ident_in_member_expr(m);
+        }
+        Expr::Ident(ref ident) => {
+          self.check_and_insert(ident);
+        }
+        _ => {}
+      }
+    }
+
+    if let Expr::Ident(ref ident) = &**prop {
+      self.check_and_insert(ident);
+    }
   }
 }
 
@@ -158,48 +199,170 @@ fn check_expr(expr: &Expr) -> Vec<Ident> {
 impl Visit for CamelcaseVisitor {
   noop_visit_type!();
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, parent: &dyn Node) {
-    var_decl
-      .decls
-      .iter()
-      .map(|decl| check_pat(&decl.name))
-      .flatten()
-      .for_each(|ident| {
-        self.report(&ident);
-      });
+  // TODO(magurotuna): remove this
+  fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
+    dbg!(module);
+    visit::visit_module(self, module, parent);
+  }
 
-    visit::visit_var_decl(self, var_decl, parent);
+  fn visit_object_pat(&mut self, object_pat: &ObjectPat, parent: &dyn Node) {
+    for prop in &object_pat.props {
+      match prop {
+        ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
+          // e.g. {a: b.foo_bar} = c
+          if let Pat::Expr(ref expr) = &**value {
+            if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
+              if let Expr::Ident(ref ident) = &**prop {
+                self.check_and_insert(ident);
+              }
+            }
+          } else if let Pat::Ident(ref ident) = &**value {
+            self.check_and_insert(ident);
+          }
+        }
+        ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
+          self.check_and_insert(key);
+        }
+        _ => {}
+      }
+    }
+    visit::visit_object_pat(self, object_pat, parent);
+  }
+
+  fn visit_array_pat(&mut self, array_pat: &ArrayPat, parent: &dyn Node) {
+    // e.g. [a.foo_bar] = b
+    for elem in &array_pat.elems {
+      if let Some(Pat::Expr(ref expr)) = elem {
+        if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
+          if let Expr::Ident(ref ident) = &**prop {
+            self.check_and_insert(ident);
+          }
+        }
+      }
+    }
+    visit::visit_array_pat(self, array_pat, parent);
+  }
+
+  fn visit_rest_pat(&mut self, rest_pat: &RestPat, parent: &dyn Node) {
+    // e.g. {...a.foo_bar} = b
+    if let Pat::Expr(ref expr) = &*rest_pat.arg {
+      if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
+        if let Expr::Ident(ref ident) = &**prop {
+          self.check_and_insert(ident);
+        }
+      }
+    }
+    visit::visit_rest_pat(self, rest_pat, parent);
+  }
+
+  fn visit_assign_pat(&mut self, assign_pat: &AssignPat, parent: &dyn Node) {
+    match &*assign_pat.left {
+      Pat::Expr(ref expr) => {
+        // e.g. [a.foo_bar = 1] = b
+        if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
+          if let Expr::Ident(ref ident) = &**prop {
+            self.check_and_insert(ident);
+          }
+        }
+      }
+      Pat::Ident(ref ident) => {
+        self.check_and_insert(ident);
+      }
+      _ => {}
+    }
+    visit::visit_assign_pat(self, assign_pat, parent);
+  }
+
+  fn visit_prop(&mut self, prop: &Prop, parent: &dyn Node) {
+    match prop {
+      Prop::Shorthand(ref ident) => {
+        self.check_and_insert(ident);
+      }
+      Prop::KeyValue(KeyValueProp { ref key, .. }) => {
+        if let PropName::Ident(ref ident) = key {
+          self.check_and_insert(ident);
+        }
+      }
+      _ => {}
+    }
+    visit::visit_prop(self, prop, parent);
+  }
+
+  fn visit_member_expr(&mut self, member_expr: &MemberExpr, parent: &dyn Node) {
+    let obj = &member_expr.obj;
+
+    if let ExprOrSuper::Expr(ref expr) = obj {
+      if let Expr::Ident(ref ident) = &**expr {
+        self.check_and_insert(ident);
+      }
+    }
+    visit::visit_member_expr(self, member_expr, parent);
   }
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, parent: &dyn Node) {
-    let errors = match assign_expr.left {
-      PatOrExpr::Expr(ref expr) => check_expr(&**expr),
-      PatOrExpr::Pat(ref pat) => check_pat(&**pat),
-    };
-    for ident in errors {
-      self.report(&ident);
+    let lhs = &assign_expr.left;
+    let rhs = &*assign_expr.right;
+    match rhs {
+      Expr::Member(_) => {
+        if let PatOrExpr::Expr(ref expr) = lhs {
+          if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
+            if let Expr::Ident(ref ident) = &**prop {
+              self.check_and_insert(ident);
+            }
+          }
+        }
+      }
+      _ => {
+        if let PatOrExpr::Expr(ref expr) = lhs {
+          if let Expr::Member(ref member_expr) = &**expr {
+            self.check_ident_in_member_expr(member_expr);
+          }
+        }
+      }
     }
-
     visit::visit_assign_expr(self, assign_expr, parent);
   }
 
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, parent: &dyn Node) {
-    let ident = &fn_decl.ident;
-    if is_underscored(ident) {
-      self.report(ident);
-    }
-    visit::visit_fn_decl(self, fn_decl, parent);
-  }
-
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, parent: &dyn Node) {
-    if let Some(ref ident) = fn_expr.ident {
-      if is_underscored(ident) {
-        self.report(ident);
+  fn visit_import_specifier(
+    &mut self,
+    import_specifier: &ImportSpecifier,
+    parent: &dyn Node,
+  ) {
+    use ImportSpecifier::*;
+    match import_specifier {
+      Named(ImportNamedSpecifier { ref local, .. }) => {
+        self.check_and_insert(local);
+      }
+      Default(ImportDefaultSpecifier { ref local, .. }) => {
+        self.check_and_insert(local);
+      }
+      Namespace(ImportStarAsSpecifier { ref local, .. }) => {
+        self.check_and_insert(local);
       }
     }
-    visit::visit_fn_expr(self, fn_expr, parent);
+    visit::visit_import_specifier(self, import_specifier, parent);
   }
 }
+
+/*
+(effectiveParent.type === "AssignmentExpression" && nameIsUnderscored && (effectiveParent.right.type !== "MemberExpression" || effectiveParent.left.type === "MemberExpression" && effectiveParent.left.property.name === node.name))
+
+                return (
+                (effectiveParent.type === "Property" &&
+                    effectiveParent.value === node.parent &&
+                    effectiveParent.parent.type === "ObjectPattern")
+              ||
+                    effectiveParent.type === "ArrayPattern"
+              ||
+                    effectiveParent.type === "RestElement"
+              ||
+                    (
+                        effectiveParent.type === "AssignmentPattern" &&
+                        effectiveParent.left === node.parent
+                    )
+                );
+const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
+*/
 
 #[cfg(test)]
 mod tests {
@@ -425,6 +588,10 @@ mod tests {
     //assert_lint_err::<Camelcase>(r#"[a.fo_o.z] = b;"#, 3);
     //assert_lint_ok::<Camelcase>(r#"foo.qu_x.boompow = { bar: boom.bam_pow }"#);
     //assert_lint_ok::<Camelcase>(r#"var { category_id: category } = query;"#);
-    assert_lint_err::<Camelcase>(r#"bar_baz.b.foo = function(){};"#, 0);
+    //assert_lint_err::<Camelcase>(r#"[foo_bar.baz]"#, 0);
+
+    //assert_lint_ok::<Camelcase>(r#"[foo.bar_baz]"#);
+    //assert_lint_ok::<Camelcase>(r#"var arr = [foo.bar_baz.qux];"#);
+    assert_lint_ok::<Camelcase>(r#"[foo.bar_baz.nesting]"#);
   }
 }
