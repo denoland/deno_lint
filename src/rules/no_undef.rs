@@ -101,6 +101,20 @@ impl Visit for TopLevelBindingCollector {
     self.declare(e.id.to_id());
   }
 
+  fn visit_ts_param_prop_param(&mut self, p: &TsParamPropParam, _: &dyn Node) {
+    match p {
+      TsParamPropParam::Ident(i) => {
+        self.declare(i.to_id());
+      }
+      TsParamPropParam::Assign(i) => {
+        let ids: Vec<Id> = find_ids(&i.left);
+        for id in ids {
+          self.declare(id);
+        }
+      }
+    }
+  }
+
   fn visit_param(&mut self, p: &Param, _: &dyn Node) {
     let ids: Vec<Id> = find_ids(&p.pat);
     for id in ids {
