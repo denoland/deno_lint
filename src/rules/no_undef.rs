@@ -1,9 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use crate::globals::GLOBALS;
-
 use super::Context;
 use super::LintRule;
-use swc_common::SyntaxContext;
+use crate::globals::GLOBALS;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
@@ -27,8 +25,7 @@ impl LintRule for NoUndef {
   }
 
   fn lint_module(&self, context: Arc<Context>, module: &Module) {
-    let mut collector = TopLevelBindingCollector {
-      top_level_ctxt: context.top_level_ctxt,
+    let mut collector = BindingCollector {
       declared: Default::default(),
     };
     module.visit_with(module, &mut collector);
@@ -39,26 +36,18 @@ impl LintRule for NoUndef {
 }
 
 /// Collects top level bindings, which have top level syntax context passed to the resolver.
-struct TopLevelBindingCollector {
-  /// The syntax context of the top level binding.
-  ///
-  /// Top level bindings and unresolved reference identifiers are marked with this.
-  top_level_ctxt: SyntaxContext,
+struct BindingCollector {
   /// If there exists a binding with such id, it's not global.
   declared: HashSet<Id>,
 }
 
-impl TopLevelBindingCollector {
+impl BindingCollector {
   fn declare(&mut self, i: Id) {
-    // Optimization
-    if i.1 != self.top_level_ctxt {
-      return;
-    }
     self.declared.insert(i);
   }
 }
 
-impl Visit for TopLevelBindingCollector {
+impl Visit for BindingCollector {
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
   }
@@ -197,22 +186,16 @@ impl Visit for NoUndefVisitor {
     }
   }
 
-  fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
-    p.visit_children_with(self);
-
-    if let Pat::Ident(ident) = p {
-      self.check(ident)
-    }
-  }
-
   fn visit_class_prop(&mut self, p: &ClassProp, _: &dyn Node) {
     p.value.visit_with(p, self)
   }
 
-  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
+  fn visit_prop(&mut self, p: &Prop, _: &dyn Node) {
     p.visit_children_with(self);
 
-    self.check(&p.key);
+    if let Prop::Shorthand(i) = &p {
+      self.check(i);
+    }
   }
 }
 
