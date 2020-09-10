@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "clap",
  "env_logger",
@@ -479,6 +479,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3dfb61232e34fcb633f43d12c58f83c1df82962dcdfa565a4e866ffc17dafe12"
+dependencies = [
+ "phf_macros",
+ "phf_shared",
+ "proc-macro-hack",
+]
+
+[[package]]
 name = "phf_generator"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -486,6 +497,20 @@ checksum = "17367f0cc86f2d25802b2c26ee58a7b23faeccf78a396094c13dced0d0182526"
 dependencies = [
  "phf_shared",
  "rand",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f6fde18ff429ffc8fe78e2bf7f8b7a5a5a6e2a8b58bc5a9ac69198bbda9189c"
+dependencies = [
+ "phf_generator",
+ "phf_shared",
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -519,6 +544,12 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "proc-macro-hack"
+version = "0.5.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99c605b9a0adc77b7211c6b1f722dcb613d68d66859a44f3d485a6da332b0598"
 
 [[package]]
 name = "proc-macro2"
@@ -848,9 +879,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.23.0"
+version = "0.23.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "541442cb0e23bc0a3ad181eeb380487907696a2e22e4f6976d621b2434a9a9ee"
+checksum = "a4685c51a3cd944e2610a8f48387a71005caec333c04700e4fac4e8b71f6a849"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -862,6 +893,7 @@ dependencies = [
  "log",
  "once_cell",
  "ordered-float",
+ "phf",
  "regex",
  "retain_mut",
  "scoped-tls",
@@ -921,9 +953,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.7.0"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "357e213aac6934a3eb6592fc9a12ef1b6ce96ae7d2cf22d142eb827c94b26644"
+checksum = "98805f69402e0f8c22695c0288873c95d8a00b903f824f918a76eabfef8b6ccc"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",

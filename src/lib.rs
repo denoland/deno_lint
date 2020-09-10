@@ -10,6 +10,7 @@ extern crate log;
 
 mod control_flow;
 pub mod diagnostic;
+mod globals;
 mod js_regex;
 pub mod linter;
 pub mod rules;
