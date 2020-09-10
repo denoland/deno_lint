@@ -59,8 +59,6 @@ impl TopLevelBindingCollector {
 }
 
 impl Visit for TopLevelBindingCollector {
-  noop_visit_type!();
-
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
   }
@@ -94,6 +92,17 @@ impl Visit for TopLevelBindingCollector {
 
   fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
     let ids: Vec<Id> = find_ids(&v.name);
+    for id in ids {
+      self.declare(id);
+    }
+  }
+
+  fn visit_ts_enum_decl(&mut self, e: &TsEnumDecl, _: &dyn Node) {
+    self.declare(e.id.to_id());
+  }
+
+  fn visit_param(&mut self, p: &Param, _: &dyn Node) {
+    let ids: Vec<Id> = find_ids(&p.pat);
     for id in ids {
       self.declare(id);
     }
