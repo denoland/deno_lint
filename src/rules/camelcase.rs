@@ -6,11 +6,11 @@ use super::LintRule;
 use std::collections::{HashMap, HashSet};
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  ArrayLit, ArrayPat, AssignExpr, AssignPat, AssignPatProp, Expr, ExprOrSpread,
-  ExprOrSuper, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
+  ArrayLit, ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, Expr,
+  ExprOrSpread, ExprOrSuper, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
   ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier,
-  KeyValuePatProp, KeyValueProp, MemberExpr, Module, ObjectPat, ObjectPatProp,
-  Pat, PatOrExpr, Prop, PropName, RestPat, VarDecl,
+  KeyValuePatProp, KeyValueProp, MemberExpr, Module, NewExpr, ObjectPat,
+  ObjectPatProp, Pat, PatOrExpr, Prop, PropName, RestPat, VarDecl,
 };
 use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
@@ -196,13 +196,60 @@ fn check_expr(expr: &Expr) -> Vec<Ident> {
   errors
 }
 
+//macro_rules! check_struct {
+//( $( $fn_name: ident, $ty_name: ident );* ) => {
+//$(
+//fn $fn_name(&mut self, t: &swc_ecmascript::ast::$ty_name, parent: &dyn Node) {
+//swc_ecmascript::visit::$fn_name(self, t, parent);
+//}
+//)*
+//};
+//( $( $fn_name: ident, $ty_name: ident );* ;) => {
+//check_struct!( $( $fn_name, $ty_name );* );
+//};
+//}
+
 impl Visit for CamelcaseVisitor {
   noop_visit_type!();
 
+  //check_struct!(
+  //visit_fn_decl, FnDecl;
+  //visit_class_decl, ClassDecl;
+  //visit_fn_expr, FnExpr;
+  //visit_class_expr, ClassExpr;
+  //visit_meta_prop_expr, MetaPropExpr;
+  //);
+
   // TODO(magurotuna): remove this
   fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
-    dbg!(module);
+    //dbg!(module);
     visit::visit_module(self, module, parent);
+  }
+
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
+    if let ExprOrSuper::Expr(ref expr) = &call_expr.callee {
+      match &**expr {
+        Expr::Ident(ref ident) => {
+          // Mark as checked without checking
+          self.checked.insert(ident.span);
+        }
+        _ => {}
+      }
+    }
+    visit::visit_call_expr(self, call_expr, parent);
+  }
+
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
+    if let Expr::Ident(ref ident) = &*new_expr.callee {
+      // Mark as checked without checking
+      self.checked.insert(ident.span);
+    }
+    visit::visit_new_expr(self, new_expr, parent);
+  }
+
+  fn visit_ident(&mut self, ident: &Ident, parent: &dyn Node) {
+    self.check_and_insert(ident);
+    visit::visit_ident(self, ident, parent);
   }
 
   fn visit_object_pat(&mut self, object_pat: &ObjectPat, parent: &dyn Node) {
@@ -300,6 +347,7 @@ impl Visit for CamelcaseVisitor {
   }
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, parent: &dyn Node) {
+    dbg!(assign_expr);
     let lhs = &assign_expr.left;
     let rhs = &*assign_expr.right;
     match rhs {
@@ -312,13 +360,23 @@ impl Visit for CamelcaseVisitor {
           }
         }
       }
-      _ => {
-        if let PatOrExpr::Expr(ref expr) = lhs {
-          if let Expr::Member(ref member_expr) = &**expr {
+      _ => match lhs {
+        PatOrExpr::Expr(ref expr) => match &**expr {
+          Expr::Member(ref member_expr) => {
             self.check_ident_in_member_expr(member_expr);
           }
-        }
-      }
+          Expr::Ident(ref ident) => {
+            self.check_and_insert(ident);
+          }
+          _ => {}
+        },
+        PatOrExpr::Pat(ref pat) => match &**pat {
+          Pat::Ident(ref ident) => {
+            self.check_and_insert(ident);
+          }
+          _ => {}
+        },
+      },
     }
     visit::visit_assign_expr(self, assign_expr, parent);
   }
@@ -399,7 +457,6 @@ mod tests {
     assert_lint_ok::<Camelcase>(r#"var o = {key: 1}"#);
     assert_lint_ok::<Camelcase>(r#"var o = {_leading: 1}"#);
     assert_lint_ok::<Camelcase>(r#"var o = {trailing_: 1}"#);
-    assert_lint_ok::<Camelcase>(r#"var o = {bar_baz: 1}"#); // TODO(magurotuna): isPropertyNameInObjectLiteral
     assert_lint_ok::<Camelcase>(r#"const { ['foo']: _foo } = obj;"#);
     assert_lint_ok::<Camelcase>(r#"const { [_foo_]: foo } = obj;"#);
     assert_lint_ok::<Camelcase>(r#"var { category_id: category } = query;"#);
@@ -462,11 +519,11 @@ mod tests {
     assert_lint_err::<Camelcase>(r#"function foo_bar(){}"#, 9);
     assert_lint_err::<Camelcase>(r#"obj.foo_bar = function(){};"#, 4);
     assert_lint_err::<Camelcase>(r#"bar_baz.foo = function(){};"#, 0);
-    assert_lint_err::<Camelcase>(r#"[foo_bar.baz]"#, 0);
+    assert_lint_err::<Camelcase>(r#"[foo_bar.baz]"#, 1);
     assert_lint_err::<Camelcase>(
       r#"if (foo.bar_baz === boom.bam_pow) { [foo_bar.baz] }"#,
       0,
-    );
+    ); // TODO
     assert_lint_err::<Camelcase>(r#"foo.bar_baz = boom.bam_pow"#, 0);
     assert_lint_err::<Camelcase>(r#"var foo = { bar_baz: boom.bam_pow }"#, 0);
     assert_lint_err::<Camelcase>(
@@ -592,6 +649,6 @@ mod tests {
 
     //assert_lint_ok::<Camelcase>(r#"[foo.bar_baz]"#);
     //assert_lint_ok::<Camelcase>(r#"var arr = [foo.bar_baz.qux];"#);
-    assert_lint_ok::<Camelcase>(r#"[foo.bar_baz.nesting]"#);
+    //assert_lint_ok::<Camelcase>(r#"[foo.bar_baz.nesting]"#);
   }
 }
