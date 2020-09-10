@@ -107,6 +107,16 @@ impl Visit for TopLevelBindingCollector {
       self.declare(id);
     }
   }
+  fn visit_catch_clause(&mut self, c: &CatchClause, _: &dyn Node) {
+    if let Some(pat) = &c.param {
+      let ids: Vec<Id> = find_ids(pat);
+      for id in ids {
+        self.declare(id);
+      }
+    }
+
+    c.body.visit_with(c, self);
+  }
 }
 
 struct NoUndefVisitor {
