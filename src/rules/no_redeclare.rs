@@ -265,4 +265,13 @@ mod tests {
       38,
     );
   }
+
+  #[test]
+  fn ok_more_1() {
+    assert_lint_ok::<NoRedeclare>(
+      "class C {
+        constructor(a: string) {}
+      }",
+    );
+  }
 }
