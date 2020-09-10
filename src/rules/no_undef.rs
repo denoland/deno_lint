@@ -33,7 +33,7 @@ impl LintRule for NoUndef {
     };
     module.visit_with(module, &mut collector);
 
-    let mut visitor = NoGlobalAssignVisitor::new(context, collector.declared);
+    let mut visitor = NoUndefVisitor::new(context, collector.declared);
     module.visit_with(module, &mut visitor);
   }
 }
@@ -100,12 +100,12 @@ impl Visit for TopLevelBindingCollector {
   }
 }
 
-struct NoGlobalAssignVisitor {
+struct NoUndefVisitor {
   context: Arc<Context>,
   declared: HashSet<Id>,
 }
 
-impl NoGlobalAssignVisitor {
+impl NoUndefVisitor {
   fn new(context: Arc<Context>, declared: HashSet<Id>) -> Self {
     Self { context, declared }
   }
@@ -138,7 +138,7 @@ impl NoGlobalAssignVisitor {
   }
 }
 
-impl Visit for NoGlobalAssignVisitor {
+impl Visit for NoUndefVisitor {
   noop_visit_type!();
 
   fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
