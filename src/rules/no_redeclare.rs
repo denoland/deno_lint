@@ -71,22 +71,6 @@ impl Visit for NoRedeclareVisitor {
     }
   }
 
-  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {
-    n.test.visit_with(n, self);
-    n.update.visit_with(n, self);
-    n.body.visit_with(n, self);
-  }
-
-  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
-    n.right.visit_with(n, self);
-    n.body.visit_with(n, self);
-  }
-
-  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
-    n.right.visit_with(n, self);
-    n.body.visit_with(n, self);
-  }
-
   fn visit_param(&mut self, p: &Param, _: &dyn Node) {
     let ids: Vec<Ident> = find_ids(&p.pat);
 
@@ -171,11 +155,9 @@ mod tests {
 
   #[test]
   fn err_5() {
-    assert_lint_err::<NoRedeclare>("var Object = 0;", 4);
-
     assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(1, 12), (1, 22)],
+      vec![(1, 12)],
     );
   }
 
@@ -183,22 +165,20 @@ mod tests {
   fn err_6() {
     assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(1, 12), (1, 22)],
+      vec![(1, 12)],
     );
 
     assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(1, 12), (1, 22)],
+      vec![(1, 12)],
     );
-
-    assert_lint_err::<NoRedeclare>("var globalThis = 0;", 5);
   }
 
   #[test]
   fn err_7() {
     assert_lint_err_on_line_n::<NoRedeclare>(
       "var a; var {a = 0, b: globalThis = 0} = {};",
-      vec![(1, 12), (1, 22)],
+      vec![(1, 12)],
     );
   }
 
@@ -221,11 +201,6 @@ mod tests {
     assert_lint_err::<NoRedeclare>("let a; let a;", 11);
 
     assert_lint_err::<NoRedeclare>("let a; const a = 0;", 13);
-  }
-
-  #[test]
-  fn err_10() {
-    assert_lint_err::<NoRedeclare>("var Object = 0;", 4);
   }
 
   #[test]
@@ -270,6 +245,9 @@ mod tests {
   fn ok_more_1() {
     assert_lint_ok::<NoRedeclare>(
       "class C {
+        constructor(a: string) {}
+      }
+      class D {
         constructor(a: string) {}
       }",
     );
