@@ -134,10 +134,51 @@ impl SortImportsVisitor {
     }
   }
 
+  fn sort_import_decl(&mut self, import_specifiers: &Vec<ImportIdent>) {
+    let get_sortable_name = if self.options.ignore_case {
+      |specifier: &ImportIdent| specifier.import_decl.to_ascii_lowercase()
+    } else {
+      |specifier: &ImportIdent| specifier.import_decl.to_string()
+    };
+
+    let sorted = import_specifiers
+      .iter()
+      .map(get_sortable_name)
+      .collect::<Vec<String>>();
+    let first = sorted.iter();
+    let mut first_unsorted_index: Option<usize> = None;
+    for (index, sth) in first.enumerate() {
+      let mut diff = index;
+      if index != 0 {
+        diff = index - 1;
+      }
+      let bs = &sorted[diff];
+      let mut som: Vec<String> = vec![bs.to_string(), sth.to_string()];
+      som.sort();
+      if &som[1] != sth {
+        first_unsorted_index = Some(diff);
+      }
+    }
+
+    if let Some(n) = first_unsorted_index {
+      let mut err_string = String::from("Member ");
+      err_string.push_str(&sorted[n]);
+      err_string.push_str(
+        " of the import declaration should be sorted alphabetically.",
+      );
+      self.context.add_diagnostic(
+        import_specifiers[n].span,
+        "sort-imports",
+        &err_string,
+      );
+    }
+  }
+
   fn handle_import_decl(&mut self, import_stmt: &ImportDecl) -> () {
     let specifiers = &import_stmt.specifiers;
     let mut import_ident_vec: Vec<ImportIdent> = vec![];
-    let mut import_ident: ImportIdent = ImportIdent::new(String::from("hi"), import_stmt.span);
+    let mut import_ident: ImportIdent =
+      ImportIdent::new(String::from("hi"), import_stmt.span);
     for specifier in specifiers.iter() {
       if let ImportSpecifier::Named(named_specifier) = &specifier {
         match &named_specifier.imported {
@@ -167,7 +208,8 @@ impl SortImportsVisitor {
 
     self.line_imports.push(import_ident);
 
-    self.sort_import_ident(Some(&import_ident_vec));
+    // self.sort_import_ident(Some(&import_ident_vec));
+    self.sort_import_decl(&import_ident_vec);
   }
   fn handle_import_default(
     &mut self,
@@ -236,8 +278,6 @@ mod tests {
 
   #[test]
   fn sort_imports_test() {
-    assert_lint_ok::<SortImports>(
-      r#"import { b, B } from 'react';"#,
-    );
+    assert_lint_ok::<SortImports>(r#"import { b, B } from 'react';"#);
   }
 }
