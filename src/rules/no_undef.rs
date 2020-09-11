@@ -370,4 +370,67 @@ mod tests {
 
     assert_lint_err::<NoUndef>("const c = 0; const a = {...b, c};", 27);
   }
+
+  #[test]
+  fn deno_ok_1() {
+    assert_lint_ok::<NoUndef>(
+      r#"
+    class PartWriter implements Deno.Writer {
+      closed = false;
+      private readonly partHeader: string;
+      private headersWritten = false;
+
+      constructor(
+        private writer: Deno.Writer,
+        readonly boundary: string,
+        public headers: Headers,
+        isFirstBoundary: boolean,
+      ) {
+        let buf = "";
+        if (isFirstBoundary) {
+          buf += `--${boundary}\r\n`;
+        } else {
+          buf += `\r\n--${boundary}\r\n`;
+        }
+        for (const [key, value] of headers.entries()) {
+          buf += `${key}: ${value}\r\n`;
+        }
+        buf += `\r\n`;
+        this.partHeader = buf;
+      }
+
+      close(): void {
+        this.closed = true;
+      }
+
+      async write(p: Uint8Array): Promise<number> {
+        if (this.closed) {
+          throw new Error("part is closed");
+        }
+        if (!this.headersWritten) {
+          await this.writer.write(encoder.encode(this.partHeader));
+          this.headersWritten = true;
+        }
+        return this.writer.write(p);
+      }
+    }
+
+    "#,
+    );
+  }
+
+  #[test]
+  fn deno_ok_2() {
+    assert_lint_ok::<NoUndef>(
+      r#"
+    const listeners = [];
+    for (const listener of listeners) {
+      try {
+      } catch (err) {
+        this.emit("error", err);
+      }
+    }
+    "#,
+    );
+  }
 }
