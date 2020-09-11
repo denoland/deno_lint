@@ -221,6 +221,11 @@ impl Visit for NoUndefVisitor {
       p.visit_children_with(self);
     }
   }
+
+  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
+    self.check(&p.key);
+    p.value.visit_with(p, self);
+  }
 }
 
 #[cfg(test)]
