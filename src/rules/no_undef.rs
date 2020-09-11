@@ -213,6 +213,14 @@ impl Visit for NoUndefVisitor {
       self.check(i);
     }
   }
+
+  fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
+    if let Pat::Ident(i) = p {
+      self.check(i);
+    } else {
+      p.visit_children_with(self);
+    }
+  }
 }
 
 #[cfg(test)]
@@ -408,7 +416,6 @@ mod tests {
           throw new Error("part is closed");
         }
         if (!this.headersWritten) {
-          await this.writer.write(encoder.encode(this.partHeader));
           this.headersWritten = true;
         }
         return this.writer.write(p);
