@@ -3,14 +3,15 @@
 #![allow(unused)]
 use super::Context;
 use super::LintRule;
-use std::collections::{HashMap, HashSet};
-use swc_common::Span;
+use std::collections::{BTreeMap, BTreeSet};
+use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrayLit, ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, Expr,
-  ExprOrSpread, ExprOrSuper, FnDecl, FnExpr, Ident, ImportDefaultSpecifier,
-  ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier,
-  KeyValuePatProp, KeyValueProp, MemberExpr, Module, NewExpr, ObjectPat,
-  ObjectPatProp, Pat, PatOrExpr, Prop, PropName, RestPat, VarDecl,
+  ArrayLit, ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr,
+  ComputedPropName, Expr, ExprOrSpread, ExprOrSuper, FnDecl, FnExpr, Ident,
+  ImportDefaultSpecifier, ImportNamedSpecifier, ImportSpecifier,
+  ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp, MemberExpr, Module,
+  NewExpr, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop, PropName, RestPat,
+  VarDecl,
 };
 use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
@@ -47,16 +48,16 @@ fn is_underscored(ident: &Ident) -> bool {
 
 struct CamelcaseVisitor {
   context: Arc<Context>,
-  errors: HashMap<Span, String>,
+  errors: BTreeMap<Span, String>,
   // Already checked identifiers
-  checked: HashSet<Span>,
+  checked: BTreeSet<Span>,
 }
 impl CamelcaseVisitor {
   fn new(context: Arc<Context>) -> Self {
     Self {
       context,
-      errors: HashMap::new(),
-      checked: HashSet::new(),
+      errors: BTreeMap::new(),
+      checked: BTreeSet::new(),
     }
   }
 
@@ -96,6 +97,23 @@ impl CamelcaseVisitor {
 
     if let Expr::Ident(ref ident) = &**prop {
       self.check_and_insert(ident);
+    }
+  }
+
+  fn mark_member_ident_in_expr(&mut self, expr: &Expr) {
+    match expr {
+      Expr::Member(MemberExpr {
+        ref obj, ref prop, ..
+      }) => {
+        if let ExprOrSuper::Expr(ref expr) = obj {
+          self.mark_member_ident_in_expr(expr);
+        }
+        self.mark_member_ident_in_expr(&**prop);
+      }
+      Expr::Ident(ref ident) => {
+        self.checked.insert(ident.span);
+      }
+      _ => {}
     }
   }
 }
@@ -255,8 +273,22 @@ impl Visit for CamelcaseVisitor {
   fn visit_object_pat(&mut self, object_pat: &ObjectPat, parent: &dyn Node) {
     for prop in &object_pat.props {
       match prop {
-        ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
+        ObjectPatProp::KeyValue(KeyValuePatProp {
+          ref key, ref value, ..
+        }) => {
+          match key {
+            PropName::Ident(ref ident) => {
+              self.checked.insert(ident.span);
+            }
+            PropName::Computed(ComputedPropName { ref expr, .. }) => {
+              if let Expr::Ident(ref ident) = &**expr {
+                self.check_and_insert(ident);
+              }
+            }
+            _ => {}
+          }
           // e.g. {a: b.foo_bar} = c
+          self.checked.insert(key.span());
           if let Pat::Expr(ref expr) = &**value {
             if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
               if let Expr::Ident(ref ident) = &**prop {
@@ -267,8 +299,17 @@ impl Visit for CamelcaseVisitor {
             self.check_and_insert(ident);
           }
         }
-        ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
+        ObjectPatProp::Assign(AssignPatProp {
+          ref key, ref value, ..
+        }) => {
+          dbg!(key);
+          dbg!(value);
           self.check_and_insert(key);
+          if let Some(ref expr) = value {
+            if let Expr::Ident(ref ident) = &**expr {
+              self.checked.insert(ident.span);
+            }
+          }
         }
         _ => {}
       }
@@ -336,29 +377,49 @@ impl Visit for CamelcaseVisitor {
   }
 
   fn visit_member_expr(&mut self, member_expr: &MemberExpr, parent: &dyn Node) {
-    let obj = &member_expr.obj;
+    eprintln!("visit_member_expr");
+    let MemberExpr {
+      ref obj, ref prop, ..
+    } = member_expr;
 
     if let ExprOrSuper::Expr(ref expr) = obj {
       if let Expr::Ident(ref ident) = &**expr {
         self.check_and_insert(ident);
       }
     }
+    self.mark_member_ident_in_expr(&**prop);
     visit::visit_member_expr(self, member_expr, parent);
   }
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, parent: &dyn Node) {
-    dbg!(assign_expr);
+    eprintln!("visit_assign_expr");
     let lhs = &assign_expr.left;
     let rhs = &*assign_expr.right;
     match rhs {
       Expr::Member(_) => {
-        if let PatOrExpr::Expr(ref expr) = lhs {
-          if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
-            if let Expr::Ident(ref ident) = &**prop {
-              self.check_and_insert(ident);
+        match lhs {
+          PatOrExpr::Expr(ref expr) => {
+            if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
+              if let Expr::Ident(ref ident) = &**prop {
+                self.check_and_insert(ident);
+              }
+            }
+          }
+          PatOrExpr::Pat(ref pat) => {
+            if let Pat::Expr(ref expr) = &**pat {
+              match &**expr {
+                Expr::Member(ref member_expr) => {
+                  self.check_ident_in_member_expr(member_expr);
+                }
+                Expr::Ident(ref ident) => {
+                  self.check_and_insert(ident);
+                }
+                _ => {}
+              }
             }
           }
         }
+        if let PatOrExpr::Expr(ref expr) = lhs {}
       }
       _ => match lhs {
         PatOrExpr::Expr(ref expr) => match &**expr {
@@ -374,6 +435,15 @@ impl Visit for CamelcaseVisitor {
           Pat::Ident(ref ident) => {
             self.check_and_insert(ident);
           }
+          Pat::Expr(ref expr) => match &**expr {
+            Expr::Member(ref member_expr) => {
+              self.check_ident_in_member_expr(member_expr);
+            }
+            Expr::Ident(ref ident) => {
+              self.check_and_insert(ident);
+            }
+            _ => {}
+          },
           _ => {}
         },
       },
@@ -388,8 +458,15 @@ impl Visit for CamelcaseVisitor {
   ) {
     use ImportSpecifier::*;
     match import_specifier {
-      Named(ImportNamedSpecifier { ref local, .. }) => {
+      Named(ImportNamedSpecifier {
+        ref local,
+        ref imported,
+        ..
+      }) => {
         self.check_and_insert(local);
+        if let Some(ref ident) = imported {
+          self.checked.insert(ident.span);
+        }
       }
       Default(ImportDefaultSpecifier { ref local, .. }) => {
         self.check_and_insert(local);
@@ -401,26 +478,6 @@ impl Visit for CamelcaseVisitor {
     visit::visit_import_specifier(self, import_specifier, parent);
   }
 }
-
-/*
-(effectiveParent.type === "AssignmentExpression" && nameIsUnderscored && (effectiveParent.right.type !== "MemberExpression" || effectiveParent.left.type === "MemberExpression" && effectiveParent.left.property.name === node.name))
-
-                return (
-                (effectiveParent.type === "Property" &&
-                    effectiveParent.value === node.parent &&
-                    effectiveParent.parent.type === "ObjectPattern")
-              ||
-                    effectiveParent.type === "ArrayPattern"
-              ||
-                    effectiveParent.type === "RestElement"
-              ||
-                    (
-                        effectiveParent.type === "AssignmentPattern" &&
-                        effectiveParent.left === node.parent
-                    )
-                );
-const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
-*/
 
 #[cfg(test)]
 mod tests {
@@ -522,120 +579,120 @@ mod tests {
     assert_lint_err::<Camelcase>(r#"[foo_bar.baz]"#, 1);
     assert_lint_err::<Camelcase>(
       r#"if (foo.bar_baz === boom.bam_pow) { [foo_bar.baz] }"#,
-      0,
-    ); // TODO
-    assert_lint_err::<Camelcase>(r#"foo.bar_baz = boom.bam_pow"#, 0);
-    assert_lint_err::<Camelcase>(r#"var foo = { bar_baz: boom.bam_pow }"#, 0);
+      37,
+    );
+    assert_lint_err::<Camelcase>(r#"foo.bar_baz = boom.bam_pow"#, 4);
+    assert_lint_err::<Camelcase>(r#"var foo = { bar_baz: boom.bam_pow }"#, 12);
     assert_lint_err::<Camelcase>(
       r#"foo.qux.boom_pow = { bar: boom.bam_pow }"#,
-      0,
+      8,
     );
-    assert_lint_err::<Camelcase>(r#"var o = {bar_baz: 1}"#, 0); // TODO(magurotuna): isPropertyNameInObjectLiteral
-    assert_lint_err::<Camelcase>(r#"obj.a_b = 2;"#, 0);
+    assert_lint_err::<Camelcase>(r#"var o = {bar_baz: 1}"#, 9);
+    assert_lint_err::<Camelcase>(r#"obj.a_b = 2;"#, 4);
     assert_lint_err::<Camelcase>(
       r#"var { category_id: category_alias } = query;"#,
-      0,
+      19,
     );
     assert_lint_err::<Camelcase>(
       r#"var { [category_id]: categoryId } = query;"#,
-      0,
+      7,
     );
-    assert_lint_err::<Camelcase>(r#"var { category_id } = query;"#, 0);
+    assert_lint_err::<Camelcase>(r#"var { category_id } = query;"#, 6);
     assert_lint_err::<Camelcase>(
       r#"var { category_id: category_id } = query;"#,
-      0,
+      19,
     );
-    assert_lint_err::<Camelcase>(r#"var { category_id = 1 } = query;"#, 0);
+    assert_lint_err::<Camelcase>(r#"var { category_id = 1 } = query;"#, 6);
     assert_lint_err::<Camelcase>(
       r#"import no_camelcased from "external-module";"#,
-      0,
+      7,
     );
     assert_lint_err::<Camelcase>(
       r#"import * as no_camelcased from "external-module";"#,
-      0,
+      12,
     );
     assert_lint_err::<Camelcase>(
       r#"import { no_camelcased } from "external-module";"#,
-      0,
+      9,
     );
     assert_lint_err::<Camelcase>(
       r#"import { no_camelcased as no_camel_cased } from "external module";"#,
-      0,
+      26,
     );
     assert_lint_err::<Camelcase>(
       r#"import { camelCased as no_camel_cased } from "external module";"#,
-      0,
+      23,
     );
     assert_lint_err::<Camelcase>(
       r#"import { camelCased, no_camelcased } from "external-module";"#,
-      0,
+      21,
     );
     assert_lint_err::<Camelcase>(
       r#"import { no_camelcased as camelCased, another_no_camelcased } from "external-module";"#,
-      0,
+      38,
     );
     assert_lint_err::<Camelcase>(
       r#"import camelCased, { no_camelcased } from "external-module";"#,
-      0,
+      21,
     );
     assert_lint_err::<Camelcase>(
       r#"import no_camelcased, { another_no_camelcased as camelCased } from "external-module";"#,
-      0,
+      7,
     );
-    assert_lint_err::<Camelcase>(r#"import snake_cased from 'mod'"#, 0);
-    assert_lint_err::<Camelcase>(r#"import * as snake_cased from 'mod'"#, 0);
+    assert_lint_err::<Camelcase>(r#"import snake_cased from 'mod'"#, 7);
+    assert_lint_err::<Camelcase>(r#"import * as snake_cased from 'mod'"#, 12);
     assert_lint_err::<Camelcase>(r#"a_global_variable.foo()"#, 0);
     assert_lint_err::<Camelcase>(r#"a_global_variable[undefined]"#, 0);
-    assert_lint_err::<Camelcase>(r#"var camelCased = snake_cased"#, 0);
-    assert_lint_err::<Camelcase>(r#"export * as snake_cased from 'mod'"#, 0);
-    assert_lint_err::<Camelcase>(r#"function foo({ no_camelcased }) {};"#, 0);
+    assert_lint_err::<Camelcase>(r#"var camelCased = snake_cased"#, 17);
+    assert_lint_err::<Camelcase>(r#"export * as snake_cased from 'mod'"#, 12);
+    assert_lint_err::<Camelcase>(r#"function foo({ no_camelcased }) {};"#, 15);
     assert_lint_err::<Camelcase>(
       r#"function foo({ no_camelcased = 'default value' }) {};"#,
-      0,
+      15,
     );
-    assert_lint_err::<Camelcase>(
-      r#"const no_camelcased = 0; function foo({ camelcased_value = no_camelcased}) {}"#,
-      0,
+    assert_lint_err_n::<Camelcase>(
+      r#"const no_camelcased = 0; function foo({ camelcased_value = no_camelcased }) {}"#,
+      vec![6, 40],
     );
-    assert_lint_err::<Camelcase>(r#"const { bar: no_camelcased } = foo;"#, 0);
+    assert_lint_err::<Camelcase>(r#"const { bar: no_camelcased } = foo;"#, 13);
     assert_lint_err::<Camelcase>(
       r#"function foo({ value_1: my_default }) {}"#,
-      0,
+      24,
     );
     assert_lint_err::<Camelcase>(
       r#"function foo({ isCamelcased: no_camelcased }) {};"#,
-      0,
+      29,
     );
-    assert_lint_err::<Camelcase>(r#"var { foo: bar_baz = 1 } = quz;"#, 0);
+    assert_lint_err::<Camelcase>(r#"var { foo: bar_baz = 1 } = quz;"#, 11);
     assert_lint_err::<Camelcase>(
       r#"const { no_camelcased = false } = bar;"#,
-      0,
+      8,
     );
     assert_lint_err::<Camelcase>(
       r#"const { no_camelcased = foo_bar } = bar;"#,
-      0,
+      8,
     );
     assert_lint_err::<Camelcase>(r#"not_ignored_foo = 0;"#, 0);
-    assert_lint_err::<Camelcase>(r#"({ a: obj.fo_o } = bar);"#, 0);
-    assert_lint_err::<Camelcase>(r#"({ a: obj.fo_o.b_ar } = baz);"#, 0);
+    assert_lint_err::<Camelcase>(r#"({ a: obj.fo_o } = bar);"#, 10);
+    assert_lint_err::<Camelcase>(r#"({ a: obj.fo_o.b_ar } = baz);"#, 15);
     assert_lint_err::<Camelcase>(
       r#"({ a: { b: { c: obj.fo_o } } } = bar);"#,
-      0,
+      20,
     );
     assert_lint_err::<Camelcase>(
       r#"({ a: { b: { c: obj.fo_o.b_ar } } } = baz);"#,
-      0,
+      25,
     );
-    assert_lint_err::<Camelcase>(r#"([obj.fo_o] = bar);"#, 0);
-    assert_lint_err::<Camelcase>(r#"([obj.fo_o = 1] = bar);"#, 0);
-    assert_lint_err::<Camelcase>(r#"({ a: [obj.fo_o] } = bar);"#, 0);
-    assert_lint_err::<Camelcase>(r#"({ a: { b: [obj.fo_o] } } = bar);"#, 0);
-    assert_lint_err::<Camelcase>(r#"([obj.fo_o.ba_r] = baz);"#, 0);
-    assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 0);
-    assert_lint_err::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#, 0);
-    assert_lint_err::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#, 0);
-    assert_lint_err::<Camelcase>(r#"obj.o_k.non_camelcase = 0"#, 0);
-    assert_lint_err::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#, 0);
+    assert_lint_err::<Camelcase>(r#"([obj.fo_o] = bar);"#, 6);
+    assert_lint_err::<Camelcase>(r#"([obj.fo_o = 1] = bar);"#, 6);
+    assert_lint_err::<Camelcase>(r#"({ a: [obj.fo_o] } = bar);"#, 11);
+    assert_lint_err::<Camelcase>(r#"({ a: { b: [obj.fo_o] } } = bar);"#, 16);
+    assert_lint_err::<Camelcase>(r#"([obj.fo_o.ba_r] = baz);"#, 11);
+    assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 9);
+    assert_lint_err::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#, 14);
+    assert_lint_err::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#, 13);
+    assert_lint_err::<Camelcase>(r#"obj.o_k.non_camelcase = 0"#, 8);
+    assert_lint_err::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#, 11);
   }
 
   // TODO(magurotuna): remove this
@@ -650,5 +707,8 @@ mod tests {
     //assert_lint_ok::<Camelcase>(r#"[foo.bar_baz]"#);
     //assert_lint_ok::<Camelcase>(r#"var arr = [foo.bar_baz.qux];"#);
     //assert_lint_ok::<Camelcase>(r#"[foo.bar_baz.nesting]"#);
+
+    //assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 9);
+    assert_lint_err::<Camelcase>(r#"({...obj.a} = baz);"#, 9);
   }
 }
