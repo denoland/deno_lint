@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
+use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
@@ -26,6 +27,7 @@ impl LintRule for NoUndef {
 
   fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut collector = BindingCollector {
+      top_level_ctxt: context.top_level_ctxt,
       declared: Default::default(),
     };
     module.visit_with(module, &mut collector);
@@ -35,14 +37,22 @@ impl LintRule for NoUndef {
   }
 }
 
-/// Collects top level bindings, which have top level syntax context passed to the resolver.
+/// Collects top level bindings, which have top level syntax
+/// context passed to the resolver.
 struct BindingCollector {
+  /// Optimization. Unresolved references and top
+  /// level bindings will have this context.
+  top_level_ctxt: SyntaxContext,
+
   /// If there exists a binding with such id, it's not global.
   declared: HashSet<Id>,
 }
 
 impl BindingCollector {
   fn declare(&mut self, i: Id) {
+    if i.1 != self.top_level_ctxt {
+      return;
+    }
     self.declared.insert(i);
   }
 }
@@ -51,8 +61,15 @@ impl Visit for BindingCollector {
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
   }
+
   fn visit_class_decl(&mut self, f: &ClassDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
+  }
+
+  fn visit_class_expr(&mut self, n: &ClassExpr, _: &dyn Node) {
+    if let Some(i) = &n.ident {
+      self.declare(i.to_id());
+    }
   }
 
   fn visit_import_named_specifier(
@@ -133,8 +150,7 @@ impl NoUndefVisitor {
   }
 
   fn check(&self, ident: &Ident) {
-    // We don't care about local references
-    // Because of this if statement, we can check for Map in
+    // Thanks to this if statement, we can check for Map in
     //
     // function foo(Map) { ... }
     //
