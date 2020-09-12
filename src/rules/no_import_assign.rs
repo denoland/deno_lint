@@ -467,7 +467,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>("import mod2 from 'mod'; mod2 += 0", 24);
 
-    assert_lint_err::<NoImportAssign>("import mod3 from 'mod'; mod3++", 25);
+    assert_lint_err::<NoImportAssign>("import mod3 from 'mod'; mod3++", 24);
   }
 
   #[test]
@@ -502,7 +502,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import mod9 from 'mod'; ({ bar: mod9 } = foo)",
-      26,
+      32,
     );
   }
 
@@ -510,12 +510,12 @@ mod tests {
   fn err_4() {
     assert_lint_err::<NoImportAssign>(
       "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
-      27,
+      33,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod11 from 'mod'; ({ ...mod11 } = foo)",
-      27,
+      31,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -538,7 +538,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import {named4} from 'mod'; for (named4 in foo);",
-      29,
+      33,
     );
   }
 
@@ -610,7 +610,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod4 from 'mod'; for (mod4 in foo);",
-      35,
+      34,
     );
   }
 
@@ -646,7 +646,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
-      32,
+      38,
     );
   }
 
@@ -672,7 +672,7 @@ mod tests {
   fn err_13() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod3 from 'mod'; mod3.named++",
-      30,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
