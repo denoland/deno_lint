@@ -100,6 +100,12 @@ impl NoImportAssignVisitor {
   fn check(&self, span: Span, i: &Ident, is_assign_to_prop: bool) {
     // We only care about imports
 
+    // All imports are top-level and as a result,
+    // if an identifier is not top-level, we are not assigning to import
+    if i.span.ctxt != self.context.top_level_ctxt {
+      return;
+    }
+
     if self.ns_imports.contains(&i.to_id()) {
       self.context.add_diagnostic(
         span,
@@ -534,7 +540,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "Checking if `Object` is a global requires top_level_ctxt from #304"]
   fn ok_18() {
     assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Reflect.set(obj, key, mod);",
@@ -808,7 +813,6 @@ mod tests {
   }
 
   #[test]
-  #[ignore = "This is blocked by swc#1066"]
   fn err_15() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)",
