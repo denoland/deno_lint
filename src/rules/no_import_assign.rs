@@ -158,6 +158,21 @@ impl Visit for NoImportAssignVisitor {
     }
   }
 
+  fn visit_rest_pat(&mut self, n: &RestPat, _: &dyn Node) {
+    if let Pat::Expr(e) = &*n.arg {
+      match &**e {
+        Expr::Ident(i) => {
+          self.check(i.span, i, true);
+        }
+        _ => {
+          self.check_expr(e.span(), e);
+        }
+      }
+    } else {
+      n.visit_children_with(self)
+    }
+  }
+
   fn visit_assign_expr(&mut self, n: &AssignExpr, _: &dyn Node) {
     match &n.left {
       PatOrExpr::Expr(e) => {
