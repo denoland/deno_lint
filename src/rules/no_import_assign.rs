@@ -228,7 +228,8 @@ impl Visit for NoImportAssignVisitor {
                   Expr::Ident(Ident { sym, .. })
                     if *sym == *"defineProperty"
                       || *sym == *"assign"
-                      || *sym == *"setPrototypeOf" =>
+                      || *sym == *"setPrototypeOf"
+                      || *sym == *"freeze" =>
                   {
                     // It's now property assignment.
                     self.check_assign(n.span, &arg.expr, true);
@@ -241,7 +242,21 @@ impl Visit for NoImportAssignVisitor {
             Expr::Ident(Ident {
               sym: js_word!("Reflect"),
               ..
-            }) => {}
+            }) => {
+              if let Some(arg) = n.args.first() {
+                match &*callee.prop {
+                  Expr::Ident(Ident { sym, .. })
+                    if *sym == *"deleteProperty"
+                      || *sym == *"set"
+                      || *sym == *"setPrototypeOf" =>
+                  {
+                    // It's now property assignment.
+                    self.check_assign(n.span, &arg.expr, true);
+                  }
+                  _ => {}
+                }
+              }
+            }
             _ => {}
           }
         }
@@ -828,7 +843,7 @@ mod tests {
   fn err_18() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Reflect.deleteProperty(mod, key)",
-      29,
+      28,
     );
 
     assert_lint_err::<NoImportAssign>(
