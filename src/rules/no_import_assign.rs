@@ -131,10 +131,6 @@ impl NoImportAssignVisitor {
             self.check(span, obj, true);
           }
         }
-
-        if e.computed {
-          self.check_expr(span, &e.prop);
-        }
       }
 
       Expr::OptChain(e) => {
