@@ -27,16 +27,22 @@ impl LintRule for NoImportAssign {
   ) {
     let mut collector = Collector {
       imports: Default::default(),
+      ns_imports: Default::default(),
     };
     module.visit_with(module, &mut collector);
 
-    let mut visitor = NoImportAssignVisitor::new(context, collector.imports);
+    let mut visitor = NoImportAssignVisitor::new(
+      context,
+      collector.imports,
+      collector.ns_imports,
+    );
     module.visit_with(module, &mut visitor);
   }
 }
 
 struct Collector {
   imports: HashSet<Id>,
+  ns_imports: HashSet<Id>,
 }
 
 impl Visit for Collector {
@@ -63,7 +69,7 @@ impl Visit for Collector {
     i: &ImportStarAsSpecifier,
     _: &dyn Node,
   ) {
-    self.imports.insert(i.local.to_id());
+    self.ns_imports.insert(i.local.to_id());
   }
 }
 
@@ -72,17 +78,33 @@ struct NoImportAssignVisitor {
   /// This hashset only contains top level bindings, so using HashSet<JsWord>
   /// also can be an option.
   imports: HashSet<Id>,
+  ns_imports: HashSet<Id>,
 }
 
 impl NoImportAssignVisitor {
-  fn new(context: Arc<Context>, imports: HashSet<Id>) -> Self {
-    Self { context, imports }
+  fn new(
+    context: Arc<Context>,
+    imports: HashSet<Id>,
+    ns_imports: HashSet<Id>,
+  ) -> Self {
+    Self {
+      context,
+      imports,
+      ns_imports,
+    }
   }
 
-  fn check(&self, i: &Ident) {
+  fn check(&self, i: &Ident, is_assign_to_prop: bool) {
     // We only care about imports
-    if !self.imports.contains(&i.to_id()) {
+
+    if !self.ns_imports.contains(&i.to_id()) {
       return;
+    }
+
+    if !is_assign_to_prop {
+      if !self.imports.contains(&i.to_id()) {
+        return;
+      }
     }
 
     self.context.add_diagnostic(
@@ -91,6 +113,26 @@ impl NoImportAssignVisitor {
       "Assignment to import is not allowed",
     );
   }
+
+  fn check_expr(&mut self, e: &Expr) {
+    match e {
+      Expr::Ident(i) => {
+        self.check(i, false);
+      }
+      Expr::Member(e) => {
+        if let ExprOrSuper::Expr(obj) = &e.obj {
+          if let Expr::Ident(obj) = &**obj {
+            self.check(obj, true);
+          }
+        }
+
+        if e.computed {
+          self.check_expr(&e.prop);
+        }
+      }
+      _ => e.visit_children_with(self),
+    }
+  }
 }
 
 impl Visit for NoImportAssignVisitor {
@@ -98,16 +140,20 @@ impl Visit for NoImportAssignVisitor {
 
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {
     if let Pat::Ident(i) = n {
-      self.check(&i);
+      self.check(&i, false);
     } else {
       n.visit_children_with(self);
     }
   }
 
   fn visit_assign_pat_prop(&mut self, n: &AssignPatProp, _: &dyn Node) {
-    self.check(&n.key);
+    self.check(&n.key, false);
 
     n.value.visit_children_with(self);
+  }
+
+  fn visit_update_expr(&mut self, n: &UpdateExpr, _: &dyn Node) {
+    self.check_expr(&n.arg);
   }
 }
 
