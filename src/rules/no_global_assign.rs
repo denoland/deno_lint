@@ -113,7 +113,7 @@ impl NoGlobalAssignVisitor {
     }
 
     // We only care about globals.
-    if !GLOBALS.contains(&id.0) {
+    if !GLOBALS.contains(&&*id.0) {
       return;
     }
 
@@ -172,7 +172,7 @@ mod tests {
 
     assert_lint_err_n::<NoGlobalAssign>(
       "({Object = 0, String = 0} = {});",
-      vec![0, 0],
+      vec![2, 14],
     );
   }
 
