@@ -171,9 +171,8 @@ impl NoImportAssignVisitor {
           self.check_assign(span, &obj, true)
         }
       }
-      Expr::OptChain(e) => {
-        self.check_expr(span, &e.expr);
-      }
+      Expr::OptChain(e) => self.check_expr(span, &e.expr),
+      Expr::Paren(e) => self.check_expr(span, &e.expr),
       _ => e.visit_children_with(self),
     }
   }
