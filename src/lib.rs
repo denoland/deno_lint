@@ -89,7 +89,7 @@ mod lint_tests {
  // deno-lint-ignore no-explicit-any
  function bar(p: boolean) {
    // deno-lint-ignore no-misused-new eqeqeq
-   let foo_bar = false
+   let foo = false
  }
       "#,
       false,
