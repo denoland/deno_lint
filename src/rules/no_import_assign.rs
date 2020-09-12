@@ -334,38 +334,46 @@ mod tests {
 
   #[test]
   fn ok_17() {
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Object.assign(obj, mod, other);",
+    );
 
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Object[assign](mod, obj);",
+    );
 
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Object.getPrototypeOf(mod);",
+    );
   }
-
-  // "import * as mod from 'mod'; Object.assign(obj, mod, other);",
-  // "import * as mod from 'mod'; Object[assign](mod, obj);",
-  // "import * as mod from 'mod'; Object.getPrototypeOf(mod);",
-  // "import * as mod from 'mod'; Reflect.set(obj, key, mod);",
-  // "import * as mod from 'mod'; { var Object; Object.assign(mod, obj); }",
-  // "import * as mod from 'mod'; var Object; Object.assign(mod, obj);",
-  // "import * as mod from 'mod'; Object.seal(mod, obj)",
-  // "import * as mod from 'mod'; Object.preventExtensions(mod)",
-  // "import * as mod from 'mod'; Reflect.preventExtensions(mod)"
 
   #[test]
   fn ok_18() {
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Reflect.set(obj, key, mod);",
+    );
 
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; { var Object; Object.assign(mod, obj); }",
+    );
 
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; var Object; Object.assign(mod, obj);",
+    );
   }
 
   #[test]
   fn ok_19() {
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Object.seal(mod, obj)",
+    );
 
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Object.preventExtensions(mod)",
+    );
 
-    assert_lint_ok::<NoImportAssign>("");
+    assert_lint_ok::<NoImportAssign>(
+      "import * as mod from 'mod'; Reflect.preventExtensions(mod)",
+    );
   }
 }
