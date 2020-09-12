@@ -6,6 +6,7 @@ use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::{
   ast::*,
+  utils::find_ids,
   utils::ident::IdentLike,
   utils::Id,
   visit::Node,
@@ -31,6 +32,7 @@ impl LintRule for NoImportAssign {
     let mut collector = Collector {
       imports: Default::default(),
       ns_imports: Default::default(),
+      other_bindings: Default::default(),
     };
     module.visit_with(module, &mut collector);
 
@@ -38,6 +40,7 @@ impl LintRule for NoImportAssign {
       context,
       collector.imports,
       collector.ns_imports,
+      collector.other_bindings,
     );
     module.visit_with(module, &mut visitor);
   }
@@ -46,6 +49,7 @@ impl LintRule for NoImportAssign {
 struct Collector {
   imports: HashSet<Id>,
   ns_imports: HashSet<Id>,
+  other_bindings: HashSet<Id>,
 }
 
 impl Visit for Collector {
@@ -74,6 +78,26 @@ impl Visit for Collector {
   ) {
     self.ns_imports.insert(i.local.to_id());
   }
+
+  // Other top level bindings
+
+  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
+    self.other_bindings.insert(n.ident.to_id());
+  }
+
+  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
+    self.other_bindings.insert(n.ident.to_id());
+  }
+
+  fn visit_var_declarator(&mut self, n: &VarDeclarator, _: &dyn Node) {
+    let ids: Vec<Id> = find_ids(&n.name);
+
+    for id in ids {
+      self.other_bindings.insert(id);
+    }
+  }
+
+  fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
 }
 
 struct NoImportAssignVisitor {
@@ -82,6 +106,8 @@ struct NoImportAssignVisitor {
   /// also can be an option.
   imports: HashSet<Id>,
   ns_imports: HashSet<Id>,
+  /// Top level bindings other than import.
+  other_bindings: HashSet<Id>,
 }
 
 impl NoImportAssignVisitor {
@@ -89,20 +115,25 @@ impl NoImportAssignVisitor {
     context: Arc<Context>,
     imports: HashSet<Id>,
     ns_imports: HashSet<Id>,
+    other_bindings: HashSet<Id>,
   ) -> Self {
     Self {
       context,
       imports,
       ns_imports,
+      other_bindings,
     }
   }
 
   fn check(&self, span: Span, i: &Ident, is_assign_to_prop: bool) {
-    // We only care about imports
-
     // All imports are top-level and as a result,
     // if an identifier is not top-level, we are not assigning to import
     if i.span.ctxt != self.context.top_level_ctxt {
+      return;
+    }
+
+    // We only care about imports
+    if self.other_bindings.contains(&i.to_id()) {
       return;
     }
 
@@ -145,6 +176,86 @@ impl NoImportAssignVisitor {
       }
       _ => e.visit_children_with(self),
     }
+  }
+
+  fn is_modifier(&self, obj: &Expr, prop: &Expr) -> bool {
+    if let Expr::Ident(obj) = obj {
+      if self.context.top_level_ctxt != obj.span.ctxt {
+        return false;
+      }
+      if self.other_bindings.contains(&obj.to_id()) {
+        return false;
+      }
+    }
+
+    match &*obj {
+      Expr::Ident(Ident {
+        sym: js_word!("Object"),
+        ..
+      }) => {
+        // Check for Object.defineProperty and Object.assign
+
+        match prop {
+          Expr::Ident(Ident { sym, .. })
+            if *sym == *"defineProperty"
+              || *sym == *"assign"
+              || *sym == *"setPrototypeOf"
+              || *sym == *"freeze" =>
+          {
+            // It's now property assignment.
+            return true;
+          }
+          _ => {}
+        }
+      }
+
+      Expr::Ident(Ident {
+        sym: js_word!("Reflect"),
+        ..
+      }) => {
+        match prop {
+          Expr::Ident(Ident { sym, .. })
+            if *sym == *"defineProperty"
+              || *sym == *"deleteProperty"
+              || *sym == *"set"
+              || *sym == *"setPrototypeOf" =>
+          {
+            // It's now property assignment.
+            return true;
+          }
+          _ => {}
+        }
+      }
+      _ => {}
+    }
+
+    false
+  }
+
+  /// Returns true for callees like `Object.assign`
+  fn modifies_first(&self, callee: &Expr) -> bool {
+    match callee {
+      Expr::Member(
+        callee @ MemberExpr {
+          computed: false, ..
+        },
+      ) => {
+        if let ExprOrSuper::Expr(obj) = &callee.obj {
+          if self.is_modifier(obj, &callee.prop) {
+            return true;
+          }
+        }
+      }
+
+      Expr::Paren(ParenExpr { expr, .. })
+      | Expr::OptChain(OptChainExpr { expr, .. }) => {
+        return self.modifies_first(&expr)
+      }
+
+      _ => {}
+    }
+
+    false
   }
 }
 
@@ -215,83 +326,12 @@ impl Visit for NoImportAssignVisitor {
 
     if let ExprOrSuper::Expr(callee) = &n.callee {
       if let Some(arg) = n.args.first() {
-        if modifies_first(&callee) {
+        if self.modifies_first(&callee) {
           self.check_assign(n.span, &arg.expr, true);
         }
       }
     }
   }
-}
-
-/// Returns true for callees like `Object.assign`
-fn modifies_first(callee: &Expr) -> bool {
-  fn is_modifier(obj: &Expr, prop: &Expr) -> bool {
-    match &*obj {
-      Expr::Ident(Ident {
-        sym: js_word!("Object"),
-        ..
-      }) => {
-        // Check for Object.defineProperty and Object.assign
-
-        match prop {
-          Expr::Ident(Ident { sym, .. })
-            if *sym == *"defineProperty"
-              || *sym == *"assign"
-              || *sym == *"setPrototypeOf"
-              || *sym == *"freeze" =>
-          {
-            // It's now property assignment.
-            return true;
-          }
-          _ => {}
-        }
-      }
-
-      Expr::Ident(Ident {
-        sym: js_word!("Reflect"),
-        ..
-      }) => {
-        match prop {
-          Expr::Ident(Ident { sym, .. })
-            if *sym == *"defineProperty"
-              || *sym == *"deleteProperty"
-              || *sym == *"set"
-              || *sym == *"setPrototypeOf" =>
-          {
-            // It's now property assignment.
-            return true;
-          }
-          _ => {}
-        }
-      }
-      _ => {}
-    }
-
-    false
-  }
-
-  match callee {
-    Expr::Member(
-      callee @ MemberExpr {
-        computed: false, ..
-      },
-    ) => {
-      if let ExprOrSuper::Expr(obj) = &callee.obj {
-        if is_modifier(obj, &callee.prop) {
-          return true;
-        }
-      }
-    }
-
-    Expr::Paren(ParenExpr { expr, .. })
-    | Expr::OptChain(OptChainExpr { expr, .. }) => {
-      return modifies_first(&expr)
-    }
-
-    _ => {}
-  }
-
-  false
 }
 
 #[cfg(test)]
