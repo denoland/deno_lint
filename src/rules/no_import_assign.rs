@@ -1,6 +1,7 @@
 use super::LintRule;
 use crate::linter::Context;
 use std::{collections::HashSet, sync::Arc};
+use swc_common::Span;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
@@ -96,13 +97,13 @@ impl NoImportAssignVisitor {
     }
   }
 
-  fn check(&self, i: &Ident, is_assign_to_prop: bool) {
+  fn check(&self, span: Span, i: &Ident, is_assign_to_prop: bool) {
     // We only care about imports
     eprintln!("Checking {}{:?}", i.sym, i.span.ctxt);
 
     if self.ns_imports.contains(&i.to_id()) {
       self.context.add_diagnostic(
-        i.span,
+        span,
         "no-import-assign",
         "Assignment to import is not allowed",
       );
@@ -111,32 +112,32 @@ impl NoImportAssignVisitor {
 
     if !is_assign_to_prop && self.imports.contains(&i.to_id()) {
       self.context.add_diagnostic(
-        i.span,
+        span,
         "no-import-assign",
         "Assignment to import is not allowed",
       );
     }
   }
 
-  fn check_expr(&mut self, e: &Expr) {
+  fn check_expr(&mut self, span: Span, e: &Expr) {
     match e {
       Expr::Ident(i) => {
-        self.check(i, false);
+        self.check(span, i, false);
       }
       Expr::Member(e) => {
         if let ExprOrSuper::Expr(obj) = &e.obj {
           if let Expr::Ident(obj) = &**obj {
-            self.check(obj, true);
+            self.check(span, obj, true);
           }
         }
 
         if e.computed {
-          self.check_expr(&e.prop);
+          self.check_expr(span, &e.prop);
         }
       }
 
       Expr::OptChain(e) => {
-        self.check_expr(&e.expr);
+        self.check_expr(span, &e.expr);
       }
       _ => e.visit_children_with(self),
     }
@@ -148,24 +149,25 @@ impl Visit for NoImportAssignVisitor {
 
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {
     if let Pat::Ident(i) = n {
-      self.check(&i, false);
+      self.check(i.span, &i, false);
     } else {
       n.visit_children_with(self);
     }
   }
 
   fn visit_assign_pat_prop(&mut self, n: &AssignPatProp, _: &dyn Node) {
-    self.check(&n.key, false);
+    self.check(n.key.span, &n.key, false);
 
     n.value.visit_children_with(self);
   }
 
   fn visit_update_expr(&mut self, n: &UpdateExpr, _: &dyn Node) {
-    self.check_expr(&n.arg);
+    self.check_expr(n.span, &n.arg);
   }
+
   fn visit_unary_expr(&mut self, n: &UnaryExpr, _: &dyn Node) {
     if let UnaryOp::Delete = n.op {
-      self.check_expr(&n.arg);
+      self.check_expr(n.span, &n.arg);
     } else {
       n.arg.visit_with(n, self);
     }
