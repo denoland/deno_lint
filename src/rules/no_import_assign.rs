@@ -134,6 +134,10 @@ impl NoImportAssignVisitor {
           self.check_expr(&e.prop);
         }
       }
+
+      Expr::OptChain(e) => {
+        self.check_expr(&e.expr);
+      }
       _ => e.visit_children_with(self),
     }
   }
@@ -158,6 +162,13 @@ impl Visit for NoImportAssignVisitor {
 
   fn visit_update_expr(&mut self, n: &UpdateExpr, _: &dyn Node) {
     self.check_expr(&n.arg);
+  }
+  fn visit_unary_expr(&mut self, n: &UnaryExpr, _: &dyn Node) {
+    if let UnaryOp::Delete = n.op {
+      self.check_expr(&n.arg);
+    } else {
+      n.arg.visit_with(n, self);
+    }
   }
 }
 
