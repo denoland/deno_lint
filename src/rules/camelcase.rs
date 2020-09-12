@@ -49,6 +49,7 @@ struct CamelcaseVisitor {
   /// Already visited identifiers
   visited: BTreeSet<Span>,
 }
+
 impl CamelcaseVisitor {
   fn new(context: Arc<Context>) -> Self {
     Self {
@@ -128,15 +129,16 @@ impl CamelcaseVisitor {
     }
   }
 
-  fn mark_visited_member_ident_in_expr(&mut self, expr: &Expr) {
+  /// Mark idents in MemberExpression as `visited` without checking
+  fn mark_visited_member_idents_in_expr(&mut self, expr: &Expr) {
     match expr {
       Expr::Member(MemberExpr {
         ref obj, ref prop, ..
       }) => {
         if let ExprOrSuper::Expr(ref expr) = obj {
-          self.mark_visited_member_ident_in_expr(expr);
+          self.mark_visited_member_idents_in_expr(expr);
         }
-        self.mark_visited_member_ident_in_expr(&**prop);
+        self.mark_visited_member_idents_in_expr(&**prop);
       }
       Expr::Ident(ref ident) => {
         self.visited.insert(ident.span);
@@ -289,7 +291,7 @@ impl Visit for CamelcaseVisitor {
         self.check_and_insert(ident);
       }
     }
-    self.mark_visited_member_ident_in_expr(&**prop);
+    self.mark_visited_member_idents_in_expr(&**prop);
     visit::visit_member_expr(self, member_expr, parent);
   }
 
@@ -590,6 +592,7 @@ mod tests {
     assert_lint_err::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#, 11);
 
     // TODO(magurotuna): Cannot parse correctly now, so comment out until swc's update
+    // https://github.com/swc-project/swc/issues/1066
     //assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 9);
     //assert_lint_err::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#, 14);
     //assert_lint_err::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#, 13);
