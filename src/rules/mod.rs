@@ -44,11 +44,8 @@ pub mod no_extra_non_null_assertion;
 pub mod no_extra_semi;
 pub mod no_fallthrough;
 pub mod no_func_assign;
-<<<<<<< HEAD
 pub mod no_global_assign;
-=======
 pub mod no_import_assign;
->>>>>>> master
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
