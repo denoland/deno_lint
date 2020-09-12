@@ -520,7 +520,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import {named1} from 'mod'; named1 = 0",
-      29,
+      28,
     );
   }
 
