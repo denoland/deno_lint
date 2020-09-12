@@ -1,6 +1,7 @@
 use super::LintRule;
 use crate::linter::Context;
 use std::{collections::HashSet, sync::Arc};
+use swc_atoms::js_word;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::{
@@ -120,6 +121,12 @@ impl NoImportAssignVisitor {
     }
   }
 
+  fn check_assign(&mut self, span: Span, lhs: &Expr, is_assign_to_prop: bool) {
+    if let Expr::Ident(lhs) = &lhs {
+      self.check(span, lhs, is_assign_to_prop);
+    }
+  }
+
   fn check_expr(&mut self, span: Span, e: &Expr) {
     match e {
       Expr::Ident(i) => {
@@ -127,12 +134,9 @@ impl NoImportAssignVisitor {
       }
       Expr::Member(e) => {
         if let ExprOrSuper::Expr(obj) = &e.obj {
-          if let Expr::Ident(obj) = &**obj {
-            self.check(span, obj, true);
-          }
+          self.check_assign(span, &obj, true)
         }
       }
-
       Expr::OptChain(e) => {
         self.check_expr(span, &e.expr);
       }
@@ -200,6 +204,43 @@ impl Visit for NoImportAssignVisitor {
       self.check_expr(n.span, &n.arg);
     } else {
       n.arg.visit_with(n, self);
+    }
+  }
+
+  fn visit_call_expr(&mut self, n: &CallExpr, _: &dyn Node) {
+    n.visit_children_with(self);
+
+    if let ExprOrSuper::Expr(callee) = &n.callee {
+      if let Expr::Member(
+        callee @ MemberExpr {
+          computed: false, ..
+        },
+      ) = &**callee
+      {
+        if let ExprOrSuper::Expr(obj) = &callee.obj {
+          match &**obj {
+            Expr::Ident(Ident {
+              sym: js_word!("Object"),
+              ..
+            }) => {
+              // Check for defineProperty
+
+              if let Some(arg) = n.args.first() {
+                match &*callee.prop {
+                  Expr::Ident(Ident { sym, .. })
+                    if *sym == *"defineProperty" || *sym == *"assign" =>
+                  {
+                    // It's now property assignment.
+                    self.check_assign(n.span, &arg.expr, true);
+                  }
+                  _ => {}
+                }
+              }
+            }
+            _ => {}
+          }
+        }
+      }
     }
   }
 }
