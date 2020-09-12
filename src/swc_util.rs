@@ -30,7 +30,7 @@ use swc_ecmascript::parser::TsConfig;
 use swc_ecmascript::transforms::resolver::ts_resolver;
 use swc_ecmascript::visit::Fold;
 use swc_ecmascript::{
-  utils::{find_ids, ident::IdentLike, Id},
+  utils::{find_ids, ident::IdentLike},
   visit::FoldWith,
 };
 
@@ -129,6 +129,10 @@ pub(crate) struct AstParser {
   pub(crate) source_map: Arc<SourceMap>,
   pub(crate) handler: Handler,
   pub(crate) globals: Globals,
+  /// The marker passed to the resolver (from swc).
+  ///
+  /// This mark is applied to top level bindings and unresolved references.
+  pub(crate) top_level_mark: Mark,
 }
 
 impl AstParser {
@@ -144,11 +148,16 @@ impl AstParser {
       },
     );
 
+    let globals = Globals::new();
+    let top_level_mark =
+      swc_common::GLOBALS.set(&globals, || Mark::fresh(Mark::root()));
+
     AstParser {
       buffered_error,
       source_map: Arc::new(SourceMap::default()),
       handler,
-      globals: Globals::new(),
+      globals,
+      top_level_mark,
     }
   }
 
@@ -186,8 +195,7 @@ impl AstParser {
 
     let parse_result = parse_result.map(|module| {
       GLOBALS.set(&self.globals, || {
-        let mark = Mark::fresh(Mark::root());
-        module.fold_with(&mut ts_resolver(mark))
+        module.fold_with(&mut ts_resolver(self.top_level_mark))
       })
     });
 
@@ -360,10 +368,13 @@ impl Key for MemberExpr {
 }
 
 /// Find [Id]s in the lhs of an assigmnet expression.
-pub(crate) fn find_lhs_ids(n: &PatOrExpr) -> Vec<Id> {
+pub(crate) fn find_lhs_ids<I>(n: &PatOrExpr) -> Vec<I>
+where
+  I: IdentLike,
+{
   match &n {
     PatOrExpr::Expr(e) => match &**e {
-      Expr::Ident(i) => vec![i.to_id()],
+      Expr::Ident(i) => vec![I::from_ident(i)],
       _ => vec![],
     },
     PatOrExpr::Pat(p) => find_ids(p),

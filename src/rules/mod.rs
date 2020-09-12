@@ -65,6 +65,7 @@ pub mod no_sparse_arrays;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
+pub mod no_undef;
 pub mod no_unreachable;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
@@ -144,6 +145,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_shadow_restricted_names::NoShadowRestrictedNames::new(),
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
+    no_undef::NoUndef::new(),
     no_unreachable::NoUnreachable::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
@@ -223,6 +225,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
+    no_undef::NoUndef::new(),
     no_unreachable::NoUnreachable::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
