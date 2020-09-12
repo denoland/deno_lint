@@ -209,60 +209,71 @@ impl Visit for NoImportAssignVisitor {
     n.visit_children_with(self);
 
     if let ExprOrSuper::Expr(callee) = &n.callee {
-      if let Expr::Member(
-        callee @ MemberExpr {
-          computed: false, ..
-        },
-      ) = &**callee
-      {
-        if let ExprOrSuper::Expr(obj) = &callee.obj {
-          match &**obj {
-            Expr::Ident(Ident {
-              sym: js_word!("Object"),
-              ..
-            }) => {
-              // Check for Object.defineProperty and Object.assign
-
-              if let Some(arg) = n.args.first() {
-                match &*callee.prop {
-                  Expr::Ident(Ident { sym, .. })
-                    if *sym == *"defineProperty"
-                      || *sym == *"assign"
-                      || *sym == *"setPrototypeOf"
-                      || *sym == *"freeze" =>
-                  {
-                    // It's now property assignment.
-                    self.check_assign(n.span, &arg.expr, true);
-                  }
-                  _ => {}
-                }
-              }
-            }
-
-            Expr::Ident(Ident {
-              sym: js_word!("Reflect"),
-              ..
-            }) => {
-              if let Some(arg) = n.args.first() {
-                match &*callee.prop {
-                  Expr::Ident(Ident { sym, .. })
-                    if *sym == *"deleteProperty"
-                      || *sym == *"set"
-                      || *sym == *"setPrototypeOf" =>
-                  {
-                    // It's now property assignment.
-                    self.check_assign(n.span, &arg.expr, true);
-                  }
-                  _ => {}
-                }
-              }
-            }
-            _ => {}
-          }
+      if let Some(arg) = n.args.first() {
+        if modifies_first(&callee) {
+          self.check_assign(n.span, &arg.expr, true);
         }
       }
     }
   }
+}
+
+/// Returns true for callees like `Object.assign`
+fn modifies_first(callee: &Expr) -> bool {
+  match callee {
+    Expr::Member(
+      callee @ MemberExpr {
+        computed: false, ..
+      },
+    ) => {
+      if let ExprOrSuper::Expr(obj) = &callee.obj {
+        match &**obj {
+          Expr::Ident(Ident {
+            sym: js_word!("Object"),
+            ..
+          }) => {
+            // Check for Object.defineProperty and Object.assign
+
+            match &*callee.prop {
+              Expr::Ident(Ident { sym, .. })
+                if *sym == *"defineProperty"
+                  || *sym == *"assign"
+                  || *sym == *"setPrototypeOf"
+                  || *sym == *"freeze" =>
+              {
+                // It's now property assignment.
+                return true;
+              }
+              _ => {}
+            }
+          }
+
+          Expr::Ident(Ident {
+            sym: js_word!("Reflect"),
+            ..
+          }) => {
+            match &*callee.prop {
+              Expr::Ident(Ident { sym, .. })
+                if *sym == *"defineProperty"
+                  || *sym == *"deleteProperty"
+                  || *sym == *"set"
+                  || *sym == *"setPrototypeOf" =>
+              {
+                // It's now property assignment.
+                return true;
+              }
+              _ => {}
+            }
+          }
+          _ => {}
+        }
+      }
+    }
+
+    _ => {}
+  }
+
+  false
 }
 
 #[cfg(test)]
