@@ -81,7 +81,7 @@ impl NoImportAssignVisitor {
 
   fn check(&self, i: &Ident) {
     // We only care about imports
-    if !self.imports.contains(&i) {
+    if !self.imports.contains(&i.to_id()) {
       return;
     }
 
@@ -98,14 +98,14 @@ impl Visit for NoImportAssignVisitor {
 
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {
     if let Pat::Ident(i) = n {
-      self.check(i.to_id());
+      self.check(&i);
     } else {
       n.visit_children_with(self);
     }
   }
 
   fn visit_assign_pat_prop(&mut self, n: &AssignPatProp, _: &dyn Node) {
-    self.check(n.key.to_id());
+    self.check(&n.key);
 
     n.value.visit_children_with(self);
   }
