@@ -44,7 +44,11 @@ pub mod no_extra_non_null_assertion;
 pub mod no_extra_semi;
 pub mod no_fallthrough;
 pub mod no_func_assign;
+<<<<<<< HEAD
 pub mod no_global_assign;
+=======
+pub mod no_import_assign;
+>>>>>>> master
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
@@ -131,6 +135,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_fallthrough::NoFallthrough::new(),
     no_func_assign::NoFuncAssign::new(),
     no_global_assign::NoGlobalAssign::new(),
+    no_import_assign::NoImportAssign::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_inner_declarations::NoInnerDeclarations::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
@@ -209,6 +214,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_fallthrough::NoFallthrough::new(),
     no_func_assign::NoFuncAssign::new(),
     no_global_assign::NoGlobalAssign::new(),
+    no_import_assign::NoImportAssign::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_inner_declarations::NoInnerDeclarations::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
