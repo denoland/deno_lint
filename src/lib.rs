@@ -10,6 +10,7 @@ extern crate log;
 
 mod control_flow;
 pub mod diagnostic;
+mod globals;
 mod js_regex;
 pub mod linter;
 pub mod rules;
@@ -115,5 +116,59 @@ mod lint_tests {
     );
 
     assert_eq!(diagnostics.len(), 0);
+  }
+
+  #[test]
+  fn file_directive_with_code() {
+    let diagnostics = lint(
+      r#"
+ // deno-lint-ignore-file no-explicit-any
+
+ function bar(p: any) {
+   // pass
+ }
+      "#,
+      false,
+      false,
+    );
+
+    assert_eq!(diagnostics.len(), 0);
+  }
+
+  #[test]
+  fn file_directive_with_code_unused() {
+    let diagnostics = lint(
+      r#"
+ // deno-lint-ignore-file no-explicit-any no-empty
+
+ function bar(p: any) {
+   // pass
+ }
+      "#,
+      false,
+      true,
+    );
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1);
+  }
+
+  #[test]
+  fn file_directive_with_code_higher_precedence() {
+    let diagnostics = lint(
+      r#"
+ // deno-lint-ignore-file no-explicit-any
+
+ // deno-lint-ignore no-explicit-any
+ function bar(p: any) {
+   // pass
+ }
+      "#,
+      false,
+      true,
+    );
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1);
   }
 }
