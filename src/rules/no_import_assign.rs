@@ -99,7 +99,6 @@ impl NoImportAssignVisitor {
 
   fn check(&self, span: Span, i: &Ident, is_assign_to_prop: bool) {
     // We only care about imports
-    eprintln!("Checking {}{:?}", i.sym, i.span.ctxt);
 
     if self.ns_imports.contains(&i.to_id()) {
       self.context.add_diagnostic(
