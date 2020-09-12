@@ -223,7 +223,7 @@ impl Visit for NoImportAssignVisitor {
               sym: js_word!("Object"),
               ..
             }) => {
-              // Check for defineProperty
+              // Check for Object.defineProperty and Object.assign
 
               if let Some(arg) = n.args.first() {
                 match &*callee.prop {
@@ -237,6 +237,11 @@ impl Visit for NoImportAssignVisitor {
                 }
               }
             }
+
+            Expr::Ident(Ident {
+              sym: js_word!("Reflect"),
+              ..
+            }) => {}
             _ => {}
           }
         }
@@ -491,6 +496,7 @@ mod tests {
   }
 
   #[test]
+  #[ignore = "Checking if `Object` is a global requires top_level_ctxt from #304"]
   fn ok_18() {
     assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Reflect.set(obj, key, mod);",
@@ -790,12 +796,12 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Object.assign(mod, obj)",
-      29,
+      28,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Object.defineProperty(mod, key, d)",
-      29,
+      28,
     );
   }
 
