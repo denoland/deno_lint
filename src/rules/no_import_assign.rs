@@ -786,7 +786,7 @@ mod tests {
   fn err_20() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; delete mod?.prop",
-      29,
+      28,
     );
   }
 }
