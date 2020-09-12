@@ -228,7 +228,9 @@ impl Visit for NoImportAssignVisitor {
               if let Some(arg) = n.args.first() {
                 match &*callee.prop {
                   Expr::Ident(Ident { sym, .. })
-                    if *sym == *"defineProperty" || *sym == *"assign" =>
+                    if *sym == *"defineProperty"
+                      || *sym == *"assign"
+                      || *sym == *"setPrototypeOf" =>
                   {
                     // It's now property assignment.
                     self.check_assign(n.span, &arg.expr, true);
