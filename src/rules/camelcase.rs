@@ -72,10 +72,8 @@ impl CamelcaseVisitor {
 
   /// Check if this ident is underscored only when it's not yet visited.
   fn check_and_insert(&mut self, ident: &Ident) {
-    if self.visited.insert(ident.span) {
-      if is_underscored(ident) {
-        self.errors.insert(ident.span, ident.as_ref().to_string());
-      }
+    if self.visited.insert(ident.span) && is_underscored(ident) {
+      self.errors.insert(ident.span, ident.as_ref().to_string());
     }
   }
 
@@ -153,12 +151,9 @@ impl Visit for CamelcaseVisitor {
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
     if let ExprOrSuper::Expr(ref expr) = &call_expr.callee {
-      match &**expr {
-        Expr::Ident(ref ident) => {
-          // Mark as visited without checking
-          self.visited.insert(ident.span);
-        }
-        _ => {}
+      if let Expr::Ident(ref ident) = &**expr {
+        // Mark as visited without checking
+        self.visited.insert(ident.span);
       }
     }
     visit::visit_call_expr(self, call_expr, parent);
