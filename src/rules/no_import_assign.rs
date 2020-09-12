@@ -887,12 +887,12 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Object?.defineProperty(mod, key, d)",
-      29,
+      28,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; (Object?.defineProperty)(mod, key, d)",
-      29,
+      28,
     );
   }
 
