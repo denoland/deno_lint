@@ -2,6 +2,7 @@ use super::LintRule;
 use crate::linter::Context;
 use std::{collections::HashSet, sync::Arc};
 use swc_common::Span;
+use swc_common::Spanned;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
@@ -148,10 +149,16 @@ impl Visit for NoImportAssignVisitor {
   noop_visit_type!();
 
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {
-    if let Pat::Ident(i) = n {
-      self.check(i.span, &i, false);
-    } else {
-      n.visit_children_with(self);
+    match n {
+      Pat::Ident(i) => {
+        self.check(i.span, &i, false);
+      }
+      Pat::Expr(e) => {
+        self.check_expr(n.span(), e);
+      }
+      _ => {
+        n.visit_children_with(self);
+      }
     }
   }
 
