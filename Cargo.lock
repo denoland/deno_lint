@@ -876,9 +876,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.23.9"
+version = "0.23.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de2f2de16696272621ad93fa832222792723fc6d827f712f37d89b53d1ce3201"
+checksum = "9faad89937011fd77c2cdbda25b40ca4c0bcc82790533fc03d4bd89575c1c063"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -950,9 +950,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6a5a565d3a45ec891929d886de52fdbe8f0dbcc9f4c1c517edebc27c8c019d8"
+checksum = "ab0054c6e60ab54e03cb93a587a910ba2475b39d4d0233918f35711a6231e0e0"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",
