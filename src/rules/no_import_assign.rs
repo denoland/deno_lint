@@ -34,8 +34,6 @@ impl LintRule for NoImportAssign {
     };
     module.visit_with(module, &mut collector);
 
-    dbg!(&collector.imports, &collector.ns_imports);
-
     let mut visitor = NoImportAssignVisitor::new(
       context,
       collector.imports,
@@ -811,7 +809,7 @@ mod tests {
   fn err_17() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Object.setPrototypeOf(mod, proto)",
-      29,
+      28,
     );
 
     assert_lint_err::<NoImportAssign>(
