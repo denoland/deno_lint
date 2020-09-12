@@ -585,11 +585,8 @@ mod tests {
     assert_lint_err::<Camelcase>(r#"([obj.fo_o.ba_r] = baz);"#, 11);
     assert_lint_err::<Camelcase>(r#"obj.o_k.non_camelcase = 0"#, 8);
     assert_lint_err::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#, 11);
-
-    // TODO(magurotuna): Cannot parse correctly now, so comment out until swc's update
-    // https://github.com/swc-project/swc/issues/1066
-    //assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 9);
-    //assert_lint_err::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#, 14);
-    //assert_lint_err::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#, 13);
+    assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 9);
+    assert_lint_err::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#, 14);
+    assert_lint_err::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#, 13);
   }
 }
