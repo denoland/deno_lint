@@ -57,6 +57,7 @@ pub mod no_non_null_assertion;
 pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
+pub mod no_redeclare;
 pub mod no_regex_spaces;
 pub mod no_self_assign;
 pub mod no_setter_return;
@@ -139,6 +140,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_redeclare::NoRedeclare::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_self_assign::NoSelfAssign::new(),
     no_setter_return::NoSetterReturn::new(),
@@ -217,6 +219,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_redeclare::NoRedeclare::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_self_assign::NoSelfAssign::new(),
     no_setter_return::NoSetterReturn::new(),
