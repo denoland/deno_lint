@@ -155,6 +155,18 @@ impl Visit for NoImportAssignVisitor {
     }
   }
 
+  fn visit_assign_expr(&mut self, n: &AssignExpr, _: &dyn Node) {
+    match &n.left {
+      PatOrExpr::Expr(e) => {
+        self.check_expr(n.span, e);
+      }
+      PatOrExpr::Pat(p) => {
+        p.visit_with(n, self);
+      }
+    };
+    n.right.visit_with(n, self);
+  }
+
   fn visit_assign_pat_prop(&mut self, n: &AssignPatProp, _: &dyn Node) {
     self.check(n.key.span, &n.key, false);
 
@@ -451,7 +463,7 @@ mod tests {
 
   #[test]
   fn err_1() {
-    assert_lint_err::<NoImportAssign>("import mod1 from 'mod'; mod1 = 0", 25);
+    assert_lint_err::<NoImportAssign>("import mod1 from 'mod'; mod1 = 0", 24);
 
     assert_lint_err::<NoImportAssign>("import mod2 from 'mod'; mod2 += 0", 25);
 
@@ -462,12 +474,12 @@ mod tests {
   fn err_2() {
     assert_lint_err::<NoImportAssign>(
       "import mod4 from 'mod'; for (mod4 in foo);",
-      25,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod5 from 'mod'; for (mod5 of foo);",
-      25,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -485,7 +497,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import mod8 from 'mod'; [...mod8] = foo",
-      25,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -516,7 +528,7 @@ mod tests {
   fn err_5() {
     assert_lint_err::<NoImportAssign>(
       "import {named2} from 'mod'; named2 += 0",
-      29,
+      28,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -534,7 +546,7 @@ mod tests {
   fn err_6() {
     assert_lint_err::<NoImportAssign>(
       "import {named5} from 'mod'; for (named5 of foo);",
-      29,
+      33,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -552,12 +564,12 @@ mod tests {
   fn err_7() {
     assert_lint_err::<NoImportAssign>(
       "import {named8} from 'mod'; [...named8] = foo",
-      29,
+      32,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named9} from 'mod'; ({ bar: named9 } = foo)",
-      30,
+      36,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -570,25 +582,25 @@ mod tests {
   fn err_8() {
     assert_lint_err::<NoImportAssign>(
       "import {named11} from 'mod'; ({ ...named11 } = foo)",
-      31,
+      35,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named12 as foo} from 'mod'; foo = 0; named12 = 0",
-      37,
+      36,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod1 from 'mod'; mod1 = 0",
-      30,
+      29,
     );
   }
 
   #[test]
   fn err_9() {
     assert_lint_err::<NoImportAssign>(
-      "import * as mod2 from 'mod'; mod2 += ",
-      30,
+      "import * as mod2 from 'mod'; mod2 += 0",
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -598,7 +610,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod4 from 'mod'; for (mod4 in foo);",
-      30,
+      35,
     );
   }
 
@@ -606,7 +618,7 @@ mod tests {
   fn err_10() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod5 from 'mod'; for (mod5 of foo);",
-      30,
+      34,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -624,7 +636,7 @@ mod tests {
   fn err_11() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod8 from 'mod'; [...mod8] = foo",
-      30,
+      33,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -642,7 +654,7 @@ mod tests {
   fn err_12() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod11 from 'mod'; ({ ...mod11 } = foo)",
-      32,
+      36,
     );
 
     assert_lint_err::<NoImportAssign>(
@@ -714,7 +726,7 @@ mod tests {
   fn err_16() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod12 from 'mod'; delete mod12.named",
-      31,
+      30,
     );
 
     assert_lint_err::<NoImportAssign>(
