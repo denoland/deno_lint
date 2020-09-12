@@ -770,6 +770,7 @@ mod tests {
   }
 
   #[test]
+  #[ignore = "This is blocked by swc#1066"]
   fn err_15() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)",
