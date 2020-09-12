@@ -865,7 +865,7 @@ mod tests {
 
     assert_lint_err::<NoImportAssign>(
       "import * as mod11 from 'mod'; ({ ...mod11.named } = foo)",
-      32,
+      36,
     );
   }
 
