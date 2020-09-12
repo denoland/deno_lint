@@ -220,6 +220,51 @@ impl Visit for NoImportAssignVisitor {
 
 /// Returns true for callees like `Object.assign`
 fn modifies_first(callee: &Expr) -> bool {
+  fn is_modifier(obj: &Expr, prop: &Expr) -> bool {
+    match &*obj {
+      Expr::Ident(Ident {
+        sym: js_word!("Object"),
+        ..
+      }) => {
+        // Check for Object.defineProperty and Object.assign
+
+        match prop {
+          Expr::Ident(Ident { sym, .. })
+            if *sym == *"defineProperty"
+              || *sym == *"assign"
+              || *sym == *"setPrototypeOf"
+              || *sym == *"freeze" =>
+          {
+            // It's now property assignment.
+            return true;
+          }
+          _ => {}
+        }
+      }
+
+      Expr::Ident(Ident {
+        sym: js_word!("Reflect"),
+        ..
+      }) => {
+        match prop {
+          Expr::Ident(Ident { sym, .. })
+            if *sym == *"defineProperty"
+              || *sym == *"deleteProperty"
+              || *sym == *"set"
+              || *sym == *"setPrototypeOf" =>
+          {
+            // It's now property assignment.
+            return true;
+          }
+          _ => {}
+        }
+      }
+      _ => {}
+    }
+
+    false
+  }
+
   match callee {
     Expr::Member(
       callee @ MemberExpr {
@@ -227,48 +272,13 @@ fn modifies_first(callee: &Expr) -> bool {
       },
     ) => {
       if let ExprOrSuper::Expr(obj) = &callee.obj {
-        match &**obj {
-          Expr::Ident(Ident {
-            sym: js_word!("Object"),
-            ..
-          }) => {
-            // Check for Object.defineProperty and Object.assign
-
-            match &*callee.prop {
-              Expr::Ident(Ident { sym, .. })
-                if *sym == *"defineProperty"
-                  || *sym == *"assign"
-                  || *sym == *"setPrototypeOf"
-                  || *sym == *"freeze" =>
-              {
-                // It's now property assignment.
-                return true;
-              }
-              _ => {}
-            }
-          }
-
-          Expr::Ident(Ident {
-            sym: js_word!("Reflect"),
-            ..
-          }) => {
-            match &*callee.prop {
-              Expr::Ident(Ident { sym, .. })
-                if *sym == *"defineProperty"
-                  || *sym == *"deleteProperty"
-                  || *sym == *"set"
-                  || *sym == *"setPrototypeOf" =>
-              {
-                // It's now property assignment.
-                return true;
-              }
-              _ => {}
-            }
-          }
-          _ => {}
+        if is_modifier(obj, &callee.prop) {
+          return true;
         }
       }
     }
+
+    Expr::OptChain(OptChainExpr { expr, .. }) => return modifies_first(&expr),
 
     _ => {}
   }
