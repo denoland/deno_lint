@@ -31,6 +31,8 @@ impl LintRule for NoImportAssign {
     };
     module.visit_with(module, &mut collector);
 
+    dbg!(&collector.imports, &collector.ns_imports);
+
     let mut visitor = NoImportAssignVisitor::new(
       context,
       collector.imports,
@@ -96,22 +98,24 @@ impl NoImportAssignVisitor {
 
   fn check(&self, i: &Ident, is_assign_to_prop: bool) {
     // We only care about imports
+    eprintln!("Checking {}{:?}", i.sym, i.span.ctxt);
 
-    if !self.ns_imports.contains(&i.to_id()) {
+    if self.ns_imports.contains(&i.to_id()) {
+      self.context.add_diagnostic(
+        i.span,
+        "no-import-assign",
+        "Assignment to import is not allowed",
+      );
       return;
     }
 
-    if !is_assign_to_prop {
-      if !self.imports.contains(&i.to_id()) {
-        return;
-      }
+    if !is_assign_to_prop && self.imports.contains(&i.to_id()) {
+      self.context.add_diagnostic(
+        i.span,
+        "no-import-assign",
+        "Assignment to import is not allowed",
+      );
     }
-
-    self.context.add_diagnostic(
-      i.span,
-      "no-import-assign",
-      "Assignment to import is not allowed",
-    );
   }
 
   fn check_expr(&mut self, e: &Expr) {
@@ -434,28 +438,28 @@ mod tests {
 
   #[test]
   fn err_1() {
-    assert_lint_err::<NoImportAssign>("import mod1 from 'mod'; mod1 = 0", 0);
+    assert_lint_err::<NoImportAssign>("import mod1 from 'mod'; mod1 = 0", 25);
 
-    assert_lint_err::<NoImportAssign>("import mod2 from 'mod'; mod2 += 0", 0);
+    assert_lint_err::<NoImportAssign>("import mod2 from 'mod'; mod2 += 0", 25);
 
-    assert_lint_err::<NoImportAssign>("import mod3 from 'mod'; mod3++", 0);
+    assert_lint_err::<NoImportAssign>("import mod3 from 'mod'; mod3++", 25);
   }
 
   #[test]
   fn err_2() {
     assert_lint_err::<NoImportAssign>(
       "import mod4 from 'mod'; for (mod4 in foo);",
-      0,
+      25,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod5 from 'mod'; for (mod5 of foo);",
-      0,
+      25,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod6 from 'mod'; [mod6] = foo",
-      0,
+      25,
     );
   }
 
@@ -463,17 +467,17 @@ mod tests {
   fn err_3() {
     assert_lint_err::<NoImportAssign>(
       "import mod7 from 'mod'; [mod7 = 0] = foo",
-      0,
+      25,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod8 from 'mod'; [...mod8] = foo",
-      0,
+      25,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod9 from 'mod'; ({ bar: mod9 } = foo)",
-      0,
+      26,
     );
   }
 
@@ -481,17 +485,17 @@ mod tests {
   fn err_4() {
     assert_lint_err::<NoImportAssign>(
       "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
-      0,
+      27,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import mod11 from 'mod'; ({ ...mod11 } = foo)",
-      0,
+      27,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named1} from 'mod'; named1 = 0",
-      0,
+      29,
     );
   }
 
@@ -499,17 +503,17 @@ mod tests {
   fn err_5() {
     assert_lint_err::<NoImportAssign>(
       "import {named2} from 'mod'; named2 += 0",
-      0,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named3} from 'mod'; named3++",
-      0,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named4} from 'mod'; for (named4 in foo);",
-      0,
+      29,
     );
   }
 
@@ -517,17 +521,17 @@ mod tests {
   fn err_6() {
     assert_lint_err::<NoImportAssign>(
       "import {named5} from 'mod'; for (named5 of foo);",
-      0,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named6} from 'mod'; [named6] = foo",
-      0,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named7} from 'mod'; [named7 = 0] = foo",
-      0,
+      29,
     );
   }
 
@@ -535,17 +539,17 @@ mod tests {
   fn err_7() {
     assert_lint_err::<NoImportAssign>(
       "import {named8} from 'mod'; [...named8] = foo",
-      0,
+      29,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named9} from 'mod'; ({ bar: named9 } = foo)",
-      0,
+      30,
     );
 
     assert_lint_err::<NoImportAssign>(
       "import {named10} from 'mod'; ({ bar: named10 = 0 } = foo)",
-      0,
+      31,
     );
   }
 
