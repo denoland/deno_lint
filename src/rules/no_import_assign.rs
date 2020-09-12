@@ -278,7 +278,10 @@ fn modifies_first(callee: &Expr) -> bool {
       }
     }
 
-    Expr::OptChain(OptChainExpr { expr, .. }) => return modifies_first(&expr),
+    Expr::Paren(ParenExpr { expr, .. })
+    | Expr::OptChain(OptChainExpr { expr, .. }) => {
+      return modifies_first(&expr)
+    }
 
     _ => {}
   }
