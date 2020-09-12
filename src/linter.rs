@@ -75,6 +75,7 @@ pub struct IgnoreDirective {
   pub span: Span,
   pub codes: Vec<String>,
   pub used_codes: HashMap<String, bool>,
+  pub is_global: bool,
 }
 
 impl IgnoreDirective {
@@ -84,7 +85,10 @@ impl IgnoreDirective {
     &mut self,
     diagnostic: &LintDiagnostic,
   ) -> bool {
-    if self.position.line != diagnostic.range.start.line - 1 {
+    // `is_global` means that diagnostic is ignored in whole file.
+    if self.is_global {
+      // pass
+    } else if self.position.line != diagnostic.range.start.line - 1 {
       return false;
     }
 
@@ -234,28 +238,6 @@ impl Linter {
     Ok(diagnostics)
   }
 
-  fn has_ignore_file_directive(
-    &self,
-    comments: &SingleThreadedComments,
-    module: &swc_ecmascript::ast::Module,
-  ) -> bool {
-    comments.with_leading(module.span.lo(), |module_leading_comments| {
-      for comment in module_leading_comments.iter() {
-        if comment.kind == CommentKind::Line {
-          let text = comment.text.trim();
-          if self
-            .ignore_file_directives
-            .iter()
-            .any(|directive| directive == text)
-          {
-            return true;
-          }
-        }
-      }
-      false
-    })
-  }
-
   fn filter_diagnostics(
     &self,
     context: Arc<Context>,
@@ -322,10 +304,34 @@ impl Linter {
     module: swc_ecmascript::ast::Module,
     comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
-    if self.has_ignore_file_directive(&comments, &module) {
-      return vec![];
-    }
     let start = Instant::now();
+    let file_ignore_directive = comments.with_leading(module.span.lo(), |c| {
+      let directives = c
+        .iter()
+        .filter_map(|comment| {
+          parse_ignore_comment(
+            &self.ignore_file_directives,
+            &*self.ast_parser.source_map,
+            comment,
+            true,
+          )
+        })
+        .collect::<Vec<IgnoreDirective>>();
+
+      if directives.is_empty() {
+        None
+      } else {
+        Some(directives[0].clone())
+      }
+    });
+
+    // If there's a file ignore directive that has no codes specified we must ignore
+    // whole file and skip linting it.
+    if let Some(ignore_directive) = &file_ignore_directive {
+      if ignore_directive.codes.is_empty() {
+        return vec![];
+      }
+    }
 
     let (leading, trailing) = comments.take_all();
     let leading_coms = Rc::try_unwrap(leading)
@@ -337,12 +343,16 @@ impl Linter {
       .into_inner();
     let trailing = trailing_coms.into_iter().collect();
 
-    let ignore_directives = parse_ignore_directives(
+    let mut ignore_directives = parse_ignore_directives(
       &self.ignore_diagnostic_directives,
       &self.ast_parser.source_map,
       &leading,
       &trailing,
     );
+
+    if let Some(ignore_directive) = file_ignore_directive {
+      ignore_directives.insert(0, ignore_directive);
+    }
 
     let scope = Arc::new(analyze(&module));
     let control_flow = Arc::new(ControlFlow::analyze(&module));
@@ -380,9 +390,12 @@ fn parse_ignore_directives(
 
   leading_comments.values().for_each(|comments| {
     for comment in comments {
-      if let Some(ignore) =
-        parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
-      {
+      if let Some(ignore) = parse_ignore_comment(
+        &ignore_diagnostic_directives,
+        source_map,
+        comment,
+        false,
+      ) {
         ignore_directives.push(ignore);
       }
     }
@@ -390,9 +403,12 @@ fn parse_ignore_directives(
 
   trailing_comments.values().for_each(|comments| {
     for comment in comments {
-      if let Some(ignore) =
-        parse_ignore_comment(&ignore_diagnostic_directives, source_map, comment)
-      {
+      if let Some(ignore) = parse_ignore_comment(
+        &ignore_diagnostic_directives,
+        source_map,
+        comment,
+        false,
+      ) {
         ignore_directives.push(ignore);
       }
     }
@@ -407,6 +423,7 @@ fn parse_ignore_comment(
   ignore_diagnostic_directives: &[String],
   source_map: &SourceMap,
   comment: &Comment,
+  is_global: bool,
 ) -> Option<IgnoreDirective> {
   if comment.kind != CommentKind::Line {
     return None;
@@ -415,28 +432,32 @@ fn parse_ignore_comment(
   let comment_text = comment.text.trim();
 
   for ignore_dir in ignore_diagnostic_directives {
-    if comment_text.starts_with(ignore_dir) {
-      let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
-      let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
-      let codes = comment_text
-        .split(',')
-        .filter(|code| !code.is_empty())
-        .map(|code| String::from(code.trim()))
-        .collect::<Vec<String>>();
+    if let Some(prefix) = comment_text.split_whitespace().next() {
+      if prefix == ignore_dir {
+        let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
+        let comment_text =
+          IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
+        let codes = comment_text
+          .split(',')
+          .filter(|code| !code.is_empty())
+          .map(|code| String::from(code.trim()))
+          .collect::<Vec<String>>();
 
-      let location = source_map.lookup_char_pos(comment.span.lo());
+        let location = source_map.lookup_char_pos(comment.span.lo());
 
-      let mut used_codes = HashMap::new();
-      codes.iter().for_each(|code| {
-        used_codes.insert(code.to_string(), false);
-      });
+        let mut used_codes = HashMap::new();
+        codes.iter().for_each(|code| {
+          used_codes.insert(code.to_string(), false);
+        });
 
-      return Some(IgnoreDirective {
-        position: location.into(),
-        span: comment.span,
-        codes,
-        used_codes,
-      });
+        return Some(IgnoreDirective {
+          position: location.into(),
+          span: comment.span,
+          codes,
+          used_codes,
+          is_global,
+        });
+      }
     }
   }
 
