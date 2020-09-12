@@ -79,8 +79,17 @@ impl NoImportAssignVisitor {
     Self { context, imports }
   }
 
-  fn check(&self, i: Id) {
-    if self.imports.contains(&i) {}
+  fn check(&self, i: &Ident) {
+    // We only care about imports
+    if !self.imports.contains(&i) {
+      return;
+    }
+
+    self.context.add_diagnostic(
+      i.span,
+      "no-import-assign",
+      "Assignment to import is not allowed",
+    );
   }
 }
 
