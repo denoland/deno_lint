@@ -45,6 +45,8 @@ pub mod no_extra_non_null_assertion;
 pub mod no_extra_semi;
 pub mod no_fallthrough;
 pub mod no_func_assign;
+pub mod no_global_assign;
+pub mod no_import_assign;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
@@ -58,6 +60,7 @@ pub mod no_non_null_assertion;
 pub mod no_obj_calls;
 pub mod no_octal;
 pub mod no_prototype_builtins;
+pub mod no_redeclare;
 pub mod no_regex_spaces;
 pub mod no_self_assign;
 pub mod no_setter_return;
@@ -130,6 +133,8 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_extra_semi::NoExtraSemi::new(),
     no_fallthrough::NoFallthrough::new(),
     no_func_assign::NoFuncAssign::new(),
+    no_global_assign::NoGlobalAssign::new(),
+    no_import_assign::NoImportAssign::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_inner_declarations::NoInnerDeclarations::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
@@ -141,6 +146,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_redeclare::NoRedeclare::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_self_assign::NoSelfAssign::new(),
     no_setter_return::NoSetterReturn::new(),
@@ -207,6 +213,8 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_extra_semi::NoExtraSemi::new(),
     no_fallthrough::NoFallthrough::new(),
     no_func_assign::NoFuncAssign::new(),
+    no_global_assign::NoGlobalAssign::new(),
+    no_import_assign::NoImportAssign::new(),
     no_inferrable_types::NoInferrableTypes::new(),
     no_inner_declarations::NoInnerDeclarations::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
@@ -220,6 +228,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_obj_calls::NoObjCalls::new(),
     no_octal::NoOctal::new(),
     no_prototype_builtins::NoPrototypeBuiltins::new(),
+    no_redeclare::NoRedeclare::new(),
     no_regex_spaces::NoRegexSpaces::new(),
     no_self_assign::NoSelfAssign::new(),
     no_setter_return::NoSetterReturn::new(),
