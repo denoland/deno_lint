@@ -54,7 +54,6 @@ impl LintRule for SortImports {
   ) {
     let mut visitor = SortImportsVisitor::default(context);
     visitor.visit_module(module, module);
-    println!("{:?}", visitor.line_imports.len());
     visitor.sort_import_ident(None);
   }
 }
@@ -148,18 +147,15 @@ impl SortImportsVisitor {
     let first = sorted.iter();
     let mut first_unsorted_index: Option<usize> = None;
     for (index, sth) in first.enumerate() {
-      let mut diff = index;
-      if index != 0 {
-        diff = index - 1;
-      }
-      let bs = &sorted[diff];
-      let mut som: Vec<String> = vec![bs.to_string(), sth.to_string()];
-      som.sort();
-      if &som[1] != sth {
-        first_unsorted_index = Some(diff);
-      }
+      if index != &import_specifiers.len() - 1 {
+        let bs = &sorted[index + 1];
+        let mut som: Vec<String> = vec![bs.to_string(), sth.to_string()];
+        som.sort();
+        if &som[0] != sth {
+          first_unsorted_index = Some(index + 1);
+        }
+      };
     }
-
     if let Some(n) = first_unsorted_index {
       let mut err_string = String::from("Member ");
       err_string.push_str(&sorted[n]);
@@ -171,6 +167,7 @@ impl SortImportsVisitor {
         "sort-imports",
         &err_string,
       );
+      return;
     }
   }
 
