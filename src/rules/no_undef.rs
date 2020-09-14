@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
+use swc_atoms::js_word;
 use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
@@ -225,6 +226,21 @@ impl Visit for NoUndefVisitor {
   fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
     self.check(&p.key);
     p.value.visit_with(p, self);
+  }
+
+  fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
+    if let ExprOrSuper::Expr(callee) = &e.callee {
+      match &**callee {
+        Expr::Ident(i) => {
+          if i.sym == js_word!("import") {
+            return;
+          }
+        }
+        _ => {}
+      }
+    }
+
+    e.visit_children_with(self)
   }
 }
 
