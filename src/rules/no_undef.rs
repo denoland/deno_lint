@@ -158,6 +158,12 @@ impl NoUndefVisitor {
       return;
     }
 
+    // Implicitly defined
+    // See: https://github.com/denoland/deno_lint/issues/317
+    if ident.sym == *"arguments" {
+      return;
+    }
+
     // Ignore top level bindings declared in the file.
     if self.declared.contains(&ident.to_id()) {
       return;
