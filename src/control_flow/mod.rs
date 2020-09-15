@@ -321,12 +321,15 @@ impl Visit for Analyzer<'_> {
     let prev_done = self.scope.done;
     n.visit_children_with(self);
 
+    let has_default = n.cases.iter().any(|case| case.test.is_none());
+
     // SwitchStmt finishes execution if all cases finishes execution
-    let is_done = n
-      .cases
-      .iter()
-      .map(|case| case.span.lo)
-      .all(|lo| self.is_forced_done(lo));
+    let is_done = has_default
+      && n
+        .cases
+        .iter()
+        .map(|case| case.span.lo)
+        .all(|lo| self.is_forced_done(lo));
 
     // A switch statement is finisher or not.
     if is_done {
