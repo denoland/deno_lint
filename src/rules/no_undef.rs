@@ -159,6 +159,12 @@ impl NoUndefVisitor {
       return;
     }
 
+    // Implicitly defined
+    // See: https://github.com/denoland/deno_lint/issues/317
+    if ident.sym == *"arguments" {
+      return;
+    }
+
     // Ignore top level bindings declared in the file.
     if self.declared.contains(&ident.to_id()) {
       return;
@@ -298,6 +304,8 @@ mod tests {
     assert_lint_ok::<NoUndef>("var toString = 1;");
 
     assert_lint_ok::<NoUndef>("function myFunc(...foo) {  return foo;}");
+
+    assert_lint_ok::<NoUndef>("function myFunc() { console.log(arguments); }");
 
     // TODO(kdy1): Parse as jsx
     // assert_lint_ok::<NoUndef>(
