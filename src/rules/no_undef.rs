@@ -230,13 +230,10 @@ impl Visit for NoUndefVisitor {
 
   fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
     if let ExprOrSuper::Expr(callee) = &e.callee {
-      match &**callee {
-        Expr::Ident(i) => {
-          if i.sym == js_word!("import") {
-            return;
-          }
+      if let Expr::Ident(i) = &**callee {
+        if i.sym == js_word!("import") {
+          return;
         }
-        _ => {}
       }
     }
 
