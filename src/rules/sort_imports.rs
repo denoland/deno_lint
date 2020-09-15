@@ -11,11 +11,6 @@ use swc_ecmascript::ast::ImportStarAsSpecifier;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-enum ErrMsgTypes {
-  SortImportsAlphabetically,
-  SortMembersAlphabetically,
-}
-
 struct ImportIdent {
   import_decl: String,
   span: Span,
@@ -25,6 +20,35 @@ impl ImportIdent {
   fn new(import_decl: String, span: Span) -> ImportIdent {
     ImportIdent { import_decl, span }
   }
+}
+
+fn get_err_index(
+  import_specifiers: &Vec<ImportIdent>,
+  ignore_case: bool,
+) -> Option<usize> {
+  let get_sortable_name = if ignore_case {
+    |specifier: &ImportIdent| specifier.import_decl.to_ascii_lowercase()
+  } else {
+    |specifier: &ImportIdent| specifier.import_decl.to_string()
+  };
+
+  let sorted = import_specifiers
+    .iter()
+    .map(get_sortable_name)
+    .collect::<Vec<String>>();
+  let first = sorted.iter();
+  let mut first_unsorted_index: Option<usize> = None;
+  for (index, sth) in first.enumerate() {
+    if index != &import_specifiers.len() - 1 {
+      let bs = &sorted[index + 1];
+      let mut som: Vec<String> = vec![bs.to_string(), sth.to_string()];
+      som.sort();
+      if &som[0] != sth {
+        first_unsorted_index = Some(index + 1);
+      }
+    };
+  }
+  first_unsorted_index
 }
 
 #[allow(dead_code)]
@@ -54,7 +78,7 @@ impl LintRule for SortImports {
   ) {
     let mut visitor = SortImportsVisitor::default(context);
     visitor.visit_module(module, module);
-    visitor.sort_import_ident(None);
+    visitor.sort_line_imports();
   }
 }
 
@@ -84,81 +108,11 @@ impl SortImportsVisitor {
     }
   }
 
-  fn sort_import_ident(&mut self, import_ident_vec: Option<&Vec<ImportIdent>>) {
-    let mut err_type: ErrMsgTypes = ErrMsgTypes::SortMembersAlphabetically;
-    let ident_vec = match import_ident_vec {
-      Some(vec) => vec,
-      None => {
-        err_type = ErrMsgTypes::SortImportsAlphabetically;
-        &self.line_imports
-      }
-    };
-
-    let mut vec_srings: Vec<String> = ident_vec
-      .iter()
-      .map(|s| {
-        if self.options.ignore_case {
-          s.import_decl.to_string().to_ascii_lowercase()
-        } else {
-          s.import_decl.to_string()
-        }
-      })
-      .collect();
-    vec_srings.sort();
-    for (index, s) in vec_srings.iter().enumerate() {
-      let mut import_decl = ident_vec[index].import_decl.to_string();
-      if self.options.ignore_case {
-        import_decl = import_decl.to_lowercase();
-      }
-      if s != &import_decl {
-        let mut err_string = String::from("");
-        match err_type {
-          ErrMsgTypes::SortImportsAlphabetically => {
-            err_string.push_str("Imports should be sorted alphabetically.");
-          }
-          ErrMsgTypes::SortMembersAlphabetically => {
-            err_string.push_str("Member ");
-            err_string.push_str(&import_decl);
-            err_string.push_str(
-              " of the import declaration should be sorted alphabetically.",
-            );
-          }
-        }
-        self.context.add_diagnostic(
-          ident_vec[index].span,
-          "sort-imports",
-          &err_string,
-        );
-      }
-    }
-  }
-
   fn sort_import_decl(&mut self, import_specifiers: &Vec<ImportIdent>) {
-    let get_sortable_name = if self.options.ignore_case {
-      |specifier: &ImportIdent| specifier.import_decl.to_ascii_lowercase()
-    } else {
-      |specifier: &ImportIdent| specifier.import_decl.to_string()
-    };
-
-    let sorted = import_specifiers
-      .iter()
-      .map(get_sortable_name)
-      .collect::<Vec<String>>();
-    let first = sorted.iter();
-    let mut first_unsorted_index: Option<usize> = None;
-    for (index, sth) in first.enumerate() {
-      if index != &import_specifiers.len() - 1 {
-        let bs = &sorted[index + 1];
-        let mut som: Vec<String> = vec![bs.to_string(), sth.to_string()];
-        som.sort();
-        if &som[0] != sth {
-          first_unsorted_index = Some(index + 1);
-        }
-      };
-    }
-    if let Some(n) = first_unsorted_index {
+    if let Some(n) = get_err_index(&import_specifiers, self.options.ignore_case)
+    {
       let mut err_string = String::from("Member ");
-      err_string.push_str(&sorted[n]);
+      err_string.push_str(&import_specifiers[n].import_decl);
       err_string.push_str(
         " of the import declaration should be sorted alphabetically.",
       );
@@ -171,12 +125,24 @@ impl SortImportsVisitor {
     }
   }
 
+  fn sort_line_imports(&mut self) {
+    if let Some(n) = get_err_index(&self.line_imports, self.options.ignore_case)
+    {
+      self.context.add_diagnostic(
+        self.line_imports[n].span,
+        "sort-imports",
+        "Imports should be sorted alphabetically.",
+      );
+      return;
+    }
+  }
+
   fn handle_import_decl(&mut self, import_stmt: &ImportDecl) -> () {
     let specifiers = &import_stmt.specifiers;
     let mut import_ident_vec: Vec<ImportIdent> = vec![];
     let mut import_ident: ImportIdent =
-      ImportIdent::new(String::from("hi"), import_stmt.span);
-    for specifier in specifiers.iter() {
+      ImportIdent::new(String::from(""), import_stmt.span);
+    for (index, specifier) in specifiers.iter().enumerate() {
       if let ImportSpecifier::Named(named_specifier) = &specifier {
         match &named_specifier.imported {
           Some(renamed_import) => {
@@ -184,20 +150,24 @@ impl SortImportsVisitor {
               renamed_import.sym.get(0..).unwrap().to_string(),
               renamed_import.span,
             ));
-            import_ident = ImportIdent::new(
-              renamed_import.sym.get(0..).unwrap().to_string(),
-              import_stmt.span,
-            );
+            if index == 0 {
+              import_ident = ImportIdent::new(
+                renamed_import.sym.get(0..).unwrap().to_string(),
+                import_stmt.span,
+              );
+            }
           }
           None => {
             import_ident_vec.push(ImportIdent::new(
               named_specifier.local.sym.get(0..).unwrap().to_string(),
               named_specifier.local.span,
             ));
-            import_ident = ImportIdent::new(
-              named_specifier.local.sym.get(0..).unwrap().to_string(),
-              import_stmt.span,
-            );
+            if index == 0 {
+              import_ident = ImportIdent::new(
+                named_specifier.local.sym.get(0..).unwrap().to_string(),
+                import_stmt.span,
+              );
+            }
           }
         }
       }
