@@ -363,6 +363,16 @@ mod tests {
   }
 
   #[test]
+  fn ok_12() {
+    assert_lint_ok::<NoUndef>(
+      "
+      const importPath = \"./foo.ts\";
+      const dataProcessor = await import(importPath);
+      ",
+    );
+  }
+
+  #[test]
   fn err_1() {
     assert_lint_err::<NoUndef>("a = 1;", 0);
 
