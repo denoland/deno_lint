@@ -208,6 +208,28 @@ mod tests {
   }
 
   #[test]
+  fn ok_10() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+function normalize(type: string): string | undefined {
+  switch (type) {
+    case "urlencoded":
+      return "application/x-www-form-urlencoded";
+    case "multipart":
+      return "multipart/*";
+  }
+
+  if (type[0] === "+") {
+    return `*/*${type}`;
+  }
+
+  return type.includes("/") ? type : lookup(type);
+}
+"#,
+    );
+  }
+
+  #[test]
   fn ok_break_labeled() {
     assert_lint_ok::<NoUnreachable>(
       "A: {
