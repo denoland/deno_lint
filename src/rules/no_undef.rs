@@ -292,6 +292,8 @@ mod tests {
 
     assert_lint_ok::<NoUndef>("function myFunc(...foo) {  return foo;}");
 
+    assert_lint_ok::<NoUndef>("function myFunc() { console.log(arguments); }");
+
     // TODO(kdy1): Parse as jsx
     // assert_lint_ok::<NoUndef>(
     //   "var React, App, a=1; React.render(<App attr={a} />);",
