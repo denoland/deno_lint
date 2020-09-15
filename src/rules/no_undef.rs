@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
+use swc_atoms::js_word;
 use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
@@ -226,6 +227,18 @@ impl Visit for NoUndefVisitor {
     self.check(&p.key);
     p.value.visit_with(p, self);
   }
+
+  fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
+    if let ExprOrSuper::Expr(callee) = &e.callee {
+      if let Expr::Ident(i) = &**callee {
+        if i.sym == js_word!("import") {
+          return;
+        }
+      }
+    }
+
+    e.visit_children_with(self)
+  }
 }
 
 #[cfg(test)]
@@ -345,6 +358,16 @@ mod tests {
       await new Promise((resolve: () => void, _) => {
         setTimeout(resolve, 100);
       });
+      ",
+    );
+  }
+
+  #[test]
+  fn ok_12() {
+    assert_lint_ok::<NoUndef>(
+      "
+      const importPath = \"./foo.ts\";
+      const dataProcessor = await import(importPath);
       ",
     );
   }
