@@ -5,13 +5,8 @@ A Rust crate for writing fast JavaScript and TypeScript linters.
 This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific
 and can be used to write linters for Node as well.
 
----
-
-**NOTE**
-Work-in-progress
-
-_Current focus is on getting `recommended` set of rules from ESLint and `@typescript-eslint`
-working out of the box._
+_Supports `recommended` set of rules from ESLint and `@typescript-eslint` out of the box
+with no config._
 
 See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
@@ -99,6 +94,8 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 - [`no-extra-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-extra-non-null-assertion.md)
 - [`no-extra-semi`](https://eslint.org/docs/rules/no-extra-semi)
 - [`no-func-assign`](https://eslint.org/docs/rules/no-func-assign)
+- [`no-global-assign`](https://eslint.org/docs/rules/no-global-assign)
+- [`no-import-assign`](https://eslint.org/docs/rules/no-import-assign)
 - [`no-inferrable-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-inferrable-types.md)
 - [`no-invalid-regexp`](https://eslint.org/docs/rules/no-invalid-regexp)
 - [`no-irregular-whitespace`](https://eslint.org/docs/rules/no-irregular-whitespace)
@@ -111,6 +108,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 - [`no-obj-calls`](https://eslint.org/docs/rules/no-obj-calls)
 - [`no-octal`](https://eslint.org/docs/rules/no-octal)
 - [`no-prototype-builtins`](https://eslint.org/docs/rules/no-prototype-builtins)
+- [`no-redeclare`](https://eslint.org/docs/rules/no-redeclare)
 - [`no-regex-spaces`](https://eslint.org/docs/rules/no-regex-spaces)
 - [`no-self-assign`](https://eslint.org/docs/rules/no-self-assign)
 - [`no-setter-return`](https://eslint.org/docs/rules/no-setter-return)
@@ -119,6 +117,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 - [`no-this-alias`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-this-alias.md)
 - [`no-this-before-super`](https://eslint.org/docs/rules/no-this-before-super)
 - [`no-throw-literal`](https://eslint.org/docs/rules/no-throw-literal)
+- [`no-undef`](https://eslint.org/docs/rules/no-undef)
 - [`no-unexpected-multiline`](https://eslint.org/docs/rules/no-unexpected-multiline)
 - [`no-unsafe-finally`](https://eslint.org/docs/rules/no-unsafe-finally)
 - [`no-unsafe-negation`](https://eslint.org/docs/rules/no-unsafe-negation)
@@ -160,6 +159,16 @@ Ignore directive must be placed before first stament or declaration:
 // deno-lint-ignore-file
 
 import { bar } from "./bar.js";
+
+function foo(): any {
+  // ...
+}
+```
+
+You can also ignore certain diagnostics in the whole file
+
+```ts
+// deno-lint-ignore-file no-explicit-any no-empty
 
 function foo(): any {
   // ...
