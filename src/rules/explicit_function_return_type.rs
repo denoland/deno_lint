@@ -1,9 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_common::Span;
+use swc_ecmascript::ast::{ArrowExpr, ClassMethod, Function, MethodKind};
+use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit, VisitWith};
 
 use std::sync::Arc;
 
@@ -36,25 +36,45 @@ impl ExplicitFunctionReturnTypeVisitor {
   fn new(context: Arc<Context>) -> Self {
     Self { context }
   }
+
+  fn report(&self, span: Span) {
+    self.context.add_diagnostic(
+      span,
+      "explicit-function-return-type",
+      "Missing return type on function",
+    );
+  }
 }
 
 impl Visit for ExplicitFunctionReturnTypeVisitor {
   noop_visit_type!();
 
-  fn visit_function(
-    &mut self,
-    function: &swc_ecmascript::ast::Function,
-    _parent: &dyn Node,
-  ) {
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     if function.return_type.is_none() {
-      self.context.add_diagnostic(
-        function.span,
-        "explicit-function-return-type",
-        "Missing return type on function",
-      );
+      self.report(function.span);
     }
-    for stmt in &function.body {
-      self.visit_block_stmt(stmt, _parent);
+    function.visit_children_with(self);
+  }
+
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    if arrow_expr.return_type.is_none() {
+      self.report(arrow_expr.span);
+    }
+    arrow_expr.visit_children_with(self);
+  }
+
+  fn visit_class_method(
+    &mut self,
+    class_method: &ClassMethod,
+    parent: &dyn Node,
+  ) {
+    match class_method.kind {
+      MethodKind::Setter => {
+        visit::visit_function(self, &class_method.function, parent);
+      }
+      _ => {
+        self.visit_function(&class_method.function, parent);
+      }
     }
   }
 }
@@ -282,7 +302,7 @@ function test(a: number, b: number) {
   return;
 }
       "#,
-      0,
+      2,
       0,
     );
     assert_lint_err_on_line::<ExplicitFunctionReturnType>(
@@ -291,7 +311,7 @@ function test() {
   return;
 }
       "#,
-      0,
+      2,
       0,
     );
     assert_lint_err_on_line::<ExplicitFunctionReturnType>(
@@ -300,24 +320,24 @@ var fn = function () {
   return 1;
 };
       "#,
-      0,
-      0,
+      2,
+      9,
     );
     assert_lint_err_on_line::<ExplicitFunctionReturnType>(
       r#"
 var arrowFn = () => 'test';
       "#,
-      0,
-      0,
+      2,
+      14,
     );
-    assert_lint_err_on_line::<ExplicitFunctionReturnType>(
+    assert_lint_err_on_line_n::<ExplicitFunctionReturnType>(
       r#"
 class Test {
-  constructor() {}
+  constructor() {} // OK
   get prop() {
     return 1;
   }
-  set prop() {}
+  set prop() {} // OK
   method() {
     return;
   }
@@ -327,13 +347,11 @@ class Test {
   }
 }
       "#,
-      0,
-      0,
+      vec![(4, 2), (8, 2), (11, 10), (12, 2)],
     );
-    assert_lint_err_on_line::<ExplicitFunctionReturnType>(
+    assert_lint_err::<ExplicitFunctionReturnType>(
       r#"var arrowFn = () => 'test';"#,
-      0,
-      0,
+      14,
     );
     assert_lint_err_on_line::<ExplicitFunctionReturnType>(
       r#"
@@ -341,14 +359,10 @@ var funcExpr = function () {
   return 'test';
 };
       "#,
-      0,
-      0,
+      2,
+      15,
     );
-    assert_lint_err_on_line::<ExplicitFunctionReturnType>(
-      r#"() => () => {};"#,
-      0,
-      0,
-    );
+    assert_lint_err::<ExplicitFunctionReturnType>(r#"() => () => {};"#, 0);
     assert_lint_err_on_line::<ExplicitFunctionReturnType>(
       r#"() => function () {};"#,
       0,
