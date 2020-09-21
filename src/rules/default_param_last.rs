@@ -108,6 +108,11 @@ mod tests {
       "const f = function f() {}",
       "const f = function f(a) {}",
       "const f = function f(a = 5) {}",
+      r#"
+class Foo {
+  bar(a, b = 2) {}
+}
+      "#,
     ]);
   }
 
@@ -142,6 +147,15 @@ mod tests {
     );
     assert_lint_err_on_line::<DefaultParamLast>(
       r#"
+class Foo {
+  bar(a = 2, b) {}
+}
+      "#,
+      3,
+      6,
+    );
+    assert_lint_err_on_line::<DefaultParamLast>(
+      r#"
 function f() {
   function g(a = 5, b) {}
 }
@@ -175,6 +189,19 @@ const f = () => {
 "#,
       3,
       13,
+    );
+    assert_lint_err_on_line::<DefaultParamLast>(
+      r#"
+class Foo {
+  bar(a, b = 1) {
+    class X {
+      y(c = 3, d) {}
+    }
+  }
+}
+      "#,
+      5,
+      8,
     );
   }
 }
