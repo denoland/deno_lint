@@ -23,6 +23,7 @@ pub fn assert_diagnostic(
   code: &str,
   line: usize,
   col: usize,
+  source: &str,
 ) {
   if diagnostic.code == code
     && diagnostic.range.start.line == line
@@ -31,13 +32,14 @@ pub fn assert_diagnostic(
     return;
   }
   panic!(format!(
-    "expect diagnostics {} at {}:{} to be {} at {}:{}",
+    "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
     diagnostic.range.start.line,
     diagnostic.range.start.col,
     code,
     line,
-    col
+    col,
+    source,
   ))
 }
 
@@ -45,7 +47,10 @@ pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
   let rule = T::new();
   let diagnostics = lint(rule, source);
   if !diagnostics.is_empty() {
-    panic!("Unexpected diagnostics: {:#?}", diagnostics);
+    panic!(
+      "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
+      diagnostics, source
+    );
   }
 }
 
@@ -67,8 +72,14 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
   let rule = T::new();
   let rule_code = rule.code();
   let diagnostics = lint(rule, source);
-  assert_eq!(diagnostics.len(), 1);
-  assert_diagnostic(&diagnostics[0], rule_code, line, col);
+  assert_eq!(
+    diagnostics.len(),
+    1,
+    "1 diagnostic expected, but got {}.\n\nsource:\n{}\n",
+    diagnostics.len(),
+    source
+  );
+  assert_diagnostic(&diagnostics[0], rule_code, line, col, source);
 }
 
 pub fn assert_lint_err_n<T: LintRule + 'static>(
@@ -89,9 +100,16 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   let rule = T::new();
   let rule_code = rule.code();
   let diagnostics = lint(rule, source);
-  assert!(diagnostics.len() == expected.len());
+  assert_eq!(
+    diagnostics.len(),
+    expected.len(),
+    "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
+    expected.len(),
+    diagnostics.len(),
+    source
+  );
   for i in 0..diagnostics.len() {
     let (line, col) = expected[i];
-    assert_diagnostic(&diagnostics[i], rule_code, line, col);
+    assert_diagnostic(&diagnostics[i], rule_code, line, col, source);
   }
 }
