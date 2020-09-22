@@ -171,51 +171,59 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn for_direction_ok() {
-    assert_lint_ok::<ForDirection>(
-      r#"
-for(let i = 0; i < 2; i++) {}
-for(let i = 0; i <= 2; i++) {}
-for(let i = 2; i > 2; i--) {}
-for(let i = 2; i >= 0; i--) {}
-
-for(let i = 0; i < 2; i += 1) {}
-for(let i = 0; i <= 2; i += 1) {}
-for(let i = 0; i < 2; i -= -1) {}
-for(let i = 0; i <= 2; i -= -1) {}
-
-for(let i = 2; i > 2; i -= 1) {}
-for(let i = 2; i >= 0; i -= 1) {}
-for(let i = 2; i > 2; i += -1) {}
-for(let i = 2; i >= 0; i += -1) {}
-
-for(let i = 0; i < 2;) {}
-for(let i = 0; i <= 2;) {}
-for(let i = 2; i > 2;) {}
-for(let i = 2; i >= 0;) {}
-
-for(let i = 0; i < 2; i |= 2) {}
-for(let i = 0; i <= 2; i %= 2) {}
-
-for(let i = 0; i < 2; j++) {}
-for(let i = 0; i <= 2; j--) {}
-for(let i = 2; i > 2; j++) {}
-for(let i = 2; i >= 0; j--) {}
-
-for(let i = 0; i !== 10; i++) {}
-for(let i = 0; i != 10; i++) {}
-for(let i = 0; i === 0; i++) {}
-for(let i = 0; i == 0; i++) {}
-      "#,
-    );
+  fn for_direction_valid() {
+    assert_lint_ok_n::<ForDirection>(vec![
+      // ++, --
+      "for(let i = 0; i < 2; i++) {}",
+      "for(let i = 0; i < 2; ++i) {}",
+      "for(let i = 0; i <= 2; i++) {}",
+      "for(let i = 0; i <= 2; ++i) {}",
+      "for(let i = 2; i > 2; i--) {}",
+      "for(let i = 2; i > 2; --i) {}",
+      "for(let i = 2; i >= 0; i--) {}",
+      "for(let i = 2; i >= 0; --i) {}",
+      // +=, -=
+      "for(let i = 0; i < 2; i += 1) {}",
+      "for(let i = 0; i <= 2; i += 1) {}",
+      "for(let i = 0; i < 2; i -= -1) {}",
+      "for(let i = 0; i <= 2; i -= -1) {}",
+      "for(let i = 2; i > 2; i -= 1) {}",
+      "for(let i = 2; i >= 0; i -= 1) {}",
+      "for(let i = 2; i > 2; i += -1) {}",
+      "for(let i = 2; i >= 0; i += -1) {}",
+      // no update
+      "for(let i = 0; i < 2;) {}",
+      "for(let i = 0; i <= 2;) {}",
+      "for(let i = 2; i > 2;) {}",
+      "for(let i = 2; i >= 0;) {}",
+      // others
+      "for(let i = 0; i < 2; i |= 2) {}",
+      "for(let i = 0; i <= 2; i %= 2) {}",
+      "for(let i = 0; i < 2; j++) {}",
+      "for(let i = 0; i <= 2; j--) {}",
+      "for(let i = 2; i > 2; j++) {}",
+      "for(let i = 2; i >= 0; j--) {}",
+      "for(let i = 0; i !== 10; i++) {}",
+      "for(let i = 0; i != 10; i++) {}",
+      "for(let i = 0; i === 0; i++) {}",
+      "for(let i = 0; i == 0; i++) {}",
+      // nested
+      "for(let i = 0; i < 2; ++i) { for (let j = 0; j < 2; j++) {} }",
+    ]);
   }
 
   #[test]
-  fn for_direction() {
+  fn for_direction_invalid() {
+    // ++, --
     assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i--) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; --i) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i--) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; --i) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i++) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; ++i) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i++) {}", 0);
+    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; ++i) {}", 0);
+    // +=, -=
     assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i -= 1) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i -= 1) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i -= -1) {}", 0);
@@ -224,5 +232,15 @@ for(let i = 0; i == 0; i++) {}
     assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i += 1) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i += -1) {}", 0);
     assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i += -1) {}", 0);
+    // nested
+    assert_lint_err_on_line::<ForDirection>(
+      r#"
+for (let i = 0; i < 2; i++) {
+  for (let j = 0; j < 2; j--) {}
+}
+      "#,
+      3,
+      2,
+    );
   }
 }
