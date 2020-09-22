@@ -235,37 +235,37 @@ mod tests {
 
   #[test]
   fn getter_return_valid() {
-    assert_lint_ok::<GetterReturn>("let foo = { get bar(){return true;} };");
-    assert_lint_ok::<GetterReturn>("class foo { get bar(){return true;} }");
+    assert_lint_ok::<GetterReturn>("let foo = { get bar() { return true; } };");
+    assert_lint_ok::<GetterReturn>("class Foo { get bar() { return true; } }");
     assert_lint_ok::<GetterReturn>(
-      "class foo { get bar(){if(baz){return true;} else {return false;} } }",
+      "class Foo { get bar() { if (baz) { return true; } else { return false; } } }",
     );
-    assert_lint_ok::<GetterReturn>("class foo { get(){return true;} }");
+    assert_lint_ok::<GetterReturn>("class Foo { get() { return true; } }");
     assert_lint_ok::<GetterReturn>(
-      r#"Object.defineProperty(foo, "bar", { get: function () {return true;}});"#,
+      r#"Object.defineProperty(foo, "bar", { get: function () { return true; } });"#,
     );
     assert_lint_ok::<GetterReturn>(
       r#"Object.defineProperty(foo, "bar",
-         { get: function () { ~function (){ return true; }();return true;}});"#,
+         { get: function () { ~function() { return true; }(); return true; } });"#,
     );
     assert_lint_ok::<GetterReturn>(
       r#"Object.defineProperties(foo,
-         { bar: { get: function () {return true;}} });"#,
+         { bar: { get: function() { return true; } } });"#,
     );
     assert_lint_ok::<GetterReturn>(
       r#"Object.defineProperties(foo,
-         { bar: { get: function () { ~function (){ return true; }(); return true;}} });"#,
+         { bar: { get: function () { ~function() { return true; }(); return true; } } });"#,
     );
     assert_lint_ok_n::<GetterReturn>(vec![
-      "let get = function(){};",
-      "let get = function(){ return true; };",
-      "let foo = { bar(){} };",
-      "let foo = { bar(){ return true; } };",
-      "let foo = { bar: function(){} };",
-      "let foo = { bar: function(){return;} };",
-      "let foo = { bar: function(){return true;} };",
-      "let foo = { get: function () {} };",
-      "let foo = { get: () => {}};",
+      "let get = function() {};",
+      "let get = function() { return true; };",
+      "let foo = { bar() {} };",
+      "let foo = { bar() { return true; } };",
+      "let foo = { bar: function() {} };",
+      "let foo = { bar: function() { return; } };",
+      "let foo = { bar: function() { return true; } };",
+      "let foo = { get: function() {} };",
+      "let foo = { get: () => {} };",
       r#"
 const foo = {
   get getter() {
@@ -288,7 +288,7 @@ class Foo {
     };
     return 42;
   }
-};
+}
 "#,
       r#"
 Object.defineProperty(foo, 'bar', {
@@ -322,17 +322,17 @@ Object.defineProperty(foo, 'bar', {
       14,
     );
     // class getter
-    assert_lint_err::<GetterReturn>("class foo { get bar() {} }", 12);
+    assert_lint_err::<GetterReturn>("class Foo { get bar() {} }", 12);
     assert_lint_err::<GetterReturn>(
       "const foo = class { static get bar() {} }",
       0,
     );
     assert_lint_err::<GetterReturn>(
-      "class foo { get bar(){ if (baz) { return true; } } }",
+      "class Foo { get bar(){ if (baz) { return true; } } }",
       12,
     );
     assert_lint_err::<GetterReturn>(
-      "class foo { get bar(){ ~function () { return true; }() } }",
+      "class Foo { get bar(){ ~function () { return true; }() } }",
       12,
     );
     // Object.defineProperty
@@ -401,7 +401,7 @@ class Foo {
     };
     return 42;
   }
-};
+}
       "#,
       5,
       6,
