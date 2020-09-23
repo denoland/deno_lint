@@ -12,6 +12,7 @@ use swc_ecmascript::ast::Stmt;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -128,6 +129,7 @@ impl Visit for GetterReturnVisitor {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
+    class.visit_children_with(self);
     for member in &class.body {
       match member {
         ClassMember::Method(class_method) => {
@@ -154,6 +156,7 @@ impl Visit for GetterReturnVisitor {
     getter_prop: &GetterProp,
     _parent: &dyn Node,
   ) {
+    getter_prop.visit_children_with(self);
     if let Some(block_stmt) = &getter_prop.body {
       self.check_block_stmt(block_stmt, getter_prop.span);
     }
@@ -164,6 +167,7 @@ impl Visit for GetterReturnVisitor {
     call_expr: &swc_ecmascript::ast::CallExpr,
     _parent: &dyn Node,
   ) {
+    call_expr.visit_children_with(self);
     if call_expr.args.len() != 3 {
       return;
     }
@@ -325,7 +329,7 @@ Object.defineProperty(foo, 'bar', {
     assert_lint_err::<GetterReturn>("class Foo { get bar() {} }", 12);
     assert_lint_err::<GetterReturn>(
       "const foo = class { static get bar() {} }",
-      0,
+      20,
     );
     assert_lint_err::<GetterReturn>(
       "class Foo { get bar(){ if (baz) { return true; } } }",
@@ -360,22 +364,14 @@ Object.defineProperty(foo, 'bar', {
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#,
       36,
     );
-    assert_lint_err::<GetterReturn>(
-      r#"Object.defineProperties(foo, { bar: { get: function() {} } });"#,
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"Object.defineProperties(foo, { bar: { get: function() {} } });"#,
-      36,
-    );
     // optional chaining
     assert_lint_err::<GetterReturn>(
       r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#,
-      36,
+      37,
     );
     assert_lint_err::<GetterReturn>(
       r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#,
-      36,
+      39,
     );
     // nested
     assert_lint_err_on_line::<GetterReturn>(
@@ -396,7 +392,7 @@ const foo = {
       r#"
 class Foo {
   get foo() {
-    class Bar = {
+    class Bar {
       get bar() {}
     };
     return 42;
