@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
 use std::sync::Arc;
 
@@ -37,7 +37,7 @@ impl NoUnsafeFinallyVisitor {
 impl Visit for NoUnsafeFinallyVisitor {
   noop_visit_type!();
 
-  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
+  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
       // Convenience function for providing different diagnostic message
       // depending on statement type
@@ -59,6 +59,7 @@ impl Visit for NoUnsafeFinallyVisitor {
         }
       }
     }
+    visit::visit_try_stmt(self, try_stmt, parent);
   }
 }
 
@@ -198,6 +199,23 @@ let foo = function() {
      "#,
       7,
       12,
+    );
+  }
+
+  #[test]
+  fn it_fails_for_a_throw_in_a_nested_finally_block() {
+    assert_lint_err_on_line::<NoUnsafeFinally>(
+      r#"
+try {}
+finally {
+  try {}
+  finally {
+    throw new Error;
+  }
+}
+     "#,
+      5,
+      10,
     );
   }
 }
