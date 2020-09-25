@@ -6,6 +6,7 @@ use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -54,6 +55,7 @@ impl Visit for NoArrayConstructorVisitor {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
+    new_expr.visit_children_with(self);
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.as_ref();
       if name != "Array" {
@@ -72,6 +74,7 @@ impl Visit for NoArrayConstructorVisitor {
   }
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+    call_expr.visit_children_with(self);
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         let name = ident.sym.as_ref();
