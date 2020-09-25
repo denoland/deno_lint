@@ -129,5 +129,26 @@ mod tests {
     assert_lint_err::<NoArrayConstructor>("new Array()", 0);
     assert_lint_err::<NoArrayConstructor>("new Array(x, y)", 0);
     assert_lint_err::<NoArrayConstructor>("new Array(0, 1, 2)", 0);
+    // nested
+    assert_lint_err_on_line::<NoArrayConstructor>(
+      r#"
+const a = new class {
+  foo() {
+    let arr = new Array();
+  }
+}();
+"#,
+      4,
+      14,
+    );
+    assert_lint_err_on_line::<NoArrayConstructor>(
+      r#"
+const a = (() => {
+  let arr = new Array();
+})();
+"#,
+      3,
+      12,
+    );
   }
 }
