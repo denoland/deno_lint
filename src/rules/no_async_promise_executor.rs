@@ -77,18 +77,45 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_async_promise_executor_test() {
+  fn no_async_promise_executor_valid() {
     assert_lint_ok_n::<NoAsyncPromiseExecutor>(vec![
-      "new Promise(function(a, b) {});",
-      "new Promise((a, b) => {});",
+      "new Promise(function(resolve, reject) {});",
+      "new Promise((resolve, reject) => {});",
+      "new Promise((resolve, reject) => {}, async function unrelated() {})",
+      "new Foo(async (resolve, reject) => {})",
+      "new class { foo() { new Promise(async function(resolve, reject) {}); } }"
     ]);
+  }
+
+  #[test]
+  fn no_async_promise_executor_invalid() {
     assert_lint_err::<NoAsyncPromiseExecutor>(
-      "new Promise(async function(a, b) {});",
+      "new Promise(async function(resolve, reject) {});",
       0,
     );
     assert_lint_err::<NoAsyncPromiseExecutor>(
-      "new Promise(async (a, b) => {});",
+      "new Promise(async function foo(resolve, reject) {});",
       0,
+    );
+    assert_lint_err::<NoAsyncPromiseExecutor>(
+      "new Promise(async (resolve, reject) => {});",
+      0,
+    );
+    assert_lint_err::<NoAsyncPromiseExecutor>(
+      "new Promise(((((async () => {})))));",
+      0,
+    );
+    // nested
+    assert_lint_err_on_line::<NoAsyncPromiseExecutor>(
+      r#"
+const a = new class {
+  foo() {
+    let b = new Promise(async function(resolve, reject) {});
+  }
+}
+      "#,
+      4,
+      12,
     );
   }
 }
