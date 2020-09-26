@@ -1,11 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::NewExpr;
+use swc_ecmascript::ast::{Expr, NewExpr, ParenExpr};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -40,10 +40,20 @@ impl NoAsyncPromiseExecutorVisitor {
   }
 }
 
+fn is_async_function(expr: &Expr) -> bool {
+  match expr {
+    Expr::Fn(fn_expr) => fn_expr.function.is_async,
+    Expr::Arrow(arrow_expr) => arrow_expr.is_async,
+    Expr::Paren(ParenExpr { ref expr, .. }) => is_async_function(&**expr),
+    _ => false,
+  }
+}
+
 impl Visit for NoAsyncPromiseExecutorVisitor {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
+    new_expr.visit_children_with(self);
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.as_ref();
       if name != "Promise" {
@@ -52,13 +62,7 @@ impl Visit for NoAsyncPromiseExecutorVisitor {
 
       if let Some(args) = &new_expr.args {
         if let Some(first_arg) = args.get(0) {
-          let is_async = match &*first_arg.expr {
-            Expr::Fn(fn_expr) => fn_expr.function.is_async,
-            Expr::Arrow(arrow_expr) => arrow_expr.is_async,
-            _ => return,
-          };
-
-          if is_async {
+          if is_async_function(&*first_arg.expr) {
             self.context.add_diagnostic(
               new_expr.span,
               "no-async-promise-executor",
@@ -83,7 +87,7 @@ mod tests {
       "new Promise((resolve, reject) => {});",
       "new Promise((resolve, reject) => {}, async function unrelated() {})",
       "new Foo(async (resolve, reject) => {})",
-      "new class { foo() { new Promise(async function(resolve, reject) {}); } }"
+      "new class { foo() { new Promise(function(resolve, reject) {}); } }",
     ]);
   }
 
