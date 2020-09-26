@@ -76,8 +76,9 @@ impl Visit for NoCaseDeclarationsVisitor {
 mod tests {
   use super::*;
   use crate::test_util::*;
+
   #[test]
-  fn no_case_declarations_ok() {
+  fn no_case_declarations_valid() {
     assert_lint_ok::<NoCaseDeclarations>(
       r#"
 switch (foo) {
@@ -111,7 +112,7 @@ switch (foo) {
   }
 
   #[test]
-  fn no_case_declarations() {
+  fn no_case_declarations_invalid() {
     assert_lint_err_on_line::<NoCaseDeclarations>(
       r#"
 switch (foo) {
