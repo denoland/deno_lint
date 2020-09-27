@@ -193,11 +193,7 @@ impl PreferConstVisitor {
               self.extract_assign_idents(&*key_value.value)
             }
             ObjectPatProp::Assign(assign) => {
-              if assign.value.is_some() {
-                self.mark_reassigned(&assign.key);
-              } else {
-                self.mark_reassigned(&assign.key);
-              }
+              self.mark_reassigned(&assign.key);
             }
             ObjectPatProp::Rest(rest) => self.extract_assign_idents(&*rest.arg),
           }
