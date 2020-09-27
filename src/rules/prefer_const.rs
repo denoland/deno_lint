@@ -111,28 +111,21 @@ impl PreferConstVisitor {
     // if this ident is not registered, do nothing.
     let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
 
-    use Initalized::*;
-    if self
+    let declared_in_cur_scope = self
       .vars_declareted_per_scope
       .last()?
-      .contains_key(&ident.sym)
-    {
-      match status.initialized {
-        NotYet => {
-          status.initialized = SameScope;
-        }
-        _ => {
-          status.reassigned = true;
-        }
+      .contains_key(&ident.sym);
+    use Initalized::*;
+    match status.initialized {
+      NotYet => {
+        status.initialized = if declared_in_cur_scope {
+          SameScope
+        } else {
+          DifferentScope
+        };
       }
-    } else {
-      match status.initialized {
-        NotYet => {
-          status.initialized = DifferentScope;
-        }
-        _ => {
-          status.reassigned = true;
-        }
+      _ => {
+        status.reassigned = true;
       }
     }
 
