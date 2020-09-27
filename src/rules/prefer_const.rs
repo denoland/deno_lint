@@ -184,42 +184,58 @@ impl PreferConstVisitor {
   }
 
   fn extract_assign_idents(&mut self, pat: &Pat) {
-    fn extract_rec<'a, 'b>(pat: &'a Pat, idents: &'b mut Vec<&'a Ident>) {
+    fn extract_rec<'a, 'b>(
+      pat: &'a Pat,
+      idents: &'b mut Vec<&'a Ident>,
+      num_args: &'b mut usize,
+    ) {
       match pat {
-        Pat::Ident(ident) => idents.push(ident),
+        Pat::Ident(ident) => {
+          *num_args += 1;
+          idents.push(ident);
+        }
         Pat::Array(array_pat) => {
           for elem in &array_pat.elems {
             if let Some(elem_pat) = elem {
-              extract_rec(elem_pat, idents);
+              extract_rec(elem_pat, idents, num_args);
             }
           }
         }
-        Pat::Rest(rest_pat) => extract_rec(&*rest_pat.arg, idents),
+        Pat::Rest(rest_pat) => extract_rec(&*rest_pat.arg, idents, num_args),
         Pat::Object(object_pat) => {
           for prop in &object_pat.props {
             match prop {
               ObjectPatProp::KeyValue(key_value) => {
-                extract_rec(&*key_value.value, idents);
+                extract_rec(&*key_value.value, idents, num_args);
               }
               ObjectPatProp::Assign(assign) => {
+                *num_args += 1;
                 idents.push(&assign.key);
               }
-              ObjectPatProp::Rest(rest) => extract_rec(&*rest.arg, idents),
+              ObjectPatProp::Rest(rest) => {
+                extract_rec(&*rest.arg, idents, num_args)
+              }
             }
           }
         }
-        Pat::Assign(assign_pat) => extract_rec(&*assign_pat.left, idents),
+        Pat::Assign(assign_pat) => {
+          extract_rec(&*assign_pat.left, idents, num_args)
+        }
+        Pat::Expr(_) => {
+          *num_args += 1;
+        }
         _ => {}
       }
     }
 
     let mut idents = Vec::new();
-    extract_rec(pat, &mut idents);
+    let mut num_args = 0;
+    extract_rec(pat, &mut idents, &mut num_args);
 
-    // If this pat contains two or more variables, then they should be marked as "reassigned"
+    // If this pat contains two or more arguments, then all the idents should be marked as "reassigned"
     // so that we will not report them as error. This is bacause they couldn't be separately declared
     // as `const`.
-    let force_reassigned = idents.len() >= 2;
+    let force_reassigned = num_args >= 2;
 
     for ident in idents {
       self.mark_reassigned(ident, force_reassigned);
