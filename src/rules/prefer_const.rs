@@ -8,8 +8,8 @@ use swc_common::Span;
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ForInStmt,
   ForOfStmt, ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, Pat,
-  PatOrExpr, UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr, WhileStmt,
-  WithStmt,
+  PatOrExpr, UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat,
+  WhileStmt, WithStmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
@@ -354,7 +354,18 @@ impl Visit for PreferConstVisitor {
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _parent: &dyn Node) {
     self.enter_scope();
 
-    for_of_stmt.left.visit_children_with(self);
+    match &for_of_stmt.left {
+      VarDeclOrPat::VarDecl(var_decl) => {
+        if var_decl.kind == VarDeclKind::Let {
+          for decl in &var_decl.decls {
+            self.extract_decl_idents(&decl.name, true, false);
+          }
+        }
+      }
+      VarDeclOrPat::Pat(pat) => {
+        self.extract_assign_idents(pat);
+      }
+    }
     for_of_stmt.right.visit_children_with(self);
     for_of_stmt.body.visit_children_with(self);
 
@@ -364,7 +375,18 @@ impl Visit for PreferConstVisitor {
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _parent: &dyn Node) {
     self.enter_scope();
 
-    for_in_stmt.left.visit_children_with(self);
+    match &for_in_stmt.left {
+      VarDeclOrPat::VarDecl(var_decl) => {
+        if var_decl.kind == VarDeclKind::Let {
+          for decl in &var_decl.decls {
+            self.extract_decl_idents(&decl.name, true, false);
+          }
+        }
+      }
+      VarDeclOrPat::Pat(pat) => {
+        self.extract_assign_idents(pat);
+      }
+    }
     for_in_stmt.right.visit_children_with(self);
     for_in_stmt.body.visit_children_with(self);
 
@@ -455,23 +477,11 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  // TODO(magurotuan) remove this test
   #[test]
   fn hoge() {
-    assert_lint_ok_n::<PreferConst>(vec![
-      r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
-      //r#"let predicate; [typeNode.returnType, ...predicate] = foo();"#,
-      //r#"let predicate; [typeNode.returnType,, predicate] = foo();"#,
-      //r#"let predicate; [typeNode.returnType=5, predicate] = foo();"#,
-      //r#"let predicate; [[typeNode.returnType=5], predicate] = foo();"#,
-      //r#"let predicate; [[typeNode.returnType, predicate]] = foo();"#,
-      //r#"let predicate; [typeNode.returnType, [predicate]] = foo();"#,
-      //r#"let predicate; [, [typeNode.returnType, predicate]] = foo();"#,
-      //r#"let predicate; [, {foo:typeNode.returnType, predicate}] = foo();"#,
-      //r#"let predicate; [, {foo:typeNode.returnType, ...predicate}] = foo();"#,
-      //r#"let a; const b = {}; ({ a, c: b.c } = func());"#,
-      //r#"const x = [1,2]; let y; [,y] = x; y = 0;"#,
-      //r#"const x = [1,2,3]; let y, z; [y,,z] = x; y = 0; z = 0;"#,
-    ]);
+    assert_lint_err::<PreferConst>(r#"for (let i in [1,2,3]) { foo(i); }"#, 9);
+    assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 9);
   }
 
   #[test]
@@ -560,9 +570,9 @@ mod tests {
 
   #[test]
   fn prefer_const_invalid() {
-    assert_lint_err::<PreferConst>(r#"let x = 1; foo(x);"#, 0);
-    assert_lint_err::<PreferConst>(r#"for (let i in [1,2,3]) { foo(i); }"#, 0);
-    assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 0);
+    assert_lint_err::<PreferConst>(r#"let x = 1; foo(x);"#, 4);
+    assert_lint_err::<PreferConst>(r#"for (let i in [1,2,3]) { foo(i); }"#, 9);
+    assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 9);
     assert_lint_err::<PreferConst>(r#"let [x = -1, y] = [1,2]; y = 0;"#, 0);
     assert_lint_err::<PreferConst>(
       r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#,
