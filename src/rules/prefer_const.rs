@@ -6,8 +6,8 @@ use std::sync::Arc;
 use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  AssignExpr, BlockStmt, Ident, Module, ObjectPatProp, Pat, PatOrExpr, VarDecl,
-  VarDeclKind,
+  AssignExpr, BlockStmt, Expr, ForStmt, Ident, Module, ObjectPatProp, Pat,
+  PatOrExpr, UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
@@ -103,7 +103,6 @@ impl PreferConstVisitor {
   }
 
   fn mark_reassigned(&mut self, ident: &Ident) {
-    dbg!(ident);
     let status = self
       .symbols
       .get_mut(&ident.sym)
@@ -234,6 +233,37 @@ impl Visit for PreferConstVisitor {
     self.exit_scope();
   }
 
+  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
+    self.enter_scope();
+
+    match &for_stmt.init {
+      Some(VarDeclOrExpr::VarDecl(var_decl)) => {
+        var_decl.visit_children_with(self);
+        if var_decl.kind == VarDeclKind::Let {
+          for decl in &var_decl.decls {
+            self.extract_decl_idents(&decl.name, decl.init.is_some());
+          }
+        }
+      }
+      Some(VarDeclOrExpr::Expr(expr)) => {
+        expr.visit_children_with(self);
+      }
+      None => {}
+    }
+
+    if let Some(test_expr) = &for_stmt.test {
+      test_expr.visit_children_with(self);
+    }
+    if let Some(update_expr) = &for_stmt.update {
+      update_expr.visit_children_with(self);
+    }
+    for_stmt.body.visit_children_with(self);
+
+    self.exit_scope();
+  }
+
+  // TODO(magurotuna): for-of, for-in, if
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     var_decl.visit_children_with(self);
     if var_decl.kind != VarDeclKind::Let {
@@ -256,6 +286,17 @@ impl Visit for PreferConstVisitor {
       PatOrExpr::Expr(_) => {}
     };
   }
+
+  fn visit_update_expr(
+    &mut self,
+    update_expr: &UpdateExpr,
+    _parent: &dyn Node,
+  ) {
+    match &*update_expr.arg {
+      Expr::Ident(ident) => self.mark_reassigned(ident),
+      otherwise => otherwise.visit_children_with(self),
+    }
+  }
 }
 
 #[cfg(test)]
@@ -265,7 +306,9 @@ mod tests {
 
   #[test]
   fn hoge() {
-    assert_lint_ok::<PreferConst>(r#"let x; { x = 0; } foo(x);"#);
+    assert_lint_ok::<PreferConst>(
+      r#"for (let i = 0, end = 10; i < end; ++i) {}"#,
+    );
   }
 
   #[test]
