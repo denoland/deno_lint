@@ -284,23 +284,39 @@ impl Visit for PreferConstVisitor {
   }
 
   fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _parent: &dyn Node) {
-    todo!()
+    self.enter_scope();
+
+    while_stmt.test.visit_children_with(self);
+    while_stmt.body.visit_children_with(self);
+
+    self.exit_scope();
   }
 
   fn visit_do_while_stmt(
     &mut self,
-    do_while_stmt: &DoWhileStmt,
+    _do_while_stmt: &DoWhileStmt,
     _parent: &dyn Node,
   ) {
-    todo!()
+    self.enter_scope();
+    self.exit_scope();
   }
 
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _parent: &dyn Node) {
-    todo!()
+  fn visit_for_of_stmt(
+    &mut self,
+    _for_of_stmt: &ForOfStmt,
+    _parent: &dyn Node,
+  ) {
+    self.enter_scope();
+    self.exit_scope();
   }
 
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _parent: &dyn Node) {
-    todo!()
+  fn visit_for_in_stmt(
+    &mut self,
+    _for_in_stmt: &ForInStmt,
+    _parent: &dyn Node,
+  ) {
+    self.enter_scope();
+    self.exit_scope();
   }
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
