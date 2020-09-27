@@ -107,7 +107,11 @@ impl PreferConstVisitor {
   }
 
   // Returns `Option<()>` to use question operator
-  fn mark_reassigned(&mut self, ident: &Ident) -> Option<()> {
+  fn mark_reassigned(
+    &mut self,
+    ident: &Ident,
+    force_reassigned: bool,
+  ) -> Option<()> {
     // if this ident is not registered, do nothing.
     let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
 
@@ -123,6 +127,9 @@ impl PreferConstVisitor {
         } else {
           DifferentScope
         };
+        if force_reassigned {
+          status.reassigned = true;
+        }
       }
       _ => {
         status.reassigned = true;
@@ -177,33 +184,45 @@ impl PreferConstVisitor {
   }
 
   fn extract_assign_idents(&mut self, pat: &Pat) {
-    match pat {
-      Pat::Ident(ident) => {
-        self.mark_reassigned(ident);
-      }
-      Pat::Array(array_pat) => {
-        for elem in &array_pat.elems {
-          if let Some(elem_pat) = elem {
-            self.extract_assign_idents(elem_pat);
+    fn extract_rec<'a, 'b>(pat: &'a Pat, idents: &'b mut Vec<&'a Ident>) {
+      match pat {
+        Pat::Ident(ident) => idents.push(ident),
+        Pat::Array(array_pat) => {
+          for elem in &array_pat.elems {
+            if let Some(elem_pat) = elem {
+              extract_rec(elem_pat, idents);
+            }
           }
         }
-      }
-      Pat::Rest(rest_pat) => self.extract_assign_idents(&*rest_pat.arg),
-      Pat::Object(object_pat) => {
-        for prop in &object_pat.props {
-          match prop {
-            ObjectPatProp::KeyValue(key_value) => {
-              self.extract_assign_idents(&*key_value.value)
+        Pat::Rest(rest_pat) => extract_rec(&*rest_pat.arg, idents),
+        Pat::Object(object_pat) => {
+          for prop in &object_pat.props {
+            match prop {
+              ObjectPatProp::KeyValue(key_value) => {
+                extract_rec(&*key_value.value, idents);
+              }
+              ObjectPatProp::Assign(assign) => {
+                idents.push(&assign.key);
+              }
+              ObjectPatProp::Rest(rest) => extract_rec(&*rest.arg, idents),
             }
-            ObjectPatProp::Assign(assign) => {
-              self.mark_reassigned(&assign.key);
-            }
-            ObjectPatProp::Rest(rest) => self.extract_assign_idents(&*rest.arg),
           }
         }
+        Pat::Assign(assign_pat) => extract_rec(&*assign_pat.left, idents),
+        _ => {}
       }
-      Pat::Assign(assign_pat) => self.extract_assign_idents(&*assign_pat.left),
-      _ => {}
+    }
+
+    let mut idents = Vec::new();
+    extract_rec(pat, &mut idents);
+
+    // If this pat contains two or more variables, then they should be marked as "reassigned"
+    // so that we will not report them as error. This is bacause they couldn't be separately declared
+    // as `const`.
+    let force_reassigned = idents.len() >= 2;
+
+    for ident in idents {
+      self.mark_reassigned(ident, force_reassigned);
     }
   }
 
@@ -406,7 +425,7 @@ impl Visit for PreferConstVisitor {
   ) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
-        self.mark_reassigned(ident);
+        self.mark_reassigned(ident, false);
       }
       otherwise => otherwise.visit_children_with(self),
     }
@@ -421,28 +440,7 @@ mod tests {
   #[test]
   fn hoge() {
     assert_lint_ok_n::<PreferConst>(vec![
-      r#"
-      (function (a) {
-        let b;
-        ({ a, b } = obj);
-      })();
-      "#,
-      //r#"
-      //(function (a) {
-      //let b;
-      //([ a, b ] = obj);
-      //})();
-      //"#,
-      //r#"var a; { var b; ({ a, b } = obj); }"#,
-      //r#"let a; { let b; ({ a, b } = obj); }"#,
-      //r#"var a; { var b; ([ a, b ] = obj); }"#,
-      //r#"let a; { let b; ([ a, b ] = obj); }"#,
-      //r#"let x; { x = 0; foo(x); }"#,
-      //r#"(function() { let x; { x = 0; foo(x); } })();"#,
-      //r#"let x; for (const a of [1,2,3]) { x = foo(); bar(x); }"#,
-      //r#"(function() { let x; for (const a of [1,2,3]) { x = foo(); bar(x); } })();"#,
-      //r#"let x; for (x of array) { x; }"#,
-      //r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
+      r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
       //r#"let predicate; [typeNode.returnType, ...predicate] = foo();"#,
       //r#"let predicate; [typeNode.returnType,, predicate] = foo();"#,
       //r#"let predicate; [typeNode.returnType=5, predicate] = foo();"#,
@@ -502,7 +500,7 @@ mod tests {
   "#,
       r#"/*exported a*/ let a; function init() { a = foo(); }"#,
       // TODO(magurotuna): this is ported from ESLint, but I have no idea why this is valid,
-      // so comment out for now.
+      // so comment it out for now.
       // r#"/*exported a*/ let a = 1"#,
       r#"let a; if (true) a = 0; foo(a);"#,
       r#"
