@@ -112,7 +112,8 @@ impl PreferConstVisitor {
     ident: &Ident,
     force_reassigned: bool,
   ) -> Option<()> {
-    // if this ident is not registered, do nothing.
+    // If this ident is not registered, do nothing.
+    // (Most likely this happens if this ident is declared as a function parameter.)
     let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
 
     let declared_in_cur_scope = self
