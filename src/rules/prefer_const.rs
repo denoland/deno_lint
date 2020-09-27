@@ -6,8 +6,9 @@ use std::sync::Arc;
 use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  AssignExpr, BlockStmt, Expr, ForStmt, Ident, Module, ObjectPatProp, Pat,
-  PatOrExpr, UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr,
+  AssignExpr, BlockStmt, DoWhileStmt, Expr, ForInStmt, ForOfStmt, ForStmt,
+  Ident, Module, ObjectPatProp, Pat, PatOrExpr, UpdateExpr, VarDecl,
+  VarDeclKind, VarDeclOrExpr, WhileStmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
@@ -42,6 +43,7 @@ enum Initalized {
 struct VarStatus {
   initialized: Initalized,
   reassigned: bool,
+  in_for_init: bool,
 }
 
 impl VarStatus {
@@ -80,7 +82,7 @@ impl PreferConstVisitor {
     );
   }
 
-  fn insert_var(&mut self, ident: &Ident, has_init: bool) {
+  fn insert_var(&mut self, ident: &Ident, has_init: bool, in_for_init: bool) {
     self
       .vars_declareted_per_scope
       .last_mut()
@@ -99,6 +101,7 @@ impl PreferConstVisitor {
           Initalized::NotYet
         },
         reassigned: false,
+        in_for_init,
       });
   }
 
@@ -137,38 +140,45 @@ impl PreferConstVisitor {
     }
   }
 
-  fn extract_decl_idents(&mut self, pat: &Pat, has_init: bool) {
+  fn extract_decl_idents(
+    &mut self,
+    pat: &Pat,
+    has_init: bool,
+    in_for_init: bool,
+  ) {
     match pat {
-      Pat::Ident(ident) => self.insert_var(ident, has_init),
+      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init),
       Pat::Array(array_pat) => {
         for elem in &array_pat.elems {
           if let Some(elem_pat) = elem {
-            self.extract_decl_idents(elem_pat, has_init);
+            self.extract_decl_idents(elem_pat, has_init, in_for_init);
           }
         }
       }
-      Pat::Rest(rest_pat) => self.extract_decl_idents(&*rest_pat.arg, has_init),
+      Pat::Rest(rest_pat) => {
+        self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
+      }
       Pat::Object(object_pat) => {
         for prop in &object_pat.props {
           match prop {
             ObjectPatProp::KeyValue(key_value) => {
-              self.extract_decl_idents(&*key_value.value, has_init)
+              self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
             }
             ObjectPatProp::Assign(assign) => {
               if assign.value.is_some() {
-                self.insert_var(&assign.key, true);
+                self.insert_var(&assign.key, true, in_for_init);
               } else {
-                self.insert_var(&assign.key, has_init);
+                self.insert_var(&assign.key, has_init, in_for_init);
               }
             }
             ObjectPatProp::Rest(rest) => {
-              self.extract_decl_idents(&*rest.arg, has_init)
+              self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
             }
           }
         }
       }
       Pat::Assign(assign_pat) => {
-        self.extract_decl_idents(&*assign_pat.left, true)
+        self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
       }
       _ => {}
     }
@@ -209,9 +219,20 @@ impl PreferConstVisitor {
 
   fn exit_scope(&mut self) {
     let cur_scope_vars = self.vars_declareted_per_scope.pop().unwrap();
+    let mut for_init_vars = Vec::new();
     for (sym, span) in cur_scope_vars {
       let status = self.symbols.get_mut(&sym).unwrap().pop().unwrap();
-      if status.should_report() {
+      if status.in_for_init {
+        for_init_vars.push((sym, span, status));
+      } else if status.should_report() {
+        self.report(sym, span);
+      }
+    }
+
+    // With regard to init sections of for statements, we should report diagnostics only if *all*
+    // variables there need to be reported.
+    if for_init_vars.iter().all(|v| v.2.should_report()) {
+      for (sym, span, _) in for_init_vars {
         self.report(sym, span);
       }
     }
@@ -241,7 +262,7 @@ impl Visit for PreferConstVisitor {
         var_decl.visit_children_with(self);
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            self.extract_decl_idents(&decl.name, decl.init.is_some());
+            self.extract_decl_idents(&decl.name, decl.init.is_some(), true);
           }
         }
       }
@@ -262,7 +283,25 @@ impl Visit for PreferConstVisitor {
     self.exit_scope();
   }
 
-  // TODO(magurotuna): for-of, for-in, if
+  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _parent: &dyn Node) {
+    todo!()
+  }
+
+  fn visit_do_while_stmt(
+    &mut self,
+    do_while_stmt: &DoWhileStmt,
+    _parent: &dyn Node,
+  ) {
+    todo!()
+  }
+
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _parent: &dyn Node) {
+    todo!()
+  }
+
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _parent: &dyn Node) {
+    todo!()
+  }
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     var_decl.visit_children_with(self);
@@ -271,7 +310,7 @@ impl Visit for PreferConstVisitor {
     }
 
     for decl in &var_decl.decls {
-      self.extract_decl_idents(&decl.name, decl.init.is_some());
+      self.extract_decl_idents(&decl.name, decl.init.is_some(), false);
     }
   }
 
@@ -306,9 +345,7 @@ mod tests {
 
   #[test]
   fn hoge() {
-    assert_lint_ok::<PreferConst>(
-      r#"for (let i = 0, end = 10; i < end; ++i) {}"#,
-    );
+    assert_lint_ok::<PreferConst>(r#"let a; while (a = foo());"#);
   }
 
   #[test]
