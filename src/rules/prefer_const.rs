@@ -485,6 +485,10 @@ mod tests {
     assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 9);
   }
 
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/prefer-const.js
+  // MIT Licensed.
+
   #[test]
   fn prefer_const_valid() {
     assert_lint_ok_n::<PreferConst>(vec![
