@@ -6,9 +6,10 @@ use std::sync::Arc;
 use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  AssignExpr, BlockStmt, DoWhileStmt, Expr, ForInStmt, ForOfStmt, ForStmt,
-  Ident, IfStmt, Module, ObjectPatProp, Pat, PatOrExpr, UpdateExpr, VarDecl,
-  VarDeclKind, VarDeclOrExpr, WhileStmt,
+  ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ForInStmt,
+  ForOfStmt, ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, Pat,
+  PatOrExpr, UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr, WhileStmt,
+  WithStmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
@@ -105,20 +106,15 @@ impl PreferConstVisitor {
       });
   }
 
-  fn mark_reassigned(&mut self, ident: &Ident) {
-    dbg!(ident);
-    let status = self
-      .symbols
-      .get_mut(&ident.sym)
-      .unwrap()
-      .last_mut()
-      .unwrap();
+  // Returns `Option<()>` to use question operator
+  fn mark_reassigned(&mut self, ident: &Ident) -> Option<()> {
+    // if this ident is not registered, do nothing.
+    let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
 
     use Initalized::*;
     if self
       .vars_declareted_per_scope
-      .last()
-      .unwrap()
+      .last()?
       .contains_key(&ident.sym)
     {
       match status.initialized {
@@ -139,6 +135,8 @@ impl PreferConstVisitor {
         }
       }
     }
+
+    None
   }
 
   fn extract_decl_idents(
@@ -187,7 +185,9 @@ impl PreferConstVisitor {
 
   fn extract_assign_idents(&mut self, pat: &Pat) {
     match pat {
-      Pat::Ident(ident) => self.mark_reassigned(ident),
+      Pat::Ident(ident) => {
+        self.mark_reassigned(ident);
+      }
       Pat::Array(array_pat) => {
         for elem in &array_pat.elems {
           if let Some(elem_pat) = elem {
@@ -341,6 +341,48 @@ impl Visit for PreferConstVisitor {
     self.exit_scope();
   }
 
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
+    self.enter_scope();
+
+    arrow_expr.body.visit_children_with(self);
+
+    self.exit_scope();
+  }
+
+  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
+    self.enter_scope();
+
+    if let Some(body) = &function.body {
+      body.visit_children_with(self);
+    }
+
+    self.exit_scope();
+  }
+
+  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
+    self.enter_scope();
+
+    with_stmt.obj.visit_children_with(self);
+    with_stmt.body.visit_children_with(self);
+
+    self.exit_scope();
+  }
+
+  fn visit_catch_clause(
+    &mut self,
+    catch_clause: &CatchClause,
+    _parent: &dyn Node,
+  ) {
+    self.enter_scope();
+
+    if let Some(param) = &catch_clause.param {
+      self.extract_decl_idents(param, true, false);
+    }
+    catch_clause.body.visit_children_with(self);
+
+    self.exit_scope();
+  }
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     var_decl.visit_children_with(self);
     if var_decl.kind != VarDeclKind::Let {
@@ -370,7 +412,9 @@ impl Visit for PreferConstVisitor {
     _parent: &dyn Node,
   ) {
     match &*update_expr.arg {
-      Expr::Ident(ident) => self.mark_reassigned(ident),
+      Expr::Ident(ident) => {
+        self.mark_reassigned(ident);
+      }
       otherwise => otherwise.visit_children_with(self),
     }
   }
