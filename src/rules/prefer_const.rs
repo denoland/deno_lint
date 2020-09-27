@@ -294,10 +294,14 @@ impl Visit for PreferConstVisitor {
 
   fn visit_do_while_stmt(
     &mut self,
-    _do_while_stmt: &DoWhileStmt,
+    do_while_stmt: &DoWhileStmt,
     _parent: &dyn Node,
   ) {
     self.enter_scope();
+
+    do_while_stmt.body.visit_children_with(self);
+    do_while_stmt.test.visit_children_with(self);
+
     self.exit_scope();
   }
 
@@ -361,7 +365,7 @@ mod tests {
 
   #[test]
   fn hoge() {
-    assert_lint_ok::<PreferConst>(r#"let a; while (a = foo());"#);
+    assert_lint_ok::<PreferConst>(r#"let a; do {} while (a = foo());"#);
   }
 
   #[test]
