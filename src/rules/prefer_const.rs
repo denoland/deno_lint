@@ -7,7 +7,7 @@ use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::{
   AssignExpr, BlockStmt, DoWhileStmt, Expr, ForInStmt, ForOfStmt, ForStmt,
-  Ident, Module, ObjectPatProp, Pat, PatOrExpr, UpdateExpr, VarDecl,
+  Ident, IfStmt, Module, ObjectPatProp, Pat, PatOrExpr, UpdateExpr, VarDecl,
   VarDeclKind, VarDeclOrExpr, WhileStmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
@@ -106,6 +106,7 @@ impl PreferConstVisitor {
   }
 
   fn mark_reassigned(&mut self, ident: &Ident) {
+    dbg!(ident);
     let status = self
       .symbols
       .get_mut(&ident.sym)
@@ -254,6 +255,21 @@ impl Visit for PreferConstVisitor {
     self.exit_scope();
   }
 
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _parent: &dyn Node) {
+    self.enter_scope();
+
+    if_stmt.test.visit_children_with(self);
+    if_stmt.cons.visit_children_with(self);
+
+    self.exit_scope();
+
+    if let Some(alt) = &if_stmt.alt {
+      self.enter_scope();
+      alt.visit_children_with(self);
+      self.exit_scope();
+    }
+  }
+
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
     self.enter_scope();
 
@@ -305,21 +321,23 @@ impl Visit for PreferConstVisitor {
     self.exit_scope();
   }
 
-  fn visit_for_of_stmt(
-    &mut self,
-    _for_of_stmt: &ForOfStmt,
-    _parent: &dyn Node,
-  ) {
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _parent: &dyn Node) {
     self.enter_scope();
+
+    for_of_stmt.left.visit_children_with(self);
+    for_of_stmt.right.visit_children_with(self);
+    for_of_stmt.body.visit_children_with(self);
+
     self.exit_scope();
   }
 
-  fn visit_for_in_stmt(
-    &mut self,
-    _for_in_stmt: &ForInStmt,
-    _parent: &dyn Node,
-  ) {
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _parent: &dyn Node) {
     self.enter_scope();
+
+    for_in_stmt.left.visit_children_with(self);
+    for_in_stmt.right.visit_children_with(self);
+    for_in_stmt.body.visit_children_with(self);
+
     self.exit_scope();
   }
 
@@ -365,7 +383,42 @@ mod tests {
 
   #[test]
   fn hoge() {
-    assert_lint_ok::<PreferConst>(r#"let a; do {} while (a = foo());"#);
+    assert_lint_ok_n::<PreferConst>(vec![
+      r#"
+      (function (a) {
+        let b;
+        ({ a, b } = obj);
+      })();
+      "#,
+      //r#"
+      //(function (a) {
+      //let b;
+      //([ a, b ] = obj);
+      //})();
+      //"#,
+      //r#"var a; { var b; ({ a, b } = obj); }"#,
+      //r#"let a; { let b; ({ a, b } = obj); }"#,
+      //r#"var a; { var b; ([ a, b ] = obj); }"#,
+      //r#"let a; { let b; ([ a, b ] = obj); }"#,
+      //r#"let x; { x = 0; foo(x); }"#,
+      //r#"(function() { let x; { x = 0; foo(x); } })();"#,
+      //r#"let x; for (const a of [1,2,3]) { x = foo(); bar(x); }"#,
+      //r#"(function() { let x; for (const a of [1,2,3]) { x = foo(); bar(x); } })();"#,
+      //r#"let x; for (x of array) { x; }"#,
+      //r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
+      //r#"let predicate; [typeNode.returnType, ...predicate] = foo();"#,
+      //r#"let predicate; [typeNode.returnType,, predicate] = foo();"#,
+      //r#"let predicate; [typeNode.returnType=5, predicate] = foo();"#,
+      //r#"let predicate; [[typeNode.returnType=5], predicate] = foo();"#,
+      //r#"let predicate; [[typeNode.returnType, predicate]] = foo();"#,
+      //r#"let predicate; [typeNode.returnType, [predicate]] = foo();"#,
+      //r#"let predicate; [, [typeNode.returnType, predicate]] = foo();"#,
+      //r#"let predicate; [, {foo:typeNode.returnType, predicate}] = foo();"#,
+      //r#"let predicate; [, {foo:typeNode.returnType, ...predicate}] = foo();"#,
+      //r#"let a; const b = {}; ({ a, c: b.c } = func());"#,
+      //r#"const x = [1,2]; let y; [,y] = x; y = 0;"#,
+      //r#"const x = [1,2,3]; let y, z; [y,,z] = x; y = 0; z = 0;"#,
+    ]);
   }
 
   #[test]
