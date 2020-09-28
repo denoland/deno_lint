@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
+use swc_atoms::js_word;
 use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
@@ -158,6 +159,12 @@ impl NoUndefVisitor {
       return;
     }
 
+    // Implicitly defined
+    // See: https://github.com/denoland/deno_lint/issues/317
+    if ident.sym == *"arguments" {
+      return;
+    }
+
     // Ignore top level bindings declared in the file.
     if self.declared.contains(&ident.to_id()) {
       return;
@@ -226,6 +233,18 @@ impl Visit for NoUndefVisitor {
     self.check(&p.key);
     p.value.visit_with(p, self);
   }
+
+  fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
+    if let ExprOrSuper::Expr(callee) = &e.callee {
+      if let Expr::Ident(i) = &**callee {
+        if i.sym == js_word!("import") {
+          return;
+        }
+      }
+    }
+
+    e.visit_children_with(self)
+  }
 }
 
 #[cfg(test)]
@@ -286,6 +305,8 @@ mod tests {
 
     assert_lint_ok::<NoUndef>("function myFunc(...foo) {  return foo;}");
 
+    assert_lint_ok::<NoUndef>("function myFunc() { console.log(arguments); }");
+
     // TODO(kdy1): Parse as jsx
     // assert_lint_ok::<NoUndef>(
     //   "var React, App, a=1; React.render(<App attr={a} />);",
@@ -345,6 +366,16 @@ mod tests {
       await new Promise((resolve: () => void, _) => {
         setTimeout(resolve, 100);
       });
+      ",
+    );
+  }
+
+  #[test]
+  fn ok_12() {
+    assert_lint_ok::<NoUndef>(
+      "
+      const importPath = \"./foo.ts\";
+      const dataProcessor = await import(importPath);
       ",
     );
   }

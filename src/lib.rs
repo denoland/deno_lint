@@ -51,20 +51,17 @@ mod lint_tests {
 
   #[test]
   fn warn_unknown_rules() {
-    let diagnostics = lint(
-      r#"
+    let src = r#"
  // deno-lint-ignore some-rule
  function foo() {
    // deno-lint-ignore some-rule-2 some-rule-3
    let bar_foo = true
  }
-      "#,
-      true,
-      false,
-    );
+      "#;
+    let diagnostics = lint(src, true, false);
 
-    assert_diagnostic(&diagnostics[0], "ban-unknown-rule-code", 2, 1);
-    assert_diagnostic(&diagnostics[1], "ban-unknown-rule-code", 4, 3);
+    assert_diagnostic(&diagnostics[0], "ban-unknown-rule-code", 2, 1, src);
+    assert_diagnostic(&diagnostics[1], "ban-unknown-rule-code", 4, 3, src);
   }
 
   #[test]
@@ -85,21 +82,18 @@ mod lint_tests {
 
   #[test]
   fn warn_unused_dir() {
-    let diagnostics = lint(
-      r#"
+    let src = r#"
  // deno-lint-ignore no-explicit-any
  function bar(p: boolean) {
    // deno-lint-ignore no-misused-new eqeqeq
    let foo = false
  }
-      "#,
-      false,
-      true,
-    );
+      "#;
+    let diagnostics = lint(src, false, true);
 
     assert_eq!(diagnostics.len(), 2);
-    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1);
-    assert_diagnostic(&diagnostics[1], "ban-unused-ignore", 4, 3);
+    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1, src);
+    assert_diagnostic(&diagnostics[1], "ban-unused-ignore", 4, 3, src);
   }
 
   #[test]
@@ -137,38 +131,32 @@ mod lint_tests {
 
   #[test]
   fn file_directive_with_code_unused() {
-    let diagnostics = lint(
-      r#"
+    let src = r#"
  // deno-lint-ignore-file no-explicit-any no-empty
 
  function bar(p: any) {
    // pass
  }
-      "#,
-      false,
-      true,
-    );
+      "#;
+    let diagnostics = lint(src, false, true);
 
     assert_eq!(diagnostics.len(), 1);
-    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1);
+    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1, src);
   }
 
   #[test]
   fn file_directive_with_code_higher_precedence() {
-    let diagnostics = lint(
-      r#"
+    let src = r#"
  // deno-lint-ignore-file no-explicit-any
 
  // deno-lint-ignore no-explicit-any
  function bar(p: any) {
    // pass
  }
-      "#,
-      false,
-      true,
-    );
+      "#;
+    let diagnostics = lint(src, false, true);
 
     assert_eq!(diagnostics.len(), 1);
-    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1);
+    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1, src);
   }
 }
