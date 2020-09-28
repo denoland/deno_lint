@@ -35,6 +35,7 @@ impl LintRule for PreferConst {
   }
 }
 
+#[derive(PartialEq)]
 enum Initalized {
   SameScope,
   DifferentScope,
@@ -45,10 +46,15 @@ struct VarStatus {
   initialized: Initalized,
   reassigned: bool,
   in_for_init: bool,
+  is_param: bool,
 }
 
 impl VarStatus {
   fn should_report(&self) -> bool {
+    if self.is_param {
+      return false;
+    }
+
     use Initalized::*;
     match self.initialized {
       DifferentScope | NotYet => false,
@@ -83,7 +89,13 @@ impl PreferConstVisitor {
     );
   }
 
-  fn insert_var(&mut self, ident: &Ident, has_init: bool, in_for_init: bool) {
+  fn insert_var(
+    &mut self,
+    ident: &Ident,
+    has_init: bool,
+    in_for_init: bool,
+    is_param: bool,
+  ) {
     self
       .vars_declareted_per_scope
       .last_mut()
@@ -103,6 +115,7 @@ impl PreferConstVisitor {
         },
         reassigned: false,
         in_for_init,
+        is_param,
       });
   }
 
@@ -112,22 +125,12 @@ impl PreferConstVisitor {
     ident: &Ident,
     force_reassigned: bool,
   ) -> Option<()> {
-    // If this ident is not registered, do nothing.
-    // (Most likely this happens if this ident is declared as a function parameter.)
     let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
 
-    let declared_in_cur_scope = self
-      .vars_declareted_per_scope
-      .last()?
-      .contains_key(&ident.sym);
     use Initalized::*;
     match status.initialized {
       NotYet => {
-        status.initialized = if declared_in_cur_scope {
-          SameScope
-        } else {
-          DifferentScope
-        };
+        status.initialized = SameScope;
         if force_reassigned {
           status.reassigned = true;
         }
@@ -147,7 +150,7 @@ impl PreferConstVisitor {
     in_for_init: bool,
   ) {
     match pat {
-      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init),
+      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
       Pat::Array(array_pat) => {
         for elem in &array_pat.elems {
           if let Some(elem_pat) = elem {
@@ -166,9 +169,9 @@ impl PreferConstVisitor {
             }
             ObjectPatProp::Assign(assign) => {
               if assign.value.is_some() {
-                self.insert_var(&assign.key, true, in_for_init);
+                self.insert_var(&assign.key, true, in_for_init, false);
               } else {
-                self.insert_var(&assign.key, has_init, in_for_init);
+                self.insert_var(&assign.key, has_init, in_for_init, false);
               }
             }
             ObjectPatProp::Rest(rest) => {
@@ -184,65 +187,121 @@ impl PreferConstVisitor {
     }
   }
 
+  fn extract_param_idents(&mut self, param_pat: &Pat) {
+    match &param_pat {
+      Pat::Ident(ident) => self.insert_var(ident, true, false, true),
+      Pat::Array(array_pat) => {
+        for elem in &array_pat.elems {
+          if let Some(elem_pat) = elem {
+            self.extract_param_idents(elem_pat);
+          }
+        }
+      }
+      Pat::Rest(rest_pat) => self.extract_param_idents(&*rest_pat.arg),
+      Pat::Object(object_pat) => {
+        for prop in &object_pat.props {
+          match prop {
+            ObjectPatProp::KeyValue(key_value) => {
+              self.extract_param_idents(&*key_value.value)
+            }
+            ObjectPatProp::Assign(assign) => {
+              self.insert_var(&assign.key, true, false, true);
+            }
+            ObjectPatProp::Rest(rest) => self.extract_param_idents(&*rest.arg),
+          }
+        }
+      }
+      Pat::Assign(assign_pat) => self.extract_param_idents(&*assign_pat.left),
+      _ => {}
+    }
+  }
+
   fn extract_assign_idents(&mut self, pat: &Pat) {
     fn extract_idents_rec<'a, 'b>(
       pat: &'a Pat,
       idents: &'b mut Vec<&'a Ident>,
-      num_args: &'b mut usize,
+      has_member_expr: &'b mut bool,
     ) {
       match pat {
         Pat::Ident(ident) => {
-          *num_args += 1;
           idents.push(ident);
         }
         Pat::Array(array_pat) => {
           for elem in &array_pat.elems {
             if let Some(elem_pat) = elem {
-              extract_idents_rec(elem_pat, idents, num_args);
+              extract_idents_rec(elem_pat, idents, has_member_expr);
             }
           }
         }
         Pat::Rest(rest_pat) => {
-          extract_idents_rec(&*rest_pat.arg, idents, num_args)
+          extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
         }
         Pat::Object(object_pat) => {
           for prop in &object_pat.props {
             match prop {
               ObjectPatProp::KeyValue(key_value) => {
-                extract_idents_rec(&*key_value.value, idents, num_args);
+                extract_idents_rec(&*key_value.value, idents, has_member_expr);
               }
               ObjectPatProp::Assign(assign) => {
-                *num_args += 1;
                 idents.push(&assign.key);
               }
               ObjectPatProp::Rest(rest) => {
-                extract_idents_rec(&*rest.arg, idents, num_args)
+                extract_idents_rec(&*rest.arg, idents, has_member_expr)
               }
             }
           }
         }
         Pat::Assign(assign_pat) => {
-          extract_idents_rec(&*assign_pat.left, idents, num_args)
+          extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
         }
-        Pat::Expr(_) => {
-          *num_args += 1;
+        Pat::Expr(expr) => {
+          if let Expr::Member(_) = &**expr {
+            *has_member_expr = true;
+          }
         }
         _ => {}
       }
     }
 
     let mut idents = Vec::new();
-    let mut num_args = 0;
-    extract_idents_rec(pat, &mut idents, &mut num_args);
+    let mut has_member_expr = false;
+    extract_idents_rec(pat, &mut idents, &mut has_member_expr);
 
-    // If this pat contains two or more arguments, then all the idents should be marked as "reassigned"
-    // so that we will not report them as error. This is bacause they couldn't be separately declared
-    // as `const`.
-    let force_reassigned = num_args >= 2;
+    for ident in &idents {
+      self.check_declared_in_outer_scope(ident);
+    }
+
+    let has_outer_scope_var = idents.iter().any(|i| {
+      if let Some(statuses) = self.symbols.get(&i.sym) {
+        if let Some(status) = statuses.last() {
+          return status.initialized == Initalized::DifferentScope
+            || status.is_param;
+        }
+      }
+      false
+    });
 
     for ident in idents {
-      self.mark_reassigned(ident, force_reassigned);
+      // If the pat contains MemberExpression, then all the idents should be marked as "reassigned"
+      // so that we will not report them as errors. This is bacause they couldn't be separately declared
+      // as `const`.
+      self.mark_reassigned(ident, has_member_expr || has_outer_scope_var);
     }
+  }
+
+  /// Checks if this ident is declared in outer scope or not.
+  /// If true, set its status to `Initalized::DifferentScope`.
+  fn check_declared_in_outer_scope(&mut self, ident: &Ident) -> Option<()> {
+    let declared_in_cur_scope = self
+      .vars_declareted_per_scope
+      .last()?
+      .contains_key(&ident.sym);
+    if declared_in_cur_scope {
+      return None;
+    }
+    let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
+    status.initialized = Initalized::DifferentScope;
+    None
   }
 
   fn enter_scope(&mut self) {
@@ -397,6 +456,9 @@ impl Visit for PreferConstVisitor {
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     self.enter_scope();
 
+    for param in &arrow_expr.params {
+      self.extract_param_idents(param);
+    }
     arrow_expr.body.visit_children_with(self);
 
     self.exit_scope();
@@ -404,6 +466,10 @@ impl Visit for PreferConstVisitor {
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.enter_scope();
+
+    for param in &function.params {
+      self.extract_param_idents(&param.pat);
+    }
 
     if let Some(body) = &function.body {
       body.visit_children_with(self);
@@ -466,6 +532,7 @@ impl Visit for PreferConstVisitor {
   ) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
+        self.check_declared_in_outer_scope(ident);
         self.mark_reassigned(ident, false);
       }
       otherwise => otherwise.visit_children_with(self),
@@ -477,27 +544,6 @@ impl Visit for PreferConstVisitor {
 mod tests {
   use super::*;
   use crate::test_util::*;
-
-  // TODO(magurotuan) remove this test
-  #[test]
-  fn hoge() {
-    assert_lint_err::<PreferConst>(
-      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
-      4,
-    );
-    assert_lint_err::<PreferConst>(
-      r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
-      4,
-    );
-    assert_lint_err::<PreferConst>(
-      r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
-      4,
-    );
-    assert_lint_err::<PreferConst>(
-      r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
-      4,
-    );
-  }
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/prefer-const.js
@@ -671,11 +717,10 @@ var foo = function() {
       r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#,
       12,
     );
-    // TODO(magurotuna): This is complicated. I'll address it later
-    //assert_lint_err::<PreferConst>(
-    //r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
-    //0,
-    //);
+    assert_lint_err::<PreferConst>(
+      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
+      4,
+    );
     assert_lint_err::<PreferConst>(r#"let [a] = [1]"#, 5);
     assert_lint_err::<PreferConst>(r#"let {a} = obj"#, 5);
     assert_lint_err_n::<PreferConst>(
@@ -701,19 +746,18 @@ var foo = function() {
       r#"const x = [1,2,3]; let [y,,z] = x;"#,
       vec![24, 27],
     );
-    // TODO(magurotuna): Next 3 cases are complicated. I'll address it later
-    //assert_lint_err::<PreferConst>(
-    //r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
-    //0,
-    //);
-    //assert_lint_err::<PreferConst>(
-    //r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
-    //0,
-    //);
-    //assert_lint_err::<PreferConst>(
-    //r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
-    //0,
-    //);
+    assert_lint_err::<PreferConst>(
+      r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
+      4,
+    );
+    assert_lint_err::<PreferConst>(
+      r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
+      4,
+    );
+    assert_lint_err::<PreferConst>(
+      r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
+      4,
+    );
     assert_lint_err_n::<PreferConst>(r#"let x = 'x', y = 'y';"#, vec![4, 13]);
     assert_lint_err::<PreferConst>(r#"let x = 'x', y = 'y'; x = 1"#, 13);
     assert_lint_err_n::<PreferConst>(
