@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use swc_atoms::JsWord;
 use swc_common::Span;
@@ -58,8 +58,8 @@ impl VarStatus {
 }
 
 struct PreferConstVisitor {
-  symbols: HashMap<JsWord, Vec<VarStatus>>,
-  vars_declareted_per_scope: Vec<HashMap<JsWord, Span>>,
+  symbols: BTreeMap<JsWord, Vec<VarStatus>>,
+  vars_declareted_per_scope: Vec<BTreeMap<JsWord, Span>>,
   context: Arc<Context>,
 }
 
@@ -67,7 +67,7 @@ impl PreferConstVisitor {
   fn new(context: Arc<Context>) -> Self {
     Self {
       context,
-      symbols: HashMap::new(),
+      symbols: BTreeMap::new(),
       vars_declareted_per_scope: Vec::new(),
     }
   }
@@ -246,7 +246,7 @@ impl PreferConstVisitor {
   }
 
   fn enter_scope(&mut self) {
-    self.vars_declareted_per_scope.push(HashMap::new());
+    self.vars_declareted_per_scope.push(BTreeMap::new());
   }
 
   fn exit_scope(&mut self) {
@@ -481,8 +481,22 @@ mod tests {
   // TODO(magurotuan) remove this test
   #[test]
   fn hoge() {
-    assert_lint_err::<PreferConst>(r#"for (let i in [1,2,3]) { foo(i); }"#, 9);
-    assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 9);
+    assert_lint_err::<PreferConst>(
+      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
+      0,
+    );
+    assert_lint_err::<PreferConst>(
+      r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
+      0,
+    );
+    assert_lint_err::<PreferConst>(
+      r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
+      0,
+    );
+    assert_lint_err::<PreferConst>(
+      r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
+      0,
+    );
   }
 
   // Some tests are derived from
@@ -578,46 +592,46 @@ mod tests {
     assert_lint_err::<PreferConst>(r#"let x = 1; foo(x);"#, 4);
     assert_lint_err::<PreferConst>(r#"for (let i in [1,2,3]) { foo(i); }"#, 9);
     assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 9);
-    assert_lint_err::<PreferConst>(r#"let [x = -1, y] = [1,2]; y = 0;"#, 0);
+    assert_lint_err::<PreferConst>(r#"let [x = -1, y] = [1,2]; y = 0;"#, 5);
     assert_lint_err::<PreferConst>(
       r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#,
-      0,
+      8,
     );
     assert_lint_err::<PreferConst>(
       r#"(function() { let x = 1; foo(x); })();"#,
-      0,
+      18,
     );
     assert_lint_err::<PreferConst>(
       r#"(function() { for (let i in [1,2,3]) { foo(i); } })();"#,
-      0,
+      23,
     );
     assert_lint_err::<PreferConst>(
       r#"(function() { for (let x of [1,2,3]) { foo(x); } })();"#,
-      0,
+      23,
     );
     assert_lint_err::<PreferConst>(
       r#"(function() { let [x = -1, y] = [1,2]; y = 0; })();"#,
-      0,
+      19,
     );
     assert_lint_err::<PreferConst>(
       r#"let f = (function() { let g = x; })(); f = 1;"#,
-      0,
+      26,
     );
     assert_lint_err::<PreferConst>(
       r#"(function() { let {a: x = -1, b: y} = {a:1,b:2}; y = 0; })();"#,
-      0,
+      22,
     );
     assert_lint_err::<PreferConst>(
       r#"let x = 0; { let x = 1; foo(x); } x = 0;"#,
-      0,
+      17,
     );
     assert_lint_err::<PreferConst>(
       r#"for (let i = 0; i < 10; ++i) { let x = 1; foo(x); }"#,
-      0,
+      35,
     );
-    assert_lint_err::<PreferConst>(
+    assert_lint_err_n::<PreferConst>(
       r#"for (let i in [1,2,3]) { let x = 1; foo(x); }"#,
-      0,
+      vec![29, 9],
     );
     assert_lint_err_on_line::<PreferConst>(
       r#"
@@ -628,8 +642,8 @@ var foo = function() {
    }
 };
     "#,
-      0,
-      0,
+      4,
+      11,
     );
     assert_lint_err_on_line::<PreferConst>(
       r#"
@@ -640,80 +654,90 @@ var foo = function() {
    }
 };
     "#,
-      0,
-      0,
+      4,
+      11,
     );
-    assert_lint_err::<PreferConst>(r#"let x; x = 0;"#, 0);
+    assert_lint_err::<PreferConst>(r#"let x; x = 0;"#, 4);
     assert_lint_err::<PreferConst>(
       r#"switch (a) { case 0: let x; x = 0; }"#,
-      0,
+      25,
     );
-    assert_lint_err::<PreferConst>(r#"(function() { let x; x = 1; })();"#, 0);
+    assert_lint_err::<PreferConst>(r#"(function() { let x; x = 1; })();"#, 18);
     assert_lint_err::<PreferConst>(
       r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#,
-      0,
+      5,
     );
     assert_lint_err::<PreferConst>(
       r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#,
-      0,
+      12,
     );
-    assert_lint_err::<PreferConst>(
-      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
-      0,
+    // TODO(magurotuna): This is complicated. I'll address it later
+    //assert_lint_err::<PreferConst>(
+    //r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
+    //0,
+    //);
+    assert_lint_err::<PreferConst>(r#"let [a] = [1]"#, 5);
+    assert_lint_err::<PreferConst>(r#"let {a} = obj"#, 5);
+    assert_lint_err_n::<PreferConst>(
+      r#"let {a = 0, b} = obj, c = a; b = a;"#,
+      vec![5, 22],
     );
-    assert_lint_err::<PreferConst>(r#"let [a] = [1]"#, 0);
-    assert_lint_err::<PreferConst>(r#"let {a} = obj"#, 0);
-    assert_lint_err::<PreferConst>(r#"let {a = 0, b} = obj, c = a; b = a;"#, 0);
     assert_lint_err::<PreferConst>(
       r#"let { name, ...otherStuff } = obj; otherStuff = {};"#,
-      0,
-    );
-    assert_lint_err::<PreferConst>(
-      r#"let { name, ...otherStuff } = obj; otherStuff = {};"#,
-      0,
+      6,
     );
     assert_lint_err::<PreferConst>(
       r#"let x; function foo() { bar(x); } x = 0;"#,
-      0,
+      4,
     );
-    assert_lint_err::<PreferConst>(r#"/*eslint use-x:error*/ let x = 1"#, 0);
+    assert_lint_err::<PreferConst>(r#"/*eslint use-x:error*/ let x = 1"#, 27);
     assert_lint_err::<PreferConst>(
       r#"/*eslint use-x:error*/ { let x = 1 }"#,
-      0,
+      29,
     );
-    assert_lint_err::<PreferConst>(r#"let { foo, bar } = baz;"#, 0);
-    assert_lint_err::<PreferConst>(r#"const x = [1,2]; let [,y] = x;"#, 0);
-    assert_lint_err::<PreferConst>(r#"const x = [1,2,3]; let [y,,z] = x;"#, 0);
-    assert_lint_err::<PreferConst>(
-      r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
-      0,
+    assert_lint_err_n::<PreferConst>(r#"let { foo, bar } = baz;"#, vec![11, 6]);
+    assert_lint_err::<PreferConst>(r#"const x = [1,2]; let [,y] = x;"#, 23);
+    assert_lint_err_n::<PreferConst>(
+      r#"const x = [1,2,3]; let [y,,z] = x;"#,
+      vec![24, 27],
     );
-    assert_lint_err::<PreferConst>(
-      r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
-      0,
+    // TODO(magurotuna): Next 3 cases are complicated. I'll address it later
+    //assert_lint_err::<PreferConst>(
+    //r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
+    //0,
+    //);
+    //assert_lint_err::<PreferConst>(
+    //r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
+    //0,
+    //);
+    //assert_lint_err::<PreferConst>(
+    //r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
+    //0,
+    //);
+    assert_lint_err_n::<PreferConst>(r#"let x = 'x', y = 'y';"#, vec![4, 13]);
+    assert_lint_err::<PreferConst>(r#"let x = 'x', y = 'y'; x = 1"#, 13);
+    assert_lint_err_n::<PreferConst>(
+      r#"let x = 1, y = 'y'; let z = 1;"#,
+      vec![4, 11, 24],
     );
-    assert_lint_err::<PreferConst>(
-      r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
-      0,
+    assert_lint_err_n::<PreferConst>(
+      r#"let { a, b, c } = obj; let { x, y, z } = anotherObj; x = 2;"#,
+      vec![6, 9, 12, 32, 35],
     );
-    assert_lint_err::<PreferConst>(r#"let x = 'x', y = 'y';"#, 0);
-    assert_lint_err::<PreferConst>(r#"let x = 'x', y = 'y'; x = 1"#, 0);
-    assert_lint_err::<PreferConst>(r#"let x = 1, y = 'y'; let z = 1;"#, 0);
-    assert_lint_err::<PreferConst>(
-      r#"let { a, b, c} = obj; let { x, y, z} = anotherObj; x = 2;"#,
-      0,
-    );
-    assert_lint_err::<PreferConst>(
+    assert_lint_err_n::<PreferConst>(
       r#"let x = 'x', y = 'y'; function someFunc() { let a = 1, b = 2; foo(a, b) }"#,
-      0,
+      vec![48, 55, 4, 13],
     );
-    assert_lint_err::<PreferConst>(
+    assert_lint_err_n::<PreferConst>(
       r#"let someFunc = () => { let a = 1, b = 2; foo(a, b) }"#,
-      0,
+      vec![27, 34, 4],
     );
-    assert_lint_err::<PreferConst>(r#"let {a, b} = c, d;"#, 0);
-    assert_lint_err::<PreferConst>(r#"let {a, b, c} = {}, e, f;"#, 0);
-    assert_lint_err_on_line::<PreferConst>(
+    assert_lint_err_n::<PreferConst>(r#"let {a, b} = c, d;"#, vec![5, 8]);
+    assert_lint_err_n::<PreferConst>(
+      r#"let {a, b, c} = {}, e, f;"#,
+      vec![5, 8, 11],
+    );
+    assert_lint_err_on_line_n::<PreferConst>(
       r#"
 function a() {
   let foo = 0,
@@ -726,8 +750,7 @@ function b() {
   foo = 2;
 }
     "#,
-      0,
-      0,
+      vec![(4, 2), (9, 2)],
     );
   }
 }
