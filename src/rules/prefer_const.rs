@@ -796,5 +796,20 @@ function b() {
     "#,
       vec![(4, 2), (9, 2)],
     );
+    assert_lint_err_on_line::<PreferConst>(
+      r#"
+let foo = function(a, b) {
+  let c, d, e;
+  ({ x: a, y: c } = bar());
+  function inner() {
+    d = 'd';
+  }
+  e = 'e';
+};
+if (true) foo = 'foo';
+    "#,
+      3,
+      12,
+    );
   }
 }
