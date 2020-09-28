@@ -64,7 +64,46 @@ impl VarStatus {
 }
 
 struct PreferConstVisitor {
+  /// Manages `VarStatus` per symbol name.
+  /// Consider the following example:
+  ///
+  /// ```js
+  /// let a; // (1)
+  /// {
+  ///   let b; // (2)
+  ///   {
+  ///     let a; // (3)
+  ///     let c; // (4)
+  ///     /* we are here */
+  ///   }
+  ///   let a; // (5)
+  /// }
+  /// let b; // (6)
+  /// ```
+  ///
+  /// `symbols` is like:
+  ///
+  /// ```
+  /// {
+  ///   "a" => [(1), (3)],
+  ///   "b" => [(2)],
+  ///   "c" => [(4)],
+  /// }
+  /// ```
+  ///
+  /// Note that we assume that we're at the line `/* we are here */`, so (5) and (6) have not been
+  /// visited.
+  ///
+  /// Using this structure, we can acquire every variable's `VarStatus` that is currently
+  /// accessible. In the above example, we can get the status of `a` from the last element of the
+  /// vector - that is (3).
+  /// When exiting from a scope, statuses of variables that belong to the scope will be dropped from
+  /// `symbols`.
   symbols: BTreeMap<JsWord, Vec<VarStatus>>,
+  /// Holds variables per scope.
+  /// When entering a scope, a new `BTreeMap` is created and pushed to this vector. This `BTreeMap`
+  /// collects variable information.
+  /// Then, when exiting from a scope, the last element of the vector is dropped like `symbols`.
   vars_declareted_per_scope: Vec<BTreeMap<JsWord, Span>>,
   context: Arc<Context>,
 }
