@@ -501,4 +501,44 @@ function normalize(type: string): string | undefined {
       throw new Error(`malformed HTTP version ${vers}`);"#,
     )
   }
+
+  #[test]
+  fn issue_340() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+      function foo() {
+        let ret = "";
+        let p: BufferListItem | null = (this.head as BufferListItem);
+        let c = 0;
+        p = p.next as BufferListItem;
+        do {
+          const str = p.data;
+          if (n > str.length) {
+            ret += str;
+            n -= str.length;
+          } else {
+            if (n === str.length) {
+              ret += str;
+              ++c;
+              if (p.next) {
+                this.head = p.next;
+              } else {
+                this.head = this.tail = null;
+              }
+            } else {
+              ret += str.slice(0, n);
+              this.head = p;
+              p.data = str.slice(n);
+            }
+            break;
+          }
+          ++c;
+          p = p.next;
+        } while (p);
+        this.length -= c;
+        return ret;
+      }
+      "#,
+    );
+  }
 }
