@@ -483,19 +483,19 @@ mod tests {
   fn hoge() {
     assert_lint_err::<PreferConst>(
       r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
-      0,
+      4,
     );
     assert_lint_err::<PreferConst>(
       r#"let predicate; [, {foo:returnType, predicate}] = foo();"#,
-      0,
+      4,
     );
     assert_lint_err::<PreferConst>(
       r#"let predicate; [, {foo:returnType, predicate}, ...bar ] = foo();"#,
-      0,
+      4,
     );
     assert_lint_err::<PreferConst>(
       r#"let predicate; [, {foo:returnType, ...predicate} ] = foo();"#,
-      0,
+      4,
     );
   }
 
