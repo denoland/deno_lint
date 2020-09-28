@@ -501,4 +501,106 @@ function normalize(type: string): string | undefined {
       throw new Error(`malformed HTTP version ${vers}`);"#,
     )
   }
+
+  #[test]
+  fn issue_340_1() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+      function foo() {
+        let ret = "";
+        let p: BufferListItem | null = (this.head as BufferListItem);
+        let c = 0;
+        p = p.next as BufferListItem;
+        do {
+          const str = p.data;
+          if (n > str.length) {
+            ret += str;
+            n -= str.length;
+          } else {
+            if (n === str.length) {
+              ret += str;
+              ++c;
+              if (p.next) {
+                this.head = p.next;
+              } else {
+                this.head = this.tail = null;
+              }
+            } else {
+              ret += str.slice(0, n);
+              this.head = p;
+              p.data = str.slice(n);
+            }
+            break;
+          }
+          ++c;
+          p = p.next;
+        } while (p);
+        this.length -= c;
+        return ret;
+      }
+      "#,
+    );
+  }
+
+  #[test]
+  fn issue_340_2() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+      function foo() {
+        let ret = "";
+        do {
+          const str = p.data;
+          if (n > str.length) {
+            ret += str;
+          } else {
+            if (n === str.length) {
+              ret += str;
+              if (p.next) {
+                this.head = p.next;
+              } else {
+                this.head = this.tail = null;
+              }
+            } else {
+              p.data = str.slice(n);
+            }
+            break;
+          }
+          p = p.next;
+        } while (p);
+        return ret;
+      }
+      "#,
+    );
+  }
+
+  #[test]
+  fn issue_340_3() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+      function foo() {
+        let ret = "";
+          while(p) {
+            const str = p.data;
+            if (n > str.length) {
+              ret += str;
+            } else {
+              if (n === str.length) {
+                ret += str;
+                if (p.next) {
+                  this.head = p.next;
+                } else {
+                  this.head = this.tail = null;
+                }
+              } else {
+                p.data = str.slice(n);
+              }
+              break;
+            }
+          p = p.next;
+        }
+        return ret;
+      }
+      "#,
+    );
+  }
 }
