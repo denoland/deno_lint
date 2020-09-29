@@ -83,7 +83,7 @@ struct PreferConstVisitor {
   ///
   /// `symbols` is like:
   ///
-  /// ```
+  /// ```text
   /// {
   ///   "a" => [(1), (3)],
   ///   "b" => [(2)],
@@ -104,7 +104,7 @@ struct PreferConstVisitor {
   /// When entering a scope, a new `BTreeMap` is created and pushed to this vector. This `BTreeMap`
   /// collects variable information.
   /// Then, when exiting from a scope, the last element of the vector is dropped like `symbols`.
-  vars_declareted_per_scope: Vec<BTreeMap<JsWord, Span>>,
+  vars_declared_per_scope: Vec<BTreeMap<JsWord, Span>>,
   context: Arc<Context>,
 }
 
@@ -113,7 +113,7 @@ impl PreferConstVisitor {
     Self {
       context,
       symbols: BTreeMap::new(),
-      vars_declareted_per_scope: Vec::new(),
+      vars_declared_per_scope: Vec::new(),
     }
   }
 
@@ -136,7 +136,7 @@ impl PreferConstVisitor {
     is_param: bool,
   ) {
     self
-      .vars_declareted_per_scope
+      .vars_declared_per_scope
       .last_mut()
       .unwrap()
       .entry(ident.sym.clone())
@@ -321,9 +321,9 @@ impl PreferConstVisitor {
     });
 
     for ident in idents {
-      // If the pat contains MemberExpression, then all the idents should be marked as "reassigned"
-      // so that we will not report them as errors. This is bacause they couldn't be separately declared
-      // as `const`.
+      // If the pat contains MemberExpression or variable declared in outer scope, then all the idents should be marked
+      // as "reassigned" so that we will not report them as errors, bacause in this case they couldn't be separately
+      // declared as `const`.
       self.mark_reassigned(ident, has_member_expr || has_outer_scope_var);
     }
   }
@@ -332,7 +332,7 @@ impl PreferConstVisitor {
   /// If true, set its status to `Initalized::DifferentScope`.
   fn check_declared_in_outer_scope(&mut self, ident: &Ident) -> Option<()> {
     let declared_in_cur_scope = self
-      .vars_declareted_per_scope
+      .vars_declared_per_scope
       .last()?
       .contains_key(&ident.sym);
     if declared_in_cur_scope {
@@ -344,11 +344,11 @@ impl PreferConstVisitor {
   }
 
   fn enter_scope(&mut self) {
-    self.vars_declareted_per_scope.push(BTreeMap::new());
+    self.vars_declared_per_scope.push(BTreeMap::new());
   }
 
   fn exit_scope(&mut self) {
-    let cur_scope_vars = self.vars_declareted_per_scope.pop().unwrap();
+    let cur_scope_vars = self.vars_declared_per_scope.pop().unwrap();
     let mut for_init_vars = Vec::new();
     for (sym, span) in cur_scope_vars {
       let status = self.symbols.get_mut(&sym).unwrap().pop().unwrap();
@@ -630,10 +630,7 @@ mod tests {
     }
     foo();
   "#,
-      r#"/*exported a*/ let a; function init() { a = foo(); }"#,
-      // TODO(magurotuna): this is ported from ESLint, but I have no idea why this is valid,
-      // so comment it out for now.
-      // r#"/*exported a*/ let a = 1"#,
+      r#"let a; function init() { a = foo(); }"#,
       r#"let a; if (true) a = 0; foo(a);"#,
       r#"
         (function (a) {
@@ -674,6 +671,7 @@ mod tests {
 
   #[test]
   fn prefer_const_invalid() {
+    assert_lint_err::<PreferConst>(r#"let x = 1;"#, 4);
     assert_lint_err::<PreferConst>(r#"let x = 1; foo(x);"#, 4);
     assert_lint_err::<PreferConst>(r#"for (let i in [1,2,3]) { foo(i); }"#, 9);
     assert_lint_err::<PreferConst>(r#"for (let x of [1,2,3]) { foo(x); }"#, 9);
