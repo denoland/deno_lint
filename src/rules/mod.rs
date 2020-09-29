@@ -94,6 +94,9 @@ pub trait LintRule {
     module: &swc_ecmascript::ast::Module,
   );
   fn code(&self) -> &'static str;
+  fn docs(&self) -> &'static str {
+    ""
+  }
 }
 
 pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
