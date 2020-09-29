@@ -386,7 +386,7 @@ impl Visit for Analyzer<'_> {
             if another.is_some() {
               self.mark_as_done(n.span.lo, Done::Break);
             } else {
-              self.scope.done = Some(Done::Break)
+              self.scope.done = None
             }
           }
           // TODO: Check for continue

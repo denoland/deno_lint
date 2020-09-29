@@ -86,7 +86,7 @@ mod lint_tests {
  // deno-lint-ignore no-explicit-any
  function bar(p: boolean) {
    // deno-lint-ignore no-misused-new eqeqeq
-   let foo = false
+   const foo = false
  }
       "#;
     let diagnostics = lint(src, false, true);

@@ -36,4 +36,5 @@ pub struct LintDiagnostic {
   pub filename: String,
   pub message: String,
   pub code: String,
+  pub hint: Option<String>,
 }

@@ -127,6 +127,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 - [`no-var`](https://eslint.org/docs/rules/no-var)
 - [`no-with`](https://eslint.org/docs/rules/no-with)
 - [`prefer-as-const`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-as-const.md)
+- [`prefer-const`](https://eslint.org/docs/rules/prefer-const)
 - [`prefer-namespace-keyword`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-namespace-keyword.md)
 - [`require-yield`](https://eslint.org/docs/rules/require-yield)
 - `single-var-declarator`

@@ -78,6 +78,7 @@ pub mod no_unused_vars;
 pub mod no_var;
 pub mod no_with;
 pub mod prefer_as_const;
+pub mod prefer_const;
 pub mod prefer_namespace_keyword;
 pub mod require_yield;
 pub mod single_var_declarator;
@@ -95,6 +96,9 @@ pub trait LintRule {
     module: &swc_ecmascript::ast::Module,
   );
   fn code(&self) -> &'static str;
+  fn docs(&self) -> &'static str {
+    ""
+  }
 }
 
 pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
@@ -160,6 +164,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_unused_labels::NoUnusedLabels::new(),
     no_with::NoWith::new(),
     prefer_as_const::PreferAsConst::new(),
+    prefer_const::PreferConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     triple_slash_reference::TripleSlashReference::new(),
@@ -246,6 +251,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_var::NoVar::new(),
     no_with::NoWith::new(),
     prefer_as_const::PreferAsConst::new(),
+    prefer_const::PreferConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
