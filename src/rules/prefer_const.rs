@@ -534,7 +534,7 @@ impl Visit for PreferConstVisitor {
     self.enter_scope();
 
     if let Some(param) = &catch_clause.param {
-      self.extract_decl_idents(param, true, false);
+      self.extract_param_idents(param);
     }
     catch_clause.body.visit_children_with(self);
 
@@ -666,6 +666,9 @@ mod tests {
       r#"let a; const b = {}; ({ a, c: b.c } = func());"#,
       r#"const x = [1,2]; let y; [,y] = x; y = 0;"#,
       r#"const x = [1,2,3]; let y, z; [y,,z] = x; y = 0; z = 0;"#,
+      r#"try { foo(); } catch (e) {}"#,
+      r#"let a; try { foo(); a = 1; } catch (e) {}"#,
+      r#"let a; try { foo(); } catch (e) { a = 1; }"#,
     ]);
   }
 
@@ -847,6 +850,20 @@ if (true) foo = 'foo';
     "#,
       3,
       12,
+    );
+    assert_lint_err_on_line::<PreferConst>(
+      r#"
+let e;
+try {
+  foo();
+} catch (e) {
+  e = 1;
+  e++;
+}
+e = 2;
+    "#,
+      2,
+      4,
     );
   }
 }
