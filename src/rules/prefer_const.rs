@@ -560,7 +560,13 @@ impl Visit for PreferConstVisitor {
     assign_expr.visit_children_with(self);
     match &assign_expr.left {
       PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
-      PatOrExpr::Expr(_) => {}
+      PatOrExpr::Expr(expr) => match &**expr {
+        Expr::Ident(ident) => {
+          self.check_declared_in_outer_scope(ident);
+          self.mark_reassigned(ident, false);
+        }
+        otherwise => otherwise.visit_children_with(self),
+      },
     };
   }
 
@@ -593,6 +599,12 @@ mod tests {
     assert_lint_ok_n::<PreferConst>(vec![
       r#"var x = 0;"#,
       r#"let x;"#,
+      r#"let x = 0; x += 1;"#,
+      r#"let x = 0; x -= 1;"#,
+      r#"let x = 0; x++;"#,
+      r#"let x = 0; ++x;"#,
+      r#"let x = 0; x--;"#,
+      r#"let x = 0; --x;"#,
       r#"let x; { x = 0; } foo(x);"#,
       r#"let x = 0; x = 1;"#,
       r#"const x = 0;"#,
