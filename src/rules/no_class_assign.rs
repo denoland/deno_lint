@@ -123,7 +123,7 @@ class A {}
 ({A} = 0);
       "#,
       3,
-      2,
+      1,
     );
     assert_lint_err_on_line::<NoClassAssign>(
       r#"
@@ -131,7 +131,7 @@ class A {}
 ({b: A = 0} = {});
       "#,
       3,
-      5,
+      1,
     );
     assert_lint_err_on_line::<NoClassAssign>(
       r#"
