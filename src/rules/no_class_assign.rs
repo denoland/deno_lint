@@ -64,54 +64,60 @@ impl Visit for NoClassAssignVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_err_on_line_n;
-  use crate::test_util::assert_lint_ok;
+  use crate::test_util::*;
 
   #[test]
-  fn no_class_assign_ok() {
-    assert_lint_ok::<NoClassAssign>(
+  fn no_class_assign_valid() {
+    assert_lint_ok_n::<NoClassAssign>(vec![
+      r#"class A {}"#,
       r#"
-class A {}
-
 class B {
   foo(A) {
     A = "foobar";
   }
 }
-
+"#,
+      r#"
 class C {
   bar() {
     let B;
     B = "bar";
   }
 }
-
-let x = "x";
-x = "xx";
-var y = "y";
-y = "yy";
-      "#,
-    );
+"#,
+      r#"let x = "x"; x = "xx";"#,
+      r#"var y = "y"; y = "yy";"#,
+    ]);
   }
 
   #[test]
-  fn no_class_assign() {
-    assert_lint_err_on_line_n::<NoClassAssign>(
+  fn no_class_assign_invalid() {
+    assert_lint_err_on_line::<NoClassAssign>(
       r#"
 class A {}
 A = 0;
-
+      "#,
+      3,
+      0,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
 class B {
   foo() {
     B = 0;
   }
 }
-
+      "#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line_n::<NoClassAssign>(
+      r#"
 class C {}
 C = 10;
 C = 20;
       "#,
-      vec![(3, 0), (7, 4), (12, 0), (13, 0)],
+      vec![(3, 0), (4, 0)],
     );
   }
 }
