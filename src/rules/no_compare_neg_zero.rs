@@ -6,7 +6,7 @@ use swc_ecmascript::ast::Lit::Num;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp::Minus;
 use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 use std::sync::Arc;
 
@@ -41,6 +41,8 @@ impl Visit for NoCompareNegZeroVisitor {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
+    bin_expr.visit_children_with(self);
+
     if !bin_expr.op.is_comparator() {
       return;
     }
@@ -130,6 +132,7 @@ mod tests {
       r#"0 != x"#,
       r#"x !== 0"#,
       r#"0 !== x"#,
+      r#"{} == { foo: x === 0 }"#,
     ]);
   }
 
@@ -155,5 +158,7 @@ mod tests {
     assert_lint_err::<NoCompareNegZero>("if (-0.0 == x) { }", 4);
     assert_lint_err::<NoCompareNegZero>("if (x === -0.0) { }", 4);
     assert_lint_err::<NoCompareNegZero>("if (-0.0 === x) { }", 4);
+    // nested
+    assert_lint_err::<NoCompareNegZero>("{} == { foo: x === -0 }", 13);
   }
 }
