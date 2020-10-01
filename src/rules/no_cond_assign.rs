@@ -23,6 +23,42 @@ impl LintRule for NoCondAssign {
     let mut visitor = NoCondAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of the assignment operator, `=`, in conditional statements.
+
+Use of the assignment operator within a conditional statement is often the result of mistyping the equality operator, `==`. If an assignment within a conditional statement is required then this rule allows it by wrapping the assignment in parentheses.
+
+### Valid:
+```typescript
+var x;
+if (x === 0) {
+  var b = 1;
+}
+```
+```typescript
+function setHeight(someNode) {
+  do {
+    someNode.height = "100px";
+  } while ((someNode = someNode.parentNode));
+}
+```
+
+### Invalid:
+```typescript
+var x;
+if (x = 0) {
+  var b = 1;
+}
+```
+```typescript
+function setHeight(someNode) {
+  do {
+    someNode.height = "100px";
+  } while (someNode = someNode.parentNode);
+}
+```"#
+  }
 }
 
 struct NoCondAssignVisitor {
