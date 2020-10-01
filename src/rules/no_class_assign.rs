@@ -6,6 +6,7 @@ use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -44,8 +45,9 @@ impl Visit for NoClassAssignVisitor {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ids = find_lhs_ids(&assign_expr.left);
+    assign_expr.visit_children_with(self);
 
+    let ids = find_lhs_ids(&assign_expr.left);
     for id in ids {
       let var = self.context.scope.var(&id);
       if let Some(var) = var {
@@ -95,6 +97,14 @@ class A {
 let A = class {
   b() {
     A = 0;
+  }
+}
+"#,
+      r#"
+let A, B;
+A = class {
+  b() {
+    B = 0;
   }
 }
 "#,
@@ -170,6 +180,19 @@ A = 10;
 A = 20;
       "#,
       vec![(3, 0), (4, 0)],
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+let A;
+A = class {
+  foo() {
+    class B {}
+    B = 0;
+  }
+}
+      "#,
+      6,
+      4,
     );
   }
 }
