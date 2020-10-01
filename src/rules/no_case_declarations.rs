@@ -172,8 +172,34 @@ switch (fncase) {
     );
     assert_lint_err_on_line::<NoCaseDeclarations>(
       r#"
+switch (fncase) {
+  default:
+    function fn() {
+
+    }
+    break;
+}
+    "#,
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (classcase) {
   case 1:
+    class Cl {
+      
+    }
+    break;
+}
+    "#,
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (classcase) {
+  default:
     class Cl {
       
     }
