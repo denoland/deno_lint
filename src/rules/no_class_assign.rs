@@ -66,27 +66,44 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/no-class-assign.js
+  // MIT Licensed.
+
   #[test]
   fn no_class_assign_valid() {
     assert_lint_ok_n::<NoClassAssign>(vec![
       r#"class A {}"#,
+      r#"class A {} foo(A);"#,
+      r#"let A = class A {}; foo(A);"#,
       r#"
-class B {
+class A {
   foo(A) {
     A = "foobar";
   }
 }
 "#,
       r#"
-class C {
-  bar() {
-    let B;
-    B = "bar";
+class A {
+  foo() {
+    let A;
+    A = "bar";
   }
 }
 "#,
-      r#"let x = "x"; x = "xx";"#,
-      r#"var y = "y"; y = "yy";"#,
+      r#"
+let A = class {
+  b() {
+    A = 0;
+  }
+}
+"#,
+      r#"let x = 0; x = 1;"#,
+      r#"var x = 0; x = 1;"#,
+      r#"const x = 0;"#,
+      r#"function x() {} x = 1;"#,
+      r#"function foo(x) { x = 1; }"#,
+      r#"try {} catch (x) { x = 1; }"#,
     ]);
   }
 
@@ -102,9 +119,44 @@ A = 0;
     );
     assert_lint_err_on_line::<NoClassAssign>(
       r#"
-class B {
+class A {}
+({A} = 0);
+      "#,
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+class A {}
+({b: A = 0} = {});
+      "#,
+      3,
+      5,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+A = 0;
+class A {}
+      "#,
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+class A {
   foo() {
-    B = 0;
+    A = 0;
+  }
+}
+      "#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+let A = class A {
+  foo() {
+    A = 0;
   }
 }
       "#,
@@ -113,9 +165,9 @@ class B {
     );
     assert_lint_err_on_line_n::<NoClassAssign>(
       r#"
-class C {}
-C = 10;
-C = 20;
+class A {}
+A = 10;
+A = 20;
       "#,
       vec![(3, 0), (4, 0)],
     );
