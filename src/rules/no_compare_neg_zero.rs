@@ -95,63 +95,65 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/no-compare-neg-zero.js
+  // MIT Licensed.
+
   #[test]
-  fn it_passes_using_positive_zero() {
-    assert_lint_ok::<NoCompareNegZero>("if (x === 0) { }");
+  fn no_compare_neg_zero_valid() {
+    assert_lint_ok_n::<NoCompareNegZero>(vec![
+      r#"if (x === 0) { }"#,
+      r#"if (Object.is(x, -0)) { }"#,
+      r#"x === 0"#,
+      r#"0 === x"#,
+      r#"x == 0"#,
+      r#"0 == x"#,
+      r#"x === '0'"#,
+      r#"'0' === x"#,
+      r#"x == '0'"#,
+      r#"'0' == x"#,
+      r#"x === '-0'"#,
+      r#"'-0' === x"#,
+      r#"x == '-0'"#,
+      r#"'-0' == x"#,
+      r#"x === -1"#,
+      r#"-1 === x"#,
+      r#"x < 0"#,
+      r#"0 < x"#,
+      r#"x <= 0"#,
+      r#"0 <= x"#,
+      r#"x > 0"#,
+      r#"0 > x"#,
+      r#"x >= 0"#,
+      r#"0 >= x"#,
+      r#"x != 0"#,
+      r#"0 != x"#,
+      r#"x !== 0"#,
+      r#"0 !== x"#,
+    ]);
   }
 
   #[test]
-  fn it_passes_using_object_is_neg_zero() {
-    assert_lint_ok::<NoCompareNegZero>("if (Object.is(x, -0)) { }");
-  }
-
-  #[test]
-  fn it_fails_using_double_eq_with_neg_zero() {
+  fn no_compare_neg_zero_invalid() {
     assert_lint_err::<NoCompareNegZero>("if (x == -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_not_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x != -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_triple_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x === -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_not_double_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x !== -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_less_than_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x < -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_less_than_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x <= -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_greater_than_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x > -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_greater_than_equal_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x >= -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_with_neg_zero_as_the_left_operand() {
     assert_lint_err::<NoCompareNegZero>("if (-0 == x) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_with_floating_point_neg_zero() {
+    assert_lint_err::<NoCompareNegZero>("if (x != -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 != x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x === -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 === x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x !== -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 !== x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x < -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 < x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x <= -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 <= x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x > -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 > x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x >= -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 >= x) { }", 4);
     assert_lint_err::<NoCompareNegZero>("if (x == -0.0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0.0 == x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x === -0.0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0.0 === x) { }", 4);
   }
 }
