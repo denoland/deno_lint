@@ -618,18 +618,6 @@ class Class {
 console.log("unreachable???");
       "#,
     );
-
-    assert_lint_ok::<NoUnreachable>(
-      r#"
-class Class {
-  constructor() {
-    return this;
-  }
-}
-
-console.log("unreachable???");
-      "#,
-    );
   }
 
   #[test]
