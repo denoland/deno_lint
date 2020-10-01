@@ -8,6 +8,7 @@ use swc_ecmascript::ast::VarDeclKind;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -50,6 +51,8 @@ impl Visit for NoCaseDeclarationsVisitor {
     switch_case: &SwitchCase,
     _parent: &dyn Node,
   ) {
+    switch_case.visit_children_with(self);
+
     for stmt in &switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {
@@ -208,6 +211,68 @@ switch (classcase) {
     "#,
       3,
       2,
+    );
+
+    // nested switch
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  case 1:
+    switch (bar) {
+      case 2:
+        let a = "a";
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  default:
+    switch (bar) {
+      default:
+        const a = "a";
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  case 1:
+    switch (bar) {
+      default:
+        function fn() {}
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  default:
+    switch (bar) {
+      case 1:
+        class Cl {}
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
     );
   }
 }
