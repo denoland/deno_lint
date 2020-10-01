@@ -25,6 +25,62 @@ impl LintRule for ValidTypeof {
     let mut visitor = ValidTypeofVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Restricts the use of the `typeof` operator to a specific set of string literals.
+
+When used with a value the `typeof` operator returns one of the following strings:
+- `"undefined"`
+- `"object"`
+- `"boolean"`
+- `"number"`
+- `"string"`
+- `"function"`
+- `"symbol"`
+- `"bigint"`
+
+This rule disallows comparison with anything other than one of these string literals when using the `typeof` operator, as this likely represents a typing mistake in the string. The rule also disallows comparing the result of a `typeof` operation with any non-string literal value, such as `undefined`, which can represent an inadvertent use of a keyword instead of a string. This includes comparing against string variables even if they contain one of the above values as this cannot be guaranteed. An exception to this is comparing the results of two `typeof` operations as these are both guaranteed to return on of the above strings.
+
+### Invalid:
+```typescript
+typeof foo === "strnig"
+```
+```typescript
+typeof foo == "undefimed"
+```
+```typescript
+typeof bar != "nunber"
+```
+```typescript
+typeof bar !== "fucntion"
+```
+```typescript
+typeof foo === undefined
+```
+```typescript
+typeof bar == Object
+```
+```typescript
+typeof baz === anotherVariable
+```
+```typescript
+typeof foo == 5
+```
+
+### Valid:
+```typescript
+typeof foo === "undefined"
+```
+```typescript
+typeof bar == "object"
+```
+```typescript
+typeof baz === "string"
+```
+```typescript
+typeof bar === typeof qux
+```"#
+  }
 }
 
 struct ValidTypeofVisitor {
