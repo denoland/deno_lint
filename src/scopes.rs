@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
-  ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, DoWhileStmt,
-  FnDecl, ForInStmt, ForOfStmt, ForStmt, Function, Ident,
+  ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
+  DoWhileStmt, Expr, FnDecl, ForInStmt, ForOfStmt, ForStmt, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
   Module, Param, Pat, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
 };
@@ -157,6 +157,23 @@ impl Visit for Analyzer<'_> {
   fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
     n.decls.iter().for_each(|v| {
       v.init.visit_with(n, self);
+
+      // If the class name and the variable name are the same like `let Foo = class Foo {}`,
+      // this binding should be treated as `BindingKind::Class`.
+      if let Some(expr) = &v.init {
+        if let Expr::Class(ClassExpr {
+          ident: Some(class_name),
+          ..
+        }) = &**expr
+        {
+          if let Pat::Ident(var_name) = &v.name {
+            if var_name.sym == class_name.sym {
+              self.declare(BindingKind::Class, class_name);
+              return;
+            }
+          }
+        }
+      }
 
       self.declare_pat(
         match n.kind {
