@@ -23,6 +23,61 @@ impl LintRule for NoEmpty {
     let mut visitor = NoEmptyVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of empty block statements.
+
+Empty block statements are legal but often represent that something was missed and can make code less readable. This rule ignores block statements that only contain comments. This rule also ignores empty constructors and function bodies (including arrow functions), which are covered by the `no-empty-function` rule.
+
+### Valid:
+```typescript
+if (foo) {
+  // empty
+}
+```
+```typescript
+while (foo) {
+  /* empty */
+}
+```
+```typescript
+try {
+  doSomething();
+} catch (ex) {
+  // continue regardless of error
+}
+```
+```typescript
+try {
+  doSomething();
+} finally {
+  /* continue regardless of error */
+}
+```
+
+### Invalid:
+```typescript
+if (foo) {
+}
+```
+```typescript
+while (foo) {
+}
+```
+```typescript
+switch(foo) {
+}
+```
+```typescript
+try {
+  doSomething();
+} catch(ex) {
+
+} finally {
+
+}
+```"#
+  }
 }
 
 struct NoEmptyVisitor {
