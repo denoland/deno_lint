@@ -603,4 +603,35 @@ function normalize(type: string): string | undefined {
       "#,
     );
   }
+
+  // https://github.com/denoland/deno_lint/issues/353
+  #[test]
+  fn issue_353_1() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+class Class {
+  constructor() {
+    return this;
+  }
+}
+
+console.log("unreachable???");
+      "#,
+    );
+  }
+
+  #[test]
+  fn issue_353_2() {
+    assert_lint_ok::<NoUnreachable>(
+      r#"
+class Class {
+  constructor() {
+    if (Deno) return this;
+  }
+}
+
+console.log("unreachable???");
+      "#,
+    );
+  }
 }
