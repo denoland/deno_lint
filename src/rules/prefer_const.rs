@@ -722,6 +722,14 @@ mod tests {
       // https://github.com/denoland/deno_lint/issues/358
       r#"let a; const b = (a = foo === bar || baz === qux);"#,
       r#"let i = 0; b[i++] = 0;"#,
+      // hoisting
+      r#"
+      function foo() {
+        a += 1;
+      }
+      let a = 1;
+      foo();
+      "#,
     ]);
   }
 
