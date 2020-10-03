@@ -199,19 +199,41 @@ impl Visit for VariableCollector {
 }
 
 #[cfg(test)]
-#[test]
-fn hogepiyo() {
+mod variable_collector_tests {
+  use super::*;
   use crate::test_util;
-  let src = r#"
+
+  fn variables(scope: &Scope) -> Vec<String> {
+    scope
+      .lock()
+      .unwrap()
+      .variables
+      .keys()
+      .map(|k| k.to_string())
+      .collect()
+  }
+
+  #[test]
+  fn collector_works() {
+    let src = r#"
 let a;
-function foo(arg) {
+function foo({ p1, key: p2 }) {
   let b = 2;
 }
+let c = 42;
     "#;
-  let module = test_util::parse(src);
-  let mut v = VariableCollector::new();
-  v.visit_module(&module, &module);
-  dbg!(v);
+    let module = test_util::parse(src);
+    let mut v = VariableCollector::new();
+    v.visit_module(&module, &module);
+
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["a", "c"], global_vars);
+
+    let foo_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["b", "p1", "p2"], foo_vars);
+  }
 }
 
 #[derive(PartialEq, Debug)]
