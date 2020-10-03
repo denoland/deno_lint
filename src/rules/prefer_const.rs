@@ -151,6 +151,21 @@ impl VariableCollector {
       _ => {}
     }
   }
+
+  fn with_child_scope<F>(&mut self, span: Span, op: F)
+  where
+    F: FnOnce(&mut VariableCollector),
+  {
+    let parent_scope_range = self.cur_scope;
+    let parent_scope = self.scopes.get(&parent_scope_range).map(Arc::clone);
+    let child_scope = RawScope::new(parent_scope);
+    self
+      .scopes
+      .insert(ScopeRange::Block(span), Arc::new(Mutex::new(child_scope)));
+    self.cur_scope = ScopeRange::Block(span);
+    op(self);
+    self.cur_scope = parent_scope_range;
+  }
 }
 
 impl Visit for VariableCollector {
@@ -165,19 +180,14 @@ impl Visit for VariableCollector {
   }
 
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
-    let parent_scope_range = self.cur_scope;
-    let parent_scope =
-      self.scopes.get(&parent_scope_range).map(|s| Arc::clone(s));
-    let child_scope = RawScope::new(parent_scope);
-    self.scopes.insert(
-      ScopeRange::Block(function.span),
-      Arc::new(Mutex::new(child_scope)),
-    );
-    self.cur_scope = ScopeRange::Block(function.span);
-
-    function.visit_children_with(self);
-
-    self.cur_scope = parent_scope_range;
+    self.with_child_scope(function.span, |a| {
+      for param in &function.params {
+        param.visit_with(function, a);
+      }
+      if let Some(body) = &function.body {
+        body.visit_children_with(a);
+      }
+    });
   }
 
   fn visit_param(&mut self, param: &Param, _: &dyn Node) {
@@ -186,6 +196,12 @@ impl Visit for VariableCollector {
     for ident in idents {
       self.insert_var(&ident, true, false, true);
     }
+  }
+
+  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
+    self.with_child_scope(block_stmt.span, |a| {
+      block_stmt.visit_children_with(a);
+    });
   }
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
@@ -203,6 +219,13 @@ mod variable_collector_tests {
   use super::*;
   use crate::test_util;
 
+  fn collect(src: &str) -> VariableCollector {
+    let module = test_util::parse(src);
+    let mut v = VariableCollector::new();
+    v.visit_module(&module, &module);
+    v
+  }
+
   fn variables(scope: &Scope) -> Vec<String> {
     scope
       .lock()
@@ -214,25 +237,42 @@ mod variable_collector_tests {
   }
 
   #[test]
-  fn collector_works() {
+  fn collector_works1() {
     let src = r#"
-let a;
-function foo({ p1, key: p2 }) {
-  let b = 2;
+let global1;
+function foo({ param1, key: param2 }) {
+  let inner1 = 2;
 }
-let c = 42;
+let global2 = 42;
     "#;
-    let module = test_util::parse(src);
-    let mut v = VariableCollector::new();
-    v.visit_module(&module, &module);
-
+    let v = collect(src);
     let mut scope_iter = v.scopes.values();
 
     let global_vars = variables(scope_iter.next().unwrap());
-    assert_eq!(vec!["a", "c"], global_vars);
+    assert_eq!(vec!["global1", "global2"], global_vars);
 
     let foo_vars = variables(scope_iter.next().unwrap());
-    assert_eq!(vec!["b", "p1", "p2"], foo_vars);
+    assert_eq!(vec!["inner1", "param1", "param2"], foo_vars);
+  }
+
+  #[test]
+  fn collector_works2() {
+    let src = r#"
+let global1;
+{
+  let inner1 = 1;
+  let inner2;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let inner_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["inner1", "inner2"], inner_vars);
   }
 }
 
