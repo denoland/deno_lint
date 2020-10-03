@@ -6,7 +6,7 @@ use super::LintRule;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use swc_atoms::JsWord;
-use swc_common::Span;
+use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ExprStmt,
   ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt, Module,
@@ -237,7 +237,7 @@ mod variable_collector_tests {
   }
 
   #[test]
-  fn collector_works1() {
+  fn collector_works_function() {
     let src = r#"
 let global1;
 function foo({ param1, key: param2 }) {
@@ -253,10 +253,12 @@ let global2 = 42;
 
     let foo_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["inner1", "param1", "param2"], foo_vars);
+
+    assert!(scope_iter.next().is_none());
   }
 
   #[test]
-  fn collector_works2() {
+  fn collector_works_block() {
     let src = r#"
 let global1;
 {
@@ -273,6 +275,87 @@ let global2 = 42;
 
     let inner_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["inner1", "inner2"], inner_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_if_1() {
+    let src = r#"
+let global1;
+if (true) {
+  let inner1 = 1;
+  let inner2;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let inner_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["inner1", "inner2"], inner_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_if_2() {
+    let src = r#"
+let global1;
+if (true) {
+  let cons = 1;
+} else {
+  let alt = 3;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let cons_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["cons"], cons_vars);
+
+    let alt_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["alt"], alt_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_if_3() {
+    let src = r#"
+let global1;
+if (true) {
+  let cons1 = 1;
+} else if (false) {
+  let cons2 = 2;
+} else {
+  let alt;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let cons1_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["cons1"], cons1_vars);
+
+    let cons2_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["cons2"], cons2_vars);
+
+    let alt_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["alt"], alt_vars);
+
+    assert!(scope_iter.next().is_none());
   }
 }
 
