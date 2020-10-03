@@ -6,11 +6,12 @@ use std::sync::Arc;
 use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ForInStmt,
-  ForOfStmt, ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, Pat,
-  PatOrExpr, UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat,
-  WhileStmt, WithStmt,
+  ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ExprStmt,
+  ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt, Module,
+  ObjectPatProp, Pat, PatOrExpr, UpdateExpr, VarDecl, VarDeclKind,
+  VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
+use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
@@ -557,17 +558,53 @@ impl Visit for PreferConstVisitor {
     assign_expr: &AssignExpr,
     _parent: &dyn Node,
   ) {
+    // This only handles _nested_ `AssignmentExpression` since not nested `AssignExpression` (i.e. the direct child of
+    // `ExpressionStatement`) is already handled by `visit_expr_stmt`. The variables within nested
+    // `AssignmentExpression` should be marked as "reassigned" even if it's not been yet initialized, otherwise it
+    // would result in false positives.
+    // See https://github.com/denoland/deno_lint/issues/358
     assign_expr.visit_children_with(self);
-    match &assign_expr.left {
-      PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
-      PatOrExpr::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => {
-          self.check_declared_in_outer_scope(ident);
-          self.mark_reassigned(ident, false);
-        }
-        otherwise => otherwise.visit_children_with(self),
-      },
+
+    let idents: Vec<Ident> = match &assign_expr.left {
+      PatOrExpr::Pat(pat) => find_ids(pat), // find_ids doesn't work for Expression
+      PatOrExpr::Expr(expr) if expr.is_ident() => {
+        let ident = (**expr).clone().expect_ident();
+        vec![ident]
+      }
+      _ => vec![],
     };
+
+    for ident in idents {
+      self.mark_reassigned(&ident, true);
+    }
+  }
+
+  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _parent: &dyn Node) {
+    let mut expr = &*expr_stmt.expr;
+
+    // Unwrap parentheses
+    while let Expr::Paren(e) = expr {
+      expr = &*e.expr;
+    }
+
+    match expr {
+      Expr::Assign(assign_expr) => {
+        match &assign_expr.left {
+          PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
+          PatOrExpr::Expr(expr) => match &**expr {
+            Expr::Ident(ident) => {
+              self.check_declared_in_outer_scope(ident);
+              self.mark_reassigned(ident, false);
+            }
+            otherwise => {
+              otherwise.visit_children_with(self);
+            }
+          },
+        };
+        assign_expr.visit_children_with(self);
+      }
+      _ => expr_stmt.visit_children_with(self),
+    }
   }
 
   fn visit_update_expr(
@@ -609,6 +646,7 @@ mod tests {
       r#"let x = 0; x = 1;"#,
       r#"const x = 0;"#,
       r#"for (let i = 0, end = 10; i < end; ++i) {}"#,
+      r#"for (let i = 0, end = 10; i < end; i += 2) {}"#,
       r#"for (let i in [1,2,3]) { i = 0; }"#,
       r#"for (let x of [1,2,3]) { x = 0; }"#,
       r#"(function() { var x = 0; })();"#,
@@ -681,6 +719,9 @@ mod tests {
       r#"try { foo(); } catch (e) {}"#,
       r#"let a; try { foo(); a = 1; } catch (e) {}"#,
       r#"let a; try { foo(); } catch (e) { a = 1; }"#,
+      // https://github.com/denoland/deno_lint/issues/358
+      r#"let a; const b = (a = foo === bar || baz === qux);"#,
+      r#"let i = 0; b[i++] = 0;"#,
     ]);
   }
 
