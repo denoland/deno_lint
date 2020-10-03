@@ -9,6 +9,7 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
+#[derive(Debug)]
 pub struct ControlFlow {
   meta: HashMap<BytePos, Metadata>,
 }
@@ -570,5 +571,43 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Label(n.label.to_id()), n.span.lo, |a| {
       a.visit_stmt_or_block(&n.body);
     });
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::swc_util::{self, AstParser};
+  use swc_ecmascript::ast::Module;
+
+  fn parse(source_code: &str) -> Module {
+    let ast_parser = AstParser::new();
+    let syntax = swc_util::get_default_ts_config();
+    let (parse_result, _) =
+      ast_parser.parse_module("file_name.ts", syntax, source_code);
+    parse_result.unwrap()
+  }
+
+  #[test]
+  fn hoge() {
+    let src = r#"
+const obj = {
+  get root() {
+    let primary = this;
+    while (true) {
+      if (primary.parent !== undefined) {
+          primary = primary.parent;
+      } else {
+          return primary;
+      }
+    }
+    return 'a';
+  }
+};
+      "#;
+    let module = parse(src);
+    let flow = ControlFlow::analyze(&module);
+    dbg!(flow);
+    panic!();
   }
 }

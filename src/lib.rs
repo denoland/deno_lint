@@ -8,6 +8,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+mod code_path_analysis;
 mod control_flow;
 pub mod diagnostic;
 mod globals;
