@@ -4,6 +4,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
+use swc_ecmascript::ast::Module;
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
@@ -112,4 +113,12 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
     let (line, col) = expected[i];
     assert_diagnostic(&diagnostics[i], rule_code, line, col, source);
   }
+}
+
+pub fn parse(source_code: &str) -> Module {
+  let ast_parser = swc_util::AstParser::new();
+  let syntax = swc_util::get_default_ts_config();
+  let (parse_result, _comments) =
+    ast_parser.parse_module("file_name.ts", syntax, source_code);
+  parse_result.unwrap()
 }
