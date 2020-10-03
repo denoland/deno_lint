@@ -10,7 +10,7 @@ use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ExprStmt,
   ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt, Module,
-  ObjectPatProp, Param, Pat, PatOrExpr, UpdateExpr, VarDecl, VarDeclKind,
+  ObjectPatProp, Param, Pat, PatOrExpr, Stmt, UpdateExpr, VarDecl, VarDeclKind,
   VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
@@ -204,6 +204,38 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
+    self.with_child_scope(for_stmt.span, |a| {
+      match &for_stmt.init {
+        Some(VarDeclOrExpr::VarDecl(var_decl)) => {
+          var_decl.visit_children_with(a);
+          if var_decl.kind == VarDeclKind::Let {
+            for decl in &var_decl.decls {
+              a.extract_decl_idents(&decl.name, decl.init.is_some(), true);
+            }
+          }
+        }
+        Some(VarDeclOrExpr::Expr(expr)) => {
+          expr.visit_children_with(a);
+        }
+        None => {}
+      }
+
+      if let Some(test_expr) = &for_stmt.test {
+        test_expr.visit_children_with(a);
+      }
+      if let Some(update_expr) = &for_stmt.update {
+        update_expr.visit_children_with(a);
+      }
+
+      if let Stmt::Block(block_stmt) = &*for_stmt.body {
+        block_stmt.visit_children_with(a);
+      } else {
+        for_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
@@ -354,6 +386,28 @@ let global2 = 42;
 
     let alt_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["alt"], alt_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for() {
+    let src = r#"
+let global1;
+for (let i = 0, j = 10; i < 10; i++) {
+  let inner;
+  j--;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["i", "inner", "j"], for_vars);
 
     assert!(scope_iter.next().is_none());
   }
