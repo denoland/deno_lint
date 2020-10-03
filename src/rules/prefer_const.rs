@@ -1,14 +1,16 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// TODO(magurotuna): remove next line
+#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use swc_atoms::JsWord;
 use swc_common::Span;
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ExprStmt,
   ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt, Module,
-  ObjectPatProp, Pat, PatOrExpr, UpdateExpr, VarDecl, VarDeclKind,
+  ObjectPatProp, Param, Pat, PatOrExpr, UpdateExpr, VarDecl, VarDeclKind,
   VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
@@ -36,7 +38,183 @@ impl LintRule for PreferConst {
   }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug)]
+struct Variable {
+  span: Span,
+  initialized: Initalized,
+  reassigned: bool,
+  in_for_init: bool,
+  force_reassigned: bool,
+}
+
+type Scope = Arc<Mutex<RawScope>>;
+
+#[derive(Debug)]
+struct RawScope {
+  parent: Option<Scope>,
+  variables: BTreeMap<JsWord, Variable>,
+}
+
+impl RawScope {
+  fn new(parent: Option<Scope>) -> Self {
+    Self {
+      parent,
+      variables: BTreeMap::new(),
+    }
+  }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+enum ScopeRange {
+  Global,
+  Block(Span),
+}
+
+#[derive(Debug)]
+struct VariableCollector {
+  scopes: BTreeMap<ScopeRange, Scope>,
+  cur_scope: ScopeRange,
+}
+
+impl VariableCollector {
+  fn new() -> Self {
+    Self {
+      scopes: BTreeMap::new(),
+      cur_scope: ScopeRange::Global,
+    }
+  }
+
+  fn insert_var(
+    &mut self,
+    ident: &Ident,
+    has_init: bool,
+    in_for_init: bool,
+    is_param: bool,
+  ) {
+    let mut scope = self.scopes.get(&self.cur_scope).unwrap().lock().unwrap();
+    scope.variables.insert(
+      ident.sym.clone(),
+      Variable {
+        span: ident.span,
+        initialized: if has_init {
+          Initalized::SameScope
+        } else {
+          Initalized::NotYet
+        },
+        reassigned: false,
+        in_for_init,
+        force_reassigned: is_param,
+      },
+    );
+  }
+
+  fn extract_decl_idents(
+    &mut self,
+    pat: &Pat,
+    has_init: bool,
+    in_for_init: bool,
+  ) {
+    match pat {
+      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
+      Pat::Array(array_pat) => {
+        for elem in &array_pat.elems {
+          if let Some(elem_pat) = elem {
+            self.extract_decl_idents(elem_pat, has_init, in_for_init);
+          }
+        }
+      }
+      Pat::Rest(rest_pat) => {
+        self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
+      }
+      Pat::Object(object_pat) => {
+        for prop in &object_pat.props {
+          match prop {
+            ObjectPatProp::KeyValue(key_value) => {
+              self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
+            }
+            ObjectPatProp::Assign(assign) => {
+              if assign.value.is_some() {
+                self.insert_var(&assign.key, true, in_for_init, false);
+              } else {
+                self.insert_var(&assign.key, has_init, in_for_init, false);
+              }
+            }
+            ObjectPatProp::Rest(rest) => {
+              self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
+            }
+          }
+        }
+      }
+      Pat::Assign(assign_pat) => {
+        self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
+      }
+      _ => {}
+    }
+  }
+}
+
+impl Visit for VariableCollector {
+  noop_visit_type!();
+
+  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
+    let scope = RawScope::new(None);
+    self
+      .scopes
+      .insert(ScopeRange::Global, Arc::new(Mutex::new(scope)));
+    module.visit_children_with(self);
+  }
+
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+    let parent_scope_range = self.cur_scope;
+    let parent_scope =
+      self.scopes.get(&parent_scope_range).map(|s| Arc::clone(s));
+    let child_scope = RawScope::new(parent_scope);
+    self.scopes.insert(
+      ScopeRange::Block(function.span),
+      Arc::new(Mutex::new(child_scope)),
+    );
+    self.cur_scope = ScopeRange::Block(function.span);
+
+    function.visit_children_with(self);
+
+    self.cur_scope = parent_scope_range;
+  }
+
+  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
+    param.visit_children_with(self);
+    let idents: Vec<Ident> = find_ids(&param.pat);
+    for ident in idents {
+      self.insert_var(&ident, true, false, true);
+    }
+  }
+
+  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+    var_decl.visit_children_with(self);
+    if var_decl.kind == VarDeclKind::Let {
+      for decl in &var_decl.decls {
+        self.extract_decl_idents(&decl.name, decl.init.is_some(), false);
+      }
+    }
+  }
+}
+
+#[cfg(test)]
+#[test]
+fn hogepiyo() {
+  use crate::test_util;
+  let src = r#"
+let a;
+function foo(arg) {
+  let b = 2;
+}
+    "#;
+  let module = test_util::parse(src);
+  let mut v = VariableCollector::new();
+  v.visit_module(&module, &module);
+  dbg!(v);
+}
+
+#[derive(PartialEq, Debug)]
 enum Initalized {
   SameScope,
   DifferentScope,
@@ -101,11 +279,19 @@ struct PreferConstVisitor {
   /// When exiting from a scope, statuses of variables that belong to the scope will be dropped from
   /// `symbols`.
   symbols: BTreeMap<JsWord, Vec<VarStatus>>,
+
   /// Holds variables per scope.
   /// When entering a scope, a new `BTreeMap` is created and pushed to this vector. This `BTreeMap`
   /// collects variable information.
   /// Then, when exiting from a scope, the last element of the vector is dropped like `symbols`.
   vars_declared_per_scope: Vec<BTreeMap<JsWord, Span>>,
+
+  /// Stores statuses of hoisted variables.
+  /// When `PreferConstVisitor` visits a variable that has not yet declared, it is put into
+  /// `hoisted_vars`. After that, it proceeds the job, and when encountering a variable declaration, the stored
+  /// variable data is moved to `symbols` and `vars_declared_per_scope`.
+  hoisted_vars: BTreeMap<JsWord, VarStatus>,
+
   context: Arc<Context>,
 }
 
@@ -115,6 +301,7 @@ impl PreferConstVisitor {
       context,
       symbols: BTreeMap::new(),
       vars_declared_per_scope: Vec::new(),
+      hoisted_vars: BTreeMap::new(),
     }
   }
 
@@ -729,6 +916,20 @@ mod tests {
       }
       let a = 1;
       foo();
+      "#,
+      r#"
+      let a = 1;
+      function foo() {
+        function bar() {
+          a++;
+        }
+        let a = 9999;
+        bar();
+        console.log(a); // 10000
+      }
+      foo();
+      a *= 2;
+      console.log(a); // 2
       "#,
     ]);
   }
