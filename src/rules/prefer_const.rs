@@ -260,6 +260,34 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
+    self.with_child_scope(for_in_stmt.span, |a| {
+      match &for_in_stmt.left {
+        VarDeclOrPat::VarDecl(var_decl) => {
+          if var_decl.kind == VarDeclKind::Let {
+            for decl in &var_decl.decls {
+              a.extract_decl_idents(&decl.name, true, false);
+            }
+          }
+        }
+        VarDeclOrPat::Pat(pat) => {
+          let idents: Vec<Ident> = find_ids(pat);
+          for ident in idents {
+            a.insert_var(&ident, true, false, true); // TODO(magurotuna): make args more readable
+          }
+        }
+      }
+
+      for_in_stmt.right.visit_children_with(a);
+
+      if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
+        block_stmt.visit_children_with(a);
+      } else {
+        for_in_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
@@ -441,6 +469,27 @@ let global2 = 42;
     let src = r#"
 let global1;
 for (let i of [1, 2, 3]) {
+  let inner;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["i", "inner"], for_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for_in() {
+    let src = r#"
+let global1;
+for (let i in [1, 2, 3]) {
   let inner;
 }
 let global2 = 42;
