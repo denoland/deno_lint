@@ -8,10 +8,12 @@ use std::sync::{Arc, Mutex};
 use swc_atoms::JsWord;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, DoWhileStmt,
-  Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt,
-  Module, ObjectPatProp, Param, Pat, PatOrExpr, Stmt, UpdateExpr, VarDecl,
-  VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
+  ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
+  ClassMember, Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt,
+  ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, Param,
+  ParamOrTsParamProp, Pat, PatOrExpr, Stmt, TsParamProp, TsParamPropParam,
+  UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt,
+  WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::visit::noop_visit_type;
@@ -320,6 +322,57 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+    for decorator in &class.decorators {
+      decorator.visit_children_with(self);
+    }
+    if let Some(super_class) = &class.super_class {
+      super_class.visit_children_with(self);
+    }
+    self.with_child_scope(class.span, |a| {
+      for member in &class.body {
+        member.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+    self.with_child_scope(constructor.span, |a| {
+      for param in &constructor.params {
+        match param {
+          ParamOrTsParamProp::TsParamProp(ts_param_prop) => {
+            for decorator in &ts_param_prop.decorators {
+              decorator.visit_children_with(a);
+            }
+            match &ts_param_prop.param {
+              TsParamPropParam::Ident(ident) => {
+                a.insert_var(ident, true, false, true);
+              }
+              TsParamPropParam::Assign(assign_pat) => {
+                assign_pat.visit_children_with(a);
+                let idents: Vec<Ident> = find_ids(&assign_pat.left);
+                for ident in idents {
+                  a.insert_var(&ident, true, false, true);
+                }
+              }
+            }
+          }
+          ParamOrTsParamProp::Param(param) => {
+            param.visit_children_with(a);
+            let idents: Vec<Ident> = find_ids(&param.pat);
+            for ident in idents {
+              a.insert_var(&ident, true, false, true);
+            }
+          }
+        }
+      }
+
+      if let Some(body) = &constructor.body {
+        body.visit_children_with(a);
+      }
+    });
+  }
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
@@ -582,6 +635,58 @@ let global2 = 42;
 
     let catch_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["catchVar", "e"], catch_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_class() {
+    let src = r#"
+let global1;
+class Foo {
+  field;
+  #privateField;
+  constructor(consParam) {
+    let cons;
+  }
+  get getter() {
+    let g;
+  }
+  set setter() {
+    let s;
+  }
+  static staticMethod(staticMethodParam) {
+    let sm;
+  }
+  method(methodParam) {
+    let m;
+  }
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let class_vars = variables(scope_iter.next().unwrap());
+    assert!(class_vars.is_empty()); // collector doesn't collect class fields
+
+    let constructor_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["cons", "consParam"], constructor_vars);
+
+    let getter_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["g"], getter_vars);
+
+    let setter_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["s"], setter_vars);
+
+    let static_method_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["sm", "staticMethodParam"], static_method_vars);
+
+    let method_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["m", "methodParam"], method_vars);
 
     assert!(scope_iter.next().is_none());
   }
