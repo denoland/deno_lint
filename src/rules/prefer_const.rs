@@ -4,6 +4,7 @@
 use super::Context;
 use super::LintRule;
 use std::collections::BTreeMap;
+use std::mem;
 use std::sync::{Arc, Mutex};
 use swc_atoms::JsWord;
 use swc_common::{Span, Spanned};
@@ -35,7 +36,11 @@ impl LintRule for PreferConst {
     context: Arc<Context>,
     module: &swc_ecmascript::ast::Module,
   ) {
-    let mut visitor = PreferConstVisitor::new(context);
+    let mut collector = VariableCollector::new();
+    collector.visit_module(module, module);
+
+    let mut visitor =
+      PreferConstVisitor::new(context, mem::take(&mut collector.scopes));
     visitor.visit_module(module, module);
   }
 }
@@ -43,10 +48,23 @@ impl LintRule for PreferConst {
 #[derive(Debug)]
 struct Variable {
   span: Span,
-  initialized: Initalized,
+  initialized: Initialized,
   reassigned: bool,
   in_for_init: bool,
   force_reassigned: bool,
+}
+
+impl Variable {
+  fn update(
+    &mut self,
+    initialized: Initialized,
+    reassigned: bool,
+    force_reassigned: bool,
+  ) {
+    self.initialized = initialized;
+    self.reassigned = reassigned;
+    self.force_reassigned = force_reassigned;
+  }
 }
 
 type Scope = Arc<Mutex<RawScope>>;
@@ -63,6 +81,26 @@ impl RawScope {
       parent,
       variables: BTreeMap::new(),
     }
+  }
+}
+
+/// Looks for the variable status of the given ident by traversing from the current scope to the parent,
+/// and updates its status.
+fn update_variable_status(
+  scope: Scope,
+  ident: &Ident,
+  initialized: Initialized,
+  reassigned: bool,
+  force_reassigned: bool,
+) {
+  let mut cur_scope = Some(scope);
+  while let Some(cur) = cur_scope {
+    let mut lock = cur.lock().unwrap();
+    if let Some(var) = lock.variables.get_mut(&ident.sym) {
+      var.update(initialized, reassigned, force_reassigned);
+      return;
+    }
+    cur_scope = lock.parent.as_ref().map(Arc::clone);
   }
 }
 
@@ -99,9 +137,9 @@ impl VariableCollector {
       Variable {
         span: ident.span,
         initialized: if has_init {
-          Initalized::SameScope
+          Initialized::SameScope
         } else {
-          Initalized::NotYet
+          Initialized::NotYet
         },
         reassigned: false,
         in_for_init,
@@ -726,14 +764,14 @@ let global2 = 42;
 }
 
 #[derive(PartialEq, Debug)]
-enum Initalized {
+enum Initialized {
   SameScope,
   DifferentScope,
   NotYet,
 }
 
 struct VarStatus {
-  initialized: Initalized,
+  initialized: Initialized,
   reassigned: bool,
   in_for_init: bool,
   is_param: bool,
@@ -745,7 +783,7 @@ impl VarStatus {
       return false;
     }
 
-    use Initalized::*;
+    use Initialized::*;
     match self.initialized {
       DifferentScope | NotYet => false,
       SameScope => !self.reassigned,
@@ -803,16 +841,19 @@ struct PreferConstVisitor {
   /// variable data is moved to `symbols` and `vars_declared_per_scope`.
   hoisted_vars: BTreeMap<JsWord, VarStatus>,
 
+  scopes: BTreeMap<ScopeRange, Scope>,
+
   context: Arc<Context>,
 }
 
 impl PreferConstVisitor {
-  fn new(context: Arc<Context>) -> Self {
+  fn new(context: Arc<Context>, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
     Self {
       context,
       symbols: BTreeMap::new(),
       vars_declared_per_scope: Vec::new(),
       hoisted_vars: BTreeMap::new(),
+      scopes,
     }
   }
 
@@ -847,9 +888,9 @@ impl PreferConstVisitor {
       .or_default()
       .push(VarStatus {
         initialized: if has_init {
-          Initalized::SameScope
+          Initialized::SameScope
         } else {
-          Initalized::NotYet
+          Initialized::NotYet
         },
         reassigned: false,
         in_for_init,
@@ -865,7 +906,7 @@ impl PreferConstVisitor {
   ) -> Option<()> {
     let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
 
-    use Initalized::*;
+    use Initialized::*;
     match status.initialized {
       NotYet => {
         status.initialized = SameScope;
@@ -1012,7 +1053,7 @@ impl PreferConstVisitor {
     let has_outer_scope_var = idents.iter().any(|i| {
       if let Some(statuses) = self.symbols.get(&i.sym) {
         if let Some(status) = statuses.last() {
-          return status.initialized == Initalized::DifferentScope
+          return status.initialized == Initialized::DifferentScope
             || status.is_param;
         }
       }
@@ -1038,7 +1079,7 @@ impl PreferConstVisitor {
       return None;
     }
     let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
-    status.initialized = Initalized::DifferentScope;
+    status.initialized = Initialized::DifferentScope;
     None
   }
 
