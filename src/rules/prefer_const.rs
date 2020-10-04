@@ -53,6 +53,7 @@ struct Variable {
   /// If this variable is declared in "init" section of a for statement, it stores `Some(span)` where
   /// `span` is the span of the for statement. Otherwise, it stores `None`.
   in_for_init: Option<Span>,
+  is_param: bool,
   force_reassigned: bool,
 }
 
@@ -69,7 +70,11 @@ impl Variable {
   }
 
   fn should_report(&self) -> bool {
-    self.reassigned || self.force_reassigned
+    if !self.initialized {
+      return false;
+    }
+
+    !self.reassigned && !self.force_reassigned
   }
 }
 
@@ -154,7 +159,8 @@ impl VariableCollector {
         initialized: has_init,
         reassigned: false,
         in_for_init,
-        force_reassigned: is_param,
+        force_reassigned: is_param, // TODO(magurotuna)
+        is_param,
       },
     );
   }
@@ -834,50 +840,6 @@ impl PreferConstVisitor {
     update_variable_status(Arc::clone(scope), ident, force_reassigned);
   }
 
-  //fn extract_decl_idents(
-  //&mut self,
-  //pat: &Pat,
-  //has_init: bool,
-  //in_for_init: bool,
-  //) {
-  //match pat {
-  //Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
-  //Pat::Array(array_pat) => {
-  //for elem in &array_pat.elems {
-  //if let Some(elem_pat) = elem {
-  //self.extract_decl_idents(elem_pat, has_init, in_for_init);
-  //}
-  //}
-  //}
-  //Pat::Rest(rest_pat) => {
-  //self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
-  //}
-  //Pat::Object(object_pat) => {
-  //for prop in &object_pat.props {
-  //match prop {
-  //ObjectPatProp::KeyValue(key_value) => {
-  //self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
-  //}
-  //ObjectPatProp::Assign(assign) => {
-  //if assign.value.is_some() {
-  //self.insert_var(&assign.key, true, in_for_init, false);
-  //} else {
-  //self.insert_var(&assign.key, has_init, in_for_init, false);
-  //}
-  //}
-  //ObjectPatProp::Rest(rest) => {
-  //self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
-  //}
-  //}
-  //}
-  //}
-  //Pat::Assign(assign_pat) => {
-  //self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
-  //}
-  //_ => {}
-  //}
-  //}
-
   fn extract_assign_idents(&mut self, pat: &Pat) {
     fn extract_idents_rec<'a, 'b>(
       pat: &'a Pat,
@@ -929,17 +891,38 @@ impl PreferConstVisitor {
     let mut has_member_expr = false;
     extract_idents_rec(pat, &mut idents, &mut has_member_expr);
 
-    let has_outer_scope_var = idents.iter().any(|i| {
-      !self.scopes.get(&self.cur_scope).map_or(false, |scope| {
-        scope.lock().unwrap().variables.contains_key(&i.sym)
-      })
+    let has_outer_scope_or_param_var = idents.iter().any(|i| {
+      let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
+      let mut is_first_loop = true;
+      while let Some(cur) = cur_scope {
+        let mut lock = cur.lock().unwrap();
+        if let Some(var) = lock.variables.get(&i.sym) {
+          if is_first_loop {
+            return var.is_param;
+          } else {
+            return true;
+          }
+        }
+        is_first_loop = false;
+        cur_scope = lock.parent.as_ref().map(Arc::clone);
+      }
+      // If the ident isn't found, most likely it means the ident is declared with `var`, so it's okay.
+      false
     });
 
     for ident in idents {
-      // If the pat contains MemberExpression or variable declared in outer scope, then all the idents should be marked
-      // as "reassigned" so that we will not report them as errors, bacause in this case they couldn't be separately
-      // declared as `const`.
-      self.mark_reassigned(ident, has_member_expr || has_outer_scope_var);
+      // If tha pat contains either of the following:
+      //
+      // - MemberExpresion
+      // - variable declared in outer scope
+      // - variable that is a function parameter
+      //
+      // then all the idents should be marked as "reassigned" so that we will not report them as errors,
+      // bacause in this case they couldn't be separately declared as `const`.
+      self.mark_reassigned(
+        ident,
+        has_member_expr || has_outer_scope_or_param_var,
+      );
     }
   }
 
@@ -1152,6 +1135,25 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  #[test]
+  fn hogepiyo() {
+    assert_lint_err_on_line::<PreferConst>(
+      r#"
+let foo = function(a, b) {
+  let c, d, e;
+  ({ x: a, y: c } = bar());
+  function inner() {
+    d = 'd';
+  }
+  e = 'e';
+};
+if (true) foo = 'foo';
+    "#,
+      3,
+      12,
+    );
+  }
+
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/prefer-const.js
   // MIT Licensed.
@@ -1317,7 +1319,7 @@ mod tests {
     );
     assert_lint_err_n::<PreferConst>(
       r#"for (let i in [1,2,3]) { let x = 1; foo(x); }"#,
-      vec![29, 9],
+      vec![9, 29],
     );
     assert_lint_err_on_line::<PreferConst>(
       r#"
@@ -1410,11 +1412,11 @@ var foo = function() {
     );
     assert_lint_err_n::<PreferConst>(
       r#"let x = 'x', y = 'y'; function someFunc() { let a = 1, b = 2; foo(a, b) }"#,
-      vec![48, 55, 4, 13],
+      vec![4, 13, 48, 55],
     );
     assert_lint_err_n::<PreferConst>(
       r#"let someFunc = () => { let a = 1, b = 2; foo(a, b) }"#,
-      vec![27, 34, 4],
+      vec![4, 27, 34],
     );
     assert_lint_err_n::<PreferConst>(r#"let {a, b} = c, d;"#, vec![5, 8]);
     assert_lint_err_n::<PreferConst>(
