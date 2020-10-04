@@ -288,6 +288,18 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
+    self.with_child_scope(catch_clause.span, |a| {
+      if let Some(param) = &catch_clause.param {
+        let idents: Vec<Ident> = find_ids(param);
+        for ident in idents {
+          a.insert_var(&ident, true, false, true); // TODO(magurotuna): make args more readable
+        }
+      }
+      catch_clause.body.visit_children_with(a);
+    });
+  }
+
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
@@ -502,6 +514,33 @@ let global2 = 42;
 
     let for_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["i", "inner"], for_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_try_catch() {
+    let src = r#"
+let global1;
+try {
+  let tryVar;
+  foo();
+} catch(e) {
+  let catchVar;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let try_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["tryVar"], try_vars);
+
+    let catch_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["catchVar", "e"], catch_vars);
 
     assert!(scope_iter.next().is_none());
   }
