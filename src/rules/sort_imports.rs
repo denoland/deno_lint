@@ -9,7 +9,7 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 // need to rename vars
-
+// Start of structs and enums
 struct ImportIdent {
   import_decl: String,
   span: Span,
@@ -24,8 +24,17 @@ enum ImportTypes {
   Single,
 }
 
-fn str_to_import_types(import_type: &str) -> ImportTypes {
-  match import_type {
+pub struct SortImportsOptions {
+  ignore_case: bool,
+  ignore_declaration_sort: bool,
+  ignore_member_sort: bool,
+  member_syntax_sort_order: Vec<ImportTypes>,
+}
+// End of structs and enums
+
+// Start of helper functions
+fn str_to_import_types(import_type_str: &str) -> ImportTypes {
+  match import_type_str {
     "none" => ImportTypes::None,
     "all" => ImportTypes::All,
     "multiple" => ImportTypes::Multiple,
@@ -49,6 +58,7 @@ fn config_to_enum(config: [&str; 4]) -> Vec<ImportTypes> {
     .map(|str_slice| str_to_import_types(str_slice))
     .collect::<Vec<ImportTypes>>()
 }
+// End of helper functions
 
 impl ImportIdent {
   fn new(
@@ -62,15 +72,6 @@ impl ImportIdent {
       import_type,
     }
   }
-}
-
-#[allow(dead_code)]
-pub struct SortImportsOptions {
-  ignore_case: bool,
-  ignore_declaration_sort: bool,
-  ignore_member_sort: bool,
-  member_syntax_sort_order: Vec<ImportTypes>,
-  allow_separated_groups: bool,
 }
 
 pub struct SortImports;
@@ -112,7 +113,6 @@ impl SortImportsVisitor {
         member_syntax_sort_order: config_to_enum([
           "none", "all", "multiple", "single",
         ]),
-        allow_separated_groups: false,
       },
       line_imports: vec![],
     }
@@ -196,19 +196,21 @@ impl SortImportsVisitor {
   }
 
   fn sort_import_decl(&mut self, import_specifiers: &Vec<ImportIdent>) {
-    let (a, _, _) = self.get_err_index(&import_specifiers, None);
-    if let Some(n) = a {
-      let mut err_string = String::from("Member '");
-      err_string.push_str(&import_specifiers[n].import_decl);
-      err_string.push_str(
-        "' of the import declaration should be sorted alphabetically",
-      );
-      self.context.add_diagnostic(
-        import_specifiers[n].span,
-        "sort-imports",
-        &err_string,
-      );
-      return;
+    if !self.options.ignore_member_sort {
+      let (a, _, _) = self.get_err_index(&import_specifiers, None);
+      if let Some(n) = a {
+        let mut err_string = String::from("Member '");
+        err_string.push_str(&import_specifiers[n].import_decl);
+        err_string.push_str(
+          "' of the import declaration should be sorted alphabetically",
+        );
+        self.context.add_diagnostic(
+          import_specifiers[n].span,
+          "sort-imports",
+          &err_string,
+        );
+        return;
+      }
     }
   }
 
@@ -282,7 +284,9 @@ impl SortImportsVisitor {
       }
     }
     self.line_imports.push(import_ident);
-    self.sort_import_decl(&import_ident_vec);
+    if !self.options.ignore_declaration_sort {
+      self.sort_import_decl(&import_ident_vec);
+    }
   }
 }
 
