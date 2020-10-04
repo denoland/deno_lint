@@ -50,7 +50,9 @@ struct Variable {
   span: Span,
   initialized: Initialized,
   reassigned: bool,
-  in_for_init: bool,
+  /// If this variable is declared in "init" section of a for statement, it stores `Some(span)` where
+  /// `span` is the span of the for statement. Otherwise, it stores `None`.
+  in_for_init: Option<Span>,
   force_reassigned: bool,
 }
 
@@ -64,6 +66,10 @@ impl Variable {
     self.initialized = initialized;
     self.reassigned = reassigned;
     self.force_reassigned = force_reassigned;
+  }
+
+  fn should_report(&self) -> bool {
+    todo!()
   }
 }
 
@@ -86,17 +92,17 @@ impl RawScope {
 
 /// Looks for the variable status of the given ident by traversing from the current scope to the parent,
 /// and updates its status.
-fn update_variable_status(
-  scope: Scope,
-  ident: &Ident,
-  initialized: Initialized,
-  reassigned: bool,
-  force_reassigned: bool,
-) {
+fn update_variable_status(scope: Scope, ident: &Ident, force_reassigned: bool) {
   let mut cur_scope = Some(scope);
   while let Some(cur) = cur_scope {
     let mut lock = cur.lock().unwrap();
     if let Some(var) = lock.variables.get_mut(&ident.sym) {
+      use Initialized::*;
+      let (initialized, reassigned) = match var.initialized {
+        NotYet => (SameScope, false),
+        otherwise => (otherwise, true),
+      };
+
       var.update(initialized, reassigned, force_reassigned);
       return;
     }
@@ -108,6 +114,15 @@ fn update_variable_status(
 enum ScopeRange {
   Global,
   Block(Span),
+}
+
+impl ScopeRange {
+  fn contains(self, other: Span) -> bool {
+    match self {
+      ScopeRange::Global => true,
+      ScopeRange::Block(span) => span.contains(other),
+    }
+  }
 }
 
 #[derive(Debug)]
@@ -128,7 +143,7 @@ impl VariableCollector {
     &mut self,
     ident: &Ident,
     has_init: bool,
-    in_for_init: bool,
+    in_for_init: Option<Span>,
     is_param: bool,
   ) {
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().lock().unwrap();
@@ -152,7 +167,7 @@ impl VariableCollector {
     &mut self,
     pat: &Pat,
     has_init: bool,
-    in_for_init: bool,
+    in_for_init: Option<Span>,
   ) {
     match pat {
       Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
@@ -225,7 +240,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
         for ident in idents {
-          a.insert_var(&ident, true, false, true);
+          a.insert_var(&ident, true, None, true);
         }
       }
       if let Some(body) = &function.body {
@@ -240,7 +255,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, false, true);
+          a.insert_var(&ident, true, None, true);
         }
       }
       match &arrow_expr.body {
@@ -267,7 +282,11 @@ impl Visit for VariableCollector {
           var_decl.visit_children_with(a);
           if var_decl.kind == VarDeclKind::Let {
             for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name, decl.init.is_some(), true);
+              a.extract_decl_idents(
+                &decl.name,
+                decl.init.is_some(),
+                Some(for_stmt.span),
+              );
             }
           }
         }
@@ -298,14 +317,14 @@ impl Visit for VariableCollector {
         VarDeclOrPat::VarDecl(var_decl) => {
           if var_decl.kind == VarDeclKind::Let {
             for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name, true, false);
+              a.extract_decl_idents(&decl.name, true, None);
             }
           }
         }
         VarDeclOrPat::Pat(pat) => {
           let idents: Vec<Ident> = find_ids(pat);
           for ident in idents {
-            a.insert_var(&ident, true, false, true); // TODO(magurotuna): make args more readable
+            a.insert_var(&ident, true, None, true);
           }
         }
       }
@@ -326,14 +345,14 @@ impl Visit for VariableCollector {
         VarDeclOrPat::VarDecl(var_decl) => {
           if var_decl.kind == VarDeclKind::Let {
             for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name, true, false);
+              a.extract_decl_idents(&decl.name, true, None);
             }
           }
         }
         VarDeclOrPat::Pat(pat) => {
           let idents: Vec<Ident> = find_ids(pat);
           for ident in idents {
-            a.insert_var(&ident, true, false, true); // TODO(magurotuna): make args more readable
+            a.insert_var(&ident, true, None, true);
           }
         }
       }
@@ -353,7 +372,7 @@ impl Visit for VariableCollector {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, false, true); // TODO(magurotuna): make args more readable
+          a.insert_var(&ident, true, None, true);
         }
       }
       catch_clause.body.visit_children_with(a);
@@ -384,13 +403,13 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, true, false, true);
+                a.insert_var(ident, true, None, true);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
                 let idents: Vec<Ident> = find_ids(&assign_pat.left);
                 for ident in idents {
-                  a.insert_var(&ident, true, false, true);
+                  a.insert_var(&ident, true, None, true);
                 }
               }
             }
@@ -399,7 +418,7 @@ impl Visit for VariableCollector {
             param.visit_children_with(a);
             let idents: Vec<Ident> = find_ids(&param.pat);
             for ident in idents {
-              a.insert_var(&ident, true, false, true);
+              a.insert_var(&ident, true, None, true);
             }
           }
         }
@@ -415,7 +434,7 @@ impl Visit for VariableCollector {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
       for decl in &var_decl.decls {
-        self.extract_decl_idents(&decl.name, decl.init.is_some(), false);
+        self.extract_decl_idents(&decl.name, decl.init.is_some(), None);
       }
     }
   }
@@ -792,72 +811,16 @@ impl VarStatus {
 }
 
 struct PreferConstVisitor {
-  /// Manages `VarStatus` per symbol name.
-  /// Consider the following example:
-  ///
-  /// ```js
-  /// let a; // (1)
-  /// {
-  ///   let b; // (2)
-  ///   {
-  ///     let a; // (3)
-  ///     let c; // (4)
-  ///     /* we are here */
-  ///   }
-  ///   let a; // (5)
-  /// }
-  /// let b; // (6)
-  /// ```
-  ///
-  /// `symbols` is like:
-  ///
-  /// ```text
-  /// {
-  ///   "a" => [(1), (3)],
-  ///   "b" => [(2)],
-  ///   "c" => [(4)],
-  /// }
-  /// ```
-  ///
-  /// Note that we assume that we're at the line `/* we are here */`, so (5) and (6) have not been
-  /// visited.
-  ///
-  /// Using this structure, we can acquire every variable's `VarStatus` that is currently
-  /// accessible. In the above example, we can get the status of `a` from the last element of the
-  /// vector - that is (3).
-  /// When exiting from a scope, statuses of variables that belong to the scope will be dropped from
-  /// `symbols`.
-  symbols: BTreeMap<JsWord, Vec<VarStatus>>,
-
-  /// Holds variables per scope.
-  /// When entering a scope, a new `BTreeMap` is created and pushed to this vector. This `BTreeMap`
-  /// collects variable information.
-  /// Then, when exiting from a scope, the last element of the vector is dropped like `symbols`.
-  vars_declared_per_scope: Vec<BTreeMap<JsWord, Span>>,
-
-  /// Stores statuses of hoisted variables.
-  /// When `PreferConstVisitor` visits a variable that has not yet declared, it is put into
-  /// `hoisted_vars`. After that, it proceeds the job, and when encountering a variable declaration, the stored
-  /// variable data is moved to `symbols` and `vars_declared_per_scope`.
-  hoisted_vars: BTreeMap<JsWord, VarStatus>,
-
   scopes: BTreeMap<ScopeRange, Scope>,
-
   context: Arc<Context>,
 }
 
 impl PreferConstVisitor {
   fn new(context: Arc<Context>, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
-    Self {
-      context,
-      symbols: BTreeMap::new(),
-      vars_declared_per_scope: Vec::new(),
-      hoisted_vars: BTreeMap::new(),
-      scopes,
-    }
+    Self { context, scopes }
   }
 
-  fn report(&self, sym: JsWord, span: Span) {
+  fn report(&self, sym: &JsWord, span: Span) {
     self.context.add_diagnostic(
       span,
       "prefer-const",
@@ -868,243 +831,171 @@ impl PreferConstVisitor {
     );
   }
 
-  fn insert_var(
-    &mut self,
-    ident: &Ident,
-    has_init: bool,
-    in_for_init: bool,
-    is_param: bool,
-  ) {
-    self
-      .vars_declared_per_scope
-      .last_mut()
-      .unwrap()
-      .entry(ident.sym.clone())
-      .or_insert(ident.span);
-
-    self
-      .symbols
-      .entry(ident.sym.clone())
-      .or_default()
-      .push(VarStatus {
-        initialized: if has_init {
-          Initialized::SameScope
+  fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
+    // TODO(magurotuna): this is linear search, which is a little inefficiently
+    let scope = self
+      .scopes
+      .iter()
+      .filter_map(|(range, scope)| {
+        if range.contains(ident.span) {
+          Some(scope)
         } else {
-          Initialized::NotYet
-        },
-        reassigned: false,
-        in_for_init,
-        is_param,
-      });
+          None
+        }
+      })
+      .last()
+      .unwrap(); // This unwrap is safe since GlobalScope contains any idents
+
+    update_variable_status(Arc::clone(scope), ident, force_reassigned);
   }
 
-  // Returns `Option<()>` to use question operator
-  fn mark_reassigned(
-    &mut self,
-    ident: &Ident,
-    force_reassigned: bool,
-  ) -> Option<()> {
-    let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
+  //fn extract_decl_idents(
+  //&mut self,
+  //pat: &Pat,
+  //has_init: bool,
+  //in_for_init: bool,
+  //) {
+  //match pat {
+  //Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
+  //Pat::Array(array_pat) => {
+  //for elem in &array_pat.elems {
+  //if let Some(elem_pat) = elem {
+  //self.extract_decl_idents(elem_pat, has_init, in_for_init);
+  //}
+  //}
+  //}
+  //Pat::Rest(rest_pat) => {
+  //self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
+  //}
+  //Pat::Object(object_pat) => {
+  //for prop in &object_pat.props {
+  //match prop {
+  //ObjectPatProp::KeyValue(key_value) => {
+  //self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
+  //}
+  //ObjectPatProp::Assign(assign) => {
+  //if assign.value.is_some() {
+  //self.insert_var(&assign.key, true, in_for_init, false);
+  //} else {
+  //self.insert_var(&assign.key, has_init, in_for_init, false);
+  //}
+  //}
+  //ObjectPatProp::Rest(rest) => {
+  //self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
+  //}
+  //}
+  //}
+  //}
+  //Pat::Assign(assign_pat) => {
+  //self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
+  //}
+  //_ => {}
+  //}
+  //}
 
-    use Initialized::*;
-    match status.initialized {
-      NotYet => {
-        status.initialized = SameScope;
-        if force_reassigned {
-          status.reassigned = true;
-        }
-      }
-      _ => {
-        status.reassigned = true;
-      }
-    }
+  //fn extract_assign_idents(&mut self, pat: &Pat) {
+  //fn extract_idents_rec<'a, 'b>(
+  //pat: &'a Pat,
+  //idents: &'b mut Vec<&'a Ident>,
+  //has_member_expr: &'b mut bool,
+  //) {
+  //match pat {
+  //Pat::Ident(ident) => {
+  //idents.push(ident);
+  //}
+  //Pat::Array(array_pat) => {
+  //for elem in &array_pat.elems {
+  //if let Some(elem_pat) = elem {
+  //extract_idents_rec(elem_pat, idents, has_member_expr);
+  //}
+  //}
+  //}
+  //Pat::Rest(rest_pat) => {
+  //extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
+  //}
+  //Pat::Object(object_pat) => {
+  //for prop in &object_pat.props {
+  //match prop {
+  //ObjectPatProp::KeyValue(key_value) => {
+  //extract_idents_rec(&*key_value.value, idents, has_member_expr);
+  //}
+  //ObjectPatProp::Assign(assign) => {
+  //idents.push(&assign.key);
+  //}
+  //ObjectPatProp::Rest(rest) => {
+  //extract_idents_rec(&*rest.arg, idents, has_member_expr)
+  //}
+  //}
+  //}
+  //}
+  //Pat::Assign(assign_pat) => {
+  //extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
+  //}
+  //Pat::Expr(expr) => {
+  //if let Expr::Member(_) = &**expr {
+  //*has_member_expr = true;
+  //}
+  //}
+  //_ => {}
+  //}
+  //}
 
-    None
-  }
+  //let mut idents = Vec::new();
+  //let mut has_member_expr = false;
+  //extract_idents_rec(pat, &mut idents, &mut has_member_expr);
 
-  fn extract_decl_idents(
-    &mut self,
-    pat: &Pat,
-    has_init: bool,
-    in_for_init: bool,
-  ) {
-    match pat {
-      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
-      Pat::Array(array_pat) => {
-        for elem in &array_pat.elems {
-          if let Some(elem_pat) = elem {
-            self.extract_decl_idents(elem_pat, has_init, in_for_init);
-          }
-        }
-      }
-      Pat::Rest(rest_pat) => {
-        self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
-      }
-      Pat::Object(object_pat) => {
-        for prop in &object_pat.props {
-          match prop {
-            ObjectPatProp::KeyValue(key_value) => {
-              self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
-            }
-            ObjectPatProp::Assign(assign) => {
-              if assign.value.is_some() {
-                self.insert_var(&assign.key, true, in_for_init, false);
-              } else {
-                self.insert_var(&assign.key, has_init, in_for_init, false);
-              }
-            }
-            ObjectPatProp::Rest(rest) => {
-              self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
-            }
-          }
-        }
-      }
-      Pat::Assign(assign_pat) => {
-        self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
-      }
-      _ => {}
-    }
-  }
+  //for ident in &idents {
+  //self.check_declared_in_outer_scope(ident);
+  //}
 
-  fn extract_param_idents(&mut self, param_pat: &Pat) {
-    match &param_pat {
-      Pat::Ident(ident) => self.insert_var(ident, true, false, true),
-      Pat::Array(array_pat) => {
-        for elem in &array_pat.elems {
-          if let Some(elem_pat) = elem {
-            self.extract_param_idents(elem_pat);
-          }
-        }
-      }
-      Pat::Rest(rest_pat) => self.extract_param_idents(&*rest_pat.arg),
-      Pat::Object(object_pat) => {
-        for prop in &object_pat.props {
-          match prop {
-            ObjectPatProp::KeyValue(key_value) => {
-              self.extract_param_idents(&*key_value.value)
-            }
-            ObjectPatProp::Assign(assign) => {
-              self.insert_var(&assign.key, true, false, true);
-            }
-            ObjectPatProp::Rest(rest) => self.extract_param_idents(&*rest.arg),
-          }
-        }
-      }
-      Pat::Assign(assign_pat) => self.extract_param_idents(&*assign_pat.left),
-      _ => {}
-    }
-  }
+  //let has_outer_scope_var = idents.iter().any(|i| {
+  //if let Some(statuses) = self.symbols.get(&i.sym) {
+  //if let Some(status) = statuses.last() {
+  //return status.initialized == Initialized::DifferentScope
+  //|| status.is_param;
+  //}
+  //}
+  //false
+  //});
 
-  fn extract_assign_idents(&mut self, pat: &Pat) {
-    fn extract_idents_rec<'a, 'b>(
-      pat: &'a Pat,
-      idents: &'b mut Vec<&'a Ident>,
-      has_member_expr: &'b mut bool,
-    ) {
-      match pat {
-        Pat::Ident(ident) => {
-          idents.push(ident);
-        }
-        Pat::Array(array_pat) => {
-          for elem in &array_pat.elems {
-            if let Some(elem_pat) = elem {
-              extract_idents_rec(elem_pat, idents, has_member_expr);
-            }
-          }
-        }
-        Pat::Rest(rest_pat) => {
-          extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
-        }
-        Pat::Object(object_pat) => {
-          for prop in &object_pat.props {
-            match prop {
-              ObjectPatProp::KeyValue(key_value) => {
-                extract_idents_rec(&*key_value.value, idents, has_member_expr);
-              }
-              ObjectPatProp::Assign(assign) => {
-                idents.push(&assign.key);
-              }
-              ObjectPatProp::Rest(rest) => {
-                extract_idents_rec(&*rest.arg, idents, has_member_expr)
-              }
-            }
-          }
-        }
-        Pat::Assign(assign_pat) => {
-          extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
-        }
-        Pat::Expr(expr) => {
-          if let Expr::Member(_) = &**expr {
-            *has_member_expr = true;
-          }
-        }
-        _ => {}
-      }
-    }
+  //for ident in idents {
+  //// If the pat contains MemberExpression or variable declared in outer scope, then all the idents should be marked
+  //// as "reassigned" so that we will not report them as errors, bacause in this case they couldn't be separately
+  //// declared as `const`.
+  //self.mark_reassigned(ident, has_member_expr || has_outer_scope_var);
+  //}
+  //}
 
-    let mut idents = Vec::new();
-    let mut has_member_expr = false;
-    extract_idents_rec(pat, &mut idents, &mut has_member_expr);
+  fn exit_module(&mut self) {
+    let mut for_init_vars = BTreeMap::new();
 
-    for ident in &idents {
-      self.check_declared_in_outer_scope(ident);
-    }
-
-    let has_outer_scope_var = idents.iter().any(|i| {
-      if let Some(statuses) = self.symbols.get(&i.sym) {
-        if let Some(status) = statuses.last() {
-          return status.initialized == Initialized::DifferentScope
-            || status.is_param;
+    for scope in self.scopes.values() {
+      for (sym, status) in scope.lock().unwrap().variables.iter() {
+        if let Some(for_span) = status.in_for_init {
+          for_init_vars
+            .entry(for_span)
+            .or_insert_with(Vec::new)
+            .push((sym, status));
+        } else if status.should_report() {
+          self.report(sym, status.span);
         }
-      }
-      false
-    });
-
-    for ident in idents {
-      // If the pat contains MemberExpression or variable declared in outer scope, then all the idents should be marked
-      // as "reassigned" so that we will not report them as errors, bacause in this case they couldn't be separately
-      // declared as `const`.
-      self.mark_reassigned(ident, has_member_expr || has_outer_scope_var);
-    }
-  }
-
-  /// Checks if this ident is declared in outer scope or not.
-  /// If true, set its status to `Initalized::DifferentScope`.
-  fn check_declared_in_outer_scope(&mut self, ident: &Ident) -> Option<()> {
-    let declared_in_cur_scope = self
-      .vars_declared_per_scope
-      .last()?
-      .contains_key(&ident.sym);
-    if declared_in_cur_scope {
-      return None;
-    }
-    let status = self.symbols.get_mut(&ident.sym)?.last_mut()?;
-    status.initialized = Initialized::DifferentScope;
-    None
-  }
-
-  fn enter_scope(&mut self) {
-    self.vars_declared_per_scope.push(BTreeMap::new());
-  }
-
-  fn exit_scope(&mut self) {
-    let cur_scope_vars = self.vars_declared_per_scope.pop().unwrap();
-    let mut for_init_vars = Vec::new();
-    for (sym, span) in cur_scope_vars {
-      let status = self.symbols.get_mut(&sym).unwrap().pop().unwrap();
-      if status.in_for_init {
-        for_init_vars.push((sym, span, status));
-      } else if status.should_report() {
-        self.report(sym, span);
       }
     }
 
     // With regard to init sections of for statements, we should report diagnostics only if *all*
     // variables there need to be reported.
-    if for_init_vars.iter().all(|v| v.2.should_report()) {
-      for (sym, span, _) in for_init_vars {
-        self.report(sym, span);
-      }
+    for (sym, var) in for_init_vars
+      .iter()
+      .filter_map(|(_, vars)| {
+        if vars.iter().all(|(_, status)| status.should_report()) {
+          Some(vars)
+        } else {
+          None
+        }
+      })
+      .flatten()
+    {
+      self.report(sym, var.span);
     }
   }
 }
@@ -1113,183 +1004,8 @@ impl Visit for PreferConstVisitor {
   noop_visit_type!();
 
   fn visit_module(&mut self, module: &Module, _parent: &dyn Node) {
-    self.enter_scope();
     module.visit_children_with(self);
-    self.exit_scope();
-  }
-
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
-    self.enter_scope();
-    block_stmt.visit_children_with(self);
-    self.exit_scope();
-  }
-
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _parent: &dyn Node) {
-    self.enter_scope();
-
-    if_stmt.test.visit_children_with(self);
-    if_stmt.cons.visit_children_with(self);
-
-    self.exit_scope();
-
-    if let Some(alt) = &if_stmt.alt {
-      self.enter_scope();
-      alt.visit_children_with(self);
-      self.exit_scope();
-    }
-  }
-
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
-    self.enter_scope();
-
-    match &for_stmt.init {
-      Some(VarDeclOrExpr::VarDecl(var_decl)) => {
-        var_decl.visit_children_with(self);
-        if var_decl.kind == VarDeclKind::Let {
-          for decl in &var_decl.decls {
-            self.extract_decl_idents(&decl.name, decl.init.is_some(), true);
-          }
-        }
-      }
-      Some(VarDeclOrExpr::Expr(expr)) => {
-        expr.visit_children_with(self);
-      }
-      None => {}
-    }
-
-    if let Some(test_expr) = &for_stmt.test {
-      test_expr.visit_children_with(self);
-    }
-    if let Some(update_expr) = &for_stmt.update {
-      update_expr.visit_children_with(self);
-    }
-    for_stmt.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _parent: &dyn Node) {
-    self.enter_scope();
-
-    while_stmt.test.visit_children_with(self);
-    while_stmt.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_do_while_stmt(
-    &mut self,
-    do_while_stmt: &DoWhileStmt,
-    _parent: &dyn Node,
-  ) {
-    self.enter_scope();
-
-    do_while_stmt.body.visit_children_with(self);
-    do_while_stmt.test.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _parent: &dyn Node) {
-    self.enter_scope();
-
-    match &for_of_stmt.left {
-      VarDeclOrPat::VarDecl(var_decl) => {
-        if var_decl.kind == VarDeclKind::Let {
-          for decl in &var_decl.decls {
-            self.extract_decl_idents(&decl.name, true, false);
-          }
-        }
-      }
-      VarDeclOrPat::Pat(pat) => {
-        self.extract_assign_idents(pat);
-      }
-    }
-    for_of_stmt.right.visit_children_with(self);
-    for_of_stmt.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _parent: &dyn Node) {
-    self.enter_scope();
-
-    match &for_in_stmt.left {
-      VarDeclOrPat::VarDecl(var_decl) => {
-        if var_decl.kind == VarDeclKind::Let {
-          for decl in &var_decl.decls {
-            self.extract_decl_idents(&decl.name, true, false);
-          }
-        }
-      }
-      VarDeclOrPat::Pat(pat) => {
-        self.extract_assign_idents(pat);
-      }
-    }
-    for_in_stmt.right.visit_children_with(self);
-    for_in_stmt.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.enter_scope();
-
-    for param in &arrow_expr.params {
-      self.extract_param_idents(param);
-    }
-    arrow_expr.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    self.enter_scope();
-
-    for param in &function.params {
-      self.extract_param_idents(&param.pat);
-    }
-
-    if let Some(body) = &function.body {
-      body.visit_children_with(self);
-    }
-
-    self.exit_scope();
-  }
-
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
-    self.enter_scope();
-
-    with_stmt.obj.visit_children_with(self);
-    with_stmt.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_catch_clause(
-    &mut self,
-    catch_clause: &CatchClause,
-    _parent: &dyn Node,
-  ) {
-    self.enter_scope();
-
-    if let Some(param) = &catch_clause.param {
-      self.extract_param_idents(param);
-    }
-    catch_clause.body.visit_children_with(self);
-
-    self.exit_scope();
-  }
-
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
-    var_decl.visit_children_with(self);
-    if var_decl.kind != VarDeclKind::Let {
-      return;
-    }
-
-    for decl in &var_decl.decls {
-      self.extract_decl_idents(&decl.name, decl.init.is_some(), false);
-    }
+    self.exit_module();
   }
 
   fn visit_assign_expr(
