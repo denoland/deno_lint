@@ -8,10 +8,10 @@ use std::sync::{Arc, Mutex};
 use swc_atoms::JsWord;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrowExpr, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, Expr, ExprStmt,
-  ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt, Module,
-  ObjectPatProp, Param, Pat, PatOrExpr, Stmt, UpdateExpr, VarDecl, VarDeclKind,
-  VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
+  ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, DoWhileStmt,
+  Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt,
+  Module, ObjectPatProp, Param, Pat, PatOrExpr, Stmt, UpdateExpr, VarDecl,
+  VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::visit::noop_visit_type;
@@ -194,6 +194,26 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    self.with_child_scope(arrow_expr.span, |a| {
+      for param in &arrow_expr.params {
+        param.visit_children_with(a);
+        let idents: Vec<Ident> = find_ids(param);
+        for ident in idents {
+          a.insert_var(&ident, true, false, true);
+        }
+      }
+      match &arrow_expr.body {
+        BlockStmtOrExpr::BlockStmt(block_stmt) => {
+          block_stmt.visit_children_with(a);
+        }
+        BlockStmtOrExpr::Expr(expr) => {
+          expr.visit_children_with(a);
+        }
+      }
+    });
+  }
+
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
     self.with_child_scope(block_stmt.span, |a| {
       block_stmt.visit_children_with(a);
@@ -339,6 +359,27 @@ let global1;
 function foo({ param1, key: param2 }) {
   let inner1 = 2;
 }
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let foo_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["inner1", "param1", "param2"], foo_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_arrow_function() {
+    let src = r#"
+let global1;
+const arrow = (param1, ...param2) => {
+  let inner1;
+};
 let global2 = 42;
     "#;
     let v = collect(src);
