@@ -182,20 +182,16 @@ impl Visit for VariableCollector {
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     self.with_child_scope(function.span, |a| {
       for param in &function.params {
-        param.visit_with(function, a);
+        param.visit_children_with(a);
+        let idents: Vec<Ident> = find_ids(&param.pat);
+        for ident in idents {
+          a.insert_var(&ident, true, false, true);
+        }
       }
       if let Some(body) = &function.body {
         body.visit_children_with(a);
       }
     });
-  }
-
-  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
-    param.visit_children_with(self);
-    let idents: Vec<Ident> = find_ids(&param.pat);
-    for ident in idents {
-      self.insert_var(&ident, true, false, true);
-    }
   }
 
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
