@@ -690,6 +690,39 @@ let global2 = 42;
 
     assert!(scope_iter.next().is_none());
   }
+
+  #[test]
+  fn collector_works_complex_1() {
+    let src = r#"
+let global1;
+function foo({ p1 = 0 }) {
+  while (cond) {
+    let while1 = true;
+    if (while1) {
+      break;
+    }
+    let [while2, { while3, key: while4 = 4 }] = bar();
+  }
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let function_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["p1"], function_vars);
+
+    let while_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["while1", "while2", "while3", "while4"], while_vars);
+
+    let if_vars = variables(scope_iter.next().unwrap());
+    assert!(if_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
 }
 
 #[derive(PartialEq, Debug)]
