@@ -121,15 +121,6 @@ enum ScopeRange {
   Block(Span),
 }
 
-impl ScopeRange {
-  fn contains(self, other: Span) -> bool {
-    match self {
-      ScopeRange::Global => true,
-      ScopeRange::Block(span) => span.contains(other),
-    }
-  }
-}
-
 #[derive(Debug)]
 struct VariableCollector {
   scopes: BTreeMap<ScopeRange, Scope>,
@@ -209,17 +200,19 @@ impl VariableCollector {
     }
   }
 
-  fn with_child_scope<F>(&mut self, span: Span, op: F)
+  fn with_child_scope<F, S>(&mut self, node: S, op: F)
   where
+    S: Spanned,
     F: FnOnce(&mut VariableCollector),
   {
     let parent_scope_range = self.cur_scope;
     let parent_scope = self.scopes.get(&parent_scope_range).map(Arc::clone);
     let child_scope = RawScope::new(parent_scope);
-    self
-      .scopes
-      .insert(ScopeRange::Block(span), Arc::new(Mutex::new(child_scope)));
-    self.cur_scope = ScopeRange::Block(span);
+    self.scopes.insert(
+      ScopeRange::Block(node.span()),
+      Arc::new(Mutex::new(child_scope)),
+    );
+    self.cur_scope = ScopeRange::Block(node.span());
     op(self);
     self.cur_scope = parent_scope_range;
   }
@@ -237,7 +230,7 @@ impl Visit for VariableCollector {
   }
 
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
-    self.with_child_scope(function.span, |a| {
+    self.with_child_scope(function, |a| {
       for param in &function.params {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
@@ -252,7 +245,7 @@ impl Visit for VariableCollector {
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
-    self.with_child_scope(arrow_expr.span, |a| {
+    self.with_child_scope(arrow_expr, |a| {
       for param in &arrow_expr.params {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
@@ -272,13 +265,13 @@ impl Visit for VariableCollector {
   }
 
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
-    self.with_child_scope(block_stmt.span, |a| {
+    self.with_child_scope(block_stmt, |a| {
       block_stmt.visit_children_with(a);
     });
   }
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
-    self.with_child_scope(for_stmt.span, |a| {
+    self.with_child_scope(for_stmt, |a| {
       match &for_stmt.init {
         Some(VarDeclOrExpr::VarDecl(var_decl)) => {
           var_decl.visit_children_with(a);
@@ -314,7 +307,7 @@ impl Visit for VariableCollector {
   }
 
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
-    self.with_child_scope(for_of_stmt.span, |a| {
+    self.with_child_scope(for_of_stmt, |a| {
       match &for_of_stmt.left {
         VarDeclOrPat::VarDecl(var_decl) => {
           if var_decl.kind == VarDeclKind::Let {
@@ -342,7 +335,7 @@ impl Visit for VariableCollector {
   }
 
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
-    self.with_child_scope(for_in_stmt.span, |a| {
+    self.with_child_scope(for_in_stmt, |a| {
       match &for_in_stmt.left {
         VarDeclOrPat::VarDecl(var_decl) => {
           if var_decl.kind == VarDeclKind::Let {
@@ -370,7 +363,7 @@ impl Visit for VariableCollector {
   }
 
   fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
-    self.with_child_scope(catch_clause.span, |a| {
+    self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
@@ -388,7 +381,7 @@ impl Visit for VariableCollector {
     if let Some(super_class) = &class.super_class {
       super_class.visit_children_with(self);
     }
-    self.with_child_scope(class.span, |a| {
+    self.with_child_scope(class, |a| {
       for member in &class.body {
         member.visit_children_with(a);
       }
@@ -396,7 +389,7 @@ impl Visit for VariableCollector {
   }
 
   fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
-    self.with_child_scope(constructor.span, |a| {
+    self.with_child_scope(constructor, |a| {
       for param in &constructor.params {
         match param {
           ParamOrTsParamProp::TsParamProp(ts_param_prop) => {
