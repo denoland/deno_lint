@@ -34,6 +34,15 @@ fn str_to_import_types(import_type: &str) -> ImportTypes {
   }
 }
 
+fn import_types_to_string(import_type: &ImportTypes) -> String {
+  match import_type {
+    ImportTypes::None => String::from("none"),
+    ImportTypes::All => String::from("all"),
+    ImportTypes::Multiple => String::from("multiple"),
+    ImportTypes::Single => String::from("single"),
+  }
+}
+
 fn config_to_enum(config: [&str; 4]) -> Vec<ImportTypes> {
   config
     .iter()
@@ -113,7 +122,7 @@ impl SortImportsVisitor {
     &self,
     import_specifiers: &Vec<ImportIdent>,
     report_multiple: Option<bool>,
-  ) -> (Option<usize>, Option<Vec<usize>>) {
+  ) -> (Option<usize>, Option<Vec<usize>>, Option<Vec<usize>>) {
     let get_sortable_name = if self.options.ignore_case {
       |specifier: &ImportIdent| specifier.import_decl.to_ascii_lowercase()
     } else {
@@ -126,19 +135,23 @@ impl SortImportsVisitor {
     let first = sorted.iter();
     let mut first_unsorted_index: Option<usize> = None;
     let mut error_indices: Vec<usize> = vec![];
+    let mut unexpected_order_indicies: Vec<usize> = vec![];
     for (index, sth) in first.enumerate() {
-      if report_multiple.is_some()
-        && index != &import_specifiers.len() - 1
-        && (self
+      if report_multiple.is_some() && index != &import_specifiers.len() - 1 {
+        let f = self
           .get_member_param_grp_index(import_specifiers[index].import_type)
-          .unwrap()
-          != self
-            .get_member_param_grp_index(
-              import_specifiers[index + 1].import_type,
-            )
-            .unwrap())
-      {
-        continue;
+          .unwrap();
+
+        let g = self
+          .get_member_param_grp_index(import_specifiers[index + 1].import_type)
+          .unwrap();
+
+        if f != g {
+          if g < f {
+            unexpected_order_indicies.push(index + 1);
+          }
+          continue;
+        }
       }
 
       if index != &import_specifiers.len() - 1 {
@@ -159,11 +172,19 @@ impl SortImportsVisitor {
       };
     }
 
-    if error_indices.len() > 0 {
-      (first_unsorted_index, Some(error_indices))
-    } else {
-      (first_unsorted_index, None)
-    }
+    (
+      first_unsorted_index,
+      if error_indices.len() > 0 {
+        Some(error_indices)
+      } else {
+        None
+      },
+      if unexpected_order_indicies.len() > 0 {
+        Some(unexpected_order_indicies)
+      } else {
+        None
+      },
+    )
   }
 
   fn get_member_param_grp_index(&self, variant: ImportTypes) -> Option<usize> {
@@ -175,12 +196,12 @@ impl SortImportsVisitor {
   }
 
   fn sort_import_decl(&mut self, import_specifiers: &Vec<ImportIdent>) {
-    let (a, _) = self.get_err_index(&import_specifiers, None);
+    let (a, _, _) = self.get_err_index(&import_specifiers, None);
     if let Some(n) = a {
       let mut err_string = String::from("Member '");
       err_string.push_str(&import_specifiers[n].import_decl);
       err_string.push_str(
-        "' of the import declaration should be sorted alphabetically.",
+        "' of the import declaration should be sorted alphabetically",
       );
       self.context.add_diagnostic(
         import_specifiers[n].span,
@@ -192,16 +213,32 @@ impl SortImportsVisitor {
   }
 
   fn sort_line_imports(&mut self) {
-    let (_, b) = self.get_err_index(&self.line_imports, Some(true));
+    let (_, b, c) = self.get_err_index(&self.line_imports, Some(true));
     if let Some(vec_n) = b {
       for n in vec_n.into_iter() {
         self.context.add_diagnostic(
           self.line_imports[n].span,
           "sort-imports",
-          "Imports should be sorted alphabetically.",
+          "Imports should be sorted alphabetically",
         );
       }
-      return;
+    }
+    if let Some(vec_r) = c {
+      for n in vec_r.into_iter() {
+        let mut err_string = String::from("Expected '");
+        err_string
+          .push_str(&import_types_to_string(&self.line_imports[n].import_type));
+        err_string.push_str("' syntax before '");
+        err_string.push_str(&import_types_to_string(
+          &self.line_imports[n - 1].import_type,
+        ));
+        err_string.push_str("'");
+        self.context.add_diagnostic(
+          self.line_imports[n].span,
+          "sort-imports",
+          &err_string,
+        );
+      }
     }
   }
 
