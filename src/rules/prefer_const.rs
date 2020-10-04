@@ -784,20 +784,6 @@ let global2 = 42;
   }
 }
 
-//impl VarStatus {
-//fn should_report(&self) -> bool {
-//if self.is_param {
-//return false;
-//}
-
-//use Initialized::*;
-//match self.initialized {
-//DifferentScope | NotYet => false,
-//SameScope => !self.reassigned,
-//}
-//}
-//}
-
 struct PreferConstVisitor {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
@@ -891,24 +877,9 @@ impl PreferConstVisitor {
     let mut has_member_expr = false;
     extract_idents_rec(pat, &mut idents, &mut has_member_expr);
 
-    let has_outer_scope_or_param_var = idents.iter().any(|i| {
-      let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
-      let mut is_first_loop = true;
-      while let Some(cur) = cur_scope {
-        let mut lock = cur.lock().unwrap();
-        if let Some(var) = lock.variables.get(&i.sym) {
-          if is_first_loop {
-            return var.is_param;
-          } else {
-            return true;
-          }
-        }
-        is_first_loop = false;
-        cur_scope = lock.parent.as_ref().map(Arc::clone);
-      }
-      // If the ident isn't found, most likely it means the ident is declared with `var`, so it's okay.
-      false
-    });
+    let has_outer_scope_or_param_var = idents
+      .iter()
+      .any(|i| self.declared_outer_scope_or_param_var(i));
 
     for ident in idents {
       // If tha pat contains either of the following:
@@ -926,10 +897,31 @@ impl PreferConstVisitor {
     }
   }
 
+  /// Checks if this ident has its declaration in outer scope or in function parameter.
+  fn declared_outer_scope_or_param_var(&self, ident: &Ident) -> bool {
+    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
+    let mut is_first_loop = true;
+    while let Some(cur) = cur_scope {
+      let mut lock = cur.lock().unwrap();
+      if let Some(var) = lock.variables.get(&ident.sym) {
+        if is_first_loop {
+          return var.is_param;
+        } else {
+          return true;
+        }
+      }
+      is_first_loop = false;
+      cur_scope = lock.parent.as_ref().map(Arc::clone);
+    }
+    // If the declaration isn't found, most likely it means the ident is declared with `var`
+    false
+  }
+
   fn exit_module(&mut self) {
     let mut for_init_vars = BTreeMap::new();
 
     for scope in self.scopes.values() {
+      dbg!(scope);
       for (sym, status) in scope.lock().unwrap().variables.iter() {
         if let Some(for_span) = status.in_for_init {
           for_init_vars
@@ -1028,7 +1020,10 @@ impl Visit for PreferConstVisitor {
   ) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
-        self.mark_reassigned(ident, false);
+        self.mark_reassigned(
+          ident,
+          self.declared_outer_scope_or_param_var(ident),
+        );
       }
       otherwise => otherwise.visit_children_with(self),
     }
@@ -1137,21 +1132,7 @@ mod tests {
 
   #[test]
   fn hogepiyo() {
-    assert_lint_err_on_line::<PreferConst>(
-      r#"
-let foo = function(a, b) {
-  let c, d, e;
-  ({ x: a, y: c } = bar());
-  function inner() {
-    d = 'd';
-  }
-  e = 'e';
-};
-if (true) foo = 'foo';
-    "#,
-      3,
-      12,
-    );
+    assert_lint_ok::<PreferConst>(r#"let a; if (true) a = 0; foo(a);"#);
   }
 
   // Some tests are derived from
