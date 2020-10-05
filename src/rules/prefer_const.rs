@@ -1,6 +1,4 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-// TODO(magurotuna): remove next line
-#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use std::collections::BTreeMap;
@@ -10,11 +8,10 @@ use swc_atoms::JsWord;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
-  ClassMember, Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt,
-  ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, Param,
-  ParamOrTsParamProp, Pat, PatOrExpr, Stmt, TsParamProp, TsParamPropParam,
-  UpdateExpr, VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt,
-  WithStmt,
+  Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
+  Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp, Pat,
+  PatOrExpr, Stmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
+  VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::visit::noop_visit_type;
@@ -591,7 +588,7 @@ impl PreferConstVisitor {
     let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
     let mut is_first_loop = true;
     while let Some(cur) = cur_scope {
-      let mut lock = cur.lock().unwrap();
+      let lock = cur.lock().unwrap();
       if let Some(var) = lock.variables.get(&ident.sym) {
         if is_first_loop {
           return var.is_param;
