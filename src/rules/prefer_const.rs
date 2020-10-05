@@ -404,6 +404,18 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
+    self.with_child_scope(with_stmt, |a| {
+      with_stmt.obj.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*with_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        with_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
   fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
     self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
@@ -867,6 +879,46 @@ let global2 = 42;
 
     let while_vars = variables(scope_iter.next().unwrap());
     assert!(while_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_with_1() {
+    let src = r#"
+let global1;
+with (foo) {
+  let inner = 1;
+}
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let with_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["inner"], with_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_with_2() {
+    let src = r#"
+let global1;
+with (foo) bar();
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let with_vars = variables(scope_iter.next().unwrap());
+    assert!(with_vars.is_empty());
 
     assert!(scope_iter.next().is_none());
   }
