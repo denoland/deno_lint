@@ -363,9 +363,8 @@ impl Visit for VariableCollector {
   }
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
-    if_stmt.test.visit_children_with(self);
-
     self.with_child_scope(if_stmt, |a| {
+      if_stmt.test.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
       if let Stmt::Block(body) = &*if_stmt.cons {
         body.visit_children_with(a);
@@ -382,15 +381,26 @@ impl Visit for VariableCollector {
   }
 
   fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
-    while_stmt.test.visit_children_with(self);
-
     self.with_child_scope(while_stmt, |a| {
+      while_stmt.test.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
       if let Stmt::Block(body) = &*while_stmt.body {
         body.visit_children_with(a);
       } else {
         while_stmt.body.visit_children_with(a);
       }
+    });
+  }
+
+  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
+    self.with_child_scope(do_while_stmt, |a| {
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*do_while_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        do_while_stmt.body.visit_children_with(a);
+      }
+      do_while_stmt.test.visit_children_with(a);
     });
   }
 
@@ -807,6 +817,46 @@ let global2 = 42;
     let src = r#"
 let global1;
 while (true) foo();
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let while_vars = variables(scope_iter.next().unwrap());
+    assert!(while_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_do_while_1() {
+    let src = r#"
+let global1;
+do {
+  let inner;
+} while (true)
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let while_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["inner"], while_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_do_while_2() {
+    let src = r#"
+let global1;
+do foo(); while (true)
 let global2 = 42;
     "#;
     let v = collect(src);
