@@ -165,7 +165,6 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     prefer_as_const::PreferAsConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
-    sort_imports::SortImports::new(),
     triple_slash_reference::TripleSlashReference::new(),
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
