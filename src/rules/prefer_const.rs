@@ -707,6 +707,25 @@ let global2 = 42;
   }
 
   #[test]
+  fn collector_works_for_3() {
+    let src = r#"
+let global1 = 0;
+for (global1 = 0; global1 < 10; ++global1) foo();
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert!(for_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
   fn collector_works_for_of_1() {
     let src = r#"
 let global1;
