@@ -119,7 +119,7 @@ impl SortImportsVisitor {
 
   fn get_err_index(
     &self,
-    import_specifiers: &Vec<ImportIdent>,
+    import_specifiers: &[ImportIdent],
     report_multiple: Option<bool>,
   ) -> (Option<usize>, Option<Vec<usize>>, Option<Vec<usize>>) {
     let get_sortable_name = if self.options.ignore_case {
@@ -179,12 +179,12 @@ impl SortImportsVisitor {
 
     (
       first_unsorted_index,
-      if error_indices.len() > 0 {
+      if !error_indices.is_empty() {
         Some(error_indices)
       } else {
         None
       },
-      if unexpected_order_indices.len() > 0 {
+      if !unexpected_order_indices.is_empty() {
         Some(unexpected_order_indices)
       } else {
         None
@@ -197,10 +197,10 @@ impl SortImportsVisitor {
       .options
       .member_syntax_sort_order
       .iter()
-      .position(|import_type| variant == import_type.clone())
+      .position(|import_type| &variant == import_type)
   }
 
-  fn sort_import_decl(&mut self, import_specifiers: &Vec<ImportIdent>) {
+  fn sort_import_decl(&mut self, import_specifiers: &[ImportIdent]) {
     if !self.options.ignore_member_sort {
       let (first_unsorted_member_index, _, _) =
         self.get_err_index(&import_specifiers, None);
