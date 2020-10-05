@@ -1332,6 +1332,60 @@ impl Visit for PreferConstVisitor {
     });
   }
 
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
+    self.with_child_scope(if_stmt, |a| {
+      if_stmt.test.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*if_stmt.cons {
+        body.visit_children_with(a);
+      } else {
+        if_stmt.cons.visit_children_with(a);
+      }
+    });
+
+    if let Some(alt) = &if_stmt.alt {
+      self.with_child_scope(alt, |a| {
+        alt.visit_children_with(a);
+      });
+    }
+  }
+
+  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
+    self.with_child_scope(while_stmt, |a| {
+      while_stmt.test.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*while_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        while_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
+    self.with_child_scope(do_while_stmt, |a| {
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*do_while_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        do_while_stmt.body.visit_children_with(a);
+      }
+      do_while_stmt.test.visit_children_with(a);
+    });
+  }
+
+  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
+    self.with_child_scope(with_stmt, |a| {
+      with_stmt.obj.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*with_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        with_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
   fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
     self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
@@ -1372,11 +1426,6 @@ impl Visit for PreferConstVisitor {
 mod tests {
   use super::*;
   use crate::test_util::*;
-
-  #[test]
-  fn hogepiyo() {
-    assert_lint_ok::<PreferConst>(r#"let a; if (true) a = 0; foo(a);"#);
-  }
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/prefer-const.js
