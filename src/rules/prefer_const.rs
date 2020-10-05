@@ -308,18 +308,10 @@ impl Visit for VariableCollector {
 
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
     self.with_child_scope(for_of_stmt, |a| {
-      match &for_of_stmt.left {
-        VarDeclOrPat::VarDecl(var_decl) => {
-          if var_decl.kind == VarDeclKind::Let {
-            for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name, true, None);
-            }
-          }
-        }
-        VarDeclOrPat::Pat(pat) => {
-          let idents: Vec<Ident> = find_ids(pat);
-          for ident in idents {
-            a.insert_var(&ident, true, None, true);
+      if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
+        if var_decl.kind == VarDeclKind::Let {
+          for decl in &var_decl.decls {
+            a.extract_decl_idents(&decl.name, true, None);
           }
         }
       }
@@ -336,18 +328,10 @@ impl Visit for VariableCollector {
 
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
     self.with_child_scope(for_in_stmt, |a| {
-      match &for_in_stmt.left {
-        VarDeclOrPat::VarDecl(var_decl) => {
-          if var_decl.kind == VarDeclKind::Let {
-            for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name, true, None);
-            }
-          }
-        }
-        VarDeclOrPat::Pat(pat) => {
-          let idents: Vec<Ident> = find_ids(pat);
-          for ident in idents {
-            a.insert_var(&ident, true, None, true);
+      if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
+        if var_decl.kind == VarDeclKind::Let {
+          for decl in &var_decl.decls {
+            a.extract_decl_idents(&decl.name, true, None);
           }
         }
       }
@@ -763,6 +747,25 @@ let global2 = 42;
   }
 
   #[test]
+  fn collector_works_for_of_3() {
+    let src = r#"
+let global1 = 0;
+for (global1 of [1, 2, 3]) foo();
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert!(for_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
   fn collector_works_for_in_1() {
     let src = r#"
 let global1;
@@ -798,6 +801,25 @@ let global2 = 42;
 
     let for_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["i"], for_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for_in_3() {
+    let src = r#"
+let global1 = 0;
+for (global1 in [1, 2, 3]) foo();
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert!(for_vars.is_empty());
 
     assert!(scope_iter.next().is_none());
   }
@@ -1310,6 +1332,15 @@ impl Visit for PreferConstVisitor {
 
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
     self.with_child_scope(for_of_stmt, |a| {
+      match &for_of_stmt.left {
+        VarDeclOrPat::VarDecl(var_decl) => {
+          var_decl.visit_with(&for_of_stmt.left, a);
+        }
+        VarDeclOrPat::Pat(pat) => {
+          a.extract_assign_idents(pat);
+        }
+      }
+
       for_of_stmt.right.visit_children_with(a);
 
       if let Stmt::Block(block_stmt) = &*for_of_stmt.body {
@@ -1322,7 +1353,17 @@ impl Visit for PreferConstVisitor {
 
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
     self.with_child_scope(for_in_stmt, |a| {
+      match &for_in_stmt.left {
+        VarDeclOrPat::VarDecl(var_decl) => {
+          var_decl.visit_with(&for_in_stmt.left, a);
+        }
+        VarDeclOrPat::Pat(pat) => {
+          a.extract_assign_idents(pat);
+        }
+      }
+
       for_in_stmt.right.visit_children_with(a);
+
       if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
         block_stmt.visit_children_with(a);
       } else {
