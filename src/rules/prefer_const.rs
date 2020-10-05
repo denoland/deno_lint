@@ -473,6 +473,411 @@ impl Visit for VariableCollector {
   }
 }
 
+struct PreferConstVisitor {
+  scopes: BTreeMap<ScopeRange, Scope>,
+  cur_scope: ScopeRange,
+  context: Arc<Context>,
+}
+
+impl PreferConstVisitor {
+  fn new(context: Arc<Context>, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
+    Self {
+      context,
+      scopes,
+      cur_scope: ScopeRange::Global,
+    }
+  }
+
+  fn report(&self, sym: &JsWord, span: Span) {
+    self.context.add_diagnostic(
+      span,
+      "prefer-const",
+      &format!(
+        "'{}' is never reassigned. Use 'const' instead",
+        sym.to_string()
+      ),
+    );
+  }
+
+  fn with_child_scope<F, S>(&mut self, node: &S, op: F)
+  where
+    S: Spanned,
+    F: FnOnce(&mut Self),
+  {
+    let parent_scope_range = self.cur_scope;
+    self.cur_scope = ScopeRange::Block(node.span());
+    op(self);
+    self.cur_scope = parent_scope_range;
+  }
+
+  fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
+    let scope = self.scopes.get(&self.cur_scope).unwrap();
+    update_variable_status(Arc::clone(scope), ident, force_reassigned);
+  }
+
+  fn extract_assign_idents(&mut self, pat: &Pat) {
+    fn extract_idents_rec<'a, 'b>(
+      pat: &'a Pat,
+      idents: &'b mut Vec<&'a Ident>,
+      has_member_expr: &'b mut bool,
+    ) {
+      match pat {
+        Pat::Ident(ident) => {
+          idents.push(ident);
+        }
+        Pat::Array(array_pat) => {
+          for elem in &array_pat.elems {
+            if let Some(elem_pat) = elem {
+              extract_idents_rec(elem_pat, idents, has_member_expr);
+            }
+          }
+        }
+        Pat::Rest(rest_pat) => {
+          extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
+        }
+        Pat::Object(object_pat) => {
+          for prop in &object_pat.props {
+            match prop {
+              ObjectPatProp::KeyValue(key_value) => {
+                extract_idents_rec(&*key_value.value, idents, has_member_expr);
+              }
+              ObjectPatProp::Assign(assign) => {
+                idents.push(&assign.key);
+              }
+              ObjectPatProp::Rest(rest) => {
+                extract_idents_rec(&*rest.arg, idents, has_member_expr)
+              }
+            }
+          }
+        }
+        Pat::Assign(assign_pat) => {
+          extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
+        }
+        Pat::Expr(expr) => {
+          if let Expr::Member(_) = &**expr {
+            *has_member_expr = true;
+          }
+        }
+        _ => {}
+      }
+    }
+
+    let mut idents = Vec::new();
+    let mut has_member_expr = false;
+    extract_idents_rec(pat, &mut idents, &mut has_member_expr);
+
+    let has_outer_scope_or_param_var = idents
+      .iter()
+      .any(|i| self.declared_outer_scope_or_param_var(i));
+
+    for ident in idents {
+      // If tha pat contains either of the following:
+      //
+      // - MemberExpresion
+      // - variable declared in outer scope
+      // - variable that is a function parameter
+      //
+      // then all the idents should be marked as "reassigned" so that we will not report them as errors,
+      // bacause in this case they couldn't be separately declared as `const`.
+      self.mark_reassigned(
+        ident,
+        has_member_expr || has_outer_scope_or_param_var,
+      );
+    }
+  }
+
+  /// Checks if this ident has its declaration in outer scope or in function parameter.
+  fn declared_outer_scope_or_param_var(&self, ident: &Ident) -> bool {
+    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
+    let mut is_first_loop = true;
+    while let Some(cur) = cur_scope {
+      let mut lock = cur.lock().unwrap();
+      if let Some(var) = lock.variables.get(&ident.sym) {
+        if is_first_loop {
+          return var.is_param;
+        } else {
+          return true;
+        }
+      }
+      is_first_loop = false;
+      cur_scope = lock.parent.as_ref().map(Arc::clone);
+    }
+    // If the declaration isn't found, most likely it means the ident is declared with `var`
+    false
+  }
+
+  fn exit_module(&mut self) {
+    let mut for_init_vars = BTreeMap::new();
+
+    for scope in self.scopes.values() {
+      for (sym, status) in scope.lock().unwrap().variables.iter() {
+        if let Some(for_span) = status.in_for_init {
+          for_init_vars
+            .entry(for_span)
+            .or_insert_with(Vec::new)
+            .push((sym.clone(), *status));
+        } else if status.should_report() {
+          self.report(sym, status.span);
+        }
+      }
+    }
+
+    // With regard to init sections of for statements, we should report diagnostics only if *all*
+    // variables there need to be reported.
+    for (sym, var) in for_init_vars
+      .iter()
+      .filter_map(|(_, vars)| {
+        if vars.iter().all(|(_, status)| status.should_report()) {
+          Some(vars)
+        } else {
+          None
+        }
+      })
+      .flatten()
+    {
+      self.report(sym, var.span);
+    }
+  }
+}
+
+impl Visit for PreferConstVisitor {
+  noop_visit_type!();
+
+  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
+    module.visit_children_with(self);
+    self.exit_module();
+  }
+
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
+    // This only handles _nested_ `AssignmentExpression` since not nested `AssignExpression` (i.e. the direct child of
+    // `ExpressionStatement`) is already handled by `visit_expr_stmt`. The variables within nested
+    // `AssignmentExpression` should be marked as "reassigned" even if it's not been yet initialized, otherwise it
+    // would result in false positives.
+    // See https://github.com/denoland/deno_lint/issues/358
+    assign_expr.visit_children_with(self);
+
+    let idents: Vec<Ident> = match &assign_expr.left {
+      PatOrExpr::Pat(pat) => find_ids(pat), // find_ids doesn't work for Expression
+      PatOrExpr::Expr(expr) if expr.is_ident() => {
+        let ident = (**expr).clone().expect_ident();
+        vec![ident]
+      }
+      _ => vec![],
+    };
+
+    for ident in idents {
+      self.mark_reassigned(&ident, true);
+    }
+  }
+
+  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _: &dyn Node) {
+    let mut expr = &*expr_stmt.expr;
+
+    // Unwrap parentheses
+    while let Expr::Paren(e) = expr {
+      expr = &*e.expr;
+    }
+
+    match expr {
+      Expr::Assign(assign_expr) => {
+        match &assign_expr.left {
+          PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
+          PatOrExpr::Expr(expr) => match &**expr {
+            Expr::Ident(ident) => {
+              self.mark_reassigned(ident, false);
+            }
+            otherwise => {
+              otherwise.visit_children_with(self);
+            }
+          },
+        };
+        assign_expr.visit_children_with(self);
+      }
+      _ => expr_stmt.visit_children_with(self),
+    }
+  }
+
+  fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _: &dyn Node) {
+    match &*update_expr.arg {
+      Expr::Ident(ident) => {
+        self.mark_reassigned(
+          ident,
+          self.declared_outer_scope_or_param_var(ident),
+        );
+      }
+      otherwise => otherwise.visit_children_with(self),
+    }
+  }
+
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+    self.with_child_scope(function, |a| {
+      if let Some(body) = &function.body {
+        body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    self.with_child_scope(arrow_expr, |a| match &arrow_expr.body {
+      BlockStmtOrExpr::BlockStmt(block_stmt) => {
+        block_stmt.visit_children_with(a);
+      }
+      BlockStmtOrExpr::Expr(expr) => {
+        expr.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
+    self.with_child_scope(block_stmt, |a| block_stmt.visit_children_with(a));
+  }
+
+  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
+    self.with_child_scope(for_stmt, |a| {
+      for_stmt.init.visit_children_with(a);
+      for_stmt.test.visit_children_with(a);
+      for_stmt.update.visit_children_with(a);
+
+      if let Stmt::Block(block_stmt) = &*for_stmt.body {
+        block_stmt.visit_children_with(a);
+      } else {
+        for_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
+    self.with_child_scope(for_of_stmt, |a| {
+      match &for_of_stmt.left {
+        VarDeclOrPat::VarDecl(var_decl) => {
+          var_decl.visit_with(&for_of_stmt.left, a);
+        }
+        VarDeclOrPat::Pat(pat) => {
+          a.extract_assign_idents(pat);
+        }
+      }
+
+      for_of_stmt.right.visit_children_with(a);
+
+      if let Stmt::Block(block_stmt) = &*for_of_stmt.body {
+        block_stmt.visit_children_with(a);
+      } else {
+        for_of_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
+    self.with_child_scope(for_in_stmt, |a| {
+      match &for_in_stmt.left {
+        VarDeclOrPat::VarDecl(var_decl) => {
+          var_decl.visit_with(&for_in_stmt.left, a);
+        }
+        VarDeclOrPat::Pat(pat) => {
+          a.extract_assign_idents(pat);
+        }
+      }
+
+      for_in_stmt.right.visit_children_with(a);
+
+      if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
+        block_stmt.visit_children_with(a);
+      } else {
+        for_in_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
+    self.with_child_scope(if_stmt, |a| {
+      if_stmt.test.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*if_stmt.cons {
+        body.visit_children_with(a);
+      } else {
+        if_stmt.cons.visit_children_with(a);
+      }
+    });
+
+    if let Some(alt) = &if_stmt.alt {
+      self.with_child_scope(alt, |a| {
+        alt.visit_children_with(a);
+      });
+    }
+  }
+
+  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
+    self.with_child_scope(while_stmt, |a| {
+      while_stmt.test.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*while_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        while_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
+    self.with_child_scope(do_while_stmt, |a| {
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*do_while_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        do_while_stmt.body.visit_children_with(a);
+      }
+      do_while_stmt.test.visit_children_with(a);
+    });
+  }
+
+  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
+    self.with_child_scope(with_stmt, |a| {
+      with_stmt.obj.visit_children_with(a);
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*with_stmt.body {
+        body.visit_children_with(a);
+      } else {
+        with_stmt.body.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
+    self.with_child_scope(catch_clause, |a| {
+      if let Some(param) = &catch_clause.param {
+        param.visit_children_with(a);
+      }
+      catch_clause.body.visit_children_with(a);
+    });
+  }
+
+  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+    for decorator in &class.decorators {
+      decorator.visit_children_with(self);
+    }
+    if let Some(super_class) = &class.super_class {
+      super_class.visit_children_with(self);
+    }
+    self.with_child_scope(class, |a| {
+      for member in &class.body {
+        member.visit_children_with(a);
+      }
+    });
+  }
+
+  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+    self.with_child_scope(constructor, |a| {
+      for param in &constructor.params {
+        param.visit_children_with(a);
+      }
+
+      if let Some(body) = &constructor.body {
+        body.visit_children_with(a);
+      }
+    });
+  }
+}
+
 #[cfg(test)]
 mod variable_collector_tests {
   use super::*;
@@ -1076,413 +1481,8 @@ let global2 = 42;
   }
 }
 
-struct PreferConstVisitor {
-  scopes: BTreeMap<ScopeRange, Scope>,
-  cur_scope: ScopeRange,
-  context: Arc<Context>,
-}
-
-impl PreferConstVisitor {
-  fn new(context: Arc<Context>, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
-    Self {
-      context,
-      scopes,
-      cur_scope: ScopeRange::Global,
-    }
-  }
-
-  fn report(&self, sym: &JsWord, span: Span) {
-    self.context.add_diagnostic(
-      span,
-      "prefer-const",
-      &format!(
-        "'{}' is never reassigned. Use 'const' instead",
-        sym.to_string()
-      ),
-    );
-  }
-
-  fn with_child_scope<F, S>(&mut self, node: &S, op: F)
-  where
-    S: Spanned,
-    F: FnOnce(&mut Self),
-  {
-    let parent_scope_range = self.cur_scope;
-    self.cur_scope = ScopeRange::Block(node.span());
-    op(self);
-    self.cur_scope = parent_scope_range;
-  }
-
-  fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
-    let scope = self.scopes.get(&self.cur_scope).unwrap();
-    update_variable_status(Arc::clone(scope), ident, force_reassigned);
-  }
-
-  fn extract_assign_idents(&mut self, pat: &Pat) {
-    fn extract_idents_rec<'a, 'b>(
-      pat: &'a Pat,
-      idents: &'b mut Vec<&'a Ident>,
-      has_member_expr: &'b mut bool,
-    ) {
-      match pat {
-        Pat::Ident(ident) => {
-          idents.push(ident);
-        }
-        Pat::Array(array_pat) => {
-          for elem in &array_pat.elems {
-            if let Some(elem_pat) = elem {
-              extract_idents_rec(elem_pat, idents, has_member_expr);
-            }
-          }
-        }
-        Pat::Rest(rest_pat) => {
-          extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
-        }
-        Pat::Object(object_pat) => {
-          for prop in &object_pat.props {
-            match prop {
-              ObjectPatProp::KeyValue(key_value) => {
-                extract_idents_rec(&*key_value.value, idents, has_member_expr);
-              }
-              ObjectPatProp::Assign(assign) => {
-                idents.push(&assign.key);
-              }
-              ObjectPatProp::Rest(rest) => {
-                extract_idents_rec(&*rest.arg, idents, has_member_expr)
-              }
-            }
-          }
-        }
-        Pat::Assign(assign_pat) => {
-          extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
-        }
-        Pat::Expr(expr) => {
-          if let Expr::Member(_) = &**expr {
-            *has_member_expr = true;
-          }
-        }
-        _ => {}
-      }
-    }
-
-    let mut idents = Vec::new();
-    let mut has_member_expr = false;
-    extract_idents_rec(pat, &mut idents, &mut has_member_expr);
-
-    let has_outer_scope_or_param_var = idents
-      .iter()
-      .any(|i| self.declared_outer_scope_or_param_var(i));
-
-    for ident in idents {
-      // If tha pat contains either of the following:
-      //
-      // - MemberExpresion
-      // - variable declared in outer scope
-      // - variable that is a function parameter
-      //
-      // then all the idents should be marked as "reassigned" so that we will not report them as errors,
-      // bacause in this case they couldn't be separately declared as `const`.
-      self.mark_reassigned(
-        ident,
-        has_member_expr || has_outer_scope_or_param_var,
-      );
-    }
-  }
-
-  /// Checks if this ident has its declaration in outer scope or in function parameter.
-  fn declared_outer_scope_or_param_var(&self, ident: &Ident) -> bool {
-    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
-    let mut is_first_loop = true;
-    while let Some(cur) = cur_scope {
-      let mut lock = cur.lock().unwrap();
-      if let Some(var) = lock.variables.get(&ident.sym) {
-        if is_first_loop {
-          return var.is_param;
-        } else {
-          return true;
-        }
-      }
-      is_first_loop = false;
-      cur_scope = lock.parent.as_ref().map(Arc::clone);
-    }
-    // If the declaration isn't found, most likely it means the ident is declared with `var`
-    false
-  }
-
-  fn exit_module(&mut self) {
-    let mut for_init_vars = BTreeMap::new();
-
-    for scope in self.scopes.values() {
-      for (sym, status) in scope.lock().unwrap().variables.iter() {
-        if let Some(for_span) = status.in_for_init {
-          for_init_vars
-            .entry(for_span)
-            .or_insert_with(Vec::new)
-            .push((sym.clone(), *status));
-        } else if status.should_report() {
-          self.report(sym, status.span);
-        }
-      }
-    }
-
-    // With regard to init sections of for statements, we should report diagnostics only if *all*
-    // variables there need to be reported.
-    for (sym, var) in for_init_vars
-      .iter()
-      .filter_map(|(_, vars)| {
-        if vars.iter().all(|(_, status)| status.should_report()) {
-          Some(vars)
-        } else {
-          None
-        }
-      })
-      .flatten()
-    {
-      self.report(sym, var.span);
-    }
-  }
-}
-
-impl Visit for PreferConstVisitor {
-  noop_visit_type!();
-
-  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
-    module.visit_children_with(self);
-    self.exit_module();
-  }
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
-    // This only handles _nested_ `AssignmentExpression` since not nested `AssignExpression` (i.e. the direct child of
-    // `ExpressionStatement`) is already handled by `visit_expr_stmt`. The variables within nested
-    // `AssignmentExpression` should be marked as "reassigned" even if it's not been yet initialized, otherwise it
-    // would result in false positives.
-    // See https://github.com/denoland/deno_lint/issues/358
-    assign_expr.visit_children_with(self);
-
-    let idents: Vec<Ident> = match &assign_expr.left {
-      PatOrExpr::Pat(pat) => find_ids(pat), // find_ids doesn't work for Expression
-      PatOrExpr::Expr(expr) if expr.is_ident() => {
-        let ident = (**expr).clone().expect_ident();
-        vec![ident]
-      }
-      _ => vec![],
-    };
-
-    for ident in idents {
-      self.mark_reassigned(&ident, true);
-    }
-  }
-
-  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _: &dyn Node) {
-    let mut expr = &*expr_stmt.expr;
-
-    // Unwrap parentheses
-    while let Expr::Paren(e) = expr {
-      expr = &*e.expr;
-    }
-
-    match expr {
-      Expr::Assign(assign_expr) => {
-        match &assign_expr.left {
-          PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
-          PatOrExpr::Expr(expr) => match &**expr {
-            Expr::Ident(ident) => {
-              self.mark_reassigned(ident, false);
-            }
-            otherwise => {
-              otherwise.visit_children_with(self);
-            }
-          },
-        };
-        assign_expr.visit_children_with(self);
-      }
-      _ => expr_stmt.visit_children_with(self),
-    }
-  }
-
-  fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _: &dyn Node) {
-    match &*update_expr.arg {
-      Expr::Ident(ident) => {
-        self.mark_reassigned(
-          ident,
-          self.declared_outer_scope_or_param_var(ident),
-        );
-      }
-      otherwise => otherwise.visit_children_with(self),
-    }
-  }
-
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
-    self.with_child_scope(function, |a| {
-      if let Some(body) = &function.body {
-        body.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
-    self.with_child_scope(arrow_expr, |a| match &arrow_expr.body {
-      BlockStmtOrExpr::BlockStmt(block_stmt) => {
-        block_stmt.visit_children_with(a);
-      }
-      BlockStmtOrExpr::Expr(expr) => {
-        expr.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
-    self.with_child_scope(block_stmt, |a| block_stmt.visit_children_with(a));
-  }
-
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
-    self.with_child_scope(for_stmt, |a| {
-      for_stmt.init.visit_children_with(a);
-      for_stmt.test.visit_children_with(a);
-      for_stmt.update.visit_children_with(a);
-
-      if let Stmt::Block(block_stmt) = &*for_stmt.body {
-        block_stmt.visit_children_with(a);
-      } else {
-        for_stmt.body.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
-    self.with_child_scope(for_of_stmt, |a| {
-      match &for_of_stmt.left {
-        VarDeclOrPat::VarDecl(var_decl) => {
-          var_decl.visit_with(&for_of_stmt.left, a);
-        }
-        VarDeclOrPat::Pat(pat) => {
-          a.extract_assign_idents(pat);
-        }
-      }
-
-      for_of_stmt.right.visit_children_with(a);
-
-      if let Stmt::Block(block_stmt) = &*for_of_stmt.body {
-        block_stmt.visit_children_with(a);
-      } else {
-        for_of_stmt.body.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
-    self.with_child_scope(for_in_stmt, |a| {
-      match &for_in_stmt.left {
-        VarDeclOrPat::VarDecl(var_decl) => {
-          var_decl.visit_with(&for_in_stmt.left, a);
-        }
-        VarDeclOrPat::Pat(pat) => {
-          a.extract_assign_idents(pat);
-        }
-      }
-
-      for_in_stmt.right.visit_children_with(a);
-
-      if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
-        block_stmt.visit_children_with(a);
-      } else {
-        for_in_stmt.body.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
-    self.with_child_scope(if_stmt, |a| {
-      if_stmt.test.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*if_stmt.cons {
-        body.visit_children_with(a);
-      } else {
-        if_stmt.cons.visit_children_with(a);
-      }
-    });
-
-    if let Some(alt) = &if_stmt.alt {
-      self.with_child_scope(alt, |a| {
-        alt.visit_children_with(a);
-      });
-    }
-  }
-
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
-    self.with_child_scope(while_stmt, |a| {
-      while_stmt.test.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*while_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        while_stmt.body.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
-    self.with_child_scope(do_while_stmt, |a| {
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*do_while_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        do_while_stmt.body.visit_children_with(a);
-      }
-      do_while_stmt.test.visit_children_with(a);
-    });
-  }
-
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
-    self.with_child_scope(with_stmt, |a| {
-      with_stmt.obj.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*with_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        with_stmt.body.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
-    self.with_child_scope(catch_clause, |a| {
-      if let Some(param) = &catch_clause.param {
-        param.visit_children_with(a);
-      }
-      catch_clause.body.visit_children_with(a);
-    });
-  }
-
-  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
-    for decorator in &class.decorators {
-      decorator.visit_children_with(self);
-    }
-    if let Some(super_class) = &class.super_class {
-      super_class.visit_children_with(self);
-    }
-    self.with_child_scope(class, |a| {
-      for member in &class.body {
-        member.visit_children_with(a);
-      }
-    });
-  }
-
-  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
-    self.with_child_scope(constructor, |a| {
-      for param in &constructor.params {
-        param.visit_children_with(a);
-      }
-
-      if let Some(body) = &constructor.body {
-        body.visit_children_with(a);
-      }
-    });
-  }
-}
-
 #[cfg(test)]
-mod tests {
+mod prefer_const_tests {
   use super::*;
   use crate::test_util::*;
 
