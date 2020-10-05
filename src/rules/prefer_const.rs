@@ -51,27 +51,25 @@ struct Variable {
   /// `span` is the span of the for statement. Otherwise, it stores `None`.
   in_for_init: Option<Span>,
   is_param: bool,
-  force_reassigned: bool,
 }
 
 impl Variable {
-  fn update(
-    &mut self,
-    initialized: bool,
-    reassigned: bool,
-    force_reassigned: bool,
-  ) {
+  fn update(&mut self, initialized: bool, reassigned: bool) {
     self.initialized = initialized;
     self.reassigned = reassigned;
-    self.force_reassigned = force_reassigned;
   }
-
   fn should_report(&self) -> bool {
-    if !self.initialized {
+    if self.is_param {
       return false;
     }
 
-    !self.reassigned && !self.force_reassigned
+    // (initialized, reassigned): [return value]
+    //
+    // - (false, false): false
+    // - (true, false): true
+    // - (false, true): true
+    // - (true, true): false
+    self.initialized != self.reassigned
   }
 }
 
@@ -99,13 +97,15 @@ fn update_variable_status(scope: Scope, ident: &Ident, force_reassigned: bool) {
   while let Some(cur) = cur_scope {
     let mut lock = cur.lock().unwrap();
     if let Some(var) = lock.variables.get_mut(&ident.sym) {
-      let (initialized, reassigned) = if var.initialized {
-        (var.initialized, true)
+      let (initialized, mut reassigned) = if var.initialized {
+        (true, true)
       } else {
         (true, false)
       };
 
-      var.update(initialized, reassigned, force_reassigned);
+      reassigned |= force_reassigned;
+
+      var.update(initialized, reassigned);
       return;
     }
     cur_scope = lock.parent.as_ref().map(Arc::clone);
@@ -147,7 +147,6 @@ impl VariableCollector {
         initialized: has_init,
         reassigned: false,
         in_for_init,
-        force_reassigned: is_param, // TODO(magurotuna)
         is_param,
       },
     );
