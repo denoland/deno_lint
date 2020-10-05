@@ -8,7 +8,6 @@ use swc_ecmascript::ast::ImportSpecifier;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-// need to rename vars
 // Start of structs and enums
 struct ImportIdent {
   import_decl: String,
@@ -128,37 +127,43 @@ impl SortImportsVisitor {
     } else {
       |specifier: &ImportIdent| specifier.import_decl.to_string()
     };
-    let sorted = import_specifiers
+    let identifier_names = import_specifiers
       .iter()
       .map(get_sortable_name)
       .collect::<Vec<String>>();
-    let first = sorted.iter();
+    // This stored the index of the first member that is found not to be sorted
     let mut first_unsorted_index: Option<usize> = None;
+    // This stores indices for all the members that are found not to be sorted
     let mut error_indices: Vec<usize> = vec![];
-    let mut unexpected_order_indicies: Vec<usize> = vec![];
-    for (index, sth) in first.enumerate() {
+    // This stores the indices imports that are not in order as defined by the member_syntax_sort_order option
+    let mut unexpected_order_indices: Vec<usize> = vec![];
+    for (index, identifier_name) in identifier_names.iter().enumerate() {
       if report_multiple.is_some() && index != &import_specifiers.len() - 1 {
-        let f = self
+        let current_member_group_index = self
           .get_member_param_grp_index(import_specifiers[index].import_type)
           .unwrap();
 
-        let g = self
+        let next_memeber_group_index = self
           .get_member_param_grp_index(import_specifiers[index + 1].import_type)
           .unwrap();
 
-        if f != g {
-          if g < f {
-            unexpected_order_indicies.push(index + 1);
+        if current_member_group_index != next_memeber_group_index {
+          if next_memeber_group_index < current_member_group_index {
+            unexpected_order_indices.push(index + 1);
           }
           continue;
         }
       }
 
       if index != &import_specifiers.len() - 1 {
-        let bs = &sorted[index + 1];
-        let mut som: Vec<String> = vec![bs.to_string(), sth.to_string()];
-        som.sort();
-        if &som[0] != sth {
+        /* This checks the curent identifier and the next one and sorts them.
+        If they are not in the same order after sorting, then those "members"
+        are not sorted and the index needs to be returned to report the error*/
+        let reported_identifier = &identifier_names[index + 1];
+        let mut current_and_next_ident: Vec<String> =
+          vec![reported_identifier.to_string(), identifier_name.to_string()];
+        current_and_next_ident.sort();
+        if &current_and_next_ident[0] != identifier_name {
           first_unsorted_index = Some(index + 1);
           if report_multiple.is_some() {
             error_indices.push(index + 1)
@@ -179,8 +184,8 @@ impl SortImportsVisitor {
       } else {
         None
       },
-      if unexpected_order_indicies.len() > 0 {
-        Some(unexpected_order_indicies)
+      if unexpected_order_indices.len() > 0 {
+        Some(unexpected_order_indices)
       } else {
         None
       },
@@ -197,15 +202,16 @@ impl SortImportsVisitor {
 
   fn sort_import_decl(&mut self, import_specifiers: &Vec<ImportIdent>) {
     if !self.options.ignore_member_sort {
-      let (a, _, _) = self.get_err_index(&import_specifiers, None);
-      if let Some(n) = a {
+      let (first_unsorted_member_index, _, _) =
+        self.get_err_index(&import_specifiers, None);
+      if let Some(index) = first_unsorted_member_index {
         let mut err_string = String::from("Member '");
-        err_string.push_str(&import_specifiers[n].import_decl);
+        err_string.push_str(&import_specifiers[index].import_decl);
         err_string.push_str(
           "' of the import declaration should be sorted alphabetically",
         );
         self.context.add_diagnostic(
-          import_specifiers[n].span,
+          import_specifiers[index].span,
           "sort-imports",
           &err_string,
         );
@@ -215,8 +221,9 @@ impl SortImportsVisitor {
   }
 
   fn sort_line_imports(&mut self) {
-    let (_, b, c) = self.get_err_index(&self.line_imports, Some(true));
-    if let Some(vec_n) = b {
+    let (_, unsorted_import_indices, unexpected_order_indices) =
+      self.get_err_index(&self.line_imports, Some(true));
+    if let Some(vec_n) = unsorted_import_indices {
       for n in vec_n.into_iter() {
         self.context.add_diagnostic(
           self.line_imports[n].span,
@@ -225,18 +232,19 @@ impl SortImportsVisitor {
         );
       }
     }
-    if let Some(vec_r) = c {
-      for n in vec_r.into_iter() {
+    if let Some(indices) = unexpected_order_indices {
+      for index in indices.into_iter() {
         let mut err_string = String::from("Expected '");
-        err_string
-          .push_str(&import_types_to_string(&self.line_imports[n].import_type));
+        err_string.push_str(&import_types_to_string(
+          &self.line_imports[index].import_type,
+        ));
         err_string.push_str("' syntax before '");
         err_string.push_str(&import_types_to_string(
-          &self.line_imports[n - 1].import_type,
+          &self.line_imports[index - 1].import_type,
         ));
         err_string.push_str("' syntax");
         self.context.add_diagnostic(
-          self.line_imports[n].span,
+          self.line_imports[index].span,
           "sort-imports",
           &err_string,
         );
