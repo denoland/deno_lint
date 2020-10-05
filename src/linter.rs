@@ -59,6 +59,7 @@ impl Context {
       filename: self.file_name.clone(),
       message: message.to_string(),
       code: code.to_string(),
+      hint: None,
     };
 
     let time_end = Instant::now();

@@ -305,6 +305,12 @@ impl Visit for Analyzer<'_> {
     });
   }
 
+  fn visit_constructor(&mut self, n: &Constructor, _: &dyn Node) {
+    self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
+      n.visit_children_with(a);
+    });
+  }
+
   fn visit_getter_prop(&mut self, n: &GetterProp, _: &dyn Node) {
     self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
       n.visit_children_with(a);
@@ -386,7 +392,7 @@ impl Visit for Analyzer<'_> {
             if another.is_some() {
               self.mark_as_done(n.span.lo, Done::Break);
             } else {
-              self.scope.done = Some(Done::Break)
+              self.scope.done = None
             }
           }
           // TODO: Check for continue

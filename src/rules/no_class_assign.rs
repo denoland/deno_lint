@@ -6,6 +6,7 @@ use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -44,8 +45,9 @@ impl Visit for NoClassAssignVisitor {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ids = find_lhs_ids(&assign_expr.left);
+    assign_expr.visit_children_with(self);
 
+    let ids = find_lhs_ids(&assign_expr.left);
     for id in ids {
       let var = self.context.scope.var(&id);
       if let Some(var) = var {
@@ -64,54 +66,133 @@ impl Visit for NoClassAssignVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_err_on_line_n;
-  use crate::test_util::assert_lint_ok;
+  use crate::test_util::*;
+
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/no-class-assign.js
+  // MIT Licensed.
 
   #[test]
-  fn no_class_assign_ok() {
-    assert_lint_ok::<NoClassAssign>(
+  fn no_class_assign_valid() {
+    assert_lint_ok_n::<NoClassAssign>(vec![
+      r#"class A {}"#,
+      r#"class A {} foo(A);"#,
+      r#"let A = class A {}; foo(A);"#,
       r#"
-class A {}
-
-class B {
+class A {
   foo(A) {
     A = "foobar";
   }
 }
-
-class C {
-  bar() {
-    let B;
-    B = "bar";
+"#,
+      r#"
+class A {
+  foo() {
+    let A;
+    A = "bar";
   }
 }
-
-let x = "x";
-x = "xx";
-var y = "y";
-y = "yy";
-      "#,
-    );
-  }
-
-  #[test]
-  fn no_class_assign() {
-    assert_lint_err_on_line_n::<NoClassAssign>(
+"#,
       r#"
-class A {}
-A = 0;
-
-class B {
-  foo() {
+let A = class {
+  b() {
+    A = 0;
+  }
+}
+"#,
+      r#"
+let A, B;
+A = class {
+  b() {
     B = 0;
   }
 }
+"#,
+      r#"let x = 0; x = 1;"#,
+      r#"var x = 0; x = 1;"#,
+      r#"const x = 0;"#,
+      r#"function x() {} x = 1;"#,
+      r#"function foo(x) { x = 1; }"#,
+      r#"try {} catch (x) { x = 1; }"#,
+    ]);
+  }
 
-class C {}
-C = 10;
-C = 20;
+  #[test]
+  fn no_class_assign_invalid() {
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+class A {}
+A = 0;
       "#,
-      vec![(3, 0), (7, 4), (12, 0), (13, 0)],
+      3,
+      0,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+class A {}
+({A} = 0);
+      "#,
+      3,
+      1,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+class A {}
+({b: A = 0} = {});
+      "#,
+      3,
+      1,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+A = 0;
+class A {}
+      "#,
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+class A {
+  foo() {
+    A = 0;
+  }
+}
+      "#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+let A = class A {
+  foo() {
+    A = 0;
+  }
+}
+      "#,
+      4,
+      4,
+    );
+    assert_lint_err_on_line_n::<NoClassAssign>(
+      r#"
+class A {}
+A = 10;
+A = 20;
+      "#,
+      vec![(3, 0), (4, 0)],
+    );
+    assert_lint_err_on_line::<NoClassAssign>(
+      r#"
+let A;
+A = class {
+  foo() {
+    class B {}
+    B = 0;
+  }
+}
+      "#,
+      6,
+      4,
     );
   }
 }

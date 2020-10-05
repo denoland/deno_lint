@@ -8,6 +8,7 @@ use swc_ecmascript::ast::VarDeclKind;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::VisitWith;
 
 use std::sync::Arc;
 
@@ -50,6 +51,8 @@ impl Visit for NoCaseDeclarationsVisitor {
     switch_case: &SwitchCase,
     _parent: &dyn Node,
   ) {
+    switch_case.visit_children_with(self);
+
     for stmt in &switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {
@@ -76,8 +79,9 @@ impl Visit for NoCaseDeclarationsVisitor {
 mod tests {
   use super::*;
   use crate::test_util::*;
+
   #[test]
-  fn no_case_declarations_ok() {
+  fn no_case_declarations_valid() {
     assert_lint_ok::<NoCaseDeclarations>(
       r#"
 switch (foo) {
@@ -111,7 +115,7 @@ switch (foo) {
   }
 
   #[test]
-  fn no_case_declarations() {
+  fn no_case_declarations_invalid() {
     assert_lint_err_on_line::<NoCaseDeclarations>(
       r#"
 switch (foo) {
@@ -171,6 +175,19 @@ switch (fncase) {
     );
     assert_lint_err_on_line::<NoCaseDeclarations>(
       r#"
+switch (fncase) {
+  default:
+    function fn() {
+
+    }
+    break;
+}
+    "#,
+      3,
+      2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
 switch (classcase) {
   case 1:
     class Cl {
@@ -181,6 +198,81 @@ switch (classcase) {
     "#,
       3,
       2,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (classcase) {
+  default:
+    class Cl {
+      
+    }
+    break;
+}
+    "#,
+      3,
+      2,
+    );
+
+    // nested switch
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  case 1:
+    switch (bar) {
+      case 2:
+        let a = "a";
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  default:
+    switch (bar) {
+      default:
+        const a = "a";
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  case 1:
+    switch (bar) {
+      default:
+        function fn() {}
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
+    );
+    assert_lint_err_on_line::<NoCaseDeclarations>(
+      r#"
+switch (foo) {
+  default:
+    switch (bar) {
+      case 1:
+        class Cl {}
+        break;
+    }
+    break;
+}
+    "#,
+      5,
+      6,
     );
   }
 }
