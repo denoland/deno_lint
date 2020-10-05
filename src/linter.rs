@@ -359,7 +359,7 @@ impl Linter {
     let scope = Arc::new(analyze(&module));
     let control_flow = Arc::new(ControlFlow::analyze(&module));
 
-    let context = Arc::new(Context {
+    let mut context = Context {
       file_name,
       diagnostics: Arc::new(Mutex::new(vec![])),
       source_map: self.ast_parser.source_map.clone(),
@@ -371,8 +371,13 @@ impl Linter {
       top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
       }),
-    });
+    };
 
+    for rule in &self.rules {
+      rule.new_lint_module(&mut context, &module);
+    }
+
+    let context = Arc::new(context);
     for rule in &self.rules {
       rule.lint_module(context.clone(), &module);
     }
