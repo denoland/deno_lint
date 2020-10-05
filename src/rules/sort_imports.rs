@@ -234,7 +234,7 @@ impl SortImportsVisitor {
         err_string.push_str(&import_types_to_string(
           &self.line_imports[n - 1].import_type,
         ));
-        err_string.push_str("'");
+        err_string.push_str("' syntax");
         self.context.add_diagnostic(
           self.line_imports[n].span,
           "sort-imports",
@@ -280,7 +280,13 @@ impl SortImportsVisitor {
             ImportTypes::Single,
           );
         }
-        _ => {}
+        ImportSpecifier::Namespace(specifier) => {
+          import_ident = ImportIdent::new(
+            specifier.local.sym.get(0..).unwrap().to_string(),
+            import_stmt.span,
+            ImportTypes::All,
+          );
+        }
       }
     }
     self.line_imports.push(import_ident);
@@ -307,6 +313,87 @@ mod tests {
 
   #[test]
   fn sort_imports_test() {
-    assert_lint_ok::<SortImports>(r#"import { b, B } from 'react';"#);
+    // Sort imports alphabetically
+    assert_lint_err_on_line::<SortImports>(
+      "import a from 'foo.js';\nimport A from 'bar.js';",
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import b from 'foo.js';\nimport a from 'bar.js';",
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import {b, c} from 'foo.js';\nimport {a, d} from 'bar.js';",
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import * as foo from 'foo.js';\nimport * as bar from 'bar.js';",
+      2,
+      0,
+    );
+
+    // Unexpected syntax order
+    assert_lint_err_on_line::<SortImports>(
+      "import a from 'foo.js';\nimport {b, c} from 'bar.js';",
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import a from 'foo.js';\nimport * as b from 'bar.js';",
+      2,
+      0,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import a from 'foo.js';\nimport 'bar.js';",
+      2,
+      0,
+    );
+
+    // Sort members alphabetically
+    assert_lint_err_on_line::<SortImports>(
+      "import {b, a, d, c} from 'foo.js';\nimport {e, f, g, h} from 'bar.js';",
+      1,
+      11,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import {a, B, c, D} from 'foo.js';",
+      1,
+      11,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import {zzzzz, /* comment */ aaaaa} from 'foo.js';",
+      1,
+      29,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import {zzzzz /* comment */, aaaaa} from 'foo.js';",
+      1,
+      29,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import {/* comment */ zzzzz, aaaaa} from 'foo.js';",
+      1,
+      29,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      "import {zzzzz, aaaaa /* comment */} from 'foo.js';",
+      1,
+      15,
+    );
+    assert_lint_err_on_line::<SortImports>(
+      r#"import {
+      boop,
+      foo,
+      zoo,
+      baz as qux,
+      bar,
+      beep
+    } from 'foo.js';"#,
+      5,
+      13,
+    );
   }
 }
