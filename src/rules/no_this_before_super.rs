@@ -6,8 +6,6 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoThisBeforeSuper;
 
 impl LintRule for NoThisBeforeSuper {
@@ -21,7 +19,7 @@ impl LintRule for NoThisBeforeSuper {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
@@ -29,17 +27,17 @@ impl LintRule for NoThisBeforeSuper {
   }
 }
 
-struct NoThisBeforeSuperVisitor {
-  context: Arc<Context>,
+struct NoThisBeforeSuperVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoThisBeforeSuperVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoThisBeforeSuperVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoThisBeforeSuperVisitor {
+impl<'c> Visit for NoThisBeforeSuperVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {

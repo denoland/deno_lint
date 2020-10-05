@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::sync::Arc;
+
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 
@@ -36,7 +36,7 @@ impl LintRule for BanTsIgnore {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
     context.leading_comments.values().for_each(|comments| {

@@ -7,8 +7,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::{self, noop_visit_type};
 
-use std::sync::Arc;
-
 pub struct DefaultParamLast;
 
 impl LintRule for DefaultParamLast {
@@ -22,7 +20,7 @@ impl LintRule for DefaultParamLast {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
@@ -30,12 +28,12 @@ impl LintRule for DefaultParamLast {
   }
 }
 
-struct DefaultParamLastVisitor {
-  context: Arc<Context>,
+struct DefaultParamLastVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl DefaultParamLastVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> DefaultParamLastVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -68,7 +66,7 @@ impl DefaultParamLastVisitor {
   }
 }
 
-impl Visit for DefaultParamLastVisitor {
+impl<'c> Visit for DefaultParamLastVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, parent: &dyn Node) {

@@ -5,8 +5,6 @@ use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
 use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoUnsafeFinally;
 
 impl LintRule for NoUnsafeFinally {
@@ -18,23 +16,23 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-struct NoUnsafeFinallyVisitor {
-  context: Arc<Context>,
+struct NoUnsafeFinallyVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoUnsafeFinallyVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoUnsafeFinallyVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoUnsafeFinallyVisitor {
+impl<'c> Visit for NoUnsafeFinallyVisitor<'c> {
   noop_visit_type!();
 
   fn visit_try_stmt(&mut self, try_stmt: &TryStmt, parent: &dyn Node) {

@@ -9,8 +9,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoUnsafeNegation;
 
 impl LintRule for NoUnsafeNegation {
@@ -24,7 +22,7 @@ impl LintRule for NoUnsafeNegation {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoUnsafeNegationVisitor::new(context);
@@ -32,17 +30,17 @@ impl LintRule for NoUnsafeNegation {
   }
 }
 
-struct NoUnsafeNegationVisitor {
-  context: Arc<Context>,
+struct NoUnsafeNegationVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoUnsafeNegationVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoUnsafeNegationVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoUnsafeNegationVisitor {
+impl<'c> Visit for NoUnsafeNegationVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {

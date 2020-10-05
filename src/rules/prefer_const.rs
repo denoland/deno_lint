@@ -30,7 +30,7 @@ impl LintRule for PreferConst {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut collector = VariableCollector::new();
@@ -469,14 +469,14 @@ impl Visit for VariableCollector {
   }
 }
 
-struct PreferConstVisitor {
+struct PreferConstVisitor<'c> {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
-  context: Arc<Context>,
+  context: &'c mut Context,
 }
 
-impl PreferConstVisitor {
-  fn new(context: Arc<Context>, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
+impl<'c> PreferConstVisitor<'c> {
+  fn new(context: &'c mut Context, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
     Self {
       context,
       scopes,
@@ -636,7 +636,7 @@ impl PreferConstVisitor {
   }
 }
 
-impl Visit for PreferConstVisitor {
+impl<'c> Visit for PreferConstVisitor<'c> {
   noop_visit_type!();
 
   fn visit_module(&mut self, module: &Module, _: &dyn Node) {

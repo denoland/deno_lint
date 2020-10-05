@@ -242,7 +242,7 @@ impl Linter {
 
   fn filter_diagnostics(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
@@ -374,15 +374,10 @@ impl Linter {
     };
 
     for rule in &self.rules {
-      rule.new_lint_module(&mut context, &module);
+      rule.lint_module(&mut context, &module);
     }
 
-    let context = Arc::new(context);
-    for rule in &self.rules {
-      rule.lint_module(context.clone(), &module);
-    }
-
-    let d = self.filter_diagnostics(context, &self.rules);
+    let d = self.filter_diagnostics(&mut context, &self.rules);
     let end = Instant::now();
     debug!("Linter::lint_module took {:#?}", end - start);
 

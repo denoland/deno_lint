@@ -8,8 +8,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct NoClassAssign;
 
 impl LintRule for NoClassAssign {
@@ -23,7 +21,7 @@ impl LintRule for NoClassAssign {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoClassAssignVisitor::new(context);
@@ -31,17 +29,17 @@ impl LintRule for NoClassAssign {
   }
 }
 
-struct NoClassAssignVisitor {
-  context: Arc<Context>,
+struct NoClassAssignVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoClassAssignVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoClassAssignVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoClassAssignVisitor {
+impl<'c> Visit for NoClassAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {

@@ -8,7 +8,6 @@ use swc_ecmascript::{
 };
 
 use std::collections::HashSet;
-use std::sync::Arc;
 
 pub struct NoRedeclare;
 
@@ -21,7 +20,7 @@ impl LintRule for NoRedeclare {
     "no-redeclare"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoRedeclareVisitor {
       context,
       bindings: Default::default(),
@@ -30,13 +29,13 @@ impl LintRule for NoRedeclare {
   }
 }
 
-struct NoRedeclareVisitor {
-  context: Arc<Context>,
+struct NoRedeclareVisitor<'c> {
+  context: &'c mut Context,
   /// TODO(kdy1): Change this to HashMap<Id, Vec<Span>> and use those spans to point previous bindings/
   bindings: HashSet<Id>,
 }
 
-impl NoRedeclareVisitor {
+impl<'c> NoRedeclareVisitor<'c> {
   fn declare(&mut self, i: &Ident) {
     let id = i.to_id();
 
@@ -50,7 +49,7 @@ impl NoRedeclareVisitor {
   }
 }
 
-impl Visit for NoRedeclareVisitor {
+impl<'c> Visit for NoRedeclareVisitor<'c> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {

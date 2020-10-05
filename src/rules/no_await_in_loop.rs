@@ -8,8 +8,6 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoAwaitInLoop;
 
 impl LintRule for NoAwaitInLoop {
@@ -23,7 +21,7 @@ impl LintRule for NoAwaitInLoop {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
@@ -31,12 +29,12 @@ impl LintRule for NoAwaitInLoop {
   }
 }
 
-struct NoAwaitInLoopVisitor {
-  context: Arc<Context>,
+struct NoAwaitInLoopVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoAwaitInLoopVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoAwaitInLoopVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -49,7 +47,7 @@ impl NoAwaitInLoopVisitor {
   }
 }
 
-impl Visit for NoAwaitInLoopVisitor {
+impl<'c> Visit for NoAwaitInLoopVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, func: &Function, parent: &dyn Node) {
@@ -98,7 +96,7 @@ impl Visit for NoAwaitInLoopVisitor {
 }
 
 struct LoopVisitor<'a> {
-  root_visitor: &'a NoAwaitInLoopVisitor,
+  root_visitor: &'a NoAwaitInLoopVisitor<'a>,
 }
 
 impl<'a> LoopVisitor<'a> {
@@ -154,12 +152,12 @@ impl<'a> Visit for LoopVisitor<'a> {
 }
 
 struct FunctionVisitor<'a> {
-  root_visitor: &'a NoAwaitInLoopVisitor,
+  root_visitor: &'a NoAwaitInLoopVisitor<'a>,
   is_async: bool,
 }
 
 impl<'a> FunctionVisitor<'a> {
-  fn new(root_visitor: &'a NoAwaitInLoopVisitor, is_async: bool) -> Self {
+  fn new(root_visitor: &'a NoAwaitInLoopVisitor<'a>, is_async: bool) -> Self {
     Self {
       root_visitor,
       is_async,

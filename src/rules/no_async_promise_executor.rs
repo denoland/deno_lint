@@ -7,8 +7,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct NoAsyncPromiseExecutor;
 
 impl LintRule for NoAsyncPromiseExecutor {
@@ -22,7 +20,7 @@ impl LintRule for NoAsyncPromiseExecutor {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
@@ -30,12 +28,12 @@ impl LintRule for NoAsyncPromiseExecutor {
   }
 }
 
-struct NoAsyncPromiseExecutorVisitor {
-  context: Arc<Context>,
+struct NoAsyncPromiseExecutorVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoAsyncPromiseExecutorVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoAsyncPromiseExecutorVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
@@ -49,7 +47,7 @@ fn is_async_function(expr: &Expr) -> bool {
   }
 }
 
-impl Visit for NoAsyncPromiseExecutorVisitor {
+impl<'c> Visit for NoAsyncPromiseExecutorVisitor<'c> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {

@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
-use std::sync::Arc;
+
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -21,7 +21,7 @@ impl LintRule for NoExAssign {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoExAssignVisitor::new(context);
@@ -29,17 +29,17 @@ impl LintRule for NoExAssign {
   }
 }
 
-struct NoExAssignVisitor {
-  context: Arc<Context>,
+struct NoExAssignVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoExAssignVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoExAssignVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoExAssignVisitor {
+impl<'c> Visit for NoExAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {

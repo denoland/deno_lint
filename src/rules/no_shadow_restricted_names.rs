@@ -10,8 +10,6 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit},
 };
 
-use std::sync::Arc;
-
 pub struct NoShadowRestrictedNames;
 
 impl LintRule for NoShadowRestrictedNames {
@@ -19,7 +17,7 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -29,12 +27,12 @@ impl LintRule for NoShadowRestrictedNames {
   }
 }
 
-struct NoShadowRestrictedNamesVisitor {
-  context: Arc<Context>,
+struct NoShadowRestrictedNamesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoShadowRestrictedNamesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoShadowRestrictedNamesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -106,7 +104,7 @@ impl NoShadowRestrictedNamesVisitor {
   }
 }
 
-impl Visit for NoShadowRestrictedNamesVisitor {
+impl<'c> Visit for NoShadowRestrictedNamesVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, node: &VarDecl, parent: &dyn Node) {

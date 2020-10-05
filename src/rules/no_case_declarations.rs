@@ -10,8 +10,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct NoCaseDeclarations;
 
 impl LintRule for NoCaseDeclarations {
@@ -25,7 +23,7 @@ impl LintRule for NoCaseDeclarations {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoCaseDeclarationsVisitor::new(context);
@@ -33,17 +31,17 @@ impl LintRule for NoCaseDeclarations {
   }
 }
 
-struct NoCaseDeclarationsVisitor {
-  context: Arc<Context>,
+struct NoCaseDeclarationsVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoCaseDeclarationsVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoCaseDeclarationsVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoCaseDeclarationsVisitor {
+impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_switch_case(

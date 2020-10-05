@@ -5,8 +5,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoSparseArrays;
 
 impl LintRule for NoSparseArrays {
@@ -20,7 +18,7 @@ impl LintRule for NoSparseArrays {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoSparseArraysVisitor::new(context);
@@ -28,17 +26,17 @@ impl LintRule for NoSparseArrays {
   }
 }
 
-struct NoSparseArraysVisitor {
-  context: Arc<Context>,
+struct NoSparseArraysVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoSparseArraysVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoSparseArraysVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoSparseArraysVisitor {
+impl<'c> Visit for NoSparseArraysVisitor<'c> {
   noop_visit_type!();
 
   fn visit_array_lit(

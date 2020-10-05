@@ -27,7 +27,7 @@ impl LintRule for ForDirection {
     "for-direction"
   }
 
-  fn new_lint_module(
+  fn lint_module(
     &self,
     context: &mut Context,
     module: &swc_ecmascript::ast::Module,

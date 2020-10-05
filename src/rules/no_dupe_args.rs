@@ -11,8 +11,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoDupeArgs;
 
 impl LintRule for NoDupeArgs {
@@ -26,7 +24,7 @@ impl LintRule for NoDupeArgs {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
@@ -34,12 +32,12 @@ impl LintRule for NoDupeArgs {
   }
 }
 
-struct NoDupeArgsVisitor {
-  context: Arc<Context>,
+struct NoDupeArgsVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDupeArgsVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDupeArgsVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -71,7 +69,7 @@ impl NoDupeArgsVisitor {
   }
 }
 
-impl Visit for NoDupeArgsVisitor {
+impl<'c> Visit for NoDupeArgsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {

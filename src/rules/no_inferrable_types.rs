@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::sync::Arc;
+
 use swc_ecmascript::ast::{
   Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
 };
@@ -21,7 +21,7 @@ impl LintRule for NoInferrableTypes {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
@@ -29,12 +29,12 @@ impl LintRule for NoInferrableTypes {
   }
 }
 
-struct NoInferrableTypesVisitor {
-  context: Arc<Context>,
+struct NoInferrableTypesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoInferrableTypesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoInferrableTypesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -296,7 +296,7 @@ impl NoInferrableTypesVisitor {
   }
 }
 
-impl Visit for NoInferrableTypesVisitor {
+impl<'c> Visit for NoInferrableTypesVisitor<'c> {
   fn visit_function(
     &mut self,
     function: &swc_ecmascript::ast::Function,

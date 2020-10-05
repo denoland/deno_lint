@@ -12,8 +12,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoDupeClassMembers;
 
 impl LintRule for NoDupeClassMembers {
@@ -27,7 +25,7 @@ impl LintRule for NoDupeClassMembers {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
@@ -35,12 +33,12 @@ impl LintRule for NoDupeClassMembers {
   }
 }
 
-struct NoDupeClassMembersVisitor {
-  context: Arc<Context>,
+struct NoDupeClassMembersVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDupeClassMembersVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDupeClassMembersVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -53,7 +51,7 @@ impl NoDupeClassMembersVisitor {
   }
 }
 
-impl Visit for NoDupeClassMembersVisitor {
+impl<'c> Visit for NoDupeClassMembersVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
@@ -64,12 +62,12 @@ impl Visit for NoDupeClassMembersVisitor {
 }
 
 struct ClassVisitor<'a> {
-  root_visitor: &'a NoDupeClassMembersVisitor,
+  root_visitor: &'a NoDupeClassMembersVisitor<'a>,
   appeared_methods: BTreeMap<MethodToCheck, Vec<(Span, String)>>,
 }
 
 impl<'a> ClassVisitor<'a> {
-  fn new(root_visitor: &'a NoDupeClassMembersVisitor) -> Self {
+  fn new(root_visitor: &'a NoDupeClassMembersVisitor<'a>) -> Self {
     Self {
       root_visitor,
       appeared_methods: BTreeMap::new(),

@@ -1,6 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
-use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -91,14 +90,9 @@ pub trait LintRule {
     Self: Sized;
   fn lint_module(
     &self,
-    _context: Arc<Context>,
-    _module: &swc_ecmascript::ast::Module,
-  ) {}
-  fn new_lint_module(
-    &self,
-    _context: &mut Context,
-    _module: &swc_ecmascript::ast::Module,
-  ) {}
+    context: &mut Context,
+    module: &swc_ecmascript::ast::Module,
+  );
   fn code(&self) -> &'static str;
   fn docs(&self) -> &'static str {
     ""

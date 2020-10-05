@@ -3,7 +3,6 @@ use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
 use std::collections::HashSet;
-use std::sync::Arc;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
@@ -24,18 +23,18 @@ impl LintRule for AdjacentOverloadSignatures {
     "adjacent-overload-signatures"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-struct AdjacentOverloadSignaturesVisitor {
-  context: Arc<Context>,
+struct AdjacentOverloadSignaturesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl AdjacentOverloadSignaturesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -141,7 +140,7 @@ impl ExtractMethod for TsTypeElement {
   }
 }
 
-impl Visit for AdjacentOverloadSignaturesVisitor {
+impl<'c> Visit for AdjacentOverloadSignaturesVisitor<'c> {
   fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
     self.check(&module.body);
     swc_ecmascript::visit::visit_module(self, module, parent);

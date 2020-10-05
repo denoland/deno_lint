@@ -10,8 +10,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoExtraBooleanCast;
 
 impl LintRule for NoExtraBooleanCast {
@@ -25,7 +23,7 @@ impl LintRule for NoExtraBooleanCast {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoExtraBooleanCastVisitor::new(context);
@@ -33,12 +31,12 @@ impl LintRule for NoExtraBooleanCast {
   }
 }
 
-struct NoExtraBooleanCastVisitor {
-  context: Arc<Context>,
+struct NoExtraBooleanCastVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoExtraBooleanCastVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoExtraBooleanCastVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -114,7 +112,7 @@ impl NoExtraBooleanCastVisitor {
   }
 }
 
-impl Visit for NoExtraBooleanCastVisitor {
+impl<'c> Visit for NoExtraBooleanCastVisitor<'c> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, parent: &dyn Node) {

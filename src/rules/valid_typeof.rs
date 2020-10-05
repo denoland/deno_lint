@@ -8,8 +8,6 @@ use swc_ecmascript::ast::UnaryOp::TypeOf;
 use swc_ecmascript::ast::{BinExpr, Module};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct ValidTypeof;
 
 impl LintRule for ValidTypeof {
@@ -21,7 +19,7 @@ impl LintRule for ValidTypeof {
     "valid-typeof"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = ValidTypeofVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -83,17 +81,17 @@ typeof bar === typeof qux
   }
 }
 
-struct ValidTypeofVisitor {
-  context: Arc<Context>,
+struct ValidTypeofVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl ValidTypeofVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> ValidTypeofVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for ValidTypeofVisitor {
+impl<'c> Visit for ValidTypeofVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {

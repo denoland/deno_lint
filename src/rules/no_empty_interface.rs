@@ -5,8 +5,6 @@ use swc_ecmascript::ast::TsInterfaceDecl;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoEmptyInterface;
 
 impl LintRule for NoEmptyInterface {
@@ -20,7 +18,7 @@ impl LintRule for NoEmptyInterface {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoEmptyInterfaceVisitor::new(context);
@@ -28,17 +26,17 @@ impl LintRule for NoEmptyInterface {
   }
 }
 
-struct NoEmptyInterfaceVisitor {
-  context: Arc<Context>,
+struct NoEmptyInterfaceVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoEmptyInterfaceVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoEmptyInterfaceVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoEmptyInterfaceVisitor {
+impl<'c> Visit for NoEmptyInterfaceVisitor<'c> {
   fn visit_ts_interface_decl(
     &mut self,
     interface_decl: &TsInterfaceDecl,

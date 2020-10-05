@@ -6,7 +6,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
 use swc_ecmascript::ast::{
   ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, Module,
   ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
@@ -23,18 +22,18 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     "explicit-module-boundary-types"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-struct ExplicitModuleBoundaryTypesVisitor {
-  context: Arc<Context>,
+struct ExplicitModuleBoundaryTypesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl ExplicitModuleBoundaryTypesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -115,7 +114,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
   }
 }
 
-impl Visit for ExplicitModuleBoundaryTypesVisitor {
+impl<'c> Visit for ExplicitModuleBoundaryTypesVisitor<'c> {
   noop_visit_type!();
 
   fn visit_module_decl(
