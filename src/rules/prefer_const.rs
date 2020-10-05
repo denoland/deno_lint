@@ -362,6 +362,25 @@ impl Visit for VariableCollector {
     });
   }
 
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
+    if_stmt.test.visit_children_with(self);
+
+    self.with_child_scope(if_stmt, |a| {
+      // BlockStmt needs special handling to avoid creating a duplicate scope
+      if let Stmt::Block(body) = &*if_stmt.cons {
+        body.visit_children_with(a);
+      } else {
+        if_stmt.cons.visit_children_with(a);
+      }
+    });
+
+    if let Some(alt) = &if_stmt.alt {
+      self.with_child_scope(alt, |a| {
+        alt.visit_children_with(a);
+      });
+    }
+  }
+
   fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
     self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
@@ -601,7 +620,35 @@ let global2 = 42;
   }
 
   #[test]
-  fn collector_works_for() {
+  fn collector_works_if_4() {
+    let src = r#"
+let global1;
+if (true) foo();
+else if (false) bar();
+else baz();
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    //dbg!(&v.scopes);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let cons1_vars = variables(scope_iter.next().unwrap());
+    assert!(cons1_vars.is_empty());
+
+    let cons2_vars = variables(scope_iter.next().unwrap());
+    assert!(cons2_vars.is_empty());
+
+    let alt_vars = variables(scope_iter.next().unwrap());
+    assert!(alt_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for_1() {
     let src = r#"
 let global1;
 for (let i = 0, j = 10; i < 10; i++) {
@@ -623,7 +670,26 @@ let global2 = 42;
   }
 
   #[test]
-  fn collector_works_for_of() {
+  fn collector_works_for_2() {
+    let src = r#"
+let global1;
+for (let i = 0, j = 10; i < 10; i++) i += 2;
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["i", "j"], for_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for_of_1() {
     let src = r#"
 let global1;
 for (let i of [1, 2, 3]) {
@@ -644,7 +710,26 @@ let global2 = 42;
   }
 
   #[test]
-  fn collector_works_for_in() {
+  fn collector_works_for_of_2() {
+    let src = r#"
+let global1;
+for (let { i, j } of [{ i: 1, j: 2 }, { i : 3, j: 4 }]) i += 2;
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["i", "j"], for_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for_in_1() {
     let src = r#"
 let global1;
 for (let i in [1, 2, 3]) {
@@ -660,6 +745,25 @@ let global2 = 42;
 
     let for_vars = variables(scope_iter.next().unwrap());
     assert_eq!(vec!["i", "inner"], for_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_for_in_2() {
+    let src = r#"
+let global1;
+for (let i in [1, 2, 3]) i += 2;
+let global2 = 42;
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1", "global2"], global_vars);
+
+    let for_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["i"], for_vars);
 
     assert!(scope_iter.next().is_none());
   }
@@ -914,7 +1018,6 @@ impl PreferConstVisitor {
     let mut for_init_vars = BTreeMap::new();
 
     for scope in self.scopes.values() {
-      dbg!(scope);
       for (sym, status) in scope.lock().unwrap().variables.iter() {
         if let Some(for_span) = status.in_for_init {
           for_init_vars
@@ -948,16 +1051,12 @@ impl PreferConstVisitor {
 impl Visit for PreferConstVisitor {
   noop_visit_type!();
 
-  fn visit_module(&mut self, module: &Module, _parent: &dyn Node) {
+  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
     module.visit_children_with(self);
     self.exit_module();
   }
 
-  fn visit_assign_expr(
-    &mut self,
-    assign_expr: &AssignExpr,
-    _parent: &dyn Node,
-  ) {
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
     // This only handles _nested_ `AssignmentExpression` since not nested `AssignExpression` (i.e. the direct child of
     // `ExpressionStatement`) is already handled by `visit_expr_stmt`. The variables within nested
     // `AssignmentExpression` should be marked as "reassigned" even if it's not been yet initialized, otherwise it
@@ -979,7 +1078,7 @@ impl Visit for PreferConstVisitor {
     }
   }
 
-  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _parent: &dyn Node) {
+  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _: &dyn Node) {
     let mut expr = &*expr_stmt.expr;
 
     // Unwrap parentheses
@@ -1006,11 +1105,7 @@ impl Visit for PreferConstVisitor {
     }
   }
 
-  fn visit_update_expr(
-    &mut self,
-    update_expr: &UpdateExpr,
-    _parent: &dyn Node,
-  ) {
+  fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _: &dyn Node) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
         self.mark_reassigned(
