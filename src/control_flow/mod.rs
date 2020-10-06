@@ -577,15 +577,19 @@ impl Visit for Analyzer<'_> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::swc_util::{self, AstParser};
-  use swc_ecmascript::ast::Module;
+  use crate::test_util::*;
 
-  fn parse(source_code: &str) -> Module {
-    let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
-    let (parse_result, _) =
-      ast_parser.parse_module("file_name.ts", syntax, source_code);
-    parse_result.unwrap()
+  #[test]
+  fn piyo() {
+    let src = r#"
+function foo() {
+  return 1;
+}
+      "#;
+    let module = parse(src);
+    let flow = ControlFlow::analyze(&module);
+    dbg!(flow);
+    panic!();
   }
 
   #[test]
@@ -601,7 +605,7 @@ const obj = {
           return primary;
       }
     }
-    return 'a';
+    //return 'a';
   }
 };
       "#;
