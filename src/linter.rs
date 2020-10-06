@@ -5,6 +5,7 @@ use crate::scopes::{analyze, Scope};
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -27,9 +28,9 @@ pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
   pub source_map: Arc<SourceMap>,
-  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
-  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
-  pub ignore_directives: Vec<IgnoreDirective>,
+  pub(crate) leading_comments: Rc<HashMap<BytePos, Vec<Comment>>>,
+  pub(crate) trailing_comments: Rc<HashMap<BytePos, Vec<Comment>>>,
+  pub ignore_directives: Rc<RefCell<Vec<IgnoreDirective>>>,
   /// Arc as it's not modified
   pub(crate) scope: Arc<Scope>,
   pub(crate) control_flow: Arc<ControlFlow>,
@@ -249,7 +250,7 @@ impl Linter {
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let mut ignore_directives = context.ignore_directives.clone();
+    let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
     let rule_codes = rules
@@ -262,14 +263,17 @@ impl Linter {
       .iter()
       .cloned()
       .filter(|diagnostic| {
-        !ignore_directives.iter_mut().any(|ignore_directive| {
-          ignore_directive.maybe_ignore_diagnostic(&diagnostic)
-        })
+        !ignore_directives
+          .borrow_mut()
+          .iter_mut()
+          .any(|ignore_directive| {
+            ignore_directive.maybe_ignore_diagnostic(&diagnostic)
+          })
       })
       .collect();
 
     if self.lint_unused_ignore_directives || self.lint_unknown_rules {
-      for ignore_directive in ignore_directives {
+      for ignore_directive in ignore_directives.borrow().iter() {
         for (code, used) in ignore_directive.used_codes.iter() {
           if self.lint_unused_ignore_directives
             && !used
@@ -366,9 +370,9 @@ impl Linter {
       file_name,
       diagnostics: vec![],
       source_map: self.ast_parser.source_map.clone(),
-      leading_comments: leading,
-      trailing_comments: trailing,
-      ignore_directives,
+      leading_comments: Rc::new(leading),
+      trailing_comments: Rc::new(trailing),
+      ignore_directives: Rc::new(RefCell::new(ignore_directives)),
       scope,
       control_flow,
       top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
