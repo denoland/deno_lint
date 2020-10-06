@@ -40,7 +40,7 @@ impl<'c> NoObjCallsVisitor<'c> {
     Self { context }
   }
 
-  fn check_callee(&self, callee_name: impl AsRef<str>, span: Span) {
+  fn check_callee(&mut self, callee_name: impl AsRef<str>, span: Span) {
     let callee_name = callee_name.as_ref();
     match callee_name {
       "Math" | "JSON" | "Reflect" | "Atomics" => {

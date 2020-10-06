@@ -107,7 +107,11 @@ impl<'c> GetterReturnVisitor<'c> {
     true
   }
 
-  fn check_block_stmt(&self, block_stmt: &BlockStmt, span: swc_common::Span) {
+  fn check_block_stmt(
+    &mut self,
+    block_stmt: &BlockStmt,
+    span: swc_common::Span,
+  ) {
     if !block_stmt.stmts.iter().any(|s| match s {
       Stmt::If(if_stmt) => self.check_if_stmt(if_stmt),
       Stmt::Switch(switch_stmt) => self.check_switch_stmt(switch_stmt),

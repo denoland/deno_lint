@@ -37,7 +37,7 @@ impl<'c> DefaultParamLastVisitor<'c> {
     Self { context }
   }
 
-  fn report(&self, span: Span) {
+  fn report(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "default-param-last",
@@ -45,7 +45,7 @@ impl<'c> DefaultParamLastVisitor<'c> {
     );
   }
 
-  fn check_params<'a, 'b, I>(&'a self, params: I)
+  fn check_params<'a, 'b, I>(&'a mut self, params: I)
   where
     I: Iterator<Item = &'b Pat>,
   {

@@ -40,7 +40,7 @@ impl<'c> NoControlRegexVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span, cp: u64) {
+  fn add_diagnostic(&mut self, span: Span, cp: u64) {
     self.context.add_diagnostic(
       span,
       "no-control-regex",
@@ -51,7 +51,7 @@ impl<'c> NoControlRegexVisitor<'c> {
     );
   }
 
-  fn check_regex(&self, regex: &str, span: Span) {
+  fn check_regex(&mut self, regex: &str, span: Span) {
     let mut iter = regex.chars().peekable();
     while let Some(ch) = iter.next() {
       if ch != '\\' {

@@ -102,7 +102,7 @@ impl<'c> NoGlobalAssignVisitor<'c> {
     Self { context, bindings }
   }
 
-  fn check(&self, span: Span, id: Id) {
+  fn check(&mut self, span: Span, id: Id) {
     if id.1 != self.context.top_level_ctxt {
       return;
     }

@@ -41,7 +41,7 @@ impl<'c> NoDupeArgsVisitor<'c> {
     Self { context }
   }
 
-  fn check_pats(&self, span: Span, pats: &[Pat]) {
+  fn check_pats(&mut self, span: Span, pats: &[Pat]) {
     let mut seen: HashSet<String> = HashSet::new();
 
     for pat in pats {
@@ -60,7 +60,7 @@ impl<'c> NoDupeArgsVisitor<'c> {
     }
   }
 
-  fn check_params(&self, span: Span, params: &[Param]) {
+  fn check_params(&mut self, span: Span, params: &[Param]) {
     let pats = params
       .iter()
       .map(|param| param.pat.clone())

@@ -35,7 +35,7 @@ impl<'c> NoConstantConditionVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span) {
+  fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-constant-condition",
@@ -157,7 +157,7 @@ impl<'c> NoConstantConditionVisitor<'c> {
     }
   }
 
-  fn report(&self, condition: &Expr) {
+  fn report(&mut self, condition: &Expr) {
     if self.is_constant(condition, None, true) {
       let span = condition.span();
       self.add_diagnostic(span);

@@ -68,7 +68,7 @@ impl<'c> NoCondAssignVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span) {
+  fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-cond-assign",
@@ -76,7 +76,7 @@ impl<'c> NoCondAssignVisitor<'c> {
     );
   }
 
-  fn check_condition(&self, condition: &Expr) {
+  fn check_condition(&mut self, condition: &Expr) {
     match condition {
       Assign(assign) => {
         self.add_diagnostic(assign.span);

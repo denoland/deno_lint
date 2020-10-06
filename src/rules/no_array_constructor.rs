@@ -38,7 +38,7 @@ impl<'c> NoArrayConstructorVisitor<'c> {
     Self { context }
   }
 
-  fn check_args(&self, args: Vec<ExprOrSpread>, span: Span) {
+  fn check_args(&mut self, args: Vec<ExprOrSpread>, span: Span) {
     if args.len() != 1 {
       self.context.add_diagnostic(
         span,

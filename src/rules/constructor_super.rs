@@ -38,7 +38,7 @@ impl<'c> ConstructorSuperVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
-  fn check_constructor(&self, constructor: &Constructor, class: &Class) {
+  fn check_constructor(&mut self, constructor: &Constructor, class: &Class) {
     let mut sup = None;
     let mut span = constructor.span;
     if let Some(block_stmt) = &constructor.body {

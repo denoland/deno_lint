@@ -38,7 +38,7 @@ impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span, fn_name: &str) {
+  fn add_diagnostic(&mut self, span: Span, fn_name: &str) {
     self.context.add_diagnostic(
       span,
       "adjacent-overload-signatures",
@@ -46,7 +46,7 @@ impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
     );
   }
 
-  fn check<'a, 'b, T, U>(&'a self, items: T)
+  fn check<'a, 'b, T, U>(&'a mut self, items: T)
   where
     T: IntoIterator<Item = &'b U>,
     U: ExtractMethod + Spanned + 'b,

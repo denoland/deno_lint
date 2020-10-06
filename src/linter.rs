@@ -8,7 +8,6 @@ use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Instant;
 use swc_common::comments::CommentKind;
 use swc_common::comments::SingleThreadedComments;
@@ -26,7 +25,7 @@ lazy_static! {
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
-  pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
+  pub diagnostics: Vec<LintDiagnostic>,
   pub source_map: Arc<SourceMap>,
   pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
   pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
@@ -38,10 +37,14 @@ pub struct Context {
 }
 
 impl Context {
-  pub(crate) fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+  pub(crate) fn add_diagnostic(
+    &mut self,
+    span: Span,
+    code: &str,
+    message: &str,
+  ) {
     let diagnostic = self.create_diagnostic(span, code, message);
-    let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(diagnostic);
+    self.diagnostics.push(diagnostic);
   }
 
   fn create_diagnostic(
@@ -247,7 +250,7 @@ impl Linter {
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let mut ignore_directives = context.ignore_directives.clone();
-    let diagnostics = context.diagnostics.lock().unwrap();
+    let diagnostics = &context.diagnostics;
 
     let rule_codes = rules
       .iter()
@@ -361,7 +364,7 @@ impl Linter {
 
     let mut context = Context {
       file_name,
-      diagnostics: Arc::new(Mutex::new(vec![])),
+      diagnostics: vec![],
       source_map: self.ast_parser.source_map.clone(),
       leading_comments: leading,
       trailing_comments: trailing,

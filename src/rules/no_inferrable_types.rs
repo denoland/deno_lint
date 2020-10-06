@@ -38,7 +38,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic_helper(&self, span: swc_common::Span) {
+  fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
     self.context.add_diagnostic(
       span,
       "no-inferrable-types",
@@ -47,7 +47,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 
   fn check_callee(
-    &self,
+    &mut self,
     callee: &ExprOrSuper,
     span: swc_common::Span,
     expected_sym: &str,
@@ -66,7 +66,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 
   fn check_keyword_type(
-    &self,
+    &mut self,
     value: &Expr,
     ts_type: &TsKeywordType,
     span: swc_common::Span,
@@ -235,7 +235,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 
   fn check_ref_type(
-    &self,
+    &mut self,
     value: &Expr,
     ts_type: &TsTypeRef,
     span: swc_common::Span,
@@ -283,7 +283,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 
   fn check_ts_type(
-    &self,
+    &mut self,
     value: &Expr,
     ts_type: &swc_ecmascript::ast::TsTypeAnn,
     span: swc_common::Span,

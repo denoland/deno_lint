@@ -38,7 +38,7 @@ impl<'c> NoRegexSpacesVisitor<'c> {
     Self { context }
   }
 
-  fn check_regex(&self, regex: &str, span: Span) {
+  fn check_regex(&mut self, regex: &str, span: Span) {
     lazy_static! {
       static ref DOUBLE_SPACE: regex::Regex =
         regex::Regex::new(r"(?u) {2}").unwrap();

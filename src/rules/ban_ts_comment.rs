@@ -8,7 +8,7 @@ use swc_common::comments::CommentKind;
 pub struct BanTsComment;
 
 impl BanTsComment {
-  fn lint_comment(&self, context: &Context, comment: &Comment) {
+  fn lint_comment(&self, context: &mut Context, comment: &Comment) {
     if comment.kind != CommentKind::Line {
       return;
     }
@@ -43,16 +43,15 @@ impl LintRule for BanTsComment {
     context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    context.leading_comments.values().for_each(|comments| {
-      for comment in comments {
-        self.lint_comment(&context, comment);
-      }
-    });
-    context.trailing_comments.values().for_each(|comments| {
-      for comment in comments {
-        self.lint_comment(&context, comment);
-      }
-    });
+    let leading = context.leading_comments.clone();
+    let trailing = context.trailing_comments.clone();
+
+    for comment in leading.values().flatten() {
+      self.lint_comment(context, comment);
+    }
+    for comment in trailing.values().flatten() {
+      self.lint_comment(context, comment);
+    }
   }
 }
 

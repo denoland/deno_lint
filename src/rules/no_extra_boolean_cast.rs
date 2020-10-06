@@ -40,7 +40,7 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
     Self { context }
   }
 
-  fn unexpected_call(&self, span: Span) {
+  fn unexpected_call(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-extra-boolean-cast",
@@ -48,7 +48,7 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
     );
   }
 
-  fn unexpected_negation(&self, span: Span) {
+  fn unexpected_negation(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-extra-boolean-cast",
@@ -56,7 +56,7 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
     );
   }
 
-  fn check_condition(&self, expr: &Expr) {
+  fn check_condition(&mut self, expr: &Expr) {
     match expr {
       Expr::Call(CallExpr {
         ref callee, span, ..
@@ -79,7 +79,7 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
     }
   }
 
-  fn check_unary_expr(&self, unary_expr: &UnaryExpr) {
+  fn check_unary_expr(&mut self, unary_expr: &UnaryExpr) {
     if unary_expr.op == UnaryOp::Bang {
       let expr = &*unary_expr.arg;
       self.check_unary_expr_internal(unary_expr.span, expr);
@@ -87,7 +87,7 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
   }
 
   fn check_unary_expr_internal(
-    &self,
+    &mut self,
     unary_expr_span: Span,
     internal_expr: &Expr,
   ) {

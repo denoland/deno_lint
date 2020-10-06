@@ -476,7 +476,10 @@ struct PreferConstVisitor<'c> {
 }
 
 impl<'c> PreferConstVisitor<'c> {
-  fn new(context: &'c mut Context, scopes: BTreeMap<ScopeRange, Scope>) -> Self {
+  fn new(
+    context: &'c mut Context,
+    scopes: BTreeMap<ScopeRange, Scope>,
+  ) -> Self {
     Self {
       context,
       scopes,
@@ -484,7 +487,7 @@ impl<'c> PreferConstVisitor<'c> {
     }
   }
 
-  fn report(&self, sym: &JsWord, span: Span) {
+  fn report(&mut self, sym: &JsWord, span: Span) {
     self.context.add_diagnostic(
       span,
       "prefer-const",
@@ -604,8 +607,8 @@ impl<'c> PreferConstVisitor<'c> {
 
   fn exit_module(&mut self) {
     let mut for_init_vars = BTreeMap::new();
-
-    for scope in self.scopes.values() {
+    let scopes = self.scopes.clone();
+    for scope in scopes.values() {
       for (sym, status) in scope.lock().unwrap().variables.iter() {
         if let Some(for_span) = status.in_for_init {
           for_init_vars

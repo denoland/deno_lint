@@ -125,7 +125,7 @@ impl<'c> NoImportAssignVisitor<'c> {
     }
   }
 
-  fn check(&self, span: Span, i: &Ident, is_assign_to_prop: bool) {
+  fn check(&mut self, span: Span, i: &Ident, is_assign_to_prop: bool) {
     // All imports are top-level and as a result,
     // if an identifier is not top-level, we are not assigning to import
     if i.span.ctxt != self.context.top_level_ctxt {

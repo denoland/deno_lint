@@ -149,7 +149,7 @@ impl<'c> NoUndefVisitor<'c> {
     Self { context, declared }
   }
 
-  fn check(&self, ident: &Ident) {
+  fn check(&mut self, ident: &Ident) {
     // Thanks to this if statement, we can check for Map in
     //
     // function foo(Map) { ... }

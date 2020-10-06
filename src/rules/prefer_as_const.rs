@@ -39,7 +39,7 @@ impl<'c> PreferAsConstVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic_helper(&self, span: swc_common::Span) {
+  fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
     self.context.add_diagnostic(
       span,
       "prefer-as-const",
@@ -47,7 +47,12 @@ impl<'c> PreferAsConstVisitor<'c> {
     );
   }
 
-  fn compare(&self, type_ann: &TsType, expr: &Expr, span: swc_common::Span) {
+  fn compare(
+    &mut self,
+    type_ann: &TsType,
+    expr: &Expr,
+    span: swc_common::Span,
+  ) {
     if let TsType::TsLitType(lit_type) = &*type_ann {
       if let Expr::Lit(expr_lit) = &*expr {
         match (expr_lit, &lit_type.lit) {

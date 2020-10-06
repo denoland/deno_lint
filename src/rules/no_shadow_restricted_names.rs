@@ -43,7 +43,7 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
     }
   }
 
-  fn check_pat(&self, pat: &Pat, check_scope: bool) {
+  fn check_pat(&mut self, pat: &Pat, check_scope: bool) {
     match pat {
       Pat::Ident(ident) => {
         // trying to assign `undefined`
@@ -89,13 +89,13 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
     }
   }
 
-  fn check_shadowing(&self, ident: &Ident) {
+  fn check_shadowing(&mut self, ident: &Ident) {
     if self.is_restricted_names(&ident) {
       self.report_shadowing(&ident);
     }
   }
 
-  fn report_shadowing(&self, ident: &Ident) {
+  fn report_shadowing(&mut self, ident: &Ident) {
     self.context.add_diagnostic(
       ident.span,
       "no-shadow-restricted-names",

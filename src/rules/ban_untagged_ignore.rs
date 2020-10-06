@@ -18,7 +18,8 @@ impl LintRule for BanUntaggedIgnore {
     context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    for ignore_directive in &context.ignore_directives {
+    let ignore_directives = context.ignore_directives.clone();
+    for ignore_directive in &ignore_directives {
       if ignore_directive.codes.is_empty() {
         context.add_diagnostic(
           ignore_directive.span,

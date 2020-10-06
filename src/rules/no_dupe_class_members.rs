@@ -42,7 +42,7 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span, name: &str) {
+  fn add_diagnostic(&mut self, span: Span, name: &str) {
     self.context.add_diagnostic(
       span,
       "no-dupe-class-members",
@@ -61,32 +61,34 @@ impl<'c> Visit for NoDupeClassMembersVisitor<'c> {
   }
 }
 
-struct ClassVisitor<'a> {
-  root_visitor: &'a NoDupeClassMembersVisitor<'a>,
+struct ClassVisitor<'a, 'b> {
+  root_visitor: &'b mut NoDupeClassMembersVisitor<'a>,
   appeared_methods: BTreeMap<MethodToCheck, Vec<(Span, String)>>,
 }
 
-impl<'a> ClassVisitor<'a> {
-  fn new(root_visitor: &'a NoDupeClassMembersVisitor<'a>) -> Self {
+impl<'a, 'b> ClassVisitor<'a, 'b> {
+  fn new(root_visitor: &'b mut NoDupeClassMembersVisitor<'a>) -> Self {
     Self {
       root_visitor,
       appeared_methods: BTreeMap::new(),
     }
   }
 
-  fn aggregate_dupes(&self) {
+  fn aggregate_dupes(&mut self) {
+    let root_visitor = &mut self.root_visitor;
+
     self
       .appeared_methods
       .values()
       .filter(|m| m.len() >= 2)
       .flatten()
       .for_each(|(span, name)| {
-        self.root_visitor.add_diagnostic(*span, name);
+        root_visitor.add_diagnostic(*span, name);
       });
   }
 }
 
-impl<'a> Visit for ClassVisitor<'a> {
+impl<'a, 'b> Visit for ClassVisitor<'a, 'b> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
