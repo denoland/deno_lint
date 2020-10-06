@@ -1,9 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::mem;
-use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 use swc_atoms::JsWord;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
@@ -73,7 +74,7 @@ impl Variable {
   }
 }
 
-type Scope = Arc<Mutex<RawScope>>;
+type Scope = Rc<RefCell<RawScope>>;
 
 #[derive(Debug)]
 struct RawScope {
@@ -95,7 +96,7 @@ impl RawScope {
 fn update_variable_status(scope: Scope, ident: &Ident, force_reassigned: bool) {
   let mut cur_scope = Some(scope);
   while let Some(cur) = cur_scope {
-    let mut lock = cur.lock().unwrap();
+    let mut lock = cur.borrow_mut();
     if let Some(var) = lock.variables.get_mut(&ident.sym) {
       let (initialized, mut reassigned) = if var.initialized {
         (true, true)
@@ -108,7 +109,7 @@ fn update_variable_status(scope: Scope, ident: &Ident, force_reassigned: bool) {
       var.update(initialized, reassigned);
       return;
     }
-    cur_scope = lock.parent.as_ref().map(Arc::clone);
+    cur_scope = lock.parent.as_ref().map(Rc::clone);
   }
 }
 
@@ -139,7 +140,7 @@ impl VariableCollector {
     in_for_init: Option<Span>,
     is_param: bool,
   ) {
-    let mut scope = self.scopes.get(&self.cur_scope).unwrap().lock().unwrap();
+    let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
     scope.variables.insert(
       ident.sym.clone(),
       Variable {
@@ -202,11 +203,11 @@ impl VariableCollector {
     F: FnOnce(&mut VariableCollector),
   {
     let parent_scope_range = self.cur_scope;
-    let parent_scope = self.scopes.get(&parent_scope_range).map(Arc::clone);
+    let parent_scope = self.scopes.get(&parent_scope_range).map(Rc::clone);
     let child_scope = RawScope::new(parent_scope);
     self.scopes.insert(
       ScopeRange::Block(node.span()),
-      Arc::new(Mutex::new(child_scope)),
+      Rc::new(RefCell::new(child_scope)),
     );
     self.cur_scope = ScopeRange::Block(node.span());
     op(self);
@@ -221,7 +222,7 @@ impl Visit for VariableCollector {
     let scope = RawScope::new(None);
     self
       .scopes
-      .insert(ScopeRange::Global, Arc::new(Mutex::new(scope)));
+      .insert(ScopeRange::Global, Rc::new(RefCell::new(scope)));
     module.visit_children_with(self);
   }
 
@@ -511,7 +512,7 @@ impl<'c> PreferConstVisitor<'c> {
 
   fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
     let scope = self.scopes.get(&self.cur_scope).unwrap();
-    update_variable_status(Arc::clone(scope), ident, force_reassigned);
+    update_variable_status(Rc::clone(scope), ident, force_reassigned);
   }
 
   fn extract_assign_idents(&mut self, pat: &Pat) {
@@ -587,10 +588,10 @@ impl<'c> PreferConstVisitor<'c> {
 
   /// Checks if this ident has its declaration in outer scope or in function parameter.
   fn declared_outer_scope_or_param_var(&self, ident: &Ident) -> bool {
-    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Arc::clone);
+    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Rc::clone);
     let mut is_first_loop = true;
     while let Some(cur) = cur_scope {
-      let lock = cur.lock().unwrap();
+      let lock = cur.borrow();
       if let Some(var) = lock.variables.get(&ident.sym) {
         if is_first_loop {
           return var.is_param;
@@ -599,7 +600,7 @@ impl<'c> PreferConstVisitor<'c> {
         }
       }
       is_first_loop = false;
-      cur_scope = lock.parent.as_ref().map(Arc::clone);
+      cur_scope = lock.parent.as_ref().map(Rc::clone);
     }
     // If the declaration isn't found, most likely it means the ident is declared with `var`
     false
@@ -609,7 +610,7 @@ impl<'c> PreferConstVisitor<'c> {
     let mut for_init_vars = BTreeMap::new();
     let scopes = self.scopes.clone();
     for scope in scopes.values() {
-      for (sym, status) in scope.lock().unwrap().variables.iter() {
+      for (sym, status) in scope.borrow().variables.iter() {
         if let Some(for_span) = status.in_for_init {
           for_init_vars
             .entry(for_span)
@@ -891,8 +892,7 @@ mod variable_collector_tests {
 
   fn variables(scope: &Scope) -> Vec<String> {
     scope
-      .lock()
-      .unwrap()
+      .borrow()
       .variables
       .keys()
       .map(|k| k.to_string())
