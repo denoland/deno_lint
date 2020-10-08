@@ -1,6 +1,6 @@
 import {
-  BenchmarkTimer,
   bench,
+  BenchmarkTimer,
   runBenchmarks,
 } from "https://deno.land/std@0.67.0/testing/bench.ts";
 import { expandGlobSync } from "https://deno.land/std@0.67.0/fs/expand_glob.ts";
