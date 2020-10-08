@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
+          persist-credentials: false
 
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.3
