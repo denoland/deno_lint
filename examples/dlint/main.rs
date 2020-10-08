@@ -4,9 +4,9 @@ use clap::Arg;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
-use serde_json::Value;
-use serde_json::json;
 use rayon::prelude::*;
+use serde_json::json;
+use serde_json::Value;
 use std::fmt;
 use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -57,17 +57,20 @@ fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
 }
 
 fn create_cli_app<'a, 'b>(rule_list: &'b str) -> App<'a, 'b> {
-  App::new("dlint").after_help(rule_list).arg(
-    Arg::with_name("docs")
-      .long("docs")
-      .help("Output docs for rules")
-      .required(false),
-  ).arg(
-    Arg::with_name("FILES")
-      .help("Sets the input file to use")
-      .required(true)
-      .multiple(true),
-  )
+  App::new("dlint")
+    .after_help(rule_list)
+    .arg(
+      Arg::with_name("docs")
+        .long("docs")
+        .help("Output docs for rules")
+        .required(false),
+    )
+    .arg(
+      Arg::with_name("FILES")
+        .help("Sets the input file to use")
+        .required(true)
+        .multiple(true),
+    )
 }
 
 pub fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
@@ -201,12 +204,16 @@ fn main() {
   let matches = cli_app.get_matches();
 
   if matches.is_present("docs") {
-    let json_docs: Vec<Value> = rules.into_iter().filter(|r| !r.docs().is_empty()).map(|r| {
-      json!({
-        "code": r.code(),
-        "docs": r.docs(),
+    let json_docs: Vec<Value> = rules
+      .into_iter()
+      .filter(|r| !r.docs().is_empty())
+      .map(|r| {
+        json!({
+          "code": r.code(),
+          "docs": r.docs(),
+        })
       })
-    }).collect();
+      .collect();
     let json_str = serde_json::to_string_pretty(&json_docs).unwrap();
     println!("{}", json_str);
     return;
