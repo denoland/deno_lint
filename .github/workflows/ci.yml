@@ -88,7 +88,7 @@ jobs:
         run: |
           yarn
           yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.0/cli.ts build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.1/cli.ts build
         working-directory: ./www
 
       - name: Upload website to Github Actions Artifacts
