@@ -35,7 +35,7 @@ function IndexPage(props: PageProps<Data>) {
         type="text"
         placeholder="Search"
         value={search}
-        onInput={(e) => setSearch(e.target.value)}
+        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
       />
       <div>
         {searchResults
