@@ -1,4 +1,4 @@
-import { Fragment, h, MarkdownIt } from "../deps.ts";
+import { Fragment, h, MarkdownIt, useEffect, useRef } from "../deps.ts";
 import type { GetStaticData, PageProps } from "../deps.ts";
 
 interface Data {
@@ -20,15 +20,21 @@ function IndexPage(props: PageProps<Data>) {
 }
 
 function Rule(props: { rule: Rule }) {
+  const ref = useRef<HTMLDivElement>();
   const { rule } = props;
+
+  useEffect(() => {
+    ref.current.querySelectorAll("pre code").forEach((block) => {
+      // @ts-expect-error because typescript is not aware of hljs
+      hljs.highlightBlock(block);
+    });
+  }, [ref]);
 
   return <div style="padding: 12px; margin: 6px; border: black 2px solid;">
     <h2>{rule.code}</h2>
-    {
-      rule.docs.length > 0 
-        ? <div dangerouslySetInnerHTML={{ __html: rule.docs }} />
-        : <div>(no docs provided)</div>
-    }
+    {rule.docs.length > 0
+      ? <div dangerouslySetInnerHTML={{ __html: rule.docs }} ref={ref} />
+      : <div>(no docs provided)</div>}
   </div>;
 }
 
