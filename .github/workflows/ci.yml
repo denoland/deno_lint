@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: www
-          path: www/.dext/static
+          path: ./www/.dext/static
 
       - name: Publish
         if: |
