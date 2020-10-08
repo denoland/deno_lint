@@ -1,4 +1,11 @@
-import { Fragment, h, MarkdownIt, useEffect, useRef } from "../deps.ts";
+import {
+  Fragment,
+  h,
+  MarkdownIt,
+  useEffect,
+  useRef,
+  useState,
+} from "../deps.ts";
 import type { GetStaticData, PageProps } from "../deps.ts";
 
 interface Data {
@@ -12,7 +19,7 @@ interface Rule {
 
 function IndexPage(props: PageProps<Data>) {
   return (
-    <div class="mx-auto max-w-screen-lg px-4 sm:px-6 md:px-8">
+    <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
       <h1 class="text-3xl font-bold my-8">deno_lint docs</h1>
       <div>{props.data.rules.map((rule) => <Rule rule={rule} />)}</div>
     </div>
@@ -20,6 +27,8 @@ function IndexPage(props: PageProps<Data>) {
 }
 
 function Rule(props: { rule: Rule }) {
+  const [expanded, setExpanded] = useState(false);
+
   const ref = useRef<HTMLDivElement | undefined>();
   const { rule } = props;
 
@@ -32,15 +41,62 @@ function Rule(props: { rule: Rule }) {
     }
   }, [ref]);
 
-  return <div class="p-4 rounded-lg shadow my-4 bg-white">
-    <h2 class="text-xl font-medium mb-4">{rule.code}</h2>
-    {rule.docs.length > 0
-      ? <div
-        dangerouslySetInnerHTML={{ __html: rule.docs }}
-        ref={ref}
-        class="prose"
-      />
-      : <div class="text-gray-900">(no docs provided)</div>}
+  return <div class="p-6 rounded-lg shadow my-6 bg-white">
+    <h2 class="text-xl font-medium">{rule.code}</h2>
+    {rule.docs
+      ? <>
+        {expanded
+          ? <button
+            class="flex items-center text-gray-500 text-sm mt-2"
+            onClick={() => setExpanded(false)}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              class="w-6 h-6 mr-2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 15l7-7 7 7"
+              />
+            </svg>
+            <span>Collapse</span>
+          </button>
+          : <button
+            class="flex items-center text-gray-500 text-sm mt-2"
+            onClick={() => setExpanded(true)}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              class="w-6 h-6 mr-2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+            <span>Expand</span>
+          </button>}
+        {expanded
+          ? rule.docs.length > 0
+            ? <div
+              dangerouslySetInnerHTML={{ __html: rule.docs }}
+              ref={ref}
+              class="prose mt-2"
+            />
+            : <div class="text-gray-500 italic mt-2">no docs available</div>
+          : undefined}
+      </>
+      : null}
   </div>;
 }
 

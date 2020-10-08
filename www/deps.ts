@@ -1,5 +1,9 @@
 export { Fragment, h } from "https://x.lcas.dev/preact@10.5.3/mod.js";
-export { useEffect, useRef } from "https://x.lcas.dev/preact@10.5.3/hooks.js";
+export {
+  useEffect,
+  useRef,
+  useState,
+} from "https://x.lcas.dev/preact@10.5.3/hooks.js";
 export type {
   AppProps,
   DocumentProps,
