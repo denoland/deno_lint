@@ -99,16 +99,10 @@ jobs:
           path: ./www/.dext/static
 
       - name: Deploy website
-        if: |
-          contains(matrix.os, 'ubuntu') &&
-          github.repository == 'denoland/deno_lint'
-        uses: JamesIves/github-pages-deploy-action@3.6.2
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          GIT_CONFIG_NAME: denobot
-          ACCESS_TOKEN: ${{ secrets.DENOBOT_PAT }}
-          BRANCH: gh-pages
-          FOLDER: www/.dext/static
-          CLEAN: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./www/.dext/static
 
       - name: Publish
         if: |
