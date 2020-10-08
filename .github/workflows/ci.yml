@@ -33,7 +33,7 @@ jobs:
       - name: Install Deno
         uses: denolib/setup-deno@master
         with:
-          deno-version: v1.2
+          deno-version: v1.4.4
 
       - name: Install Node.js
         if: contains(matrix.os, 'ubuntu')
@@ -66,10 +66,10 @@ jobs:
         run: deno run --allow-run ./tools/format.ts --check
 
       - name: Build
-        run: cargo build --locked --release --all-targets --features "json"
+        run: cargo build --locked --release --all-targets
 
       - name: Test
-        run: cargo test --locked --release --all-targets --features "json"
+        run: cargo test --locked --release --all-targets
 
       - name: Lint
         run: deno run --allow-run ./tools/lint.ts --release
