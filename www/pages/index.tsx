@@ -18,10 +18,23 @@ interface Rule {
 }
 
 function IndexPage(props: PageProps<Data>) {
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    const results = props.data.rules
+      .filter((rule) => rule.code.includes(search));
+    setSearchResults(results);
+  }, [search]);
+
   return (
     <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
       <h1 class="text-3xl font-bold my-8">deno_lint docs</h1>
-      <div>{props.data.rules.map((rule) => <Rule rule={rule} />)}</div>
+      <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" placeholder="Search" value={search} onInput={e => setSearch(e.target.value)} />
+      <div>{
+        searchResults
+          .map((rule) => <Rule rule={rule} />)
+      }</div>
     </div>
   );
 }
@@ -41,8 +54,8 @@ function Rule(props: { rule: Rule }) {
     }
   }, [ref]);
 
-  return <div class="p-6 rounded-lg shadow my-6 bg-white">
-    <h2 class="text-xl font-medium">{rule.code}</h2>
+  return <div class="p-3 rounded-lg shadow my-3 bg-white">
+    <h2 class="text-l font-medium">{rule.code}</h2>
     {rule.docs
       ? <>
         {expanded
