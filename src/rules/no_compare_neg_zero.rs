@@ -25,6 +25,26 @@ impl LintRule for NoCompareNegZero {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
     visitor.visit_module(module, module);
   }
+  fn docs(&self) -> &'static str {
+    r#"Disallows comparing against negative zero (`-0`).
+
+Comparing a value directly against negative may not work as expected as it will also pass for non-negative zero (i.e. `0` and `+0`). Explicit comparison with negative zero can be performed using `Object.is`.
+
+### Invalid:
+```typescript
+if (x === -0) {
+}
+```
+### Valid:
+```typescript
+if (x === 0) {
+}
+```
+```typescript
+if (Object.is(x, -0)) {
+}
+```"#
+  }
 }
 
 struct NoCompareNegZeroVisitor {
