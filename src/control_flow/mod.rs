@@ -453,7 +453,6 @@ impl Visit for Analyzer<'_> {
     } else {
       false
     };
-    dbg!(&self.scope, n, unreachable);
 
     if unreachable {
       self.info.entry(n.span().lo).or_default().unreachable = true;
@@ -539,17 +538,25 @@ impl Visit for Analyzer<'_> {
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
     n.test.visit_with(n, self);
 
-    let mut stmt_done = None;
+    let mut done_forced = false;
+
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       a.visit_stmt_or_block(&n.body);
 
-      if let Some(done) = a.scope.done {
-        stmt_done = Some(done);
-        a.mark_as_done(n.span.lo, done);
+      match a.scope.done {
+        Some(Done::Forced) => {
+          a.mark_as_done(n.span.lo, Done::Forced);
+          done_forced = true;
+        }
+        Some(Done::Break) => {
+          a.mark_as_done(n.span.lo, Done::Break);
+        }
+        _ => {}
       }
     });
-    if let Some(done) = stmt_done {
-      self.scope.done = Some(done);
+
+    if done_forced {
+      self.scope.done = Some(Done::Forced);
     }
   }
 
@@ -605,16 +612,11 @@ mod tests {
   #[test]
   fn piyo() {
     let src = r#"
-class Foo {
-  get getter() {
-    if (bar) return 1;
-
-    let a = 1;
-    while (a > 0) {
-      a *= 2;
-    }
-    return a;
-  }
+function foo() {
+  do {
+    break;
+  } while (false);
+  return 1;
 }
       "#;
     let module = parse(src);
