@@ -1,6 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use clap::App;
+use clap::AppSettings;
 use clap::Arg;
+use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
@@ -56,20 +58,24 @@ fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
   String::from_utf8_lossy(&v).into_owned()
 }
 
-fn create_cli_app<'a, 'b>(rule_list: &'b str) -> App<'a, 'b> {
+fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
-    .after_help(rule_list)
-    .arg(
-      Arg::with_name("docs")
-        .long("docs")
-        .help("Output docs for rules")
-        .required(false),
+    .setting(AppSettings::SubcommandRequiredElseHelp)
+    .subcommand(
+      SubCommand::with_name("rules")
+        .arg(
+          Arg::with_name("RULE_NAME")
+            .help("Show detailed information about rule"),
+        )
+        .arg(Arg::with_name("json").long("json")),
     )
-    .arg(
-      Arg::with_name("FILES")
-        .help("Sets the input file to use")
-        .required(true)
-        .multiple(true),
+    .subcommand(
+      SubCommand::with_name("run").arg(
+        Arg::with_name("FILES")
+          .help("Sets the input file to use")
+          .required(true)
+          .multiple(true),
+      ),
     )
 }
 
@@ -182,48 +188,7 @@ pub fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
   }
 }
 
-fn main() {
-  #[cfg(windows)]
-  enable_ansi();
-
-  env_logger::init();
-
-  let rules = get_recommended_rules();
-
-  let mut rule_names = rules
-    .iter()
-    .map(|r| r.code())
-    .map(|name| format!(" - {}", name))
-    .collect::<Vec<String>>();
-
-  rule_names.sort();
-  rule_names.insert(0, "Available rules:".to_string());
-
-  let rule_list = rule_names.join("\n");
-  let cli_app = create_cli_app(&rule_list);
-  let matches = cli_app.get_matches();
-
-  if matches.is_present("docs") {
-    let json_docs: Vec<Value> = rules
-      .into_iter()
-      .map(|r| {
-        json!({
-          "code": r.code(),
-          "docs": r.docs(),
-        })
-      })
-      .collect();
-    let json_str = serde_json::to_string_pretty(&json_docs).unwrap();
-    println!("{}", json_str);
-    return;
-  }
-
-  let paths: Vec<String> = matches
-    .values_of("FILES")
-    .unwrap()
-    .map(|p| p.to_string())
-    .collect();
-
+fn run_linter(paths: Vec<String>) {
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
@@ -251,4 +216,105 @@ fn main() {
     eprintln!("Found {} problems", err_count);
     std::process::exit(1);
   }
+}
+
+fn print_rule_info_json(maybe_rule_name: Option<&str>) {
+  let rules = get_recommended_rules();
+
+  if maybe_rule_name.is_none() {
+    let rules_json = rules
+      .iter()
+      .map(|r| {
+        json!({
+          "code": r.code(),
+          "docs": r.docs(),
+        })
+      })
+      .collect::<Vec<Value>>();
+
+    let json_str = serde_json::to_string_pretty(&rules_json).unwrap();
+    println!("{}", json_str);
+    return;
+  }
+
+  let rule_name = maybe_rule_name.unwrap();
+  let maybe_rule = rules.into_iter().find(|r| r.code() == rule_name);
+
+  if let Some(rule) = maybe_rule {
+    let rule_json = json!({
+      "code": rule.code(),
+      "docs": rule.docs(),
+    });
+    let json_str = serde_json::to_string_pretty(&rule_json).unwrap();
+    println!("{}", json_str);
+  } else {
+    eprintln!("Rule not found!");
+    std::process::exit(1);
+  }
+}
+
+fn print_rule_info(maybe_rule_name: Option<&str>) {
+  let rules = get_recommended_rules();
+
+  if maybe_rule_name.is_none() {
+    let mut rule_names = rules
+      .iter()
+      .map(|r| r.code())
+      .map(|name| format!(" - {}", name))
+      .collect::<Vec<String>>();
+
+    rule_names.sort();
+    rule_names.insert(0, "Available rules:".to_string());
+
+    let rule_list = rule_names.join("\n");
+    println!("{}", rule_list);
+    return;
+  }
+
+  let rule_name = maybe_rule_name.unwrap();
+  let maybe_rule = rules.into_iter().find(|r| r.code() == rule_name);
+
+  if let Some(rule) = maybe_rule {
+    println!("- {}", rule.code());
+    println!();
+    let mut docs = rule.docs();
+    if docs.is_empty() {
+      docs = "documentation not available"
+    }
+    println!("{}", docs);
+  } else {
+    eprintln!("Rule not found!");
+    std::process::exit(1);
+  }
+}
+
+fn main() {
+  #[cfg(windows)]
+  enable_ansi();
+
+  env_logger::init();
+
+  let cli_app = create_cli_app();
+  let matches = cli_app.get_matches();
+
+  match matches.subcommand() {
+    ("run", Some(run_matches)) => {
+      let paths: Vec<String> = run_matches
+        .values_of("FILES")
+        .unwrap()
+        .map(|p| p.to_string())
+        .collect();
+      run_linter(paths);
+    }
+    ("rules", Some(rules_matches)) => {
+      let json = rules_matches.is_present("json");
+      let maybe_rule_name = rules_matches.value_of("RULE_NAME");
+      if json {
+        print_rule_info_json(maybe_rule_name);
+      } else {
+        print_rule_info(maybe_rule_name);
+      }
+    }
+    _ => unreachable!(),
+  };
 }
