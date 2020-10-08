@@ -104,6 +104,7 @@ jobs:
           github.repository == 'denoland/deno_lint'
         uses: JamesIves/github-pages-deploy-action@3.6.2
         with:
+          GIT_CONFIG_NAME: denobot
           ACCESS_TOKEN: ${{ secrets.DENOBOT_PAT }}
           BRANCH: gh-pages
           FOLDER: www/.dext/static
