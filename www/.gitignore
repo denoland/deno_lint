@@ -1,1 +1,4 @@
 /.dext
+/yarn.lock
+/public/style/main.css
+/node_modules

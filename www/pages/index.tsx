@@ -12,10 +12,10 @@ interface Rule {
 
 function IndexPage(props: PageProps<Data>) {
   return (
-    <>
-      <h1>deno_lint</h1>
-      {props.data.rules.map((rule) => <Rule rule={rule} />)}
-    </>
+    <div class="mx-auto max-w-screen-lg px-4 sm:px-6 md:px-8">
+      <h1 class="text-3xl font-bold my-8">deno_lint docs</h1>
+      <div>{props.data.rules.map((rule) => <Rule rule={rule} />)}</div>
+    </div>
   );
 }
 
@@ -32,11 +32,15 @@ function Rule(props: { rule: Rule }) {
     }
   }, [ref]);
 
-  return <div style="padding: 12px; margin: 6px; border: black 2px solid;">
-    <h2>{rule.code}</h2>
+  return <div class="p-4 rounded-lg shadow my-4 bg-white">
+    <h2 class="text-xl font-medium mb-4">{rule.code}</h2>
     {rule.docs.length > 0
-      ? <div dangerouslySetInnerHTML={{ __html: rule.docs }} ref={ref} />
-      : <div>(no docs provided)</div>}
+      ? <div
+        dangerouslySetInnerHTML={{ __html: rule.docs }}
+        ref={ref}
+        class="prose"
+      />
+      : <div class="text-gray-900">(no docs provided)</div>}
   </div>;
 }
 
