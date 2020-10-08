@@ -7,7 +7,6 @@ const clippy = [
   "clippy",
   "--all-targets",
   ...mode,
-  "--all-features",
   "--locked",
   "--",
   "-D",
