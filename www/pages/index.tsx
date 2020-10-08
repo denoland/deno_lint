@@ -24,7 +24,11 @@ function Rule(props: { rule: Rule }) {
 
   return <div style="padding: 12px; margin: 6px; border: black 2px solid;">
     <h2>{rule.code}</h2>
-    <div dangerouslySetInnerHTML={{ __html: rule.docs }} />
+    {
+      rule.docs.length > 0 
+        ? <div dangerouslySetInnerHTML={{ __html: rule.docs }} />
+        : <div>(no docs provided)</div>
+    }
   </div>;
 }
 

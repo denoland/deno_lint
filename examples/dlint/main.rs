@@ -206,7 +206,6 @@ fn main() {
   if matches.is_present("docs") {
     let json_docs: Vec<Value> = rules
       .into_iter()
-      .filter(|r| !r.docs().is_empty())
       .map(|r| {
         json!({
           "code": r.code(),
