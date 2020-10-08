@@ -1,5 +1,5 @@
 use std::{
-  collections::{HashMap, HashSet},
+  collections::{BTreeMap, HashSet},
   mem::take,
 };
 use swc_common::{BytePos, Spanned, DUMMY_SP};
@@ -11,7 +11,7 @@ use swc_ecmascript::{
 
 #[derive(Debug)]
 pub struct ControlFlow {
-  meta: HashMap<BytePos, Metadata>,
+  meta: BTreeMap<BytePos, Metadata>,
 }
 
 impl ControlFlow {
@@ -60,9 +60,10 @@ impl Metadata {
   }
 }
 
+#[derive(Debug)]
 struct Analyzer<'a> {
   scope: Scope<'a>,
-  info: HashMap<BytePos, Metadata>,
+  info: BTreeMap<BytePos, Metadata>,
 }
 
 #[derive(Debug)]
@@ -87,12 +88,16 @@ struct Scope<'a> {
   found_break: Option<Option<Id>>,
   found_continue: bool,
 }
+
 #[derive(Debug, Copy, Clone)]
 enum Done {
   /// Return, Throw, or infinite loop
   Forced,
   // Break or continue
   Break,
+  // Pass through a block, like a function's block statement which ends without returning a value
+  // or throwing an exception
+  Pass,
 }
 
 impl<'a> Scope<'a> {
@@ -157,12 +162,18 @@ impl Analyzer<'_> {
 
     if let Some(done) = done {
       match kind {
-        BlockKind::Function => {}
+        BlockKind::Function => {
+          match done {
+            Done::Forced | Done::Pass => self.mark_as_done(lo, done),
+            _ => unreachable!(),
+          }
+          self.scope.done = prev_done;
+        }
         BlockKind::Block => {
           if let Done::Forced = done {
             self.mark_as_done(lo, done);
           } else if self.scope.done.is_none() {
-            self.scope.done = Some(Done::Break)
+            self.scope.done = Some(Done::Break);
           }
         }
         BlockKind::Case => {
@@ -171,7 +182,16 @@ impl Analyzer<'_> {
           }
         }
         BlockKind::If => {}
-        BlockKind::Loop => {}
+        BlockKind::Loop => match done {
+          Done::Forced => {
+            self.scope.done = Some(done);
+          }
+          Done::Break => {
+            dbg!("aaaaaaaaaaaaaaaaaaaaa", prev_done);
+            self.scope.done = prev_done;
+          }
+          Done::Pass => unreachable!(),
+        },
         BlockKind::Label(label) => {
           if let Some(Some(id)) = &self.scope.found_break {
             if *id == label {
@@ -256,6 +276,8 @@ impl Visit for Analyzer<'_> {
 
     if let Some(done) = self.scope.done {
       self.mark_as_done(s.span.lo, done);
+    } else {
+      self.mark_as_done(s.span.lo, Done::Pass);
     }
   }
 
@@ -431,6 +453,7 @@ impl Visit for Analyzer<'_> {
     } else {
       false
     };
+    dbg!(&self.scope, n, unreachable);
 
     if unreachable {
       self.info.entry(n.span().lo).or_default().unreachable = true;
@@ -509,7 +532,7 @@ impl Visit for Analyzer<'_> {
     });
 
     if let Some(done) = stmt_done {
-      self.scope.done = Some(done)
+      self.scope.done = Some(done);
     }
   }
 
@@ -582,8 +605,16 @@ mod tests {
   #[test]
   fn piyo() {
     let src = r#"
-function foo() {
-  return 1;
+class Foo {
+  get getter() {
+    if (bar) return 1;
+
+    let a = 1;
+    while (a > 0) {
+      a *= 2;
+    }
+    return a;
+  }
 }
       "#;
     let module = parse(src);
