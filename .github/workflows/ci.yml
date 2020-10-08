@@ -78,6 +78,19 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts
 
+      - name: Generate rules json
+        run: target/release/examples/dlint --docs . > docs.json
+
+      - name: Build website
+        run: deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.0/cli.ts build
+        working-directory: www
+
+      - name: Upload website to Github Actions Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: www
+          path: www/.dext/static
+
       - name: Publish
         if: |
           contains(matrix.os, 'ubuntu') &&
