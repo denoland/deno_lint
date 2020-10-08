@@ -16,6 +16,10 @@ impl LintRule for ConstructorSuper {
     Box::new(ConstructorSuper)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "constructor-super"
   }

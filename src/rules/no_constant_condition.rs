@@ -16,6 +16,10 @@ impl LintRule for NoConstantCondition {
     Box::new(NoConstantCondition)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-constant-condition"
   }

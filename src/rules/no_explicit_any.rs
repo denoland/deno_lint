@@ -12,6 +12,10 @@ impl LintRule for NoExplicitAny {
     Box::new(NoExplicitAny)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-explicit-any"
   }

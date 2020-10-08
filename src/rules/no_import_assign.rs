@@ -20,6 +20,10 @@ impl LintRule for NoImportAssign {
     Box::new(NoImportAssign)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-import-assign"
   }

@@ -13,6 +13,10 @@ impl LintRule for NoThisBeforeSuper {
     Box::new(NoThisBeforeSuper)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-this-before-super"
   }

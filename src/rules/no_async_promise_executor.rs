@@ -14,6 +14,10 @@ impl LintRule for NoAsyncPromiseExecutor {
     Box::new(NoAsyncPromiseExecutor)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-async-promise-executor"
   }

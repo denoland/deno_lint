@@ -15,6 +15,10 @@ impl LintRule for ValidTypeof {
     Box::new(ValidTypeof)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "valid-typeof"
   }

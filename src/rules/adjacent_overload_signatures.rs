@@ -19,6 +19,10 @@ impl LintRule for AdjacentOverloadSignatures {
     Box::new(AdjacentOverloadSignatures)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "adjacent-overload-signatures"
   }

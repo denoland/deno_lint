@@ -16,6 +16,10 @@ impl LintRule for NoInvalidRegexp {
     Box::new(NoInvalidRegexp)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-invalid-regexp"
   }

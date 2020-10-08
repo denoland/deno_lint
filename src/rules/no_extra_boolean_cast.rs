@@ -17,6 +17,10 @@ impl LintRule for NoExtraBooleanCast {
     Box::new(NoExtraBooleanCast)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-extra-boolean-cast"
   }

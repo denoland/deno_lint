@@ -19,6 +19,10 @@ impl LintRule for NoPrototypeBuiltins {
     Box::new(NoPrototypeBuiltins)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-prototype-builtins"
   }

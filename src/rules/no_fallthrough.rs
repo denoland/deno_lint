@@ -13,6 +13,10 @@ impl LintRule for NoFallthrough {
     Box::new(NoFallthrough)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-fallthrough"
   }

@@ -15,6 +15,10 @@ impl LintRule for NoInferrableTypes {
     Box::new(NoInferrableTypes)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-inferrable-types"
   }

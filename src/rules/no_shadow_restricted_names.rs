@@ -22,6 +22,10 @@ impl LintRule for NoShadowRestrictedNames {
     visitor.visit_module(module, module);
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-shadow-restricted-names"
   }

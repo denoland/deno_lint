@@ -21,6 +21,10 @@ impl LintRule for NoUndef {
     Box::new(NoUndef)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-undef"
   }

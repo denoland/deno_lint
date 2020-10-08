@@ -16,6 +16,10 @@ impl LintRule for NoExtraNonNullAssertion {
     Box::new(NoExtraNonNullAssertion)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-extra-non-null-assertion"
   }

@@ -19,6 +19,10 @@ impl LintRule for RequireYield {
     Box::new(RequireYield)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "require-yield"
   }

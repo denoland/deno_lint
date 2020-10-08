@@ -12,6 +12,10 @@ impl LintRule for NoNamespace {
     Box::new(NoNamespace)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-namespace"
   }

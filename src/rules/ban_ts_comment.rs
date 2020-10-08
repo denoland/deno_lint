@@ -34,6 +34,10 @@ impl LintRule for BanTsComment {
     Box::new(BanTsComment)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "ban-ts-comment"
   }

@@ -16,6 +16,10 @@ impl LintRule for NoUnsafeNegation {
     Box::new(NoUnsafeNegation)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-unsafe-negation"
   }

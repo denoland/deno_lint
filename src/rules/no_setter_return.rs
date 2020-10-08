@@ -18,6 +18,10 @@ impl LintRule for NoSetterReturn {
     Box::new(NoSetterReturn)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-setter-return"
   }

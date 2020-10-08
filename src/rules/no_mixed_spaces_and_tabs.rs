@@ -23,6 +23,10 @@ impl LintRule for NoMixedSpacesAndTabs {
     Box::new(NoMixedSpacesAndTabs)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-mixed-spaces-and-tabs"
   }

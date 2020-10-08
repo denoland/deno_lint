@@ -13,6 +13,10 @@ impl LintRule for NoEmptyPattern {
     Box::new(NoEmptyPattern)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-empty-pattern"
   }

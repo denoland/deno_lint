@@ -14,6 +14,10 @@ impl LintRule for NoDuplicateCase {
     Box::new(NoDuplicateCase)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-duplicate-case"
   }

@@ -17,6 +17,10 @@ impl LintRule for NoObjCalls {
     Box::new(NoObjCalls)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-obj-calls"
   }
