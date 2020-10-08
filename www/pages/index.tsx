@@ -1,4 +1,4 @@
-import { Fragment, h, parse } from "../deps.ts";
+import { Fragment, h, MarkdownIt } from "../deps.ts";
 import type { GetStaticData, PageProps } from "../deps.ts";
 
 interface Data {
@@ -31,9 +31,11 @@ function Rule(props: { rule: Rule }) {
 export const getStaticData = async (): Promise<GetStaticData<Data>> => {
   const json = JSON.parse(await Deno.readTextFile("../docs.json"));
 
+  const md = new MarkdownIt();
+
   const rules = json.map((rule: any) => ({
     code: rule.code,
-    docs: parse(rule.docs).parsed,
+    docs: md.render(rule.docs),
   }));
 
   return {
