@@ -17,6 +17,9 @@ impl LintRule for NoClassAssign {
     Box::new(NoClassAssign)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-class-assign"
   }

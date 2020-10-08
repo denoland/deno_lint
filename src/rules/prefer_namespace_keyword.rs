@@ -15,6 +15,9 @@ impl LintRule for PreferNamespaceKeyword {
     Box::new(PreferNamespaceKeyword)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "prefer-namespace-keyword"
   }

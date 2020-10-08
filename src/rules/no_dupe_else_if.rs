@@ -17,6 +17,9 @@ impl LintRule for NoDupeElseIf {
     Box::new(NoDupeElseIf)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-dupe-else-if"
   }

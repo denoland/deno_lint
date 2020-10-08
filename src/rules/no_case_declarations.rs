@@ -19,6 +19,9 @@ impl LintRule for NoCaseDeclarations {
     Box::new(NoCaseDeclarations)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-case-declarations"
   }

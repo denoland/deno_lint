@@ -36,6 +36,9 @@ impl LintRule for NoIrregularWhitespace {
     Box::new(NoIrregularWhitespace)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-irregular-whitespace"
   }

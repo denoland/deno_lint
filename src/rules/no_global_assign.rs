@@ -18,6 +18,9 @@ impl LintRule for NoGlobalAssign {
     Box::new(NoGlobalAssign)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-global-assign"
   }

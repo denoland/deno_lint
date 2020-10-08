@@ -15,6 +15,9 @@ impl LintRule for NoDebugger {
     Box::new(NoDebugger)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-debugger"
   }

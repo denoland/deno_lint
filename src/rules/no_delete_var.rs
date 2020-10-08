@@ -17,6 +17,9 @@ impl LintRule for NoDeleteVar {
     Box::new(NoDeleteVar)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-delete-var"
   }

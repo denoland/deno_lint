@@ -24,6 +24,10 @@ impl LintRule for AdjacentOverloadSignatures {
     "adjacent-overload-signatures"
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn lint_module(&self, context: Arc<Context>, module: &Module) {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
     visitor.visit_module(module, module);

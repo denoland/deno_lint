@@ -23,6 +23,9 @@ impl LintRule for NoMisusedNew {
     visitor.visit_module(module, module);
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-misused-new"
   }

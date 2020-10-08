@@ -17,6 +17,9 @@ impl LintRule for NoRedeclare {
     Box::new(NoRedeclare)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-redeclare"
   }

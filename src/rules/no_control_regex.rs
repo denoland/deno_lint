@@ -19,6 +19,9 @@ impl LintRule for NoControlRegex {
     Box::new(NoControlRegex)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-control-regex"
   }

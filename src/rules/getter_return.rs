@@ -23,6 +23,9 @@ impl LintRule for GetterReturn {
     Box::new(GetterReturn)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "getter-return"
   }

@@ -14,6 +14,9 @@ impl LintRule for NoEmptyInterface {
     Box::new(NoEmptyInterface)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-empty-interface"
   }

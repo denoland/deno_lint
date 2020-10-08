@@ -21,6 +21,9 @@ impl LintRule for NoDupeClassMembers {
     Box::new(NoDupeClassMembers)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-dupe-class-members"
   }

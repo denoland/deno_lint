@@ -12,6 +12,7 @@ impl LintRule for NoNonNullAssertion {
   fn new() -> Box<Self> {
     Box::new(NoNonNullAssertion)
   }
+
   fn code(&self) -> &'static str {
     "no-non-null-assertion"
   }

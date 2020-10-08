@@ -15,6 +15,9 @@ impl LintRule for NoWith {
     Box::new(NoWith)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
   fn code(&self) -> &'static str {
     "no-with"
   }
