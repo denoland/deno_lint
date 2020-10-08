@@ -622,6 +622,73 @@ mod tests {
   }
 
   #[test]
+  fn while_1() {
+    let src = r#"
+function foo() {
+  while (a) {
+    break;
+  }
+  return 1;
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 30, false, Some(Done::Break)); // BlockStmt of while
+    assert_meta!(flow, 49, false, Some(Done::Forced)); // return stmt
+  }
+
+  #[test]
+  fn while_2() {
+    let src = r#"
+function foo() {
+  while (a) {
+    break;
+  }
+  bar();
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 30, false, Some(Done::Break)); // BlockStmt of while
+  }
+
+  #[test]
+  fn while_3() {
+    let src = r#"
+function foo() {
+  while (a) {
+    bar();
+  }
+  baz();
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
+  }
+
+  #[test]
+  fn while_4() {
+    let src = r#"
+function foo() {
+  while (a) {
+    return 1;
+  }
+  baz();
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // BlockStmt of while
+    assert_meta!(flow, 36, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 52, true, None); // `baz();`
+  }
+
+  #[test]
   fn do_while_1() {
     let src = r#"
 function foo() {
@@ -682,14 +749,6 @@ function foo() {
     assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
     assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
     assert_meta!(flow, 56, true, Some(Done::Forced)); // return stmt
-  }
-
-  #[test]
-  fn piyo() {
-    let src = "do { } while (foo);";
-    let flow = analyze_flow(src);
-    dbg!(flow);
-    panic!();
   }
 
   #[test]
