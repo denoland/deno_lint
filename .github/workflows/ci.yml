@@ -104,7 +104,7 @@ jobs:
           github.repository == 'denoland/deno_lint'
         uses: JamesIves/github-pages-deploy-action@3.6.2
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.DENOBOT_PAT }}
           BRANCH: gh-pages
           FOLDER: www/.dext/static
           CLEAN: true
