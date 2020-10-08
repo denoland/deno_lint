@@ -19,7 +19,7 @@ bench({
   async func(b: BenchmarkTimer): Promise<void> {
     b.start();
     const proc = Deno.run({
-      cmd: ["./target/release/examples/dlint", ...files],
+      cmd: ["./target/release/examples/dlint", "run", ...files],
       stdout: "inherit",
       stderr: "inherit",
     });

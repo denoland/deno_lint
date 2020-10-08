@@ -161,6 +161,7 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     no_unused_labels::NoUnusedLabels::new(),
     no_with::NoWith::new(),
     prefer_as_const::PreferAsConst::new(),
+    prefer_const::PreferConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     require_yield::RequireYield::new(),
     triple_slash_reference::TripleSlashReference::new(),
