@@ -97,6 +97,17 @@ jobs:
           name: www
           path: ./www/.dext/static
 
+      - name: Deploy website
+        if: |
+          contains(matrix.os, 'ubuntu') &&
+          github.repository == 'denoland/deno_lint'
+        uses: JamesIves/github-pages-deploy-action@3.6.2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: www/.dext/static
+          CLEAN: true
+
       - name: Publish
         if: |
           contains(matrix.os, 'ubuntu') &&
