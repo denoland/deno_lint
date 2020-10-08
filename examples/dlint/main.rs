@@ -7,6 +7,8 @@ use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
 use rayon::prelude::*;
+use serde_json::json;
+use serde_json::Value;
 use std::fmt;
 use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -59,9 +61,14 @@ fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
     .setting(AppSettings::SubcommandRequiredElseHelp)
-    .subcommand(SubCommand::with_name("rules").arg(
-      Arg::with_name("RULE_NAME").help("Show detailed information about rule"),
-    ))
+    .subcommand(
+      SubCommand::with_name("rules")
+        .arg(
+          Arg::with_name("RULE_NAME")
+            .help("Show detailed information about rule"),
+        )
+        .arg(Arg::with_name("json").long("json")),
+    )
     .subcommand(
       SubCommand::with_name("run").arg(
         Arg::with_name("FILES")
@@ -211,6 +218,41 @@ fn run_linter(paths: Vec<String>) {
   }
 }
 
+fn print_rule_info_json(maybe_rule_name: Option<&str>) {
+  let rules = get_recommended_rules();
+
+  if maybe_rule_name.is_none() {
+    let rules_json = rules
+      .iter()
+      .map(|r| {
+        json!({
+          "code": r.code(),
+          "docs": r.docs(),
+        })
+      })
+      .collect::<Vec<Value>>();
+
+    let json_str = serde_json::to_string_pretty(&rules_json).unwrap();
+    println!("{}", json_str);
+    return;
+  }
+
+  let rule_name = maybe_rule_name.unwrap();
+  let maybe_rule = rules.into_iter().find(|r| r.code() == rule_name);
+
+  if let Some(rule) = maybe_rule {
+    let rule_json = json!({
+      "code": rule.code(),
+      "docs": rule.docs(),
+    });
+    let json_str = serde_json::to_string_pretty(&rule_json).unwrap();
+    println!("{}", json_str);
+  } else {
+    eprintln!("Rule not found!");
+    std::process::exit(1);
+  }
+}
+
 fn print_rule_info(maybe_rule_name: Option<&str>) {
   let rules = get_recommended_rules();
 
@@ -241,7 +283,8 @@ fn print_rule_info(maybe_rule_name: Option<&str>) {
     }
     println!("{}", docs);
   } else {
-    eprintln!("Rule not found!")
+    eprintln!("Rule not found!");
+    std::process::exit(1);
   }
 }
 
@@ -264,8 +307,13 @@ fn main() {
       run_linter(paths);
     }
     ("rules", Some(rules_matches)) => {
+      let json = rules_matches.is_present("json");
       let maybe_rule_name = rules_matches.value_of("RULE_NAME");
-      print_rule_info(maybe_rule_name);
+      if json {
+        print_rule_info_json(maybe_rule_name);
+      } else {
+        print_rule_info(maybe_rule_name);
+      }
     }
     _ => unreachable!(),
   };
