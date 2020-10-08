@@ -17,7 +17,7 @@ pub struct ControlFlow {
 impl ControlFlow {
   pub fn analyze(m: &Module) -> Self {
     let mut v = Analyzer {
-      scope: Scope::new(None, BlockKind::Function),
+      scope: Scope::new(None, BlockKind::Module),
       info: Default::default(),
     };
     m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
@@ -36,6 +36,7 @@ impl ControlFlow {
 /// Kind of a basic block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockKind {
+  Module,
   /// Function's body
   Function,
   Block,
@@ -47,7 +48,7 @@ pub enum BlockKind {
   Label(Id),
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Metadata {
   pub unreachable: bool,
   done: Option<Done>,
@@ -89,7 +90,7 @@ struct Scope<'a> {
   found_continue: bool,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Done {
   /// Return, Throw, or infinite loop
   Forced,
@@ -162,6 +163,7 @@ impl Analyzer<'_> {
 
     if let Some(done) = done {
       match kind {
+        BlockKind::Module => {}
         BlockKind::Function => {
           match done {
             Done::Forced | Done::Pass => self.mark_as_done(lo, done),
@@ -184,13 +186,13 @@ impl Analyzer<'_> {
         BlockKind::If => {}
         BlockKind::Loop => match done {
           Done::Forced => {
-            self.scope.done = Some(done);
+            self.mark_as_done(lo, Done::Forced);
+            self.scope.done = Some(Done::Forced);
           }
-          Done::Break => {
-            dbg!("aaaaaaaaaaaaaaaaaaaaa", prev_done);
+          Done::Break | Done::Pass => {
+            self.mark_as_done(lo, done);
             self.scope.done = prev_done;
           }
-          Done::Pass => unreachable!(),
         },
         BlockKind::Label(label) => {
           if let Some(Some(id)) = &self.scope.found_break {
@@ -536,28 +538,11 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
-    n.test.visit_with(n, self);
-
-    let mut done_forced = false;
-
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
-      a.visit_stmt_or_block(&n.body);
-
-      match a.scope.done {
-        Some(Done::Forced) => {
-          a.mark_as_done(n.span.lo, Done::Forced);
-          done_forced = true;
-        }
-        Some(Done::Break) => {
-          a.mark_as_done(n.span.lo, Done::Break);
-        }
-        _ => {}
-      }
+      n.body.visit_with(n, a);
     });
 
-    if done_forced {
-      self.scope.done = Some(Done::Forced);
-    }
+    n.test.visit_with(n, self);
   }
 
   fn visit_try_stmt(&mut self, n: &TryStmt, _: &dyn Node) {
@@ -609,8 +594,25 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  fn analyze_flow(src: &str) -> ControlFlow {
+    let module = parse(src);
+    ControlFlow::analyze(&module)
+  }
+
+  macro_rules! assert_meta {
+    ($flow:ident, $lo:expr, $unreachable:expr, $done:expr) => {
+      assert_eq!(
+        $flow.meta(BytePos($lo)).unwrap(),
+        &Metadata {
+          unreachable: $unreachable,
+          done: $done,
+        }
+      );
+    };
+  }
+
   #[test]
-  fn piyo() {
+  fn do_while_1() {
     let src = r#"
 function foo() {
   do {
@@ -619,8 +621,46 @@ function foo() {
   return 1;
 }
       "#;
-    let module = parse(src);
-    let flow = ControlFlow::analyze(&module);
+    let flow = analyze_flow(src);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Break)); // do-while
+    assert_meta!(flow, 57, false, Some(Done::Forced)); // return stmt
+  }
+
+  #[test]
+  fn do_while_2() {
+    let src = r#"
+function foo() {
+  do {
+    break;
+  } while (false);
+  bar();
+}
+      "#;
+    let flow = analyze_flow(src);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Break)); // do-while
+  }
+
+  #[test]
+  fn do_while_3() {
+    let src = r#"
+function foo() {
+  do {
+    bar();
+  } while (false);
+  baz();
+}
+      "#;
+    let flow = analyze_flow(src);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Pass)); // do-while
+  }
+
+  #[test]
+  fn piyo() {
+    let src = "do { } while (foo);";
+    let flow = analyze_flow(src);
     dbg!(flow);
     panic!();
   }
