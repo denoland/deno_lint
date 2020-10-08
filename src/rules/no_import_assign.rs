@@ -23,6 +23,7 @@ impl LintRule for NoImportAssign {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-import-assign"
   }

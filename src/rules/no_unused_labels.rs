@@ -21,6 +21,7 @@ impl LintRule for NoUnusedLabels {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-unused-labels"
   }

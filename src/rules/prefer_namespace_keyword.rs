@@ -18,6 +18,7 @@ impl LintRule for PreferNamespaceKeyword {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "prefer-namespace-keyword"
   }

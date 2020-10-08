@@ -18,6 +18,7 @@ impl LintRule for NoCondAssign {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-cond-assign"
   }

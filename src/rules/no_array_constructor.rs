@@ -20,6 +20,7 @@ impl LintRule for NoArrayConstructor {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-array-constructor"
   }

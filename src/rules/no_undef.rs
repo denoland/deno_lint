@@ -25,6 +25,7 @@ impl LintRule for NoUndef {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-undef"
   }

@@ -22,6 +22,7 @@ impl LintRule for NoControlRegex {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-control-regex"
   }

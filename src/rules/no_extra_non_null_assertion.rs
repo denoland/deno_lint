@@ -21,6 +21,7 @@ impl LintRule for NoExtraNonNullAssertion {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-extra-non-null-assertion"
   }

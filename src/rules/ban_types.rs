@@ -16,6 +16,7 @@ impl LintRule for BanTypes {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "ban-types"
   }

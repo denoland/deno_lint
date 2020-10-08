@@ -18,6 +18,7 @@ impl LintRule for NoThisAlias {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-this-alias"
   }

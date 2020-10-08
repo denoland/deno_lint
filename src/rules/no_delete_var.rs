@@ -20,6 +20,7 @@ impl LintRule for NoDeleteVar {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-delete-var"
   }

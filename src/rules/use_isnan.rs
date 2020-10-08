@@ -17,6 +17,7 @@ impl LintRule for UseIsNaN {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "use-isnan"
   }

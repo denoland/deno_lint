@@ -17,6 +17,7 @@ impl LintRule for NoNamespace {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-namespace"
   }

@@ -21,6 +21,7 @@ impl LintRule for ConstructorSuper {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "constructor-super"
   }

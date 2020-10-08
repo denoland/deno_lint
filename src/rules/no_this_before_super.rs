@@ -18,6 +18,7 @@ impl LintRule for NoThisBeforeSuper {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-this-before-super"
   }

@@ -21,6 +21,7 @@ impl LintRule for NoUnsafeNegation {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-unsafe-negation"
   }

@@ -18,6 +18,7 @@ impl LintRule for NoInferrableTypes {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-inferrable-types"
   }

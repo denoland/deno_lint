@@ -19,6 +19,7 @@ impl LintRule for NoDuplicateCase {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-duplicate-case"
   }

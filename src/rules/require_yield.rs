@@ -24,6 +24,7 @@ impl LintRule for RequireYield {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "require-yield"
   }

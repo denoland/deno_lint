@@ -27,6 +27,7 @@ impl LintRule for NoShadowRestrictedNames {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-shadow-restricted-names"
   }

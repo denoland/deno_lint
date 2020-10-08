@@ -20,6 +20,7 @@ impl LintRule for ValidTypeof {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "valid-typeof"
   }

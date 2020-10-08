@@ -30,6 +30,7 @@ impl LintRule for NoSelfAssign {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-self-assign"
   }

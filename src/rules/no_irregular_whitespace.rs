@@ -39,6 +39,7 @@ impl LintRule for NoIrregularWhitespace {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-irregular-whitespace"
   }

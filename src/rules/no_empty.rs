@@ -18,6 +18,7 @@ impl LintRule for NoEmpty {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-empty"
   }

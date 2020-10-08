@@ -26,6 +26,7 @@ impl LintRule for NoMisusedNew {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-misused-new"
   }

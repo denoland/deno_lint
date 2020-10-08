@@ -19,6 +19,7 @@ impl LintRule for NoUnreachable {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-unreachable"
   }

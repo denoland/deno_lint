@@ -18,6 +18,7 @@ impl LintRule for NoEmptyCharacterClass {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-empty-character-class"
   }

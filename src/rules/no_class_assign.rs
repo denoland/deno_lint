@@ -20,6 +20,7 @@ impl LintRule for NoClassAssign {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-class-assign"
   }

@@ -19,6 +19,7 @@ impl LintRule for PreferAsConst {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "prefer-as-const"
   }

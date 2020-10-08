@@ -24,6 +24,7 @@ impl LintRule for NoDupeClassMembers {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-dupe-class-members"
   }

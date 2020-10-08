@@ -26,6 +26,7 @@ impl LintRule for GetterReturn {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "getter-return"
   }

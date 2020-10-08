@@ -20,6 +20,7 @@ impl LintRule for NoCompareNegZero {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-compare-neg-zero"
   }

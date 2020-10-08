@@ -17,6 +17,7 @@ impl LintRule for NoExplicitAny {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "no-explicit-any"
   }

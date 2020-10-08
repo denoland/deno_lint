@@ -37,6 +37,7 @@ impl LintRule for BanTsComment {
   fn tags(&self) -> &[&'static str] {
     &["recommended"]
   }
+
   fn code(&self) -> &'static str {
     "ban-ts-comment"
   }
