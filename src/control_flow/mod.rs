@@ -152,6 +152,7 @@ impl Analyzer<'_> {
       )
     };
 
+    self.info = info;
     self.scope.used_hoistable_ids.extend(hoist);
 
     // Preserve information about visited ast nodes.
@@ -204,8 +205,6 @@ impl Analyzer<'_> {
         }
       }
     }
-
-    self.info = info;
   }
 
   fn is_forced_done(&self, lo: BytePos) -> bool {
@@ -538,8 +537,19 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
-    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
+    let body_lo = n.body.span().lo;
+
+    self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(n, a);
+      if let (_, Value::Known(true)) = n.test.as_bool() {
+        if Some(Done::Forced) == a.get_done_reason(body_lo)
+          || a.scope.found_break.is_none()
+        {
+          // Infinite loop
+          a.mark_as_done(body_lo, Done::Forced);
+          a.scope.done = Some(Done::Forced);
+        }
+      }
     });
 
     n.test.visit_with(n, self);
@@ -623,7 +633,7 @@ function foo() {
       "#;
     let flow = analyze_flow(src);
     assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Break)); // do-while
+    assert_meta!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
     assert_meta!(flow, 57, false, Some(Done::Forced)); // return stmt
   }
 
@@ -639,7 +649,7 @@ function foo() {
       "#;
     let flow = analyze_flow(src);
     assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Break)); // do-while
+    assert_meta!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
   }
 
   #[test]
@@ -654,7 +664,24 @@ function foo() {
       "#;
     let flow = analyze_flow(src);
     assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Pass)); // do-while
+    assert_meta!(flow, 23, false, Some(Done::Pass)); // BlockStmt of do-while
+  }
+
+  #[test]
+  fn do_while_4() {
+    // infinite loop
+    let src = r#"
+function foo() {
+  do {
+    bar();
+  } while (true);
+  return 1;
+}
+      "#;
+    let flow = analyze_flow(src);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_meta!(flow, 56, true, Some(Done::Forced)); // return stmt
   }
 
   #[test]
