@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::sync::Arc;
+
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
@@ -29,7 +29,7 @@ impl LintRule for NoPrototypeBuiltins {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoPrototypeBuiltinsVisitor::new(context);
@@ -37,17 +37,17 @@ impl LintRule for NoPrototypeBuiltins {
   }
 }
 
-struct NoPrototypeBuiltinsVisitor {
-  context: Arc<Context>,
+struct NoPrototypeBuiltinsVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoPrototypeBuiltinsVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoPrototypeBuiltinsVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoPrototypeBuiltinsVisitor {
+impl<'c> Visit for NoPrototypeBuiltinsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {

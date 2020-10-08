@@ -6,8 +6,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoThisAlias;
 
 impl LintRule for NoThisAlias {
@@ -25,7 +23,7 @@ impl LintRule for NoThisAlias {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoThisAliasVisitor::new(context);
@@ -33,17 +31,17 @@ impl LintRule for NoThisAlias {
   }
 }
 
-struct NoThisAliasVisitor {
-  context: Arc<Context>,
+struct NoThisAliasVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoThisAliasVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoThisAliasVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoThisAliasVisitor {
+impl<'c> Visit for NoThisAliasVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {

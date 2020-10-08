@@ -5,10 +5,10 @@ use crate::scopes::{analyze, Scope};
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Instant;
 use swc_common::comments::CommentKind;
 use swc_common::comments::SingleThreadedComments;
@@ -26,11 +26,11 @@ lazy_static! {
 #[derive(Clone)]
 pub struct Context {
   pub file_name: String,
-  pub diagnostics: Arc<Mutex<Vec<LintDiagnostic>>>,
+  pub diagnostics: Vec<LintDiagnostic>,
   pub source_map: Arc<SourceMap>,
-  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
-  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
-  pub ignore_directives: Vec<IgnoreDirective>,
+  pub(crate) leading_comments: Rc<HashMap<BytePos, Vec<Comment>>>,
+  pub(crate) trailing_comments: Rc<HashMap<BytePos, Vec<Comment>>>,
+  pub ignore_directives: Rc<RefCell<Vec<IgnoreDirective>>>,
   /// Arc as it's not modified
   pub(crate) scope: Arc<Scope>,
   pub(crate) control_flow: Arc<ControlFlow>,
@@ -38,10 +38,14 @@ pub struct Context {
 }
 
 impl Context {
-  pub(crate) fn add_diagnostic(&self, span: Span, code: &str, message: &str) {
+  pub(crate) fn add_diagnostic(
+    &mut self,
+    span: Span,
+    code: &str,
+    message: &str,
+  ) {
     let diagnostic = self.create_diagnostic(span, code, message);
-    let mut diags = self.diagnostics.lock().unwrap();
-    diags.push(diagnostic);
+    self.diagnostics.push(diagnostic);
   }
 
   fn create_diagnostic(
@@ -242,12 +246,12 @@ impl Linter {
 
   fn filter_diagnostics(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let mut ignore_directives = context.ignore_directives.clone();
-    let diagnostics = context.diagnostics.lock().unwrap();
+    let ignore_directives = context.ignore_directives.clone();
+    let diagnostics = &context.diagnostics;
 
     let rule_codes = rules
       .iter()
@@ -259,14 +263,17 @@ impl Linter {
       .iter()
       .cloned()
       .filter(|diagnostic| {
-        !ignore_directives.iter_mut().any(|ignore_directive| {
-          ignore_directive.maybe_ignore_diagnostic(&diagnostic)
-        })
+        !ignore_directives
+          .borrow_mut()
+          .iter_mut()
+          .any(|ignore_directive| {
+            ignore_directive.maybe_ignore_diagnostic(&diagnostic)
+          })
       })
       .collect();
 
     if self.lint_unused_ignore_directives || self.lint_unknown_rules {
-      for ignore_directive in ignore_directives {
+      for ignore_directive in ignore_directives.borrow().iter() {
         for (code, used) in ignore_directive.used_codes.iter() {
           if self.lint_unused_ignore_directives
             && !used
@@ -359,25 +366,25 @@ impl Linter {
     let scope = Arc::new(analyze(&module));
     let control_flow = Arc::new(ControlFlow::analyze(&module));
 
-    let context = Arc::new(Context {
+    let mut context = Context {
       file_name,
-      diagnostics: Arc::new(Mutex::new(vec![])),
+      diagnostics: vec![],
       source_map: self.ast_parser.source_map.clone(),
-      leading_comments: leading,
-      trailing_comments: trailing,
-      ignore_directives,
+      leading_comments: Rc::new(leading),
+      trailing_comments: Rc::new(trailing),
+      ignore_directives: Rc::new(RefCell::new(ignore_directives)),
       scope,
       control_flow,
       top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
       }),
-    });
+    };
 
     for rule in &self.rules {
-      rule.lint_module(context.clone(), &module);
+      rule.lint_module(&mut context, &module);
     }
 
-    let d = self.filter_diagnostics(context, &self.rules);
+    let d = self.filter_diagnostics(&mut context, &self.rules);
     let end = Instant::now();
     debug!("Linter::lint_module took {:#?}", end - start);
 

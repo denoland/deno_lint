@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{
@@ -28,7 +26,7 @@ impl LintRule for ConstructorSuper {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = ConstructorSuperVisitor::new(context);
@@ -36,15 +34,15 @@ impl LintRule for ConstructorSuper {
   }
 }
 
-struct ConstructorSuperVisitor {
-  context: Arc<Context>,
+struct ConstructorSuperVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl ConstructorSuperVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> ConstructorSuperVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
-  fn check_constructor(&self, constructor: &Constructor, class: &Class) {
+  fn check_constructor(&mut self, constructor: &Constructor, class: &Class) {
     let mut sup = None;
     let mut span = constructor.span;
     if let Some(block_stmt) = &constructor.body {
@@ -119,7 +117,7 @@ impl ConstructorSuperVisitor {
   }
 }
 
-impl Visit for ConstructorSuperVisitor {
+impl<'c> Visit for ConstructorSuperVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {

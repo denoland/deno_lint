@@ -8,8 +8,6 @@ use swc_ecmascript::ast::UnaryOp::Minus;
 use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
-use std::sync::Arc;
-
 pub struct NoCompareNegZero;
 
 impl LintRule for NoCompareNegZero {
@@ -25,7 +23,7 @@ impl LintRule for NoCompareNegZero {
     "no-compare-neg-zero"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -51,17 +49,17 @@ if (Object.is(x, -0)) {
   }
 }
 
-struct NoCompareNegZeroVisitor {
-  context: Arc<Context>,
+struct NoCompareNegZeroVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoCompareNegZeroVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoCompareNegZeroVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoCompareNegZeroVisitor {
+impl<'c> Visit for NoCompareNegZeroVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {

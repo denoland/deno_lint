@@ -12,8 +12,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoDupeClassMembers;
 
 impl LintRule for NoDupeClassMembers {
@@ -31,7 +29,7 @@ impl LintRule for NoDupeClassMembers {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
@@ -39,16 +37,16 @@ impl LintRule for NoDupeClassMembers {
   }
 }
 
-struct NoDupeClassMembersVisitor {
-  context: Arc<Context>,
+struct NoDupeClassMembersVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDupeClassMembersVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDupeClassMembersVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span, name: &str) {
+  fn add_diagnostic(&mut self, span: Span, name: &str) {
     self.context.add_diagnostic(
       span,
       "no-dupe-class-members",
@@ -57,7 +55,7 @@ impl NoDupeClassMembersVisitor {
   }
 }
 
-impl Visit for NoDupeClassMembersVisitor {
+impl<'c> Visit for NoDupeClassMembersVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
@@ -67,32 +65,34 @@ impl Visit for NoDupeClassMembersVisitor {
   }
 }
 
-struct ClassVisitor<'a> {
-  root_visitor: &'a NoDupeClassMembersVisitor,
+struct ClassVisitor<'a, 'b> {
+  root_visitor: &'b mut NoDupeClassMembersVisitor<'a>,
   appeared_methods: BTreeMap<MethodToCheck, Vec<(Span, String)>>,
 }
 
-impl<'a> ClassVisitor<'a> {
-  fn new(root_visitor: &'a NoDupeClassMembersVisitor) -> Self {
+impl<'a, 'b> ClassVisitor<'a, 'b> {
+  fn new(root_visitor: &'b mut NoDupeClassMembersVisitor<'a>) -> Self {
     Self {
       root_visitor,
       appeared_methods: BTreeMap::new(),
     }
   }
 
-  fn aggregate_dupes(&self) {
+  fn aggregate_dupes(&mut self) {
+    let root_visitor = &mut self.root_visitor;
+
     self
       .appeared_methods
       .values()
       .filter(|m| m.len() >= 2)
       .flatten()
       .for_each(|(span, name)| {
-        self.root_visitor.add_diagnostic(*span, name);
+        root_visitor.add_diagnostic(*span, name);
       });
   }
 }
 
-impl<'a> Visit for ClassVisitor<'a> {
+impl<'a, 'b> Visit for ClassVisitor<'a, 'b> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {

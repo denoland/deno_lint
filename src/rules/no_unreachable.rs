@@ -7,8 +7,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct NoUnreachable;
 
 impl LintRule for NoUnreachable {
@@ -26,7 +24,7 @@ impl LintRule for NoUnreachable {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoUnreachableVisitor::new(context);
@@ -34,17 +32,17 @@ impl LintRule for NoUnreachable {
   }
 }
 
-struct NoUnreachableVisitor {
-  context: Arc<Context>,
+struct NoUnreachableVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoUnreachableVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoUnreachableVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoUnreachableVisitor {
+impl<'c> Visit for NoUnreachableVisitor<'c> {
   fn visit_stmt(&mut self, stmt: &Stmt, _: &dyn Node) {
     stmt.visit_children_with(self);
 

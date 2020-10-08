@@ -4,8 +4,6 @@ use super::LintRule;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct BanTypes;
 
 impl LintRule for BanTypes {
@@ -23,7 +21,7 @@ impl LintRule for BanTypes {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = BanTypesVisitor::new(context);
@@ -31,12 +29,12 @@ impl LintRule for BanTypes {
   }
 }
 
-struct BanTypesVisitor {
-  context: Arc<Context>,
+struct BanTypesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl BanTypesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> BanTypesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
@@ -51,7 +49,7 @@ const BANNED_TYPES: [(&str, &str); 6] = [
 or if you want a type meaning `any value`, you probably want `unknown` instead."),
 ];
 
-impl Visit for BanTypesVisitor {
+impl<'c> Visit for BanTypesVisitor<'c> {
   fn visit_ts_type_ref(
     &mut self,
     ts_type_ref: &swc_ecmascript::ast::TsTypeRef,

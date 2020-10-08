@@ -28,6 +28,7 @@ const dlint = `./target/${release ? "release" : "debug"}/examples/dlint`;
 const s2 = await Deno.run({
   cmd: [
     dlint,
+    "run",
     "benchmarks/benchmarks.ts",
   ],
   stdin: "null",

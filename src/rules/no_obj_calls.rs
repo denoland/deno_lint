@@ -10,8 +10,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoObjCalls;
 
 impl LintRule for NoObjCalls {
@@ -29,7 +27,7 @@ impl LintRule for NoObjCalls {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoObjCallsVisitor::new(context);
@@ -37,16 +35,16 @@ impl LintRule for NoObjCalls {
   }
 }
 
-struct NoObjCallsVisitor {
-  context: Arc<Context>,
+struct NoObjCallsVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoObjCallsVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoObjCallsVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn check_callee(&self, callee_name: impl AsRef<str>, span: Span) {
+  fn check_callee(&mut self, callee_name: impl AsRef<str>, span: Span) {
     let callee_name = callee_name.as_ref();
     match callee_name {
       "Math" | "JSON" | "Reflect" | "Atomics" => {
@@ -61,7 +59,7 @@ impl NoObjCallsVisitor {
   }
 }
 
-impl Visit for NoObjCallsVisitor {
+impl<'c> Visit for NoObjCallsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {

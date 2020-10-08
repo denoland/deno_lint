@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use swc_common::Span;
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
 use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
-
-use std::sync::Arc;
 
 pub struct NoUnsafeFinally;
 
@@ -22,7 +21,7 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -70,37 +69,35 @@ let foo = function() {
   }
 }
 
-struct NoUnsafeFinallyVisitor {
-  context: Arc<Context>,
+struct NoUnsafeFinallyVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoUnsafeFinallyVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoUnsafeFinallyVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
+  }
+
+  fn add_diagnostic(&mut self, span: Span, stmt_type: &str) {
+    self.context.add_diagnostic(
+      span,
+      "no-unsafe-finally",
+      format!("Unsafe usage of {}Statement", stmt_type).as_str(),
+    );
   }
 }
 
-impl Visit for NoUnsafeFinallyVisitor {
+impl<'c> Visit for NoUnsafeFinallyVisitor<'c> {
   noop_visit_type!();
 
   fn visit_try_stmt(&mut self, try_stmt: &TryStmt, parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
-      // Convenience function for providing different diagnostic message
-      // depending on statement type
-      let add_diagnostic = |stmt_type: &str| {
-        self.context.add_diagnostic(
-          finally_block.span,
-          "no-unsafe-finally",
-          format!("Unsafe usage of {}Statement", stmt_type).as_str(),
-        );
-      };
-
       for stmt in &finally_block.stmts {
         match stmt {
-          Break(_) => add_diagnostic("Break"),
-          Continue(_) => add_diagnostic("Continue"),
-          Return(_) => add_diagnostic("Return"),
-          Throw(_) => add_diagnostic("Throw"),
+          Break(_) => self.add_diagnostic(finally_block.span, "Break"),
+          Continue(_) => self.add_diagnostic(finally_block.span, "Continue"),
+          Return(_) => self.add_diagnostic(finally_block.span, "Return"),
+          Throw(_) => self.add_diagnostic(finally_block.span, "Throw"),
           _ => {}
         }
       }

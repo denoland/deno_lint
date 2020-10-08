@@ -5,7 +5,6 @@ use swc_ecmascript::ast::{Expr, ExprOrSuper};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
 use swc_common::Span;
 
 pub struct NoNonNullAssertedOptionalChain;
@@ -21,7 +20,7 @@ impl LintRule for NoNonNullAssertedOptionalChain {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoNonNullAssertedOptionalChainVisitor::new(context);
@@ -29,12 +28,12 @@ impl LintRule for NoNonNullAssertedOptionalChain {
   }
 }
 
-struct NoNonNullAssertedOptionalChainVisitor {
-  context: Arc<Context>,
+struct NoNonNullAssertedOptionalChainVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoNonNullAssertedOptionalChainVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoNonNullAssertedOptionalChainVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -53,7 +52,7 @@ impl NoNonNullAssertedOptionalChainVisitor {
   }
 }
 
-impl Visit for NoNonNullAssertedOptionalChainVisitor {
+impl<'c> Visit for NoNonNullAssertedOptionalChainVisitor<'c> {
   fn visit_ts_non_null_expr(
     &mut self,
     ts_non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,

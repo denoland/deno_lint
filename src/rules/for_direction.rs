@@ -16,8 +16,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct ForDirection;
 
 impl LintRule for ForDirection {
@@ -35,7 +33,7 @@ impl LintRule for ForDirection {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = ForDirectionVisitor::new(context);
@@ -43,12 +41,12 @@ impl LintRule for ForDirection {
   }
 }
 
-struct ForDirectionVisitor {
-  context: Arc<Context>,
+struct ForDirectionVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl ForDirectionVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> ForDirectionVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -126,7 +124,7 @@ impl ForDirectionVisitor {
   }
 }
 
-impl Visit for ForDirectionVisitor {
+impl<'c> Visit for ForDirectionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {

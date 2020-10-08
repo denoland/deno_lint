@@ -6,7 +6,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
 use swc_ecmascript::ast::{
   ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, Module,
   ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
@@ -23,22 +22,22 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     "explicit-module-boundary-types"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-struct ExplicitModuleBoundaryTypesVisitor {
-  context: Arc<Context>,
+struct ExplicitModuleBoundaryTypesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl ExplicitModuleBoundaryTypesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn check_class(&self, class: &Class) {
+  fn check_class(&mut self, class: &Class) {
     for member in &class.body {
       if let ClassMember::Method(method) = member {
         self.check_fn(&method.function);
@@ -46,7 +45,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
     }
   }
 
-  fn check_fn(&self, function: &Function) {
+  fn check_fn(&mut self, function: &Function) {
     if function.return_type.is_none() {
       self.context.add_diagnostic(
         function.span,
@@ -59,7 +58,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
     }
   }
 
-  fn check_arrow(&self, arrow: &ArrowExpr) {
+  fn check_arrow(&mut self, arrow: &ArrowExpr) {
     if arrow.return_type.is_none() {
       self.context.add_diagnostic(
         arrow.span,
@@ -72,7 +71,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
     }
   }
 
-  fn check_ann(&self, ann: &Option<TsTypeAnn>, span: Span) {
+  fn check_ann(&mut self, ann: &Option<TsTypeAnn>, span: Span) {
     if let Some(ann) = ann {
       let ts_type = ann.type_ann.as_ref();
       if let TsType::TsKeywordType(keyword_type) = ts_type {
@@ -93,7 +92,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
     }
   }
 
-  fn check_pat(&self, pat: &Pat) {
+  fn check_pat(&mut self, pat: &Pat) {
     match pat {
       Pat::Ident(ident) => self.check_ann(&ident.type_ann, ident.span),
       Pat::Array(array) => self.check_ann(&array.type_ann, array.span),
@@ -104,7 +103,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
     };
   }
 
-  fn check_var_decl(&self, var: &VarDecl) {
+  fn check_var_decl(&mut self, var: &VarDecl) {
     for declarator in &var.decls {
       if let Some(expr) = &declarator.init {
         if let Expr::Arrow(arrow) = expr.as_ref() {
@@ -115,7 +114,7 @@ impl ExplicitModuleBoundaryTypesVisitor {
   }
 }
 
-impl Visit for ExplicitModuleBoundaryTypesVisitor {
+impl<'c> Visit for ExplicitModuleBoundaryTypesVisitor<'c> {
   noop_visit_type!();
 
   fn visit_module_decl(

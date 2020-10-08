@@ -5,8 +5,6 @@ use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoNamespace;
 
 impl LintRule for NoNamespace {
@@ -24,7 +22,7 @@ impl LintRule for NoNamespace {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoNamespaceVisitor::new(context);
@@ -32,17 +30,17 @@ impl LintRule for NoNamespace {
   }
 }
 
-struct NoNamespaceVisitor {
-  context: Arc<Context>,
+struct NoNamespaceVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoNamespaceVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoNamespaceVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoNamespaceVisitor {
+impl<'c> Visit for NoNamespaceVisitor<'c> {
   fn visit_ts_module_decl(
     &mut self,
     mod_decl: &TsModuleDecl,

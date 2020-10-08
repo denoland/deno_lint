@@ -2,8 +2,6 @@
 use super::Context;
 use super::LintRule;
 
-use std::sync::Arc;
-
 pub struct BanUntaggedIgnore;
 
 impl LintRule for BanUntaggedIgnore {
@@ -21,10 +19,11 @@ impl LintRule for BanUntaggedIgnore {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    for ignore_directive in &context.ignore_directives {
+    let ignore_directives = context.ignore_directives.clone();
+    for ignore_directive in ignore_directives.borrow().iter() {
       if ignore_directive.codes.is_empty() {
         context.add_diagnostic(
           ignore_directive.span,

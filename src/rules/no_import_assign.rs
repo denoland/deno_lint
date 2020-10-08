@@ -1,6 +1,6 @@
 use super::LintRule;
 use crate::linter::Context;
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 use swc_atoms::js_word;
 use swc_common::Span;
 use swc_common::Spanned;
@@ -30,7 +30,7 @@ impl LintRule for NoImportAssign {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut collector = Collector {
@@ -104,8 +104,8 @@ impl Visit for Collector {
   fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
 }
 
-struct NoImportAssignVisitor {
-  context: Arc<Context>,
+struct NoImportAssignVisitor<'c> {
+  context: &'c mut Context,
   /// This hashset only contains top level bindings, so using HashSet<JsWord>
   /// also can be an option.
   imports: HashSet<Id>,
@@ -114,9 +114,9 @@ struct NoImportAssignVisitor {
   other_bindings: HashSet<Id>,
 }
 
-impl NoImportAssignVisitor {
+impl<'c> NoImportAssignVisitor<'c> {
   fn new(
-    context: Arc<Context>,
+    context: &'c mut Context,
     imports: HashSet<Id>,
     ns_imports: HashSet<Id>,
     other_bindings: HashSet<Id>,
@@ -129,7 +129,7 @@ impl NoImportAssignVisitor {
     }
   }
 
-  fn check(&self, span: Span, i: &Ident, is_assign_to_prop: bool) {
+  fn check(&mut self, span: Span, i: &Ident, is_assign_to_prop: bool) {
     // All imports are top-level and as a result,
     // if an identifier is not top-level, we are not assigning to import
     if i.span.ctxt != self.context.top_level_ctxt {
@@ -262,7 +262,7 @@ impl NoImportAssignVisitor {
   }
 }
 
-impl Visit for NoImportAssignVisitor {
+impl<'c> Visit for NoImportAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {

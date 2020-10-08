@@ -14,8 +14,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct GetterReturn;
 
 impl LintRule for GetterReturn {
@@ -33,7 +31,7 @@ impl LintRule for GetterReturn {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = GetterReturnVisitor::new(context);
@@ -41,12 +39,12 @@ impl LintRule for GetterReturn {
   }
 }
 
-struct GetterReturnVisitor {
-  context: Arc<Context>,
+struct GetterReturnVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl GetterReturnVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> GetterReturnVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -113,7 +111,11 @@ impl GetterReturnVisitor {
     true
   }
 
-  fn check_block_stmt(&self, block_stmt: &BlockStmt, span: swc_common::Span) {
+  fn check_block_stmt(
+    &mut self,
+    block_stmt: &BlockStmt,
+    span: swc_common::Span,
+  ) {
     if !block_stmt.stmts.iter().any(|s| match s {
       Stmt::If(if_stmt) => self.check_if_stmt(if_stmt),
       Stmt::Switch(switch_stmt) => self.check_switch_stmt(switch_stmt),
@@ -129,7 +131,7 @@ impl GetterReturnVisitor {
   }
 }
 
-impl Visit for GetterReturnVisitor {
+impl<'c> Visit for GetterReturnVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {

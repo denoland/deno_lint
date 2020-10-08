@@ -9,8 +9,6 @@ use swc_ecmascript::ast::{
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoMisusedNew;
 
 impl LintRule for NoMisusedNew {
@@ -18,7 +16,7 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoMisusedNewVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -32,12 +30,12 @@ impl LintRule for NoMisusedNew {
   }
 }
 
-struct NoMisusedNewVisitor {
-  context: Arc<Context>,
+struct NoMisusedNewVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoMisusedNewVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoMisusedNewVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -56,7 +54,7 @@ impl NoMisusedNewVisitor {
   }
 }
 
-impl Visit for NoMisusedNewVisitor {
+impl<'c> Visit for NoMisusedNewVisitor<'c> {
   fn visit_ts_type_alias_decl(
     &mut self,
     t: &TsTypeAliasDecl,
