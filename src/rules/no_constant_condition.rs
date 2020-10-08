@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::sync::Arc;
+
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::Expr;
@@ -20,22 +20,22 @@ impl LintRule for NoConstantCondition {
     "no-constant-condition"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoConstantConditionVisitor::new(context);
     visitor.visit_module(module, module);
   }
 }
 
-struct NoConstantConditionVisitor {
-  context: Arc<Context>,
+struct NoConstantConditionVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoConstantConditionVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoConstantConditionVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span) {
+  fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-constant-condition",
@@ -157,7 +157,7 @@ impl NoConstantConditionVisitor {
     }
   }
 
-  fn report(&self, condition: &Expr) {
+  fn report(&mut self, condition: &Expr) {
     if self.is_constant(condition, None, true) {
       let span = condition.span();
       self.add_diagnostic(span);
@@ -165,7 +165,7 @@ impl NoConstantConditionVisitor {
   }
 }
 
-impl Visit for NoConstantConditionVisitor {
+impl<'c> Visit for NoConstantConditionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_cond_expr(

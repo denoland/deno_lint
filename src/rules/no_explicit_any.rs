@@ -5,8 +5,6 @@ use swc_ecmascript::ast::TsKeywordType;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoExplicitAny;
 
 impl LintRule for NoExplicitAny {
@@ -20,7 +18,7 @@ impl LintRule for NoExplicitAny {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
@@ -28,17 +26,17 @@ impl LintRule for NoExplicitAny {
   }
 }
 
-struct NoExplicitAnyVisitor {
-  context: Arc<Context>,
+struct NoExplicitAnyVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoExplicitAnyVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoExplicitAnyVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoExplicitAnyVisitor {
+impl<'c> Visit for NoExplicitAnyVisitor<'c> {
   fn visit_ts_keyword_type(
     &mut self,
     ts_keyword_type: &TsKeywordType,

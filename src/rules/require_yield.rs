@@ -12,8 +12,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct RequireYield;
 
 impl LintRule for RequireYield {
@@ -27,7 +25,7 @@ impl LintRule for RequireYield {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = RequireYieldVisitor::new(context);
@@ -35,13 +33,13 @@ impl LintRule for RequireYield {
   }
 }
 
-struct RequireYieldVisitor {
-  context: Arc<Context>,
+struct RequireYieldVisitor<'c> {
+  context: &'c mut Context,
   yield_stack: Vec<u32>,
 }
 
-impl RequireYieldVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> RequireYieldVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self {
       context,
       yield_stack: vec![],
@@ -73,7 +71,7 @@ impl RequireYieldVisitor {
   }
 }
 
-impl Visit for RequireYieldVisitor {
+impl<'c> Visit for RequireYieldVisitor<'c> {
   noop_visit_type!();
 
   fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr, _parent: &dyn Node) {

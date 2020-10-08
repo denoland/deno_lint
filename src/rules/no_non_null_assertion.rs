@@ -4,8 +4,6 @@ use super::LintRule;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoNonNullAssertion;
 
 impl LintRule for NoNonNullAssertion {
@@ -18,7 +16,7 @@ impl LintRule for NoNonNullAssertion {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoNonNullAssertionVisitor::new(context);
@@ -26,17 +24,17 @@ impl LintRule for NoNonNullAssertion {
   }
 }
 
-struct NoNonNullAssertionVisitor {
-  context: Arc<Context>,
+struct NoNonNullAssertionVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoNonNullAssertionVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoNonNullAssertionVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoNonNullAssertionVisitor {
+impl<'c> Visit for NoNonNullAssertionVisitor<'c> {
   fn visit_ts_non_null_expr(
     &mut self,
     non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,

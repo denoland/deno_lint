@@ -6,8 +6,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoThrowLiteral;
 
 impl LintRule for NoThrowLiteral {
@@ -21,7 +19,7 @@ impl LintRule for NoThrowLiteral {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoThrowLiteralVisitor::new(context);
@@ -29,17 +27,17 @@ impl LintRule for NoThrowLiteral {
   }
 }
 
-struct NoThrowLiteralVisitor {
-  context: Arc<Context>,
+struct NoThrowLiteralVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoThrowLiteralVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoThrowLiteralVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoThrowLiteralVisitor {
+impl<'c> Visit for NoThrowLiteralVisitor<'c> {
   noop_visit_type!();
 
   fn visit_throw_stmt(&mut self, throw_stmt: &ThrowStmt, _parent: &dyn Node) {

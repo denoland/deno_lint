@@ -10,8 +10,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoControlRegex;
 
 impl LintRule for NoControlRegex {
@@ -25,7 +23,7 @@ impl LintRule for NoControlRegex {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoControlRegexVisitor::new(context);
@@ -33,16 +31,16 @@ impl LintRule for NoControlRegex {
   }
 }
 
-struct NoControlRegexVisitor {
-  context: Arc<Context>,
+struct NoControlRegexVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoControlRegexVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoControlRegexVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span, cp: u64) {
+  fn add_diagnostic(&mut self, span: Span, cp: u64) {
     self.context.add_diagnostic(
       span,
       "no-control-regex",
@@ -53,7 +51,7 @@ impl NoControlRegexVisitor {
     );
   }
 
-  fn check_regex(&self, regex: &str, span: Span) {
+  fn check_regex(&mut self, regex: &str, span: Span) {
     let mut iter = regex.chars().peekable();
     while let Some(ch) = iter.next() {
       if ch != '\\' {
@@ -111,7 +109,7 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   u64::from_str_radix(s.as_str(), 16).ok()
 }
 
-impl Visit for NoControlRegexVisitor {
+impl<'c> Visit for NoControlRegexVisitor<'c> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {

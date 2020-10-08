@@ -5,8 +5,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct ExplicitFunctionReturnType;
 
 impl LintRule for ExplicitFunctionReturnType {
@@ -20,7 +18,7 @@ impl LintRule for ExplicitFunctionReturnType {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
@@ -28,17 +26,17 @@ impl LintRule for ExplicitFunctionReturnType {
   }
 }
 
-struct ExplicitFunctionReturnTypeVisitor {
-  context: Arc<Context>,
+struct ExplicitFunctionReturnTypeVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl ExplicitFunctionReturnTypeVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> ExplicitFunctionReturnTypeVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for ExplicitFunctionReturnTypeVisitor {
+impl<'c> Visit for ExplicitFunctionReturnTypeVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(

@@ -10,8 +10,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoExtraBooleanCast;
 
 impl LintRule for NoExtraBooleanCast {
@@ -25,7 +23,7 @@ impl LintRule for NoExtraBooleanCast {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoExtraBooleanCastVisitor::new(context);
@@ -33,16 +31,16 @@ impl LintRule for NoExtraBooleanCast {
   }
 }
 
-struct NoExtraBooleanCastVisitor {
-  context: Arc<Context>,
+struct NoExtraBooleanCastVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoExtraBooleanCastVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoExtraBooleanCastVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn unexpected_call(&self, span: Span) {
+  fn unexpected_call(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-extra-boolean-cast",
@@ -50,7 +48,7 @@ impl NoExtraBooleanCastVisitor {
     );
   }
 
-  fn unexpected_negation(&self, span: Span) {
+  fn unexpected_negation(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-extra-boolean-cast",
@@ -58,7 +56,7 @@ impl NoExtraBooleanCastVisitor {
     );
   }
 
-  fn check_condition(&self, expr: &Expr) {
+  fn check_condition(&mut self, expr: &Expr) {
     match expr {
       Expr::Call(CallExpr {
         ref callee, span, ..
@@ -81,7 +79,7 @@ impl NoExtraBooleanCastVisitor {
     }
   }
 
-  fn check_unary_expr(&self, unary_expr: &UnaryExpr) {
+  fn check_unary_expr(&mut self, unary_expr: &UnaryExpr) {
     if unary_expr.op == UnaryOp::Bang {
       let expr = &*unary_expr.arg;
       self.check_unary_expr_internal(unary_expr.span, expr);
@@ -89,7 +87,7 @@ impl NoExtraBooleanCastVisitor {
   }
 
   fn check_unary_expr_internal(
-    &self,
+    &mut self,
     unary_expr_span: Span,
     internal_expr: &Expr,
   ) {
@@ -114,7 +112,7 @@ impl NoExtraBooleanCastVisitor {
   }
 }
 
-impl Visit for NoExtraBooleanCastVisitor {
+impl<'c> Visit for NoExtraBooleanCastVisitor<'c> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, parent: &dyn Node) {

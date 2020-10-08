@@ -10,8 +10,6 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit},
 };
 
-use std::sync::Arc;
-
 pub struct NoShadowRestrictedNames;
 
 impl LintRule for NoShadowRestrictedNames {
@@ -19,7 +17,7 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -29,12 +27,12 @@ impl LintRule for NoShadowRestrictedNames {
   }
 }
 
-struct NoShadowRestrictedNamesVisitor {
-  context: Arc<Context>,
+struct NoShadowRestrictedNamesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoShadowRestrictedNamesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoShadowRestrictedNamesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -45,7 +43,7 @@ impl NoShadowRestrictedNamesVisitor {
     }
   }
 
-  fn check_pat(&self, pat: &Pat, check_scope: bool) {
+  fn check_pat(&mut self, pat: &Pat, check_scope: bool) {
     match pat {
       Pat::Ident(ident) => {
         // trying to assign `undefined`
@@ -91,13 +89,13 @@ impl NoShadowRestrictedNamesVisitor {
     }
   }
 
-  fn check_shadowing(&self, ident: &Ident) {
+  fn check_shadowing(&mut self, ident: &Ident) {
     if self.is_restricted_names(&ident) {
       self.report_shadowing(&ident);
     }
   }
 
-  fn report_shadowing(&self, ident: &Ident) {
+  fn report_shadowing(&mut self, ident: &Ident) {
     self.context.add_diagnostic(
       ident.span,
       "no-shadow-restricted-names",
@@ -106,7 +104,7 @@ impl NoShadowRestrictedNamesVisitor {
   }
 }
 
-impl Visit for NoShadowRestrictedNamesVisitor {
+impl<'c> Visit for NoShadowRestrictedNamesVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, node: &VarDecl, parent: &dyn Node) {

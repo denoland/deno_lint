@@ -5,12 +5,10 @@ use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 
-use std::sync::Arc;
-
 pub struct BanUntaggedTodo;
 
 impl BanUntaggedTodo {
-  fn lint_comment(&self, context: &Context, comment: &Comment) {
+  fn lint_comment(&self, context: &mut Context, comment: &Comment) {
     if comment.kind != CommentKind::Line {
       return;
     }
@@ -45,19 +43,18 @@ impl LintRule for BanUntaggedTodo {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    context.leading_comments.values().for_each(|comments| {
-      for comment in comments {
-        self.lint_comment(&context, comment);
-      }
-    });
-    context.trailing_comments.values().for_each(|comments| {
-      for comment in comments {
-        self.lint_comment(&context, comment);
-      }
-    });
+    let leading = context.leading_comments.clone();
+    let trailing = context.trailing_comments.clone();
+
+    for comment in leading.values().flatten() {
+      self.lint_comment(context, comment);
+    }
+    for comment in trailing.values().flatten() {
+      self.lint_comment(context, comment);
+    }
   }
 }
 

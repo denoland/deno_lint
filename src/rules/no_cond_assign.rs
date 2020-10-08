@@ -6,8 +6,6 @@ use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoCondAssign;
 
 impl LintRule for NoCondAssign {
@@ -19,7 +17,7 @@ impl LintRule for NoCondAssign {
     "no-cond-assign"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoCondAssignVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -61,16 +59,16 @@ function setHeight(someNode) {
   }
 }
 
-struct NoCondAssignVisitor {
-  context: Arc<Context>,
+struct NoCondAssignVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoCondAssignVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoCondAssignVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn add_diagnostic(&self, span: Span) {
+  fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "no-cond-assign",
@@ -78,7 +76,7 @@ impl NoCondAssignVisitor {
     );
   }
 
-  fn check_condition(&self, condition: &Expr) {
+  fn check_condition(&mut self, condition: &Expr) {
     match condition {
       Assign(assign) => {
         self.add_diagnostic(assign.span);
@@ -94,7 +92,7 @@ impl NoCondAssignVisitor {
   }
 }
 
-impl Visit for NoCondAssignVisitor {
+impl<'c> Visit for NoCondAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_if_stmt(

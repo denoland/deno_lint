@@ -8,8 +8,6 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoDupeElseIf;
 
 impl LintRule for NoDupeElseIf {
@@ -21,7 +19,7 @@ impl LintRule for NoDupeElseIf {
     "no-dupe-else-if"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
     visitor.visit_module(module, module);
   }
@@ -29,13 +27,13 @@ impl LintRule for NoDupeElseIf {
 
 /// A visitor to check the `no-dupe-else-if` rule.
 /// Determination logic is ported from ESLint's implementation. For more, see [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
-struct NoDupeElseIfVisitor {
-  context: Arc<Context>,
+struct NoDupeElseIfVisitor<'c> {
+  context: &'c mut Context,
   checked_span: HashSet<Span>,
 }
 
-impl NoDupeElseIfVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDupeElseIfVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self {
       context,
       checked_span: HashSet::new(),
@@ -43,7 +41,7 @@ impl NoDupeElseIfVisitor {
   }
 }
 
-impl Visit for NoDupeElseIfVisitor {
+impl<'c> Visit for NoDupeElseIfVisitor<'c> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {

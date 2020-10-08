@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::sync::Arc;
+
 use swc_ecmascript::ast::{
   ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAssertion, VarDecl,
@@ -22,7 +22,7 @@ impl LintRule for PreferAsConst {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = PreferAsConstVisitor::new(context);
@@ -30,16 +30,16 @@ impl LintRule for PreferAsConst {
   }
 }
 
-struct PreferAsConstVisitor {
-  context: Arc<Context>,
+struct PreferAsConstVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl PreferAsConstVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> PreferAsConstVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn add_diagnostic_helper(&self, span: swc_common::Span) {
+  fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
     self.context.add_diagnostic(
       span,
       "prefer-as-const",
@@ -47,7 +47,12 @@ impl PreferAsConstVisitor {
     );
   }
 
-  fn compare(&self, type_ann: &TsType, expr: &Expr, span: swc_common::Span) {
+  fn compare(
+    &mut self,
+    type_ann: &TsType,
+    expr: &Expr,
+    span: swc_common::Span,
+  ) {
     if let TsType::TsLitType(lit_type) = &*type_ann {
       if let Expr::Lit(expr_lit) = &*expr {
         match (expr_lit, &lit_type.lit) {
@@ -69,7 +74,7 @@ impl PreferAsConstVisitor {
   }
 }
 
-impl Visit for PreferAsConstVisitor {
+impl<'c> Visit for PreferAsConstVisitor<'c> {
   fn visit_ts_as_expr(&mut self, as_expr: &TsAsExpr, _parent: &dyn Node) {
     self.compare(&as_expr.type_ann, &as_expr.expr, as_expr.span);
   }

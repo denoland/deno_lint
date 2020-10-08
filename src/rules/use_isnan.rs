@@ -5,8 +5,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct UseIsNaN;
 
 impl LintRule for UseIsNaN {
@@ -20,7 +18,7 @@ impl LintRule for UseIsNaN {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = UseIsNaNVisitor::new(context);
@@ -28,12 +26,12 @@ impl LintRule for UseIsNaN {
   }
 }
 
-struct UseIsNaNVisitor {
-  context: Arc<Context>,
+struct UseIsNaNVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl UseIsNaNVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> UseIsNaNVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
@@ -42,7 +40,7 @@ fn is_nan_identifier(ident: &swc_ecmascript::ast::Ident) -> bool {
   ident.sym == *"NaN"
 }
 
-impl Visit for UseIsNaNVisitor {
+impl<'c> Visit for UseIsNaNVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(

@@ -9,8 +9,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoUnusedLabels;
 
 impl LintRule for NoUnusedLabels {
@@ -24,7 +22,7 @@ impl LintRule for NoUnusedLabels {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoUnusedLabelsVisitor::new(context);
@@ -37,13 +35,13 @@ struct LabelScope {
   name: String,
 }
 
-struct NoUnusedLabelsVisitor {
-  context: Arc<Context>,
+struct NoUnusedLabelsVisitor<'c> {
+  context: &'c mut Context,
   label_scopes: Vec<LabelScope>,
 }
 
-impl NoUnusedLabelsVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoUnusedLabelsVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self {
       context,
       label_scopes: vec![],
@@ -64,7 +62,7 @@ impl NoUnusedLabelsVisitor {
   }
 }
 
-impl Visit for NoUnusedLabelsVisitor {
+impl<'c> Visit for NoUnusedLabelsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_labeled_stmt(

@@ -5,8 +5,6 @@ use swc_ecmascript::ast::Number;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoOctal;
 
 impl LintRule for NoOctal {
@@ -20,7 +18,7 @@ impl LintRule for NoOctal {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoOctalVisitor::new(context);
@@ -28,17 +26,17 @@ impl LintRule for NoOctal {
   }
 }
 
-struct NoOctalVisitor {
-  context: Arc<Context>,
+struct NoOctalVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoOctalVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoOctalVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoOctalVisitor {
+impl<'c> Visit for NoOctalVisitor<'c> {
   fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
     lazy_static! {
       static ref OCTAL: regex::Regex = regex::Regex::new(r"^0[0-9]").unwrap();
