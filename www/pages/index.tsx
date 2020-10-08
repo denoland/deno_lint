@@ -20,14 +20,16 @@ function IndexPage(props: PageProps<Data>) {
 }
 
 function Rule(props: { rule: Rule }) {
-  const ref = useRef<HTMLDivElement>();
+  const ref = useRef<HTMLDivElement | undefined>();
   const { rule } = props;
 
   useEffect(() => {
-    ref.current.querySelectorAll("pre code").forEach((block) => {
-      // @ts-expect-error because typescript is not aware of hljs
-      hljs.highlightBlock(block);
-    });
+    if (ref.current) {
+      ref.current.querySelectorAll("pre code").forEach((block) => {
+        // @ts-expect-error because typescript is not aware of hljs
+        hljs.highlightBlock(block);
+      });
+    }
   }, [ref]);
 
   return <div style="padding: 12px; margin: 6px; border: black 2px solid;">
