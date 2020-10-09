@@ -455,9 +455,7 @@ impl Visit for Analyzer<'_> {
       false
     };
 
-    if unreachable {
-      self.info.entry(n.span().lo).or_default().unreachable = true;
-    }
+    self.info.entry(n.span().lo).or_default().unreachable = unreachable;
 
     n.visit_children_with(self);
   }
@@ -515,14 +513,18 @@ impl Visit for Analyzer<'_> {
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(n, a);
-      if let (_, Value::Known(true)) = n.test.as_bool() {
-        if Some(Done::Forced) == a.get_done_reason(body_lo)
-          || a.scope.found_break.is_none()
-        {
-          // Inifinite loop
-          a.mark_as_done(body_lo, Done::Forced);
-          a.scope.done = Some(Done::Forced);
-        }
+
+      let unconditionally_enter =
+        matches!(n.test.as_bool(), (_, Value::Known(true)));
+      let return_or_throw = a.get_done_reason(body_lo) == Some(Done::Forced);
+      let infinite_loop = a.scope.found_break.is_none();
+
+      if unconditionally_enter && (return_or_throw || infinite_loop) {
+        a.mark_as_done(body_lo, Done::Forced);
+        a.scope.done = Some(Done::Forced);
+      } else {
+        a.mark_as_done(body_lo, Done::Pass);
+        a.scope.done = Some(Done::Pass);
       }
     });
 
@@ -534,14 +536,14 @@ impl Visit for Analyzer<'_> {
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(n, a);
-      if let (_, Value::Known(true)) = n.test.as_bool() {
-        if Some(Done::Forced) == a.get_done_reason(body_lo)
-          || a.scope.found_break.is_none()
-        {
-          // Infinite loop
-          a.mark_as_done(body_lo, Done::Forced);
-          a.scope.done = Some(Done::Forced);
-        }
+
+      let return_or_throw = a.get_done_reason(body_lo) == Some(Done::Forced);
+      let infinite_loop = matches!(n.test.as_bool(), (_, Value::Known(true)))
+        && a.scope.found_break.is_none();
+
+      if return_or_throw || infinite_loop {
+        a.mark_as_done(body_lo, Done::Forced);
+        a.scope.done = Some(Done::Forced);
       }
     });
 
@@ -627,7 +629,7 @@ function foo() {
     let flow = analyze_flow(src);
     dbg!(&flow);
     assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 30, false, Some(Done::Break)); // BlockStmt of while
+    assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
     assert_meta!(flow, 49, false, Some(Done::Forced)); // return stmt
   }
 
@@ -644,7 +646,8 @@ function foo() {
     let flow = analyze_flow(src);
     dbg!(&flow);
     assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 30, false, Some(Done::Break)); // BlockStmt of while
+    assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
+    assert_meta!(flow, 49, false, None); // `bar();`
   }
 
   #[test]
@@ -661,6 +664,8 @@ function foo() {
     dbg!(&flow);
     assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
     assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
+    assert_meta!(flow, 36, false, None); // `bar();`
+    assert_meta!(flow, 49, false, None); // `baz();`
   }
 
   #[test]
@@ -675,10 +680,37 @@ function foo() {
       "#;
     let flow = analyze_flow(src);
     dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // BlockStmt of while
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+
+    // BlockStmt of while
+    // This block contains `return 1;` but whether entering the block depends on the specific value
+    // of `a`, so we treat it as `Done::Pass`.
+    assert_meta!(flow, 30, false, Some(Done::Pass));
+
     assert_meta!(flow, 36, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 52, true, None); // `baz();`
+    assert_meta!(flow, 52, false, None); // `baz();`
+  }
+
+  #[test]
+  fn while_5() {
+    let src = r#"
+function foo() {
+  while (true) {
+    return 1;
+  }
+  baz();
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+
+    // BlockStmt of while
+    // This block contains `return 1;` and it returns `1` _unconditionally_.
+    assert_meta!(flow, 33, false, Some(Done::Forced));
+
+    assert_meta!(flow, 39, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 55, true, None); // `baz();`
   }
 
   #[test]
@@ -687,14 +719,14 @@ function foo() {
 function foo() {
   do {
     break;
-  } while (false);
+  } while (a);
   return 1;
 }
       "#;
     let flow = analyze_flow(src);
     assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
     assert_meta!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
-    assert_meta!(flow, 57, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 53, false, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -703,13 +735,14 @@ function foo() {
 function foo() {
   do {
     break;
-  } while (false);
+  } while (a);
   bar();
 }
       "#;
     let flow = analyze_flow(src);
     assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
     assert_meta!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
+    assert_meta!(flow, 53, false, None); // `bar();`
   }
 
   #[test]
@@ -718,13 +751,14 @@ function foo() {
 function foo() {
   do {
     bar();
-  } while (false);
+  } while (a);
   baz();
 }
       "#;
     let flow = analyze_flow(src);
     assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
     assert_meta!(flow, 23, false, Some(Done::Pass)); // BlockStmt of do-while
+    assert_meta!(flow, 53, false, None); // `bar();`
   }
 
   #[test]
@@ -739,9 +773,52 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
+    dbg!(&flow);
     assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
     assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
     assert_meta!(flow, 56, true, Some(Done::Forced)); // return stmt
+  }
+
+  #[test]
+  fn do_while_5() {
+    let src = r#"
+function foo() {
+  do {
+    return 0;
+  } while (a);
+  return 1;
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_meta!(flow, 56, true, Some(Done::Forced)); // return stmt
+  }
+
+  #[test]
+  fn do_while_6() {
+    let src = r#"
+function foo() {
+  do {
+    throw 0;
+  } while (false);
+  return 1;
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_meta!(flow, 59, true, Some(Done::Forced)); // return stmt
+  }
+
+  #[test]
+  fn piyo() {
+    let src = "function foo() { var x = 1; while (x) { return; } x = 2; }";
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    panic!();
   }
 
   #[test]
