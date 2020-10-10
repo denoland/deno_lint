@@ -36,16 +36,21 @@ impl ControlFlow {
 /// Kind of a basic block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockKind {
+  /// Module
   Module,
   /// Function's body
   Function,
-  Block,
   /// Switch case
   Case,
+  /// If's body
   If,
   /// Body of a loop
   Loop,
   Label(Id),
+  /// Catch clause's body
+  Catch,
+  /// Finally's body
+  Finally,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -172,13 +177,6 @@ impl Analyzer<'_> {
           }
           self.scope.done = prev_done;
         }
-        BlockKind::Block => {
-          if let Done::Forced = done {
-            self.mark_as_done(lo, done);
-          } else if self.scope.done.is_none() {
-            self.scope.done = Some(Done::Break);
-          }
-        }
         BlockKind::Case => {
           if let Done::Forced = done {
             self.mark_as_done(lo, done);
@@ -201,6 +199,17 @@ impl Analyzer<'_> {
               // Eat break statemnt
               self.scope.found_break = None;
             }
+          }
+        }
+        BlockKind::Catch => {
+          self.mark_as_done(lo, done);
+        }
+        BlockKind::Finally => {
+          self.mark_as_done(lo, done);
+          if done == Done::Forced {
+            self.scope.done = Some(Done::Forced);
+          } else {
+            self.scope.done = prev_done;
           }
         }
       }
@@ -324,7 +333,7 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
-    self.with_child_scope(BlockKind::Block, n.span().lo, |a| {
+    self.with_child_scope(BlockKind::Catch, n.span().lo, |a| {
       n.visit_children_with(a);
     });
   }
@@ -565,7 +574,11 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_try_stmt(&mut self, n: &TryStmt, _: &dyn Node) {
-    n.finalizer.visit_with(n, self);
+    if let Some(finalizer) = &n.finalizer {
+      self.with_child_scope(BlockKind::Finally, finalizer.span.lo, |a| {
+        n.finalizer.visit_with(n, a);
+      });
+    }
     let old_throw = self.scope.may_throw;
 
     let prev_done = self.scope.done;
@@ -573,27 +586,33 @@ impl Visit for Analyzer<'_> {
     self.scope.may_throw = false;
     n.block.visit_with(n, self);
 
-    let mut block_done = None;
+    let mut try_block_done = None;
 
     if self.scope.may_throw {
       if let Some(done) = self.scope.done {
-        block_done = Some(done);
+        try_block_done = Some(done);
         self.scope.done = prev_done;
       }
     } else if let Some(done) = self.scope.done {
-      block_done = Some(done);
+      try_block_done = Some(done);
       self.mark_as_done(n.span.lo, done);
     }
 
-    n.handler.visit_with(n, self);
-    match (block_done, self.scope.done) {
-      (Some(Done::Forced), Some(Done::Forced)) => {
+    if let Some(handler) = &n.handler {
+      handler.visit_with(n, self);
+      match (try_block_done, self.scope.done) {
+        (Some(Done::Forced), Some(Done::Forced)) => {
+          self.mark_as_done(n.span.lo, Done::Forced);
+        }
+        _ => {
+          self.mark_as_done(n.span.lo, Done::Pass);
+          self.scope.done = prev_done;
+        }
+      }
+    } else {
+      if try_block_done == Some(Done::Forced) {
         self.mark_as_done(n.span.lo, Done::Forced);
-      }
-      (Some(_try_done), Some(_catch_done)) => {
-        self.mark_as_done(n.span.lo, Done::Break);
-      }
-      _ => {
+      } else {
         self.scope.done = prev_done;
       }
     }
@@ -864,10 +883,147 @@ function foo() {
   }
 
   #[test]
-  fn piyo() {
-    let src = "function foo() { var x = 1; for (x in {}) { return; } x = 2; }";
+  fn try_1() {
+    let src = r#"
+function foo() {
+  try {
+    return 1;
+  } finally {
+    bar();
+  }
+}
+"#;
     let flow = analyze_flow(src);
     dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_meta!(flow, 58, false, None); // `bar();`
+  }
+
+  #[test]
+  fn try_2() {
+    let src = r#"
+function foo() {
+  try {
+    throw 1;
+  } catch (e) {
+    return 2;
+  }
+  bar();
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_meta!(flow, 43, false, Some(Done::Forced)); // catch
+    assert_meta!(flow, 53, false, Some(Done::Forced)); // BlockStmt of catch
+    assert_meta!(flow, 59, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 75, true, None); // `bar();`
+  }
+
+  #[test]
+  fn try_3() {
+    let src = r#"
+function foo() {
+  try {
+    throw 1;
+  } catch (e) {
+    bar();
+  }
+  baz();
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Pass)); // TryStmt
+    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_meta!(flow, 43, false, Some(Done::Pass)); // catch
+    assert_meta!(flow, 53, false, Some(Done::Pass)); // BlockStmt of catch
+    assert_meta!(flow, 59, false, None); // `bar();`
+    assert_meta!(flow, 72, false, None); // `baz();`
+  }
+
+  #[test]
+  fn try_4() {
+    let src = r#"
+function foo() {
+  try {
+    throw 1;
+  } catch (e) {
+    bar();
+  } finally {
+    baz();
+  }
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Pass)); // TryStmt
+    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_meta!(flow, 43, false, Some(Done::Pass)); // catch
+    assert_meta!(flow, 53, false, Some(Done::Pass)); // BlockStmt of catch
+    assert_meta!(flow, 59, false, None); // `bar();`
+    assert_meta!(flow, 78, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_meta!(flow, 84, false, None); // `baz();`
+  }
+
+  #[test]
+  fn try_5() {
+    let src = r#"
+function foo() {
+  try {
+    throw 1;
+  } catch (e) {
+    return 2;
+  } finally {
+    bar();
+  }
+  baz();
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_meta!(flow, 43, false, Some(Done::Forced)); // catch
+    assert_meta!(flow, 53, false, Some(Done::Forced)); // BlockStmt of catch
+    assert_meta!(flow, 59, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 81, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_meta!(flow, 87, false, None); // `bar();`
+    assert_meta!(flow, 100, true, None); // `baz();`
+  }
+
+  #[test]
+  fn piyo() {
+    let src = r#"
+function foo() {
+  try {
+    return 1;
+  } finally {
+    bar();
+  }
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_meta!(flow, 58, false, None); // `bar();`
     panic!();
   }
 
