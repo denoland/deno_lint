@@ -828,6 +828,42 @@ function foo() {
   }
 
   #[test]
+  fn for_in_1() {
+    let src = r#"
+function foo() {
+  for (let i in {}) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 38, false, Some(Done::Pass)); // BlockStmt of for-in
+    assert_meta!(flow, 44, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 60, false, None); // `bar();`
+  }
+
+  #[test]
+  fn for_of_1() {
+    let src = r#"
+function foo() {
+  for (let i of []) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 38, false, Some(Done::Pass)); // BlockStmt of for-of
+    assert_meta!(flow, 44, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 60, false, None); // `bar();`
+  }
+
+  #[test]
   fn piyo() {
     let src = "function foo() { var x = 1; for (x in {}) { return; } x = 2; }";
     let flow = analyze_flow(src);
