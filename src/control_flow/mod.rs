@@ -391,6 +391,7 @@ impl Visit for Analyzer<'_> {
         case_done = Some(Done::Forced);
       }
     });
+    dbg!(case_done);
 
     if let Some(Done::Forced) = case_done {
       self.mark_as_done(n.span.lo, Done::Forced);
@@ -421,18 +422,19 @@ impl Visit for Analyzer<'_> {
           (Some(Done::Forced), Some(Done::Forced)) => {
             self.mark_as_done(n.span.lo, Done::Forced);
           }
-          (Some(Done::Break), another) | (another, Some(Done::Break)) => {
-            if another.is_some() {
-              self.mark_as_done(n.span.lo, Done::Break);
-            } else {
-              self.scope.done = None
-            }
+          (Some(Done::Break), Some(Done::Break))
+          | (Some(Done::Forced), Some(Done::Break))
+          | (Some(Done::Break), Some(Done::Forced)) => {
+            self.mark_as_done(n.span.lo, Done::Break);
           }
           // TODO: Check for continue
-          _ => {}
+          _ => {
+            self.mark_as_done(n.span.lo, Done::Pass);
+          }
         }
       }
       None => {
+        self.mark_as_done(n.span.lo, Done::Pass);
         self.scope.done = prev_done;
       }
     }
@@ -1003,6 +1005,55 @@ function foo() {
     assert_meta!(flow, 81, false, Some(Done::Pass)); // BlockStmt of finally
     assert_meta!(flow, 87, false, None); // `bar();`
     assert_meta!(flow, 100, true, None); // `baz();`
+  }
+
+  #[test]
+  fn if_1() {
+    let src = r#"
+function foo() {
+  if (a) {
+    return 1;
+  }
+  bar();
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Pass)); // if
+    assert_meta!(flow, 27, false, Some(Done::Forced)); // BloskStmt of if
+    assert_meta!(flow, 33, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 49, false, None); // `bar();`
+  }
+
+  #[test]
+  fn switch_1() {
+    let src = r#"
+switch (foo) {
+  case 1:
+    return 0;
+  default: {
+    if (bar) {
+      break;
+    }
+    return 0;
+  }
+}
+throw err;
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 1, false, Some(Done::Pass)); // switch stmt
+    assert_meta!(flow, 18, false, Some(Done::Forced)); // `case 1`
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 42, false, Some(Done::Break)); // `default`
+    assert_meta!(flow, 51, false, Some(Done::Break)); // BlockStmt of `default`
+    assert_meta!(flow, 57, false, Some(Done::Pass)); // if
+    assert_meta!(flow, 66, false, Some(Done::Break)); // BlockStmt of if
+    assert_meta!(flow, 74, false, Some(Done::Break)); // break stmt
+    assert_meta!(flow, 91, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 107, false, Some(Done::Forced)); // throw stmt
+    panic!();
   }
 
   #[test]
