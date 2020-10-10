@@ -99,10 +99,16 @@ jobs:
           path: ./www/.dext/static
 
       - name: Deploy website
-        uses: peaceiris/actions-gh-pages@v3
+        uses: netlify/actions/cli@master
+        if: |
+          contains(matrix.os, 'ubuntu') &&
+          github.repository == 'denoland/deno_lint' &&
+          github.ref == 'refs/heads/master'
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./www/.dext/static
+          args: deploy --dir=./www/.dext/static
+        env:
+          NETLIFY_SITE_ID: def7a3c7-172e-4e2a-bc4f-601a5301403f
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_PAT }}
 
       - name: Publish
         if: |
