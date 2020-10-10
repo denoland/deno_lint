@@ -6,8 +6,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct SingleVarDeclarator;
 
 impl LintRule for SingleVarDeclarator {
@@ -21,7 +19,7 @@ impl LintRule for SingleVarDeclarator {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = SingleVarDeclaratorVisitor::new(context);
@@ -29,17 +27,17 @@ impl LintRule for SingleVarDeclarator {
   }
 }
 
-struct SingleVarDeclaratorVisitor {
-  context: Arc<Context>,
+struct SingleVarDeclaratorVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl SingleVarDeclaratorVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> SingleVarDeclaratorVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for SingleVarDeclaratorVisitor {
+impl<'c> Visit for SingleVarDeclaratorVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {

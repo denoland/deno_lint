@@ -7,8 +7,6 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::{self, noop_visit_type};
 
-use std::sync::Arc;
-
 pub struct DefaultParamLast;
 
 impl LintRule for DefaultParamLast {
@@ -22,7 +20,7 @@ impl LintRule for DefaultParamLast {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
@@ -30,16 +28,16 @@ impl LintRule for DefaultParamLast {
   }
 }
 
-struct DefaultParamLastVisitor {
-  context: Arc<Context>,
+struct DefaultParamLastVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl DefaultParamLastVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> DefaultParamLastVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn report(&self, span: Span) {
+  fn report(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
       "default-param-last",
@@ -47,7 +45,7 @@ impl DefaultParamLastVisitor {
     );
   }
 
-  fn check_params<'a, 'b, I>(&'a self, params: I)
+  fn check_params<'a, 'b, I>(&'a mut self, params: I)
   where
     I: Iterator<Item = &'b Pat>,
   {
@@ -68,7 +66,7 @@ impl DefaultParamLastVisitor {
   }
 }
 
-impl Visit for DefaultParamLastVisitor {
+impl<'c> Visit for DefaultParamLastVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, parent: &dyn Node) {

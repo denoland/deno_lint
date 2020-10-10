@@ -1,6 +1,6 @@
 use super::LintRule;
 use crate::{globals::GLOBALS, linter::Context, swc_util::find_lhs_ids};
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 use swc_common::Span;
 use swc_ecmascript::{
   ast::*,
@@ -18,13 +18,17 @@ impl LintRule for NoGlobalAssign {
     Box::new(NoGlobalAssign)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-global-assign"
   }
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut collector = Collector {
@@ -90,19 +94,19 @@ impl Visit for Collector {
   fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
 }
 
-struct NoGlobalAssignVisitor {
-  context: Arc<Context>,
+struct NoGlobalAssignVisitor<'c> {
+  context: &'c mut Context,
   /// This hashset only contains top level bindings, so using HashSet<JsWord>
   /// also can be an option.
   bindings: HashSet<Id>,
 }
 
-impl NoGlobalAssignVisitor {
-  fn new(context: Arc<Context>, bindings: HashSet<Id>) -> Self {
+impl<'c> NoGlobalAssignVisitor<'c> {
+  fn new(context: &'c mut Context, bindings: HashSet<Id>) -> Self {
     Self { context, bindings }
   }
 
-  fn check(&self, span: Span, id: Id) {
+  fn check(&mut self, span: Span, id: Id) {
     if id.1 != self.context.top_level_ctxt {
       return;
     }
@@ -125,7 +129,7 @@ impl NoGlobalAssignVisitor {
   }
 }
 
-impl Visit for NoGlobalAssignVisitor {
+impl<'c> Visit for NoGlobalAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, e: &AssignExpr, _: &dyn Node) {

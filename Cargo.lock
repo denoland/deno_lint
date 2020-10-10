@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.2.0"
+version = "0.2.3"
 dependencies = [
  "clap",
  "env_logger",
@@ -876,9 +876,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.24.2"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e28f450e05bc56742e288172912c22ade0cd4291f5b00553216b5b27eeb37c8"
+checksum = "6aecf21f4b27a1032e1283987b83f271277705e9ab1ed46d1152fd14a2e04247"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -950,9 +950,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.8.1"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab1eee81e3edb2768f256cfb2051c16cc7508a3db24ae4d5f8cbfe5aac92c648"
+checksum = "16e65de11030079995781261b0039ce42791a503a3ec8cac6f3c4b2f86987014"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",

@@ -12,8 +12,6 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct Camelcase;
 
 impl LintRule for Camelcase {
@@ -27,7 +25,7 @@ impl LintRule for Camelcase {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = CamelcaseVisitor::new(context);
@@ -43,15 +41,15 @@ fn is_underscored(ident: &Ident) -> bool {
     && trimmed_ident != trimmed_ident.to_ascii_uppercase()
 }
 
-struct CamelcaseVisitor {
-  context: Arc<Context>,
+struct CamelcaseVisitor<'c> {
+  context: &'c mut Context,
   errors: BTreeMap<Span, String>,
   /// Already visited identifiers
   visited: BTreeSet<Span>,
 }
 
-impl CamelcaseVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> CamelcaseVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self {
       context,
       errors: BTreeMap::new(),
@@ -60,7 +58,7 @@ impl CamelcaseVisitor {
   }
 
   /// Report accumulated errors
-  fn report_errors(&self) {
+  fn report_errors(&mut self) {
     for (span, ident_name) in &self.errors {
       self.context.add_diagnostic(
         *span,
@@ -146,7 +144,7 @@ impl CamelcaseVisitor {
   }
 }
 
-impl Visit for CamelcaseVisitor {
+impl<'c> Visit for CamelcaseVisitor<'c> {
   noop_visit_type!();
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {

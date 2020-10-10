@@ -6,9 +6,7 @@ use swc_ecmascript::ast::Lit::Num;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp::Minus;
 use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
-
-use std::sync::Arc;
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoCompareNegZero;
 
@@ -17,30 +15,56 @@ impl LintRule for NoCompareNegZero {
     Box::new(NoCompareNegZero)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-compare-neg-zero"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
     visitor.visit_module(module, module);
   }
+  fn docs(&self) -> &'static str {
+    r#"Disallows comparing against negative zero (`-0`).
+
+Comparing a value directly against negative may not work as expected as it will also pass for non-negative zero (i.e. `0` and `+0`). Explicit comparison with negative zero can be performed using `Object.is`.
+
+### Invalid:
+```typescript
+if (x === -0) {
+}
+```
+### Valid:
+```typescript
+if (x === 0) {
+}
+```
+```typescript
+if (Object.is(x, -0)) {
+}
+```"#
+  }
 }
 
-struct NoCompareNegZeroVisitor {
-  context: Arc<Context>,
+struct NoCompareNegZeroVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoCompareNegZeroVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoCompareNegZeroVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoCompareNegZeroVisitor {
+impl<'c> Visit for NoCompareNegZeroVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
+    bin_expr.visit_children_with(self);
+
     if !bin_expr.op.is_comparator() {
       return;
     }
@@ -95,63 +119,68 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/no-compare-neg-zero.js
+  // MIT Licensed.
+
   #[test]
-  fn it_passes_using_positive_zero() {
-    assert_lint_ok::<NoCompareNegZero>("if (x === 0) { }");
+  fn no_compare_neg_zero_valid() {
+    assert_lint_ok_n::<NoCompareNegZero>(vec![
+      r#"if (x === 0) { }"#,
+      r#"if (Object.is(x, -0)) { }"#,
+      r#"x === 0"#,
+      r#"0 === x"#,
+      r#"x == 0"#,
+      r#"0 == x"#,
+      r#"x === '0'"#,
+      r#"'0' === x"#,
+      r#"x == '0'"#,
+      r#"'0' == x"#,
+      r#"x === '-0'"#,
+      r#"'-0' === x"#,
+      r#"x == '-0'"#,
+      r#"'-0' == x"#,
+      r#"x === -1"#,
+      r#"-1 === x"#,
+      r#"x < 0"#,
+      r#"0 < x"#,
+      r#"x <= 0"#,
+      r#"0 <= x"#,
+      r#"x > 0"#,
+      r#"0 > x"#,
+      r#"x >= 0"#,
+      r#"0 >= x"#,
+      r#"x != 0"#,
+      r#"0 != x"#,
+      r#"x !== 0"#,
+      r#"0 !== x"#,
+      r#"{} == { foo: x === 0 }"#,
+    ]);
   }
 
   #[test]
-  fn it_passes_using_object_is_neg_zero() {
-    assert_lint_ok::<NoCompareNegZero>("if (Object.is(x, -0)) { }");
-  }
-
-  #[test]
-  fn it_fails_using_double_eq_with_neg_zero() {
+  fn no_compare_neg_zero_invalid() {
     assert_lint_err::<NoCompareNegZero>("if (x == -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_not_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x != -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_triple_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x === -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_not_double_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x !== -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_less_than_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x < -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_less_than_eq_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x <= -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_greater_than_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x > -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_greater_than_equal_with_neg_zero() {
-    assert_lint_err::<NoCompareNegZero>("if (x >= -0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_with_neg_zero_as_the_left_operand() {
     assert_lint_err::<NoCompareNegZero>("if (-0 == x) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_with_floating_point_neg_zero() {
+    assert_lint_err::<NoCompareNegZero>("if (x != -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 != x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x === -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 === x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x !== -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 !== x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x < -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 < x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x <= -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 <= x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x > -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 > x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x >= -0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0 >= x) { }", 4);
     assert_lint_err::<NoCompareNegZero>("if (x == -0.0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0.0 == x) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (x === -0.0) { }", 4);
+    assert_lint_err::<NoCompareNegZero>("if (-0.0 === x) { }", 4);
+    // nested
+    assert_lint_err::<NoCompareNegZero>("{} == { foo: x === -0 }", 13);
   }
 }

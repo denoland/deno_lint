@@ -7,13 +7,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoDuplicateCase;
 
 impl LintRule for NoDuplicateCase {
   fn new() -> Box<Self> {
     Box::new(NoDuplicateCase)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -22,7 +24,7 @@ impl LintRule for NoDuplicateCase {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
@@ -30,17 +32,17 @@ impl LintRule for NoDuplicateCase {
   }
 }
 
-struct NoDuplicateCaseVisitor {
-  context: Arc<Context>,
+struct NoDuplicateCaseVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDuplicateCaseVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDuplicateCaseVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoDuplicateCaseVisitor {
+impl<'c> Visit for NoDuplicateCaseVisitor<'c> {
   noop_visit_type!();
 
   fn visit_switch_stmt(

@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-16.04, windows-2019]
+        os: [macOS-latest, ubuntu-latest-xl, windows-2019]
 
     steps:
       - name: Clone repository
@@ -33,7 +33,7 @@ jobs:
       - name: Install Deno
         uses: denolib/setup-deno@master
         with:
-          deno-version: v1.2
+          deno-version: v1.4.4
 
       - name: Install Node.js
         if: contains(matrix.os, 'ubuntu')
@@ -66,10 +66,10 @@ jobs:
         run: deno run --allow-run ./tools/format.ts --check
 
       - name: Build
-        run: cargo build --locked --release --all-targets --features "json"
+        run: cargo build --locked --release --all-targets
 
       - name: Test
-        run: cargo test --locked --release --all-targets --features "json"
+        run: cargo test --locked --release --all-targets
 
       - name: Lint
         run: deno run --allow-run ./tools/lint.ts --release
@@ -77,6 +77,25 @@ jobs:
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts
+
+      - name: Generate rules json
+        if: contains(matrix.os, 'ubuntu')
+        run: target/release/examples/dlint rules --json > docs.json
+
+      - name: Build website
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          yarn
+          yarn build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.0/cli.ts build
+        working-directory: ./www
+
+      - name: Upload website to Github Actions Artifacts
+        if: contains(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v2
+        with:
+          name: www
+          path: ./www/.dext/static
 
       - name: Publish
         if: |

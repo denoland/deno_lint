@@ -8,13 +8,15 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-use std::sync::Arc;
-
 pub struct NoArrayConstructor;
 
 impl LintRule for NoArrayConstructor {
   fn new() -> Box<Self> {
     Box::new(NoArrayConstructor)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -23,7 +25,7 @@ impl LintRule for NoArrayConstructor {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
@@ -31,16 +33,16 @@ impl LintRule for NoArrayConstructor {
   }
 }
 
-struct NoArrayConstructorVisitor {
-  context: Arc<Context>,
+struct NoArrayConstructorVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoArrayConstructorVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoArrayConstructorVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn check_args(&self, args: Vec<ExprOrSpread>, span: Span) {
+  fn check_args(&mut self, args: Vec<ExprOrSpread>, span: Span) {
     if args.len() != 1 {
       self.context.add_diagnostic(
         span,
@@ -51,7 +53,7 @@ impl NoArrayConstructorVisitor {
   }
 }
 
-impl Visit for NoArrayConstructorVisitor {
+impl<'c> Visit for NoArrayConstructorVisitor<'c> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {

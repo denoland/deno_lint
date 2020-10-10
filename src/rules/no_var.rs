@@ -7,8 +7,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoVar;
 
 impl LintRule for NoVar {
@@ -22,7 +20,7 @@ impl LintRule for NoVar {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoVarVisitor::new(context);
@@ -30,17 +28,17 @@ impl LintRule for NoVar {
   }
 }
 
-struct NoVarVisitor {
-  context: Arc<Context>,
+struct NoVarVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoVarVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoVarVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoVarVisitor {
+impl<'c> Visit for NoVarVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {

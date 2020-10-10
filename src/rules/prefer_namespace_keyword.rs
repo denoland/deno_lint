@@ -6,13 +6,15 @@ use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct PreferNamespaceKeyword;
 
 impl LintRule for PreferNamespaceKeyword {
   fn new() -> Box<Self> {
     Box::new(PreferNamespaceKeyword)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -21,7 +23,7 @@ impl LintRule for PreferNamespaceKeyword {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = PreferNamespaceKeywordVisitor::new(context);
@@ -29,17 +31,17 @@ impl LintRule for PreferNamespaceKeyword {
   }
 }
 
-struct PreferNamespaceKeywordVisitor {
-  context: Arc<Context>,
+struct PreferNamespaceKeywordVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl PreferNamespaceKeywordVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> PreferNamespaceKeywordVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for PreferNamespaceKeywordVisitor {
+impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
   fn visit_ts_module_decl(
     &mut self,
     mod_decl: &TsModuleDecl,

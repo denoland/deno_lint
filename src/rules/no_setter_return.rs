@@ -11,13 +11,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoSetterReturn;
 
 impl LintRule for NoSetterReturn {
   fn new() -> Box<Self> {
     Box::new(NoSetterReturn)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -26,7 +28,7 @@ impl LintRule for NoSetterReturn {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoSetterReturnVisitor::new(context);
@@ -34,16 +36,16 @@ impl LintRule for NoSetterReturn {
   }
 }
 
-struct NoSetterReturnVisitor {
-  context: Arc<Context>,
+struct NoSetterReturnVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoSetterReturnVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoSetterReturnVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn check_block_stmt(&self, block_stmt: &BlockStmt) {
+  fn check_block_stmt(&mut self, block_stmt: &BlockStmt) {
     for stmt in &block_stmt.stmts {
       if let Stmt::Return(return_stmt) = stmt {
         if return_stmt.arg.is_some() {
@@ -58,7 +60,7 @@ impl NoSetterReturnVisitor {
   }
 }
 
-impl Visit for NoSetterReturnVisitor {
+impl<'c> Visit for NoSetterReturnVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {

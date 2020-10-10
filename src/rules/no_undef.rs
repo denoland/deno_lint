@@ -13,7 +13,6 @@ use swc_ecmascript::{
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
 use std::collections::HashSet;
-use std::sync::Arc;
 
 pub struct NoUndef;
 
@@ -22,11 +21,15 @@ impl LintRule for NoUndef {
     Box::new(NoUndef)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-undef"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut collector = BindingCollector {
       top_level_ctxt: context.top_level_ctxt,
       declared: Default::default(),
@@ -140,17 +143,17 @@ impl Visit for BindingCollector {
   }
 }
 
-struct NoUndefVisitor {
-  context: Arc<Context>,
+struct NoUndefVisitor<'c> {
+  context: &'c mut Context,
   declared: HashSet<Id>,
 }
 
-impl NoUndefVisitor {
-  fn new(context: Arc<Context>, declared: HashSet<Id>) -> Self {
+impl<'c> NoUndefVisitor<'c> {
+  fn new(context: &'c mut Context, declared: HashSet<Id>) -> Self {
     Self { context, declared }
   }
 
-  fn check(&self, ident: &Ident) {
+  fn check(&mut self, ident: &Ident) {
     // Thanks to this if statement, we can check for Map in
     //
     // function foo(Map) { ... }
@@ -183,7 +186,7 @@ impl NoUndefVisitor {
   }
 }
 
-impl Visit for NoUndefVisitor {
+impl<'c> Visit for NoUndefVisitor<'c> {
   noop_visit_type!();
 
   fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {

@@ -9,13 +9,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoExtraSemi;
 
 impl LintRule for NoExtraSemi {
   fn new() -> Box<Self> {
     Box::new(NoExtraSemi)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -24,7 +26,7 @@ impl LintRule for NoExtraSemi {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoExtraSemiVisitor::new(context);
@@ -32,17 +34,17 @@ impl LintRule for NoExtraSemi {
   }
 }
 
-struct NoExtraSemiVisitor {
-  context: Arc<Context>,
+struct NoExtraSemiVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoExtraSemiVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoExtraSemiVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoExtraSemiVisitor {
+impl<'c> Visit for NoExtraSemiVisitor<'c> {
   noop_visit_type!();
 
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt, _parent: &dyn Node) {

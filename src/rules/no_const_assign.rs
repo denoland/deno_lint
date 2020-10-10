@@ -12,8 +12,6 @@ use swc_ecmascript::ast::{Ident, UpdateExpr};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::{utils::ident::IdentLike, visit::Visit};
 
-use std::sync::Arc;
-
 pub struct NoConstAssign;
 
 impl LintRule for NoConstAssign {
@@ -27,7 +25,7 @@ impl LintRule for NoConstAssign {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoConstAssignVisitor::new(context);
@@ -35,12 +33,12 @@ impl LintRule for NoConstAssign {
   }
 }
 
-struct NoConstAssignVisitor {
-  context: Arc<Context>,
+struct NoConstAssignVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoConstAssignVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoConstAssignVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -106,7 +104,7 @@ impl NoConstAssignVisitor {
   }
 }
 
-impl Visit for NoConstAssignVisitor {
+impl<'c> Visit for NoConstAssignVisitor<'c> {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {

@@ -20,7 +20,6 @@ use swc_ecmascript::{
 };
 
 use std::collections::HashSet;
-use std::sync::Arc;
 
 pub struct NoUnusedVars;
 
@@ -33,7 +32,7 @@ impl LintRule for NoUnusedVars {
     "no-unused-vars"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut collector = Collector {
       used_vars: Default::default(),
       cur_defining: Default::default(),
@@ -239,15 +238,15 @@ fn get_id(r: &TsEntityName) -> Id {
   }
 }
 
-struct NoUnusedVarVisitor {
-  context: Arc<Context>,
+struct NoUnusedVarVisitor<'c> {
+  context: &'c mut Context,
   used_vars: HashSet<Id>,
   used_types: HashSet<Id>,
 }
 
-impl NoUnusedVarVisitor {
+impl<'c> NoUnusedVarVisitor<'c> {
   fn new(
-    context: Arc<Context>,
+    context: &'c mut Context,
     used_vars: HashSet<Id>,
     used_types: HashSet<Id>,
   ) -> Self {
@@ -259,7 +258,7 @@ impl NoUnusedVarVisitor {
   }
 }
 
-impl NoUnusedVarVisitor {
+impl<'c> NoUnusedVarVisitor<'c> {
   fn handle_id(&mut self, ident: &Ident) {
     if ident.sym.starts_with('_') {
       return;
@@ -276,7 +275,7 @@ impl NoUnusedVarVisitor {
   }
 }
 
-impl Visit for NoUnusedVarVisitor {
+impl<'c> Visit for NoUnusedVarVisitor<'c> {
   fn visit_arrow_expr(&mut self, expr: &ArrowExpr, _: &dyn Node) {
     let declared_idents: Vec<Ident> = find_ids(&expr.params);
 

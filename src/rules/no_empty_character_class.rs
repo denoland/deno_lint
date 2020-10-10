@@ -6,13 +6,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoEmptyCharacterClass;
 
 impl LintRule for NoEmptyCharacterClass {
   fn new() -> Box<Self> {
     Box::new(NoEmptyCharacterClass)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -21,7 +23,7 @@ impl LintRule for NoEmptyCharacterClass {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoEmptyCharacterClassVisitor::new(context);
@@ -29,17 +31,17 @@ impl LintRule for NoEmptyCharacterClass {
   }
 }
 
-struct NoEmptyCharacterClassVisitor {
-  context: Arc<Context>,
+struct NoEmptyCharacterClassVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoEmptyCharacterClassVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoEmptyCharacterClassVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoEmptyCharacterClassVisitor {
+impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {

@@ -11,13 +11,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoDupeArgs;
 
 impl LintRule for NoDupeArgs {
   fn new() -> Box<Self> {
     Box::new(NoDupeArgs)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -26,7 +28,7 @@ impl LintRule for NoDupeArgs {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
@@ -34,16 +36,16 @@ impl LintRule for NoDupeArgs {
   }
 }
 
-struct NoDupeArgsVisitor {
-  context: Arc<Context>,
+struct NoDupeArgsVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDupeArgsVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDupeArgsVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn check_pats(&self, span: Span, pats: &[Pat]) {
+  fn check_pats(&mut self, span: Span, pats: &[Pat]) {
     let mut seen: HashSet<String> = HashSet::new();
 
     for pat in pats {
@@ -62,7 +64,7 @@ impl NoDupeArgsVisitor {
     }
   }
 
-  fn check_params(&self, span: Span, params: &[Param]) {
+  fn check_params(&mut self, span: Span, params: &[Param]) {
     let pats = params
       .iter()
       .map(|param| param.pat.clone())
@@ -71,7 +73,7 @@ impl NoDupeArgsVisitor {
   }
 }
 
-impl Visit for NoDupeArgsVisitor {
+impl<'c> Visit for NoDupeArgsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {

@@ -6,8 +6,6 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoEmpty;
 
 impl LintRule for NoEmpty {
@@ -15,27 +13,86 @@ impl LintRule for NoEmpty {
     Box::new(NoEmpty)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-empty"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoEmptyVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of empty block statements.
+
+Empty block statements are legal but often represent that something was missed and can make code less readable. This rule ignores block statements that only contain comments. This rule also ignores empty constructors and function bodies (including arrow functions), which are covered by the `no-empty-function` rule.
+
+### Valid:
+```typescript
+if (foo) {
+  // empty
+}
+```
+```typescript
+while (foo) {
+  /* empty */
+}
+```
+```typescript
+try {
+  doSomething();
+} catch (ex) {
+  // continue regardless of error
+}
+```
+```typescript
+try {
+  doSomething();
+} finally {
+  /* continue regardless of error */
+}
+```
+
+### Invalid:
+```typescript
+if (foo) {
+}
+```
+```typescript
+while (foo) {
+}
+```
+```typescript
+switch(foo) {
+}
+```
+```typescript
+try {
+  doSomething();
+} catch(ex) {
+
+} finally {
+
+}
+```"#
+  }
 }
 
-struct NoEmptyVisitor {
-  context: Arc<Context>,
+struct NoEmptyVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoEmptyVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoEmptyVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoEmptyVisitor {
+impl<'c> Visit for NoEmptyVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
