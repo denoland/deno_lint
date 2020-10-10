@@ -105,9 +105,9 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
-          echo $NETLIFY_AUTH_TOKEN
           yarn global add netlify-cli
-          netlify deploy --dir=./www/.dext/static --site def7a3c7-172e-4e2a-bc4f-601a5301403f --auth $NETLIFY_AUTH_TOKEN --prod
+          netlify status --auth=$NETLIFY_AUTH_TOKEN
+          netlify deploy --dir=./www/.dext/static --site=def7a3c7-172e-4e2a-bc4f-601a5301403f --auth=$NETLIFY_AUTH_TOKEN --prod
 
       - name: Publish
         if: |
