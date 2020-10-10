@@ -493,18 +493,32 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
+    let body_lo = n.body.span().lo;
+
     n.right.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
+    self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(n, a);
+
+      // it's impossible to decide whether it enters loop block unconditionally, so we always mark
+      // it as `Done::Pass`.
+      a.mark_as_done(body_lo, Done::Pass);
+      a.scope.done = Some(Done::Pass);
     });
   }
 
   fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
+    let body_lo = n.body.span().lo;
+
     n.right.visit_with(n, self);
 
-    self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
+    self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(n, a);
+
+      // it's impossible to decide whether it enters loop block unconditionally, so we always mark
+      // it as `Done::Pass`.
+      a.mark_as_done(body_lo, Done::Pass);
+      a.scope.done = Some(Done::Pass);
     });
   }
 
@@ -815,7 +829,7 @@ function foo() {
 
   #[test]
   fn piyo() {
-    let src = "function foo() { var x = 1; while (x) { return; } x = 2; }";
+    let src = "function foo() { var x = 1; for (x in {}) { return; } x = 2; }";
     let flow = analyze_flow(src);
     dbg!(&flow);
     panic!();

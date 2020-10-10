@@ -183,6 +183,10 @@ mod tests {
     );
 
     assert_lint_ok::<NoUnreachable>(
+      "function foo() { var x = 1; for (x of []) { return; } x = 2; }",
+    );
+
+    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; try { return; } finally { x = 2; } }",
     );
   }
