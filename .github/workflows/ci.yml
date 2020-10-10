@@ -102,9 +102,10 @@ jobs:
         uses: netlify/actions/cli@master
         if: |
           contains(matrix.os, 'ubuntu') &&
-          github.repository == 'denoland/deno_lint'
+          github.repository == 'denoland/deno_lint' &&
+          github.ref == 'refs/heads/master'
         with:
-          args: deploy --dir=./www/.dext/static
+          args: deploy --dir=./www/.dext/static --site $NETLIFY_SITE_ID --auth $NETLIFY_AUTH_TOKEN --prod
         env:
           NETLIFY_SITE_ID: def7a3c7-172e-4e2a-bc4f-601a5301403f
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_PAT }}
