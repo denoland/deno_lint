@@ -101,7 +101,8 @@ jobs:
       - name: Deploy website
         if: |
           contains(matrix.os, 'ubuntu') &&
-          github.repository == 'denoland/deno_lint'
+          github.repository == 'denoland/deno_lint' &&
+          github.ref == 'refs/heads/master'
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
