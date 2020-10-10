@@ -104,9 +104,8 @@ jobs:
           github.repository == 'denoland/deno_lint'
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          TEST: abc
         run: |
-          echo $TEST
+          echo $NETLIFY_AUTH_TOKEN
           yarn global add netlify-cli
           netlify deploy --dir=./www/.dext/static --site def7a3c7-172e-4e2a-bc4f-601a5301403f --auth $NETLIFY_AUTH_TOKEN --prod
 
