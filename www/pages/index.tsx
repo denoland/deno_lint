@@ -19,7 +19,7 @@ interface Rule {
 
 function IndexPage(props: PageProps<Data>) {
   const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<Rule[]>([]);
 
   useEffect(() => {
     const results = props.data.rules
@@ -30,11 +30,17 @@ function IndexPage(props: PageProps<Data>) {
   return (
     <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
       <h1 class="text-3xl font-bold my-8">deno_lint docs</h1>
-      <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type="text" placeholder="Search" value={search} onInput={e => setSearch(e.target.value)} />
-      <div>{
-        searchResults
-          .map((rule) => <Rule rule={rule} />)
-      }</div>
+      <input
+        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+        type="text"
+        placeholder="Search"
+        value={search}
+        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+      />
+      <div>
+        {searchResults
+          .map((rule) => <Rule rule={rule} />)}
+      </div>
     </div>
   );
 }

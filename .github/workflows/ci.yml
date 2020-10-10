@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
+          persist-credentials: false
 
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.3
@@ -87,7 +88,7 @@ jobs:
         run: |
           yarn
           yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.0/cli.ts build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.1/cli.ts build
         working-directory: ./www
 
       - name: Upload website to Github Actions Artifacts
@@ -96,6 +97,18 @@ jobs:
         with:
           name: www
           path: ./www/.dext/static
+
+      - name: Deploy website
+        if: |
+          contains(matrix.os, 'ubuntu') &&
+          github.repository == 'denoland/deno_lint' &&
+          github.ref == 'refs/heads/master'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          yarn global add netlify-cli
+          netlify status --auth=$NETLIFY_AUTH_TOKEN
+          netlify deploy --dir=./www/.dext/static --site=def7a3c7-172e-4e2a-bc4f-601a5301403f --auth=$NETLIFY_AUTH_TOKEN --prod
 
       - name: Publish
         if: |
