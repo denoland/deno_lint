@@ -92,6 +92,10 @@ impl<'c> GetterReturnVisitor<'c> {
   }
 
   fn check_getter(&mut self, getter_body_span: Span, getter_span: Span) {
+    if self.getter_name.is_none() {
+      return;
+    }
+
     if self
       .context
       .control_flow
@@ -261,6 +265,7 @@ mod tests {
   fn getter_return_valid() {
     assert_lint_ok::<GetterReturn>("let foo = { get bar() { return true; } };");
     assert_lint_ok::<GetterReturn>("class Foo { get bar() { return true; } }");
+    assert_lint_ok::<GetterReturn>("class Foo { bar() {} }");
     assert_lint_ok::<GetterReturn>(
       "class Foo { get bar() { if (baz) { return true; } else { return false; } } }",
     );
