@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_common::Span;
 
 pub struct BanUntaggedIgnore;
 
@@ -22,15 +23,25 @@ impl LintRule for BanUntaggedIgnore {
     context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    let ignore_directives = context.ignore_directives.clone();
-    for ignore_directive in ignore_directives.borrow().iter() {
-      if ignore_directive.codes.is_empty() {
-        context.add_diagnostic(
-          ignore_directive.span,
-          "ban-untagged-ignore",
-          "Ignore directive requires lint rule code",
-        );
-      }
+    let violated_spans: Vec<Span> = context
+      .ignore_directives
+      .borrow()
+      .iter()
+      .filter_map(|d| {
+        if d.codes.is_empty() {
+          Some(d.span)
+        } else {
+          None
+        }
+      })
+      .collect();
+
+    for span in violated_spans {
+      context.add_diagnostic(
+        span,
+        "ban-untagged-ignore",
+        "Ignore directive requires lint rule code",
+      )
     }
   }
 }

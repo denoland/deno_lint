@@ -41,10 +41,10 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
   }
 
   fn is_restricted_names(&self, ident: &Ident) -> bool {
-    match ident.sym.as_ref() {
-      "undefined" | "NaN" | "Infinity" | "arguments" | "eval" => true,
-      _ => false,
-    }
+    matches!(
+      ident.sym.as_ref(),
+      "undefined" | "NaN" | "Infinity" | "arguments" | "eval"
+    )
   }
 
   fn check_pat(&mut self, pat: &Pat, check_scope: bool) {

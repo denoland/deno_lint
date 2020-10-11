@@ -23,17 +23,15 @@ lazy_static! {
     regex::Regex::new(r",\s*|\s").unwrap();
 }
 
-#[derive(Clone)]
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
   pub source_map: Arc<SourceMap>,
-  pub(crate) leading_comments: Rc<HashMap<BytePos, Vec<Comment>>>,
-  pub(crate) trailing_comments: Rc<HashMap<BytePos, Vec<Comment>>>,
-  pub ignore_directives: Rc<RefCell<Vec<IgnoreDirective>>>,
-  /// Arc as it's not modified
-  pub(crate) scope: Arc<Scope>,
-  pub(crate) control_flow: Arc<ControlFlow>,
+  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
+  pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
+  pub(crate) scope: Scope,
+  pub(crate) control_flow: ControlFlow,
   pub(crate) top_level_ctxt: SyntaxContext,
 }
 
@@ -363,16 +361,16 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = Arc::new(analyze(&module));
-    let control_flow = Arc::new(ControlFlow::analyze(&module));
+    let scope = analyze(&module);
+    let control_flow = ControlFlow::analyze(&module);
 
     let mut context = Context {
       file_name,
       diagnostics: vec![],
       source_map: self.ast_parser.source_map.clone(),
-      leading_comments: Rc::new(leading),
-      trailing_comments: Rc::new(trailing),
-      ignore_directives: Rc::new(RefCell::new(ignore_directives)),
+      leading_comments: leading,
+      trailing_comments: trailing,
+      ignore_directives: RefCell::new(ignore_directives),
       scope,
       control_flow,
       top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
