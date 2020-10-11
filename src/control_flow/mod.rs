@@ -441,7 +441,12 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
-    let unreachable = if self.scope.done.is_some() {
+    let scope_done = self
+      .scope
+      .done
+      .map_or(false, |d| matches!(d, Done::Forced | Done::Break));
+
+    let unreachable = if scope_done {
       // Although execution is done, we should handle hoisting.
       match n {
         Stmt::Empty(..) => false,
@@ -1027,6 +1032,29 @@ function foo() {
   }
 
   #[test]
+  fn if_2() {
+    let src = r#"
+function foo() {
+  if (a) {
+    bar();
+  } else {
+    return 1;
+  }
+  baz();
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_meta!(flow, 20, false, Some(Done::Pass)); // if
+    assert_meta!(flow, 27, false, Some(Done::Pass)); // BloskStmt of if
+    assert_meta!(flow, 33, false, None); // `bar();`
+    assert_meta!(flow, 49, false, Some(Done::Forced)); // else
+    assert_meta!(flow, 55, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 71, false, None); // `baz();`
+  }
+
+  #[test]
   fn switch_1() {
     let src = r#"
 switch (foo) {
@@ -1102,22 +1130,16 @@ throw err;
   #[test]
   fn piyo() {
     let src = r#"
-function foo() {
-  try {
-    return 1;
-  } finally {
-    bar();
-  }
-}
+function foo() { var x = 1; if (x) { } else { return; } x = 2; }
 "#;
     let flow = analyze_flow(src);
     dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
-    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
-    assert_meta!(flow, 58, false, None); // `bar();`
+    //assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    //assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    //assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    //assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
+    //assert_meta!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
+    //assert_meta!(flow, 58, false, None); // `bar();`
     panic!();
   }
 
