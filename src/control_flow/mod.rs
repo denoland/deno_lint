@@ -1194,27 +1194,4 @@ throw err;
     assert_flow!(flow, 54, false, Some(Done::Forced)); // return stmt
     assert_flow!(flow, 70, false, Some(Done::Forced)); // throw stmt
   }
-
-  #[test]
-  fn hoge() {
-    let src = r#"
-const obj = {
-  get root() {
-    let primary = this;
-    while (true) {
-      if (primary.parent !== undefined) {
-          primary = primary.parent;
-      } else {
-          return primary;
-      }
-    }
-    //return 'a';
-  }
-};
-      "#;
-    let module = parse(src);
-    let flow = ControlFlow::analyze(&module);
-    dbg!(flow);
-    panic!();
-  }
 }
