@@ -106,11 +106,11 @@ struct Scope<'a> {
 enum Done {
   /// Return, Throw, or infinite loop
   Forced,
-  // Break or continue
+  /// Break or continue
   Break,
-  // Pass through a block, like a function's block statement which ends without returning a value
-  // or throwing an exception. Note that a node marked as `Done::Pass` won't prevent further execution, unlike
-  // `Done::Forced` and `Done::Break`.
+  /// Pass through a block, like a function's block statement which ends without returning a value
+  /// or throwing an exception. Note that a node marked as `Done::Pass` won't prevent further execution, unlike
+  /// `Done::Forced` and `Done::Break`.
   Pass,
 }
 
