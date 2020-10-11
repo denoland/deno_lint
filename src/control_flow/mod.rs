@@ -630,20 +630,18 @@ impl Visit for Analyzer<'_> {
           self.scope.done = prev_done;
         }
       }
+    } else if matches!(try_block_done, Some(Done::Forced) | Some(Done::Break)) {
+      self.mark_as_done(n.span.lo, try_block_done.unwrap());
+    } else if let Some(finalizer) = &n.finalizer {
+      self.mark_as_done(
+        n.span.lo,
+        self
+          .get_done_reason(finalizer.span.lo)
+          .unwrap_or(Done::Pass),
+      );
+      self.scope.done = prev_done;
     } else {
-      if matches!(try_block_done, Some(Done::Forced) | Some(Done::Break)) {
-        self.mark_as_done(n.span.lo, try_block_done.unwrap());
-      } else if let Some(finalizer) = &n.finalizer {
-        self.mark_as_done(
-          n.span.lo,
-          self
-            .get_done_reason(finalizer.span.lo)
-            .unwrap_or(Done::Pass),
-        );
-        self.scope.done = prev_done;
-      } else {
-        self.scope.done = prev_done;
-      }
+      self.scope.done = prev_done;
     }
 
     self.scope.may_throw = old_throw;
