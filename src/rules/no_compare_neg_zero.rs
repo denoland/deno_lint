@@ -85,10 +85,10 @@ trait Comparator {
 
 impl Comparator for BinaryOp {
   fn is_comparator(&self) -> bool {
-    match self {
-      EqEq | NotEq | EqEqEq | NotEqEq | Lt | LtEq | Gt | GtEq => true,
-      _ => false,
-    }
+    matches!(
+      self,
+      EqEq | NotEq | EqEqEq | NotEqEq | Lt | LtEq | Gt | GtEq
+    )
   }
 }
 
