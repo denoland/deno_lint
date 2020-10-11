@@ -2,8 +2,9 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
+use std::collections::BTreeMap;
 use std::mem;
-use swc_common::Span;
+use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   BlockStmtOrExpr, CallExpr, ClassMethod, Expr, ExprOrSuper, GetterProp,
   MethodKind, PrivateMethod, Prop, PropName, PropOrSpread, ReturnStmt,
@@ -35,11 +36,13 @@ impl LintRule for GetterReturn {
   ) {
     let mut visitor = GetterReturnVisitor::new(context);
     visitor.visit_module(module, module);
+    visitor.report();
   }
 }
 
 struct GetterReturnVisitor<'c> {
   context: &'c mut Context,
+  errors: BTreeMap<Span, String>,
   /// If this visitor is currently in a getter, its name is stored.
   getter_name: Option<String>,
   // `true` if a getter contains as least one return statement.
@@ -50,19 +53,20 @@ impl<'c> GetterReturnVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self {
       context,
+      errors: BTreeMap::new(),
       getter_name: None,
       has_return: false,
     }
   }
 
-  fn report(&mut self, span: Span, msg: impl AsRef<str>) {
-    self
-      .context
-      .add_diagnostic(span, "getter-return", msg.as_ref());
+  fn report(&mut self) {
+    for (span, msg) in &self.errors {
+      self.context.add_diagnostic(*span, "getter-return", msg);
+    }
   }
 
   fn report_expected(&mut self, span: Span) {
-    self.report(
+    self.errors.insert(
       span,
       format!(
         "Expected to return a value in {}.",
@@ -75,7 +79,7 @@ impl<'c> GetterReturnVisitor<'c> {
   }
 
   fn report_always_expected(&mut self, span: Span) {
-    self.report(
+    self.errors.insert(
       span,
       format!(
         "Expected {} to always return a value.",
@@ -87,7 +91,7 @@ impl<'c> GetterReturnVisitor<'c> {
     );
   }
 
-  fn check_getter(&mut self, getter_body_span: Span) {
+  fn check_getter(&mut self, getter_body_span: Span, getter_span: Span) {
     if self
       .context
       .control_flow
@@ -96,9 +100,9 @@ impl<'c> GetterReturnVisitor<'c> {
       .continues_execution()
     {
       if self.has_return {
-        self.report_always_expected(getter_body_span);
+        self.report_always_expected(getter_span);
       } else {
-        self.report_expected(getter_body_span);
+        self.report_expected(getter_span);
       }
     }
   }
@@ -131,7 +135,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
       class_method.visit_children_with(a);
 
       if let Some(body) = &class_method.function.body {
-        a.check_getter(body.span);
+        a.check_getter(body.span, class_method.span);
       }
     });
   }
@@ -148,7 +152,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
       private_method.visit_children_with(a);
 
       if let Some(body) = &private_method.function.body {
-        a.check_getter(body.span);
+        a.check_getter(body.span, private_method.span);
       }
     });
   }
@@ -159,7 +163,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
       getter_prop.visit_children_with(a);
 
       if let Some(body) = &getter_prop.body {
-        a.check_getter(body.span);
+        a.check_getter(body.span, getter_prop.span);
       }
     });
   }
@@ -201,14 +205,14 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
                 if let Expr::Fn(fn_expr) = &*kv_prop.value {
                   if let Some(body) = &fn_expr.function.body {
                     body.visit_children_with(a);
-                    a.check_getter(body.span);
+                    a.check_getter(body.span, prop.span());
                   }
                 } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
                   if let BlockStmtOrExpr::BlockStmt(block_stmt) =
                     &arrow_expr.body
                   {
                     block_stmt.visit_children_with(a);
-                    a.check_getter(block_stmt.span);
+                    a.check_getter(block_stmt.span, prop.span());
                   }
                 }
               });
@@ -224,7 +228,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
 
                 if let Some(body) = &method_prop.function.body {
                   body.visit_children_with(a);
-                  a.check_getter(body.span);
+                  a.check_getter(body.span, prop.span());
                 }
               });
             }
@@ -357,7 +361,7 @@ const obj = {
     );
     assert_lint_err::<GetterReturn>(
       "const foo = { get bar() { return; } };",
-      14,
+      26,
     );
     // class getter
     assert_lint_err::<GetterReturn>("class Foo { get bar() {} }", 12);
