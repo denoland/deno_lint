@@ -62,7 +62,10 @@ pub struct Metadata {
 impl Metadata {
   /// Returns true if a node prevents further execution.
   pub fn stops_execution(&self) -> bool {
-    self.done.is_some()
+    dbg!(self);
+    self
+      .done
+      .map_or(false, |d| matches!(d, Done::Forced | Done::Break))
   }
 }
 
@@ -102,7 +105,8 @@ enum Done {
   // Break or continue
   Break,
   // Pass through a block, like a function's block statement which ends without returning a value
-  // or throwing an exception
+  // or throwing an exception. Note that a node marked as `Done::Pass` won't prevent further execution, unlike
+  // `Done::Forced` and `Done::Break`.
   Pass,
 }
 
@@ -611,6 +615,9 @@ impl Visit for Analyzer<'_> {
         (Some(Done::Forced), Some(Done::Forced)) => {
           self.mark_as_done(n.span.lo, Done::Forced);
         }
+        (Some(Done::Forced), Some(Done::Break)) => {
+          self.mark_as_done(n.span.lo, Done::Break);
+        }
         _ => {
           self.mark_as_done(n.span.lo, Done::Pass);
           self.scope.done = prev_done;
@@ -619,6 +626,14 @@ impl Visit for Analyzer<'_> {
     } else {
       if try_block_done == Some(Done::Forced) {
         self.mark_as_done(n.span.lo, Done::Forced);
+      } else if let Some(finalizer) = &n.finalizer {
+        self.mark_as_done(
+          n.span.lo,
+          self
+            .get_done_reason(finalizer.span.lo)
+            .unwrap_or(Done::Pass),
+        );
+        self.scope.done = prev_done;
       } else {
         self.scope.done = prev_done;
       }
@@ -1010,6 +1025,41 @@ function foo() {
     assert_meta!(flow, 81, false, Some(Done::Pass)); // BlockStmt of finally
     assert_meta!(flow, 87, false, None); // `bar();`
     assert_meta!(flow, 100, true, None); // `baz();`
+  }
+
+  #[test]
+  fn try_6() {
+    let src = r#"
+try {}
+finally {
+  break;
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 1, false, Some(Done::Break)); // try stmt
+    assert_meta!(flow, 5, false, Some(Done::Pass)); // BlockStmt of try
+    assert_meta!(flow, 16, false, Some(Done::Break)); // BlockStmt of finally
+    assert_meta!(flow, 20, false, Some(Done::Break)); // break stmt
+  }
+
+  #[test]
+  fn try_7() {
+    let src = r#"
+try {
+  throw 0;
+} catch (e) {
+  break;
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 1, false, Some(Done::Break)); // try stmt
+    assert_meta!(flow, 5, false, Some(Done::Forced)); // BlockStmt of try
+    assert_meta!(flow, 9, false, Some(Done::Forced)); // throw stmt
+    assert_meta!(flow, 20, false, Some(Done::Break)); // catch
+    assert_meta!(flow, 30, false, Some(Done::Break)); // BloskStmt of catch
+    assert_meta!(flow, 34, false, Some(Done::Break)); // break stmt
   }
 
   #[test]
