@@ -581,6 +581,10 @@ impl Visit for Analyzer<'_> {
       }
     });
 
+    if self.get_done_reason(body_lo) == Some(Done::Forced) {
+      self.mark_as_done(n.span.lo, Done::Forced);
+    }
+
     n.test.visit_with(n, self);
   }
 
@@ -866,6 +870,24 @@ function foo() {
     assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
     assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
     assert_meta!(flow, 59, true, Some(Done::Forced)); // return stmt
+  }
+
+  #[test]
+  fn do_while_7() {
+    let src = r#"
+function foo() {
+  do {
+    throw 0;
+  } while (a);
+  return 1;
+}
+      "#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_meta!(flow, 29, false, Some(Done::Forced)); // throw stmt
+    assert_meta!(flow, 55, true, Some(Done::Forced)); // return stmt
   }
 
   #[test]
