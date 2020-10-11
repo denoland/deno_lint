@@ -62,7 +62,6 @@ pub struct Metadata {
 impl Metadata {
   /// Returns true if a node prevents further execution.
   pub fn stops_execution(&self) -> bool {
-    dbg!(self);
     self
       .done
       .map_or(false, |d| matches!(d, Done::Forced | Done::Break))
@@ -217,7 +216,6 @@ impl Analyzer<'_> {
   }
 
   fn is_forced_done(&self, lo: BytePos) -> bool {
-    dbg!(lo, self.get_done_reason(lo));
     match self.get_done_reason(lo) {
       Some(Done::Forced) => true,
       _ => false,
@@ -663,7 +661,7 @@ mod tests {
     ControlFlow::analyze(&module)
   }
 
-  macro_rules! assert_meta {
+  macro_rules! assert_flow {
     ($flow:ident, $lo:expr, $unreachable:expr, $done:expr) => {
       assert_eq!(
         $flow.meta(BytePos($lo)).unwrap(),
@@ -686,10 +684,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
-    assert_meta!(flow, 49, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
+    assert_flow!(flow, 49, false, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -703,10 +700,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
-    assert_meta!(flow, 49, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
+    assert_flow!(flow, 49, false, None); // `bar();`
   }
 
   #[test]
@@ -720,11 +716,10 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
-    assert_meta!(flow, 36, false, None); // `bar();`
-    assert_meta!(flow, 49, false, None); // `baz();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 30, false, Some(Done::Pass)); // BlockStmt of while
+    assert_flow!(flow, 36, false, None); // `bar();`
+    assert_flow!(flow, 49, false, None); // `baz();`
   }
 
   #[test]
@@ -738,16 +733,15 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
 
     // BlockStmt of while
     // This block contains `return 1;` but whether entering the block depends on the specific value
     // of `a`, so we treat it as `Done::Pass`.
-    assert_meta!(flow, 30, false, Some(Done::Pass));
+    assert_flow!(flow, 30, false, Some(Done::Pass));
 
-    assert_meta!(flow, 36, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 52, false, None); // `baz();`
+    assert_flow!(flow, 36, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 52, false, None); // `baz();`
   }
 
   #[test]
@@ -761,15 +755,14 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
 
     // BlockStmt of while
     // This block contains `return 1;` and it returns `1` _unconditionally_.
-    assert_meta!(flow, 33, false, Some(Done::Forced));
+    assert_flow!(flow, 33, false, Some(Done::Forced));
 
-    assert_meta!(flow, 39, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 55, true, None); // `baz();`
+    assert_flow!(flow, 39, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 55, true, None); // `baz();`
   }
 
   #[test]
@@ -783,9 +776,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
-    assert_meta!(flow, 53, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
+    assert_flow!(flow, 53, false, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -799,9 +792,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
-    assert_meta!(flow, 53, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Break)); // BlockStmt of do-while
+    assert_flow!(flow, 53, false, None); // `bar();`
   }
 
   #[test]
@@ -815,9 +808,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Pass)); // BlockStmt of do-while
-    assert_meta!(flow, 53, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Pass)); // BlockStmt of do-while
+    assert_flow!(flow, 53, false, None); // `bar();`
   }
 
   #[test]
@@ -832,10 +825,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
-    assert_meta!(flow, 56, true, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_flow!(flow, 56, true, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -849,10 +841,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
-    assert_meta!(flow, 56, true, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_flow!(flow, 56, true, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -866,10 +857,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
-    assert_meta!(flow, 59, true, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_flow!(flow, 59, true, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -883,11 +873,10 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
-    assert_meta!(flow, 29, false, Some(Done::Forced)); // throw stmt
-    assert_meta!(flow, 55, true, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(Done::Forced)); // BlockStmt of do-while
+    assert_flow!(flow, 29, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 55, true, Some(Done::Forced)); // return stmt
   }
 
   #[test]
@@ -901,11 +890,10 @@ function foo() {
 }
     "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 38, false, Some(Done::Pass)); // BlockStmt of for-in
-    assert_meta!(flow, 44, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 60, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 38, false, Some(Done::Pass)); // BlockStmt of for-in
+    assert_flow!(flow, 44, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 60, false, None); // `bar();`
   }
 
   #[test]
@@ -919,11 +907,10 @@ function foo() {
 }
     "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 38, false, Some(Done::Pass)); // BlockStmt of for-of
-    assert_meta!(flow, 44, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 60, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 38, false, Some(Done::Pass)); // BlockStmt of for-of
+    assert_flow!(flow, 44, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 60, false, None); // `bar();`
   }
 
   #[test]
@@ -938,13 +925,12 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
-    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
-    assert_meta!(flow, 58, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_flow!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_flow!(flow, 58, false, None); // `bar();`
   }
 
   #[test]
@@ -960,15 +946,14 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
-    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
-    assert_meta!(flow, 43, false, Some(Done::Forced)); // catch
-    assert_meta!(flow, 53, false, Some(Done::Forced)); // BlockStmt of catch
-    assert_meta!(flow, 59, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 75, true, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_flow!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 43, false, Some(Done::Forced)); // catch
+    assert_flow!(flow, 53, false, Some(Done::Forced)); // BlockStmt of catch
+    assert_flow!(flow, 59, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 75, true, None); // `bar();`
   }
 
   #[test]
@@ -984,15 +969,14 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Pass)); // TryStmt
-    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
-    assert_meta!(flow, 43, false, Some(Done::Pass)); // catch
-    assert_meta!(flow, 53, false, Some(Done::Pass)); // BlockStmt of catch
-    assert_meta!(flow, 59, false, None); // `bar();`
-    assert_meta!(flow, 72, false, None); // `baz();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Pass)); // TryStmt
+    assert_flow!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 43, false, Some(Done::Pass)); // catch
+    assert_flow!(flow, 53, false, Some(Done::Pass)); // BlockStmt of catch
+    assert_flow!(flow, 59, false, None); // `bar();`
+    assert_flow!(flow, 72, false, None); // `baz();`
   }
 
   #[test]
@@ -1009,16 +993,15 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Pass)); // TryStmt
-    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
-    assert_meta!(flow, 43, false, Some(Done::Pass)); // catch
-    assert_meta!(flow, 53, false, Some(Done::Pass)); // BlockStmt of catch
-    assert_meta!(flow, 59, false, None); // `bar();`
-    assert_meta!(flow, 78, false, Some(Done::Pass)); // BlockStmt of finally
-    assert_meta!(flow, 84, false, None); // `baz();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Pass)); // TryStmt
+    assert_flow!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 43, false, Some(Done::Pass)); // catch
+    assert_flow!(flow, 53, false, Some(Done::Pass)); // BlockStmt of catch
+    assert_flow!(flow, 59, false, None); // `bar();`
+    assert_flow!(flow, 78, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_flow!(flow, 84, false, None); // `baz();`
   }
 
   #[test]
@@ -1036,17 +1019,16 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
-    assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // throw stmt
-    assert_meta!(flow, 43, false, Some(Done::Forced)); // catch
-    assert_meta!(flow, 53, false, Some(Done::Forced)); // BlockStmt of catch
-    assert_meta!(flow, 59, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 81, false, Some(Done::Pass)); // BlockStmt of finally
-    assert_meta!(flow, 87, false, None); // `bar();`
-    assert_meta!(flow, 100, true, None); // `baz();`
+    assert_flow!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Forced)); // TryStmt
+    assert_flow!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 43, false, Some(Done::Forced)); // catch
+    assert_flow!(flow, 53, false, Some(Done::Forced)); // BlockStmt of catch
+    assert_flow!(flow, 59, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 81, false, Some(Done::Pass)); // BlockStmt of finally
+    assert_flow!(flow, 87, false, None); // `bar();`
+    assert_flow!(flow, 100, true, None); // `baz();`
   }
 
   #[test]
@@ -1058,11 +1040,10 @@ finally {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 1, false, Some(Done::Break)); // try stmt
-    assert_meta!(flow, 5, false, Some(Done::Pass)); // BlockStmt of try
-    assert_meta!(flow, 16, false, Some(Done::Break)); // BlockStmt of finally
-    assert_meta!(flow, 20, false, Some(Done::Break)); // break stmt
+    assert_flow!(flow, 1, false, Some(Done::Break)); // try stmt
+    assert_flow!(flow, 5, false, Some(Done::Pass)); // BlockStmt of try
+    assert_flow!(flow, 16, false, Some(Done::Break)); // BlockStmt of finally
+    assert_flow!(flow, 20, false, Some(Done::Break)); // break stmt
   }
 
   #[test]
@@ -1075,13 +1056,12 @@ try {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 1, false, Some(Done::Break)); // try stmt
-    assert_meta!(flow, 5, false, Some(Done::Forced)); // BlockStmt of try
-    assert_meta!(flow, 9, false, Some(Done::Forced)); // throw stmt
-    assert_meta!(flow, 20, false, Some(Done::Break)); // catch
-    assert_meta!(flow, 30, false, Some(Done::Break)); // BloskStmt of catch
-    assert_meta!(flow, 34, false, Some(Done::Break)); // break stmt
+    assert_flow!(flow, 1, false, Some(Done::Break)); // try stmt
+    assert_flow!(flow, 5, false, Some(Done::Forced)); // BlockStmt of try
+    assert_flow!(flow, 9, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 20, false, Some(Done::Break)); // catch
+    assert_flow!(flow, 30, false, Some(Done::Break)); // BloskStmt of catch
+    assert_flow!(flow, 34, false, Some(Done::Break)); // break stmt
   }
 
   #[test]
@@ -1092,10 +1072,10 @@ try {
 } finally {}
 "#;
     let flow = analyze_flow(src);
-    assert_meta!(flow, 1, false, Some(Done::Break)); // try stmt
-    assert_meta!(flow, 5, false, Some(Done::Break)); // BlockStmt of try
-    assert_meta!(flow, 9, false, Some(Done::Break)); // break stmt
-    assert_meta!(flow, 26, false, Some(Done::Pass)); // finally
+    assert_flow!(flow, 1, false, Some(Done::Break)); // try stmt
+    assert_flow!(flow, 5, false, Some(Done::Break)); // BlockStmt of try
+    assert_flow!(flow, 9, false, Some(Done::Break)); // break stmt
+    assert_flow!(flow, 26, false, Some(Done::Pass)); // finally
   }
 
   #[test]
@@ -1109,12 +1089,11 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Pass)); // if
-    assert_meta!(flow, 27, false, Some(Done::Forced)); // BloskStmt of if
-    assert_meta!(flow, 33, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 49, false, None); // `bar();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Pass)); // if
+    assert_flow!(flow, 27, false, Some(Done::Forced)); // BloskStmt of if
+    assert_flow!(flow, 33, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 49, false, None); // `bar();`
   }
 
   #[test]
@@ -1130,14 +1109,13 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
-    assert_meta!(flow, 20, false, Some(Done::Pass)); // if
-    assert_meta!(flow, 27, false, Some(Done::Pass)); // BloskStmt of if
-    assert_meta!(flow, 33, false, None); // `bar();`
-    assert_meta!(flow, 49, false, Some(Done::Forced)); // else
-    assert_meta!(flow, 55, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 71, false, None); // `baz();`
+    assert_flow!(flow, 16, false, Some(Done::Pass)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(Done::Pass)); // if
+    assert_flow!(flow, 27, false, Some(Done::Pass)); // BloskStmt of if
+    assert_flow!(flow, 33, false, None); // `bar();`
+    assert_flow!(flow, 49, false, Some(Done::Forced)); // else
+    assert_flow!(flow, 55, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 71, false, None); // `baz();`
   }
 
   #[test]
@@ -1156,17 +1134,16 @@ switch (foo) {
 throw err;
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
-    assert_meta!(flow, 1, false, Some(Done::Pass)); // switch stmt
-    assert_meta!(flow, 18, false, Some(Done::Forced)); // `case 1`
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 42, false, Some(Done::Break)); // `default`
-    assert_meta!(flow, 51, false, Some(Done::Forced)); // BlockStmt of `default`
-    assert_meta!(flow, 57, false, Some(Done::Pass)); // if
-    assert_meta!(flow, 66, false, Some(Done::Break)); // BlockStmt of if
-    assert_meta!(flow, 74, false, Some(Done::Break)); // break stmt
-    assert_meta!(flow, 91, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 107, false, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 1, false, Some(Done::Pass)); // switch stmt
+    assert_flow!(flow, 18, false, Some(Done::Forced)); // `case 1`
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 42, false, Some(Done::Break)); // `default`
+    assert_flow!(flow, 51, false, Some(Done::Forced)); // BlockStmt of `default`
+    assert_flow!(flow, 57, false, Some(Done::Pass)); // if
+    assert_flow!(flow, 66, false, Some(Done::Break)); // BlockStmt of if
+    assert_flow!(flow, 74, false, Some(Done::Break)); // break stmt
+    assert_flow!(flow, 91, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 107, false, Some(Done::Forced)); // throw stmt
   }
 
   #[test]
@@ -1182,13 +1159,13 @@ switch (foo) {
 throw err;
 "#;
     let flow = analyze_flow(src);
-    assert_meta!(flow, 1, false, Some(Done::Forced)); // switch stmt
-    assert_meta!(flow, 18, false, Some(Done::Forced)); // `case 1`
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 42, false, Some(Done::Forced)); // `default`
-    assert_meta!(flow, 51, false, Some(Done::Forced)); // BlockStmt of `default`
-    assert_meta!(flow, 57, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 73, true, Some(Done::Forced)); // throw stmt
+    assert_flow!(flow, 1, false, Some(Done::Forced)); // switch stmt
+    assert_flow!(flow, 18, false, Some(Done::Forced)); // `case 1`
+    assert_flow!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 42, false, Some(Done::Forced)); // `default`
+    assert_flow!(flow, 51, false, Some(Done::Forced)); // BlockStmt of `default`
+    assert_flow!(flow, 57, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 73, true, Some(Done::Forced)); // throw stmt
   }
 
   #[test]
@@ -1204,29 +1181,13 @@ switch (foo) {
 throw err;
 "#;
     let flow = analyze_flow(src);
-    assert_meta!(flow, 1, false, Some(Done::Pass)); // switch stmt
-    assert_meta!(flow, 18, false, Some(Done::Break)); // `case 1`
-    assert_meta!(flow, 30, false, Some(Done::Break)); // break stmt
-    assert_meta!(flow, 39, false, Some(Done::Forced)); // `default`
-    assert_meta!(flow, 48, false, Some(Done::Forced)); // BlockStmt of `default`
-    assert_meta!(flow, 54, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 70, false, Some(Done::Forced)); // throw stmt
-  }
-
-  #[test]
-  fn piyo() {
-    let src = r#"
-function foo() { var x = 1; if (x) { } else { return; } x = 2; }
-"#;
-    let flow = analyze_flow(src);
-    dbg!(&flow);
-    //assert_meta!(flow, 16, false, Some(Done::Forced)); // BlockStmt of `foo`
-    //assert_meta!(flow, 20, false, Some(Done::Forced)); // TryStmt
-    //assert_meta!(flow, 24, false, Some(Done::Forced)); // BlockStmt of try
-    //assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    //assert_meta!(flow, 52, false, Some(Done::Pass)); // BlockStmt of finally
-    //assert_meta!(flow, 58, false, None); // `bar();`
-    panic!();
+    assert_flow!(flow, 1, false, Some(Done::Pass)); // switch stmt
+    assert_flow!(flow, 18, false, Some(Done::Break)); // `case 1`
+    assert_flow!(flow, 30, false, Some(Done::Break)); // break stmt
+    assert_flow!(flow, 39, false, Some(Done::Forced)); // `default`
+    assert_flow!(flow, 48, false, Some(Done::Forced)); // BlockStmt of `default`
+    assert_flow!(flow, 54, false, Some(Done::Forced)); // return stmt
+    assert_flow!(flow, 70, false, Some(Done::Forced)); // throw stmt
   }
 
   #[test]
