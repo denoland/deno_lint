@@ -177,14 +177,7 @@ impl Analyzer<'_> {
           }
           self.scope.done = prev_done;
         }
-        BlockKind::Case => {
-          dbg!(lo, done);
-          if done == Done::Forced {
-            self.mark_as_done(lo, Done::Forced);
-          } else {
-            self.mark_as_done(lo, Done::Pass); // TODO(magurotuna): is `Done::Pass` suitable?
-          }
-        }
+        BlockKind::Case => {}
         BlockKind::If => {}
         BlockKind::Loop => match done {
           Done::Forced => {
@@ -385,18 +378,23 @@ impl Visit for Analyzer<'_> {
 
   fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
     let prev_done = self.scope.done;
+    let mut case_done = None;
 
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
       n.cons.visit_with(n, a);
+
+      if a.scope.found_break.is_some() {
+        case_done = Some(Done::Break);
+      } else if a.scope.done == Some(Done::Forced) {
+        case_done = Some(Done::Forced);
+      }
     });
 
-    dbg!(n.span.lo, prev_done);
-
-    //if case_done == Some(Done::Forced) {
-    //self.mark_as_done(n.span.lo, Done::Forced);
-    //} else {
-    //self.mark_as_done(n.span.lo, Done::Pass); // TODO(magurotuna): is `Done::Pass` suitable?
-    //}
+    if let Some(done) = case_done {
+      self.mark_as_done(n.span.lo, done);
+    } else {
+      self.mark_as_done(n.span.lo, Done::Pass); // TODO(magurotuna): is `Done::Pass` suitable?
+    }
 
     self.scope.done = prev_done;
   }
@@ -1048,7 +1046,7 @@ throw err;
     assert_meta!(flow, 1, false, Some(Done::Pass)); // switch stmt
     assert_meta!(flow, 18, false, Some(Done::Forced)); // `case 1`
     assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 42, false, Some(Done::Pass)); // `default`
+    assert_meta!(flow, 42, false, Some(Done::Break)); // `default`
     assert_meta!(flow, 51, false, Some(Done::Forced)); // BlockStmt of `default`
     assert_meta!(flow, 57, false, Some(Done::Pass)); // if
     assert_meta!(flow, 66, false, Some(Done::Break)); // BlockStmt of if
@@ -1063,6 +1061,27 @@ throw err;
 switch (foo) {
   case 1:
     return 0;
+  default: {
+    return 0;
+  }
+}
+throw err;
+"#;
+    let flow = analyze_flow(src);
+    assert_meta!(flow, 1, false, Some(Done::Forced)); // switch stmt
+    assert_meta!(flow, 18, false, Some(Done::Forced)); // `case 1`
+    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 42, false, Some(Done::Forced)); // `default`
+    assert_meta!(flow, 51, false, Some(Done::Forced)); // BlockStmt of `default`
+    assert_meta!(flow, 57, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 73, true, Some(Done::Forced)); // throw stmt
+  }
+
+  #[test]
+  fn switch_3() {
+    let src = r#"
+switch (foo) {
+  case 1:
     break;
   default: {
     return 0;
@@ -1071,16 +1090,13 @@ switch (foo) {
 throw err;
 "#;
     let flow = analyze_flow(src);
-    //dbg!(&flow);
-    assert_meta!(flow, 1, false, Some(Done::Forced)); // switch stmt
-    assert_meta!(flow, 18, false, Some(Done::Forced)); // `case 1`
-    assert_meta!(flow, 30, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 44, true, Some(Done::Break)); // break stmt
-    assert_meta!(flow, 53, false, Some(Done::Forced)); // `default`
-    assert_meta!(flow, 62, false, Some(Done::Forced)); // BlockStmt of `default`
-    assert_meta!(flow, 68, false, Some(Done::Forced)); // return stmt
-    assert_meta!(flow, 84, true, Some(Done::Forced)); // throw stmt
-    panic!();
+    assert_meta!(flow, 1, false, Some(Done::Pass)); // switch stmt
+    assert_meta!(flow, 18, false, Some(Done::Break)); // `case 1`
+    assert_meta!(flow, 30, false, Some(Done::Break)); // break stmt
+    assert_meta!(flow, 39, false, Some(Done::Forced)); // `default`
+    assert_meta!(flow, 48, false, Some(Done::Forced)); // BlockStmt of `default`
+    assert_meta!(flow, 54, false, Some(Done::Forced)); // return stmt
+    assert_meta!(flow, 70, false, Some(Done::Forced)); // throw stmt
   }
 
   #[test]
