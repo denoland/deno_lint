@@ -6,8 +6,6 @@ use std::collections::{BTreeSet, HashSet};
 use swc_ecmascript::ast::{Module, ObjectLit};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoDupeKeys;
 
 impl LintRule for NoDupeKeys {
@@ -15,27 +13,64 @@ impl LintRule for NoDupeKeys {
     Box::new(NoDupeKeys)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-dupe-keys"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows duplicate keys in object literals.
+
+Setting the same key multiple times in an object literal will override other assignments to that key and can cause unexpected behaviour.
+
+### Invalid:
+```typescript
+const foo = {
+  bar: "baz",
+  bar: "qux"
+};
+```
+```typescript
+const foo = {
+  "bar": "baz",
+  bar: "qux"
+};
+```
+```typescript
+const foo = {
+  0x1: "baz",
+  1: "qux"
+};
+```
+### Valid:
+```typescript
+var foo = {
+  bar: "baz",
+  quxx: "qux"
+};
+```"#
+  }
 }
 
-struct NoDupeKeysVisitor {
-  context: Arc<Context>,
+struct NoDupeKeysVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDupeKeysVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDupeKeysVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoDupeKeysVisitor {
+impl<'c> Visit for NoDupeKeysVisitor<'c> {
   noop_visit_type!();
 
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {

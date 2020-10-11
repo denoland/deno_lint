@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
-use std::sync::Arc;
+
 use swc_common::Span;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::ast::AssignOp;
@@ -27,13 +27,17 @@ impl LintRule for NoSelfAssign {
     Box::new(NoSelfAssign)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-self-assign"
   }
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
@@ -41,12 +45,12 @@ impl LintRule for NoSelfAssign {
   }
 }
 
-struct NoSelfAssignVisitor {
-  context: Arc<Context>,
+struct NoSelfAssignVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoSelfAssignVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoSelfAssignVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
@@ -264,7 +268,7 @@ impl NoSelfAssignVisitor {
   }
 }
 
-impl Visit for NoSelfAssignVisitor {
+impl<'c> Visit for NoSelfAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(

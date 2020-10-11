@@ -8,8 +8,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoEval;
 
 impl LintRule for NoEval {
@@ -23,7 +21,7 @@ impl LintRule for NoEval {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoEvalVisitor::new(context);
@@ -31,17 +29,17 @@ impl LintRule for NoEval {
   }
 }
 
-struct NoEvalVisitor {
-  context: Arc<Context>,
+struct NoEvalVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoEvalVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoEvalVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoEvalVisitor {
+impl<'c> Visit for NoEvalVisitor<'c> {
   noop_visit_type!();
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {

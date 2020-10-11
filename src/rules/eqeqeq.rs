@@ -6,8 +6,6 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct Eqeqeq;
 
 impl LintRule for Eqeqeq {
@@ -21,7 +19,7 @@ impl LintRule for Eqeqeq {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = EqeqeqVisitor::new(context);
@@ -29,17 +27,17 @@ impl LintRule for Eqeqeq {
   }
 }
 
-struct EqeqeqVisitor {
-  context: Arc<Context>,
+struct EqeqeqVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl EqeqeqVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> EqeqeqVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for EqeqeqVisitor {
+impl<'c> Visit for EqeqeqVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, parent: &dyn Node) {

@@ -6,13 +6,15 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
-use std::sync::Arc;
-
 pub struct NoThisBeforeSuper;
 
 impl LintRule for NoThisBeforeSuper {
   fn new() -> Box<Self> {
     Box::new(NoThisBeforeSuper)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -21,7 +23,7 @@ impl LintRule for NoThisBeforeSuper {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
@@ -29,33 +31,33 @@ impl LintRule for NoThisBeforeSuper {
   }
 }
 
-struct NoThisBeforeSuperVisitor {
-  context: Arc<Context>,
+struct NoThisBeforeSuperVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoThisBeforeSuperVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoThisBeforeSuperVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoThisBeforeSuperVisitor {
+impl<'c> Visit for NoThisBeforeSuperVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
-      ClassVisitor::new(&self.context, class.super_class.is_some());
+      ClassVisitor::new(self.context, class.super_class.is_some());
     swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
   }
 }
 
 struct ClassVisitor<'a> {
-  context: &'a Context,
+  context: &'a mut Context,
   has_super_class: bool,
 }
 
 impl<'a> ClassVisitor<'a> {
-  fn new(context: &'a Context, has_super_class: bool) -> Self {
+  fn new(context: &'a mut Context, has_super_class: bool) -> Self {
     Self {
       context,
       has_super_class,
@@ -68,13 +70,13 @@ impl<'a> Visit for ClassVisitor<'a> {
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
-      ClassVisitor::new(&self.context, class.super_class.is_some());
+      ClassVisitor::new(self.context, class.super_class.is_some());
     swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
   }
 
   fn visit_constructor(&mut self, cons: &Constructor, parent: &dyn Node) {
     if self.has_super_class {
-      let mut cons_visitor = ConstructorVisitor::new(&self.context);
+      let mut cons_visitor = ConstructorVisitor::new(self.context);
       cons_visitor.visit_constructor(cons, parent);
     } else {
       swc_ecmascript::visit::visit_constructor(self, cons, parent);
@@ -83,12 +85,12 @@ impl<'a> Visit for ClassVisitor<'a> {
 }
 
 struct ConstructorVisitor<'a> {
-  context: &'a Context,
+  context: &'a mut Context,
   super_called: bool,
 }
 
 impl<'a> ConstructorVisitor<'a> {
-  fn new(context: &'a Context) -> Self {
+  fn new(context: &'a mut Context) -> Self {
     Self {
       context,
       super_called: false,
@@ -99,7 +101,7 @@ impl<'a> ConstructorVisitor<'a> {
 impl<'a> Visit for ConstructorVisitor<'a> {
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
     let mut class_visitor =
-      ClassVisitor::new(&self.context, class.super_class.is_some());
+      ClassVisitor::new(self.context, class.super_class.is_some());
     swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
   }
 

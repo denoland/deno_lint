@@ -8,13 +8,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoRegexSpaces;
 
 impl LintRule for NoRegexSpaces {
   fn new() -> Box<Self> {
     Box::new(NoRegexSpaces)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -23,7 +25,7 @@ impl LintRule for NoRegexSpaces {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
@@ -31,16 +33,16 @@ impl LintRule for NoRegexSpaces {
   }
 }
 
-struct NoRegexSpacesVisitor {
-  context: Arc<Context>,
+struct NoRegexSpacesVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoRegexSpacesVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoRegexSpacesVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 
-  fn check_regex(&self, regex: &str, span: Span) {
+  fn check_regex(&mut self, regex: &str, span: Span) {
     lazy_static! {
       static ref DOUBLE_SPACE: regex::Regex =
         regex::Regex::new(r"(?u) {2}").unwrap();
@@ -74,7 +76,7 @@ impl NoRegexSpacesVisitor {
   }
 }
 
-impl Visit for NoRegexSpacesVisitor {
+impl<'c> Visit for NoRegexSpacesVisitor<'c> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {

@@ -9,13 +9,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoInvalidRegexp;
 
 impl LintRule for NoInvalidRegexp {
   fn new() -> Box<Self> {
     Box::new(NoInvalidRegexp)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -24,7 +26,7 @@ impl LintRule for NoInvalidRegexp {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoInvalidRegexpVisitor::new(context);
@@ -42,13 +44,13 @@ fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {
   None
 }
 
-struct NoInvalidRegexpVisitor {
-  context: Arc<Context>,
+struct NoInvalidRegexpVisitor<'c> {
+  context: &'c mut Context,
   validator: EcmaRegexValidator,
 }
 
-impl NoInvalidRegexpVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoInvalidRegexpVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self {
       context,
       validator: EcmaRegexValidator::new(EcmaVersion::ES2018),
@@ -101,7 +103,7 @@ impl NoInvalidRegexpVisitor {
   }
 }
 
-impl Visit for NoInvalidRegexpVisitor {
+impl<'c> Visit for NoInvalidRegexpVisitor<'c> {
   noop_visit_type!();
 
   fn visit_regex(

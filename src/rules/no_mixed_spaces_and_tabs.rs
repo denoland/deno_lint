@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use regex::Regex;
-use std::sync::Arc;
+
 use swc_common::BytePos;
 use swc_common::Span;
 use swc_common::Spanned;
@@ -23,13 +23,17 @@ impl LintRule for NoMixedSpacesAndTabs {
     Box::new(NoMixedSpacesAndTabs)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-mixed-spaces-and-tabs"
   }
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();

@@ -1,6 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
-use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -91,83 +90,16 @@ pub trait LintRule {
     Self: Sized;
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   );
   fn code(&self) -> &'static str;
+  fn tags(&self) -> &[&'static str] {
+    &[]
+  }
   fn docs(&self) -> &'static str {
     ""
   }
-}
-
-pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
-  vec![
-    adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
-    ban_ts_comment::BanTsComment::new(),
-    ban_types::BanTypes::new(),
-    ban_untagged_ignore::BanUntaggedIgnore::new(),
-    constructor_super::ConstructorSuper::new(),
-    for_direction::ForDirection::new(),
-    getter_return::GetterReturn::new(),
-    no_array_constructor::NoArrayConstructor::new(),
-    no_async_promise_executor::NoAsyncPromiseExecutor::new(),
-    no_case_declarations::NoCaseDeclarations::new(),
-    no_class_assign::NoClassAssign::new(),
-    no_compare_neg_zero::NoCompareNegZero::new(),
-    no_cond_assign::NoCondAssign::new(),
-    no_constant_condition::NoConstantCondition::new(),
-    no_control_regex::NoControlRegex::new(),
-    no_debugger::NoDebugger::new(),
-    no_delete_var::NoDeleteVar::new(),
-    no_dupe_args::NoDupeArgs::new(),
-    no_dupe_class_members::NoDupeClassMembers::new(),
-    no_dupe_else_if::NoDupeElseIf::new(),
-    no_dupe_keys::NoDupeKeys::new(),
-    no_duplicate_case::NoDuplicateCase::new(),
-    no_empty::NoEmpty::new(),
-    no_empty_character_class::NoEmptyCharacterClass::new(),
-    no_empty_interface::NoEmptyInterface::new(),
-    no_empty_pattern::NoEmptyPattern::new(),
-    no_ex_assign::NoExAssign::new(),
-    no_explicit_any::NoExplicitAny::new(),
-    no_extra_boolean_cast::NoExtraBooleanCast::new(),
-    no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
-    no_extra_semi::NoExtraSemi::new(),
-    no_fallthrough::NoFallthrough::new(),
-    no_func_assign::NoFuncAssign::new(),
-    no_global_assign::NoGlobalAssign::new(),
-    no_import_assign::NoImportAssign::new(),
-    no_inferrable_types::NoInferrableTypes::new(),
-    no_inner_declarations::NoInnerDeclarations::new(),
-    no_invalid_regexp::NoInvalidRegexp::new(),
-    no_irregular_whitespace::NoIrregularWhitespace::new(),
-    no_misused_new::NoMisusedNew::new(),
-    no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
-    no_namespace::NoNamespace::new(),
-    no_new_symbol::NoNewSymbol::new(),
-    no_obj_calls::NoObjCalls::new(),
-    no_octal::NoOctal::new(),
-    no_prototype_builtins::NoPrototypeBuiltins::new(),
-    no_redeclare::NoRedeclare::new(),
-    no_regex_spaces::NoRegexSpaces::new(),
-    no_self_assign::NoSelfAssign::new(),
-    no_setter_return::NoSetterReturn::new(),
-    no_shadow_restricted_names::NoShadowRestrictedNames::new(),
-    no_this_alias::NoThisAlias::new(),
-    no_this_before_super::NoThisBeforeSuper::new(),
-    no_undef::NoUndef::new(),
-    no_unreachable::NoUnreachable::new(),
-    no_unsafe_finally::NoUnsafeFinally::new(),
-    no_unsafe_negation::NoUnsafeNegation::new(),
-    no_unused_labels::NoUnusedLabels::new(),
-    no_with::NoWith::new(),
-    prefer_as_const::PreferAsConst::new(),
-    prefer_namespace_keyword::PreferNamespaceKeyword::new(),
-    require_yield::RequireYield::new(),
-    triple_slash_reference::TripleSlashReference::new(),
-    use_isnan::UseIsNaN::new(),
-    valid_typeof::ValidTypeof::new(),
-  ]
 }
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
@@ -255,6 +187,13 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     use_isnan::UseIsNaN::new(),
     valid_typeof::ValidTypeof::new(),
   ]
+}
+
+pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
+  get_all_rules()
+    .into_iter()
+    .filter(|r| r.tags().contains(&"recommended"))
+    .collect()
 }
 
 #[cfg(test)]

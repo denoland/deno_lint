@@ -6,13 +6,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoNewSymbol;
 
 impl LintRule for NoNewSymbol {
   fn new() -> Box<Self> {
     Box::new(NoNewSymbol)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -21,7 +23,7 @@ impl LintRule for NoNewSymbol {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoNewSymbolVisitor::new(context);
@@ -29,17 +31,17 @@ impl LintRule for NoNewSymbol {
   }
 }
 
-struct NoNewSymbolVisitor {
-  context: Arc<Context>,
+struct NoNewSymbolVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoNewSymbolVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoNewSymbolVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoNewSymbolVisitor {
+impl<'c> Visit for NoNewSymbolVisitor<'c> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {

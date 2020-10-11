@@ -8,13 +8,15 @@ use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-use std::sync::Arc;
-
 pub struct NoDeleteVar;
 
 impl LintRule for NoDeleteVar {
   fn new() -> Box<Self> {
     Box::new(NoDeleteVar)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -23,7 +25,7 @@ impl LintRule for NoDeleteVar {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDeleteVarVisitor::new(context);
@@ -31,17 +33,17 @@ impl LintRule for NoDeleteVar {
   }
 }
 
-struct NoDeleteVarVisitor {
-  context: Arc<Context>,
+struct NoDeleteVarVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl NoDeleteVarVisitor {
-  fn new(context: Arc<Context>) -> Self {
+impl<'c> NoDeleteVarVisitor<'c> {
+  fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
 }
 
-impl Visit for NoDeleteVarVisitor {
+impl<'c> Visit for NoDeleteVarVisitor<'c> {
   noop_visit_type!();
 
   fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _parent: &dyn Node) {

@@ -1,6 +1,6 @@
 use super::{Context, LintRule};
 use regex::{Matches, Regex};
-use std::sync::Arc;
+
 use swc_common::{hygiene::SyntaxContext, BytePos, Span};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Str;
@@ -36,11 +36,15 @@ impl LintRule for NoIrregularWhitespace {
     Box::new(NoIrregularWhitespace)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-irregular-whitespace"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &Module) {
+  fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoIrregularWhitespaceVisitor::default();
     visitor.visit_module(module, module);
 

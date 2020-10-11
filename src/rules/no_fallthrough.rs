@@ -6,13 +6,15 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
-use std::sync::Arc;
-
 pub struct NoFallthrough;
 
 impl LintRule for NoFallthrough {
   fn new() -> Box<Self> {
     Box::new(NoFallthrough)
+  }
+
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
   }
 
   fn code(&self) -> &'static str {
@@ -21,7 +23,7 @@ impl LintRule for NoFallthrough {
 
   fn lint_module(
     &self,
-    context: Arc<Context>,
+    context: &mut Context,
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoFallthroughVisitor { context };
@@ -29,11 +31,11 @@ impl LintRule for NoFallthrough {
   }
 }
 
-struct NoFallthroughVisitor {
-  context: Arc<Context>,
+struct NoFallthroughVisitor<'c> {
+  context: &'c mut Context,
 }
 
-impl Visit for NoFallthroughVisitor {
+impl<'c> Visit for NoFallthroughVisitor<'c> {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {

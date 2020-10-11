@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::Context;
 use super::LintRule;
 use swc_common::Span;
@@ -16,11 +14,15 @@ impl LintRule for NoInnerDeclarations {
     Box::new(NoInnerDeclarations)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "no-inner-declarations"
   }
 
-  fn lint_module(&self, context: Arc<Context>, module: &ast::Module) {
+  fn lint_module(&self, context: &mut Context, module: &ast::Module) {
     let mut valid_visitor = ValidDeclsVisitor::new();
     valid_visitor.visit_module(module, module);
     let mut valid_decls = valid_visitor.valid_decls;
@@ -133,14 +135,14 @@ impl Visit for ValidDeclsVisitor {
   }
 }
 
-struct NoInnerDeclarationsVisitor {
-  context: Arc<Context>,
+struct NoInnerDeclarationsVisitor<'c> {
+  context: &'c mut Context,
   valid_decls: Vec<Span>,
   in_function: bool,
 }
 
-impl NoInnerDeclarationsVisitor {
-  fn new(context: Arc<Context>, valid_decls: Vec<Span>) -> Self {
+impl<'c> NoInnerDeclarationsVisitor<'c> {
+  fn new(context: &'c mut Context, valid_decls: Vec<Span>) -> Self {
     Self {
       context,
       valid_decls,
@@ -149,7 +151,7 @@ impl NoInnerDeclarationsVisitor {
   }
 }
 
-impl NoInnerDeclarationsVisitor {
+impl<'c> NoInnerDeclarationsVisitor<'c> {
   fn add_diagnostic(&mut self, span: Span, kind: &str) {
     let root = if self.in_function {
       "function"
@@ -165,7 +167,7 @@ impl NoInnerDeclarationsVisitor {
   }
 }
 
-impl Visit for NoInnerDeclarationsVisitor {
+impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_arrow_expr(&mut self, fn_: &ast::ArrowExpr, parent: &dyn Node) {

@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.2.0",
+    "@tailwindcss/ui": "^0.6.0",
+    "tailwindcss": "^1.8.7"
+  },
+  "scripts": {
+    "build": "NODE_ENV=production tailwindcss build -c tailwind.config.js -o ./public/style/main.css",
+    "build:dev": "tailwindcss build -c tailwind.config.js -o ./public/style/main.css"
+  }
+}
