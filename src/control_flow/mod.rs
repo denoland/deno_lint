@@ -66,6 +66,11 @@ impl Metadata {
       .done
       .map_or(false, |d| matches!(d, Done::Forced | Done::Break))
   }
+
+  /// Returns true if a node doesn't prevent further execution.
+  pub fn continues_execution(&self) -> bool {
+    self.done.map_or(true, |d| d == Done::Pass)
+  }
 }
 
 #[derive(Debug)]
