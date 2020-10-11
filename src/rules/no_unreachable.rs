@@ -162,15 +162,18 @@ mod tests {
     );
 
     assert_lint_ok::<NoUnreachable>(
-      "function foo() {
-      var x = 1;
-      switch (x) {
-        case 0:
-          break;
-        default:
-          return;
-      }
-      x = 2; }",
+      r#"
+function foo() {
+  var x = 1;
+  switch (x) {
+    case 0:
+      break;
+    default:
+      return;
+  }
+  x = 2; 
+}
+"#,
     );
   }
 
