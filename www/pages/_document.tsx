@@ -10,14 +10,14 @@ function Document(props: DocumentProps) {
         <link rel="stylesheet" href="/style/main.css" />
         <link
           rel="stylesheet"
-          href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/styles/atom-one-dark.min.css"
+          href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/styles/monokai-sublime.min.css"
         />
         <script
           src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/highlight.min.js"
         >
         </script>
       </head>
-      <body class="bg-gray-50">
+      <body class="bg-white">
         {props.children}
       </body>
       <script>

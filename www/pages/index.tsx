@@ -60,62 +60,23 @@ function Rule(props: { rule: Rule }) {
     }
   }, [ref]);
 
-  return <div class="p-3 rounded-lg shadow my-3 bg-white">
-    <h2 class="text-l font-medium">{rule.code}</h2>
-    {rule.docs
-      ? <>
-        {expanded
-          ? <button
-            class="flex items-center text-gray-500 text-sm mt-2"
-            onClick={() => setExpanded(false)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              class="w-6 h-6 mr-2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 15l7-7 7 7"
-              />
-            </svg>
-            <span>Collapse</span>
-          </button>
-          : <button
-            class="flex items-center text-gray-500 text-sm mt-2"
-            onClick={() => setExpanded(true)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              class="w-6 h-6 mr-2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-            <span>Expand</span>
-          </button>}
-        {expanded
-          ? rule.docs.length > 0
-            ? <div
-              dangerouslySetInnerHTML={{ __html: rule.docs }}
-              ref={ref}
-              class="prose mt-2"
-            />
-            : <div class="text-gray-500 italic mt-2">no docs available</div>
-          : undefined}
-      </>
-      : null}
+  return <div
+    class="my-3 border-b border-t border-gray-200 sm:border sm:rounded-lg overflow-hidden"
+  >
+    <div
+      class="p-3 border-b border-gray-200 flex justify-between items-center bg-white"
+    >
+      <h1 class="text-xl font-bold">{rule.code}</h1>
+    </div>
+    <div class="relative bg-gray-50 p-3">
+      {rule.docs.length > 0
+        ? <div
+          dangerouslySetInnerHTML={{ __html: rule.docs }}
+          ref={ref}
+          class="prose"
+        />
+        : <div class="text-gray-500 italic">no docs available</div>}
+    </div>
   </div>;
 }
 

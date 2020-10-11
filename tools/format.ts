@@ -24,7 +24,7 @@ if (p2.code !== 0) {
 console.log("deno fmt");
 
 const p3 = await Deno.run({
-  cmd: ["deno", "fmt", ...checkArgs, "benchmarks/benchmarks.ts"],
+  cmd: ["deno", "fmt", ...checkArgs, "benchmarks/benchmarks.ts", "www/pages"],
   stdin: "null",
 }).status();
 
