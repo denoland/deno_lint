@@ -4,28 +4,17 @@ use super::LintRule;
 
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
+use swc_common::Span;
 
 pub struct BanTsComment;
 
 impl BanTsComment {
-  fn lint_comment(&self, context: &mut Context, comment: &Comment) {
-    if comment.kind != CommentKind::Line {
-      return;
-    }
-
-    lazy_static! {
-      static ref BTC_REGEX: regex::Regex =
-        regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#)
-          .unwrap();
-    }
-
-    if BTC_REGEX.is_match(&comment.text) {
-      context.add_diagnostic(
-        comment.span,
-        "ban-ts-comment",
-        "ts directives are not allowed",
-      );
-    }
+  fn report(&self, context: &mut Context, span: Span) {
+    context.add_diagnostic(
+      span,
+      "ban-ts-comment",
+      "ts directives are not allowed",
+    );
   }
 }
 
@@ -47,16 +36,43 @@ impl LintRule for BanTsComment {
     context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    let leading = context.leading_comments.clone();
-    let trailing = context.trailing_comments.clone();
+    let mut violated_comment_spans = Vec::new();
 
-    for comment in leading.values().flatten() {
-      self.lint_comment(context, comment);
-    }
-    for comment in trailing.values().flatten() {
-      self.lint_comment(context, comment);
+    violated_comment_spans.extend(
+      context.leading_comments.values().flatten().filter_map(|c| {
+        if check_comment(c) {
+          Some(c.span)
+        } else {
+          None
+        }
+      }),
+    );
+    violated_comment_spans.extend(
+      context
+        .trailing_comments
+        .values()
+        .flatten()
+        .filter_map(|c| if check_comment(c) { Some(c.span) } else { None }),
+    );
+
+    for span in violated_comment_spans {
+      self.report(context, span);
     }
   }
+}
+
+/// Returns `true` if the comment should be reported.
+fn check_comment(comment: &Comment) -> bool {
+  if comment.kind != CommentKind::Line {
+    return false;
+  }
+
+  lazy_static! {
+    static ref BTC_REGEX: regex::Regex =
+      regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#).unwrap();
+  }
+
+  BTC_REGEX.is_match(&comment.text)
 }
 
 #[cfg(test)]
