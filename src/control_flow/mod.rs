@@ -628,8 +628,8 @@ impl Visit for Analyzer<'_> {
         }
       }
     } else {
-      if try_block_done == Some(Done::Forced) {
-        self.mark_as_done(n.span.lo, Done::Forced);
+      if matches!(try_block_done, Some(Done::Forced) | Some(Done::Break)) {
+        self.mark_as_done(n.span.lo, try_block_done.unwrap());
       } else if let Some(finalizer) = &n.finalizer {
         self.mark_as_done(
           n.span.lo,
@@ -1082,6 +1082,20 @@ try {
     assert_meta!(flow, 20, false, Some(Done::Break)); // catch
     assert_meta!(flow, 30, false, Some(Done::Break)); // BloskStmt of catch
     assert_meta!(flow, 34, false, Some(Done::Break)); // break stmt
+  }
+
+  #[test]
+  fn try_8() {
+    let src = r#"
+try {
+  break;
+} finally {}
+"#;
+    let flow = analyze_flow(src);
+    assert_meta!(flow, 1, false, Some(Done::Break)); // try stmt
+    assert_meta!(flow, 5, false, Some(Done::Break)); // BlockStmt of try
+    assert_meta!(flow, 9, false, Some(Done::Break)); // break stmt
+    assert_meta!(flow, 26, false, Some(Done::Pass)); // finally
   }
 
   #[test]
