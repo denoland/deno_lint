@@ -643,4 +643,28 @@ console.log("unreachable???");
       "#,
     );
   }
+
+  // https://github.com/denoland/deno_lint/issues/348
+  #[test]
+  fn issue_348() {
+    assert_lint_err_on_line::<NoUnreachable>(
+      r#"
+const obj = {
+  get root() {
+    let primary = this;
+    while (true) {
+      if (primary.parent !== undefined) {
+          primary = primary.parent;
+      } else {
+          return primary;
+      }
+    }
+    return 1;
+  }
+};
+      "#,
+      12,
+      4,
+    );
+  }
 }

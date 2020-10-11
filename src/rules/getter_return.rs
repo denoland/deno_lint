@@ -323,6 +323,24 @@ Object.defineProperty(foo, 'bar', {
 });
       "#,
     ]);
+
+    // https://github.com/denoland/deno_lint/issues/348
+    assert_lint_ok::<GetterReturn>(
+      r#"
+const obj = {
+  get root() {
+    let primary = this;
+    while (true) {
+      if (primary.parent !== undefined) {
+          primary = primary.parent;
+      } else {
+          return primary;
+      }
+    }
+  }
+};
+      "#,
+    );
   }
 
   #[test]
