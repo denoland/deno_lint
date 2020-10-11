@@ -184,10 +184,7 @@ fn expr_or_super_callee_is_boolean(expr_or_super: &ExprOrSuper) -> bool {
 }
 
 fn expr_callee_is_boolean(expr: &Expr) -> bool {
-  match expr {
-    Expr::Ident(Ident { ref sym, .. }) if sym == "Boolean" => true,
-    _ => false,
-  }
+  matches!(expr, Expr::Ident(Ident { ref sym, .. }) if sym == "Boolean")
 }
 
 /// Checks if `expr` has `n` continuous bang operators at the beginning, ignoring parentheses.

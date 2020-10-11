@@ -186,10 +186,7 @@ impl Analyzer<'_> {
   }
 
   fn is_forced_done(&self, lo: BytePos) -> bool {
-    match self.get_done_reason(lo) {
-      Some(Done::Forced) => true,
-      _ => false,
-    }
+    matches!(self.get_done_reason(lo), Some(Done::Forced))
   }
 
   fn get_done_reason(&self, lo: BytePos) -> Option<Done> {
