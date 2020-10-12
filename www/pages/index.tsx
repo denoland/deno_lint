@@ -1,12 +1,6 @@
-import {
-  Fragment,
-  h,
-  MarkdownIt,
-  useEffect,
-  useRef,
-  useState,
-} from "../deps.ts";
+import { h, MarkdownIt, useEffect, useRef, useState } from "../deps.ts";
 import type { GetStaticData, PageProps } from "../deps.ts";
+import { Header } from "../components/Header.tsx";
 
 interface Data {
   rules: Array<Rule>;
@@ -29,35 +23,37 @@ function IndexPage(props: PageProps<Data>) {
 
   return (
     <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
-      <h1 class="text-3xl font-bold my-8">deno_lint docs</h1>
-      <div class="flex flex-wrap items-stretch w-full mb-4 relative">
-        <input
-          type="text"
-          class="flex-shrink flex-grow flex-auto leading-normal w-px flex-1 border h-10 border-grey-light rounded rounded-r-none px-3 relative"
-          placeholder="Search"
-          value={search}
-          onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-        />
-        <div class="flex -mr-px">
-          <button
-            class="flex items-center leading-normal bg-grey-lighter rounded rounded-l-none border border-l-0 border-grey-light px-3 whitespace-no-wrap text-grey-dark text-sm"
-            onClick={() => setSearch("")}
-          >
-            Clear
-          </button>
+      <Header />
+      <main class="my-8">
+        <label for="search" class="sr-only">Search</label>
+        <div class="flex flex-wrap items-stretch w-full relative">
+          <input
+            type="text"
+            id="search"
+            class="flex-shrink flex-grow leading-normal w-px flex-1 border h-10 border-grey-light rounded rounded-r-none px-3 relative"
+            placeholder="Search"
+            value={search}
+            onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+          />
+          <div class="flex -mr-px">
+            <button
+              class="flex items-center leading-normal bg-grey-lighter rounded rounded-l-none border border-l-0 border-grey-light px-3 whitespace-no-wrap text-grey-dark text-sm"
+              onClick={() => setSearch("")}
+            >
+              Clear
+            </button>
+          </div>
         </div>
-      </div>
-      <div>
-        {searchResults
-          .map((rule) => <Rule rule={rule} />)}
-      </div>
+        <div class="mt-4">
+          {searchResults
+            .map((rule) => <Rule rule={rule} />)}
+        </div>
+      </main>
     </div>
   );
 }
 
 function Rule(props: { rule: Rule }) {
-  const [expanded, setExpanded] = useState(false);
-
   const ref = useRef<HTMLDivElement | undefined>();
   const { rule } = props;
 
@@ -70,13 +66,18 @@ function Rule(props: { rule: Rule }) {
     }
   }, [ref]);
 
-  return <div
-    class="my-3 border-b border-t border-gray-200 sm:border sm:rounded-lg overflow-hidden"
+  return <section
+    class="my-3 border-b border-t border-gray-200 border rounded-lg overflow-hidden"
+    id={rule.code}
   >
     <div
       class="p-3 border-b border-gray-200 flex justify-between items-center bg-white"
     >
-      <h1 class="text-xl font-bold">{rule.code}</h1>
+      <h1 class="text-xl font-bold">
+        <a href={`/#${rule.code}`} class="hover:underline">
+          {rule.code}
+        </a>
+      </h1>
     </div>
     <div class="relative bg-gray-50 p-3">
       {rule.docs.length > 0
@@ -87,7 +88,7 @@ function Rule(props: { rule: Rule }) {
         />
         : <div class="text-gray-500 italic">no docs available</div>}
     </div>
-  </div>;
+  </section>;
 }
 
 export const getStaticData = async (): Promise<GetStaticData<Data>> => {
