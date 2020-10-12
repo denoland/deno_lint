@@ -54,8 +54,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-
+          key: invalidate-${{ runner.os }}-${{ github.sha }}
+          restore-keys: invalidate-${{ runner.os }}-
 
       - name: Environment
         run: |
