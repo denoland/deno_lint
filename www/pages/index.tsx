@@ -1,5 +1,6 @@
 import { h, MarkdownIt, useEffect, useRef, useState } from "../deps.ts";
 import type { GetStaticData, PageProps } from "../deps.ts";
+import { Header } from "../components/Header.tsx";
 
 interface Data {
   rules: Array<Rule>;
@@ -22,14 +23,7 @@ function IndexPage(props: PageProps<Data>) {
 
   return (
     <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
-      <section class="my-8">
-        <h1 class="text-3xl font-bold">deno_lint docs</h1>
-        <p class="mt-2">
-          <a href="https://github.com/denoland/deno_lint">
-            View on GitHub
-          </a>
-        </p>
-      </section>
+      <Header />
       <main class="my-8">
         <label for="search" class="sr-only">Search</label>
         <div class="flex flex-wrap items-stretch w-full relative">
@@ -73,12 +67,17 @@ function Rule(props: { rule: Rule }) {
   }, [ref]);
 
   return <section
-    class="my-3 border-b border-t border-gray-200 sm:border sm:rounded-lg overflow-hidden"
+    class="my-3 border-b border-t border-gray-200 border rounded-lg overflow-hidden"
+    id={rule.code}
   >
     <div
       class="p-3 border-b border-gray-200 flex justify-between items-center bg-white"
     >
-      <h1 class="text-xl font-bold">{rule.code}</h1>
+      <h1 class="text-xl font-bold">
+        <a href={`/#${rule.code}`} class="hover:underline">
+          {rule.code}
+        </a>
+      </h1>
     </div>
     <div class="relative bg-gray-50 p-3">
       {rule.docs.length > 0
