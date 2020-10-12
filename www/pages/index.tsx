@@ -30,13 +30,23 @@ function IndexPage(props: PageProps<Data>) {
   return (
     <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
       <h1 class="text-3xl font-bold my-8">deno_lint docs</h1>
-      <input
-        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-        type="text"
-        placeholder="Search"
-        value={search}
-        onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
-      />
+      <div class="flex flex-wrap items-stretch w-full mb-4 relative">
+        <input
+          type="text"
+          class="flex-shrink flex-grow flex-auto leading-normal w-px flex-1 border h-10 border-grey-light rounded rounded-r-none px-3 relative"
+          placeholder="Search"
+          value={search}
+          onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+        />
+        <div class="flex -mr-px">
+          <button
+            class="flex items-center leading-normal bg-grey-lighter rounded rounded-l-none border border-l-0 border-grey-light px-3 whitespace-no-wrap text-grey-dark text-sm"
+            onClick={() => setSearch("")}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
       <div>
         {searchResults
           .map((rule) => <Rule rule={rule} />)}
@@ -60,62 +70,23 @@ function Rule(props: { rule: Rule }) {
     }
   }, [ref]);
 
-  return <div class="p-3 rounded-lg shadow my-3 bg-white">
-    <h2 class="text-l font-medium">{rule.code}</h2>
-    {rule.docs
-      ? <>
-        {expanded
-          ? <button
-            class="flex items-center text-gray-500 text-sm mt-2"
-            onClick={() => setExpanded(false)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              class="w-6 h-6 mr-2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 15l7-7 7 7"
-              />
-            </svg>
-            <span>Collapse</span>
-          </button>
-          : <button
-            class="flex items-center text-gray-500 text-sm mt-2"
-            onClick={() => setExpanded(true)}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              class="w-6 h-6 mr-2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-            <span>Expand</span>
-          </button>}
-        {expanded
-          ? rule.docs.length > 0
-            ? <div
-              dangerouslySetInnerHTML={{ __html: rule.docs }}
-              ref={ref}
-              class="prose mt-2"
-            />
-            : <div class="text-gray-500 italic mt-2">no docs available</div>
-          : undefined}
-      </>
-      : null}
+  return <div
+    class="my-3 border-b border-t border-gray-200 sm:border sm:rounded-lg overflow-hidden"
+  >
+    <div
+      class="p-3 border-b border-gray-200 flex justify-between items-center bg-white"
+    >
+      <h1 class="text-xl font-bold">{rule.code}</h1>
+    </div>
+    <div class="relative bg-gray-50 p-3">
+      {rule.docs.length > 0
+        ? <div
+          dangerouslySetInnerHTML={{ __html: rule.docs }}
+          ref={ref}
+          class="prose"
+        />
+        : <div class="text-gray-500 italic">no docs available</div>}
+    </div>
   </div>;
 }
 
