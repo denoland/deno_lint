@@ -15,6 +15,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use termcolor::Color::{Ansi256, Red};
 use termcolor::{Ansi, ColorSpec, WriteColor};
+use annotate_snippets::snippet;
+use annotate_snippets::display_list;
 
 #[cfg(windows)]
 use termcolor::{BufferWriter, ColorChoice};
@@ -77,6 +79,40 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
           .multiple(true),
       ),
     )
+}
+
+fn new_format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
+  let snippet = snippet::Snippet {
+    title: Some(snippet::Annotation {
+      label: Some(&diagnostic.message),
+      id: Some(&diagnostic.code),
+      annotation_type: snippet::AnnotationType::Error,
+    }),
+    footer: vec![],
+    slices: vec![
+      snippet::Slice {
+        source,
+        line_start: 1,
+        origin: Some(&diagnostic.filename),
+        fold: true,
+        annotations: vec![
+          snippet::SourceAnnotation {
+            range: (diagnostic.range.start.byte_pos, diagnostic.range.end.byte_pos),
+            label: "",
+            annotation_type: snippet::AnnotationType::Error,
+          }
+        ]
+      }
+    ],
+    opt: display_list::FormatOptions {
+      color: true,
+      anonymized_line_numbers: false,
+      margin: None,
+    },
+  };
+
+  let display_list = display_list::DisplayList::from(snippet);
+  display_list.to_string()
 }
 
 pub fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
@@ -207,7 +243,7 @@ fn run_linter(paths: Vec<String>) {
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
     let _g = output_lock.lock().unwrap();
     for d in file_diagnostics.iter() {
-      eprintln!("{}", format_diagnostic(d, &source_code));
+      eprintln!("{}", new_format_diagnostic(d, &source_code));
     }
   });
 

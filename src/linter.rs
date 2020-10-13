@@ -53,8 +53,14 @@ impl Context {
     message: &str,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
-    let start: Position = self.source_map.lookup_char_pos(span.lo()).into();
-    let end: Position = self.source_map.lookup_char_pos(span.hi()).into();
+    let start = Position::new(
+      span.lo(),
+      self.source_map.lookup_char_pos(span.lo())
+    );
+    let end = Position::new(
+      span.hi(),
+      self.source_map.lookup_char_pos(span.hi())
+    );
 
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
@@ -454,14 +460,14 @@ fn parse_ignore_comment(
           .collect::<Vec<String>>();
 
         let location = source_map.lookup_char_pos(comment.span.lo());
-
+        let position = Position::new(comment.span.lo(), location);
         let mut used_codes = HashMap::new();
         codes.iter().for_each(|code| {
           used_codes.insert(code.to_string(), false);
         });
 
         return Some(IgnoreDirective {
-          position: location.into(),
+          position,
           span: comment.span,
           codes,
           used_codes,
