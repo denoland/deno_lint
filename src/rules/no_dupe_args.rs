@@ -90,9 +90,57 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  // Some rules are derived from
+  // https://github.com/eslint/eslint/blob/v7.11.0/tests/lib/rules/no-dupe-args.js
+  // MIT Licensed.
+
   #[test]
-  fn no_dupe_args_test() {
-    assert_lint_err::<NoDupeArgs>("function dupeArgs1(a, b, a) { }", 0);
-    assert_lint_err::<NoDupeArgs>("const dupeArgs2 = (a, b, a) => { }", 18);
+  fn no_dupe_args_valid() {
+    assert_lint_ok::<NoDupeArgs>("function a(a, b, c) {}");
+    assert_lint_ok::<NoDupeArgs>("let a = function (a, b, c) {}");
+    assert_lint_ok::<NoDupeArgs>("function a({a, b}, {c, d}) {}");
+    assert_lint_ok::<NoDupeArgs>("function a([, a]) {}");
+    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
+    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
+    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
+    assert_lint_ok::<NoDupeArgs>("const {a, b, c} = obj;");
+    assert_lint_ok::<NoDupeArgs>("const {a, b, c, a} = obj;");
+
+    // nested
+    assert_lint_ok::<NoDupeArgs>(
+      r#"
+function foo(a, b) {
+  function bar(b, c) {}
+}
+    "#,
+    );
+  }
+
+  #[test]
+  fn no_dupe_args_invalid() {
+    assert_lint_err::<NoDupeArgs>("function dupeArgs1(a, b, a) {}", 0);
+    // As of Oct 2020, ESLint's no-dupe-args somehow doesn't check parameters in arrow functions,
+    // but we *do* check them.
+    assert_lint_err::<NoDupeArgs>("const dupeArgs2 = (a, b, a) => {}", 18);
+
+    assert_lint_err::<NoDupeArgs>("function a(a, b, b) {}", 0);
+    assert_lint_err::<NoDupeArgs>("function a(a, a, a) {}", 0);
+    assert_lint_err::<NoDupeArgs>("function a(a, b, a) {}", 0);
+    assert_lint_err::<NoDupeArgs>("function a(a, b, a, b)", 0);
+    assert_lint_err::<NoDupeArgs>("let a = function (a, b, b) {}", 8);
+    assert_lint_err::<NoDupeArgs>("let a = function (a, a, a) {}", 8);
+    assert_lint_err::<NoDupeArgs>("let a = function (a, b, a) {}", 8);
+    assert_lint_err::<NoDupeArgs>("let a = function (a, b, a, b) {}", 8);
+
+    // nested
+    assert_lint_err_on_line::<NoDupeArgs>(
+      r#"
+function foo(a, b) {
+  function bar(a, b, b) {}
+}
+      "#,
+      2,
+      2,
+    );
   }
 }
