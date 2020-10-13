@@ -230,5 +230,21 @@ mod tests {
       "(((123.45)).abcd = 54321) ? foo : bar;",
       1,
     );
+
+    // nested
+    assert_lint_err::<NoCondAssign>("if (foo) { if (x = 0) {} }", 15);
+    assert_lint_err::<NoCondAssign>("while (foo) { while (x = 0) {} }", 21);
+    assert_lint_err::<NoCondAssign>(
+      "do { do {} while (x = 0) } while (foo);",
+      18,
+    );
+    assert_lint_err::<NoCondAssign>(
+      "for (let i = 0; i < 10; i++) { for (; j+=1 ;) {} }",
+      38,
+    );
+    assert_lint_err::<NoCondAssign>(
+      "const val = foo ? (x = 0) ? 0 : 1 : 2;",
+      19,
+    );
   }
 }
