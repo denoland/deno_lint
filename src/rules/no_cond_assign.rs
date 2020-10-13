@@ -106,6 +106,7 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
   ) {
     self.check_condition(&if_stmt.test);
   }
+
   fn visit_while_stmt(
     &mut self,
     while_stmt: &swc_ecmascript::ast::WhileStmt,
@@ -113,6 +114,7 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
   ) {
     self.check_condition(&while_stmt.test);
   }
+
   fn visit_do_while_stmt(
     &mut self,
     do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
@@ -120,6 +122,7 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
   ) {
     self.check_condition(&do_while_stmt.test);
   }
+
   fn visit_for_stmt(
     &mut self,
     for_stmt: &swc_ecmascript::ast::ForStmt,
@@ -129,6 +132,7 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
       self.check_condition(&for_test);
     }
   }
+
   fn visit_cond_expr(
     &mut self,
     cond_expr: &swc_ecmascript::ast::CondExpr,
