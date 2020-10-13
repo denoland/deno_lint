@@ -53,14 +53,10 @@ impl Context {
     message: &str,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
-    let start = Position::new(
-      span.lo(),
-      self.source_map.lookup_char_pos(span.lo())
-    );
-    let end = Position::new(
-      span.hi(),
-      self.source_map.lookup_char_pos(span.hi())
-    );
+    let start =
+      Position::new(span.lo(), self.source_map.lookup_char_pos(span.lo()));
+    let end =
+      Position::new(span.hi(), self.source_map.lookup_char_pos(span.hi()));
 
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
@@ -531,16 +527,44 @@ object | undefined {}
 
     assert_eq!(directives.len(), 4);
     let d = &directives[0];
-    assert_eq!(d.position, Position { line: 2, col: 0 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 2,
+        col: 0,
+        byte_pos: 1
+      }
+    );
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[1];
-    assert_eq!(d.position, Position { line: 8, col: 0 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 8,
+        col: 0,
+        byte_pos: 146
+      }
+    );
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[2];
-    assert_eq!(d.position, Position { line: 11, col: 0 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 11,
+        col: 0,
+        byte_pos: 229
+      }
+    );
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[3];
-    assert_eq!(d.position, Position { line: 17, col: 3 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 17,
+        col: 3,
+        byte_pos: 392
+      }
+    );
     assert_eq!(d.codes, vec!["ban-types"]);
   }
 }

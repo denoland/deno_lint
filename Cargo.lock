@@ -26,6 +26,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c96c3d1062ea7101741480185a6a1275eab01cbe8b20e378d1311bc056d2e08"
 dependencies = [
  "unicode-width",
+ "yansi-term",
 ]
 
 [[package]]
@@ -205,7 +206,6 @@ dependencies = [
  "swc_atoms",
  "swc_common",
  "swc_ecmascript",
- "termcolor",
 ]
 
 [[package]]
@@ -1105,3 +1105,12 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "yansi-term"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe5c30ade05e61656247b2e334a031dfd0cc466fadef865bdcdea8d537951bf1"
+dependencies = [
+ "winapi",
+]

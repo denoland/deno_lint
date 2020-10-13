@@ -1,4 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use annotate_snippets::display_list;
+use annotate_snippets::snippet;
 use clap::App;
 use clap::AppSettings;
 use clap::Arg;
@@ -9,56 +11,8 @@ use deno_lint::rules::get_recommended_rules;
 use rayon::prelude::*;
 use serde_json::json;
 use serde_json::Value;
-use std::fmt;
-use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use termcolor::Color::{Ansi256, Red};
-use termcolor::{Ansi, ColorSpec, WriteColor};
-use annotate_snippets::snippet;
-use annotate_snippets::display_list;
-
-#[cfg(windows)]
-use termcolor::{BufferWriter, ColorChoice};
-
-#[allow(unused)]
-#[cfg(windows)]
-fn enable_ansi() {
-  BufferWriter::stdout(ColorChoice::AlwaysAnsi);
-}
-
-fn gray(s: String) -> impl fmt::Display {
-  let mut style_spec = ColorSpec::new();
-  style_spec.set_fg(Some(Ansi256(8)));
-  style(&s, style_spec)
-}
-
-fn red(s: String) -> impl fmt::Display {
-  let mut style_spec = ColorSpec::new();
-  style_spec.set_fg(Some(Red));
-  style(&s, style_spec)
-}
-
-fn bold(s: String) -> impl fmt::Display {
-  let mut style_spec = ColorSpec::new();
-  style_spec.set_bold(true);
-  style(&s, style_spec)
-}
-
-fn cyan(s: String) -> impl fmt::Display {
-  let mut style_spec = ColorSpec::new();
-  style_spec.set_fg(Some(Ansi256(14)));
-  style(&s, style_spec)
-}
-
-fn style(s: &str, colorspec: ColorSpec) -> impl fmt::Display {
-  let mut v = Vec::new();
-  let mut ansi_writer = Ansi::new(&mut v);
-  ansi_writer.set_color(&colorspec).unwrap();
-  ansi_writer.write_all(s.as_bytes()).unwrap();
-  ansi_writer.reset().unwrap();
-  String::from_utf8_lossy(&v).into_owned()
-}
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
@@ -81,7 +35,7 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
     )
 }
 
-fn new_format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
+fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
   let snippet = snippet::Snippet {
     title: Some(snippet::Annotation {
       label: Some(&diagnostic.message),
@@ -89,21 +43,20 @@ fn new_format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
       annotation_type: snippet::AnnotationType::Error,
     }),
     footer: vec![],
-    slices: vec![
-      snippet::Slice {
-        source,
-        line_start: 1,
-        origin: Some(&diagnostic.filename),
-        fold: true,
-        annotations: vec![
-          snippet::SourceAnnotation {
-            range: (diagnostic.range.start.byte_pos, diagnostic.range.end.byte_pos),
-            label: "",
-            annotation_type: snippet::AnnotationType::Error,
-          }
-        ]
-      }
-    ],
+    slices: vec![snippet::Slice {
+      source,
+      line_start: 1,
+      origin: Some(&diagnostic.filename),
+      fold: true,
+      annotations: vec![snippet::SourceAnnotation {
+        range: (
+          diagnostic.range.start.byte_pos,
+          diagnostic.range.end.byte_pos,
+        ),
+        label: "",
+        annotation_type: snippet::AnnotationType::Error,
+      }],
+    }],
     opt: display_list::FormatOptions {
       color: true,
       anonymized_line_numbers: false,
@@ -113,115 +66,6 @@ fn new_format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
 
   let display_list = display_list::DisplayList::from(snippet);
   display_list.to_string()
-}
-
-pub fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
-  let pretty_error = format!(
-    "({}) {}",
-    gray(diagnostic.code.to_string()),
-    diagnostic.message
-  );
-
-  let file_name = &diagnostic.filename;
-  let location = if file_name.contains('/')
-    || file_name.contains('\\')
-    || file_name.starts_with("./")
-  {
-    file_name.to_string()
-  } else {
-    format!("./{}", file_name)
-  };
-
-  let line_str_len = diagnostic.range.end.line.to_string().len();
-  let pretty_location = cyan(format!(
-    "{}--> {}:{}:{}",
-    " ".repeat(line_str_len),
-    location,
-    diagnostic.range.start.line,
-    diagnostic.range.start.col
-  ))
-  .to_string();
-
-  let dummy = format!("{} |", " ".repeat(line_str_len));
-
-  if diagnostic.range.start.line == diagnostic.range.end.line {
-    let snippet_length = diagnostic.range.end.col - diagnostic.range.start.col;
-    let source_lines: Vec<&str> = source.split('\n').collect();
-    let line = source_lines[diagnostic.range.start.line - 1];
-    let pretty_line_src = format!("{} | {}", diagnostic.range.start.line, line);
-    let red_glyphs = format!(
-      "{} | {}{}",
-      " ".repeat(line_str_len),
-      " ".repeat(diagnostic.range.start.col),
-      red("^".repeat(snippet_length))
-    );
-
-    let lines = vec![
-      pretty_error,
-      pretty_location,
-      dummy.clone(),
-      pretty_line_src,
-      red_glyphs,
-      dummy,
-    ];
-
-    lines.join("\n")
-  } else {
-    let mut lines = vec![pretty_error, pretty_location, dummy.clone()];
-    let source_lines: Vec<&str> = source.split('\n').collect();
-
-    for i in diagnostic.range.start.line..(diagnostic.range.end.line + 1) {
-      let line = source_lines[i - 1];
-      let is_first = i == diagnostic.range.start.line;
-      let is_last = i == diagnostic.range.end.line;
-
-      if is_first {
-        let (rest, snippet) = line.split_at(diagnostic.range.start.col);
-        lines.push(format!("{} |   {}{}", i, rest, bold(snippet.to_string())));
-      } else if is_last {
-        let (snippet, rest) = line.split_at(diagnostic.range.end.col);
-        lines.push(format!(
-          "{} | {} {}{}",
-          i,
-          red("|".to_string()),
-          bold(snippet.to_string()),
-          rest
-        ));
-      } else {
-        lines.push(format!(
-          "{} | {} {}",
-          i,
-          red("|".to_string()),
-          bold(line.to_string())
-        ));
-      }
-
-      // If this is the first line, render the ∨ symbols
-      if is_first {
-        lines.push(format!(
-          "{} |  {}{}",
-          " ".repeat(line_str_len),
-          red("_".repeat(diagnostic.range.start.col + 1)),
-          red("^".to_string())
-        ));
-      }
-
-      // If this is the last line, render the ∨ symbols
-      if is_last {
-        lines.push(format!(
-          "{} | {}{}{}",
-          " ".repeat(line_str_len),
-          red("|".to_string()),
-          red("_".repeat(diagnostic.range.end.col)),
-          red("^".to_string())
-        ));
-      }
-    }
-
-    lines.push(dummy);
-
-    lines.join("\n")
-  }
 }
 
 fn run_linter(paths: Vec<String>) {
@@ -243,7 +87,7 @@ fn run_linter(paths: Vec<String>) {
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
     let _g = output_lock.lock().unwrap();
     for d in file_diagnostics.iter() {
-      eprintln!("{}", new_format_diagnostic(d, &source_code));
+      eprintln!("{}", format_diagnostic(d, &source_code));
     }
   });
 
