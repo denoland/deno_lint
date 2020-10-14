@@ -499,6 +499,7 @@ mod tests {
     assert_lint_ok::<Camelcase>(r#"({...obj.fo_o} = baz);"#);
     assert_lint_ok::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#);
     assert_lint_ok::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#);
+    assert_lint_ok::<Camelcase>(r#"not_ignored_foo = 0;"#);
   }
 
   #[test]
@@ -583,6 +584,5 @@ mod tests {
       r#"const { no_camelcased = foo_bar } = bar;"#,
       8,
     );
-    assert_lint_err::<Camelcase>(r#"not_ignored_foo = 0;"#, 0);
   }
 }
