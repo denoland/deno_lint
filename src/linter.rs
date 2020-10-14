@@ -39,8 +39,8 @@ impl Context {
   pub(crate) fn add_diagnostic(
     &mut self,
     span: Span,
-    code: &str,
-    message: &str,
+    code: impl Into<String>,
+    message: impl Into<String>,
   ) {
     let diagnostic = self.create_diagnostic(span, code, message);
     self.diagnostics.push(diagnostic);
@@ -49,8 +49,8 @@ impl Context {
   fn create_diagnostic(
     &self,
     span: Span,
-    code: &str,
-    message: &str,
+    code: impl Into<String>,
+    message: impl Into<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
     let start: Position = self.source_map.lookup_char_pos(span.lo()).into();
@@ -59,8 +59,8 @@ impl Context {
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
       filename: self.file_name.clone(),
-      message: message.to_string(),
-      code: code.to_string(),
+      message: message.into(),
+      code: code.into(),
       hint: None,
     };
 
