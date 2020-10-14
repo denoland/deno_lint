@@ -5,9 +5,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ComputedPropName,
-  Expr, ExprOrSuper, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp, MemberExpr, NewExpr,
-  ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop, PropName, RestPat,
+  Expr, ExprOrSuper, FnDecl, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp,
+  MemberExpr, NewExpr, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop,
+  PropName, RestPat,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -150,6 +151,11 @@ impl<'c> CamelcaseVisitor<'c> {
 impl<'c> Visit for CamelcaseVisitor<'c> {
   noop_visit_type!();
 
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+    self.check_ident(&fn_decl.ident);
+    fn_decl.visit_children_with(self);
+  }
+
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     if let ExprOrSuper::Expr(ref expr) = &call_expr.callee {
       if let Expr::Ident(ref ident) = &**expr {
@@ -166,11 +172,6 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
       self.visited.insert(ident.span);
     }
     new_expr.visit_children_with(self);
-  }
-
-  fn visit_ident(&mut self, ident: &Ident, _: &dyn Node) {
-    self.check_and_insert(ident);
-    ident.visit_children_with(self);
   }
 
   fn visit_object_pat(&mut self, object_pat: &ObjectPat, _: &dyn Node) {
