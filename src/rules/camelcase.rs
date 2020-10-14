@@ -1,16 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use std::collections::{BTreeMap, BTreeSet};
-use swc_common::{Span, Spanned};
+use swc_common::Span;
 use swc_ecmascript::ast::{
-  ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ClassDecl,
-  ClassExpr, ComputedPropName, ExportNamespaceSpecifier, Expr, ExprOrSuper,
-  FnDecl, FnExpr, GetterProp, Ident, ImportDefaultSpecifier,
-  ImportNamedSpecifier, ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp,
-  MemberExpr, MethodProp, NewExpr, ObjectLit, ObjectPat, ObjectPatProp, Param,
-  Pat, PatOrExpr, Prop, PropName, PropOrSpread, RestPat, SetterProp,
+  ArrayPat, AssignPat, AssignPatProp, ClassDecl, ClassExpr,
+  ExportNamespaceSpecifier, Expr, FnDecl, FnExpr, GetterProp, Ident,
+  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
+  KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
+  ObjectPatProp, Param, Pat, Prop, PropName, PropOrSpread, RestPat, SetterProp,
   VarDeclarator,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
@@ -125,74 +123,6 @@ impl<'c> CamelcaseVisitor<'c> {
         _ => {}
       },
       Pat::Invalid(_) => {}
-    }
-  }
-
-  /// Check both ends idents from an object,
-  /// and mark the other identifiers as `visited` without checking.
-  /// For example: abc.de_f.gh_i
-  ///   start ident  -> abc (OK)
-  ///   end ident    -> gh_i (ERROR due to snake-cased)
-  ///   other idents -> de_f (marked as `visited`)
-  fn check_idents_in_member_expr(
-    &mut self,
-    member_expr: &MemberExpr,
-    is_root: bool,
-  ) {
-    let MemberExpr {
-      ref obj, ref prop, ..
-    } = member_expr;
-
-    if is_root {
-      if let Expr::Ident(ref ident) = &**prop {
-        self.check_ident(ident);
-      }
-
-      if let ExprOrSuper::Expr(ref expr) = obj {
-        match &**expr {
-          Expr::Member(ref m) => {
-            self.check_idents_in_member_expr(m, false);
-          }
-          Expr::Ident(ref ident) => {
-            self.check_ident(ident);
-          }
-          _ => {}
-        }
-      }
-    } else {
-      if let Expr::Ident(ref ident) = &**prop {
-        self.visited.insert(ident.span);
-      }
-
-      if let ExprOrSuper::Expr(ref expr) = obj {
-        match &**expr {
-          Expr::Member(ref m) => {
-            self.check_idents_in_member_expr(m, false);
-          }
-          Expr::Ident(ref ident) => {
-            self.check_ident(ident);
-          }
-          _ => {}
-        }
-      }
-    }
-  }
-
-  /// Mark idents in MemberExpression as `visited` without checking
-  fn mark_visited_member_idents_in_expr(&mut self, expr: &Expr) {
-    match expr {
-      Expr::Member(MemberExpr {
-        ref obj, ref prop, ..
-      }) => {
-        if let ExprOrSuper::Expr(ref expr) = obj {
-          self.mark_visited_member_idents_in_expr(expr);
-        }
-        self.mark_visited_member_idents_in_expr(&**prop);
-      }
-      Expr::Ident(ref ident) => {
-        self.visited.insert(ident.span);
-      }
-      _ => {}
     }
   }
 }
