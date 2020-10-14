@@ -19,6 +19,10 @@ impl LintRule for Camelcase {
     Box::new(Camelcase)
   }
 
+  fn tags(&self) -> &[&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     "camelcase"
   }
