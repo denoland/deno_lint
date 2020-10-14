@@ -101,7 +101,6 @@ impl<'c> CamelcaseVisitor<'c> {
       }
       Pat::Object(ObjectPat { ref props, .. }) => {
         for prop in props {
-          dbg!(prop);
           match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
               self.check_pat(&**value);
