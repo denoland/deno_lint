@@ -464,37 +464,55 @@ mod tests {
     assert_lint_ok::<Camelcase>(r#"({obj} = baz.fo_o);"#);
     assert_lint_ok::<Camelcase>(r#"([obj] = baz.fo_o);"#);
     assert_lint_ok::<Camelcase>(r#"([obj.foo = obj.fo_o] = bar);"#);
+
+    // The following test cases are _invalid_ in ESLint, but we've decided to treat them as _valid_.
+    // See background at https://github.com/denoland/deno_lint/pull/302
+    assert_lint_ok::<Camelcase>(r#"first_name = "Akari""#);
+    assert_lint_ok::<Camelcase>(r#"__private_first_name = "Akari""#);
+    assert_lint_ok::<Camelcase>(r#"obj.foo_bar = function(){};"#);
+    assert_lint_ok::<Camelcase>(r#"bar_baz.foo = function(){};"#);
+    assert_lint_ok::<Camelcase>(r#"[foo_bar.baz]"#);
+    assert_lint_ok::<Camelcase>(
+      r#"if (foo.bar_baz === boom.bam_pow) { [foo_bar.baz] }"#,
+    );
+    assert_lint_ok::<Camelcase>(r#"foo.bar_baz = boom.bam_pow"#);
+    assert_lint_ok::<Camelcase>(r#"foo.qux.boom_pow = { bar: boom.bam_pow }"#);
+    assert_lint_ok::<Camelcase>(r#"obj.a_b = 2;"#);
+    assert_lint_ok::<Camelcase>(
+      r#"var { [category_id]: categoryId } = query;"#,
+    );
+    assert_lint_ok::<Camelcase>(r#"a_global_variable.foo()"#);
+    assert_lint_ok::<Camelcase>(r#"a_global_variable[undefined]"#);
+    assert_lint_ok::<Camelcase>(r#"var camelCased = snake_cased"#);
+    assert_lint_ok::<Camelcase>(r#"({ a: obj.fo_o } = bar);"#);
+    assert_lint_ok::<Camelcase>(r#"({ a: obj.fo_o.b_ar } = baz);"#);
+    assert_lint_ok::<Camelcase>(r#"({ a: { b: { c: obj.fo_o } } } = bar);"#);
+    assert_lint_ok::<Camelcase>(
+      r#"({ a: { b: { c: obj.fo_o.b_ar } } } = baz);"#,
+    );
+    assert_lint_ok::<Camelcase>(r#"([obj.fo_o] = bar);"#);
+    assert_lint_ok::<Camelcase>(r#"([obj.fo_o = 1] = bar);"#);
+    assert_lint_ok::<Camelcase>(r#"({ a: [obj.fo_o] } = bar);"#);
+    assert_lint_ok::<Camelcase>(r#"({ a: { b: [obj.fo_o] } } = bar);"#);
+    assert_lint_ok::<Camelcase>(r#"([obj.fo_o.ba_r] = baz);"#);
+    assert_lint_ok::<Camelcase>(r#"obj.o_k.non_camelcase = 0"#);
+    assert_lint_ok::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#);
+    assert_lint_ok::<Camelcase>(r#"({...obj.fo_o} = baz);"#);
+    assert_lint_ok::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#);
+    assert_lint_ok::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#);
   }
 
   #[test]
   fn camelcase_invalid() {
-    assert_lint_err::<Camelcase>(r#"first_name = "Akari""#, 0);
-    assert_lint_err::<Camelcase>(r#"__private_first_name = "Akari""#, 0);
     assert_lint_err::<Camelcase>(r#"function foo_bar(){}"#, 9);
-    assert_lint_err::<Camelcase>(r#"obj.foo_bar = function(){};"#, 4);
-    assert_lint_err::<Camelcase>(r#"bar_baz.foo = function(){};"#, 0);
-    assert_lint_err::<Camelcase>(r#"[foo_bar.baz]"#, 1);
-    assert_lint_err::<Camelcase>(
-      r#"if (foo.bar_baz === boom.bam_pow) { [foo_bar.baz] }"#,
-      37,
-    );
-    assert_lint_err::<Camelcase>(r#"foo.bar_baz = boom.bam_pow"#, 4);
     assert_lint_err::<Camelcase>(r#"var foo = { bar_baz: boom.bam_pow }"#, 12);
-    assert_lint_err::<Camelcase>(
-      r#"foo.qux.boom_pow = { bar: boom.bam_pow }"#,
-      8,
-    );
     assert_lint_err::<Camelcase>(r#"var o = {bar_baz: 1}"#, 9);
-    assert_lint_err::<Camelcase>(r#"obj.a_b = 2;"#, 4);
     assert_lint_err::<Camelcase>(
       r#"var { category_id: category_alias } = query;"#,
       19,
     );
-    assert_lint_err::<Camelcase>(
-      r#"var { [category_id]: categoryId } = query;"#,
-      7,
-    );
     assert_lint_err::<Camelcase>(r#"var { category_id } = query;"#, 6);
+
     assert_lint_err::<Camelcase>(
       r#"var { category_id: category_id } = query;"#,
       19,
@@ -538,9 +556,6 @@ mod tests {
     );
     assert_lint_err::<Camelcase>(r#"import snake_cased from 'mod'"#, 7);
     assert_lint_err::<Camelcase>(r#"import * as snake_cased from 'mod'"#, 12);
-    assert_lint_err::<Camelcase>(r#"a_global_variable.foo()"#, 0);
-    assert_lint_err::<Camelcase>(r#"a_global_variable[undefined]"#, 0);
-    assert_lint_err::<Camelcase>(r#"var camelCased = snake_cased"#, 17);
     assert_lint_err::<Camelcase>(r#"export * as snake_cased from 'mod'"#, 12);
     assert_lint_err::<Camelcase>(r#"function foo({ no_camelcased }) {};"#, 15);
     assert_lint_err::<Camelcase>(
@@ -570,25 +585,5 @@ mod tests {
       8,
     );
     assert_lint_err::<Camelcase>(r#"not_ignored_foo = 0;"#, 0);
-    assert_lint_err::<Camelcase>(r#"({ a: obj.fo_o } = bar);"#, 10);
-    assert_lint_err::<Camelcase>(r#"({ a: obj.fo_o.b_ar } = baz);"#, 15);
-    assert_lint_err::<Camelcase>(
-      r#"({ a: { b: { c: obj.fo_o } } } = bar);"#,
-      20,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"({ a: { b: { c: obj.fo_o.b_ar } } } = baz);"#,
-      25,
-    );
-    assert_lint_err::<Camelcase>(r#"([obj.fo_o] = bar);"#, 6);
-    assert_lint_err::<Camelcase>(r#"([obj.fo_o = 1] = bar);"#, 6);
-    assert_lint_err::<Camelcase>(r#"({ a: [obj.fo_o] } = bar);"#, 11);
-    assert_lint_err::<Camelcase>(r#"({ a: { b: [obj.fo_o] } } = bar);"#, 16);
-    assert_lint_err::<Camelcase>(r#"([obj.fo_o.ba_r] = baz);"#, 11);
-    assert_lint_err::<Camelcase>(r#"obj.o_k.non_camelcase = 0"#, 8);
-    assert_lint_err::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#, 11);
-    assert_lint_err::<Camelcase>(r#"({...obj.fo_o} = baz);"#, 9);
-    assert_lint_err::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#, 14);
-    assert_lint_err::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#, 13);
   }
 }
