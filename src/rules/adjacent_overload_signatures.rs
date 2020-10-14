@@ -46,7 +46,7 @@ impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
     self.context.add_diagnostic(
       span,
       "adjacent-overload-signatures",
-      &format!("All '{}' signatures should be adjacent", fn_name),
+      format!("All '{}' signatures should be adjacent", fn_name),
     );
   }
 

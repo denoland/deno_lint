@@ -496,9 +496,9 @@ impl<'c> PreferConstVisitor<'c> {
     self.context.add_diagnostic(
       span,
       "prefer-const",
-      &format!(
+      format!(
         "'{}' is never reassigned. Use 'const' instead",
-        sym.to_string()
+        sym.as_ref()
       ),
     );
   }

@@ -162,7 +162,7 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
     self.context.add_diagnostic(
       span,
       "no-inner-declarations",
-      &format!("Move {} declaration to {} root", kind, root),
+      format!("Move {} declaration to {} root", kind, root),
     );
   }
 }
