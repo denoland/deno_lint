@@ -117,10 +117,11 @@ impl<'c> CamelcaseVisitor<'c> {
       Pat::Assign(AssignPat { ref left, .. }) => {
         self.check_pat(&**left);
       }
-      Pat::Expr(expr) => match &**expr {
-        Expr::Ident(ident) => self.check_ident(ident),
-        _ => {}
-      },
+      Pat::Expr(expr) => {
+        if let Expr::Ident(ident) = &**expr {
+          self.check_ident(ident);
+        }
+      }
       Pat::Invalid(_) => {}
     }
   }
