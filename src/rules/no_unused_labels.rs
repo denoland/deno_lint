@@ -86,7 +86,7 @@ impl<'c> Visit for NoUnusedLabelsVisitor<'c> {
       self.context.add_diagnostic(
         labeled_stmt.span,
         "no-unused-labels",
-        &format!("\"{}\" label is never used", name),
+        format!("\"{}\" label is never used", name),
       );
     }
   }

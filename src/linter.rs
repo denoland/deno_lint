@@ -280,7 +280,7 @@ impl Linter {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
               "ban-unused-ignore",
-              &format!("Ignore for code \"{}\" was not used.", code),
+              format!("Ignore for code \"{}\" was not used.", code),
             );
             filtered_diagnostics.push(diagnostic);
           }
@@ -289,7 +289,7 @@ impl Linter {
             filtered_diagnostics.push(context.create_diagnostic(
               ignore_directive.span,
               "ban-unknown-rule-code",
-              &format!("Unknown rule for code \"{}\"", code),
+              format!("Unknown rule for code \"{}\"", code),
             ))
           }
         }
