@@ -1,14 +1,16 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use std::collections::{BTreeMap, BTreeSet};
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ComputedPropName,
-  Expr, ExprOrSuper, FnDecl, Ident, ImportDefaultSpecifier,
-  ImportNamedSpecifier, ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp,
-  MemberExpr, NewExpr, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop,
-  PropName, RestPat,
+  ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ClassExpr,
+  ComputedPropName, ExportNamespaceSpecifier, Expr, ExprOrSuper, FnDecl,
+  FnExpr, GetterProp, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp, MemberExpr, MethodProp,
+  NewExpr, ObjectLit, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop, PropName,
+  PropOrSpread, RestPat, SetterProp, VarDeclarator,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -76,6 +78,52 @@ impl<'c> CamelcaseVisitor<'c> {
   fn check_ident(&mut self, ident: &Ident) {
     if self.visited.insert(ident.span) && is_underscored(ident) {
       self.errors.insert(ident.span, ident.as_ref().to_string());
+    }
+  }
+
+  fn check_prop_name(&mut self, prop_name: &PropName) {
+    if let PropName::Ident(ident) = prop_name {
+      self.check_ident(ident);
+    }
+  }
+
+  fn check_lhs_pat(&mut self, pat: &Pat) {
+    match pat {
+      Pat::Ident(ident) => self.check_ident(ident),
+      Pat::Array(ArrayPat { ref elems, .. }) => {
+        for elem in elems {
+          if let Some(pat) = elem {
+            self.check_lhs_pat(pat);
+          }
+        }
+      }
+      Pat::Rest(RestPat { ref arg, .. }) => {
+        self.check_lhs_pat(&**arg);
+      }
+      Pat::Object(ObjectPat { ref props, .. }) => {
+        for prop in props {
+          dbg!(prop);
+          match prop {
+            ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
+              self.check_lhs_pat(&**value);
+            }
+            ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
+              self.check_ident(key);
+            }
+            ObjectPatProp::Rest(RestPat { ref arg, .. }) => {
+              self.check_lhs_pat(&**arg);
+            }
+          }
+        }
+      }
+      Pat::Assign(AssignPat { ref left, .. }) => {
+        self.check_lhs_pat(&**left);
+      }
+      Pat::Expr(expr) => match &**expr {
+        Expr::Ident(ident) => self.check_ident(ident),
+        _ => {}
+      },
+      Pat::Invalid(_) => {}
     }
   }
 
@@ -156,196 +204,52 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     fn_decl.visit_children_with(self);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
-    if let ExprOrSuper::Expr(ref expr) = &call_expr.callee {
-      if let Expr::Ident(ref ident) = &**expr {
-        // Mark as visited without checking
-        self.visited.insert(ident.span);
-      }
-    }
-    call_expr.visit_children_with(self);
-  }
+  fn visit_var_declarator(
+    &mut self,
+    var_declarator: &VarDeclarator,
+    _: &dyn Node,
+  ) {
+    self.check_lhs_pat(&var_declarator.name);
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
-    if let Expr::Ident(ref ident) = &*new_expr.callee {
-      // Mark as visited without checking
-      self.visited.insert(ident.span);
-    }
-    new_expr.visit_children_with(self);
-  }
-
-  fn visit_object_pat(&mut self, object_pat: &ObjectPat, _: &dyn Node) {
-    for prop in &object_pat.props {
-      match prop {
-        ObjectPatProp::KeyValue(KeyValuePatProp {
-          ref key, ref value, ..
-        }) => {
-          match key {
-            PropName::Ident(ref ident) => {
-              self.visited.insert(ident.span);
-            }
-            PropName::Computed(ComputedPropName { ref expr, .. }) => {
-              if let Expr::Ident(ref ident) = &**expr {
-                self.check_ident(ident);
+    if let Some(expr) = &var_declarator.init {
+      match &**expr {
+        Expr::Object(ObjectLit { ref props, .. }) => {
+          for prop in props {
+            if let PropOrSpread::Prop(prop) = prop {
+              match &**prop {
+                Prop::Shorthand(ident) => self.check_ident(ident),
+                Prop::KeyValue(KeyValueProp { ref key, .. }) => {
+                  self.check_prop_name(key);
+                }
+                Prop::Getter(GetterProp { ref key, .. }) => {
+                  self.check_prop_name(key);
+                }
+                Prop::Setter(SetterProp { ref key, .. }) => {
+                  self.check_prop_name(key);
+                }
+                Prop::Method(MethodProp { ref key, .. }) => {
+                  self.check_prop_name(key);
+                }
+                Prop::Assign(_) => {}
               }
             }
-            _ => {}
           }
-          // e.g. {a: b.foo_bar} = c
-          self.visited.insert(key.span());
-          if let Pat::Expr(ref expr) = &**value {
-            if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
-              if let Expr::Ident(ref ident) = &**prop {
-                self.check_ident(ident);
-              }
-            }
-          } else if let Pat::Ident(ref ident) = &**value {
+        }
+        Expr::Fn(FnExpr { ref ident, .. }) => {
+          if let Some(ident) = ident {
             self.check_ident(ident);
           }
         }
-        ObjectPatProp::Assign(AssignPatProp {
-          ref key, ref value, ..
-        }) => {
-          self.check_ident(key);
-          if let Some(ref expr) = value {
-            if let Expr::Ident(ref ident) = &**expr {
-              self.visited.insert(ident.span);
-            }
+        Expr::Class(ClassExpr { ref ident, .. }) => {
+          if let Some(ident) = ident {
+            self.check_ident(ident);
           }
         }
         _ => {}
       }
     }
-    object_pat.visit_children_with(self);
-  }
 
-  fn visit_array_pat(&mut self, array_pat: &ArrayPat, _: &dyn Node) {
-    // e.g. [a.foo_bar] = b
-    for elem in &array_pat.elems {
-      if let Some(Pat::Expr(ref expr)) = elem {
-        if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
-          if let Expr::Ident(ref ident) = &**prop {
-            self.check_ident(ident);
-          }
-        }
-      }
-    }
-    array_pat.visit_children_with(self);
-  }
-
-  fn visit_rest_pat(&mut self, rest_pat: &RestPat, _: &dyn Node) {
-    // e.g. {...a.foo_bar} = b
-    if let Pat::Expr(ref expr) = &*rest_pat.arg {
-      if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
-        if let Expr::Ident(ref ident) = &**prop {
-          self.check_ident(ident);
-        }
-      }
-    }
-    rest_pat.visit_children_with(self);
-  }
-
-  fn visit_assign_pat(&mut self, assign_pat: &AssignPat, _: &dyn Node) {
-    match &*assign_pat.left {
-      Pat::Expr(ref expr) => {
-        // e.g. [a.foo_bar = 1] = b
-        if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
-          if let Expr::Ident(ref ident) = &**prop {
-            self.check_ident(ident);
-          }
-        }
-      }
-      Pat::Ident(ref ident) => {
-        self.check_ident(ident);
-      }
-      _ => {}
-    }
-    assign_pat.visit_children_with(self);
-  }
-
-  fn visit_prop(&mut self, prop: &Prop, _: &dyn Node) {
-    match prop {
-      Prop::Shorthand(ref ident) => {
-        self.check_ident(ident);
-      }
-      Prop::KeyValue(KeyValueProp { ref key, .. }) => {
-        if let PropName::Ident(ref ident) = key {
-          self.check_ident(ident);
-        }
-      }
-      _ => {}
-    }
-    prop.visit_children_with(self);
-  }
-
-  fn visit_member_expr(&mut self, member_expr: &MemberExpr, _: &dyn Node) {
-    let MemberExpr {
-      ref obj, ref prop, ..
-    } = member_expr;
-
-    if let ExprOrSuper::Expr(ref expr) = obj {
-      if let Expr::Ident(ref ident) = &**expr {
-        self.check_ident(ident);
-      }
-    }
-    self.mark_visited_member_idents_in_expr(&**prop);
-    member_expr.visit_children_with(self);
-  }
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
-    let lhs = &assign_expr.left;
-    let rhs = &*assign_expr.right;
-    match rhs {
-      Expr::Member(_) => match lhs {
-        PatOrExpr::Expr(ref expr) => {
-          if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
-            if let Expr::Ident(ref ident) = &**prop {
-              self.check_ident(ident);
-            }
-          }
-        }
-        PatOrExpr::Pat(ref pat) => {
-          if let Pat::Expr(ref expr) = &**pat {
-            match &**expr {
-              Expr::Member(ref member_expr) => {
-                self.check_idents_in_member_expr(member_expr, true);
-              }
-              Expr::Ident(ref ident) => {
-                self.check_ident(ident);
-              }
-              _ => {}
-            }
-          }
-        }
-      },
-      _ => match lhs {
-        PatOrExpr::Expr(ref expr) => match &**expr {
-          Expr::Member(ref member_expr) => {
-            self.check_idents_in_member_expr(member_expr, true);
-          }
-          Expr::Ident(ref ident) => {
-            self.check_ident(ident);
-          }
-          _ => {}
-        },
-        PatOrExpr::Pat(ref pat) => match &**pat {
-          Pat::Ident(ref ident) => {
-            self.check_ident(ident);
-          }
-          Pat::Expr(ref expr) => match &**expr {
-            Expr::Member(ref member_expr) => {
-              self.check_idents_in_member_expr(member_expr, true);
-            }
-            Expr::Ident(ref ident) => {
-              self.check_ident(ident);
-            }
-            _ => {}
-          },
-          _ => {}
-        },
-      },
-    }
-    assign_expr.visit_children_with(self);
+    var_declarator.visit_children_with(self);
   }
 
   fn visit_import_named_specifier(
@@ -373,6 +277,15 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
   ) {
     self.check_ident(&import_star_as_specifier.local);
     import_star_as_specifier.visit_children_with(self);
+  }
+
+  fn visit_export_namespace_specifier(
+    &mut self,
+    export_namespace_specifier: &ExportNamespaceSpecifier,
+    _: &dyn Node,
+  ) {
+    self.check_ident(&export_namespace_specifier.name);
+    export_namespace_specifier.visit_children_with(self);
   }
 }
 
@@ -590,5 +503,6 @@ mod tests {
       r#"const f = function no_camelcased() {};"#,
       19,
     );
+    assert_lint_err::<Camelcase>(r#"const c = class no_camelcased {};"#, 16);
   }
 }
