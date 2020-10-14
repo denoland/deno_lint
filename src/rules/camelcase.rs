@@ -6,9 +6,8 @@ use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ComputedPropName,
   Expr, ExprOrSuper, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportSpecifier, ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp,
-  MemberExpr, NewExpr, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop,
-  PropName, RestPat,
+  ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp, MemberExpr, NewExpr,
+  ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop, PropName, RestPat,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -348,31 +347,31 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     assign_expr.visit_children_with(self);
   }
 
-  fn visit_import_specifier(
+  fn visit_import_named_specifier(
     &mut self,
-    import_specifier: &ImportSpecifier,
+    import_named_specifier: &ImportNamedSpecifier,
     _: &dyn Node,
   ) {
-    use ImportSpecifier::*;
-    match import_specifier {
-      Named(ImportNamedSpecifier {
-        ref local,
-        ref imported,
-        ..
-      }) => {
-        self.check_and_insert(local);
-        if let Some(ref ident) = imported {
-          self.visited.insert(ident.span);
-        }
-      }
-      Default(ImportDefaultSpecifier { ref local, .. }) => {
-        self.check_and_insert(local);
-      }
-      Namespace(ImportStarAsSpecifier { ref local, .. }) => {
-        self.check_and_insert(local);
-      }
-    }
-    import_specifier.visit_children_with(self);
+    self.check_and_insert(&import_named_specifier.local);
+    import_named_specifier.visit_children_with(self);
+  }
+
+  fn visit_import_default_specifier(
+    &mut self,
+    import_default_specifier: &ImportDefaultSpecifier,
+    _: &dyn Node,
+  ) {
+    self.check_and_insert(&import_default_specifier.local);
+    import_default_specifier.visit_children_with(self);
+  }
+
+  fn visit_import_star_as_specifier(
+    &mut self,
+    import_star_as_specifier: &ImportStarAsSpecifier,
+    _: &dyn Node,
+  ) {
+    self.check_and_insert(&import_star_as_specifier.local);
+    import_star_as_specifier.visit_children_with(self);
   }
 }
 
