@@ -4,28 +4,14 @@ use super::LintRule;
 use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
+use swc_common::Span;
 
 pub struct BanUntaggedTodo;
 
 impl BanUntaggedTodo {
-  fn lint_comment(&self, context: &mut Context, comment: &Comment) {
-    if comment.kind != CommentKind::Line {
-      return;
-    }
-
-    let comment_text = comment.text.to_lowercase().trim_start().to_string();
-
-    if !comment_text.starts_with("todo") {
-      return;
-    }
-
-    let re = Regex::new(r#"todo\((#|@)\S+\)"#).unwrap();
-    if re.is_match(&comment_text) {
-      return;
-    }
-
+  fn report(&self, context: &mut Context, span: Span) {
     context.add_diagnostic(
-      comment.span,
+      span,
       "ban-untagged-todo",
       "TODO should be tagged with (@username) or (#issue)",
     );
@@ -46,16 +32,53 @@ impl LintRule for BanUntaggedTodo {
     context: &mut Context,
     _module: &swc_ecmascript::ast::Module,
   ) {
-    let leading = context.leading_comments.clone();
-    let trailing = context.trailing_comments.clone();
+    let mut violated_comment_spans = Vec::new();
 
-    for comment in leading.values().flatten() {
-      self.lint_comment(context, comment);
-    }
-    for comment in trailing.values().flatten() {
-      self.lint_comment(context, comment);
+    violated_comment_spans.extend(
+      context.leading_comments.values().flatten().filter_map(|c| {
+        if check_comment(c) {
+          Some(c.span)
+        } else {
+          None
+        }
+      }),
+    );
+    violated_comment_spans.extend(
+      context
+        .trailing_comments
+        .values()
+        .flatten()
+        .filter_map(|c| if check_comment(c) { Some(c.span) } else { None }),
+    );
+
+    for span in violated_comment_spans {
+      self.report(context, span);
     }
   }
+}
+
+/// Returns `true` if the comment should be reported.
+fn check_comment(comment: &Comment) -> bool {
+  if comment.kind != CommentKind::Line {
+    return false;
+  }
+
+  let text = comment.text.to_lowercase();
+  let text = text.trim_start();
+
+  if !text.starts_with("todo") {
+    return false;
+  }
+
+  lazy_static! {
+    static ref TODO_RE: Regex = Regex::new(r#"todo\((#|@)\S+\)"#).unwrap();
+  }
+
+  if TODO_RE.is_match(text) {
+    return false;
+  }
+
+  true
 }
 
 #[cfg(test)]

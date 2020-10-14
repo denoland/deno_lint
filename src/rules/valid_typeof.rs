@@ -133,11 +133,17 @@ impl<'c> Visit for ValidTypeofVisitor<'c> {
 }
 
 fn is_valid_typeof_string(str: &str) -> bool {
-  match str {
-    "undefined" | "object" | "boolean" | "number" | "string" | "function"
-    | "symbol" | "bigint" => true,
-    _ => false,
-  }
+  matches!(
+    str,
+    "undefined"
+      | "object"
+      | "boolean"
+      | "number"
+      | "string"
+      | "function"
+      | "symbol"
+      | "bigint"
+  )
 }
 
 trait EqExpr {
@@ -146,10 +152,7 @@ trait EqExpr {
 
 impl EqExpr for BinExpr {
   fn is_eq_expr(&self) -> bool {
-    match self.op {
-      EqEq | NotEq | EqEqEq | NotEqEq => true,
-      _ => false,
-    }
+    matches!(self.op, EqEq | NotEq | EqEqEq | NotEqEq)
   }
 }
 

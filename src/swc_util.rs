@@ -18,7 +18,7 @@ use swc_common::DUMMY_SP;
 use swc_common::{Mark, GLOBALS};
 use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
-  Prop, PropName, PropOrSpread, Str, Tpl,
+  PrivateName, Prop, PropName, PropOrSpread, Str, Tpl,
 };
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::EsConfig;
@@ -352,6 +352,12 @@ impl Key for PropName {
         _ => None,
       },
     }
+  }
+}
+
+impl Key for PrivateName {
+  fn get_key(&self) -> Option<String> {
+    Some(self.id.sym.to_string())
   }
 }
 

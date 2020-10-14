@@ -176,11 +176,11 @@ impl PartialEq for MethodToCheck {
       return false;
     }
 
-    match (self.kind, other.kind) {
+    !matches!(
+      (self.kind, other.kind),
       (MethodKind::Getter, MethodKind::Setter)
-      | (MethodKind::Setter, MethodKind::Getter) => false,
-      _ => true,
-    }
+        | (MethodKind::Setter, MethodKind::Getter)
+    )
   }
 }
 

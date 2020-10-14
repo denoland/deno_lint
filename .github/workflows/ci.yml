@@ -19,11 +19,12 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
+          persist-credentials: false
 
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.3
         with:
-          rust-version: "1.46.0"
+          rust-version: "1.47.0"
 
       - name: Install clippy and rustfmt
         run: |
@@ -56,6 +57,33 @@ jobs:
           key: ${{ runner.os }}-${{ github.sha }}
           restore-keys: ${{ runner.os }}-
 
+        # It seems that the 'target' directory does not always get restored
+        # from cache correctly on MacOS. In the build log we see the following:
+        #
+        #   Fresh serde_derive v1.0.115
+        #
+        # But a little while after that Cargo aborts because 'serde_derive' is
+        # now nowhere to be found. We're not the only ones experiencing this,
+        # see https://github.com/actions-rs/cargo/issues/111.
+        #
+        #   error[E0463]: can't find crate for `serde_derive`
+        #   ##[error]   --> /Users/runner/.cargo/registry/src/github.com-
+        #       |           1ecc6299db9ec823/serde-1.0.115/src/lib.rs:285:1
+        #       |
+        #   285 | extern crate serde_derive;
+        #       | ^^^^^^^^^^^^^^^^^^^^^^^^^^ can't find crate
+      - name: Work around MacOS + Cargo + Github Actions cache bug
+        if: runner.os == 'macOS'
+        run: |
+          cargo clean --locked --release \
+                      -p ast_node \
+                      -p is-macro \
+                      -p serde_derive \
+                      -p swc_ecma_parser \
+                      -p swc_ecma_parser_macros \
+                      -p swc_visit \
+                      -p swc_visit_macros
+
       - name: Environment
         run: |
           echo ::set-env name=GH_ACTIONS::1
@@ -87,7 +115,7 @@ jobs:
         run: |
           yarn
           yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.0/cli.ts build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.1/cli.ts build
         working-directory: ./www
 
       - name: Upload website to Github Actions Artifacts
@@ -96,6 +124,18 @@ jobs:
         with:
           name: www
           path: ./www/.dext/static
+
+      - name: Deploy website
+        if: |
+          contains(matrix.os, 'ubuntu') &&
+          github.repository == 'denoland/deno_lint' &&
+          github.ref == 'refs/heads/master'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          yarn global add netlify-cli
+          netlify status --auth=$NETLIFY_AUTH_TOKEN
+          netlify deploy --dir=./www/.dext/static --site=def7a3c7-172e-4e2a-bc4f-601a5301403f --auth=$NETLIFY_AUTH_TOKEN --prod
 
       - name: Publish
         if: |
