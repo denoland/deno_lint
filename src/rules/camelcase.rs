@@ -5,12 +5,13 @@ use super::LintRule;
 use std::collections::{BTreeMap, BTreeSet};
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ClassExpr,
-  ComputedPropName, ExportNamespaceSpecifier, Expr, ExprOrSuper, FnDecl,
-  FnExpr, GetterProp, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp, MemberExpr, MethodProp,
-  NewExpr, ObjectLit, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop, PropName,
-  PropOrSpread, RestPat, SetterProp, VarDeclarator,
+  ArrayPat, AssignExpr, AssignPat, AssignPatProp, CallExpr, ClassDecl,
+  ClassExpr, ComputedPropName, ExportNamespaceSpecifier, Expr, ExprOrSuper,
+  FnDecl, FnExpr, GetterProp, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, KeyValuePatProp, KeyValueProp,
+  MemberExpr, MethodProp, NewExpr, ObjectLit, ObjectPat, ObjectPatProp, Param,
+  Pat, PatOrExpr, Prop, PropName, PropOrSpread, RestPat, SetterProp,
+  VarDeclarator,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -87,37 +88,37 @@ impl<'c> CamelcaseVisitor<'c> {
     }
   }
 
-  fn check_lhs_pat(&mut self, pat: &Pat) {
+  fn check_pat(&mut self, pat: &Pat) {
     match pat {
       Pat::Ident(ident) => self.check_ident(ident),
       Pat::Array(ArrayPat { ref elems, .. }) => {
         for elem in elems {
           if let Some(pat) = elem {
-            self.check_lhs_pat(pat);
+            self.check_pat(pat);
           }
         }
       }
       Pat::Rest(RestPat { ref arg, .. }) => {
-        self.check_lhs_pat(&**arg);
+        self.check_pat(&**arg);
       }
       Pat::Object(ObjectPat { ref props, .. }) => {
         for prop in props {
           dbg!(prop);
           match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
-              self.check_lhs_pat(&**value);
+              self.check_pat(&**value);
             }
             ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
               self.check_ident(key);
             }
             ObjectPatProp::Rest(RestPat { ref arg, .. }) => {
-              self.check_lhs_pat(&**arg);
+              self.check_pat(&**arg);
             }
           }
         }
       }
       Pat::Assign(AssignPat { ref left, .. }) => {
-        self.check_lhs_pat(&**left);
+        self.check_pat(&**left);
       }
       Pat::Expr(expr) => match &**expr {
         Expr::Ident(ident) => self.check_ident(ident),
@@ -204,12 +205,17 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     fn_decl.visit_children_with(self);
   }
 
+  fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
+    self.check_ident(&class_decl.ident);
+    class_decl.visit_children_with(self);
+  }
+
   fn visit_var_declarator(
     &mut self,
     var_declarator: &VarDeclarator,
     _: &dyn Node,
   ) {
-    self.check_lhs_pat(&var_declarator.name);
+    self.check_pat(&var_declarator.name);
 
     if let Some(expr) = &var_declarator.init {
       match &**expr {
@@ -250,6 +256,11 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     }
 
     var_declarator.visit_children_with(self);
+  }
+
+  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
+    self.check_pat(&param.pat);
+    param.visit_children_with(self);
   }
 
   fn visit_import_named_specifier(
@@ -378,6 +389,8 @@ mod tests {
     assert_lint_ok::<Camelcase>(r#"([obj] = baz.fo_o);"#);
     assert_lint_ok::<Camelcase>(r#"([obj.foo = obj.fo_o] = bar);"#);
     assert_lint_ok::<Camelcase>(r#"const f = function camelCased() {};"#);
+    assert_lint_ok::<Camelcase>(r#"const c = class camelCased {};"#);
+    assert_lint_ok::<Camelcase>(r#"class camelCased {};"#);
 
     // The following test cases are _invalid_ in ESLint, but we've decided to treat them as _valid_.
     // See background at https://github.com/denoland/deno_lint/pull/302
@@ -504,5 +517,6 @@ mod tests {
       19,
     );
     assert_lint_err::<Camelcase>(r#"const c = class no_camelcased {};"#, 16);
+    assert_lint_err::<Camelcase>(r#"class no_camelcased {}"#, 6);
   }
 }
