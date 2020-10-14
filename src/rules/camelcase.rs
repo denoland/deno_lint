@@ -10,7 +10,7 @@ use swc_ecmascript::ast::{
   MemberExpr, NewExpr, ObjectPat, ObjectPatProp, Pat, PatOrExpr, Prop,
   PropName, RestPat,
 };
-use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct Camelcase;
 
@@ -151,30 +151,30 @@ impl<'c> CamelcaseVisitor<'c> {
 impl<'c> Visit for CamelcaseVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     if let ExprOrSuper::Expr(ref expr) = &call_expr.callee {
       if let Expr::Ident(ref ident) = &**expr {
         // Mark as visited without checking
         self.visited.insert(ident.span);
       }
     }
-    visit::visit_call_expr(self, call_expr, parent);
+    call_expr.visit_children_with(self);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if let Expr::Ident(ref ident) = &*new_expr.callee {
       // Mark as visited without checking
       self.visited.insert(ident.span);
     }
-    visit::visit_new_expr(self, new_expr, parent);
+    new_expr.visit_children_with(self);
   }
 
-  fn visit_ident(&mut self, ident: &Ident, parent: &dyn Node) {
+  fn visit_ident(&mut self, ident: &Ident, _: &dyn Node) {
     self.check_and_insert(ident);
-    visit::visit_ident(self, ident, parent);
+    ident.visit_children_with(self);
   }
 
-  fn visit_object_pat(&mut self, object_pat: &ObjectPat, parent: &dyn Node) {
+  fn visit_object_pat(&mut self, object_pat: &ObjectPat, _: &dyn Node) {
     for prop in &object_pat.props {
       match prop {
         ObjectPatProp::KeyValue(KeyValuePatProp {
@@ -216,10 +216,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         _ => {}
       }
     }
-    visit::visit_object_pat(self, object_pat, parent);
+    object_pat.visit_children_with(self);
   }
 
-  fn visit_array_pat(&mut self, array_pat: &ArrayPat, parent: &dyn Node) {
+  fn visit_array_pat(&mut self, array_pat: &ArrayPat, _: &dyn Node) {
     // e.g. [a.foo_bar] = b
     for elem in &array_pat.elems {
       if let Some(Pat::Expr(ref expr)) = elem {
@@ -230,10 +230,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         }
       }
     }
-    visit::visit_array_pat(self, array_pat, parent);
+    array_pat.visit_children_with(self);
   }
 
-  fn visit_rest_pat(&mut self, rest_pat: &RestPat, parent: &dyn Node) {
+  fn visit_rest_pat(&mut self, rest_pat: &RestPat, _: &dyn Node) {
     // e.g. {...a.foo_bar} = b
     if let Pat::Expr(ref expr) = &*rest_pat.arg {
       if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
@@ -242,10 +242,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         }
       }
     }
-    visit::visit_rest_pat(self, rest_pat, parent);
+    rest_pat.visit_children_with(self);
   }
 
-  fn visit_assign_pat(&mut self, assign_pat: &AssignPat, parent: &dyn Node) {
+  fn visit_assign_pat(&mut self, assign_pat: &AssignPat, _: &dyn Node) {
     match &*assign_pat.left {
       Pat::Expr(ref expr) => {
         // e.g. [a.foo_bar = 1] = b
@@ -260,10 +260,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
       }
       _ => {}
     }
-    visit::visit_assign_pat(self, assign_pat, parent);
+    assign_pat.visit_children_with(self);
   }
 
-  fn visit_prop(&mut self, prop: &Prop, parent: &dyn Node) {
+  fn visit_prop(&mut self, prop: &Prop, _: &dyn Node) {
     match prop {
       Prop::Shorthand(ref ident) => {
         self.check_and_insert(ident);
@@ -275,10 +275,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
       }
       _ => {}
     }
-    visit::visit_prop(self, prop, parent);
+    prop.visit_children_with(self);
   }
 
-  fn visit_member_expr(&mut self, member_expr: &MemberExpr, parent: &dyn Node) {
+  fn visit_member_expr(&mut self, member_expr: &MemberExpr, _: &dyn Node) {
     let MemberExpr {
       ref obj, ref prop, ..
     } = member_expr;
@@ -289,10 +289,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
       }
     }
     self.mark_visited_member_idents_in_expr(&**prop);
-    visit::visit_member_expr(self, member_expr, parent);
+    member_expr.visit_children_with(self);
   }
 
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, parent: &dyn Node) {
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
     let lhs = &assign_expr.left;
     let rhs = &*assign_expr.right;
     match rhs {
@@ -345,13 +345,13 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         },
       },
     }
-    visit::visit_assign_expr(self, assign_expr, parent);
+    assign_expr.visit_children_with(self);
   }
 
   fn visit_import_specifier(
     &mut self,
     import_specifier: &ImportSpecifier,
-    parent: &dyn Node,
+    _: &dyn Node,
   ) {
     use ImportSpecifier::*;
     match import_specifier {
@@ -372,7 +372,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         self.check_and_insert(local);
       }
     }
-    visit::visit_import_specifier(self, import_specifier, parent);
+    import_specifier.visit_children_with(self);
   }
 }
 
