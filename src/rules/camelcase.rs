@@ -463,6 +463,7 @@ mod tests {
     assert_lint_ok::<Camelcase>(r#"({obj} = baz.fo_o);"#);
     assert_lint_ok::<Camelcase>(r#"([obj] = baz.fo_o);"#);
     assert_lint_ok::<Camelcase>(r#"([obj.foo = obj.fo_o] = bar);"#);
+    assert_lint_ok::<Camelcase>(r#"const f = function camelCased() {};"#);
 
     // The following test cases are _invalid_ in ESLint, but we've decided to treat them as _valid_.
     // See background at https://github.com/denoland/deno_lint/pull/302
@@ -583,6 +584,10 @@ mod tests {
     assert_lint_err::<Camelcase>(
       r#"const { no_camelcased = foo_bar } = bar;"#,
       8,
+    );
+    assert_lint_err::<Camelcase>(
+      r#"const f = function no_camelcased() {};"#,
+      19,
     );
   }
 }
