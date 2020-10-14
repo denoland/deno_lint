@@ -72,7 +72,7 @@ impl<'c> CamelcaseVisitor<'c> {
   }
 
   /// Check if this ident is underscored only when it's not yet visited.
-  fn check_and_insert(&mut self, ident: &Ident) {
+  fn check_ident(&mut self, ident: &Ident) {
     if self.visited.insert(ident.span) && is_underscored(ident) {
       self.errors.insert(ident.span, ident.as_ref().to_string());
     }
@@ -95,7 +95,7 @@ impl<'c> CamelcaseVisitor<'c> {
 
     if is_root {
       if let Expr::Ident(ref ident) = &**prop {
-        self.check_and_insert(ident);
+        self.check_ident(ident);
       }
 
       if let ExprOrSuper::Expr(ref expr) = obj {
@@ -104,7 +104,7 @@ impl<'c> CamelcaseVisitor<'c> {
             self.check_idents_in_member_expr(m, false);
           }
           Expr::Ident(ref ident) => {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
           _ => {}
         }
@@ -120,7 +120,7 @@ impl<'c> CamelcaseVisitor<'c> {
             self.check_idents_in_member_expr(m, false);
           }
           Expr::Ident(ref ident) => {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
           _ => {}
         }
@@ -185,7 +185,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
             }
             PropName::Computed(ComputedPropName { ref expr, .. }) => {
               if let Expr::Ident(ref ident) = &**expr {
-                self.check_and_insert(ident);
+                self.check_ident(ident);
               }
             }
             _ => {}
@@ -195,17 +195,17 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
           if let Pat::Expr(ref expr) = &**value {
             if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
               if let Expr::Ident(ref ident) = &**prop {
-                self.check_and_insert(ident);
+                self.check_ident(ident);
               }
             }
           } else if let Pat::Ident(ref ident) = &**value {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
         }
         ObjectPatProp::Assign(AssignPatProp {
           ref key, ref value, ..
         }) => {
-          self.check_and_insert(key);
+          self.check_ident(key);
           if let Some(ref expr) = value {
             if let Expr::Ident(ref ident) = &**expr {
               self.visited.insert(ident.span);
@@ -224,7 +224,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
       if let Some(Pat::Expr(ref expr)) = elem {
         if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
           if let Expr::Ident(ref ident) = &**prop {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
         }
       }
@@ -237,7 +237,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     if let Pat::Expr(ref expr) = &*rest_pat.arg {
       if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
         if let Expr::Ident(ref ident) = &**prop {
-          self.check_and_insert(ident);
+          self.check_ident(ident);
         }
       }
     }
@@ -250,12 +250,12 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         // e.g. [a.foo_bar = 1] = b
         if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
           if let Expr::Ident(ref ident) = &**prop {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
         }
       }
       Pat::Ident(ref ident) => {
-        self.check_and_insert(ident);
+        self.check_ident(ident);
       }
       _ => {}
     }
@@ -265,11 +265,11 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
   fn visit_prop(&mut self, prop: &Prop, _: &dyn Node) {
     match prop {
       Prop::Shorthand(ref ident) => {
-        self.check_and_insert(ident);
+        self.check_ident(ident);
       }
       Prop::KeyValue(KeyValueProp { ref key, .. }) => {
         if let PropName::Ident(ref ident) = key {
-          self.check_and_insert(ident);
+          self.check_ident(ident);
         }
       }
       _ => {}
@@ -284,7 +284,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
 
     if let ExprOrSuper::Expr(ref expr) = obj {
       if let Expr::Ident(ref ident) = &**expr {
-        self.check_and_insert(ident);
+        self.check_ident(ident);
       }
     }
     self.mark_visited_member_idents_in_expr(&**prop);
@@ -299,7 +299,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         PatOrExpr::Expr(ref expr) => {
           if let Expr::Member(MemberExpr { ref prop, .. }) = &**expr {
             if let Expr::Ident(ref ident) = &**prop {
-              self.check_and_insert(ident);
+              self.check_ident(ident);
             }
           }
         }
@@ -310,7 +310,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
                 self.check_idents_in_member_expr(member_expr, true);
               }
               Expr::Ident(ref ident) => {
-                self.check_and_insert(ident);
+                self.check_ident(ident);
               }
               _ => {}
             }
@@ -323,20 +323,20 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
             self.check_idents_in_member_expr(member_expr, true);
           }
           Expr::Ident(ref ident) => {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
           _ => {}
         },
         PatOrExpr::Pat(ref pat) => match &**pat {
           Pat::Ident(ref ident) => {
-            self.check_and_insert(ident);
+            self.check_ident(ident);
           }
           Pat::Expr(ref expr) => match &**expr {
             Expr::Member(ref member_expr) => {
               self.check_idents_in_member_expr(member_expr, true);
             }
             Expr::Ident(ref ident) => {
-              self.check_and_insert(ident);
+              self.check_ident(ident);
             }
             _ => {}
           },
@@ -352,7 +352,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     import_named_specifier: &ImportNamedSpecifier,
     _: &dyn Node,
   ) {
-    self.check_and_insert(&import_named_specifier.local);
+    self.check_ident(&import_named_specifier.local);
     import_named_specifier.visit_children_with(self);
   }
 
@@ -361,7 +361,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     import_default_specifier: &ImportDefaultSpecifier,
     _: &dyn Node,
   ) {
-    self.check_and_insert(&import_default_specifier.local);
+    self.check_ident(&import_default_specifier.local);
     import_default_specifier.visit_children_with(self);
   }
 
@@ -370,7 +370,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     import_star_as_specifier: &ImportStarAsSpecifier,
     _: &dyn Node,
   ) {
-    self.check_and_insert(&import_star_as_specifier.local);
+    self.check_ident(&import_star_as_specifier.local);
     import_star_as_specifier.visit_children_with(self);
   }
 }
