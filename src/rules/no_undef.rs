@@ -257,11 +257,14 @@ mod tests {
 
   #[test]
   fn ok_1() {
-    assert_lint_ok::<NoUndef>("var a = 1, b = 2; a;");
-
-    assert_lint_ok::<NoUndef>("function a(){}  a();");
-
-    assert_lint_ok::<NoUndef>("function f(b) { b; }");
+    assert_lint_ok_macro!(
+      NoUndef,
+      [
+        "var a = 1, b = 2; a;",
+        "function a(){}  a();",
+        "function f(b) { b; }",
+      ],
+    );
   }
 
   #[test]
@@ -284,11 +287,10 @@ mod tests {
 
   #[test]
   fn ok_4() {
-    assert_lint_ok::<NoUndef>("typeof a");
-
-    assert_lint_ok::<NoUndef>("typeof (a)");
-
-    assert_lint_ok::<NoUndef>("var b = typeof a");
+    assert_lint_ok_macro!(
+      NoUndef,
+      ["typeof a", "typeof (a)", "var b = typeof a",]
+    );
   }
 
   #[test]
