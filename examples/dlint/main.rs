@@ -36,30 +36,17 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
     )
 }
 
+// Return slice of source code covered by diagnostic
+// and adjusted range of diagnostic (ie. original range - start line
+// of sliced source code).
 fn get_slice_source_and_range<'a>(
+  line_start_indexes: &[(usize, usize)],
   source: &'a str,
   range: &Range,
 ) -> (&'a str, (usize, usize)) {
-  let line_start_indexes = std::iter::once(0)
-    .chain(source.match_indices('\n').map(|l| l.0 + 1))
-    .enumerate()
-    .collect::<Vec<_>>();
-
-  let is_same_line = range.start.line == range.end.line;
-
-  let (first_line_start, last_line_end) = if is_same_line {
-    let (line_no, first_line_start) = line_start_indexes[range.start.line - 1];
-    let last_line_end = line_start_indexes[line_no + 1].1 - 1;
-    (first_line_start, last_line_end)
-  } else {
-    let (_first_line_no, first_line_start) =
-      line_start_indexes[range.start.line - 1];
-    let (last_line_no, _last_line_start) =
-      line_start_indexes[range.end.line - 1];
-    let last_line_end = line_start_indexes[last_line_no + 1].1 - 1;
-    (first_line_start, last_line_end)
-  };
-
+  let (_, first_line_start) = line_start_indexes[range.start.line - 1];
+  let (last_line_no, _) = line_start_indexes[range.end.line - 1];
+  let last_line_end = line_start_indexes[last_line_no + 1].1 - 1;
   let adjusted_start = range.start.byte_pos - first_line_start;
   let adjusted_end = range.end.byte_pos - first_line_start;
   let adjusted_range = (adjusted_start, adjusted_end);
@@ -68,8 +55,12 @@ fn get_slice_source_and_range<'a>(
 }
 
 fn display_diagnostic(diagnostic: &LintDiagnostic, source: &str) {
+  let line_start_indexes = std::iter::once(0)
+    .chain(source.match_indices('\n').map(|l| l.0 + 1))
+    .enumerate()
+    .collect::<Vec<_>>();
   let (slice_source, range) =
-    get_slice_source_and_range(source, &diagnostic.range);
+    get_slice_source_and_range(&line_start_indexes, source, &diagnostic.range);
 
   let snippet = snippet::Snippet {
     title: Some(snippet::Annotation {
