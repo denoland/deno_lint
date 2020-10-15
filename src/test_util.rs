@@ -6,6 +6,19 @@ use crate::rules::LintRule;
 use crate::swc_util;
 use swc_ecmascript::ast::Module;
 
+// TODO(magurotuna): rename this macro after replacing existing tests with this macro
+#[macro_export]
+macro_rules! assert_lint_ok_macro {
+  ($rule:ty, $src:literal $(,)?) => {
+    $crate::test_util::assert_lint_ok::<$rule>($src);
+  };
+  ($rule:ty, [$($src:literal),* $(,)?] $(,)?) => {
+    $(
+      $crate::test_util::assert_lint_ok::<$rule>($src);
+    )*
+  };
+}
+
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
