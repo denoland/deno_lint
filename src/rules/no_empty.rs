@@ -207,6 +207,17 @@ if (foo) {
       "#,
     );
     assert_lint_ok::<NoEmpty>("const testFunction = (): void => {};");
+    assert_lint_ok::<NoEmpty>(
+      r#"
+      switch (foo) {
+        case 1:
+        case 2:
+          break;
+        default:
+          return 1;
+      }
+      "#,
+    );
   }
 
   #[test]
