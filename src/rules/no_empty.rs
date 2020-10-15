@@ -101,27 +101,21 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
     // manually visit each member; otherwise rule would produce errors
     // for empty function body.
     if let Some(body) = &function.body {
-      for stmt in &body.stmts {
-        swc_ecmascript::visit::visit_stmt(self, stmt, body);
-      }
+      body.visit_children_with(self);
     }
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     // Similar to the above, empty arrow expressions shouldn't be caught.
     if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body {
-      for stmt in &block_stmt.stmts {
-        swc_ecmascript::visit::visit_stmt(self, stmt, block_stmt);
-      }
+      block_stmt.visit_children_with(self);
     }
   }
 
   fn visit_constructor(&mut self, cons: &Constructor, _parent: &dyn Node) {
     // Similar to the above, empty constructors shouldn't be caught.
     if let Some(body) = &cons.body {
-      for stmt in &body.stmts {
-        swc_ecmascript::visit::visit_stmt(self, stmt, body);
-      }
+      body.visit_children_with(self);
     }
   }
 
@@ -135,9 +129,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
         );
       }
     } else {
-      for stmt in &block_stmt.stmts {
-        self.visit_stmt(stmt, _parent);
-      }
+      block_stmt.visit_children_with(self);
     }
   }
 
