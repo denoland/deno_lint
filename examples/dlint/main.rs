@@ -47,21 +47,21 @@ fn get_slice_source_and_range<'a>(
 
   let is_same_line = range.start.line == range.end.line;
 
-  let (first_line_start, last_line_start, last_line_end) = if is_same_line {
+  let (first_line_start, last_line_end) = if is_same_line {
     let (line_no, first_line_start) = line_start_indexes[range.start.line - 1];
     let last_line_end = line_start_indexes[line_no + 1].1 - 1;
-    (first_line_start, first_line_start, last_line_end)
+    (first_line_start, last_line_end)
   } else {
     let (_first_line_no, first_line_start) =
       line_start_indexes[range.start.line - 1];
-    let (last_line_no, last_line_start) =
+    let (last_line_no, _last_line_start) =
       line_start_indexes[range.end.line - 1];
-    let last_line_end = line_start_indexes[last_line_no].1 - 1;
-    (first_line_start, last_line_start, last_line_end)
+    let last_line_end = line_start_indexes[last_line_no + 1].1 - 1;
+    (first_line_start, last_line_end)
   };
 
   let adjusted_start = range.start.byte_pos - first_line_start;
-  let adjusted_end = range.end.byte_pos - last_line_start;
+  let adjusted_end = range.end.byte_pos - first_line_start;
   let adjusted_range = (adjusted_start, adjusted_end);
   let slice_str = &source[first_line_start..last_line_end];
   (slice_str, adjusted_range)
