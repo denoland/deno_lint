@@ -42,7 +42,20 @@ impl Context {
     code: impl Into<String>,
     message: impl Into<String>,
   ) {
-    let diagnostic = self.create_diagnostic(span, code, message);
+    let diagnostic = self.create_diagnostic(span, code, message, None);
+    self.diagnostics.push(diagnostic);
+  }
+
+  #[allow(unused)]
+  pub(crate) fn add_diagnostic_with_hint(
+    &mut self,
+    span: Span,
+    code: impl Into<String>,
+    message: impl Into<String>,
+    hint: impl Into<String>,
+  ) {
+    let diagnostic =
+      self.create_diagnostic(span, code, message, Some(hint.into()));
     self.diagnostics.push(diagnostic);
   }
 
@@ -51,6 +64,7 @@ impl Context {
     span: Span,
     code: impl Into<String>,
     message: impl Into<String>,
+    maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
     let start =
@@ -63,7 +77,7 @@ impl Context {
       filename: self.file_name.clone(),
       message: message.into(),
       code: code.into(),
-      hint: None,
+      hint: maybe_hint,
     };
 
     let time_end = Instant::now();
@@ -283,6 +297,7 @@ impl Linter {
               ignore_directive.span,
               "ban-unused-ignore",
               format!("Ignore for code \"{}\" was not used.", code),
+              None,
             );
             filtered_diagnostics.push(diagnostic);
           }
@@ -292,6 +307,7 @@ impl Linter {
               ignore_directive.span,
               "ban-unknown-rule-code",
               format!("Unknown rule for code \"{}\"", code),
+              None,
             ))
           }
         }
