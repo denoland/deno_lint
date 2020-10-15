@@ -4,7 +4,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
   SwitchStmt,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoEmpty;
 
@@ -149,6 +149,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
         "Empty switch statement",
       );
     }
+    switch.visit_children_with(self);
   }
 }
 
@@ -313,5 +314,28 @@ if (foo) { }
   #[test]
   fn it_fails_for_a_nested_empty_switch() {
     assert_lint_err::<NoEmpty>("if (foo) { switch (foo) { } }", 11);
+  }
+
+  #[test]
+  fn it_fails_for_a_nested_empty_if_block_in_switch_discriminant() {
+    assert_lint_err_on_line::<NoEmpty>(
+      r#"
+switch (
+  (() => {
+    if (cond) {}
+    return 42;
+  })()
+) {
+  case 1:
+    foo();
+    break;
+  default:
+    bar();
+    break;
+}
+      "#,
+      4,
+      14,
+    );
   }
 }
