@@ -6,6 +6,7 @@ use clap::AppSettings;
 use clap::Arg;
 use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
+use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
 use rayon::prelude::*;
@@ -35,7 +36,41 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
     )
 }
 
-fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
+fn get_slice_source_and_range<'a>(
+  source: &'a str,
+  range: &Range,
+) -> (&'a str, (usize, usize)) {
+  let line_start_indexes = std::iter::once(0)
+    .chain(source.match_indices('\n').map(|l| l.0 + 1))
+    .enumerate()
+    .collect::<Vec<_>>();
+
+  let is_same_line = range.start.line == range.end.line;
+
+  let (first_line_start, last_line_start, last_line_end) = if is_same_line {
+    let (line_no, first_line_start) = line_start_indexes[range.start.line - 1];
+    let last_line_end = line_start_indexes[line_no + 1].1 - 1;
+    (first_line_start, first_line_start, last_line_end)
+  } else {
+    let (_first_line_no, first_line_start) =
+      line_start_indexes[range.start.line - 1];
+    let (last_line_no, last_line_start) =
+      line_start_indexes[range.end.line - 1];
+    let last_line_end = line_start_indexes[last_line_no].1 - 1;
+    (first_line_start, last_line_start, last_line_end)
+  };
+
+  let adjusted_start = range.start.byte_pos - first_line_start;
+  let adjusted_end = range.end.byte_pos - last_line_start;
+  let adjusted_range = (adjusted_start, adjusted_end);
+  let slice_str = &source[first_line_start..last_line_end];
+  (slice_str, adjusted_range)
+}
+
+fn display_diagnostic(diagnostic: &LintDiagnostic, source: &str) {
+  let (slice_source, range) =
+    get_slice_source_and_range(source, &diagnostic.range);
+
   let snippet = snippet::Snippet {
     title: Some(snippet::Annotation {
       label: Some(&diagnostic.message),
@@ -44,15 +79,12 @@ fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
     }),
     footer: vec![],
     slices: vec![snippet::Slice {
-      source,
-      line_start: 1,
+      source: &slice_source,
+      line_start: diagnostic.range.start.line,
       origin: Some(&diagnostic.filename),
-      fold: true,
+      fold: false,
       annotations: vec![snippet::SourceAnnotation {
-        range: (
-          diagnostic.range.start.byte_pos,
-          diagnostic.range.end.byte_pos,
-        ),
+        range,
         label: "",
         annotation_type: snippet::AnnotationType::Error,
       }],
@@ -63,9 +95,8 @@ fn format_diagnostic(diagnostic: &LintDiagnostic, source: &str) -> String {
       margin: None,
     },
   };
-
   let display_list = display_list::DisplayList::from(snippet);
-  display_list.to_string()
+  eprintln!("{}", display_list);
 }
 
 fn run_linter(paths: Vec<String>) {
@@ -86,8 +117,9 @@ fn run_linter(paths: Vec<String>) {
 
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
     let _g = output_lock.lock().unwrap();
-    for d in file_diagnostics.iter() {
-      eprintln!("{}", format_diagnostic(d, &source_code));
+
+    for diagnostic in file_diagnostics {
+      display_diagnostic(&diagnostic, &source_code);
     }
   });
 
