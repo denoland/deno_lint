@@ -201,9 +201,6 @@ fn print_rule_info(maybe_rule_name: Option<&str>) {
 }
 
 fn main() {
-  #[cfg(windows)]
-  enable_ansi();
-
   env_logger::init();
 
   let cli_app = create_cli_app();
