@@ -1,23 +1,26 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 #[cfg(feature = "json")]
 use serde::Serialize;
+use std::convert::TryInto;
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Position {
   pub line: usize,
   pub col: usize,
+  pub byte_pos: usize,
 }
 
-impl Into<Position> for swc_common::Loc {
-  fn into(self) -> Position {
+impl Position {
+  pub fn new(byte_pos: swc_common::BytePos, loc: swc_common::Loc) -> Self {
     Position {
-      line: self.line,
-      // Using self.col instead of self.col_display
+      line: loc.line,
+      // Using loc.col instead of loc.col_display
       // because it leads to out-of-bounds columns if file
       // contains non-narrow chars (like tabs).
       // See: https://github.com/denoland/deno_lint/issues/139
-      col: self.col.0,
+      col: loc.col.0,
+      byte_pos: byte_pos.0.try_into().expect("Failed to convert byte_pos"),
     }
   }
 }
