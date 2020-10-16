@@ -253,7 +253,6 @@ impl<'c> Visit for NoUndefVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ok_1() {
@@ -404,37 +403,94 @@ mod tests {
 
   #[test]
   fn err_1() {
-    assert_lint_err::<NoUndef>("a = 1;", 0);
-
-    assert_lint_err::<NoUndef>("var a = b;", 8);
-
-    assert_lint_err::<NoUndef>("function f() { b; }", 15);
+    assert_lint_err_macro! {
+      NoUndef,
+      "a = 1;": [
+        {
+          col: 0,
+          message: "a is not defined",
+        },
+      ],
+      "var a = b;": [
+        {
+          col: 8,
+          message: "b is not defined",
+        },
+      ],
+      "function f() { b; }": [
+        {
+          col: 15,
+          message: "b is not defined",
+        },
+      ],
+    };
   }
 
   #[test]
   fn err_2() {
-    // assert_lint_err::<NoUndef>("var React; React.render(<img attr={a} />);", 0);
+    // assert_lint_err_macro! {
+    //   NoUndef,
+    //   "var React; React.render(<img attr={a} />);": [
+    //     {
+    //       col: 0,
+    //       message: "a is not defined",
+    //      },
+    //   ],
+    // };
   }
 
   #[test]
   fn err_3() {
-    // assert_lint_err::<NoUndef>(
-    //   "var React, App; React.render(<App attr={a} />);",
-    //   0,
-    // );
-
-    assert_lint_err::<NoUndef>("[a] = [0];", 1);
-
-    assert_lint_err::<NoUndef>("({a} = {});", 2);
+    assert_lint_err_macro! {
+      NoUndef,
+      // "var React, App; React.render(<App attr={a} />);": [
+      //   {
+      //     col: 0,
+      //     message: "a is not defined",
+      //   },
+      // ],
+      "[a] = [0];": [
+        {
+          col: 1,
+          message: "a is not defined",
+        },
+      ],
+      "({a} = {});": [
+        {
+          col: 2,
+          message: "a is not defined",
+        },
+      ],
+    };
   }
 
   #[test]
   fn err_4() {
-    assert_lint_err::<NoUndef>("({b: a} = {});", 5);
-
-    assert_lint_err_n::<NoUndef>("[obj.a, obj.b] = [0, 1];", vec![1, 8]);
-
-    assert_lint_err::<NoUndef>("const c = 0; const a = {...b, c};", 27);
+    assert_lint_err_macro! {
+      NoUndef,
+      "({b: a} = {});": [
+        {
+          col: 5,
+          message: "a is not defined",
+        },
+      ],
+      "[obj.a, obj.b] = [0, 1];": [
+        {
+          col: 1,
+          message: "obj is not defined",
+        },
+        {
+          col: 8,
+          message: "obj is not defined",
+        },
+      ],
+      "const c = 0; const a = {...b, c};": [
+        {
+          col: 27,
+          message: "b is not defined",
+        },
+      ],
+    };
   }
 
   #[test]
