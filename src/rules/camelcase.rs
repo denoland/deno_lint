@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
 use swc_common::Span;
 use swc_ecmascript::ast::{
@@ -40,10 +41,34 @@ impl LintRule for Camelcase {
 }
 
 /// Check if it contains underscores, except for leading and trailing ones
-fn is_underscored(ident: &Ident) -> bool {
-  let trimmed_ident = ident.as_ref().trim_matches('_');
+fn is_underscored(ident_name: &str) -> bool {
+  let trimmed_ident = ident_name.trim_matches('_');
   trimmed_ident.contains('_')
     && trimmed_ident != trimmed_ident.to_ascii_uppercase()
+}
+
+/// Convert the name of identifier into camel case. If the name is originally in camel case, return
+/// the name as it is. For more detail, see the test cases below.
+#[allow(unused)]
+fn to_camelcase(ident_name: &str) -> String {
+  if !is_underscored(ident_name) {
+    return ident_name.to_string();
+  }
+
+  lazy_static! {
+    static ref UNDERSCORE_CHAR_RE: Regex =
+      Regex::new(r"([^_])_([a-z])").unwrap();
+  }
+
+  let result = UNDERSCORE_CHAR_RE.replace_all(ident_name, |caps: &Captures| {
+    format!("{}{}", &caps[1], caps[2].to_ascii_uppercase())
+  });
+
+  if result != ident_name {
+    return result.into_owned();
+  }
+
+  ident_name.to_ascii_uppercase()
 }
 
 struct CamelcaseVisitor<'c> {
@@ -75,7 +100,7 @@ impl<'c> CamelcaseVisitor<'c> {
 
   /// Check if this ident is underscored only when it's not yet visited.
   fn check_ident(&mut self, ident: &Ident) {
-    if self.visited.insert(ident.span) && is_underscored(ident) {
+    if self.visited.insert(ident.span) && is_underscored(ident.as_ref()) {
       self.errors.insert(ident.span, ident.as_ref().to_string());
     }
   }
@@ -234,6 +259,27 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
 mod tests {
   use super::*;
   use crate::test_util::*;
+
+  #[test]
+  fn test_to_camelcase() {
+    let tests = [
+      ("foo_bar", "fooBar"),
+      ("fooBar", "fooBar"),
+      ("FooBar", "FooBar"),
+      ("foo_bar_baz", "fooBarBaz"),
+      ("_foo_bar_baz", "_fooBarBaz"),
+      ("__foo_bar_baz__", "__fooBarBaz__"),
+      ("Sha3_224", "SHA3_224"),
+      ("SHA3_224", "SHA3_224"),
+      ("_leading", "_leading"),
+      ("trailing_", "trailing_"),
+      ("_bothEnds_", "_bothEnds_"),
+    ];
+
+    for &(input, expected) in tests.iter() {
+      assert_eq!(expected, to_camelcase(input));
+    }
+  }
 
   // Based on https://github.com/eslint/eslint/blob/v7.8.1/tests/lib/rules/camelcase.js
 
