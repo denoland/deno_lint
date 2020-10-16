@@ -269,7 +269,7 @@ impl<'c> NoUnusedVarVisitor<'c> {
       self.context.add_diagnostic(
         ident.span,
         "no-unused-vars",
-        &format!("\"{}\" is never used", ident.sym),
+        format!("\"{}\" is never used", ident.sym),
       );
     }
   }

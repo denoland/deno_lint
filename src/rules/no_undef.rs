@@ -181,7 +181,7 @@ impl<'c> NoUndefVisitor<'c> {
     self.context.add_diagnostic(
       ident.span,
       "no-undef",
-      &format!("{} is not defined", ident.sym),
+      format!("{} is not defined", ident.sym),
     )
   }
 }

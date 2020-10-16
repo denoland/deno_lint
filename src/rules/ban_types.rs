@@ -1,6 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use swc_ecmascript::ast::{
+  Ident, TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
+  TsTypeParamInstantiation, TsTypeRef,
+};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -49,19 +53,20 @@ const BANNED_TYPES: [(&str, &str); 6] = [
 or if you want a type meaning `any value`, you probably want `unknown` instead."),
 ];
 
+fn get_message(ident: &Ident) -> Option<&'static str> {
+  BANNED_TYPES.iter().find_map(|&(ty, msg)| {
+    if ty == ident.sym.as_ref() {
+      Some(msg)
+    } else {
+      None
+    }
+  })
+}
+
 impl<'c> Visit for BanTypesVisitor<'c> {
-  fn visit_ts_type_ref(
-    &mut self,
-    ts_type_ref: &swc_ecmascript::ast::TsTypeRef,
-    _parent: &dyn Node,
-  ) {
-    if let swc_ecmascript::ast::TsEntityName::Ident(ident) =
-      &ts_type_ref.type_name
-    {
-      if let Some((_, message)) = BANNED_TYPES
-        .iter()
-        .find(|banned_type| *banned_type.0 == ident.sym)
-      {
+  fn visit_ts_type_ref(&mut self, ts_type_ref: &TsTypeRef, _parent: &dyn Node) {
+    if let TsEntityName::Ident(ident) = &ts_type_ref.type_name {
+      if let Some(message) = get_message(ident) {
         self
           .context
           .add_diagnostic(ts_type_ref.span, "ban-types", message);
@@ -71,11 +76,7 @@ impl<'c> Visit for BanTypesVisitor<'c> {
       self.visit_ts_type_param_instantiation(type_param, ts_type_ref);
     }
   }
-  fn visit_ts_type_lit(
-    &mut self,
-    ts_type_lit: &swc_ecmascript::ast::TsTypeLit,
-    _parent: &dyn Node,
-  ) {
+  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
     if !ts_type_lit.members.is_empty() {
       for element in ts_type_lit.members.iter() {
         self.visit_ts_type_element(element, ts_type_lit);
@@ -90,12 +91,10 @@ impl<'c> Visit for BanTypesVisitor<'c> {
   }
   fn visit_ts_keyword_type(
     &mut self,
-    ts_keyword_type: &swc_ecmascript::ast::TsKeywordType,
+    ts_keyword_type: &TsKeywordType,
     _parent: &dyn Node,
   ) {
-    if let swc_ecmascript::ast::TsKeywordTypeKind::TsObjectKeyword =
-      ts_keyword_type.kind
-    {
+    if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.kind {
       self.context.add_diagnostic(
         ts_keyword_type.span,
         "ban-types",
@@ -105,7 +104,7 @@ impl<'c> Visit for BanTypesVisitor<'c> {
   }
   fn visit_ts_type_param_instantiation(
     &mut self,
-    ts_type_param_instantiation: &swc_ecmascript::ast::TsTypeParamInstantiation,
+    ts_type_param_instantiation: &TsTypeParamInstantiation,
     _parent: &dyn Node,
   ) {
     for param in ts_type_param_instantiation.params.iter() {

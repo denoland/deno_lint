@@ -31,6 +31,78 @@ impl LintRule for AdjacentOverloadSignatures {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires overload signatures to be adjacent to each other.
+
+Overloaded signatures which are not next to each other can lead to code which is hard to read and maintain.
+
+### Valid:
+(bar is declared after foo)
+```typescript
+type FooType = {
+  foo(s: string): void;
+  foo(n: number): void;
+  foo(sn: string | number): void;
+  bar(): void;
+};
+```
+```typescript
+interface FooInterface {
+  foo(s: string): void;
+  foo(n: number): void;
+  foo(sn: string | number): void;
+  bar(): void;
+}
+```
+```typescript
+class FooClass {
+  foo(s: string): void;
+  foo(n: number): void;
+  foo(sn: string | number): void {}
+  bar(): void {}
+}
+```
+```typescript
+export function foo(s: string): void;
+export function foo(n: number): void;
+export function foo(sn: string | number): void {}
+export function bar(): void {}
+```
+
+### Invalid:
+(bar is declared in-between foo overloads)
+```typescript
+type FooType = {
+  foo(s: string): void;
+  foo(n: number): void;
+  bar(): void;
+  foo(sn: string | number): void;
+};
+```
+```typescript
+interface FooInterface {
+  foo(s: string): void;
+  foo(n: number): void;
+  bar(): void;
+  foo(sn: string | number): void;
+}
+```
+```typescript
+class FooClass {
+  foo(s: string): void;
+  foo(n: number): void;
+  bar(): void {}
+  foo(sn: string | number): void {}
+}
+```
+```typescript
+export function foo(s: string): void;
+export function foo(n: number): void;
+export function bar(): void {}
+export function foo(sn: string | number): void {}
+```"#
+  }
 }
 
 struct AdjacentOverloadSignaturesVisitor<'c> {
@@ -43,10 +115,11 @@ impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span, fn_name: &str) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "adjacent-overload-signatures",
-      &format!("All '{}' signatures should be adjacent", fn_name),
+      format!("All '{}' signatures should be adjacent", fn_name),
+      "Make sure all overloaded signatures are grouped together",
     );
   }
 

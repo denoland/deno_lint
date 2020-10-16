@@ -103,7 +103,7 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
     self.context.add_diagnostic(
       ident.span,
       "no-shadow-restricted-names",
-      &format!("Shadowing of global property {}", &ident.sym),
+      format!("Shadowing of global property {}", &ident.sym),
     );
   }
 }

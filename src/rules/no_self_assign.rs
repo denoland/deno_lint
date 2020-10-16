@@ -54,11 +54,11 @@ impl<'c> NoSelfAssignVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&mut self, span: Span, name: &str) {
+  fn add_diagnostic(&mut self, span: Span, name: impl AsRef<str>) {
     self.context.add_diagnostic(
       span,
       "no-self-assign",
-      &format!("\"{}\" is assigned to itself", name),
+      format!("\"{}\" is assigned to itself", name.as_ref()),
     );
   }
 
@@ -129,7 +129,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
   fn check_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) {
     if self.is_same_member(left, right) {
       let name = (&*right.prop).get_key().expect("Should be identifier");
-      self.add_diagnostic(right.span, &name);
+      self.add_diagnostic(right.span, name);
     }
   }
 

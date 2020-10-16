@@ -48,7 +48,7 @@ impl<'c> NoControlRegexVisitor<'c> {
     self.context.add_diagnostic(
       span,
       "no-control-regex",
-      &format!(
+      format!(
         "Unexpected control character(s) in regular expression: \\x{:x}.",
         cp
       ),

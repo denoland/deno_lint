@@ -4,7 +4,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
   SwitchStmt,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoEmpty;
 
@@ -101,27 +101,21 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
     // manually visit each member; otherwise rule would produce errors
     // for empty function body.
     if let Some(body) = &function.body {
-      for stmt in &body.stmts {
-        swc_ecmascript::visit::visit_stmt(self, stmt, body);
-      }
+      body.visit_children_with(self);
     }
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     // Similar to the above, empty arrow expressions shouldn't be caught.
     if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body {
-      for stmt in &block_stmt.stmts {
-        swc_ecmascript::visit::visit_stmt(self, stmt, block_stmt);
-      }
+      block_stmt.visit_children_with(self);
     }
   }
 
   fn visit_constructor(&mut self, cons: &Constructor, _parent: &dyn Node) {
     // Similar to the above, empty constructors shouldn't be caught.
     if let Some(body) = &cons.body {
-      for stmt in &body.stmts {
-        swc_ecmascript::visit::visit_stmt(self, stmt, body);
-      }
+      body.visit_children_with(self);
     }
   }
 
@@ -135,9 +129,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
         );
       }
     } else {
-      for stmt in &block_stmt.stmts {
-        self.visit_stmt(stmt, _parent);
-      }
+      block_stmt.visit_children_with(self);
     }
   }
 
@@ -149,6 +141,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
         "Empty switch statement",
       );
     }
+    switch.visit_children_with(self);
   }
 }
 
@@ -207,6 +200,17 @@ if (foo) {
       "#,
     );
     assert_lint_ok::<NoEmpty>("const testFunction = (): void => {};");
+    assert_lint_ok::<NoEmpty>(
+      r#"
+      switch (foo) {
+        case 1:
+        case 2:
+          break;
+        default:
+          return 1;
+      }
+      "#,
+    );
   }
 
   #[test]
@@ -302,5 +306,28 @@ if (foo) { }
   #[test]
   fn it_fails_for_a_nested_empty_switch() {
     assert_lint_err::<NoEmpty>("if (foo) { switch (foo) { } }", 11);
+  }
+
+  #[test]
+  fn it_fails_for_a_nested_empty_if_block_in_switch_discriminant() {
+    assert_lint_err_on_line::<NoEmpty>(
+      r#"
+switch (
+  (() => {
+    if (cond) {}
+    return 42;
+  })()
+) {
+  case 1:
+    foo();
+    break;
+  default:
+    bar();
+    break;
+}
+      "#,
+      4,
+      14,
+    );
   }
 }

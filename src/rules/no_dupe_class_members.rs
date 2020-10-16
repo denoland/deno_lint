@@ -50,7 +50,7 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
     self.context.add_diagnostic(
       span,
       "no-dupe-class-members",
-      &format!("Duplicate name '{}'", name),
+      format!("Duplicate name '{}'", name),
     );
   }
 }
