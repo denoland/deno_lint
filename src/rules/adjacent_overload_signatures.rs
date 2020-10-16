@@ -115,10 +115,11 @@ impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span, fn_name: &str) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "adjacent-overload-signatures",
       format!("All '{}' signatures should be adjacent", fn_name),
+      "Make sure all overloaded signatures are grouped together",
     );
   }
 

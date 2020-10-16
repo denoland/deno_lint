@@ -10,10 +10,11 @@ pub struct BanTsComment;
 
 impl BanTsComment {
   fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic(
+    context.add_diagnostic_with_hint(
       span,
       "ban-ts-comment",
       "ts directives are not allowed without comment",
+      "Add an in-line comment explaining the reason for using this directive",
     );
   }
 }
