@@ -42,7 +42,20 @@ impl Context {
     code: impl Into<String>,
     message: impl Into<String>,
   ) {
-    let diagnostic = self.create_diagnostic(span, code, message);
+    let diagnostic = self.create_diagnostic(span, code, message, None);
+    self.diagnostics.push(diagnostic);
+  }
+
+  #[allow(unused)]
+  pub(crate) fn add_diagnostic_with_hint(
+    &mut self,
+    span: Span,
+    code: impl Into<String>,
+    message: impl Into<String>,
+    hint: impl Into<String>,
+  ) {
+    let diagnostic =
+      self.create_diagnostic(span, code, message, Some(hint.into()));
     self.diagnostics.push(diagnostic);
   }
 
@@ -51,17 +64,20 @@ impl Context {
     span: Span,
     code: impl Into<String>,
     message: impl Into<String>,
+    maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
-    let start: Position = self.source_map.lookup_char_pos(span.lo()).into();
-    let end: Position = self.source_map.lookup_char_pos(span.hi()).into();
+    let start =
+      Position::new(span.lo(), self.source_map.lookup_char_pos(span.lo()));
+    let end =
+      Position::new(span.hi(), self.source_map.lookup_char_pos(span.hi()));
 
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
       filename: self.file_name.clone(),
       message: message.into(),
       code: code.into(),
-      hint: None,
+      hint: maybe_hint,
     };
 
     let time_end = Instant::now();
@@ -281,6 +297,7 @@ impl Linter {
               ignore_directive.span,
               "ban-unused-ignore",
               format!("Ignore for code \"{}\" was not used.", code),
+              None,
             );
             filtered_diagnostics.push(diagnostic);
           }
@@ -290,6 +307,7 @@ impl Linter {
               ignore_directive.span,
               "ban-unknown-rule-code",
               format!("Unknown rule for code \"{}\"", code),
+              None,
             ))
           }
         }
@@ -454,14 +472,14 @@ fn parse_ignore_comment(
           .collect::<Vec<String>>();
 
         let location = source_map.lookup_char_pos(comment.span.lo());
-
+        let position = Position::new(comment.span.lo(), location);
         let mut used_codes = HashMap::new();
         codes.iter().for_each(|code| {
           used_codes.insert(code.to_string(), false);
         });
 
         return Some(IgnoreDirective {
-          position: location.into(),
+          position,
           span: comment.span,
           codes,
           used_codes,
@@ -525,16 +543,44 @@ object | undefined {}
 
     assert_eq!(directives.len(), 4);
     let d = &directives[0];
-    assert_eq!(d.position, Position { line: 2, col: 0 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 2,
+        col: 0,
+        byte_pos: 1
+      }
+    );
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[1];
-    assert_eq!(d.position, Position { line: 8, col: 0 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 8,
+        col: 0,
+        byte_pos: 146
+      }
+    );
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[2];
-    assert_eq!(d.position, Position { line: 11, col: 0 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 11,
+        col: 0,
+        byte_pos: 229
+      }
+    );
     assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
     let d = &directives[3];
-    assert_eq!(d.position, Position { line: 17, col: 3 });
+    assert_eq!(
+      d.position,
+      Position {
+        line: 17,
+        col: 3,
+        byte_pos: 392
+      }
+    );
     assert_eq!(d.codes, vec!["ban-types"]);
   }
 }

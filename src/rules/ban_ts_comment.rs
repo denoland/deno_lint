@@ -10,10 +10,11 @@ pub struct BanTsComment;
 
 impl BanTsComment {
   fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic(
+    context.add_diagnostic_with_hint(
       span,
       "ban-ts-comment",
-      "ts directives are not allowed",
+      "ts directives are not allowed without comment",
+      "Add an in-line comment explaining the reason for using this directive",
     );
   }
 }
@@ -58,6 +59,40 @@ impl LintRule for BanTsComment {
     for span in violated_comment_spans {
       self.report(context, span);
     }
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of Typescript directives without a comment.
+
+Typescript directives reduce the effectiveness of the compiler, something which should only be done in exceptional circumstances.  The reason why should be documented in a comment alongside the directive.
+
+### Valid:
+```typescript
+// @ts-expect-error: Temporary workaround (see ticket #422)
+let a: number = "I am a string";
+```
+```typescript
+// @ts-ignore: Temporary workaround (see ticket #422)
+let a: number = "I am a string";
+```
+```typescript
+// @ts-nocheck: Temporary workaround (see ticket #422)
+let a: number = "I am a string";
+```
+
+### Invalid:
+```typescript
+// @ts-expect-error
+let a: number = "I am a string";
+```
+```typescript
+// @ts-ignore
+let a: number = "I am a string";
+```
+```typescript
+// @ts-nocheck
+let a: number = "I am a string";
+```"#
   }
 }
 

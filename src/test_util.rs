@@ -1,7 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
 use crate::diagnostic::LintDiagnostic;
-use crate::diagnostic::Position;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
@@ -160,20 +159,21 @@ fn assert_diagnostic_2(
     "Rule code is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
     code, diagnostic.code, source
   );
-
-  let expected_pos: Position = (line, col).into();
   assert_eq!(
-    expected_pos, diagnostic.range.start,
-    "Diagnostic position is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    expected_pos, diagnostic.range.start, source
+    line, diagnostic.range.start.line,
+    "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
+    line, diagnostic.range.start.line, source
   );
-
+  assert_eq!(
+    col, diagnostic.range.start.col,
+    "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
+    col, diagnostic.range.start.col, source
+  );
   assert_eq!(
     message, &diagnostic.message,
     "Diagnostic message is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
     message, &diagnostic.message, source
   );
-
   assert_eq!(
     hint,
     &diagnostic.hint.as_deref(),
