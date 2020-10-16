@@ -54,13 +54,13 @@ Ignoring all rules can mask unexpected or future problems.  Therefore you need t
 ### Valid:
 ```typescript
 // deno-lint-ignore no-dupe-args
-export function dupeArgs1(a, b, a) { }
+export function duplicateArgumentsFn(a, b, a) { }
 ```
 
 ### Invalid:
 ```typescript
 // deno-lint-ignore
-export function dupeArgs1(a, b, a) { }
+export function duplicateArgumentsFn(a, b, a) { }
 ```"#
   }
 }
