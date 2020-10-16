@@ -1,12 +1,28 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 #[cfg(feature = "json")]
 use serde::Serialize;
+use std::fmt;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Position {
   pub line: usize,
   pub col: usize,
+}
+
+impl fmt::Display for Position {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "(line: {}, col: {})", self.line, self.col)
+  }
+}
+
+impl Into<Position> for (usize, usize) {
+  fn into(self) -> Position {
+    Position {
+      line: self.0,
+      col: self.1,
+    }
+  }
 }
 
 impl Into<Position> for swc_common::Loc {
