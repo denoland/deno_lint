@@ -87,21 +87,15 @@ impl<T: LintRule + 'static> LintErrTester<T> {
       self.src,
     );
 
-    for i in 0..self.errors.len() {
+    for (error, diagnostic) in self.errors.iter().zip(&diagnostics) {
       let LintErr {
         line,
         col,
         message,
         hint,
-      } = &self.errors[i];
+      } = error;
       assert_diagnostic_2(
-        &diagnostics[i],
-        rule_code,
-        *line,
-        *col,
-        self.src,
-        message,
-        hint,
+        diagnostic, rule_code, *line, *col, self.src, message, hint,
       );
     }
   }
