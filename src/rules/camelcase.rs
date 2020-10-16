@@ -68,7 +68,7 @@ impl<'c> CamelcaseVisitor<'c> {
       self.context.add_diagnostic(
         *span,
         "camelcase",
-        &format!("Identifier '{}' is not in camel case.", ident_name),
+        format!("Identifier '{}' is not in camel case.", ident_name),
       );
     }
   }
