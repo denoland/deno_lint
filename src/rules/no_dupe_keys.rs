@@ -8,7 +8,7 @@ use swc_ecmascript::ast::{
   GetterProp, KeyValueProp, MethodProp, Module, ObjectLit, Prop, PropOrSpread,
   SetterProp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoDupeKeys;
 
@@ -198,6 +198,8 @@ impl<'c> Visit for NoDupeKeysVisitor<'c> {
         }
       }
     }
+
+    obj_lit.visit_children_with(self);
   }
 }
 
@@ -232,6 +234,17 @@ mod tests {
     assert_lint_ok::<NoDupeKeys>(r#"var {a, a} = obj"#);
     assert_lint_ok::<NoDupeKeys>(r#"var x = { 012: 1, 12: 2 };"#);
     assert_lint_ok::<NoDupeKeys>(r#"var x = { 1_0: 1, 1: 2 };"#);
+    // nested
+    assert_lint_ok::<NoDupeKeys>(
+      r#"
+let x = {
+  y: {
+    foo: 0,
+    bar: 1,
+  },
+};
+"#,
+    );
   }
 
   #[test]
@@ -284,6 +297,20 @@ var foo = {
     assert_lint_err::<NoDupeKeys>(
       r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#,
       9,
+    );
+
+    // nested
+    assert_lint_err_on_line::<NoDupeKeys>(
+      r#"
+let x = {
+  key: {
+    dup: 0,
+    dup: 1,
+  },
+};
+"#,
+      3,
+      7,
     );
   }
 }
