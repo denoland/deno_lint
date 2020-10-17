@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use swc_common::Span;
 use swc_ecmascript::ast::ArrowExpr;
 use swc_ecmascript::ast::Function;
@@ -33,30 +33,41 @@ impl LintRule for NoDupeArgs {
   ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
     visitor.visit_module(module, module);
+    visitor.report_errors();
   }
 }
 
 struct NoDupeArgsVisitor<'c> {
   context: &'c mut Context,
+  error_spans: BTreeSet<Span>,
 }
 
 impl<'c> NoDupeArgsVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
-    Self { context }
+    Self {
+      context,
+      error_spans: BTreeSet::new(),
+    }
+  }
+
+  fn report_errors(&mut self) {
+    for span in &self.error_spans {
+      self.context.add_diagnostic(
+        *span,
+        "no-dupe-args",
+        "Duplicate arguments not allowed",
+      );
+    }
   }
 
   fn check_pats(&mut self, span: Span, pats: &[Pat]) {
-    let mut seen: HashSet<String> = HashSet::new();
+    let mut seen: HashSet<&str> = HashSet::new();
 
     for pat in pats {
       match &pat {
         Pat::Ident(ident) => {
-          if !seen.insert(ident.sym.to_string()) {
-            self.context.add_diagnostic(
-              span,
-              "no-dupe-args",
-              "Duplicate arguments not allowed",
-            );
+          if !seen.insert(ident.as_ref()) {
+            self.error_spans.insert(span);
           }
         }
         _ => continue,
