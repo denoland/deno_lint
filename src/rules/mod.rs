@@ -3,7 +3,6 @@ use crate::linter::Context;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
-pub mod ban_ts_ignore;
 pub mod ban_types;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
@@ -106,7 +105,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
-    ban_ts_ignore::BanTsIgnore::new(),
     ban_types::BanTypes::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
