@@ -49,7 +49,7 @@ impl LintRule for BanUntaggedIgnore {
   fn docs(&self) -> &'static str {
     r#"Requires `deno-lint-ignore` to be annotated with one or more rule names.
 
-Ignoring all rules can mask unexpected or future problems.  Therefore you need to explicitly specify which rule(s) are to be ignored.
+Ignoring all rules can mask unexpected or future problems. Therefore you need to explicitly specify which rule(s) are to be ignored.
 
 ### Valid:
 ```typescript
