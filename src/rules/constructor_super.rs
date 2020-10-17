@@ -49,7 +49,7 @@ class C extends A {
     super();
   }
 }
-class D extends null {} // Correct extension of non-constructor extension
+class D extends null {}
 ```
 
 ### Invalid:
