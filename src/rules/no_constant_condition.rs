@@ -4,9 +4,9 @@ use super::LintRule;
 
 use swc_common::Span;
 use swc_common::Spanned;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::Lit;
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::{
+  BinaryOp, CondExpr, Expr, IfStmt, Lit, Module, UnaryOp,
+};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct NoConstantCondition;
@@ -47,28 +47,20 @@ impl<'c> NoConstantConditionVisitor<'c> {
     );
   }
 
-  fn check_short_circuit(
-    &self,
-    expr: &Expr,
-    operator: swc_ecmascript::ast::BinaryOp,
-  ) -> bool {
+  fn check_short_circuit(&self, expr: &Expr, operator: BinaryOp) -> bool {
     match expr {
       Expr::Lit(lit) => match lit {
         Lit::Bool(boolean) => {
-          (operator == swc_ecmascript::ast::BinaryOp::LogicalOr
-            && boolean.value)
-            || (operator == swc_ecmascript::ast::BinaryOp::LogicalAnd
-              && !boolean.value)
+          (operator == BinaryOp::LogicalOr && boolean.value)
+            || (operator == BinaryOp::LogicalAnd && !boolean.value)
         }
         _ => false,
       },
       Expr::Unary(unary) => {
-        operator == swc_ecmascript::ast::BinaryOp::LogicalAnd
-          && unary.op == swc_ecmascript::ast::UnaryOp::Void
+        operator == BinaryOp::LogicalAnd && unary.op == UnaryOp::Void
       }
       Expr::Bin(bin)
-        if bin.op == swc_ecmascript::ast::BinaryOp::LogicalAnd
-          || bin.op == swc_ecmascript::ast::BinaryOp::LogicalOr =>
+        if bin.op == BinaryOp::LogicalAnd || bin.op == BinaryOp::LogicalOr =>
       {
         self.check_short_circuit(&bin.left, bin.op)
           || self.check_short_circuit(&bin.right, bin.op)
@@ -99,7 +91,7 @@ impl<'c> NoConstantConditionVisitor<'c> {
       Expr::Paren(paren) => self.is_constant(&paren.expr, Some(node), false),
       Expr::Array(arr) => match parent_node {
         Some(Expr::Bin(bin)) => {
-          if bin.op == swc_ecmascript::ast::BinaryOp::Add {
+          if bin.op == BinaryOp::Add {
             arr.elems.iter().all(|element| {
               self.is_constant(
                 &element.as_ref().unwrap().expr,
@@ -114,19 +106,16 @@ impl<'c> NoConstantConditionVisitor<'c> {
         _ => true,
       },
       Expr::Unary(unary) => {
-        if unary.op == swc_ecmascript::ast::UnaryOp::Void {
+        if unary.op == UnaryOp::Void {
           true
         } else {
-          (unary.op == swc_ecmascript::ast::UnaryOp::TypeOf
-            && in_boolean_position)
+          (unary.op == UnaryOp::TypeOf && in_boolean_position)
             || self.is_constant(&unary.arg, Some(node), true)
         }
       }
       Expr::Bin(bin) => {
         // This is for LogicalExpression
-        if bin.op == swc_ecmascript::ast::BinaryOp::LogicalOr
-          || bin.op == swc_ecmascript::ast::BinaryOp::LogicalAnd
-        {
+        if bin.op == BinaryOp::LogicalOr || bin.op == BinaryOp::LogicalAnd {
           let is_left_constant =
             self.is_constant(&bin.left, Some(node), in_boolean_position);
           let is_right_constant =
@@ -141,7 +130,7 @@ impl<'c> NoConstantConditionVisitor<'c> {
             || is_right_short_circuit
         }
         // These are fo regular BinaryExpression
-        else if bin.op != swc_ecmascript::ast::BinaryOp::In {
+        else if bin.op != BinaryOp::In {
           self.is_constant(&bin.left, Some(node), false)
             && self.is_constant(&bin.right, Some(node), false)
         } else {
@@ -172,19 +161,11 @@ impl<'c> NoConstantConditionVisitor<'c> {
 impl<'c> Visit for NoConstantConditionVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_cond_expr(
-    &mut self,
-    cond_expr: &swc_ecmascript::ast::CondExpr,
-    _parent: &dyn Node,
-  ) {
+  fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _parent: &dyn Node) {
     self.report(&cond_expr.test)
   }
 
-  fn visit_if_stmt(
-    &mut self,
-    if_stmt: &swc_ecmascript::ast::IfStmt,
-    _parent: &dyn Node,
-  ) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _parent: &dyn Node) {
     self.report(&if_stmt.test)
   }
 
@@ -192,7 +173,7 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
     deno_std uses while (true) {} loops
   fn visit_while_stmt(
     &mut self,
-    while_stmt: &swc_ecmascript::ast::WhileStmt,
+    while_stmt: &WhileStmt,
     _parent: &dyn Node,
   ) {
     self.report(&while_stmt.test)
@@ -200,7 +181,7 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
 
   fn visit_do_while_stmt(
     &mut self,
-    do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
+    do_while_stmt: &DoWhileStmt,
     _parent: &dyn Node,
   ) {
     self.report(&do_while_stmt.test)
@@ -208,7 +189,7 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
 
   fn visit_for_stmt(
     &mut self,
-    for_stmt: &swc_ecmascript::ast::ForStmt,
+    for_stmt: &ForStmt,
     _parent: &dyn Node,
   ) {
     if let Some(cond) = for_stmt.test.as_ref() {
