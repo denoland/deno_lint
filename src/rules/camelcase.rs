@@ -213,46 +213,6 @@ impl ErrorIdent {
   }
 }
 
-#[test]
-fn test_to_hint() {
-  fn s(s: &str) -> String {
-    s.to_string()
-  }
-
-  let tests = [
-    (
-      ErrorIdent::Variable(s("foo_bar")),
-      "Consider renaming `foo_bar` to `fooBar`",
-    ),
-    (
-      ErrorIdent::Function(s("foo_bar")),
-      "Consider renaming `foo_bar` to `fooBar`",
-    ),
-    (
-      ErrorIdent::Class(s("foo_bar")),
-      "Consider renaming `foo_bar` to `FooBar`",
-    ),
-    (
-      ErrorIdent::ObjectPat {
-        key_name: s("foo_bar"),
-        value_name: None,
-      },
-      "Consider replacing `{ foo_bar }` with `{ foo_bar: fooBar }`",
-    ),
-    (
-      ErrorIdent::ObjectPat {
-        key_name: s("foo_bar"),
-        value_name: Some(s("snake_case")),
-      },
-      "Consider renaming `snake_case` to `snakeCase`",
-    ),
-  ];
-
-  for (error_ident, expected) in tests.iter() {
-    assert_eq!(*expected, error_ident.to_hint());
-  }
-}
-
 struct CamelcaseVisitor<'c> {
   context: &'c mut Context,
   errors: BTreeMap<Span, ErrorIdent>,
@@ -508,6 +468,46 @@ mod tests {
 
     for &(input, expected) in tests.iter() {
       assert_eq!(expected, to_camelcase(input));
+    }
+  }
+
+  #[test]
+  fn test_to_hint() {
+    fn s(s: &str) -> String {
+      s.to_string()
+    }
+
+    let tests = [
+      (
+        ErrorIdent::Variable(s("foo_bar")),
+        "Consider renaming `foo_bar` to `fooBar`",
+      ),
+      (
+        ErrorIdent::Function(s("foo_bar")),
+        "Consider renaming `foo_bar` to `fooBar`",
+      ),
+      (
+        ErrorIdent::Class(s("foo_bar")),
+        "Consider renaming `foo_bar` to `FooBar`",
+      ),
+      (
+        ErrorIdent::ObjectPat {
+          key_name: s("foo_bar"),
+          value_name: None,
+        },
+        "Consider replacing `{ foo_bar }` with `{ foo_bar: fooBar }`",
+      ),
+      (
+        ErrorIdent::ObjectPat {
+          key_name: s("foo_bar"),
+          value_name: Some(s("snake_case")),
+        },
+        "Consider renaming `snake_case` to `snakeCase`",
+      ),
+    ];
+
+    for (error_ident, expected) in tests.iter() {
+      assert_eq!(*expected, error_ident.to_hint());
     }
   }
 
