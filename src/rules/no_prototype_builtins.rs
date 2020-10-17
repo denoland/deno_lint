@@ -70,7 +70,7 @@ impl<'c> Visit for NoPrototypeBuiltinsVisitor<'c> {
         self.context.add_diagnostic(
           call_expr.span,
           "no-prototype-builtins",
-          &format!(
+          format!(
             "Access to Object.prototype.{} is not allowed from target object",
             prop_name
           ),

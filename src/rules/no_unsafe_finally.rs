@@ -82,7 +82,7 @@ impl<'c> NoUnsafeFinallyVisitor<'c> {
     self.context.add_diagnostic(
       span,
       "no-unsafe-finally",
-      format!("Unsafe usage of {}Statement", stmt_type).as_str(),
+      format!("Unsafe usage of {}Statement", stmt_type),
     );
   }
 }

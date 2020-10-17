@@ -51,7 +51,7 @@ impl<'c> NoObjCallsVisitor<'c> {
         self.context.add_diagnostic(
           span,
           "no-obj-calls",
-          format!("`{}` call as function is not allowed", callee_name).as_ref(),
+          format!("`{}` call as function is not allowed", callee_name),
         );
       }
       _ => {}

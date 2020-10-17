@@ -91,7 +91,7 @@ impl<'c> Visit for NoDupeKeysVisitor<'c> {
       self.context.add_diagnostic(
         obj_lit.span,
         "no-dupe-keys",
-        format!("Duplicate key '{}'", key).as_str(),
+        format!("Duplicate key '{}'", key),
       );
     }
   }

@@ -4,7 +4,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
 use swc_ecmascript::ast::Module;
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoCondAssign;
 
@@ -104,36 +104,45 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
     if_stmt: &swc_ecmascript::ast::IfStmt,
     _parent: &dyn Node,
   ) {
+    if_stmt.visit_children_with(self);
     self.check_condition(&if_stmt.test);
   }
+
   fn visit_while_stmt(
     &mut self,
     while_stmt: &swc_ecmascript::ast::WhileStmt,
     _parent: &dyn Node,
   ) {
+    while_stmt.visit_children_with(self);
     self.check_condition(&while_stmt.test);
   }
+
   fn visit_do_while_stmt(
     &mut self,
     do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
     _parent: &dyn Node,
   ) {
+    do_while_stmt.visit_children_with(self);
     self.check_condition(&do_while_stmt.test);
   }
+
   fn visit_for_stmt(
     &mut self,
     for_stmt: &swc_ecmascript::ast::ForStmt,
     _parent: &dyn Node,
   ) {
+    for_stmt.visit_children_with(self);
     if let Some(for_test) = &for_stmt.test {
       self.check_condition(&for_test);
     }
   }
+
   fn visit_cond_expr(
     &mut self,
     cond_expr: &swc_ecmascript::ast::CondExpr,
     _parent: &dyn Node,
   ) {
+    cond_expr.visit_children_with(self);
     if let Paren(paren) = &*cond_expr.test {
       self.check_condition(&paren.expr);
     }
@@ -225,6 +234,22 @@ mod tests {
     assert_lint_err::<NoCondAssign>(
       "(((123.45)).abcd = 54321) ? foo : bar;",
       1,
+    );
+
+    // nested
+    assert_lint_err::<NoCondAssign>("if (foo) { if (x = 0) {} }", 15);
+    assert_lint_err::<NoCondAssign>("while (foo) { while (x = 0) {} }", 21);
+    assert_lint_err::<NoCondAssign>(
+      "do { do {} while (x = 0) } while (foo);",
+      18,
+    );
+    assert_lint_err::<NoCondAssign>(
+      "for (let i = 0; i < 10; i++) { for (; j+=1 ;) {} }",
+      38,
+    );
+    assert_lint_err::<NoCondAssign>(
+      "const val = foo ? (x = 0) ? 0 : 1 : 2;",
+      19,
     );
   }
 }
