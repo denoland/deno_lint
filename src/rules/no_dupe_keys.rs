@@ -281,6 +281,8 @@ let x = {
     assert_lint_err::<NoDupeKeys>(r#"var x = { 0b1: 1, 1: 2 };"#, 8);
     assert_lint_err::<NoDupeKeys>(r#"var x = { 0o1: 1, 1: 2 };"#, 8);
     // TODO(magurotuna): this leads to panic due to swc error
+    // It seems like tsc v4.0.2 cannot handle this either
+    // playground: https://www.typescriptlang.org/play?target=99&ts=4.0.2#code/MYewdgzgLgBCBGArGBeGBvAUDGBGMAXDACwBMANJgL4DcQA
     // assert_lint_err::<NoDupeKeys>(r#"var x = { 1n: 1, 1: 2 };"#, 8);
     assert_lint_err::<NoDupeKeys>(r#"var x = { 1_0: 1, 10: 2 };"#, 8);
     assert_lint_err::<NoDupeKeys>(r#"var x = { "z": 1, z: 2 };"#, 8);
