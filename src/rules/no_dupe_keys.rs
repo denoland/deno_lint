@@ -102,60 +102,80 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
-  #[test]
-  fn it_passes_when_there_are_no_duplicate_keys() {
-    assert_lint_ok::<NoDupeKeys>(r#"var foo = { bar: "baz", boo: "bang" }"#);
-  }
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.11.0/tests/lib/rules/no-dupe-keys.js
+  // MIT Licensed.
 
   #[test]
-  fn it_passes_when_there_are_duplicate_nested_keys() {
+  fn no_dupe_keys_valid() {
+    assert_lint_ok::<NoDupeKeys>(r#"var foo = { bar: "baz", boo: "bang" }"#);
     assert_lint_ok::<NoDupeKeys>(
       r#"var foo = { bar: "baz", boo: { bar: "bang", }, }"#,
     );
+    assert_lint_ok::<NoDupeKeys>(r#"var foo = { __proto__: 1, two: 2};"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, bar: 2 };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, ' ': 2 };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, [null]: 2 };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, [a]: 2 };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { [a]: 1, [a]: 2 };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"+{ get a() { }, set a(b) { } };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { a: b, [a]: b };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { a: b, ...c }"#);
+    assert_lint_ok::<NoDupeKeys>(
+      r#"var x = { get a() {}, set a (value) {} };"#,
+    );
+    assert_lint_ok::<NoDupeKeys>(r#"var x = ({ null: 1, [/(?<zero>0)/]: 2 })"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var {a, a} = obj"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { 012: 1, 12: 2 };"#);
+    assert_lint_ok::<NoDupeKeys>(r#"var x = { 1_0: 1, 1: 2 };"#);
   }
 
   #[test]
-  fn it_fails_when_there_are_duplicate_keys() {
+  fn no_dupe_keys_invalid() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", bar: "qux" };"#,
       10,
     );
-  }
-
-  #[test]
-  fn it_fails_when_there_are_multiple_duplicate_keys() {
     assert_lint_err_n::<NoDupeKeys>(
       r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#,
       vec![10, 10],
     );
-  }
-
-  #[test]
-  fn it_fails_when_there_are_duplicate_string_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", "bar": "qux" };"#,
       10,
     );
-  }
-
-  #[test]
-  fn it_fails_when_there_are_duplicate_numeric_keys() {
     assert_lint_err::<NoDupeKeys>(r#"var foo = { 1: "baz", 0x1: "qux" };"#, 10);
-  }
-
-  #[test]
-  fn it_fails_when_there_are_duplicate_getter_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", get bar() {} };"#,
       10,
     );
-  }
-
-  #[test]
-  fn it_fails_when_there_are_duplicate_setter_keys() {
     assert_lint_err::<NoDupeKeys>(
       r#"var foo = { bar: "baz", set bar() {} };"#,
       10,
+    );
+    assert_lint_err::<NoDupeKeys>(r#"var x = { a: b, ['a']: b };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, '': 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, [``]: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 012: 1, 10: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 0b1: 1, 1: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 0o1: 1, 1: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 1n: 1, 1: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 1_0: 1, 10: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { "z": 1, z: 2 };"#, 0);
+    assert_lint_err::<NoDupeKeys>(
+      r#"var foo = {
+  bar: 1,
+  bar: 1,
+}"#,
+      0,
+    );
+    assert_lint_err::<NoDupeKeys>(
+      r#"var x = { a: 1, b: { a: 2 }, get b() {} };"#,
+      0,
+    );
+    assert_lint_err::<NoDupeKeys>(
+      r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#,
+      0,
     );
   }
 }
