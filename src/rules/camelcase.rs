@@ -261,6 +261,26 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
+  fn test_is_underscored() {
+    let tests = [
+      ("foo_bar", true),
+      ("fooBar", false),
+      ("FooBar", false),
+      ("foo_bar_baz", true),
+      ("_foo_bar_baz", true),
+      ("__foo_bar_baz__", true),
+      ("__fooBar_baz__", true),
+      ("__fooBarBaz__", false),
+      ("Sha3_224", true),
+      ("SHA3_224", false),
+    ];
+
+    for &(input, expected) in tests.iter() {
+      assert_eq!(expected, is_underscored(input));
+    }
+  }
+
+  #[test]
   fn test_to_camelcase() {
     let tests = [
       ("foo_bar", "fooBar"),
