@@ -506,6 +506,20 @@ mod tests {
         },
         "Consider renaming `snake_case` to `snakeCase`",
       ),
+      (
+        IdentToCheck::NamedImport {
+          local: s("foo_bar"),
+          imported: None,
+        },
+        "Consider replacing `{ foo_bar }` with `{ foo_bar as fooBar }`",
+      ),
+      (
+        IdentToCheck::NamedImport {
+          local: s("foo_bar"),
+          imported: Some(s("snake_case")),
+        },
+        "Consider renaming `foo_bar` to `fooBar`",
+      ),
     ];
 
     for (error_ident, expected) in tests.iter() {
