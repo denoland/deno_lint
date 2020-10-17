@@ -7,7 +7,7 @@ use swc_common::Spanned;
 use swc_ecmascript::ast::{
   BinaryOp, CondExpr, Expr, IfStmt, Lit, Module, UnaryOp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoConstantCondition;
 
@@ -162,11 +162,13 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _parent: &dyn Node) {
-    self.report(&cond_expr.test)
+    self.report(&cond_expr.test);
+    cond_expr.visit_children_with(self);
   }
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _parent: &dyn Node) {
-    self.report(&if_stmt.test)
+    self.report(&if_stmt.test);
+    if_stmt.visit_children_with(self);
   }
 
   /* TODO(bartlomieju): temporarly disabled because
@@ -177,6 +179,7 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
     _parent: &dyn Node,
   ) {
     self.report(&while_stmt.test)
+    while_stmt.visit_children_with(self);
   }
 
   fn visit_do_while_stmt(
@@ -185,6 +188,7 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
     _parent: &dyn Node,
   ) {
     self.report(&do_while_stmt.test)
+    do_while_stmt.visit_children_with(self);
   }
 
   fn visit_for_stmt(
@@ -195,6 +199,7 @@ impl<'c> Visit for NoConstantConditionVisitor<'c> {
     if let Some(cond) = for_stmt.test.as_ref() {
       self.report(cond)
     }
+    for_stmt.visit_children_with(self);
   }
   */
 }
@@ -314,6 +319,10 @@ mod tests {
     assert_lint_ok::<NoConstantCondition>(r#"while(`${'foo'}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"while(`${'foo' + 'bar'}`);"#);
     assert_lint_ok::<NoConstantCondition>(r#"while(typeof x){}"#);
+
+    // nested
+    assert_lint_ok::<NoConstantCondition>(r#"if (foo) { if (bar) {} }"#);
+    assert_lint_ok::<NoConstantCondition>(r#"foo ? bar ? 1 : 2 : 3"#);
   }
 
   #[test]
@@ -387,6 +396,10 @@ mod tests {
     assert_lint_err::<NoConstantCondition>(r#"if([a]==[a]) {}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if([a] - '') {}"#, 3);
     assert_lint_err::<NoConstantCondition>(r#"if(+[a]) {}"#, 3);
+
+    // nested
+    assert_lint_err::<NoConstantCondition>(r#"if (foo) { if (true) {} }"#, 15);
+    assert_lint_err::<NoConstantCondition>(r#"foo ? true ? 1 : 2 : 3"#, 6);
   }
 
   // TODO(humancalico) make these tests pass
