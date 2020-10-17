@@ -1,9 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::swc_util::Key;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
-use swc_common::Span;
+use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrayPat, AssignPat, AssignPatProp, ClassDecl, ClassExpr,
   ExportNamespaceSpecifier, Expr, FnDecl, FnExpr, GetterProp, Ident,
@@ -67,9 +68,194 @@ fn to_camelcase(ident_name: &str) -> String {
   ident_name.to_ascii_uppercase()
 }
 
+enum ErrorIdent {
+  /// Normal variable name e.g. `foo` in `const foo = 42;`
+  Variable(String),
+  /// Function name e.g. `foo` in `function foo() {}`
+  Function(String),
+  /// Class name e.g. `Foo` in `class Foo {}`
+  Class(String),
+  /// Key and value name in object pattern, for example:
+  ///
+  /// ```typescript
+  /// const { foo } = obj1; // key_name: foo, value_name: None
+  ///
+  /// const { foo: bar } = obj2; // key_name: foo, value_name: Some(bar)
+  ///
+  /// const { foo: bar = default_value } = obj3; // key_name: foo, value_name: Some(bar)
+  /// ```
+  ObjectPat {
+    key_name: String,
+    value_name: Option<String>,
+  },
+  /// Local name and imported name in named import, for example:
+  ///
+  /// ```typescript
+  /// import { foo } from 'mod.ts'; // local: foo, imported: None
+  ///
+  /// import { foo as bar } from 'mod.ts'; // local: bar, imported: Some(foo)
+  /// ```
+  NamedImport {
+    local: String,
+    imported: Option<String>,
+  },
+}
+
+impl ErrorIdent {
+  fn variable(name: impl AsRef<str>) -> Self {
+    Self::Variable(name.as_ref().to_string())
+  }
+
+  fn function(name: impl AsRef<str>) -> Self {
+    Self::Function(name.as_ref().to_string())
+  }
+
+  fn class(name: impl AsRef<str>) -> Self {
+    Self::Class(name.as_ref().to_string())
+  }
+
+  fn object_pat<K, V>(key_name: &K, value_name: Option<&V>) -> Self
+  where
+    K: AsRef<str>,
+    V: AsRef<str>,
+  {
+    Self::ObjectPat {
+      key_name: key_name.as_ref().to_string(),
+      value_name: value_name.map(|v| v.as_ref().to_string()),
+    }
+  }
+
+  fn named_import<L, I>(local: &L, imported: Option<&I>) -> Self
+  where
+    L: AsRef<str>,
+    I: AsRef<str>,
+  {
+    Self::NamedImport {
+      local: local.as_ref().to_string(),
+      imported: imported.map(|i| i.as_ref().to_string()),
+    }
+  }
+
+  fn get_ident_name(&self) -> &str {
+    match self {
+      ErrorIdent::Variable(name)
+      | ErrorIdent::Function(name)
+      | ErrorIdent::Class(name) => name,
+      ErrorIdent::ObjectPat {
+        key_name,
+        value_name,
+      } => {
+        if let Some(value_name) = value_name {
+          value_name
+        } else {
+          key_name
+        }
+      }
+      ErrorIdent::NamedImport { local, .. } => local,
+    }
+  }
+
+  fn to_message(&self) -> String {
+    format!(
+      "Identifier '{}' is not in camel case.",
+      self.get_ident_name()
+    )
+  }
+
+  fn to_hint(&self) -> String {
+    match self {
+      ErrorIdent::Variable(name) | ErrorIdent::Function(name) => {
+        format!("Consider renaming `{}` to `{}`", name, to_camelcase(name))
+      }
+      ErrorIdent::Class(name) => {
+        let camel_cased = to_camelcase(name);
+        lazy_static! {
+          static ref FIRST_CHAR_LOWERCASE: Regex =
+            Regex::new(r"^[a-z]").unwrap();
+        }
+        // Class name should be in pascal case
+        let pascal_cased = FIRST_CHAR_LOWERCASE
+          .replace(&camel_cased, |caps: &Captures| {
+            caps[0].to_ascii_uppercase()
+          });
+        format!("Consider renaming `{}` to `{}`", name, pascal_cased)
+      }
+      ErrorIdent::ObjectPat {
+        key_name,
+        value_name,
+      } => {
+        if let Some(value_name) = value_name {
+          format!(
+            "Consider renaming `{}` to `{}`",
+            value_name,
+            to_camelcase(value_name),
+          )
+        } else {
+          format!(
+            "Consider replacing `{{ {key} }}` with `{{ {key}: {value} }}`",
+            key = key_name,
+            value = to_camelcase(key_name),
+          )
+        }
+      }
+      ErrorIdent::NamedImport { local, imported } => {
+        if imported.is_some() {
+          format!("Consider renaming `{}` to `{}`", local, to_camelcase(local))
+        } else {
+          format!(
+            "Consider replacing `{{ {local} }}` with `{{ {local} as {camel_cased_local} }}`",
+            local = local,
+            camel_cased_local = to_camelcase(local),
+          )
+        }
+      }
+    }
+  }
+}
+
+#[test]
+fn test_to_hint() {
+  fn s(s: &str) -> String {
+    s.to_string()
+  }
+
+  let tests = [
+    (
+      ErrorIdent::Variable(s("foo_bar")),
+      "Consider renaming `foo_bar` to `fooBar`",
+    ),
+    (
+      ErrorIdent::Function(s("foo_bar")),
+      "Consider renaming `foo_bar` to `fooBar`",
+    ),
+    (
+      ErrorIdent::Class(s("foo_bar")),
+      "Consider renaming `foo_bar` to `FooBar`",
+    ),
+    (
+      ErrorIdent::ObjectPat {
+        key_name: s("foo_bar"),
+        value_name: None,
+      },
+      "Consider replacing `{ foo_bar }` with `{ foo_bar: fooBar }`",
+    ),
+    (
+      ErrorIdent::ObjectPat {
+        key_name: s("foo_bar"),
+        value_name: Some(s("snake_case")),
+      },
+      "Consider renaming `snake_case` to `snakeCase`",
+    ),
+  ];
+
+  for (error_ident, expected) in tests.iter() {
+    assert_eq!(*expected, error_ident.to_hint());
+  }
+}
+
 struct CamelcaseVisitor<'c> {
   context: &'c mut Context,
-  errors: BTreeMap<Span, String>,
+  errors: BTreeMap<Span, ErrorIdent>,
   /// Already visited identifiers
   visited: BTreeSet<Span>,
 }
@@ -85,31 +271,29 @@ impl<'c> CamelcaseVisitor<'c> {
 
   /// Report accumulated errors
   fn report_errors(&mut self) {
-    for (span, ident_name) in &self.errors {
-      self.context.add_diagnostic(
+    for (span, error_ident) in &self.errors {
+      self.context.add_diagnostic_with_hint(
         *span,
         "camelcase",
-        format!("Identifier '{}' is not in camel case.", ident_name),
+        error_ident.to_message(),
+        error_ident.to_hint(),
       );
     }
   }
 
   /// Check if this ident is underscored only when it's not yet visited.
-  fn check_ident(&mut self, ident: &Ident) {
-    if self.visited.insert(ident.span) && is_underscored(ident.as_ref()) {
-      self.errors.insert(ident.span, ident.as_ref().to_string());
-    }
-  }
-
-  fn check_prop_name(&mut self, prop_name: &PropName) {
-    if let PropName::Ident(ident) = prop_name {
-      self.check_ident(ident);
+  fn check_ident<S: Spanned>(&mut self, span: &S, ident: ErrorIdent) {
+    let span = span.span();
+    if self.visited.insert(span) && is_underscored(ident.get_ident_name()) {
+      self.errors.insert(span, ident);
     }
   }
 
   fn check_pat(&mut self, pat: &Pat) {
     match pat {
-      Pat::Ident(ident) => self.check_ident(ident),
+      Pat::Ident(ident) => {
+        self.check_ident(ident, ErrorIdent::variable(ident));
+      }
       Pat::Array(ArrayPat { ref elems, .. }) => {
         for elem in elems {
           if let Some(pat) = elem {
@@ -123,11 +307,24 @@ impl<'c> CamelcaseVisitor<'c> {
       Pat::Object(ObjectPat { ref props, .. }) => {
         for prop in props {
           match prop {
-            ObjectPatProp::KeyValue(KeyValuePatProp { ref value, .. }) => {
-              self.check_pat(&**value);
+            ObjectPatProp::KeyValue(KeyValuePatProp { ref key, ref value }) => {
+              if let Pat::Ident(value_ident) = &**value {
+                self.check_ident(
+                  value_ident,
+                  ErrorIdent::object_pat(
+                    &key.get_key().unwrap_or_else(|| "[KEY]".to_string()),
+                    Some(value_ident),
+                  ),
+                );
+              } else {
+                self.check_pat(&**value);
+              }
             }
             ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
-              self.check_ident(key);
+              self.check_ident(
+                key,
+                ErrorIdent::object_pat::<Ident, Ident>(key, None),
+              );
             }
             ObjectPatProp::Rest(RestPat { ref arg, .. }) => {
               self.check_pat(&**arg);
@@ -140,7 +337,7 @@ impl<'c> CamelcaseVisitor<'c> {
       }
       Pat::Expr(expr) => {
         if let Expr::Ident(ident) = &**expr {
-          self.check_ident(ident);
+          self.check_ident(ident, ErrorIdent::variable(ident));
         }
       }
       Pat::Invalid(_) => {}
@@ -152,12 +349,12 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
-    self.check_ident(&fn_decl.ident);
+    self.check_ident(&fn_decl.ident, ErrorIdent::function(&fn_decl.ident));
     fn_decl.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
-    self.check_ident(&class_decl.ident);
+    self.check_ident(&class_decl.ident, ErrorIdent::class(&class_decl.ident));
     class_decl.visit_children_with(self);
   }
 
@@ -174,18 +371,29 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
           for prop in props {
             if let PropOrSpread::Prop(prop) = prop {
               match &**prop {
-                Prop::Shorthand(ident) => self.check_ident(ident),
+                Prop::Shorthand(ident) => self.check_ident(
+                  ident,
+                  ErrorIdent::object_pat::<Ident, Ident>(ident, None),
+                ),
                 Prop::KeyValue(KeyValueProp { ref key, .. }) => {
-                  self.check_prop_name(key);
+                  if let PropName::Ident(ident) = key {
+                    self.check_ident(ident, ErrorIdent::variable(ident));
+                  }
                 }
                 Prop::Getter(GetterProp { ref key, .. }) => {
-                  self.check_prop_name(key);
+                  if let PropName::Ident(ident) = key {
+                    self.check_ident(ident, ErrorIdent::function(ident));
+                  }
                 }
                 Prop::Setter(SetterProp { ref key, .. }) => {
-                  self.check_prop_name(key);
+                  if let PropName::Ident(ident) = key {
+                    self.check_ident(ident, ErrorIdent::function(ident));
+                  }
                 }
                 Prop::Method(MethodProp { ref key, .. }) => {
-                  self.check_prop_name(key);
+                  if let PropName::Ident(ident) = key {
+                    self.check_ident(ident, ErrorIdent::function(ident));
+                  }
                 }
                 Prop::Assign(_) => {}
               }
@@ -194,12 +402,12 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         }
         Expr::Fn(FnExpr { ref ident, .. }) => {
           if let Some(ident) = ident {
-            self.check_ident(ident);
+            self.check_ident(ident, ErrorIdent::function(ident));
           }
         }
         Expr::Class(ClassExpr { ref ident, .. }) => {
           if let Some(ident) = ident {
-            self.check_ident(ident);
+            self.check_ident(ident, ErrorIdent::class(ident));
           }
         }
         _ => {}
@@ -219,7 +427,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     import_named_specifier: &ImportNamedSpecifier,
     _: &dyn Node,
   ) {
-    self.check_ident(&import_named_specifier.local);
+    let ImportNamedSpecifier {
+      local, imported, ..
+    } = import_named_specifier;
+    self.check_ident(local, ErrorIdent::named_import(local, imported.as_ref()));
     import_named_specifier.visit_children_with(self);
   }
 
@@ -228,7 +439,8 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     import_default_specifier: &ImportDefaultSpecifier,
     _: &dyn Node,
   ) {
-    self.check_ident(&import_default_specifier.local);
+    let ImportDefaultSpecifier { local, .. } = import_default_specifier;
+    self.check_ident(local, ErrorIdent::variable(local));
     import_default_specifier.visit_children_with(self);
   }
 
@@ -237,7 +449,8 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     import_star_as_specifier: &ImportStarAsSpecifier,
     _: &dyn Node,
   ) {
-    self.check_ident(&import_star_as_specifier.local);
+    let ImportStarAsSpecifier { local, .. } = import_star_as_specifier;
+    self.check_ident(local, ErrorIdent::variable(local));
     import_star_as_specifier.visit_children_with(self);
   }
 
@@ -246,7 +459,8 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     export_namespace_specifier: &ExportNamespaceSpecifier,
     _: &dyn Node,
   ) {
-    self.check_ident(&export_namespace_specifier.name);
+    let ExportNamespaceSpecifier { name, .. } = export_namespace_specifier;
+    self.check_ident(name, ErrorIdent::variable(name));
     export_namespace_specifier.visit_children_with(self);
   }
 }
