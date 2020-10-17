@@ -2,7 +2,8 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
+use swc_common::Span;
 use swc_ecmascript::ast::{Module, ObjectLit};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
@@ -68,6 +69,14 @@ impl<'c> NoDupeKeysVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
+
+  fn report(&mut self, span: Span, key: String) {
+    self.context.add_diagnostic(
+      span,
+      "no-dupe-keys",
+      format!("Duplicate key '{}'", key),
+    );
+  }
 }
 
 impl<'c> Visit for NoDupeKeysVisitor<'c> {
@@ -75,24 +84,15 @@ impl<'c> Visit for NoDupeKeysVisitor<'c> {
 
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
     let mut keys: HashSet<String> = HashSet::new();
-    let mut duplicates: BTreeSet<String> = BTreeSet::new();
 
     for prop in &obj_lit.props {
       if let Some(key) = prop.get_key() {
         if keys.contains(&key) {
-          duplicates.insert(key);
+          self.report(obj_lit.span, key);
         } else {
           keys.insert(key);
         }
       }
-    }
-
-    for key in duplicates {
-      self.context.add_diagnostic(
-        obj_lit.span,
-        "no-dupe-keys",
-        format!("Duplicate key '{}'", key),
-      );
     }
   }
 }
