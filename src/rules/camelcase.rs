@@ -68,7 +68,7 @@ fn to_camelcase(ident_name: &str) -> String {
   ident_name.to_ascii_uppercase()
 }
 
-enum ErrorIdent {
+enum IdentToCheck {
   /// Normal variable name e.g. `foo` in `const foo = 42;`
   Variable(String),
   /// Function name e.g. `foo` in `function foo() {}`
@@ -101,7 +101,7 @@ enum ErrorIdent {
   },
 }
 
-impl ErrorIdent {
+impl IdentToCheck {
   fn variable(name: impl AsRef<str>) -> Self {
     Self::Variable(name.as_ref().to_string())
   }
@@ -138,10 +138,10 @@ impl ErrorIdent {
 
   fn get_ident_name(&self) -> &str {
     match self {
-      ErrorIdent::Variable(name)
-      | ErrorIdent::Function(name)
-      | ErrorIdent::Class(name) => name,
-      ErrorIdent::ObjectPat {
+      IdentToCheck::Variable(name)
+      | IdentToCheck::Function(name)
+      | IdentToCheck::Class(name) => name,
+      IdentToCheck::ObjectPat {
         key_name,
         value_name,
       } => {
@@ -151,7 +151,7 @@ impl ErrorIdent {
           key_name
         }
       }
-      ErrorIdent::NamedImport { local, .. } => local,
+      IdentToCheck::NamedImport { local, .. } => local,
     }
   }
 
@@ -164,10 +164,10 @@ impl ErrorIdent {
 
   fn to_hint(&self) -> String {
     match self {
-      ErrorIdent::Variable(name) | ErrorIdent::Function(name) => {
+      IdentToCheck::Variable(name) | IdentToCheck::Function(name) => {
         format!("Consider renaming `{}` to `{}`", name, to_camelcase(name))
       }
-      ErrorIdent::Class(name) => {
+      IdentToCheck::Class(name) => {
         let camel_cased = to_camelcase(name);
         lazy_static! {
           static ref FIRST_CHAR_LOWERCASE: Regex =
@@ -180,7 +180,7 @@ impl ErrorIdent {
           });
         format!("Consider renaming `{}` to `{}`", name, pascal_cased)
       }
-      ErrorIdent::ObjectPat {
+      IdentToCheck::ObjectPat {
         key_name,
         value_name,
       } => {
@@ -198,7 +198,7 @@ impl ErrorIdent {
           )
         }
       }
-      ErrorIdent::NamedImport { local, imported } => {
+      IdentToCheck::NamedImport { local, imported } => {
         if imported.is_some() {
           format!("Consider renaming `{}` to `{}`", local, to_camelcase(local))
         } else {
@@ -215,7 +215,7 @@ impl ErrorIdent {
 
 struct CamelcaseVisitor<'c> {
   context: &'c mut Context,
-  errors: BTreeMap<Span, ErrorIdent>,
+  errors: BTreeMap<Span, IdentToCheck>,
   /// Already visited identifiers
   visited: BTreeSet<Span>,
 }
@@ -242,7 +242,7 @@ impl<'c> CamelcaseVisitor<'c> {
   }
 
   /// Check if this ident is underscored only when it's not yet visited.
-  fn check_ident<S: Spanned>(&mut self, span: &S, ident: ErrorIdent) {
+  fn check_ident<S: Spanned>(&mut self, span: &S, ident: IdentToCheck) {
     let span = span.span();
     if self.visited.insert(span) && is_underscored(ident.get_ident_name()) {
       self.errors.insert(span, ident);
@@ -252,7 +252,7 @@ impl<'c> CamelcaseVisitor<'c> {
   fn check_pat(&mut self, pat: &Pat) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_ident(ident, ErrorIdent::variable(ident));
+        self.check_ident(ident, IdentToCheck::variable(ident));
       }
       Pat::Array(ArrayPat { ref elems, .. }) => {
         for elem in elems {
@@ -271,7 +271,7 @@ impl<'c> CamelcaseVisitor<'c> {
               if let Pat::Ident(value_ident) = &**value {
                 self.check_ident(
                   value_ident,
-                  ErrorIdent::object_pat(
+                  IdentToCheck::object_pat(
                     &key.get_key().unwrap_or_else(|| "[KEY]".to_string()),
                     Some(value_ident),
                   ),
@@ -283,7 +283,7 @@ impl<'c> CamelcaseVisitor<'c> {
             ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
               self.check_ident(
                 key,
-                ErrorIdent::object_pat::<Ident, Ident>(key, None),
+                IdentToCheck::object_pat::<Ident, Ident>(key, None),
               );
             }
             ObjectPatProp::Rest(RestPat { ref arg, .. }) => {
@@ -297,7 +297,7 @@ impl<'c> CamelcaseVisitor<'c> {
       }
       Pat::Expr(expr) => {
         if let Expr::Ident(ident) = &**expr {
-          self.check_ident(ident, ErrorIdent::variable(ident));
+          self.check_ident(ident, IdentToCheck::variable(ident));
         }
       }
       Pat::Invalid(_) => {}
@@ -309,12 +309,12 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
-    self.check_ident(&fn_decl.ident, ErrorIdent::function(&fn_decl.ident));
+    self.check_ident(&fn_decl.ident, IdentToCheck::function(&fn_decl.ident));
     fn_decl.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
-    self.check_ident(&class_decl.ident, ErrorIdent::class(&class_decl.ident));
+    self.check_ident(&class_decl.ident, IdentToCheck::class(&class_decl.ident));
     class_decl.visit_children_with(self);
   }
 
@@ -333,26 +333,26 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
               match &**prop {
                 Prop::Shorthand(ident) => self.check_ident(
                   ident,
-                  ErrorIdent::object_pat::<Ident, Ident>(ident, None),
+                  IdentToCheck::object_pat::<Ident, Ident>(ident, None),
                 ),
                 Prop::KeyValue(KeyValueProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, ErrorIdent::variable(ident));
+                    self.check_ident(ident, IdentToCheck::variable(ident));
                   }
                 }
                 Prop::Getter(GetterProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, ErrorIdent::function(ident));
+                    self.check_ident(ident, IdentToCheck::function(ident));
                   }
                 }
                 Prop::Setter(SetterProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, ErrorIdent::function(ident));
+                    self.check_ident(ident, IdentToCheck::function(ident));
                   }
                 }
                 Prop::Method(MethodProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, ErrorIdent::function(ident));
+                    self.check_ident(ident, IdentToCheck::function(ident));
                   }
                 }
                 Prop::Assign(_) => {}
@@ -362,12 +362,12 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
         }
         Expr::Fn(FnExpr { ref ident, .. }) => {
           if let Some(ident) = ident {
-            self.check_ident(ident, ErrorIdent::function(ident));
+            self.check_ident(ident, IdentToCheck::function(ident));
           }
         }
         Expr::Class(ClassExpr { ref ident, .. }) => {
           if let Some(ident) = ident {
-            self.check_ident(ident, ErrorIdent::class(ident));
+            self.check_ident(ident, IdentToCheck::class(ident));
           }
         }
         _ => {}
@@ -390,7 +390,8 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     let ImportNamedSpecifier {
       local, imported, ..
     } = import_named_specifier;
-    self.check_ident(local, ErrorIdent::named_import(local, imported.as_ref()));
+    self
+      .check_ident(local, IdentToCheck::named_import(local, imported.as_ref()));
     import_named_specifier.visit_children_with(self);
   }
 
@@ -400,7 +401,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     _: &dyn Node,
   ) {
     let ImportDefaultSpecifier { local, .. } = import_default_specifier;
-    self.check_ident(local, ErrorIdent::variable(local));
+    self.check_ident(local, IdentToCheck::variable(local));
     import_default_specifier.visit_children_with(self);
   }
 
@@ -410,7 +411,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     _: &dyn Node,
   ) {
     let ImportStarAsSpecifier { local, .. } = import_star_as_specifier;
-    self.check_ident(local, ErrorIdent::variable(local));
+    self.check_ident(local, IdentToCheck::variable(local));
     import_star_as_specifier.visit_children_with(self);
   }
 
@@ -420,7 +421,7 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     _: &dyn Node,
   ) {
     let ExportNamespaceSpecifier { name, .. } = export_namespace_specifier;
-    self.check_ident(name, ErrorIdent::variable(name));
+    self.check_ident(name, IdentToCheck::variable(name));
     export_namespace_specifier.visit_children_with(self);
   }
 }
@@ -479,26 +480,26 @@ mod tests {
 
     let tests = [
       (
-        ErrorIdent::Variable(s("foo_bar")),
+        IdentToCheck::Variable(s("foo_bar")),
         "Consider renaming `foo_bar` to `fooBar`",
       ),
       (
-        ErrorIdent::Function(s("foo_bar")),
+        IdentToCheck::Function(s("foo_bar")),
         "Consider renaming `foo_bar` to `fooBar`",
       ),
       (
-        ErrorIdent::Class(s("foo_bar")),
+        IdentToCheck::Class(s("foo_bar")),
         "Consider renaming `foo_bar` to `FooBar`",
       ),
       (
-        ErrorIdent::ObjectPat {
+        IdentToCheck::ObjectPat {
           key_name: s("foo_bar"),
           value_name: None,
         },
         "Consider replacing `{ foo_bar }` with `{ foo_bar: fooBar }`",
       ),
       (
-        ErrorIdent::ObjectPat {
+        IdentToCheck::ObjectPat {
           key_name: s("foo_bar"),
           value_name: Some(s("snake_case")),
         },
