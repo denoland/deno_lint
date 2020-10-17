@@ -10,10 +10,11 @@ pub struct BanUntaggedTodo;
 
 impl BanUntaggedTodo {
   fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic(
+    context.add_diagnostic_with_hint(
       span,
       "ban-untagged-todo",
       "TODO should be tagged with (@username) or (#issue)",
+      "Add a user tag, e.g. @djones, or issue reference, e.g. #123, to the TODO comment"
     );
   }
 }
@@ -54,6 +55,28 @@ impl LintRule for BanUntaggedTodo {
     for span in violated_comment_spans {
       self.report(context, span);
     }
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires TODOs to be annotated with either a user tag (@user) or an issue reference (#issue).
+
+TODOs without reference to a user or an issue become stale with no easy way to get more information.
+
+### Valid:
+```typescript
+// TODO Improve calc engine (@djones)
+export function calcValue(): number { }
+```
+```typescript
+// TODO Improve calc engine (#332)
+export function calcValue(): number { }
+```
+
+### Invalid:
+```typescript
+// TODO Improve calc engine
+export function calcValue(): number { }
+```"#
   }
 }
 
