@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
 use swc_ecmascript::ast::{
@@ -90,10 +91,13 @@ impl<'c> NoDupeKeysVisitor<'c> {
     if let Some(key) = key {
       let key = key.into();
 
-      if keys.contains_key(&key) {
-        self.report(obj_span, key);
-      } else {
-        keys.insert(key, PropertyInfo::default());
+      match keys.entry(key) {
+        Entry::Occupied(occupied) => {
+          self.report(obj_span, occupied.key());
+        }
+        Entry::Vacant(vacant) => {
+          vacant.insert(PropertyInfo::default());
+        }
       }
     }
   }
@@ -107,20 +111,20 @@ impl<'c> NoDupeKeysVisitor<'c> {
     if let Some(key) = key {
       let key = key.into();
 
-      if let Some(info) = keys.get_mut(&key) {
-        if info.setter_only() {
-          info.getter = true;
-        } else {
-          self.report(obj_span, key);
+      match keys.entry(key) {
+        Entry::Occupied(mut occupied) => {
+          if occupied.get().setter_only() {
+            occupied.get_mut().getter = true;
+          } else {
+            self.report(obj_span, occupied.key());
+          }
         }
-      } else {
-        keys.insert(
-          key,
-          PropertyInfo {
+        Entry::Vacant(vacant) => {
+          vacant.insert(PropertyInfo {
             getter: true,
             setter: false,
-          },
-        );
+          });
+        }
       }
     }
   }
@@ -134,20 +138,20 @@ impl<'c> NoDupeKeysVisitor<'c> {
     if let Some(key) = key {
       let key = key.into();
 
-      if let Some(info) = keys.get_mut(&key) {
-        if info.getter_only() {
-          info.setter = true;
-        } else {
-          self.report(obj_span, key);
+      match keys.entry(key) {
+        Entry::Occupied(mut occupied) => {
+          if occupied.get().getter_only() {
+            occupied.get_mut().setter = true;
+          } else {
+            self.report(obj_span, occupied.key());
+          }
         }
-      } else {
-        keys.insert(
-          key,
-          PropertyInfo {
+        Entry::Vacant(vacant) => {
+          vacant.insert(PropertyInfo {
             getter: false,
             setter: true,
-          },
-        );
+          });
+        }
       }
     }
   }
