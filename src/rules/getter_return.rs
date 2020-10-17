@@ -257,7 +257,7 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
-  // Some rules are derived from
+  // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.9.0/tests/lib/rules/getter-return.js
   // MIT Licensed.
 
