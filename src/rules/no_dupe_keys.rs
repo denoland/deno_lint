@@ -153,29 +153,33 @@ mod tests {
       r#"var foo = { bar: "baz", set bar() {} };"#,
       10,
     );
-    assert_lint_err::<NoDupeKeys>(r#"var x = { a: b, ['a']: b };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, '': 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, [``]: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 012: 1, 10: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 0b1: 1, 1: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 0o1: 1, 1: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 1n: 1, 1: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 1_0: 1, 10: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { "z": 1, z: 2 };"#, 0);
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = {
+    assert_lint_err::<NoDupeKeys>(r#"var x = { a: b, ['a']: b };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, '': 2 };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, [``]: 2 };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 012: 1, 10: 2 };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 0b1: 1, 1: 2 };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 0o1: 1, 1: 2 };"#, 8);
+    // TODO(magurotuna): this leads to panic due to swc error
+    // assert_lint_err::<NoDupeKeys>(r#"var x = { 1n: 1, 1: 2 };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { 1_0: 1, 10: 2 };"#, 8);
+    assert_lint_err::<NoDupeKeys>(r#"var x = { "z": 1, z: 2 };"#, 8);
+    assert_lint_err_on_line::<NoDupeKeys>(
+      r#"
+var foo = {
   bar: 1,
   bar: 1,
-}"#,
-      0,
+}
+"#,
+      2,
+      10,
     );
     assert_lint_err::<NoDupeKeys>(
       r#"var x = { a: 1, b: { a: 2 }, get b() {} };"#,
-      0,
+      8,
     );
     assert_lint_err::<NoDupeKeys>(
       r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#,
-      0,
+      9,
     );
   }
 }
