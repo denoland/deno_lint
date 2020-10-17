@@ -2,9 +2,12 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use swc_common::Span;
-use swc_ecmascript::ast::{Module, ObjectLit};
+use swc_ecmascript::ast::{
+  GetterProp, KeyValueProp, MethodProp, Module, ObjectLit, Prop, PropOrSpread,
+  SetterProp,
+};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct NoDupeKeys;
@@ -70,12 +73,99 @@ impl<'c> NoDupeKeysVisitor<'c> {
     Self { context }
   }
 
-  fn report(&mut self, span: Span, key: String) {
+  fn report(&mut self, span: Span, key: impl AsRef<str>) {
     self.context.add_diagnostic(
       span,
       "no-dupe-keys",
-      format!("Duplicate key '{}'", key),
+      format!("Duplicate key '{}'", key.as_ref()),
     );
+  }
+
+  fn check_key<S: Into<String>>(
+    &mut self,
+    obj_span: Span,
+    key: Option<S>,
+    keys: &mut HashMap<String, PropertyInfo>,
+  ) {
+    if let Some(key) = key {
+      let key = key.into();
+
+      if keys.contains_key(&key) {
+        self.report(obj_span, key);
+      } else {
+        keys.insert(key, PropertyInfo::default());
+      }
+    }
+  }
+
+  fn check_getter<S: Into<String>>(
+    &mut self,
+    obj_span: Span,
+    key: Option<S>,
+    keys: &mut HashMap<String, PropertyInfo>,
+  ) {
+    if let Some(key) = key {
+      let key = key.into();
+
+      if let Some(info) = keys.get_mut(&key) {
+        if info.setter_only() {
+          info.getter = true;
+        } else {
+          self.report(obj_span, key);
+        }
+      } else {
+        keys.insert(
+          key,
+          PropertyInfo {
+            getter: true,
+            setter: false,
+          },
+        );
+      }
+    }
+  }
+
+  fn check_setter<S: Into<String>>(
+    &mut self,
+    obj_span: Span,
+    key: Option<S>,
+    keys: &mut HashMap<String, PropertyInfo>,
+  ) {
+    if let Some(key) = key {
+      let key = key.into();
+
+      if let Some(info) = keys.get_mut(&key) {
+        if info.getter_only() {
+          info.setter = true;
+        } else {
+          self.report(obj_span, key);
+        }
+      } else {
+        keys.insert(
+          key,
+          PropertyInfo {
+            getter: false,
+            setter: true,
+          },
+        );
+      }
+    }
+  }
+}
+
+#[derive(Clone, Copy, Default)]
+struct PropertyInfo {
+  getter: bool,
+  setter: bool,
+}
+
+impl PropertyInfo {
+  fn getter_only(&self) -> bool {
+    self.getter && !self.setter
+  }
+
+  fn setter_only(&self) -> bool {
+    self.setter && !self.getter
   }
 }
 
@@ -83,14 +173,28 @@ impl<'c> Visit for NoDupeKeysVisitor<'c> {
   noop_visit_type!();
 
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
-    let mut keys: HashSet<String> = HashSet::new();
+    let span = obj_lit.span;
+    let mut keys: HashMap<String, PropertyInfo> = HashMap::new();
 
     for prop in &obj_lit.props {
-      if let Some(key) = prop.get_key() {
-        if keys.contains(&key) {
-          self.report(obj_lit.span, key);
-        } else {
-          keys.insert(key);
+      if let PropOrSpread::Prop(prop) = prop {
+        match &**prop {
+          Prop::Shorthand(ident) => {
+            self.check_key(span, Some(ident.as_ref()), &mut keys);
+          }
+          Prop::KeyValue(KeyValueProp { key, .. }) => {
+            self.check_key(span, key.get_key(), &mut keys);
+          }
+          Prop::Assign(_) => {}
+          Prop::Getter(GetterProp { key, .. }) => {
+            self.check_getter(span, key.get_key(), &mut keys);
+          }
+          Prop::Setter(SetterProp { key, .. }) => {
+            self.check_setter(span, key.get_key(), &mut keys);
+          }
+          Prop::Method(MethodProp { key, .. }) => {
+            self.check_key(span, key.get_key(), &mut keys);
+          }
         }
       }
     }
