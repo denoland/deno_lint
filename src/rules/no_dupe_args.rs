@@ -9,7 +9,7 @@ use swc_ecmascript::ast::Param;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{Visit, VisitWith};
 
 pub struct NoDupeArgs;
 
@@ -92,10 +92,12 @@ impl<'c> Visit for NoDupeArgsVisitor<'c> {
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.check_params(function.span, function.params.iter());
+    function.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     self.check_pats(arrow_expr.span, arrow_expr.params.iter());
+    arrow_expr.visit_children_with(self);
   }
 }
 
@@ -112,6 +114,7 @@ mod tests {
   fn no_dupe_args_valid() {
     assert_lint_ok::<NoDupeArgs>("function a(a, b, c) {}");
     assert_lint_ok::<NoDupeArgs>("let a = function (a, b, c) {}");
+    assert_lint_ok::<NoDupeArgs>("const a = (a, b, c) => {}");
     assert_lint_ok::<NoDupeArgs>("function a({a, b}, {c, d}) {}");
     assert_lint_ok::<NoDupeArgs>("function a([, a]) {}");
     assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
@@ -153,8 +156,17 @@ function foo(a, b) {
   function bar(a, b, b) {}
 }
       "#,
+      3,
       2,
-      2,
+    );
+    assert_lint_err_on_line::<NoDupeArgs>(
+      r#"
+const foo = (a, b) => {
+  const bar = (c, d, d) => {};
+};
+      "#,
+      3,
+      14,
     );
   }
 }
