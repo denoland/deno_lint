@@ -34,8 +34,8 @@ impl LintRule for BanTypes {
 
   fn docs(&self) -> &'static str {
     r#"Bans the use of primitive wrapper objects (e.g. `String` the object is a 
-      wrapper of `string` the primitive) in addition to the non-explicit `Function`
-      type and the misunderstood `Object` type. 
+wrapper of `string` the primitive) in addition to the non-explicit `Function`
+type and the misunderstood `Object` type. 
 
 There are very few situations where primitive wrapper objects are desired and
 far more often a mistake was made with the case of the primitive type.  You also 
