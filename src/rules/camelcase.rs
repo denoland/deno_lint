@@ -46,7 +46,6 @@ fn is_underscored(ident_name: &str) -> bool {
 
 /// Convert the name of identifier into camel case. If the name is originally in camel case, return
 /// the name as it is. For more detail, see the test cases below.
-#[allow(unused)]
 fn to_camelcase(ident_name: &str) -> String {
   if !is_underscored(ident_name) {
     return ident_name.to_string();
@@ -83,6 +82,8 @@ enum IdentToCheck {
   /// const { foo: bar } = obj2; // key_name: foo, value_name: Some(bar)
   ///
   /// const { foo: bar = default_value } = obj3; // key_name: foo, value_name: Some(bar)
+  ///
+  /// function f({ foo }) {} // key_name: foo, value_name: None
   /// ```
   ObjectPat {
     key_name: String,
