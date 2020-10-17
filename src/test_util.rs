@@ -4,7 +4,102 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
+use std::marker::PhantomData;
 use swc_ecmascript::ast::Module;
+
+// TODO(magurotuna): rename this macro after replacing existing tests with this macro
+#[macro_export]
+macro_rules! assert_lint_ok_macro {
+  ($rule:ty, $src:literal $(,)?) => {
+    $crate::test_util::assert_lint_ok::<$rule>($src);
+  };
+  ($rule:ty, [$($src:literal),* $(,)?] $(,)?) => {
+    $(
+      $crate::test_util::assert_lint_ok::<$rule>($src);
+    )*
+  };
+}
+
+// TODO(magurotuna): rename this macro after replacing existing tests with this macro
+#[macro_export]
+macro_rules! assert_lint_err_macro {
+  (
+    $rule:ty,
+    $(
+      $src:literal : [
+        $(
+          {
+            $($field:ident : $value:expr),* $(,)?
+          }
+        ),* $(,)?
+      ]
+    ),+ $(,)?
+  ) => {
+    $(
+      let mut errors = Vec::new();
+      $(
+        let mut e = $crate::test_util::LintErr {
+          $($field: $value,)*
+          ..Default::default()
+        };
+        // Line is 1-based in deno_lint, but the default value of `usize` is 0. We should adjust it.
+        if e.line == 0 {
+          e.line = 1;
+        }
+        errors.push(e);
+      )*
+      let t = $crate::test_util::LintErrTester::<$rule> {
+        src: $src,
+        errors,
+        rule: std::marker::PhantomData,
+      };
+      t.run();
+    )*
+  };
+}
+
+#[derive(Default)]
+pub struct LintErrTester<T: LintRule + 'static> {
+  pub src: &'static str,
+  pub errors: Vec<LintErr>,
+  pub rule: PhantomData<T>,
+}
+
+#[derive(Default)]
+pub struct LintErr {
+  pub line: usize,
+  pub col: usize,
+  pub message: &'static str,
+  pub hint: Option<&'static str>,
+}
+
+impl<T: LintRule + 'static> LintErrTester<T> {
+  pub fn run(&self) {
+    let rule = T::new();
+    let rule_code = rule.code();
+    let diagnostics = lint(rule, self.src);
+    assert_eq!(
+      self.errors.len(),
+      diagnostics.len(),
+      "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
+      self.errors.len(),
+      diagnostics.len(),
+      self.src,
+    );
+
+    for (error, diagnostic) in self.errors.iter().zip(&diagnostics) {
+      let LintErr {
+        line,
+        col,
+        message,
+        hint,
+      } = error;
+      assert_diagnostic_2(
+        diagnostic, rule_code, *line, *col, self.src, message, hint,
+      );
+    }
+  }
+}
 
 fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
@@ -41,7 +136,46 @@ pub fn assert_diagnostic(
     line,
     col,
     source,
-  ))
+  ));
+}
+
+fn assert_diagnostic_2(
+  diagnostic: &LintDiagnostic,
+  code: &str,
+  line: usize,
+  col: usize,
+  source: &str,
+  message: &str,
+  hint: &Option<&str>,
+) {
+  assert_eq!(
+    code, diagnostic.code,
+    "Rule code is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
+    code, diagnostic.code, source
+  );
+  assert_eq!(
+    line, diagnostic.range.start.line,
+    "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
+    line, diagnostic.range.start.line, source
+  );
+  assert_eq!(
+    col, diagnostic.range.start.col,
+    "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
+    col, diagnostic.range.start.col, source
+  );
+  assert_eq!(
+    message, &diagnostic.message,
+    "Diagnostic message is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
+    message, &diagnostic.message, source
+  );
+  assert_eq!(
+    hint,
+    &diagnostic.hint.as_deref(),
+    "Diagnostic hint is expected to be \"{:?}\", but got \"{:?}\"\n\nsource:\n{}\n",
+    hint,
+    diagnostic.hint.as_deref(),
+    source
+  );
 }
 
 pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
