@@ -25,6 +25,28 @@ impl LintRule for Eqeqeq {
     let mut visitor = EqeqeqVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Enforces the use of type-safe equality operators `===` and `!==`
+instead of the more error prone `==` and `!=` operators.
+
+`===` and `!==` ensure the comparators are of the same type as well as the same
+value.  On the other hand `==` and `!=` do type coercion before value checking
+which can lead to unexpected results.  For example `5 == "5"` is true, while
+`5 === "5"` is false.
+
+### Valid:
+```typescript
+if (a === 5) {}
+if ("hello world" !== input) {}
+```
+
+### Invalid:
+```typescript
+if (a == 5) {}
+if ("hello world" != input) {}
+```"#
+  }
 }
 
 struct EqeqeqVisitor<'c> {
@@ -47,9 +69,17 @@ impl<'c> Visit for EqeqeqVisitor<'c> {
       } else {
         "expected '!==' and instead saw '!='."
       };
-      self
-        .context
-        .add_diagnostic(bin_expr.span, "eqeqeq", message)
+      let hint = if bin_expr.op == BinaryOp::EqEq {
+        "Use '==='"
+      } else {
+        "Use '!=="
+      };
+      self.context.add_diagnostic_with_hint(
+        bin_expr.span,
+        "eqeqeq",
+        message,
+        hint,
+      )
     }
     swc_ecmascript::visit::visit_bin_expr(self, bin_expr, parent);
   }
