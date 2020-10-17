@@ -37,12 +37,31 @@ impl LintRule for BanUntaggedIgnore {
       .collect();
 
     for span in violated_spans {
-      context.add_diagnostic(
+      context.add_diagnostic_with_hint(
         span,
         "ban-untagged-ignore",
-        "Ignore directive requires lint rule code",
+        "Ignore directive requires lint rule name(s)",
+        "Add one or more lint rule names.  E.g. // deno-lint-ignore adjacent-overload-signatures",
       )
     }
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires `deno-lint-ignore` to be annotated with one or more rule names.
+
+Ignoring all rules can mask unexpected or future problems. Therefore you need to explicitly specify which rule(s) are to be ignored.
+
+### Valid:
+```typescript
+// deno-lint-ignore no-dupe-args
+export function duplicateArgumentsFn(a, b, a) { }
+```
+
+### Invalid:
+```typescript
+// deno-lint-ignore
+export function duplicateArgumentsFn(a, b, a) { }
+```"#
   }
 }
 
