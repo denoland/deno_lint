@@ -60,7 +60,10 @@ impl<'c> NoDupeArgsVisitor<'c> {
     }
   }
 
-  fn check_pats(&mut self, span: Span, pats: &[Pat]) {
+  fn check_pats<'a, 'b, I>(&'a mut self, span: Span, pats: I)
+  where
+    I: Iterator<Item = &'b Pat>,
+  {
     let mut seen: HashSet<&str> = HashSet::new();
 
     for pat in pats {
@@ -75,12 +78,12 @@ impl<'c> NoDupeArgsVisitor<'c> {
     }
   }
 
-  fn check_params(&mut self, span: Span, params: &[Param]) {
-    let pats = params
-      .iter()
-      .map(|param| param.pat.clone())
-      .collect::<Vec<Pat>>();
-    self.check_pats(span, &pats);
+  fn check_params<'a, 'b, I>(&'a mut self, span: Span, params: I)
+  where
+    I: Iterator<Item = &'b Param>,
+  {
+    let pats = params.map(|param| &param.pat);
+    self.check_pats(span, pats);
   }
 }
 
@@ -88,11 +91,11 @@ impl<'c> Visit for NoDupeArgsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    self.check_params(function.span, &function.params);
+    self.check_params(function.span, function.params.iter());
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.check_pats(arrow_expr.span, &arrow_expr.params);
+    self.check_pats(arrow_expr.span, arrow_expr.params.iter());
   }
 }
 
