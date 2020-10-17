@@ -6,20 +6,18 @@ use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 use swc_common::Span;
 
+/// This rule differs from typescript-eslint. In typescript-eslint the following
+/// defaults apply:
+/// - ts-expect-error: allowed with comment
+/// - ts-ignore: not allowed
+/// - ts-nocheck: not allowed
+///
+/// This rules defaults:
+/// - ts-expect-error: allowed with comment
+/// - ts-ignore: allowed with comment
+/// - ts-nocheck: allowed with comment
 pub struct BanTsComment;
 
-/*
- * This rule differs from typescript-eslint.  In typescript-eslint the following
- * defaults apply:
- * ts-expect-error: allowed with comment
- * ts-ignore: not allowed
- * ts-nocheck: not allowed
- *
- * This rules defaults:
- * ts-expect-error: allowed with comment
- * ts-ignore: allowed with comment
- * ts-nocheck: allowed with comment
- */
 impl BanTsComment {
   fn report(&self, context: &mut Context, span: Span) {
     context.add_diagnostic_with_hint(
