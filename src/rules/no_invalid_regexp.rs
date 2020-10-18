@@ -146,7 +146,8 @@ mod tests {
 
   #[test]
   fn no_invalid_regexp_valid() {
-    assert_lint_ok::<NoInvalidRegexp>(
+    assert_lint_ok_macro! {
+      NoInvalidRegexp,
       r#"RegExp('');
 RegExp();
 RegExp('.', 'g');
@@ -181,7 +182,7 @@ var foo = new RegExp('a', '');
 /(a)bc[de]/u;
 let x = new FooBar('\\');
 let re = new RegExp('foo', x);"#,
-    );
+    };
   }
 
   #[test]
