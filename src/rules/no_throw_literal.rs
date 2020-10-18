@@ -65,20 +65,19 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn check_literal() {
+  fn no_throw_literal_valid() {
+    assert_lint_ok_macro! {
+      NoThrowLiteral,
+      "throw e",
+    };
+  }
+
+  #[test]
+  fn no_throw_literal_invalid() {
     assert_lint_err::<NoThrowLiteral>("throw 'kumiko'", 0);
     assert_lint_err::<NoThrowLiteral>("throw true", 0);
     assert_lint_err::<NoThrowLiteral>("throw 1096", 0);
     assert_lint_err::<NoThrowLiteral>("throw null", 0);
-  }
-
-  #[test]
-  fn check_undefined() {
     assert_lint_err::<NoThrowLiteral>("throw undefined", 0);
-  }
-
-  #[test]
-  fn check_variable() {
-    assert_lint_ok::<NoThrowLiteral>("throw e");
   }
 }
