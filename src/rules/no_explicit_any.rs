@@ -65,7 +65,8 @@ mod tests {
 
   #[test]
   fn no_explicit_any_valid() {
-    assert_lint_ok::<NoExplicitAny>(
+    assert_lint_ok_macro! {
+      NoExplicitAny,
       r#"
 class Foo {
   static _extensions: {
@@ -73,9 +74,6 @@ class Foo {
     [key: string]: (module: Module, filename: string) => any;
   } = Object.create(null);
 }"#,
-    );
-
-    assert_lint_ok::<NoExplicitAny>(
       r#"
 type RequireWrapper = (
   // deno-lint-ignore no-explicit-any
@@ -86,7 +84,7 @@ type RequireWrapper = (
   __filename: string,
   __dirname: string
 ) => void;"#,
-    );
+    };
   }
 
   #[test]
