@@ -125,7 +125,8 @@ mod tests {
 
   #[test]
   fn no_compare_neg_zero_valid() {
-    assert_lint_ok_n::<NoCompareNegZero>(vec![
+    assert_lint_ok_macro! {
+      NoCompareNegZero,
       r#"if (x === 0) { }"#,
       r#"if (Object.is(x, -0)) { }"#,
       r#"x === 0"#,
@@ -155,7 +156,7 @@ mod tests {
       r#"x !== 0"#,
       r#"0 !== x"#,
       r#"{} == { foo: x === 0 }"#,
-    ]);
+    };
   }
 
   #[test]
