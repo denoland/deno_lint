@@ -130,7 +130,8 @@ mod tests {
 
   #[test]
   fn no_const_assign_valid() {
-    assert_lint_ok::<NoConstAssign>(
+    assert_lint_ok_macro! {
+      NoConstAssign,
       r#"
       const x = 0; { let x; x = 1; }
       const x = 0; function a(x) { x = 1; }
@@ -178,7 +179,7 @@ mod tests {
         }
       }
       "#,
-    );
+    };
   }
 
   #[test]
