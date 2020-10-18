@@ -138,8 +138,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn constructor_super() {
-    assert_lint_ok::<ConstructorSuper>(
+  fn constructor_super_valid() {
+    assert_lint_ok_macro! {
+      ConstructorSuper,
       r#"
 // non derived classes.
 class A { }
@@ -184,8 +185,11 @@ class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } }
 // https://github.com/eslint/eslint/issues/5319
 class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }
       "#,
-    );
-    // invalid
+    };
+  }
+
+  #[test]
+  fn constructor_super_invalid() {
     assert_lint_err::<ConstructorSuper>(
       "class A extends null { constructor() { super(); } }",
       37,
