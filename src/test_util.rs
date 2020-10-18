@@ -228,12 +228,6 @@ pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
   }
 }
 
-pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {
-  for source in cases {
-    assert_lint_ok::<T>(source);
-  }
-}
-
 pub fn assert_lint_err<T: LintRule + 'static>(source: &str, col: usize) {
   assert_lint_err_on_line::<T>(source, 1, col)
 }
