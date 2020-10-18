@@ -110,8 +110,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn ban_ts_ignore() {
-    assert_lint_ok_n::<BanUntaggedTodo>(vec![
+  fn ban_ts_ignore_valid() {
+    assert_lint_ok_macro! {
+      BanUntaggedTodo,
       r#"
 // TODO(#1234)
 const b = "b";
@@ -120,7 +121,11 @@ const b = "b";
 // TODO(@someusername)
 const c = "c";
       "#,
-    ]);
+    };
+  }
+
+  #[test]
+  fn ban_ts_ignore_invalid() {
     assert_lint_err_on_line::<BanUntaggedTodo>(
       r#"
 // TODO
