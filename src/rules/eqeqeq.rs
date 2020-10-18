@@ -72,7 +72,7 @@ impl<'c> Visit for EqeqeqVisitor<'c> {
       let hint = if bin_expr.op == BinaryOp::EqEq {
         "Use '==='"
       } else {
-        "Use '!=="
+        "Use '!=='"
       };
       self.context.add_diagnostic_with_hint(
         bin_expr.span,
