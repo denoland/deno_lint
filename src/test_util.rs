@@ -80,24 +80,24 @@ impl LintErrBuilder {
     Self::default()
   }
 
-  pub fn line<'a>(&'a mut self, line: usize) -> &'a mut Self {
+  pub fn line(&mut self, line: usize) -> &mut Self {
     // Line is 1-based in deno_lint
     assert!(line >= 1);
     self.line = Some(line);
     self
   }
 
-  pub fn col<'a>(&'a mut self, col: usize) -> &'a mut Self {
+  pub fn col(&mut self, col: usize) -> &mut Self {
     self.col = Some(col);
     self
   }
 
-  pub fn message<'a>(&'a mut self, message: &'static str) -> &'a mut Self {
+  pub fn message(&mut self, message: &'static str) -> &mut Self {
     self.message = Some(message);
     self
   }
 
-  pub fn hint<'a>(&'a mut self, hint: &'static str) -> &'a mut Self {
+  pub fn hint(&mut self, hint: &'static str) -> &mut Self {
     self.hint = Some(hint);
     self
   }
