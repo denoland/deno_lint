@@ -60,8 +60,15 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_sparse_arrays_test() {
-    assert_lint_ok::<NoSparseArrays>("const sparseArray1 = [1,null,3];");
+  fn no_sparse_arrays_valid() {
+    assert_lint_ok_macro! {
+      NoSparseArrays,
+      "const sparseArray1 = [1,null,3];",
+    };
+  }
+
+  #[test]
+  fn no_sparse_arrays_invalid() {
     assert_lint_err::<NoSparseArrays>("const sparseArray = [1,,3];", 20);
   }
 }
