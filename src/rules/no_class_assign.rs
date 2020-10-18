@@ -76,7 +76,8 @@ mod tests {
 
   #[test]
   fn no_class_assign_valid() {
-    assert_lint_ok_n::<NoClassAssign>(vec![
+    assert_lint_ok_macro! {
+      NoClassAssign,
       r#"class A {}"#,
       r#"class A {} foo(A);"#,
       r#"let A = class A {}; foo(A);"#,
@@ -116,7 +117,7 @@ A = class {
       r#"function x() {} x = 1;"#,
       r#"function foo(x) { x = 1; }"#,
       r#"try {} catch (x) { x = 1; }"#,
-    ]);
+    };
   }
 
   #[test]
