@@ -34,10 +34,10 @@ impl LintRule for ConstructorSuper {
   }
 
   fn docs(&self) -> &'static str {
-    r#"Verifies the correct usage of constructors and calls to super().
+    r#"Verifies the correct usage of constructors and calls to `super()`.
 
-Defined constructors of derived classes (e.g. class A extends B) must always call
-super().  Classes which extend non-constructors (e.g. class A extends null) must
+Defined constructors of derived classes (e.g. `class A extends B`) must always call
+`super()`.  Classes which extend non-constructors (e.g. `class A extends null`) must
 not have a constructor.
 
 ### Valid:
