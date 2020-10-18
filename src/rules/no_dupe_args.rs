@@ -112,7 +112,7 @@ mod tests {
 
   #[test]
   fn no_dupe_args_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoDupeArgs,
       "function a(a, b, c) {}",
       "let a = function (a, b, c) {}",

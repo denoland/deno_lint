@@ -153,7 +153,7 @@ mod tests {
 
   #[test]
   fn no_control_regex_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoControlRegex,
       r#"/x1f/"#,
       r#"/\\x1f/"#,

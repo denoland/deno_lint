@@ -126,7 +126,7 @@ mod tests {
 
   #[test]
   fn ban_ts_comment_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       BanTsComment,
       r#"// just a comment containing @ts-expect-error somewhere"#,
       r#"/* @ts-expect-error */"#,

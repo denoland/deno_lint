@@ -1495,7 +1495,7 @@ mod prefer_const_tests {
 
   #[test]
   fn prefer_const_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       PreferConst,
       r#"var x = 0;"#,
       r#"let x;"#,

@@ -56,7 +56,7 @@ mod tests {
 
   #[test]
   fn no_non_null_assertion_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoNonNullAssertion,
       "instance.doWork();",
       "foo.bar?.includes('baz')",

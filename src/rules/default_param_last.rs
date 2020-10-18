@@ -118,7 +118,7 @@ mod tests {
 
   #[test]
   fn default_param_last_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       DefaultParamLast,
       "function f() {}",
       "function f(a) {}",

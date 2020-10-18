@@ -84,7 +84,7 @@ mod tests {
 
   #[test]
   fn no_obj_calls_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoObjCalls,
       "Math.PI * 2 * 3;",
       "JSON.parse(\"{}\");",

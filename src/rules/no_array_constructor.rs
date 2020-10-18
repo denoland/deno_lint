@@ -100,7 +100,7 @@ mod tests {
 
   #[test]
   fn no_array_constructor_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoArrayConstructor,
       "Array(x)",
       "Array(9)",

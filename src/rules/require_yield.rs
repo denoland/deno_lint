@@ -130,7 +130,7 @@ mod tests {
 
   #[test]
   fn require_yield_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       RequireYield,
       r#"
 function foo() {}

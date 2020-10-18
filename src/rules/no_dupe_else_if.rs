@@ -222,7 +222,7 @@ mod tests {
 
   #[test]
   fn no_dupe_else_if_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoDupeElseIf,
       "if (a) {} else if (b) {}",
       "if (a); else if (b); else if (c);",

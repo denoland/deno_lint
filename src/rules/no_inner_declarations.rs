@@ -212,7 +212,7 @@ mod tests {
 
   #[test]
   fn no_inner_declarations_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoInnerDeclarations,
       "function doSomething() { }",
       "function doSomething() { function somethingElse() { } }",

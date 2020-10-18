@@ -124,7 +124,7 @@ mod tests {
 
   #[test]
   fn no_mixed_spaces_and_tabs_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoMixedSpacesAndTabs,
       "\tvar x = 5;",
       "    var x = 5;",

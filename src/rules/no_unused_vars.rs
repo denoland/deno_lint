@@ -460,7 +460,7 @@ mod tests {
 
   #[test]
   fn no_unused_vars_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoUnusedVars,
       "var a = 1; console.log(a)",
       "var a = 1; const arrow = () => a; console.log(arrow)",

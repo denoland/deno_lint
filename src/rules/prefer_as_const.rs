@@ -133,7 +133,7 @@ mod tests {
 
   #[test]
   fn prefer_as_const_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       PreferAsConst,
       r#"
       let foo = "baz" as const;

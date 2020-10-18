@@ -163,7 +163,7 @@ mod tests {
 
   #[test]
   fn no_extra_semi_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoExtraSemi,
       "var x = 5;",
       "function foo(){}",

@@ -65,7 +65,7 @@ mod tests {
 
   #[test]
   fn no_explicit_any_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoExplicitAny,
       r#"
 class Foo {

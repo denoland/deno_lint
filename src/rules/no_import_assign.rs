@@ -344,7 +344,7 @@ mod tests {
 
   #[test]
   fn no_import_assign_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoImportAssign,
       "import mod from 'mod'; mod.prop = 0",
       "import mod from 'mod'; mod.prop += 0;",

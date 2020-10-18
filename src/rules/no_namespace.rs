@@ -68,7 +68,7 @@ mod tests {
 
   #[test]
   fn no_namespace_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoNamespace,
       r#"declare global {}"#,
       r#"declare module 'foo' {}"#,

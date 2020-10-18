@@ -87,7 +87,7 @@ mod tests {
 
   #[test]
   fn no_prototype_builtins_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoPrototypeBuiltins,
       r#"
   Object.prototype.hasOwnProperty.call(foo, "bar");

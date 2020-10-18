@@ -105,7 +105,7 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoIrregularWhitespace,
       "'\\u{000B}';",
       "'\\u{000C}';",

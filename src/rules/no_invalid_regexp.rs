@@ -146,7 +146,7 @@ mod tests {
 
   #[test]
   fn no_invalid_regexp_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoInvalidRegexp,
       r#"RegExp('');
 RegExp();

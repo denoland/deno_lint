@@ -156,7 +156,7 @@ mod tests {
 
   #[test]
   fn no_global_assign_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoGlobalAssign,
       "string = 'hello world';",
       "var string;",

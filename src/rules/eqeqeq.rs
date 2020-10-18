@@ -92,7 +92,7 @@ mod tests {
 
   #[test]
   fn eqeqeq_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       Eqeqeq,
       "midori === sapphire",
       "midori !== hazuki",

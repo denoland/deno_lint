@@ -125,7 +125,7 @@ mod tests {
 
   #[test]
   fn no_compare_neg_zero_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoCompareNegZero,
       r#"if (x === 0) { }"#,
       r#"if (Object.is(x, -0)) { }"#,

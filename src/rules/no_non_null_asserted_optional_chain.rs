@@ -92,7 +92,7 @@ mod tests {
 
   #[test]
   fn no_non_null_asserted_optional_chain_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoNonNullAssertedOptionalChain,
       "foo.bar!;",
       "foo.bar()!;",

@@ -116,7 +116,7 @@ mod tests {
 
   #[test]
   fn no_regex_spaces_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoRegexSpaces,
       "var foo = /foo/;",
       "var foo = RegExp('foo')",

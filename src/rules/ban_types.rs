@@ -158,7 +158,7 @@ mod tests {
 
   #[test]
   fn ban_types_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       BanTypes,
       "let f = Object();",
       "let f: { x: number; y: number } = { x: 1, y: 1 };",

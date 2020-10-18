@@ -111,7 +111,7 @@ mod tests {
 
   #[test]
   fn no_unused_label_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoUnusedLabels,
       "LABEL: for (let i = 0; i < 5; i++) { a(); break LABEL; }",
       "LABEL: for (let i = 0; i < 5; i++) { a(); if (i < 3) { continue LABEL; } b(); if (i > 3) { break LABEL; } }",

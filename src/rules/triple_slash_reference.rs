@@ -83,7 +83,7 @@ mod tests {
 
   #[test]
   fn triple_slash_reference_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       TripleSlashReference,
       r#"
       // <reference path="foo" />

@@ -263,7 +263,7 @@ mod tests {
 
   #[test]
   fn getter_return_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       GetterReturn,
       "let foo = { get bar() { return true; } };",
       "class Foo { get bar() { return true; } }",

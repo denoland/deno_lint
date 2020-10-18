@@ -179,7 +179,7 @@ mod tests {
 
   #[test]
   fn constructor_super_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       ConstructorSuper,
       r#"
 // non derived classes.

@@ -64,7 +64,7 @@ mod tests {
 
   #[test]
   fn no_new_symbol_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoNewSymbol,
       "new Class()",
       "Symbol()",

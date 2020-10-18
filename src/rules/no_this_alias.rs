@@ -90,7 +90,7 @@ mod tests {
 
   #[test]
   fn no_this_alias_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoThisAlias,
       "const self = foo(this);",
       "const self = 'this';",

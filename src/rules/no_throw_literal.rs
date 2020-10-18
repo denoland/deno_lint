@@ -66,7 +66,7 @@ mod tests {
 
   #[test]
   fn no_throw_literal_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoThrowLiteral,
       "throw e",
     };

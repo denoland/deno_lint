@@ -69,7 +69,7 @@ mod tests {
 
   #[test]
   fn no_octal_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoOctal,
       "7",
       "\"07\"",

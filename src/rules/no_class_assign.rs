@@ -76,7 +76,7 @@ mod tests {
 
   #[test]
   fn no_class_assign_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoClassAssign,
       r#"class A {}"#,
       r#"class A {} foo(A);"#,

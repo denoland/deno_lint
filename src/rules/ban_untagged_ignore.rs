@@ -72,7 +72,7 @@ mod tests {
 
   #[test]
   fn ban_ts_ignore_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       BanUntaggedIgnore,
       r#"
 // deno-lint-ignore some-code some-code-2

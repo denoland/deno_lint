@@ -111,7 +111,7 @@ mod tests {
 
   #[test]
   fn ban_ts_ignore_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       BanUntaggedTodo,
       r#"
 // TODO(#1234)

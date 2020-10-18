@@ -64,7 +64,7 @@ mod tests {
 
   #[test]
   fn explicit_function_return_type_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       ExplicitFunctionReturnType,
       "function fooTyped(): void { }",
       "const bar = (a: string) => { }",

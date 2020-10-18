@@ -98,7 +98,7 @@ mod tests {
 
   #[test]
   fn no_redeclare_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoRedeclare,
       "var a = 3; var b = function() { var a = 10; };",
       "var a = 3; a = 10;",

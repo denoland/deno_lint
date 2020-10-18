@@ -242,7 +242,7 @@ mod tests {
 
   #[test]
   fn no_await_in_loop_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoAwaitInLoop,
       r#"
 async function foo(things) {

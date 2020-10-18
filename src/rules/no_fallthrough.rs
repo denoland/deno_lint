@@ -132,7 +132,7 @@ mod tests {
 
   #[test]
   fn no_fallthrough_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoFallthrough,
       "switch(foo) { case 0: a(); /* falls through */ case 1: b(); }",
       "switch(foo) { case 0: a()\n /* falls through */ case 1: b(); }",

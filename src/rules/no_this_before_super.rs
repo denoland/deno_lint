@@ -144,7 +144,7 @@ mod tests {
 
   #[test]
   fn no_this_before_super_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoThisBeforeSuper,
       r#"
 class A {

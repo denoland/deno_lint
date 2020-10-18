@@ -155,7 +155,7 @@ mod tests {
 
   #[test]
   fn no_misused_new_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoMisusedNew,
       "type T = { new(): T }",
       "interface IC { new(): {} }",

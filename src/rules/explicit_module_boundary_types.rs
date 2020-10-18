@@ -146,7 +146,7 @@ mod tests {
 
   #[test]
   fn explicit_module_boundary_types_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       ExplicitModuleBoundaryTypes,
       "function test() { return }",
       "export var fn = function (): number { return 1; }",

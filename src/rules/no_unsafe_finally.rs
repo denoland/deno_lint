@@ -113,7 +113,7 @@ mod tests {
 
   #[test]
   fn no_unsafe_finally_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoUnsafeFinally,
       r#"
 let foo = function() {

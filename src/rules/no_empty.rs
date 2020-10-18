@@ -166,7 +166,7 @@ mod tests {
 
   #[test]
   fn no_empty_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoEmpty,
       r#"function foobar() {}"#,
       r#"

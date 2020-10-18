@@ -381,7 +381,7 @@ mod tests {
 
   #[test]
   fn no_inferrable_types_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoInferrableTypes,
       "const a = 10n",
       "const a = -10n",

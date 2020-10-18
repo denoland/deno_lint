@@ -102,7 +102,7 @@ mod tests {
 
   #[test]
   fn no_empty_pattern_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoEmptyPattern,
       "const {a = {}} = foo;",
       "const {a, b = {}} = foo;",

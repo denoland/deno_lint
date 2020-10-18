@@ -218,7 +218,7 @@ mod tests {
 
   #[test]
   fn no_dupe_keys_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoDupeKeys,
       r#"var foo = { bar: "baz", boo: "bang" }"#,
       r#"var foo = { bar: "baz", boo: { bar: "bang", }, }"#,

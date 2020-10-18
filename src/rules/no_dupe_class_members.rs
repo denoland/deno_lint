@@ -213,7 +213,7 @@ mod tests {
 
   #[test]
   fn no_dupe_class_members_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoDupeClassMembers,
       r#"
 class Foo {

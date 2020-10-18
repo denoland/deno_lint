@@ -296,7 +296,7 @@ mod tests {
 
   #[test]
   fn no_self_assign_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoSelfAssign,
       "var a = a;",
       "a = b",

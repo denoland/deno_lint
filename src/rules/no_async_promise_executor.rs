@@ -84,7 +84,7 @@ mod tests {
 
   #[test]
   fn no_async_promise_executor_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoAsyncPromiseExecutor,
       "new Promise(function(resolve, reject) {});",
       "new Promise((resolve, reject) => {});",

@@ -163,7 +163,7 @@ mod tests {
 
   #[test]
   fn valid_typeof_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       ValidTypeof,
       r#"
 typeof foo === "string"

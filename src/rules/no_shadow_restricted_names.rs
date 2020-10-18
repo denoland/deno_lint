@@ -178,7 +178,7 @@ mod tests {
 
   #[test]
   fn no_shadow_restricted_names_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoShadowRestrictedNames,
       "function foo(bar){ var baz; }",
       "!function foo(bar){ var baz; }",

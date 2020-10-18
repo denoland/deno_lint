@@ -280,7 +280,7 @@ mod tests {
 
   #[test]
   fn adjacent_overload_signatures_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       AdjacentOverloadSignatures,
       r#"
 function error(a: string);

@@ -86,7 +86,7 @@ mod tests {
 
   #[test]
   fn no_empty_character_class_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoEmptyCharacterClass,
       r#"
     const foo = /^abc[a-zA-Z]/;

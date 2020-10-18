@@ -82,7 +82,7 @@ mod tests {
 
   #[test]
   fn no_unreachable_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoUnreachable,
       "function foo() {
           function bar() { return 1; }

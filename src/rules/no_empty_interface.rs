@@ -68,7 +68,7 @@ mod tests {
 
   #[test]
   fn no_empty_interface_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoEmptyInterface,
       "interface Foo { a: string }",
       "interface Foo { a: number }",

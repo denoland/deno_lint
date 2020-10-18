@@ -211,7 +211,7 @@ mod tests {
 
   #[test]
   fn no_extra_boolean_cast_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoExtraBooleanCast,
       "Boolean(bar, !!baz);",
       "var foo = !!bar;",

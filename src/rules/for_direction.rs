@@ -177,7 +177,7 @@ mod tests {
 
   #[test]
   fn for_direction_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       ForDirection,
       "for(let i = 0; i < 2; i++) {}",
       "for(let i = 0; i < 2; ++i) {}",

@@ -61,7 +61,7 @@ mod tests {
 
   #[test]
   fn no_sparse_arrays_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoSparseArrays,
       "const sparseArray1 = [1,null,3];",
     };

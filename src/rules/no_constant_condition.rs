@@ -211,7 +211,7 @@ mod tests {
 
   #[test]
   fn no_constant_condition_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoConstantCondition,
       r#"if(a);"#,
       r#"if(a == 0);"#,

@@ -72,7 +72,7 @@ mod tests {
 
   #[test]
   fn no_ex_assign_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoExAssign,
       r#"
 try {} catch { e = 1; }

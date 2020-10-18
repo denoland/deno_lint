@@ -256,7 +256,7 @@ mod tests {
 
   #[test]
   fn no_undef_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoUndef,
       "var a = 1, b = 2; a;",
       "function a(){}  a();",

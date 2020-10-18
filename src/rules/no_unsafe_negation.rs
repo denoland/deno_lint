@@ -69,7 +69,7 @@ mod tests {
 
   #[test]
   fn no_unsafe_negation_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoUnsafeNegation,
       "1 in [1, 2, 3]",
       "key in object",

@@ -107,7 +107,7 @@ mod tests {
 
   #[test]
   fn no_extra_non_null_assertion_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoExtraNonNullAssertion,
       r#"const foo: { str: string } | null = null; const bar = foo!.str;"#,
       r#"function foo() { return "foo"; }"#,

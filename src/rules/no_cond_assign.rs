@@ -156,7 +156,7 @@ mod tests {
 
   #[test]
   fn no_cond_assign_valid() {
-    assert_lint_ok_macro! {
+    assert_lint_ok! {
       NoCondAssign,
       "if (x === 0) { };",
       "if ((x = y)) { }",
