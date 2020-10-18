@@ -144,7 +144,8 @@ mod tests {
 
   #[test]
   fn no_this_before_super_valid() {
-    assert_lint_ok::<NoThisBeforeSuper>(
+    assert_lint_ok_macro! {
+      NoThisBeforeSuper,
       r#"
 class A {
   constructor() {
@@ -152,9 +153,6 @@ class A {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoThisBeforeSuper>(
       r#"
 class A extends B {
   constructor() {
@@ -163,9 +161,6 @@ class A extends B {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoThisBeforeSuper>(
       r#"
 class A extends B {
   foo() {
@@ -173,7 +168,7 @@ class A extends B {
   }
 }
       "#,
-    );
+    };
   }
 
   #[test]
@@ -246,10 +241,8 @@ class C extends D {
       9,
       4,
     );
-  }
 
-  #[test]
-  fn no_this_before_super_inline_super_class() {
+    // inline super class
     assert_lint_ok::<NoThisBeforeSuper>(
       r#"
 class A extends class extends B {
