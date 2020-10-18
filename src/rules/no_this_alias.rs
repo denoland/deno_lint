@@ -90,10 +90,13 @@ mod tests {
 
   #[test]
   fn no_this_alias_valid() {
-    assert_lint_ok::<NoThisAlias>("const self = foo(this);");
-    assert_lint_ok::<NoThisAlias>("const self = 'this';");
-    assert_lint_ok::<NoThisAlias>("const { props, state } = this;");
-    assert_lint_ok::<NoThisAlias>("const [foo] = this;");
+    assert_lint_ok_macro! {
+      NoThisAlias,
+      "const self = foo(this);",
+      "const self = 'this';",
+      "const { props, state } = this;",
+      "const [foo] = this;",
+    };
   }
 
   #[test]
