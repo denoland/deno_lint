@@ -124,7 +124,8 @@ mod tests {
 
   #[test]
   fn no_mixed_spaces_and_tabs_valid() {
-    assert_lint_ok_n::<NoMixedSpacesAndTabs>(vec![
+    assert_lint_ok_macro! {
+      NoMixedSpacesAndTabs,
       "\tvar x = 5;",
       "    var x = 5;",
       "\t/*\n\t * Hello\n\t */",
@@ -148,7 +149,7 @@ mod tests {
       "`foo${ 5 }\t    `;",
       "' \t\\\n\t multiline string';",
       "'\t \\\n \tmultiline string';",
-    ]);
+    };
   }
 
   #[test]
