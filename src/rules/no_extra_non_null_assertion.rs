@@ -106,23 +106,18 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_extra_non_null_assertion_ok() {
-    assert_lint_ok::<NoExtraNonNullAssertion>(
+  fn no_extra_non_null_assertion_valid() {
+    assert_lint_ok_macro! {
+      NoExtraNonNullAssertion,
       r#"const foo: { str: string } | null = null; const bar = foo!.str;"#,
-    );
-    assert_lint_ok::<NoExtraNonNullAssertion>(
       r#"function foo() { return "foo"; }"#,
-    );
-    assert_lint_ok::<NoExtraNonNullAssertion>(
       r#"function foo(bar: undefined | string) { return bar!; }"#,
-    );
-    assert_lint_ok::<NoExtraNonNullAssertion>(
       r#"function foo(bar?: { str: string }) { return bar?.str; }"#,
-    );
+    };
   }
 
   #[test]
-  fn no_extra_non_null_assertion_err() {
+  fn no_extra_non_null_assertion_invalid() {
     assert_lint_err::<NoExtraNonNullAssertion>(
       r#"const foo: { str: string } | null = null; const bar = foo!!.str;"#,
       54,
