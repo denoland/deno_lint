@@ -155,70 +155,35 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn it_passes_using_equality_operator() {
-    assert_lint_ok::<NoCondAssign>("if (x === 0) { };");
-  }
-
-  #[test]
-  fn it_passes_with_bracketed_assignment() {
-    assert_lint_ok::<NoCondAssign>("if ((x = y)) { }");
-  }
-
-  #[test]
-  fn it_fails_using_assignment_in_if_stmt() {
-    assert_lint_err::<NoCondAssign>("if (x = 0) { }", 4);
-  }
-
-  #[test]
-  fn it_fails_using_assignment_in_while_stmt() {
-    assert_lint_err::<NoCondAssign>("while (x = 0) { }", 7);
-  }
-
-  #[test]
-  fn it_fails_using_assignment_in_do_while_stmt() {
-    assert_lint_err::<NoCondAssign>("do { } while (x = 0);", 14);
-  }
-
-  #[test]
-  fn it_fails_using_assignment_in_for_stmt() {
-    assert_lint_err::<NoCondAssign>("for (let i = 0; i = 10; i++) { }", 16);
-  }
-
-  #[test]
   fn no_cond_assign_valid() {
-    assert_lint_ok::<NoCondAssign>("const x = 0; if (x == 0) { const b = 1; }");
-    assert_lint_ok::<NoCondAssign>("const x = 5; while (x < 5) { x = x + 1; }");
-    assert_lint_ok::<NoCondAssign>("while ((a = b));");
-    assert_lint_ok::<NoCondAssign>("do {} while ((a = b));");
-    assert_lint_ok::<NoCondAssign>("for (;(a = b););");
-    assert_lint_ok::<NoCondAssign>("for (;;) {}");
-    assert_lint_ok::<NoCondAssign>(
+    assert_lint_ok_macro! {
+      NoCondAssign,
+      "if (x === 0) { };",
+      "if ((x = y)) { }",
+      "const x = 0; if (x == 0) { const b = 1; }",
+      "const x = 5; while (x < 5) { x = x + 1; }",
+      "while ((a = b));",
+      "do {} while ((a = b));",
+      "for (;(a = b););",
+      "for (;;) {}",
       "if (someNode || (someNode = parentNode)) { }",
-    );
-    assert_lint_ok::<NoCondAssign>(
       "while (someNode || (someNode = parentNode)) { }",
-    );
-    assert_lint_ok::<NoCondAssign>(
       "do { } while (someNode || (someNode = parentNode));",
-    );
-    assert_lint_ok::<NoCondAssign>(
       "for (;someNode || (someNode = parentNode););",
-    );
-    assert_lint_ok::<NoCondAssign>(
       "if ((function(node) { return node = parentNode; })(someNode)) { }",
-    );
-    assert_lint_ok::<NoCondAssign>(
       "if ((node => node = parentNode)(someNode)) { }",
-    );
-    assert_lint_ok::<NoCondAssign>(
       "if (function(node) { return node = parentNode; }) { }",
-    );
-    assert_lint_ok::<NoCondAssign>("const x; const b = (x === 0) ? 1 : 0;");
-    assert_lint_ok::<NoCondAssign>("switch (foo) { case a = b: bar(); }");
+      "const x; const b = (x === 0) ? 1 : 0;",
+      "switch (foo) { case a = b: bar(); }",
+    };
   }
 
   #[test]
   fn no_cond_assign_invalid() {
+    assert_lint_err::<NoCondAssign>("if (x = 0) { }", 4);
+    assert_lint_err::<NoCondAssign>("while (x = 0) { }", 7);
+    assert_lint_err::<NoCondAssign>("do { } while (x = 0);", 14);
+    assert_lint_err::<NoCondAssign>("for (let i = 0; i = 10; i++) { }", 16);
     assert_lint_err::<NoCondAssign>("const x; if (x = 0) { const b = 1; }", 13);
     assert_lint_err::<NoCondAssign>(
       "const x; while (x = 0) { const b = 1; }",
