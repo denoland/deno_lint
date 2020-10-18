@@ -110,19 +110,20 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_unused_label_ok() {
-    assert_lint_ok::<NoUnusedLabels>(
+  fn no_unused_label_valid() {
+    assert_lint_ok_macro! {
+      NoUnusedLabels,
       "LABEL: for (let i = 0; i < 5; i++) { a(); break LABEL; }",
-    );
-    assert_lint_ok::<NoUnusedLabels>("LABEL: for (let i = 0; i < 5; i++) { a(); if (i < 3) { continue LABEL; } b(); if (i > 3) { break LABEL; } }");
-    assert_lint_ok::<NoUnusedLabels>("LABEL: { a(); b(); break LABEL; c(); }");
-    assert_lint_ok::<NoUnusedLabels>("A: { B: break B; C: for (var i = 0; i < 10; ++i) { foo(); if (a) break A; if (c) continue C; bar(); } }");
-    assert_lint_ok::<NoUnusedLabels>("LABEL: while(true) { break LABEL; }");
-    assert_lint_ok::<NoUnusedLabels>("LABEL: break LABEL;");
+      "LABEL: for (let i = 0; i < 5; i++) { a(); if (i < 3) { continue LABEL; } b(); if (i > 3) { break LABEL; } }",
+      "LABEL: { a(); b(); break LABEL; c(); }",
+      "A: { B: break B; C: for (var i = 0; i < 10; ++i) { foo(); if (a) break A; if (c) continue C; bar(); } }",
+      "LABEL: while(true) { break LABEL; }",
+      "LABEL: break LABEL;",
+    };
   }
 
   #[test]
-  fn no_unused_label_err() {
+  fn no_unused_label_invalid() {
     assert_lint_err::<NoUnusedLabels>("LABEL: var a = 0;", 0);
     assert_lint_err::<NoUnusedLabels>("LABEL: if (something) { a(); }", 0);
     assert_lint_err::<NoUnusedLabels>(
