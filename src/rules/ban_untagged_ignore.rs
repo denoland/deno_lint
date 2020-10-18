@@ -71,7 +71,20 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn ban_ts_ignore() {
+  fn ban_ts_ignore_valid() {
+    assert_lint_ok_macro! {
+      BanUntaggedIgnore,
+      r#"
+// deno-lint-ignore some-code some-code-2
+function bar() {
+  // pass
+}
+    "#,
+    };
+  }
+
+  #[test]
+  fn ban_ts_ignore_invalid() {
     assert_lint_err_on_line::<BanUntaggedIgnore>(
       r#"
 // deno-lint-ignore
@@ -81,14 +94,6 @@ function foo() {
     "#,
       2,
       0,
-    );
-    assert_lint_ok::<BanUntaggedIgnore>(
-      r#"
-// deno-lint-ignore some-code some-code-2
-function bar() {
-  // pass
-}
-    "#,
     );
   }
 }
