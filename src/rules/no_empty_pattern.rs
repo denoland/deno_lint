@@ -102,7 +102,8 @@ mod tests {
 
   #[test]
   fn no_empty_pattern_valid() {
-    assert_lint_ok_n::<NoEmptyPattern>(vec![
+    assert_lint_ok_macro! {
+      NoEmptyPattern,
       "const {a = {}} = foo;",
       "const {a, b = {}} = foo;",
       "const {a = []} = foo;",
@@ -110,7 +111,7 @@ mod tests {
       "function foo({a = []}) {}",
       "var [a] = foo",
       "async function startFileServerAsLibrary({}: FileServerCfg = {}): Promise<void>",
-    ]);
+    };
   }
 
   #[test]
