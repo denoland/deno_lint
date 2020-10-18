@@ -102,7 +102,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn setter_return() {
+  fn no_setter_return_invalid() {
     assert_lint_err::<NoSetterReturn>(
       r#"const a = { set setter(a) { return "something"; } };"#,
       28,
