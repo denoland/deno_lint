@@ -153,7 +153,8 @@ mod tests {
 
   #[test]
   fn no_control_regex_valid() {
-    assert_lint_ok_n::<NoControlRegex>(vec![
+    assert_lint_ok_macro! {
+      NoControlRegex,
       r#"/x1f/"#,
       r#"/\\x1f/"#,
       r#"/u001f/"#,
@@ -167,7 +168,7 @@ mod tests {
       r#"new RegExp('[')"#,
       r#"RegExp('[')"#,
       r#"new (function foo(){})('\\x1f')"#,
-    ]);
+    };
   }
 
   #[test]
