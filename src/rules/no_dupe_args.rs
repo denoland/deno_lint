@@ -112,25 +112,26 @@ mod tests {
 
   #[test]
   fn no_dupe_args_valid() {
-    assert_lint_ok::<NoDupeArgs>("function a(a, b, c) {}");
-    assert_lint_ok::<NoDupeArgs>("let a = function (a, b, c) {}");
-    assert_lint_ok::<NoDupeArgs>("const a = (a, b, c) => {}");
-    assert_lint_ok::<NoDupeArgs>("function a({a, b}, {c, d}) {}");
-    assert_lint_ok::<NoDupeArgs>("function a([, a]) {}");
-    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
-    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
-    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
-    assert_lint_ok::<NoDupeArgs>("const {a, b, c} = obj;");
-    assert_lint_ok::<NoDupeArgs>("const {a, b, c, a} = obj;");
+    assert_lint_ok_macro! {
+      NoDupeArgs,
+      "function a(a, b, c) {}",
+      "let a = function (a, b, c) {}",
+      "const a = (a, b, c) => {}",
+      "function a({a, b}, {c, d}) {}",
+      "function a([, a]) {}",
+      "function foo([[a, b], [c, d]]) {}",
+      "function foo([[a, b], [c, d]]) {}",
+      "function foo([[a, b], [c, d]]) {}",
+      "const {a, b, c} = obj;",
+      "const {a, b, c, a} = obj;",
 
-    // nested
-    assert_lint_ok::<NoDupeArgs>(
+      // nested
       r#"
 function foo(a, b) {
   function bar(b, c) {}
 }
     "#,
-    );
+    };
   }
 
   #[test]
