@@ -343,286 +343,76 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok::<NoImportAssign>("import mod from 'mod'; mod.prop = 0");
-
-    assert_lint_ok::<NoImportAssign>("import mod from 'mod'; mod.prop += 0;");
-
-    assert_lint_ok::<NoImportAssign>("import mod from 'mod'; mod.prop++");
-  }
-
-  #[test]
-  fn ok_2() {
-    assert_lint_ok::<NoImportAssign>("import mod from 'mod'; delete mod.prop");
-
-    assert_lint_ok::<NoImportAssign>(
+  fn no_import_assign_valid() {
+    assert_lint_ok_macro! {
+      NoImportAssign,
+      "import mod from 'mod'; mod.prop = 0",
+      "import mod from 'mod'; mod.prop += 0;",
+      "import mod from 'mod'; mod.prop++",
+      "import mod from 'mod'; delete mod.prop",
       "import mod from 'mod'; for (mod.prop in foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import mod from 'mod'; for (mod.prop of foo);",
-    );
-  }
-
-  #[test]
-  fn ok_3() {
-    assert_lint_ok::<NoImportAssign>(
       "import mod from 'mod'; [mod.prop] = foo;",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import mod from 'mod'; [...mod.prop] = foo;",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import mod from 'mod'; ({ bar: mod.prop } = foo);",
-    );
-  }
-
-  #[test]
-  fn ok_4() {
-    assert_lint_ok::<NoImportAssign>(
       "import mod from 'mod'; ({ ...mod.prop } = foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; named.prop = 0",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; named.prop += 0",
-    );
-  }
-  #[test]
-  fn ok_5() {
-    assert_lint_ok::<NoImportAssign>("import {named} from 'mod'; named.prop++");
-
-    assert_lint_ok::<NoImportAssign>(
+      "import {named} from 'mod'; named.prop++",
       "import {named} from 'mod'; delete named.prop",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; for (named.prop in foo);",
-    );
-  }
-
-  #[test]
-  fn ok_6() {
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; for (named.prop of foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; [named.prop] = foo;",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; [...named.prop] = foo;",
-    );
-  }
-
-  #[test]
-  fn ok_7() {
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; ({ bar: named.prop } = foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; ({ ...named.prop } = foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; mod.named.prop = 0",
-    );
-  }
-
-  #[test]
-  fn ok_8() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; mod.named.prop += 0",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; mod.named.prop++",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; delete mod.named.prop",
-    );
-  }
-
-  #[test]
-  fn ok_9() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; for (mod.named.prop in foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; for (mod.named.prop of foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; [mod.named.prop] = foo;",
-    );
-  }
-
-  #[test]
-  fn ok_10() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; [...mod.named.prop] = foo;",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; ({ bar: mod.named.prop } = foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; ({ ...mod.named.prop } = foo);",
-    );
-  }
-
-  #[test]
-  fn ok_11() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; obj[mod] = 0",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; obj[mod.named] = 0",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; for (var foo in mod.named);",
-    );
-  }
-
-  #[test]
-  fn ok_12() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; for (var foo of mod.named);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; [bar = mod.named] = foo;",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; ({ bar = mod.named } = foo);",
-    );
-  }
-
-  #[test]
-  fn ok_13() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; ({ bar: baz = mod.named } = foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; ({ [mod.named]: bar } = foo);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; var obj = { ...mod.named };",
-    );
-  }
-
-  #[test]
-  fn ok_14() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; var obj = { foo: mod.named };",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import mod from 'mod'; { let mod = 0; mod = 1 }",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; { let mod = 0; mod = 1 }",
-    );
-  }
-
-  #[test]
-  fn ok_15() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; { let mod = 0; mod.named = 1 }",
-    );
-
-    assert_lint_ok::<NoImportAssign>("import {} from 'mod'");
-
-    assert_lint_ok::<NoImportAssign>("import 'mod'");
-  }
-
-  #[test]
-  fn ok_16() {
-    assert_lint_ok::<NoImportAssign>(
+      "import {} from 'mod'",
+      "import 'mod'",
       "import mod from 'mod'; Object.assign(mod, obj);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import {named} from 'mod'; Object.assign(named, obj);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Object.assign(mod.prop, obj);",
-    );
-  }
-
-  #[test]
-  fn ok_17() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Object.assign(obj, mod, other);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Object[assign](mod, obj);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Object.getPrototypeOf(mod);",
-    );
-  }
-
-  #[test]
-  fn ok_18() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Reflect.set(obj, key, mod);",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; { var Object; Object.assign(mod, obj); }",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; var Object; Object.assign(mod, obj);",
-    );
-  }
-
-  #[test]
-  fn ok_19() {
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Object.seal(mod, obj)",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Object.preventExtensions(mod)",
-    );
-
-    assert_lint_ok::<NoImportAssign>(
       "import * as mod from 'mod'; Reflect.preventExtensions(mod)",
-    );
+    };
   }
 
   #[test]
-  fn err_1() {
+  fn no_import_assign_invalid() {
     assert_lint_err::<NoImportAssign>("import mod1 from 'mod'; mod1 = 0", 24);
 
     assert_lint_err::<NoImportAssign>("import mod2 from 'mod'; mod2 += 0", 24);
 
     assert_lint_err::<NoImportAssign>("import mod3 from 'mod'; mod3++", 24);
-  }
-
-  #[test]
-  fn err_2() {
     assert_lint_err::<NoImportAssign>(
       "import mod4 from 'mod'; for (mod4 in foo);",
       29,
@@ -637,10 +427,6 @@ mod tests {
       "import mod6 from 'mod'; [mod6] = foo",
       25,
     );
-  }
-
-  #[test]
-  fn err_3() {
     assert_lint_err::<NoImportAssign>(
       "import mod7 from 'mod'; [mod7 = 0] = foo",
       25,
@@ -655,10 +441,6 @@ mod tests {
       "import mod9 from 'mod'; ({ bar: mod9 } = foo)",
       32,
     );
-  }
-
-  #[test]
-  fn err_4() {
     assert_lint_err::<NoImportAssign>(
       "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
       33,
@@ -673,10 +455,6 @@ mod tests {
       "import {named1} from 'mod'; named1 = 0",
       28,
     );
-  }
-
-  #[test]
-  fn err_5() {
     assert_lint_err::<NoImportAssign>(
       "import {named2} from 'mod'; named2 += 0",
       28,
@@ -691,10 +469,6 @@ mod tests {
       "import {named4} from 'mod'; for (named4 in foo);",
       33,
     );
-  }
-
-  #[test]
-  fn err_6() {
     assert_lint_err::<NoImportAssign>(
       "import {named5} from 'mod'; for (named5 of foo);",
       33,
@@ -709,10 +483,6 @@ mod tests {
       "import {named7} from 'mod'; [named7 = 0] = foo",
       29,
     );
-  }
-
-  #[test]
-  fn err_7() {
     assert_lint_err::<NoImportAssign>(
       "import {named8} from 'mod'; [...named8] = foo",
       32,
@@ -727,10 +497,6 @@ mod tests {
       "import {named10} from 'mod'; ({ bar: named10 = 0 } = foo)",
       37,
     );
-  }
-
-  #[test]
-  fn err_8() {
     assert_lint_err::<NoImportAssign>(
       "import {named11} from 'mod'; ({ ...named11 } = foo)",
       35,
@@ -745,10 +511,6 @@ mod tests {
       "import * as mod1 from 'mod'; mod1 = 0",
       29,
     );
-  }
-
-  #[test]
-  fn err_9() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod2 from 'mod'; mod2 += 0",
       29,
@@ -763,10 +525,6 @@ mod tests {
       "import * as mod4 from 'mod'; for (mod4 in foo);",
       34,
     );
-  }
-
-  #[test]
-  fn err_10() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod5 from 'mod'; for (mod5 of foo);",
       34,
@@ -781,10 +539,6 @@ mod tests {
       "import * as mod7 from 'mod'; [mod7 = 0] = foo",
       30,
     );
-  }
-
-  #[test]
-  fn err_11() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod8 from 'mod'; [...mod8] = foo",
       33,
@@ -799,10 +553,6 @@ mod tests {
       "import * as mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
       38,
     );
-  }
-
-  #[test]
-  fn err_12() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod11 from 'mod'; ({ ...mod11 } = foo)",
       36,
@@ -817,10 +567,6 @@ mod tests {
       "import * as mod2 from 'mod'; mod2.named += 0",
       29,
     );
-  }
-
-  #[test]
-  fn err_13() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod3 from 'mod'; mod3.named++",
       29,
@@ -835,10 +581,6 @@ mod tests {
       "import * as mod5 from 'mod'; for (mod5.named of foo);",
       34,
     );
-  }
-
-  #[test]
-  fn err_14() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod6 from 'mod'; [mod6.named] = foo",
       30,
@@ -853,10 +595,6 @@ mod tests {
       "import * as mod8 from 'mod'; [...mod8.named] = foo",
       33,
     );
-  }
-
-  #[test]
-  fn err_15() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)",
       37,
@@ -871,10 +609,6 @@ mod tests {
       "import * as mod11 from 'mod'; ({ ...mod11.named } = foo)",
       36,
     );
-  }
-
-  #[test]
-  fn err_16() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod12 from 'mod'; delete mod12.named",
       30,
@@ -889,10 +623,6 @@ mod tests {
       "import * as mod from 'mod'; Object.defineProperty(mod, key, d)",
       28,
     );
-  }
-
-  #[test]
-  fn err_17() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Object.setPrototypeOf(mod, proto)",
       28,
@@ -907,10 +637,6 @@ mod tests {
       "import * as mod from 'mod'; Reflect.defineProperty(mod, key, d)",
       28,
     );
-  }
-
-  #[test]
-  fn err_18() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; Reflect.deleteProperty(mod, key)",
       28,
@@ -925,10 +651,6 @@ mod tests {
       "import * as mod from 'mod'; Reflect.setPrototypeOf(mod, proto)",
       28,
     );
-  }
-
-  #[test]
-  fn err_19() {
     assert_lint_err::<NoImportAssign>(
       "import mod, * as mod_ns from 'mod'; mod.prop = 0; mod_ns.prop = 0",
       50,
@@ -943,10 +665,6 @@ mod tests {
       "import * as mod from 'mod'; (Object?.defineProperty)(mod, key, d)",
       28,
     );
-  }
-
-  #[test]
-  fn err_20() {
     assert_lint_err::<NoImportAssign>(
       "import * as mod from 'mod'; delete mod?.prop",
       28,
