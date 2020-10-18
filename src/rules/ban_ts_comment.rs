@@ -127,7 +127,8 @@ mod tests {
 
   #[test]
   fn ban_ts_comment_valid() {
-    assert_lint_ok_n::<BanTsComment>(vec![
+    assert_lint_ok_macro! {
+      BanTsComment,
       r#"// just a comment containing @ts-expect-error somewhere"#,
       r#"/* @ts-expect-error */"#,
       r#"/** @ts-expect-error */"#,
@@ -135,9 +136,6 @@ mod tests {
 // @ts-expect-error in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok_n::<BanTsComment>(vec![
       r#"// just a comment containing @ts-ignore somewhere"#,
       r#"/* @ts-ignore */"#,
       r#"/** @ts-ignore */"#,
@@ -145,9 +143,6 @@ mod tests {
 // @ts-ignore in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok_n::<BanTsComment>(vec![
       r#"// just a comment containing @ts-nocheck somewhere"#,
       r#"/* @ts-nocheck */"#,
       r#"/** @ts-nocheck */"#,
@@ -155,9 +150,6 @@ mod tests {
 // @ts-nocheck in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok_n::<BanTsComment>(vec![
       r#"// just a comment containing @ts-check somewhere"#,
       r#"/* @ts-check */"#,
       r#"/** @ts-check */"#,
@@ -165,32 +157,19 @@ mod tests {
 // @ts-check in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok::<BanTsComment>(
       r#"if (false) {
 // @ts-ignore: Unreachable code error
 console.log('hello');
 }"#,
-    );
-    assert_lint_ok::<BanTsComment>(
       r#"if (false) {
 // @ts-expect-error: Unreachable code error
 console.log('hello');
 }"#,
-    );
-    assert_lint_ok::<BanTsComment>(
       r#"if (false) {
 // @ts-nocheck: Unreachable code error
 console.log('hello');
 }"#,
-    );
-
-    assert_lint_ok::<BanTsComment>(
-      r#"// @ts-expect-error: Suppress next line"#,
-    );
-    assert_lint_ok::<BanTsComment>(r#"// @ts-ignore: Suppress next line"#);
-    assert_lint_ok::<BanTsComment>(r#"// @ts-nocheck: Suppress next line"#);
+    };
   }
 
   #[test]
