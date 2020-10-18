@@ -241,8 +241,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_await_in_loop_valid_function_wrapped() {
-    assert_lint_ok::<NoAwaitInLoop>(
+  fn no_await_in_loop_valid() {
+    assert_lint_ok_macro! {
+      NoAwaitInLoop,
       r#"
 async function foo(things) {
   const results = [];
@@ -252,9 +253,6 @@ async function foo(things) {
   return baz(await Promise.all(results));
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo(things) {
   for (const thing of things) {
@@ -262,9 +260,6 @@ async function foo(things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo(things) {
   for (const thing of things) {
@@ -274,9 +269,6 @@ async function foo(things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo(things) {
   for (const thing of things) {
@@ -286,9 +278,6 @@ async function foo(things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo(things) {
   for await (const thing of things) {
@@ -296,9 +285,6 @@ async function foo(things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo(things) {
   for await (const thing of await things) {
@@ -306,9 +292,6 @@ async function foo(things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo() {
   for (let i = await bar(); i < n; i++) {
@@ -316,9 +299,6 @@ async function foo() {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo() {
   for (const thing of await things) {
@@ -326,9 +306,6 @@ async function foo() {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 async function foo() {
   for (let thing in await things) {
@@ -336,9 +313,6 @@ async function foo() {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 function foo() {
   async function bar() {
@@ -346,20 +320,13 @@ function foo() {
   }
 }
       "#,
-    );
-  }
 
-  #[test]
-  fn no_await_in_loop_valid_toplevel_await() {
-    assert_lint_ok::<NoAwaitInLoop>(
+      // toplevel await
       r#"
 for (const thing of things) {
   const a = async () => await bar(thing);
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for (const thing of things) {
   async function a() {
@@ -367,9 +334,6 @@ for (const thing of things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for (const thing of things) {
   const a = async function() {
@@ -377,47 +341,32 @@ for (const thing of things) {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for await (const thing of things) {
   console.log(await bar(thing));
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for await (const thing of await things) {
   console.log(await bar(thing));
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for (let i = await bar(); i < n; i++) {
   baz(i);
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for (const thing of await things) {
   bar(thing);
 }
       "#,
-    );
-
-    assert_lint_ok::<NoAwaitInLoop>(
       r#"
 for (let thing in await things) {
   bar(thing);
 }
       "#,
-    );
+    };
   }
 
   #[test]
