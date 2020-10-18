@@ -123,7 +123,6 @@ fn check_comment(comment: &Comment) -> bool {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ban_ts_comment_valid() {
@@ -174,8 +173,29 @@ console.log('hello');
 
   #[test]
   fn ban_ts_comment_invalid() {
-    assert_lint_err::<BanTsComment>(r#"// @ts-expect-error"#, 0);
-    assert_lint_err::<BanTsComment>(r#"// @ts-ignore"#, 0);
-    assert_lint_err::<BanTsComment>(r#"// @ts-nocheck"#, 0);
+    assert_lint_err_macro! {
+      BanTsComment,
+      r#"// @ts-expect-error"#: [
+            {
+              col: 0,
+              message: "ts directives are not allowed without comment",
+              hint: "Add an in-line comment explaining the reason for using this directive",
+            }
+          ],
+    r#"// @ts-ignore"#: [
+            {
+              col: 0,
+              message: "ts directives are not allowed without comment",
+              hint: "Add an in-line comment explaining the reason for using this directive",
+            }
+          ],
+    r#"// @ts-nocheck"#: [
+            {
+              col: 0,
+              message: "ts directives are not allowed without comment",
+              hint: "Add an in-line comment explaining the reason for using this directive",
+            }
+          ]
+    };
   }
 }
