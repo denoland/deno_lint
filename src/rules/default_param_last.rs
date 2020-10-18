@@ -91,7 +91,8 @@ mod tests {
 
   #[test]
   fn default_param_last_valid() {
-    assert_lint_ok_n::<DefaultParamLast>(vec![
+    assert_lint_ok_macro! {
+      DefaultParamLast,
       "function f() {}",
       "function f(a) {}",
       "function fn(a, b) {}",
@@ -111,7 +112,7 @@ class Foo {
   bar(a, b = 2) {}
 }
       "#,
-    ]);
+    };
   }
 
   #[test]
