@@ -154,6 +154,33 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
+  fn no_misused_new_valid() {
+    assert_lint_ok_macro! {
+      NoMisusedNew,
+      "type T = { new(): T }",
+      "interface IC { new(): {} }",
+      "class C { new(): {} }",
+      "class C { constructor(); }",
+      "class C { constructor() {} }",
+      r#"
+    export class Fnv32a extends Fnv32Base<Fnv32a> {
+      write(data: Uint8Array): Fnv32a {
+        let hash = this.sum32();
+    
+        data.forEach((c) => {
+          hash ^= c;
+          hash = mul32(hash, prime32);
+        });
+    
+        this._updateState(hash);
+        return this;
+      }
+    }
+      "#,
+    };
+  }
+
+  #[test]
   fn no_misused_new_invalid() {
     assert_lint_err_on_line_n::<NoMisusedNew>(
       r#"
@@ -231,44 +258,6 @@ declare abstract class C {
       "#,
       3,
       4,
-    )
-  }
-
-  #[test]
-  fn no_misused_new_valid() {
-    assert_lint_ok::<NoMisusedNew>("type T = { new(): T }");
-    assert_lint_ok::<NoMisusedNew>("interface IC { new(): {} }");
-
-    assert_lint_ok::<NoMisusedNew>("class C { new(): {} }");
-    assert_lint_ok::<NoMisusedNew>("class C { constructor(); }");
-    assert_lint_ok::<NoMisusedNew>("class C { constructor() {} }");
-    assert_lint_ok::<NoMisusedNew>(
-      r#"
-    export class Fnv32a extends Fnv32Base<Fnv32a> {
-      write(data: Uint8Array): Fnv32a {
-        let hash = this.sum32();
-    
-        data.forEach((c) => {
-          hash ^= c;
-          hash = mul32(hash, prime32);
-        });
-    
-        this._updateState(hash);
-        return this;
-      }
-    }
-      "#,
-    );
-    assert_lint_ok::<NoMisusedNew>(
-      r#"
-    declare class DC {
-        foo() {
-
-        }
-        get new()
-        bar();
-    }
-      "#,
     )
   }
 }
