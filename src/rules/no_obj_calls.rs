@@ -83,62 +83,25 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn test_no_call_math() {
-    assert_lint_err::<NoObjCalls>(r#"Math();"#, 0)
+  fn no_obj_calls_valid() {
+    assert_lint_ok_macro! {
+      NoObjCalls,
+      "Math.PI * 2 * 3;",
+      "JSON.parse(\"{}\");",
+      "Reflect.get({ x: 1, y: 2 }, \"x\");",
+      "Atomics.load(foo, 0);",
+    };
   }
 
   #[test]
-  fn test_no_new_math() {
-    assert_lint_err::<NoObjCalls>(r#"new Math();"#, 0)
-  }
-
-  #[test]
-  fn test_no_call_json() {
-    assert_lint_err::<NoObjCalls>(r#"JSON();"#, 0)
-  }
-
-  #[test]
-  fn test_no_new_json() {
-    assert_lint_err::<NoObjCalls>(r#"new JSON();"#, 0)
-  }
-
-  #[test]
-  fn test_no_call_reflect() {
-    assert_lint_err::<NoObjCalls>(r#"Reflect();"#, 0)
-  }
-
-  #[test]
-  fn test_no_new_reflect() {
-    assert_lint_err::<NoObjCalls>(r#"new Reflect();"#, 0)
-  }
-
-  #[test]
-  fn test_no_call_atomicst() {
-    assert_lint_err::<NoObjCalls>(r#"Atomics();"#, 0)
-  }
-
-  #[test]
-  fn test_no_new_atomics() {
-    assert_lint_err::<NoObjCalls>(r#"new Atomics();"#, 0)
-  }
-
-  #[test]
-  fn test_math_func_ok() {
-    assert_lint_ok::<NoObjCalls>("Math.PI * 2 * 3;");
-  }
-
-  #[test]
-  fn test_new_json_ok() {
-    assert_lint_ok::<NoObjCalls>("JSON.parse(\"{}\");");
-  }
-
-  #[test]
-  fn test_reflect_get_ok() {
-    assert_lint_ok::<NoObjCalls>("Reflect.get({ x: 1, y: 2 }, \"x\");");
-  }
-
-  #[test]
-  fn test_atomic_load_ok() {
-    assert_lint_ok::<NoObjCalls>("Atomics.load(foo, 0);");
+  fn no_obj_calls_invalid() {
+    assert_lint_err::<NoObjCalls>(r#"Math();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"new Math();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"JSON();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"new JSON();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"Reflect();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"new Reflect();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"Atomics();"#, 0);
+    assert_lint_err::<NoObjCalls>(r#"new Atomics();"#, 0);
   }
 }
