@@ -62,12 +62,15 @@ mod tests {
 
   #[test]
   fn eqeqeq_valid() {
-    assert_lint_ok::<Eqeqeq>("midori === sapphire");
-    assert_lint_ok::<Eqeqeq>("midori !== hazuki");
-    assert_lint_ok::<Eqeqeq>("kumiko === null");
-    assert_lint_ok::<Eqeqeq>("reina !== null");
-    assert_lint_ok::<Eqeqeq>("null === null");
-    assert_lint_ok::<Eqeqeq>("null !== null");
+    assert_lint_ok_macro! {
+      Eqeqeq,
+      "midori === sapphire",
+      "midori !== hazuki",
+      "kumiko === null",
+      "reina !== null",
+      "null === null",
+      "null !== null",
+    };
   }
 
   #[test]
