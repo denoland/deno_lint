@@ -32,6 +32,51 @@ impl LintRule for ConstructorSuper {
     let mut visitor = ConstructorSuperVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Verifies the correct usage of constructors and calls to `super()`.
+
+Defined constructors of derived classes (e.g. `class A extends B`) must always call
+`super()`.  Classes which extend non-constructors (e.g. `class A extends null`) must
+not have a constructor.
+
+### Valid:
+```typescript
+class A {}
+class B extends A {}
+class C extends A {
+  constructor() {
+    super();
+  }
+}
+class D extends null {}
+```
+
+### Invalid:
+```typescript
+class A {}
+class Z {
+  constructor() {}
+}
+
+class B extends Z {
+  constructor() {} // missing super() call
+} 
+class C {
+  constructor() {
+    super();  // Syntax error
+  }
+}
+class D extends null {
+  constructor() {}  // illegal constructor
+}
+class E extends null {
+  constructor() {  // illegal constructor
+    super();
+  }
+}
+```"#
+  }
 }
 
 struct ConstructorSuperVisitor<'c> {
@@ -54,10 +99,11 @@ impl<'c> ConstructorSuperVisitor<'c> {
               if sup.is_none() {
                 sup = Some(s)
               } else {
-                self.context.add_diagnostic(
+                self.context.add_diagnostic_with_hint(
                   span,
                   "constructor-super",
                   "Constructors of derived classes must call super() only once",
+                  "Remove extra calls to super()",
                 );
               }
             }
@@ -66,10 +112,11 @@ impl<'c> ConstructorSuperVisitor<'c> {
           // returning value is a substitute of 'super()'.
           if sup.is_none() {
             if ret.arg.is_none() && class.super_class.is_some() {
-              self.context.add_diagnostic(
+              self.context.add_diagnostic_with_hint(
                 span,
                 "constructor-super",
                 "Constructors of derived classes must call super()",
+                "Add call to super() in the constructor",
               );
             }
             return;
@@ -80,38 +127,31 @@ impl<'c> ConstructorSuperVisitor<'c> {
 
     if let Some(expr) = &class.super_class {
       if let Expr::Lit(_) = &**expr {
-        if constructor.body.is_none()
-          || constructor.body.as_ref().unwrap().stmts.is_empty()
-        {
-          self.context.add_diagnostic(
-            span,
-            "constructor-super",
-            "Classes which inherit from a non constructor must not define a constructor",
-          );
-        } else {
-          self.context.add_diagnostic(
-            span,
-            "constructor-super",
-            "Constructors of classes which inherit from a non constructor must not call super()",
-          );
-        }
+        self.context.add_diagnostic_with_hint(
+          span,
+          "constructor-super",
+          "Classes which inherit from a non constructor must not define a constructor",
+          "Remove constructor"
+        );
         return;
       }
     }
 
     if sup.is_some() {
       if class.super_class.is_none() {
-        self.context.add_diagnostic(
+        self.context.add_diagnostic_with_hint(
           span,
           "constructor-super",
           "Constructors of non derived classes must not call super()",
+          "Remove call to super()",
         );
       }
     } else if class.super_class.is_some() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         span,
         "constructor-super",
         "Constructors of derived classes must call super()",
+        "Add call to super() in the constructor",
       );
     }
   }

@@ -26,6 +26,32 @@ impl LintRule for DefaultParamLast {
     let mut visitor = DefaultParamLastVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Enforces default parameter(s) to be last in the function signature.
+
+Parameters with default values are optional by nature but cannot be left out
+of the function call without mapping the function inputs to different parameters
+which is confusing and error prone.  Specifying them last allows them to be left
+out without changing the semantics of the other parameters.
+    
+### Valid:
+```typescript
+function f() {}
+function f(a) {}
+function f(a = 5) {}
+function f(a, b = 5) {}
+function f(a, b = 5, c = 5) {}
+function f(a, b = 5, ...c) {}
+function f(a = 2, b = 3) {}
+```
+
+### Invalid:
+```typescript
+function f(a = 2, b) {}
+function f(a = 5, b, c = 5) {}
+```"#
+  }
 }
 
 struct DefaultParamLastVisitor<'c> {
@@ -38,10 +64,11 @@ impl<'c> DefaultParamLastVisitor<'c> {
   }
 
   fn report(&mut self, span: Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "default-param-last",
       "default parameters should be at last",
+      "Modify the signatures to move default parameter(s) to the end",
     );
   }
 
