@@ -120,7 +120,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn use_isnan_test() {
+  fn use_isnan_invalid() {
     assert_lint_err::<UseIsNaN>("42 === NaN", 0);
     assert_lint_err_on_line_n::<UseIsNaN>(
       r#"
