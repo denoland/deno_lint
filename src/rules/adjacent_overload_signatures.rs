@@ -281,15 +281,15 @@ mod tests {
 
   #[test]
   fn adjacent_overload_signatures_valid() {
-    assert_lint_ok::<AdjacentOverloadSignatures>(
-      r#"
+    assert_lint_ok_macro! {
+      AdjacentOverloadSignatures,
+      [
+        r#"
 function error(a: string);
 function error(b: number);
 function error(ab: string | number) {}
 export { error };
       "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 import { connect } from 'react-redux';
 export interface ErrorMessageModel {
@@ -299,55 +299,41 @@ function mapStateToProps() {}
 function mapDispatchToProps() {}
 export default connect(mapStateToProps, mapDispatchToProps)(ErrorMessage);
       "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 export const foo = 'a',
   bar = 'b';
 export interface Foo {}
 export class Foo {}
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 export interface Foo {}
 export const foo = 'a',
   bar = 'b';
 export class Foo {}
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 const foo = 'a',
   bar = 'b';
 interface Foo {}
 class Foo {}
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {}
 const foo = 'a',
   bar = 'b';
 class Foo {}
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 export class Foo {}
 export class Bar {}
 export type FooBar = Foo | Bar;
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 export interface Foo {}
 export class Foo {}
 export class Bar {}
 export type FooBar = Foo | Bar;
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 export function foo(s: string);
 export function foo(n: number);
@@ -355,8 +341,6 @@ export function foo(sn: string | number) {}
 export function bar(): void {}
 export function baz(): void {}
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 function foo(s: string);
 function foo(n: number);
@@ -364,8 +348,6 @@ function foo(sn: string | number) {}
 function bar(): void {}
 function baz(): void {}
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 declare function foo(s: string);
 declare function foo(n: number);
@@ -373,8 +355,6 @@ declare function foo(sn: string | number);
 declare function bar(): void;
 declare function baz(): void;
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 declare module 'Foo' {
   export function foo(s: string): void;
@@ -384,8 +364,6 @@ declare module 'Foo' {
   export function baz(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 declare namespace Foo {
   export function foo(s: string): void;
@@ -395,8 +373,6 @@ declare namespace Foo {
   export function baz(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 type Foo = {
   foo(s: string): void;
@@ -406,8 +382,6 @@ type Foo = {
   baz(): void;
 };
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 type Foo = {
   foo(s: string): void;
@@ -417,8 +391,6 @@ type Foo = {
   baz(): void;
 };
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   (s: string): void;
@@ -429,8 +401,6 @@ interface Foo {
   baz(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   (s: string): void;
@@ -442,8 +412,6 @@ interface Foo {
   call(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   foo(s: string): void;
@@ -453,8 +421,6 @@ interface Foo {
   baz(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   foo(s: string): void;
@@ -464,8 +430,6 @@ interface Foo {
   baz(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   foo(): void;
@@ -476,8 +440,6 @@ interface Foo {
   };
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   new (s: string);
@@ -486,8 +448,6 @@ interface Foo {
   foo(): void;
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   constructor(s: string);
@@ -497,8 +457,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -508,8 +466,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -519,8 +475,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -530,8 +484,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -541,8 +493,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   name: string;
@@ -553,8 +503,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   name: string;
@@ -566,8 +514,6 @@ class Foo {
   foo() {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Test {
   static test() {}
@@ -575,21 +521,16 @@ class Test {
   test() {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"export default function <T>(foo: T) {}"#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"export default function named<T>(foo: T) {}"#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   [Symbol.toStringTag](): void;
   [Symbol.iterator](): void;
 }
     "#,
-    );
+      ],
+    };
   }
 
   #[test]
