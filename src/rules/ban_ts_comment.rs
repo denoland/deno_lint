@@ -173,7 +173,7 @@ console.log('hello');
 
   #[test]
   fn ban_ts_comment_invalid() {
-    assert_lint_err_macro! {
+    assert_lint_err! {
       BanTsComment,
       r#"// @ts-expect-error"#: [
             {

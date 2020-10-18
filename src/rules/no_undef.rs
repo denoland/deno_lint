@@ -354,7 +354,7 @@ mod tests {
 
   #[test]
   fn no_undef_invalid() {
-    assert_lint_err_macro! {
+    assert_lint_err! {
       NoUndef,
       "a = 1;": [
         {

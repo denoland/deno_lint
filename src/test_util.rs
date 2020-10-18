@@ -16,9 +16,8 @@ macro_rules! assert_lint_ok {
   };
 }
 
-// TODO(magurotuna): rename this macro after replacing existing tests with this macro
 #[macro_export]
-macro_rules! assert_lint_err_macro {
+macro_rules! assert_lint_err {
   (
     $rule:ty,
     $(

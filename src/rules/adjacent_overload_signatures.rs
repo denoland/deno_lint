@@ -532,7 +532,7 @@ interface Foo {
 
   #[test]
   fn adjacent_overload_signatures_invalid() {
-    assert_lint_err_macro! {
+    assert_lint_err! {
       AdjacentOverloadSignatures,
       r#"
 export function foo(s: string);
