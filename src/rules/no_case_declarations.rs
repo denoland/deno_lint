@@ -84,7 +84,8 @@ mod tests {
 
   #[test]
   fn no_case_declarations_valid() {
-    assert_lint_ok::<NoCaseDeclarations>(
+    assert_lint_ok_macro! {
+      NoCaseDeclarations,
       r#"
 switch (foo) {
   case 1: {
@@ -113,7 +114,7 @@ switch (foo) {
   }
 }
       "#,
-    );
+    };
   }
 
   #[test]
