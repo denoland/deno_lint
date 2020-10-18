@@ -211,8 +211,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_inner_declarations_ok() {
-    assert_lint_ok_n::<NoInnerDeclarations>(vec![
+  fn no_inner_declarations_valid() {
+    assert_lint_ok_macro! {
+      NoInnerDeclarations,
       "function doSomething() { }",
       "function doSomething() { function somethingElse() { } }",
       "(function() { function doSomething() { } }());",
@@ -236,11 +237,11 @@ mod tests {
       "exports.foo = () => {}",
       "exports.foo = function(){}",
       "module.exports = function foo(){}",
-    ]);
+    };
   }
 
   #[test]
-  fn no_inner_declarations_err() {
+  fn no_inner_declarations_invalid() {
     // fn decls
     assert_lint_err::<NoInnerDeclarations>(
       "if (test) { function doSomething() { } }",
