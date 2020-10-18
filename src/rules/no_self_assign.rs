@@ -296,7 +296,8 @@ mod tests {
 
   #[test]
   fn no_self_assign_valid() {
-    assert_lint_ok_n::<NoSelfAssign>(vec![
+    assert_lint_ok_macro! {
+      NoSelfAssign,
       "var a = a;",
       "a = b",
       "a += a",
@@ -331,7 +332,7 @@ mod tests {
       "this.x = this.y",
       "this.x = options.x",
       "this.name = this.constructor.name",
-    ]);
+    };
   }
 
   #[test]
