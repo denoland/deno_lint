@@ -69,18 +69,18 @@ impl<'c> Visit for NoExAssignVisitor<'c> {
 mod tests {
   use super::*;
   use crate::test_util::assert_lint_err_on_line_n;
-  use crate::test_util::assert_lint_ok;
 
   #[test]
   fn no_ex_assign_valid() {
-    assert_lint_ok::<NoExAssign>(
+    assert_lint_ok_macro! {
+      NoExAssign,
       r#"
 try {} catch { e = 1; }
 try {} catch (ex) { something = 1; }
 try {} catch (ex) { return 1; }
 function foo() { try { } catch (e) { return false; } }
       "#,
-    );
+    };
   }
 
   #[test]
