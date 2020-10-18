@@ -282,8 +282,7 @@ mod tests {
   fn adjacent_overload_signatures_valid() {
     assert_lint_ok_macro! {
       AdjacentOverloadSignatures,
-      [
-        r#"
+      r#"
 function error(a: string);
 function error(b: number);
 function error(ab: string | number) {}
@@ -303,57 +302,57 @@ export const foo = 'a',
   bar = 'b';
 export interface Foo {}
 export class Foo {}
-    "#,
+      "#,
       r#"
 export interface Foo {}
 export const foo = 'a',
   bar = 'b';
 export class Foo {}
-    "#,
+      "#,
       r#"
 const foo = 'a',
   bar = 'b';
 interface Foo {}
 class Foo {}
-    "#,
+      "#,
       r#"
 interface Foo {}
 const foo = 'a',
   bar = 'b';
 class Foo {}
-    "#,
+      "#,
       r#"
 export class Foo {}
 export class Bar {}
 export type FooBar = Foo | Bar;
-    "#,
+      "#,
       r#"
 export interface Foo {}
 export class Foo {}
 export class Bar {}
 export type FooBar = Foo | Bar;
-    "#,
+      "#,
       r#"
 export function foo(s: string);
 export function foo(n: number);
 export function foo(sn: string | number) {}
 export function bar(): void {}
 export function baz(): void {}
-    "#,
+      "#,
       r#"
 function foo(s: string);
 function foo(n: number);
 function foo(sn: string | number) {}
 function bar(): void {}
 function baz(): void {}
-    "#,
+      "#,
       r#"
 declare function foo(s: string);
 declare function foo(n: number);
 declare function foo(sn: string | number);
 declare function bar(): void;
 declare function baz(): void;
-    "#,
+      "#,
       r#"
 declare module 'Foo' {
   export function foo(s: string): void;
@@ -362,7 +361,7 @@ declare module 'Foo' {
   export function bar(): void;
   export function baz(): void;
 }
-    "#,
+      "#,
       r#"
 declare namespace Foo {
   export function foo(s: string): void;
@@ -371,7 +370,7 @@ declare namespace Foo {
   export function bar(): void;
   export function baz(): void;
 }
-    "#,
+      "#,
       r#"
 type Foo = {
   foo(s: string): void;
@@ -380,7 +379,7 @@ type Foo = {
   bar(): void;
   baz(): void;
 };
-    "#,
+      "#,
       r#"
 type Foo = {
   foo(s: string): void;
@@ -389,7 +388,7 @@ type Foo = {
   bar(): void;
   baz(): void;
 };
-    "#,
+      "#,
       r#"
 interface Foo {
   (s: string): void;
@@ -399,7 +398,7 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-    "#,
+      "#,
       r#"
 interface Foo {
   (s: string): void;
@@ -410,7 +409,7 @@ interface Foo {
   baz(): void;
   call(): void;
 }
-    "#,
+      "#,
       r#"
 interface Foo {
   foo(s: string): void;
@@ -419,7 +418,7 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-    "#,
+      "#,
       r#"
 interface Foo {
   foo(s: string): void;
@@ -428,7 +427,7 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-    "#,
+      "#,
       r#"
 interface Foo {
   foo(): void;
@@ -438,7 +437,7 @@ interface Foo {
     baz(sn: string | number): void;
   };
 }
-    "#,
+      "#,
       r#"
 interface Foo {
   new (s: string);
@@ -446,7 +445,7 @@ interface Foo {
   new (sn: string | number);
   foo(): void;
 }
-    "#,
+      "#,
       r#"
 class Foo {
   constructor(s: string);
@@ -482,7 +481,7 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-    "#,
+      "#,
       r#"
 class Foo {
   foo(s: string): void;
@@ -491,7 +490,7 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-    "#,
+      "#,
       r#"
 class Foo {
   name: string;
@@ -501,7 +500,7 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-    "#,
+      "#,
       r#"
 class Foo {
   name: string;
@@ -512,14 +511,14 @@ class Foo {
   baz(): void {}
   foo() {}
 }
-    "#,
+      "#,
       r#"
 class Test {
   static test() {}
   untest() {}
   test() {}
 }
-    "#,
+      "#,
       r#"export default function <T>(foo: T) {}"#,
       r#"export default function named<T>(foo: T) {}"#,
       r#"
@@ -527,8 +526,7 @@ interface Foo {
   [Symbol.toStringTag](): void;
   [Symbol.iterator](): void;
 }
-    "#,
-      ],
+      "#,
     };
   }
 

@@ -10,10 +10,7 @@ use swc_ecmascript::ast::Module;
 // TODO(magurotuna): rename this macro after replacing existing tests with this macro
 #[macro_export]
 macro_rules! assert_lint_ok_macro {
-  ($rule:ty, $src:literal $(,)?) => {
-    $crate::test_util::assert_lint_ok::<$rule>($src);
-  };
-  ($rule:ty, [$($src:literal),* $(,)?] $(,)?) => {
+  ($rule:ty, $($src:literal),* $(,)?) => {
     $(
       $crate::test_util::assert_lint_ok::<$rule>($src);
     )*

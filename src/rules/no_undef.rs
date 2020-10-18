@@ -258,11 +258,9 @@ mod tests {
   fn ok_1() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "var a = 1, b = 2; a;",
-        "function a(){}  a();",
-        "function f(b) { b; }",
-      ],
+      "var a = 1, b = 2; a;",
+      "function a(){}  a();",
+      "function f(b) { b; }",
     };
   }
 
@@ -270,11 +268,9 @@ mod tests {
   fn ok_2() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "var a; a = 1; a++;",
-        "var a; function f() { a = 1; }",
-        "Object; isNaN();",
-      ],
+      "var a; a = 1; a++;",
+      "var a; function f() { a = 1; }",
+      "Object; isNaN();",
     };
   }
 
@@ -282,11 +278,9 @@ mod tests {
   fn ok_3() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "toString()",
-        "hasOwnProperty()",
-        "function evilEval(stuffToEval) { var ultimateAnswer; ultimateAnswer = 42; eval(stuffToEval); }",
-      ],
+      "toString()",
+      "hasOwnProperty()",
+      "function evilEval(stuffToEval) { var ultimateAnswer; ultimateAnswer = 42; eval(stuffToEval); }",
     };
   }
 
@@ -294,7 +288,9 @@ mod tests {
   fn ok_4() {
     assert_lint_ok_macro! {
       NoUndef,
-      ["typeof a", "typeof (a)", "var b = typeof a",]
+      "typeof a",
+      "typeof (a)",
+      "var b = typeof a",
     };
   }
 
@@ -302,11 +298,9 @@ mod tests {
   fn ok_5() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "typeof a === 'undefined'",
-        "if (typeof a === 'undefined') {}",
-        "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
-      ],
+      "typeof a === 'undefined'",
+      "if (typeof a === 'undefined') {}",
+      "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
     };
   }
 
@@ -314,11 +308,9 @@ mod tests {
   fn ok_6() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "var toString = 1;",
-        "function myFunc(...foo) {  return foo;}",
-        "function myFunc() { console.log(arguments); }",
-      ],
+      "var toString = 1;",
+      "function myFunc(...foo) {  return foo;}",
+      "function myFunc() { console.log(arguments); }",
     };
 
     // TODO(kdy1): Parse as jsx
@@ -331,11 +323,9 @@ mod tests {
   fn ok_7() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
-        "var Foo; class Bar extends Foo { constructor() { super();  }}",
-        "import Warning from '../lib/warning'; var warn = new Warning('text');",
-      ],
+      "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
+      "var Foo; class Bar extends Foo { constructor() { super();  }}",
+      "import Warning from '../lib/warning'; var warn = new Warning('text');",
     };
   }
 
@@ -343,11 +333,9 @@ mod tests {
   fn ok_8() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "import * as Warning from '../lib/warning'; var warn = new Warning('text');",
-        "var a; [a] = [0];",
-        "var a; ({a} = {});",
-      ],
+      "import * as Warning from '../lib/warning'; var warn = new Warning('text');",
+      "var a; [a] = [0];",
+      "var a; ({a} = {});",
     };
   }
 
@@ -355,11 +343,9 @@ mod tests {
   fn ok_9() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "var a; ({b: a} = {});",
-        "var obj; [obj.a, obj.b] = [0, 1];",
-        "(foo, bar) => { foo ||= WeakRef; bar ??= FinalizationRegistry; }",
-      ],
+      "var a; ({b: a} = {});",
+      "var obj; [obj.a, obj.b] = [0, 1];",
+      "(foo, bar) => { foo ||= WeakRef; bar ??= FinalizationRegistry; }",
     };
   }
 
@@ -367,11 +353,9 @@ mod tests {
   fn ok_10() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "Array = 1;",
-        "class A { constructor() { new.target; } }",
-        r#"export * as ns from "source""#,
-      ],
+      "Array = 1;",
+      "class A { constructor() { new.target; } }",
+      r#"export * as ns from "source""#,
     };
   }
 
@@ -379,14 +363,12 @@ mod tests {
   fn ok_11() {
     assert_lint_ok_macro! {
       NoUndef,
-      [
-        "import.meta",
-        "
-        await new Promise((resolve: () => void, _) => {
-          setTimeout(resolve, 100);
-        });
-        ",
-      ],
+      "import.meta",
+      "
+      await new Promise((resolve: () => void, _) => {
+        setTimeout(resolve, 100);
+      });
+      ",
     };
   }
 
