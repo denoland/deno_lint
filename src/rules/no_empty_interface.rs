@@ -68,12 +68,15 @@ mod tests {
 
   #[test]
   fn no_empty_interface_valid() {
-    assert_lint_ok::<NoEmptyInterface>("interface Foo { a: string }");
-    assert_lint_ok::<NoEmptyInterface>("interface Foo { a: number }");
+    assert_lint_ok_macro! {
+      NoEmptyInterface,
+      "interface Foo { a: string }",
+      "interface Foo { a: number }",
 
-    // This is valid because an interface with more than one supertype
-    // can be used as a replacement of a union type.
-    assert_lint_ok::<NoEmptyInterface>("interface Foo extends Bar, Baz {}");
+      // This is valid because an interface with more than one supertype
+      // can be used as a replacement of a union type.
+      "interface Foo extends Bar, Baz {}",
+    };
   }
 
   #[test]
