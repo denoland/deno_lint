@@ -213,34 +213,26 @@ mod tests {
 
   #[test]
   fn no_dupe_class_members_valid() {
-    assert_lint_ok::<NoDupeClassMembers>(
+    assert_lint_ok_macro! {
+      NoDupeClassMembers,
       r#"
 class Foo {
   bar() {}
   qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   get bar() {}
   set bar(value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   static bar() {}
   bar() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   static bar() {}
@@ -248,25 +240,16 @@ class Foo {
   set bar(value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class A { foo() {} }
 class B { foo() {} }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [bar]() {}
   bar() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   'bar'() {}
@@ -274,9 +257,6 @@ class Foo {
   qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   *'bar'() {}
@@ -284,9 +264,6 @@ class Foo {
   *qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   get 'bar'() {}
@@ -294,162 +271,108 @@ class Foo {
   get qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   1() {}
   2() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['bar']() {}
   ['baz']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [`bar`]() {}
   [`baz`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [12]() {}
   [123]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [1.0]() {}
   ['1.0']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [0x1]() {}
   [`0x1`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [null]() {}
   ['']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   get ['bar']() {}
   set ['bar'](value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['bar']() {}
   static ['bar']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['constructor']() {}
   constructor() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   'constructor'() {}
   [`constructor`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   contrructor() {}
   get [`constructor`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   contrructor() {}
   set [`constructor`](value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['bar' + '']() {}
   ['bar']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [`bar${''}`]() {}
   [`bar`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [-1]() {}
   ['-1']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [foo]() {}
   [foo]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   foo() {
@@ -460,9 +383,6 @@ class Foo {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   bar(v1: number): number;
@@ -470,7 +390,7 @@ class Foo {
   bar(v1: number | string, v2?: boolean): number | string {}
 }
       "#,
-    );
+    };
   }
 
   #[test]
