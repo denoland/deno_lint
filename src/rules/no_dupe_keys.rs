@@ -102,6 +102,9 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
+  // TODO(magurotuna): fix the following tests after https://github.com/denoland/deno_lint/pull/406
+  // is merged.
+
   #[test]
   fn it_passes_when_there_are_no_duplicate_keys() {
     assert_lint_ok::<NoDupeKeys>(r#"var foo = { bar: "baz", boo: "bang" }"#);
