@@ -430,7 +430,6 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn test_is_underscored() {
@@ -623,91 +622,230 @@ mod tests {
 
   #[test]
   fn camelcase_invalid() {
-    assert_lint_err::<Camelcase>(r#"function foo_bar(){}"#, 9);
-    assert_lint_err::<Camelcase>(r#"var foo = { bar_baz: boom.bam_pow }"#, 12);
-    assert_lint_err::<Camelcase>(r#"var o = {bar_baz: 1}"#, 9);
-    assert_lint_err::<Camelcase>(
-      r#"var { category_id: category_alias } = query;"#,
-      19,
-    );
-    assert_lint_err::<Camelcase>(r#"var { category_id } = query;"#, 6);
-
-    assert_lint_err::<Camelcase>(
-      r#"var { category_id: category_id } = query;"#,
-      19,
-    );
-    assert_lint_err::<Camelcase>(r#"var { category_id = 1 } = query;"#, 6);
-    assert_lint_err::<Camelcase>(
-      r#"import no_camelcased from "external-module";"#,
-      7,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import * as no_camelcased from "external-module";"#,
-      12,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import { no_camelcased } from "external-module";"#,
-      9,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import { no_camelcased as no_camel_cased } from "external module";"#,
-      26,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import { camelCased as no_camel_cased } from "external module";"#,
-      23,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import { camelCased, no_camelcased } from "external-module";"#,
-      21,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import { no_camelcased as camelCased, another_no_camelcased } from "external-module";"#,
-      38,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import camelCased, { no_camelcased } from "external-module";"#,
-      21,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"import no_camelcased, { another_no_camelcased as camelCased } from "external-module";"#,
-      7,
-    );
-    assert_lint_err::<Camelcase>(r#"import snake_cased from 'mod'"#, 7);
-    assert_lint_err::<Camelcase>(r#"import * as snake_cased from 'mod'"#, 12);
-    assert_lint_err::<Camelcase>(r#"export * as snake_cased from 'mod'"#, 12);
-    assert_lint_err::<Camelcase>(r#"function foo({ no_camelcased }) {};"#, 15);
-    assert_lint_err::<Camelcase>(
-      r#"function foo({ no_camelcased = 'default value' }) {};"#,
-      15,
-    );
-    assert_lint_err_n::<Camelcase>(
-      r#"const no_camelcased = 0; function foo({ camelcased_value = no_camelcased }) {}"#,
-      vec![6, 40],
-    );
-    assert_lint_err::<Camelcase>(r#"const { bar: no_camelcased } = foo;"#, 13);
-    assert_lint_err::<Camelcase>(
-      r#"function foo({ value_1: my_default }) {}"#,
-      24,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"function foo({ isCamelcased: no_camelcased }) {};"#,
-      29,
-    );
-    assert_lint_err::<Camelcase>(r#"var { foo: bar_baz = 1 } = quz;"#, 11);
-    assert_lint_err::<Camelcase>(
-      r#"const { no_camelcased = false } = bar;"#,
-      8,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"const { no_camelcased = foo_bar } = bar;"#,
-      8,
-    );
-    assert_lint_err::<Camelcase>(
-      r#"const f = function no_camelcased() {};"#,
-      19,
-    );
-    assert_lint_err::<Camelcase>(r#"const c = class no_camelcased {};"#, 16);
-    assert_lint_err::<Camelcase>(r#"class no_camelcased {}"#, 6);
+    assert_lint_err_macro! {
+      Camelcase,
+      r#"function foo_bar(){}"#: [
+            {
+              col: 9,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `fooBar`",
+            }
+          ],
+    r#"var foo = { bar_baz: boom.bam_pow }"#: [
+            {
+              col: 12,
+              message: "Identifier 'bar_baz' is not in camel case.",
+              hint: "Consider renaming `bar_baz` to `barBaz`",
+            }
+          ],
+    r#"var o = {bar_baz: 1}"#: [
+            {
+              col: 9,
+              message: "Identifier 'bar_baz' is not in camel case.",
+              hint: "Consider renaming `bar_baz` to `barBaz`",
+            }
+          ],
+    r#"var { category_id: category_alias } = query;"#: [
+            {
+              col: 19,
+              message: "Identifier 'category_alias' is not in camel case.",
+              hint: "Consider renaming `category_alias` to `categoryAlias`",
+            }
+          ],
+    r#"var { category_id } = query;"#: [
+            {
+              col: 6,
+              message: "Identifier 'category_id' is not in camel case.",
+              hint: "Consider replacing `{ category_id }` with `{ category_id: categoryId }`",
+            }
+          ],
+    r#"var { category_id: category_id } = query;"#: [
+            {
+              col: 19,
+              message: "Identifier 'category_id' is not in camel case.",
+              hint: "Consider renaming `category_id` to `categoryId`",
+            }
+          ],
+    r#"var { category_id = 1 } = query;"#: [
+            {
+              col: 6,
+              message: "Identifier 'category_id' is not in camel case.",
+              hint: "Consider replacing `{ category_id }` with `{ category_id: categoryId }`",
+            }
+          ],
+    r#"import no_camelcased from "external-module";"#: [
+            {
+              col: 7,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
+    r#"import * as no_camelcased from "external-module";"#: [
+            {
+              col: 12,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
+    r#"import { no_camelcased } from "external-module";"#: [
+            {
+              col: 9,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
+            }
+          ],
+    r#"import { no_camelcased as no_camel_cased } from "external module";"#: [
+            {
+              col: 26,
+              message: "Identifier 'no_camel_cased' is not in camel case.",
+              hint: "Consider renaming `no_camel_cased` to `noCamelCased`",
+            }
+          ],
+    r#"import { camelCased as no_camel_cased } from "external module";"#: [
+            {
+              col: 23,
+              message: "Identifier 'no_camel_cased' is not in camel case.",
+              hint: "Consider renaming `no_camel_cased` to `noCamelCased`",
+            }
+          ],
+    r#"import { camelCased, no_camelcased } from "external-module";"#: [
+            {
+              col: 21,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
+            }
+          ],
+    r#"import { no_camelcased as camelCased, another_no_camelcased } from "external-module";"#: [
+            {
+              col: 38,
+              message: "Identifier 'another_no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ another_no_camelcased }` with `{ another_no_camelcased as anotherNoCamelcased }`",
+            }
+          ],
+    r#"import camelCased, { no_camelcased } from "external-module";"#: [
+            {
+              col: 21,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
+            }
+          ],
+    r#"import no_camelcased, { another_no_camelcased as camelCased } from "external-module";"#: [
+            {
+              col: 7,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
+    r#"import snake_cased from 'mod'"#: [
+            {
+              col: 7,
+              message: "Identifier 'snake_cased' is not in camel case.",
+              hint: "Consider renaming `snake_cased` to `snakeCased`",
+            }
+          ],
+    r#"import * as snake_cased from 'mod'"#: [
+            {
+              col: 12,
+              message: "Identifier 'snake_cased' is not in camel case.",
+              hint: "Consider renaming `snake_cased` to `snakeCased`",
+            }
+          ],
+    r#"export * as snake_cased from 'mod'"#: [
+            {
+              col: 12,
+              message: "Identifier 'snake_cased' is not in camel case.",
+              hint: "Consider renaming `snake_cased` to `snakeCased`",
+            }
+          ],
+    r#"function foo({ no_camelcased }) {};"#: [
+            {
+              col: 15,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+            }
+          ],
+    r#"function foo({ no_camelcased = 'default value' }) {};"#: [
+            {
+              col: 15,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+            }
+          ],
+    r#"const no_camelcased = 0; function foo({ camelcased_value = no_camelcased }) {}"#: [
+            {
+              col: 6,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            },
+            {
+              col: 40,
+              message: "Identifier 'camelcased_value' is not in camel case.",
+              hint: "Consider replacing `{ camelcased_value }` with `{ camelcased_value: camelcasedValue }`",
+            }
+          ],
+    r#"const { bar: no_camelcased } = foo;"#: [
+            {
+              col: 13,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
+    r#"function foo({ value_1: my_default }) {}"#: [
+            {
+              col: 24,
+              message: "Identifier 'my_default' is not in camel case.",
+              hint: "Consider renaming `my_default` to `myDefault`",
+            }
+          ],
+    r#"function foo({ isCamelcased: no_camelcased }) {};"#: [
+            {
+              col: 29,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
+    r#"var { foo: bar_baz = 1 } = quz;"#: [
+            {
+              col: 11,
+              message: "Identifier 'bar_baz' is not in camel case.",
+              hint: "Consider renaming `bar_baz` to `barBaz`",
+            }
+          ],
+    r#"const { no_camelcased = false } = bar;"#: [
+            {
+              col: 8,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+            }
+          ],
+    r#"const { no_camelcased = foo_bar } = bar;"#: [
+            {
+              col: 8,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+            }
+          ],
+    r#"const f = function no_camelcased() {};"#: [
+            {
+              col: 19,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
+    r#"const c = class no_camelcased {};"#: [
+            {
+              col: 16,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `NoCamelcased`",
+            }
+          ],
+    r#"class no_camelcased {}"#: [
+            {
+              col: 6,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `NoCamelcased`",
+            }
+          ]
+    };
   }
 }
