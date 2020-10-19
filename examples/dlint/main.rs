@@ -15,6 +15,8 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+mod plugin;
+
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
     .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -110,6 +112,7 @@ fn run_linter(paths: Vec<String>) {
 
     let mut linter = LinterBuilder::default()
       .rules(get_recommended_rules())
+      .rules(vec![Box::new(plugin::WarnRawGitImport)])
       .build();
 
     let file_diagnostics = linter

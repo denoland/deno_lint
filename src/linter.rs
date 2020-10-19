@@ -36,7 +36,7 @@ pub struct Context {
 }
 
 impl Context {
-  pub(crate) fn add_diagnostic(
+  pub fn add_diagnostic(
     &mut self,
     span: Span,
     code: impl Into<String>,
