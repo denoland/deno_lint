@@ -38,14 +38,11 @@ macro_rules! assert_lint_err_macro {
     $(
       let mut errors = Vec::new();
       $(
-        let mut e = $crate::test_util::LintErr {
-          $($field: $value,)*
-          ..Default::default()
-        };
-        // Line is 1-based in deno_lint, but the default value of `usize` is 0. We should adjust it.
-        if e.line == 0 {
-          e.line = 1;
-        }
+        let mut builder = $crate::test_util::LintErrBuilder::new();
+        $(
+          builder.$field($value);
+        )*
+        let e = builder.build();
         errors.push(e);
       )*
       let t = $crate::test_util::LintErrTester::<$rule> {
@@ -71,6 +68,52 @@ pub struct LintErr {
   pub col: usize,
   pub message: &'static str,
   pub hint: Option<&'static str>,
+}
+
+#[derive(Default)]
+pub struct LintErrBuilder {
+  line: Option<usize>,
+  col: Option<usize>,
+  message: Option<&'static str>,
+  hint: Option<&'static str>,
+}
+
+impl LintErrBuilder {
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  #[allow(unused)]
+  pub fn line(&mut self, line: usize) -> &mut Self {
+    // Line is 1-based in deno_lint
+    assert!(line >= 1);
+    self.line = Some(line);
+    self
+  }
+
+  pub fn col(&mut self, col: usize) -> &mut Self {
+    self.col = Some(col);
+    self
+  }
+
+  pub fn message(&mut self, message: &'static str) -> &mut Self {
+    self.message = Some(message);
+    self
+  }
+
+  pub fn hint(&mut self, hint: &'static str) -> &mut Self {
+    self.hint = Some(hint);
+    self
+  }
+
+  pub fn build(&self) -> LintErr {
+    LintErr {
+      line: self.line.unwrap_or(1),
+      col: self.col.unwrap_or(0),
+      message: self.message.unwrap_or(""),
+      hint: self.hint,
+    }
+  }
 }
 
 impl<T: LintRule + 'static> LintErrTester<T> {
