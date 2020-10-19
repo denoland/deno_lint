@@ -531,125 +531,94 @@ mod tests {
 
   #[test]
   fn camelcase_valid() {
-    assert_lint_ok::<Camelcase>(r#"firstName = "Ichigo""#);
-    assert_lint_ok::<Camelcase>(r#"FIRST_NAME = "Ichigo""#);
-    assert_lint_ok::<Camelcase>(r#"__myPrivateVariable = "Hoshimiya""#);
-    assert_lint_ok::<Camelcase>(r#"myPrivateVariable_ = "Hoshimiya""#);
-    assert_lint_ok::<Camelcase>(r#"function doSomething(){}"#);
-    assert_lint_ok::<Camelcase>(r#"do_something()"#);
-    assert_lint_ok::<Camelcase>(r#"new do_something"#);
-    assert_lint_ok::<Camelcase>(r#"new do_something()"#);
-    assert_lint_ok::<Camelcase>(r#"foo.do_something()"#);
-    assert_lint_ok::<Camelcase>(r#"var foo = bar.baz_boom;"#);
-    assert_lint_ok::<Camelcase>(r#"var foo = bar.baz_boom.something;"#);
-    assert_lint_ok::<Camelcase>(
-      r#"foo.boom_pow.qux = bar.baz_boom.something;"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"if (bar.baz_boom) {}"#);
-    assert_lint_ok::<Camelcase>(r#"var obj = { key: foo.bar_baz };"#);
-    assert_lint_ok::<Camelcase>(r#"var arr = [foo.bar_baz];"#);
-    assert_lint_ok::<Camelcase>(r#"[foo.bar_baz]"#);
-    assert_lint_ok::<Camelcase>(r#"var arr = [foo.bar_baz.qux];"#);
-    assert_lint_ok::<Camelcase>(r#"[foo.bar_baz.nesting]"#);
-    assert_lint_ok::<Camelcase>(
-      r#"if (foo.bar_baz === boom.bam_pow) { [foo.baz_boom] }"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"var o = {key: 1}"#);
-    assert_lint_ok::<Camelcase>(r#"var o = {_leading: 1}"#);
-    assert_lint_ok::<Camelcase>(r#"var o = {trailing_: 1}"#);
-    assert_lint_ok::<Camelcase>(r#"const { ['foo']: _foo } = obj;"#);
-    assert_lint_ok::<Camelcase>(r#"const { [_foo_]: foo } = obj;"#);
-    assert_lint_ok::<Camelcase>(r#"var { category_id: category } = query;"#);
-    assert_lint_ok::<Camelcase>(r#"var { _leading } = query;"#);
-    assert_lint_ok::<Camelcase>(r#"var { trailing_ } = query;"#);
-    assert_lint_ok::<Camelcase>(
-      r#"import { camelCased } from "external module";"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"import { _leading } from "external module";"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"import { trailing_ } from "external module";"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"import { no_camelcased as camelCased } from "external-module";"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"import { no_camelcased as _leading } from "external-module";"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"import { no_camelcased as trailing_ } from "external-module";"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"import { no_camelcased as camelCased, anotherCamelCased } from "external-module";"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"import { camelCased } from 'mod'"#);
-    assert_lint_ok::<Camelcase>(r#"var _camelCased = aGlobalVariable"#);
-    assert_lint_ok::<Camelcase>(r#"var camelCased = _aGlobalVariable"#);
-    assert_lint_ok::<Camelcase>(
-      r#"function foo({ no_camelcased: camelCased }) {};"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"function foo({ no_camelcased: _leading }) {};"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"function foo({ no_camelcased: trailing_ }) {};"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"function foo({ camelCased = 'default value' }) {};"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"function foo({ _leading = 'default value' }) {};"#,
-    );
-    assert_lint_ok::<Camelcase>(
-      r#"function foo({ trailing_ = 'default value' }) {};"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"function foo({ camelCased }) {};"#);
-    assert_lint_ok::<Camelcase>(r#"function foo({ _leading }) {}"#);
-    assert_lint_ok::<Camelcase>(r#"function foo({ trailing_ }) {}"#);
-    assert_lint_ok::<Camelcase>(r#"({obj} = baz.fo_o);"#);
-    assert_lint_ok::<Camelcase>(r#"([obj] = baz.fo_o);"#);
-    assert_lint_ok::<Camelcase>(r#"([obj.foo = obj.fo_o] = bar);"#);
-    assert_lint_ok::<Camelcase>(r#"const f = function camelCased() {};"#);
-    assert_lint_ok::<Camelcase>(r#"const c = class camelCased {};"#);
-    assert_lint_ok::<Camelcase>(r#"class camelCased {};"#);
+    assert_lint_ok_macro! {
+      Camelcase,
+      [
+        r#"firstName = "Ichigo""#,
+        r#"FIRST_NAME = "Ichigo""#,
+        r#"__myPrivateVariable = "Hoshimiya""#,
+        r#"myPrivateVariable_ = "Hoshimiya""#,
+        r#"function doSomething(){}"#,
+        r#"do_something()"#,
+        r#"new do_something"#,
+        r#"new do_something()"#,
+        r#"foo.do_something()"#,
+        r#"var foo = bar.baz_boom;"#,
+        r#"var foo = bar.baz_boom.something;"#,
+        r#"foo.boom_pow.qux = bar.baz_boom.something;"#,
+        r#"if (bar.baz_boom) {}"#,
+        r#"var obj = { key: foo.bar_baz };"#,
+        r#"var arr = [foo.bar_baz];"#,
+        r#"[foo.bar_baz]"#,
+        r#"var arr = [foo.bar_baz.qux];"#,
+        r#"[foo.bar_baz.nesting]"#,
+        r#"if (foo.bar_baz === boom.bam_pow) { [foo.baz_boom] }"#,
+        r#"var o = {key: 1}"#,
+        r#"var o = {_leading: 1}"#,
+        r#"var o = {trailing_: 1}"#,
+        r#"const { ['foo']: _foo } = obj;"#,
+        r#"const { [_foo_]: foo } = obj;"#,
+        r#"var { category_id: category } = query;"#,
+        r#"var { _leading } = query;"#,
+        r#"var { trailing_ } = query;"#,
+        r#"import { camelCased } from "external module";"#,
+        r#"import { _leading } from "external module";"#,
+        r#"import { trailing_ } from "external module";"#,
+        r#"import { no_camelcased as camelCased } from "external-module";"#,
+        r#"import { no_camelcased as _leading } from "external-module";"#,
+        r#"import { no_camelcased as trailing_ } from "external-module";"#,
+        r#"import { no_camelcased as camelCased, anotherCamelCased } from "external-module";"#,
+        r#"import { camelCased } from 'mod'"#,
+        r#"var _camelCased = aGlobalVariable"#,
+        r#"var camelCased = _aGlobalVariable"#,
+        r#"function foo({ no_camelcased: camelCased }) {};"#,
+        r#"function foo({ no_camelcased: _leading }) {};"#,
+        r#"function foo({ no_camelcased: trailing_ }) {};"#,
+        r#"function foo({ camelCased = 'default value' }) {};"#,
+        r#"function foo({ _leading = 'default value' }) {};"#,
+        r#"function foo({ trailing_ = 'default value' }) {};"#,
+        r#"function foo({ camelCased }) {};"#,
+        r#"function foo({ _leading }) {}"#,
+        r#"function foo({ trailing_ }) {}"#,
+        r#"({obj} = baz.fo_o);"#,
+        r#"([obj] = baz.fo_o);"#,
+        r#"([obj.foo = obj.fo_o] = bar);"#,
+        r#"const f = function camelCased() {};"#,
+        r#"const c = class camelCased {};"#,
+        r#"class camelCased {};"#,
 
-    // The following test cases are _invalid_ in ESLint, but we've decided to treat them as _valid_.
-    // See background at https://github.com/denoland/deno_lint/pull/302
-    assert_lint_ok::<Camelcase>(r#"first_name = "Akari""#);
-    assert_lint_ok::<Camelcase>(r#"__private_first_name = "Akari""#);
-    assert_lint_ok::<Camelcase>(r#"obj.foo_bar = function(){};"#);
-    assert_lint_ok::<Camelcase>(r#"bar_baz.foo = function(){};"#);
-    assert_lint_ok::<Camelcase>(r#"[foo_bar.baz]"#);
-    assert_lint_ok::<Camelcase>(
-      r#"if (foo.bar_baz === boom.bam_pow) { [foo_bar.baz] }"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"foo.bar_baz = boom.bam_pow"#);
-    assert_lint_ok::<Camelcase>(r#"foo.qux.boom_pow = { bar: boom.bam_pow }"#);
-    assert_lint_ok::<Camelcase>(r#"obj.a_b = 2;"#);
-    assert_lint_ok::<Camelcase>(
-      r#"var { [category_id]: categoryId } = query;"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"a_global_variable.foo()"#);
-    assert_lint_ok::<Camelcase>(r#"a_global_variable[undefined]"#);
-    assert_lint_ok::<Camelcase>(r#"var camelCased = snake_cased"#);
-    assert_lint_ok::<Camelcase>(r#"({ a: obj.fo_o } = bar);"#);
-    assert_lint_ok::<Camelcase>(r#"({ a: obj.fo_o.b_ar } = baz);"#);
-    assert_lint_ok::<Camelcase>(r#"({ a: { b: { c: obj.fo_o } } } = bar);"#);
-    assert_lint_ok::<Camelcase>(
-      r#"({ a: { b: { c: obj.fo_o.b_ar } } } = baz);"#,
-    );
-    assert_lint_ok::<Camelcase>(r#"([obj.fo_o] = bar);"#);
-    assert_lint_ok::<Camelcase>(r#"([obj.fo_o = 1] = bar);"#);
-    assert_lint_ok::<Camelcase>(r#"({ a: [obj.fo_o] } = bar);"#);
-    assert_lint_ok::<Camelcase>(r#"({ a: { b: [obj.fo_o] } } = bar);"#);
-    assert_lint_ok::<Camelcase>(r#"([obj.fo_o.ba_r] = baz);"#);
-    assert_lint_ok::<Camelcase>(r#"obj.o_k.non_camelcase = 0"#);
-    assert_lint_ok::<Camelcase>(r#"(obj?.o_k).non_camelcase = 0"#);
-    assert_lint_ok::<Camelcase>(r#"({...obj.fo_o} = baz);"#);
-    assert_lint_ok::<Camelcase>(r#"({...obj.fo_o.ba_r} = baz);"#);
-    assert_lint_ok::<Camelcase>(r#"({c: {...obj.fo_o }} = baz);"#);
-    assert_lint_ok::<Camelcase>(r#"not_ignored_foo = 0;"#);
+        // The following test cases are _invalid_ in ESLint, but we've decided to treat them as _valid_.
+        // See background at https://github.com/denoland/deno_lint/pull/302
+        r#"first_name = "Akari""#,
+        r#"__private_first_name = "Akari""#,
+        r#"obj.foo_bar = function(){};"#,
+        r#"bar_baz.foo = function(){};"#,
+        r#"[foo_bar.baz]"#,
+        r#"if (foo.bar_baz === boom.bam_pow) { [foo_bar.baz] }"#,
+        r#"foo.bar_baz = boom.bam_pow"#,
+        r#"foo.qux.boom_pow = { bar: boom.bam_pow }"#,
+        r#"obj.a_b = 2;"#,
+        r#"var { [category_id]: categoryId } = query;"#,
+        r#"a_global_variable.foo()"#,
+        r#"a_global_variable[undefined]"#,
+        r#"var camelCased = snake_cased"#,
+        r#"({ a: obj.fo_o } = bar);"#,
+        r#"({ a: obj.fo_o.b_ar } = baz);"#,
+        r#"({ a: { b: { c: obj.fo_o } } } = bar);"#,
+        r#"({ a: { b: { c: obj.fo_o.b_ar } } } = baz);"#,
+        r#"([obj.fo_o] = bar);"#,
+        r#"([obj.fo_o = 1] = bar);"#,
+        r#"({ a: [obj.fo_o] } = bar);"#,
+        r#"({ a: { b: [obj.fo_o] } } = bar);"#,
+        r#"([obj.fo_o.ba_r] = baz);"#,
+        r#"obj.o_k.non_camelcase = 0"#,
+        r#"(obj?.o_k).non_camelcase = 0"#,
+        r#"({...obj.fo_o} = baz);"#,
+        r#"({...obj.fo_o.ba_r} = baz);"#,
+        r#"({c: {...obj.fo_o }} = baz);"#,
+        r#"not_ignored_foo = 0;"#,
+      ]
+    };
   }
 
   #[test]
