@@ -38,6 +38,39 @@ impl LintRule for GetterReturn {
     visitor.visit_module(module, module);
     visitor.report();
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires all property getter functions to return a value
+
+Getter functions return the value of a property.  If the function returns no
+value then this contract is broken.
+    
+### Valid:
+```typescript
+let foo = { 
+  get bar() { 
+    return true; 
+  }
+};
+
+class Person { 
+  get name() { 
+    return "alice"; 
+  }
+}
+```
+
+### Invalid:
+```typescript
+let foo = { 
+  get bar() {}
+};
+
+class Person { 
+  get name() {}
+}
+```"#
+  }
 }
 
 struct GetterReturnVisitor<'c> {
@@ -61,7 +94,12 @@ impl<'c> GetterReturnVisitor<'c> {
 
   fn report(&mut self) {
     for (span, msg) in &self.errors {
-      self.context.add_diagnostic(*span, "getter-return", msg);
+      self.context.add_diagnostic_with_hint(
+        *span,
+        "getter-return",
+        msg,
+        "Return a value from the getter function",
+      );
     }
   }
 
@@ -257,7 +295,7 @@ mod tests {
   use super::*;
   use crate::test_util::*;
 
-  // Some rules are derived from
+  // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.9.0/tests/lib/rules/getter-return.js
   // MIT Licensed.
 

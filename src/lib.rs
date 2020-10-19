@@ -8,6 +8,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+#[macro_use]
+mod test_util;
+
 mod control_flow;
 pub mod diagnostic;
 mod globals;
@@ -16,9 +20,6 @@ pub mod linter;
 pub mod rules;
 mod scopes;
 pub mod swc_util;
-
-#[cfg(test)]
-mod test_util;
 
 #[cfg(test)]
 mod lint_tests {

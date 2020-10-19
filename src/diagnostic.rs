@@ -1,10 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-#[cfg(feature = "json")]
 use serde::Serialize;
 use std::convert::TryInto;
 
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Position {
   pub line: usize,
   pub col: usize,
@@ -25,15 +24,13 @@ impl Position {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize))]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Range {
   pub start: Position,
   pub end: Position,
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize))]
+#[derive(Clone, Debug, Serialize)]
 pub struct LintDiagnostic {
   pub range: Range,
   pub filename: String,
