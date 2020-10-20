@@ -30,7 +30,7 @@ impl LintRule for AdjacentOverloadSignatures {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
-    module.visit_all_children_with(&mut visitor);
+    module.visit_all_with(module, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {

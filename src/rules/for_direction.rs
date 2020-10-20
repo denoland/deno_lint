@@ -37,7 +37,7 @@ impl LintRule for ForDirection {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = ForDirectionVisitor::new(context);
-    module.visit_all_children_with(&mut visitor);
+    module.visit_all_with(module, &mut visitor);
   }
 }
 
