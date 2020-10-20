@@ -10,7 +10,7 @@ use swc_ecmascript::ast::{
   Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,
   TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
 };
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, VisitAll};
 
 pub struct AdjacentOverloadSignatures;
 
@@ -217,42 +217,33 @@ impl ExtractMethod for TsTypeElement {
   }
 }
 
-impl<'c> Visit for AdjacentOverloadSignaturesVisitor<'c> {
-  fn visit_module(&mut self, module: &Module, parent: &dyn Node) {
+impl<'c> VisitAll for AdjacentOverloadSignaturesVisitor<'c> {
+  fn visit_module(&mut self, module: &Module, _parent: &dyn Node) {
     self.check(&module.body);
-    swc_ecmascript::visit::visit_module(self, module, parent);
   }
 
   fn visit_ts_module_block(
     &mut self,
     ts_module_block: &TsModuleBlock,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     self.check(&ts_module_block.body);
-    swc_ecmascript::visit::visit_ts_module_block(self, ts_module_block, parent);
   }
 
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+  fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
     self.check(&class.body);
-    swc_ecmascript::visit::visit_class(self, class, parent);
   }
 
-  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, parent: &dyn Node) {
+  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
     self.check(&ts_type_lit.members);
-    swc_ecmascript::visit::visit_ts_type_lit(self, ts_type_lit, parent);
   }
 
   fn visit_ts_interface_body(
     &mut self,
     ts_inteface_body: &TsInterfaceBody,
-    parent: &dyn Node,
+    _parent: &dyn Node,
   ) {
     self.check(&ts_inteface_body.body);
-    swc_ecmascript::visit::visit_ts_interface_body(
-      self,
-      ts_inteface_body,
-      parent,
-    );
   }
 }
 
