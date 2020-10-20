@@ -5,8 +5,8 @@ use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoArrayConstructor;
 
@@ -29,7 +29,7 @@ impl LintRule for NoArrayConstructor {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 }
 
@@ -53,11 +53,10 @@ impl<'c> NoArrayConstructorVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoArrayConstructorVisitor<'c> {
+impl<'c> VisitAll for NoArrayConstructorVisitor<'c> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
-    new_expr.visit_children_with(self);
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.as_ref();
       if name != "Array" {
@@ -76,7 +75,6 @@ impl<'c> Visit for NoArrayConstructorVisitor<'c> {
   }
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
-    call_expr.visit_children_with(self);
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         let name = ident.sym.as_ref();
