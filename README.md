@@ -58,6 +58,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 - [`ban-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-types.md)
 - `ban-untagged-ignore`
 - `ban-untagged-todo`
+- [`camelcase`](https://eslint.org/docs/rules/camelcase)
 - [`constructor-super`](https://eslint.org/docs/rules/constructor-super)
 - [`default-param-last`](https://eslint.org/docs/rules/default-param-last)
 - [`eqeqeq`](https://eslint.org/docs/rules/eqeqeq)
