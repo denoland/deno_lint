@@ -10,6 +10,7 @@ use swc_ecmascript::ast::{
   Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,
   TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
 };
+use swc_ecmascript::visit::VisitAllWith;
 use swc_ecmascript::visit::{Node, VisitAll};
 
 pub struct AdjacentOverloadSignatures;
@@ -29,7 +30,7 @@ impl LintRule for AdjacentOverloadSignatures {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_children_with(&mut visitor);
   }
 
   fn docs(&self) -> &'static str {

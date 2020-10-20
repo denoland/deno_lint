@@ -13,8 +13,8 @@ use swc_ecmascript::ast::UpdateExpr;
 use swc_ecmascript::ast::UpdateOp;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct ForDirection;
 
@@ -37,7 +37,7 @@ impl LintRule for ForDirection {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = ForDirectionVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_children_with(&mut visitor);
   }
 }
 
@@ -124,12 +124,10 @@ impl<'c> ForDirectionVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ForDirectionVisitor<'c> {
+impl<'c> VisitAll for ForDirectionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
-    for_stmt.visit_children_with(self);
-
     if for_stmt.update.is_none() {
       return;
     }
