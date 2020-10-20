@@ -399,6 +399,18 @@ mod tests {
 
     // nested
     assert_lint_err::<NoConstantCondition>(r#"if (foo) { if (true) {} }"#, 15);
+    assert_lint_err::<NoConstantCondition>(
+      r#"if (foo) {} else if (true) {}"#,
+      21,
+    );
+    assert_lint_err::<NoConstantCondition>(
+      r#"if (foo) {} else if (bar) {} else if (true) {}"#,
+      38,
+    );
+    assert_lint_err::<NoConstantCondition>(
+      r#"if (foo) {} else { if (true) {} }"#,
+      23,
+    );
     assert_lint_err::<NoConstantCondition>(r#"foo ? true ? 1 : 2 : 3"#, 6);
   }
 
