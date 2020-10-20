@@ -4,7 +4,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
-use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoUnsafeFinally;
 
@@ -23,7 +23,7 @@ impl LintRule for NoUnsafeFinally {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -87,10 +87,10 @@ impl<'c> NoUnsafeFinallyVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoUnsafeFinallyVisitor<'c> {
+impl<'c> VisitAll for NoUnsafeFinallyVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, parent: &dyn Node) {
+  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
       for stmt in &finally_block.stmts {
         match stmt {
@@ -102,7 +102,6 @@ impl<'c> Visit for NoUnsafeFinallyVisitor<'c> {
         }
       }
     }
-    visit::visit_try_stmt(self, try_stmt, parent);
   }
 }
 

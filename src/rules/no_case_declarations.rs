@@ -7,8 +7,8 @@ use swc_ecmascript::ast::SwitchCase;
 use swc_ecmascript::ast::VarDeclKind;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoCaseDeclarations;
 
@@ -31,7 +31,7 @@ impl LintRule for NoCaseDeclarations {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoCaseDeclarationsVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 }
 
@@ -45,7 +45,7 @@ impl<'c> NoCaseDeclarationsVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
+impl<'c> VisitAll for NoCaseDeclarationsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_switch_case(
@@ -53,8 +53,6 @@ impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
     switch_case: &SwitchCase,
     _parent: &dyn Node,
   ) {
-    switch_case.visit_children_with(self);
-
     for stmt in &switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {

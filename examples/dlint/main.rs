@@ -62,13 +62,23 @@ fn display_diagnostic(diagnostic: &LintDiagnostic, source: &str) {
   let (slice_source, range) =
     get_slice_source_and_range(&line_start_indexes, source, &diagnostic.range);
 
+  let footer = if let Some(hint) = &diagnostic.hint {
+    vec![snippet::Annotation {
+      label: Some(hint),
+      id: None,
+      annotation_type: snippet::AnnotationType::Help,
+    }]
+  } else {
+    vec![]
+  };
+
   let snippet = snippet::Snippet {
     title: Some(snippet::Annotation {
       label: Some(&diagnostic.message),
       id: Some(&diagnostic.code),
       annotation_type: snippet::AnnotationType::Error,
     }),
-    footer: vec![],
+    footer,
     slices: vec![snippet::Slice {
       source: &slice_source,
       line_start: diagnostic.range.start.line,

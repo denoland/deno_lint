@@ -6,6 +6,7 @@ pub mod ban_ts_comment;
 pub mod ban_types;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
+pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
@@ -108,6 +109,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     ban_types::BanTypes::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
+    camelcase::Camelcase::new(),
     constructor_super::ConstructorSuper::new(),
     default_param_last::DefaultParamLast::new(),
     eqeqeq::Eqeqeq::new(),

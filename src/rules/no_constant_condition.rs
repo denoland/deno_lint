@@ -7,7 +7,7 @@ use swc_common::Spanned;
 use swc_ecmascript::ast::{
   BinaryOp, CondExpr, Expr, IfStmt, Lit, Module, UnaryOp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoConstantCondition;
 
@@ -26,7 +26,7 @@ impl LintRule for NoConstantCondition {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoConstantConditionVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 }
 
@@ -158,17 +158,15 @@ impl<'c> NoConstantConditionVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoConstantConditionVisitor<'c> {
+impl<'c> VisitAll for NoConstantConditionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _parent: &dyn Node) {
     self.report(&cond_expr.test);
-    cond_expr.visit_children_with(self);
   }
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _parent: &dyn Node) {
     self.report(&if_stmt.test);
-    if_stmt.visit_children_with(self);
   }
 
   /* TODO(bartlomieju): temporarly disabled because
@@ -382,6 +380,18 @@ mod tests {
 
     // nested
     assert_lint_err::<NoConstantCondition>(r#"if (foo) { if (true) {} }"#, 15);
+    assert_lint_err::<NoConstantCondition>(
+      r#"if (foo) {} else if (true) {}"#,
+      21,
+    );
+    assert_lint_err::<NoConstantCondition>(
+      r#"if (foo) {} else if (bar) {} else if (true) {}"#,
+      38,
+    );
+    assert_lint_err::<NoConstantCondition>(
+      r#"if (foo) {} else { if (true) {} }"#,
+      23,
+    );
     assert_lint_err::<NoConstantCondition>(r#"foo ? true ? 1 : 2 : 3"#, 6);
   }
 

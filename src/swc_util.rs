@@ -2,7 +2,7 @@
 use crate::scopes::Scope;
 use std::error::Error;
 use std::fmt;
-use std::sync::Arc;
+use std::rc::Rc;
 use std::sync::RwLock;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::Diagnostic;
@@ -106,11 +106,11 @@ impl SwcDiagnosticBuffer {
 }
 
 #[derive(Clone)]
-pub(crate) struct SwcErrorBuffer(Arc<RwLock<Vec<Diagnostic>>>);
+pub(crate) struct SwcErrorBuffer(Rc<RwLock<Vec<Diagnostic>>>);
 
 impl SwcErrorBuffer {
   pub(crate) fn default() -> Self {
-    Self(Arc::new(RwLock::new(vec![])))
+    Self(Rc::new(RwLock::new(vec![])))
   }
 }
 
@@ -126,7 +126,7 @@ impl Emitter for SwcErrorBuffer {
 /// to `parse_module`.
 pub(crate) struct AstParser {
   pub(crate) buffered_error: SwcErrorBuffer,
-  pub(crate) source_map: Arc<SourceMap>,
+  pub(crate) source_map: Rc<SourceMap>,
   pub(crate) handler: Handler,
   pub(crate) globals: Globals,
   /// The marker passed to the resolver (from swc).
@@ -154,7 +154,7 @@ impl AstParser {
 
     AstParser {
       buffered_error,
-      source_map: Arc::new(SourceMap::default()),
+      source_map: Rc::new(SourceMap::default()),
       handler,
       globals,
       top_level_mark,

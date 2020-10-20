@@ -9,7 +9,7 @@ use swc_ecmascript::ast::{
   GetterProp, KeyValueProp, MethodProp, Module, ObjectLit, Prop, PropOrSpread,
   SetterProp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeKeys;
 
@@ -28,7 +28,7 @@ impl LintRule for NoDupeKeys {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -173,7 +173,7 @@ impl PropertyInfo {
   }
 }
 
-impl<'c> Visit for NoDupeKeysVisitor<'c> {
+impl<'c> VisitAll for NoDupeKeysVisitor<'c> {
   noop_visit_type!();
 
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
@@ -202,8 +202,6 @@ impl<'c> Visit for NoDupeKeysVisitor<'c> {
         }
       }
     }
-
-    obj_lit.visit_children_with(self);
   }
 }
 

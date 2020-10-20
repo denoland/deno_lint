@@ -3,9 +3,10 @@ use super::Context;
 use super::LintRule;
 use swc_common::Span;
 use swc_ecmascript::ast::{ArrowExpr, Function, Pat};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::{self, noop_visit_type};
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct DefaultParamLast;
 
@@ -24,7 +25,7 @@ impl LintRule for DefaultParamLast {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -93,17 +94,15 @@ impl<'c> DefaultParamLastVisitor<'c> {
   }
 }
 
-impl<'c> Visit for DefaultParamLastVisitor<'c> {
+impl<'c> VisitAll for DefaultParamLastVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_function(&mut self, function: &Function, parent: &dyn Node) {
+  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.check_params(function.params.iter().rev().map(|p| &p.pat));
-    visit::visit_function(self, function, parent);
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     self.check_params(arrow_expr.params.iter().rev());
-    visit::visit_arrow_expr(self, arrow_expr, parent);
   }
 }
 

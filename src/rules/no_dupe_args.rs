@@ -9,7 +9,7 @@ use swc_ecmascript::ast::Param;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoDupeArgs;
 
@@ -32,7 +32,7 @@ impl LintRule for NoDupeArgs {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
     visitor.report_errors();
   }
 }
@@ -87,17 +87,15 @@ impl<'c> NoDupeArgsVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoDupeArgsVisitor<'c> {
+impl<'c> VisitAll for NoDupeArgsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.check_params(function.span, function.params.iter());
-    function.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     self.check_pats(arrow_expr.span, arrow_expr.params.iter());
-    arrow_expr.visit_children_with(self);
   }
 }
 

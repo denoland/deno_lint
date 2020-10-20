@@ -6,7 +6,7 @@ use swc_ecmascript::ast::Lit::Num;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp::Minus;
 use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCompareNegZero;
 
@@ -25,8 +25,9 @@ impl LintRule for NoCompareNegZero {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
+
   fn docs(&self) -> &'static str {
     r#"Disallows comparing against negative zero (`-0`).
 
@@ -59,12 +60,10 @@ impl<'c> NoCompareNegZeroVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoCompareNegZeroVisitor<'c> {
+impl<'c> VisitAll for NoCompareNegZeroVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    bin_expr.visit_children_with(self);
-
     if !bin_expr.op.is_comparator() {
       return;
     }

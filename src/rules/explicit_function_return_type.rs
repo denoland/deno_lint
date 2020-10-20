@@ -24,6 +24,26 @@ impl LintRule for ExplicitFunctionReturnType {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires all functions to have explicit return types.
+
+Explicit return types have a number of advantages including easier to understand
+code and better type safety.  It is clear from the signature what the return 
+type of the function (if any) will be.
+    
+### Valid:
+```typescript
+function someCalc(): number { return 2*2; }
+function anotherCalc(): void { return; }
+```
+
+### Invalid:
+```typescript
+function someCalc() { return 2*2; }
+function anotherCalc() { return; }
+```"#
+  }
 }
 
 struct ExplicitFunctionReturnTypeVisitor<'c> {
@@ -45,10 +65,11 @@ impl<'c> Visit for ExplicitFunctionReturnTypeVisitor<'c> {
     _parent: &dyn Node,
   ) {
     if function.return_type.is_none() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         function.span,
         "explicit-function-return-type",
         "Missing return type on function",
+        "Add a return type to the function signature",
       );
     }
     for stmt in &function.body {

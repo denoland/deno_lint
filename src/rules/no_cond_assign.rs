@@ -4,7 +4,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
 use swc_ecmascript::ast::Module;
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCondAssign;
 
@@ -23,7 +23,7 @@ impl LintRule for NoCondAssign {
 
   fn lint_module(&self, context: &mut Context, module: &Module) {
     let mut visitor = NoCondAssignVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -96,7 +96,7 @@ impl<'c> NoCondAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoCondAssignVisitor<'c> {
+impl<'c> VisitAll for NoCondAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_if_stmt(
@@ -104,7 +104,6 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
     if_stmt: &swc_ecmascript::ast::IfStmt,
     _parent: &dyn Node,
   ) {
-    if_stmt.visit_children_with(self);
     self.check_condition(&if_stmt.test);
   }
 
@@ -113,7 +112,6 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
     while_stmt: &swc_ecmascript::ast::WhileStmt,
     _parent: &dyn Node,
   ) {
-    while_stmt.visit_children_with(self);
     self.check_condition(&while_stmt.test);
   }
 
@@ -122,7 +120,6 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
     do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
     _parent: &dyn Node,
   ) {
-    do_while_stmt.visit_children_with(self);
     self.check_condition(&do_while_stmt.test);
   }
 
@@ -131,7 +128,6 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
     for_stmt: &swc_ecmascript::ast::ForStmt,
     _parent: &dyn Node,
   ) {
-    for_stmt.visit_children_with(self);
     if let Some(for_test) = &for_stmt.test {
       self.check_condition(&for_test);
     }
@@ -142,7 +138,6 @@ impl<'c> Visit for NoCondAssignVisitor<'c> {
     cond_expr: &swc_ecmascript::ast::CondExpr,
     _parent: &dyn Node,
   ) {
-    cond_expr.visit_children_with(self);
     if let Paren(paren) = &*cond_expr.test {
       self.check_condition(&paren.expr);
     }

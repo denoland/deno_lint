@@ -13,8 +13,8 @@ use swc_ecmascript::ast::UpdateExpr;
 use swc_ecmascript::ast::UpdateOp;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct ForDirection;
 
@@ -37,7 +37,26 @@ impl LintRule for ForDirection {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = ForDirectionVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires `for` loop control variables to increment in the correct direction
+
+Incrementing `for` loop control variables in the wrong direction leads to infinite
+loops.  This can occur through incorrect initialization, bad continuation step logic
+or wrong direction incrementing of the loop control variable.  
+    
+### Valid:
+```typescript
+for(let i = 0; i < 2; i++) {}
+```
+
+### Invalid:
+```typescript
+// Infinite loop
+for(let i = 0; i < 2; i--) {}
+```"#
   }
 }
 
@@ -124,12 +143,10 @@ impl<'c> ForDirectionVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ForDirectionVisitor<'c> {
+impl<'c> VisitAll for ForDirectionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
-    for_stmt.visit_children_with(self);
-
     if for_stmt.update.is_none() {
       return;
     }
@@ -159,10 +176,11 @@ impl<'c> Visit for ForDirectionVisitor<'c> {
         };
 
         if update_direction == wrong_direction {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             for_stmt.span,
             "for-direction",
             "Update clause moves variable in the wrong direction",
+            "Flip the update clause logic or change the continuation step condition"
           );
         }
       }

@@ -26,6 +26,43 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires all module exports to have fully typed declarations
+
+Having fully typed function arguments and return values clearly defines the
+inputs and outputs of a module (known as the module boundary).  This will make
+it very clear to any users of the module how to supply inputs and handle
+outputs in a type safe manner.
+
+### Valid:
+```typescript
+// Typed input parameters and return value
+export function printDoc(doc: string, doubleSided: boolean): void { return; }
+
+// Input of type string and a return value of type string
+export var arrowFn = (arg: string): string => `hello ${arg}`;
+
+// Though lacking a return type, this is valid as it is not exported
+function isValid() {
+  return true;
+}
+```
+
+### Invalid:
+```typescript
+// Missing return type (e.g. void)
+export function printDoc(doc: string, doubleSided: boolean) { return; }
+
+// Missing argument type (e.g. `arg` is of type string)
+export var arrowFn = (arg): string => `hello ${arg}`;
+
+// Missing return type (e.g. boolean)
+export function isValid() {
+  return true;
+}
+```"#
+  }
 }
 
 struct ExplicitModuleBoundaryTypesVisitor<'c> {
@@ -47,10 +84,11 @@ impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
 
   fn check_fn(&mut self, function: &Function) {
     if function.return_type.is_none() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         function.span,
         "explicit-module-boundary-types",
         "Missing return type on function",
+        "Add a return type to the function signature",
       );
     }
     for param in &function.params {
@@ -60,10 +98,11 @@ impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
 
   fn check_arrow(&mut self, arrow: &ArrowExpr) {
     if arrow.return_type.is_none() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         arrow.span,
         "explicit-module-boundary-types",
         "Missing return type on function",
+        "Add a return type to the function signature",
       );
     }
     for pat in &arrow.params {
@@ -76,18 +115,20 @@ impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
       let ts_type = ann.type_ann.as_ref();
       if let TsType::TsKeywordType(keyword_type) = ts_type {
         if TsKeywordTypeKind::TsAnyKeyword == keyword_type.kind {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             span,
             "explicit-module-boundary-types",
             "All arguments should be typed",
+            "Add types to all the function arguments",
           );
         }
       }
     } else {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         span,
         "explicit-module-boundary-types",
         "All arguments should be typed",
+        "Add types to all the function arguments",
       );
     }
   }
