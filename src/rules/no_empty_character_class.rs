@@ -85,6 +85,26 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
+  fn no_empty_character_class_valid() {
+    assert_lint_ok! {
+      NoEmptyCharacterClass,
+      r#"
+    const foo = /^abc[a-zA-Z]/;
+    const regExp = new RegExp("^abc[]");
+    const foo = /^abc/;
+    const foo = /[\\[]/;
+    const foo = /[\\]]/;
+    const foo = /[a-zA-Z\\[]/;
+    const foo = /[[]/;
+    const foo = /[\\[a-z[]]/;
+    const foo = /[\-\[\]\/\{\}\(\)\*\+\?\.\\^\$\|]/g;
+    const foo = /\[/g;
+    const foo = /\]/i;
+    "#,
+    };
+  }
+
+  #[test]
   fn no_empty_character_class() {
     assert_lint_err::<NoEmptyCharacterClass>(r#"const foo = /^abc[]/;"#, 12);
     assert_lint_err::<NoEmptyCharacterClass>(r#"const foo = /foo[]bar/;"#, 12);
@@ -114,25 +134,6 @@ mod tests {
     assert_lint_err::<NoEmptyCharacterClass>(
       r#"if (/^abc[]/.test(foo)) {}"#,
       4,
-    );
-  }
-
-  #[test]
-  fn no_empty_character_class_valid() {
-    assert_lint_ok::<NoEmptyCharacterClass>(
-      r#"
-    const foo = /^abc[a-zA-Z]/;
-    const regExp = new RegExp("^abc[]");
-    const foo = /^abc/;
-    const foo = /[\\[]/;
-    const foo = /[\\]]/;
-    const foo = /[a-zA-Z\\[]/;
-    const foo = /[[]/;
-    const foo = /[\\[a-z[]]/;
-    const foo = /[\-\[\]\/\{\}\(\)\*\+\?\.\\^\$\|]/g;
-    const foo = /\[/g;
-    const foo = /\]/i;
-    "#,
     );
   }
 }

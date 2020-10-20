@@ -58,7 +58,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_var_test() {
+  fn no_var_invalid() {
     assert_lint_err::<NoVar>(
       r#"var someVar = "someString"; const c = "c"; let a = "a";"#,
       0,

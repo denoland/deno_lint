@@ -178,20 +178,21 @@ mod tests {
 
   #[test]
   fn no_shadow_restricted_names_valid() {
-    assert_lint_ok::<NoShadowRestrictedNames>("function foo(bar){ var baz; }");
-    assert_lint_ok::<NoShadowRestrictedNames>("!function foo(bar){ var baz; }");
-    assert_lint_ok::<NoShadowRestrictedNames>("!function(bar){ var baz; }");
-    assert_lint_ok::<NoShadowRestrictedNames>("try {} catch(e) {}");
-    assert_lint_ok::<NoShadowRestrictedNames>("export default function() {}");
-    assert_lint_ok::<NoShadowRestrictedNames>("try {} catch {}");
-    assert_lint_ok::<NoShadowRestrictedNames>("var undefined;");
-    assert_lint_ok::<NoShadowRestrictedNames>(
+    assert_lint_ok! {
+      NoShadowRestrictedNames,
+      "function foo(bar){ var baz; }",
+      "!function foo(bar){ var baz; }",
+      "!function(bar){ var baz; }",
+      "try {} catch(e) {}",
+      "export default function() {}",
+      "try {} catch {}",
+      "var undefined;",
       "var undefined; doSomething(undefined);",
-    );
-    assert_lint_ok::<NoShadowRestrictedNames>("var undefined; var undefined;");
-    assert_lint_ok::<NoShadowRestrictedNames>("let undefined");
-    assert_lint_ok::<NoShadowRestrictedNames>("let [...foo] = []");
-    assert_lint_ok::<NoShadowRestrictedNames>("function bar (...rest) {}");
+      "var undefined; var undefined;",
+      "let undefined",
+      "let [...foo] = []",
+      "function bar (...rest) {}",
+    };
   }
 
   #[test]

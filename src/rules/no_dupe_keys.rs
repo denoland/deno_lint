@@ -216,28 +216,25 @@ mod tests {
 
   #[test]
   fn no_dupe_keys_valid() {
-    assert_lint_ok::<NoDupeKeys>(r#"var foo = { bar: "baz", boo: "bang" }"#);
-    assert_lint_ok::<NoDupeKeys>(
+    assert_lint_ok! {
+      NoDupeKeys,
+      r#"var foo = { bar: "baz", boo: "bang" }"#,
       r#"var foo = { bar: "baz", boo: { bar: "bang", }, }"#,
-    );
-    assert_lint_ok::<NoDupeKeys>(r#"var foo = { __proto__: 1, two: 2};"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, bar: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, ' ': 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, [null]: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, [a]: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { [a]: 1, [a]: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"+{ get a() { }, set a(b) { } };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { a: b, [a]: b };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { a: b, ...c }"#);
-    assert_lint_ok::<NoDupeKeys>(
+      r#"var foo = { __proto__: 1, two: 2};"#,
+      r#"var x = { '': 1, bar: 2 };"#,
+      r#"var x = { '': 1, ' ': 2 };"#,
+      r#"var x = { '': 1, [null]: 2 };"#,
+      r#"var x = { '': 1, [a]: 2 };"#,
+      r#"var x = { [a]: 1, [a]: 2 };"#,
+      r#"+{ get a() { }, set a(b) { } };"#,
+      r#"var x = { a: b, [a]: b };"#,
+      r#"var x = { a: b, ...c }"#,
       r#"var x = { get a() {}, set a (value) {} };"#,
-    );
-    assert_lint_ok::<NoDupeKeys>(r#"var x = ({ null: 1, [/(?<zero>0)/]: 2 })"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var {a, a} = obj"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { 012: 1, 12: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { 1_0: 1, 1: 2 };"#);
-    // nested
-    assert_lint_ok::<NoDupeKeys>(
+      r#"var x = ({ null: 1, [/(?<zero>0)/]: 2 })"#,
+      r#"var {a, a} = obj"#,
+      r#"var x = { 012: 1, 12: 2 };"#,
+      r#"var x = { 1_0: 1, 1: 2 };"#,
+      // nested
       r#"
 let x = {
   y: {
@@ -246,7 +243,7 @@ let x = {
   },
 };
 "#,
-    );
+    };
   }
 
   #[test]

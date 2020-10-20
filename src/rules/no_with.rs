@@ -59,7 +59,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_with() {
+  fn no_with_invalid() {
     assert_lint_err::<NoWith>("with (someVar) { console.log('asdf'); }", 0)
   }
 }

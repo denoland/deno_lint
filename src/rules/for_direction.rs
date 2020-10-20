@@ -195,8 +195,8 @@ mod tests {
 
   #[test]
   fn for_direction_valid() {
-    assert_lint_ok_n::<ForDirection>(vec![
-      // ++, --
+    assert_lint_ok! {
+      ForDirection,
       "for(let i = 0; i < 2; i++) {}",
       "for(let i = 0; i < 2; ++i) {}",
       "for(let i = 0; i <= 2; i++) {}",
@@ -205,7 +205,6 @@ mod tests {
       "for(let i = 2; i > 2; --i) {}",
       "for(let i = 2; i >= 0; i--) {}",
       "for(let i = 2; i >= 0; --i) {}",
-      // +=, -=
       "for(let i = 0; i < 2; i += 1) {}",
       "for(let i = 0; i <= 2; i += 1) {}",
       "for(let i = 0; i < 2; i -= -1) {}",
@@ -214,12 +213,10 @@ mod tests {
       "for(let i = 2; i >= 0; i -= 1) {}",
       "for(let i = 2; i > 2; i += -1) {}",
       "for(let i = 2; i >= 0; i += -1) {}",
-      // no update
       "for(let i = 0; i < 2;) {}",
       "for(let i = 0; i <= 2;) {}",
       "for(let i = 2; i > 2;) {}",
       "for(let i = 2; i >= 0;) {}",
-      // others
       "for(let i = 0; i < 2; i |= 2) {}",
       "for(let i = 0; i <= 2; i %= 2) {}",
       "for(let i = 0; i < 2; j++) {}",
@@ -230,9 +227,8 @@ mod tests {
       "for(let i = 0; i != 10; i++) {}",
       "for(let i = 0; i === 0; i++) {}",
       "for(let i = 0; i == 0; i++) {}",
-      // nested
       "for(let i = 0; i < 2; ++i) { for (let j = 0; j < 2; j++) {} }",
-    ]);
+    };
   }
 
   #[test]

@@ -222,69 +222,58 @@ mod tests {
 
   #[test]
   fn no_dupe_else_if_valid() {
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else if (b) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a); else if (b); else if (c);");
-    assert_lint_ok::<NoDupeElseIf>("if (true) {} else if (false) {} else {}");
-    assert_lint_ok::<NoDupeElseIf>("if (1) {} else if (2) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (f) {} else if (f()) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (f(a)) {} else if (g(a)) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (f(a)) {} else if (f(b)) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a === 1) {} else if (a === 2) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a === 1) {} else if (b === 1) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a);");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a) if (a) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a) if (a);");
-    assert_lint_ok::<NoDupeElseIf>("if (a) { if (a) {} }");
-    assert_lint_ok::<NoDupeElseIf>(
+    assert_lint_ok! {
+      NoDupeElseIf,
+      "if (a) {} else if (b) {}",
+      "if (a); else if (b); else if (c);",
+      "if (true) {} else if (false) {} else {}",
+      "if (1) {} else if (2) {}",
+      "if (f) {} else if (f()) {}",
+      "if (f(a)) {} else if (g(a)) {}",
+      "if (f(a)) {} else if (f(b)) {}",
+      "if (a === 1) {} else if (a === 2) {}",
+      "if (a === 1) {} else if (b === 1) {}",
+      "if (a) {}",
+      "if (a);",
+      "if (a) {} else {}",
+      "if (a) if (a) {}",
+      "if (a) if (a);",
+      "if (a) { if (a) {} }",
       r#"
 if (a) {}
 else {
   if (a) {}
 }
 "#,
-    );
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} if (a) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a); if (a);");
-    assert_lint_ok::<NoDupeElseIf>("while (a) if (a);");
-    assert_lint_ok::<NoDupeElseIf>("if (a); else a ? a : a;");
-    assert_lint_ok::<NoDupeElseIf>(
+      "if (a) {} if (a) {}",
+      "if (a); if (a);",
+      "while (a) if (a);",
+      "if (a); else a ? a : a;",
       r#"
 if (a) {
   if (b) {}
 } else if (b) {}
 "#,
-    );
-    assert_lint_ok::<NoDupeElseIf>(
       r#"
 if (a) {
   if (b !== 1) {}
   else if (b !== 2) {}
 } else if (c) {}
 "#,
-    );
-    assert_lint_ok::<NoDupeElseIf>("if (a) if (b); else if (a);");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else if (!!a) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a === 1) {} else if (a === (1)) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a || b) {} else if (c || d) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a || b) {} else if (a || c) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else if (a || b) {}");
-    assert_lint_ok::<NoDupeElseIf>(
+      "if (a) if (b); else if (a);",
+      "if (a) {} else if (!!a) {}",
+      "if (a === 1) {} else if (a === (1)) {}",
+      "if (a || b) {} else if (c || d) {}",
+      "if (a || b) {} else if (a || c) {}",
+      "if (a) {} else if (a || b) {}",
       "if (a) {} else if (b) {} else if (a || b || c) {}",
-    );
-    assert_lint_ok::<NoDupeElseIf>(
       "if (a && b) {} else if (a) {} else if (b) {}",
-    );
-    assert_lint_ok::<NoDupeElseIf>(
       "if (a && b) {} else if (b && c) {} else if (a && c) {}",
-    );
-    assert_lint_ok::<NoDupeElseIf>("if (a && b) {} else if (b || c) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else if (b && (a || c)) {}");
-    assert_lint_ok::<NoDupeElseIf>("if (a) {} else if (b && (c || d && a)) {}");
-    assert_lint_ok::<NoDupeElseIf>(
+      "if (a && b) {} else if (b || c) {}",
+      "if (a) {} else if (b && (a || c)) {}",
+      "if (a) {} else if (b && (c || d && a)) {}",
       "if (a && b && c) {} else if (a && b && (c || d)) {}",
-    );
+    };
   }
 
   #[test]

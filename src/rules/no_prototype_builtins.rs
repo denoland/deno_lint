@@ -86,8 +86,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_prototype_builtins_ok() {
-    assert_lint_ok::<NoPrototypeBuiltins>(
+  fn no_prototype_builtins_valid() {
+    assert_lint_ok! {
+      NoPrototypeBuiltins,
       r#"
   Object.prototype.hasOwnProperty.call(foo, "bar");
   Object.prototype.isPrototypeOf.call(foo, "bar");
@@ -105,11 +106,11 @@ mod tests {
   ({}.isPrototypeOf.apply(foo, ["bar"]));
   ({}.propertyIsEnumberable.apply(foo, ["bar"]));
       "#,
-    );
+    };
   }
 
   #[test]
-  fn no_prototype_builtins() {
+  fn no_prototype_builtins_invalid() {
     assert_lint_err::<NoPrototypeBuiltins>(r#"foo.hasOwnProperty("bar");"#, 0);
     assert_lint_err::<NoPrototypeBuiltins>(r#"foo.isPrototypeOf("bar");"#, 0);
     assert_lint_err::<NoPrototypeBuiltins>(

@@ -83,7 +83,8 @@ mod tests {
 
   #[test]
   fn triple_slash_reference_valid() {
-    assert_lint_ok::<TripleSlashReference>(
+    assert_lint_ok! {
+      TripleSlashReference,
       r#"
       // <reference path="foo" />
       // <reference types="bar" />
@@ -92,9 +93,6 @@ mod tests {
       import * as bar from 'bar';
       import * as baz from 'baz';
       "#,
-    );
-
-    assert_lint_ok::<TripleSlashReference>(
       r#"
         // <reference path="foo" />
         // <reference types="bar" />
@@ -102,16 +100,14 @@ mod tests {
         import foo = require('foo');
         import bar = require('bar');
         import baz = require('baz');"#,
-    );
-
-    assert_lint_ok::<TripleSlashReference>(
       r#"
         /*
         /// <reference types="foo" />
         */
         import * as foo from 'foo';"#,
-    );
+    };
   }
+
   #[test]
   fn triple_slash_reference_invalid() {
     assert_lint_err_on_line::<TripleSlashReference>(

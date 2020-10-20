@@ -63,17 +63,16 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn test_new_symbol() {
+  fn no_new_symbol_valid() {
+    assert_lint_ok! {
+      NoNewSymbol,
+      "new Class()",
+      "Symbol()",
+    };
+  }
+
+  #[test]
+  fn no_new_symbol_invalid() {
     assert_lint_err::<NoNewSymbol>("new Symbol()", 0);
-  }
-
-  #[test]
-  fn test_new_normal_class() {
-    assert_lint_ok::<NoNewSymbol>("new Class()");
-  }
-
-  #[test]
-  fn test_create_symbol() {
-    assert_lint_ok::<NoNewSymbol>("Symbol()");
   }
 }

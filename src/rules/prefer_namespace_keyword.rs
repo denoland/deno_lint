@@ -84,13 +84,14 @@ mod tests {
 
   #[test]
   fn prefer_namespace_keyword_valid() {
-    assert_lint_ok_n::<PreferNamespaceKeyword>(vec![
+    assert_lint_ok! {
+      PreferNamespaceKeyword,
       "declare module 'foo';",
       "declare module 'foo' {}",
       "namespace foo {}",
       "declare namespace foo {}",
       "declare global {}",
-    ]);
+    };
   }
 
   #[test]

@@ -155,21 +155,18 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok::<NoGlobalAssign>("string = 'hello world';");
-
-    assert_lint_ok::<NoGlobalAssign>("var string;");
-
-    assert_lint_ok::<NoGlobalAssign>("top = 0;");
+  fn no_global_assign_valid() {
+    assert_lint_ok! {
+      NoGlobalAssign,
+      "string = 'hello world';",
+      "var string;",
+      "top = 0;",
+      "require = 0;",
+    };
   }
 
   #[test]
-  fn ok_2() {
-    assert_lint_ok::<NoGlobalAssign>("require = 0;");
-  }
-
-  #[test]
-  fn err_1() {
+  fn no_global_assign_invalid() {
     assert_lint_err::<NoGlobalAssign>("String = 'hello world';", 0);
 
     assert_lint_err::<NoGlobalAssign>("String++;", 0);
@@ -178,10 +175,6 @@ mod tests {
       "({Object = 0, String = 0} = {});",
       vec![2, 14],
     );
-  }
-
-  #[test]
-  fn err_2() {
     assert_lint_err::<NoGlobalAssign>("Array = 1;", 0);
   }
 }

@@ -162,30 +162,23 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn it_passes_using_valid_strings() {
-    assert_lint_ok::<ValidTypeof>(
+  fn valid_typeof_valid() {
+    assert_lint_ok! {
+      ValidTypeof,
       r#"
 typeof foo === "string"
 typeof bar == "undefined"
       "#,
-    );
+      r#"typeof bar === typeof qux"#,
+    };
   }
 
   #[test]
-  fn it_passes_using_two_typeof_operations() {
-    assert_lint_ok::<ValidTypeof>(r#"typeof bar === typeof qux"#);
-  }
-
-  #[test]
-  fn it_fails_using_invalid_strings() {
+  fn valid_typeof_invalid() {
     assert_lint_err::<ValidTypeof>(r#"typeof foo === "strnig""#, 15);
     assert_lint_err::<ValidTypeof>(r#"typeof foo == "undefimed""#, 14);
     assert_lint_err::<ValidTypeof>(r#"typeof bar != "nunber""#, 14);
     assert_lint_err::<ValidTypeof>(r#"typeof bar !== "fucntion""#, 15);
-  }
-
-  #[test]
-  fn it_fails_not_using_strings() {
     assert_lint_err::<ValidTypeof>(r#"typeof foo === undefined"#, 15);
     assert_lint_err::<ValidTypeof>(r#"typeof bar == Object"#, 14);
     assert_lint_err::<ValidTypeof>(r#"typeof baz === anotherVariable"#, 15);

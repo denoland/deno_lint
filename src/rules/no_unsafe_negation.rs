@@ -68,19 +68,20 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_unsafe_negation_ok() {
-    assert_lint_ok_n::<NoUnsafeNegation>(vec![
+  fn no_unsafe_negation_valid() {
+    assert_lint_ok! {
+      NoUnsafeNegation,
       "1 in [1, 2, 3]",
       "key in object",
       "foo instanceof Date",
       "!(1 in [1, 2, 3])",
       "!(key in object)",
       "!(foo instanceof Date)",
-    ]);
+    };
   }
 
   #[test]
-  fn no_unsafe_negation() {
+  fn no_unsafe_negation_invalid() {
     assert_lint_err::<NoUnsafeNegation>("!1 in [1, 2, 3]", 0);
     assert_lint_err::<NoUnsafeNegation>("!key in object", 0);
     assert_lint_err::<NoUnsafeNegation>("!foo instanceof Date", 0);

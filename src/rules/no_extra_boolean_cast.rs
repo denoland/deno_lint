@@ -211,23 +211,22 @@ mod tests {
 
   #[test]
   fn no_extra_boolean_cast_valid() {
-    assert_lint_ok::<NoExtraBooleanCast>("Boolean(bar, !!baz);");
-    assert_lint_ok::<NoExtraBooleanCast>("var foo = !!bar;");
-    assert_lint_ok::<NoExtraBooleanCast>("function foo() { return !!bar; }");
-    assert_lint_ok::<NoExtraBooleanCast>("var foo = bar() ? !!baz : !!bat");
-    assert_lint_ok::<NoExtraBooleanCast>("for(!!foo;;) {}");
-    assert_lint_ok::<NoExtraBooleanCast>("for(;; !!foo) {}");
-    assert_lint_ok::<NoExtraBooleanCast>("var foo = Boolean(bar);");
-    assert_lint_ok::<NoExtraBooleanCast>(
+    assert_lint_ok! {
+      NoExtraBooleanCast,
+      "Boolean(bar, !!baz);",
+      "var foo = !!bar;",
+      "function foo() { return !!bar; }",
+      "var foo = bar() ? !!baz : !!bat",
+      "for(!!foo;;) {}",
+      "for(;; !!foo) {}",
+      "var foo = Boolean(bar);",
       "function foo() { return Boolean(bar); }",
-    );
-    assert_lint_ok::<NoExtraBooleanCast>(
       "var foo = bar() ? Boolean(baz) : Boolean(bat)",
-    );
-    assert_lint_ok::<NoExtraBooleanCast>("for(Boolean(foo);;) {}");
-    assert_lint_ok::<NoExtraBooleanCast>("for(;; Boolean(foo)) {}");
-    assert_lint_ok::<NoExtraBooleanCast>("if (new Boolean(foo)) {}");
-    assert_lint_ok::<NoExtraBooleanCast>("if (!!foo || bar) {}");
+      "for(Boolean(foo);;) {}",
+      "for(;; Boolean(foo)) {}",
+      "if (new Boolean(foo)) {}",
+      "if (!!foo || bar) {}",
+    };
   }
 
   #[test]

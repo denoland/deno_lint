@@ -68,17 +68,19 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn test_literal_octal() {
+  fn no_octal_valid() {
+    assert_lint_ok! {
+      NoOctal,
+      "7",
+      "\"07\"",
+      "0x08",
+      "-0.01",
+    };
+  }
+
+  #[test]
+  fn no_octal_invalid() {
     assert_lint_err::<NoOctal>("07", 0);
-  }
-
-  #[test]
-  fn test_operand_octal() {
     assert_lint_err::<NoOctal>("let x = 7 + 07", 12);
-  }
-
-  #[test]
-  fn test_octals_valid() {
-    assert_lint_ok_n::<NoOctal>(vec!["7", "\"07\"", "0x08", "-0.01"]);
   }
 }

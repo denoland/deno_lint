@@ -7,22 +7,17 @@ use crate::swc_util;
 use std::marker::PhantomData;
 use swc_ecmascript::ast::Module;
 
-// TODO(magurotuna): rename this macro after replacing existing tests with this macro
 #[macro_export]
-macro_rules! assert_lint_ok_macro {
-  ($rule:ty, $src:literal $(,)?) => {
-    $crate::test_util::assert_lint_ok::<$rule>($src);
-  };
-  ($rule:ty, [$($src:literal),* $(,)?] $(,)?) => {
+macro_rules! assert_lint_ok {
+  ($rule:ty, $($src:literal),* $(,)?) => {
     $(
       $crate::test_util::assert_lint_ok::<$rule>($src);
     )*
   };
 }
 
-// TODO(magurotuna): rename this macro after replacing existing tests with this macro
 #[macro_export]
-macro_rules! assert_lint_err_macro {
+macro_rules! assert_lint_err {
   (
     $rule:ty,
     $(
@@ -83,7 +78,6 @@ impl LintErrBuilder {
     Self::default()
   }
 
-  #[allow(unused)]
   pub fn line(&mut self, line: usize) -> &mut Self {
     // Line is 1-based in deno_lint
     assert!(line >= 1);
@@ -229,12 +223,6 @@ pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
       diagnostics, source
     );
-  }
-}
-
-pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {
-  for source in cases {
-    assert_lint_ok::<T>(source);
   }
 }
 

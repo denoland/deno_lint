@@ -269,19 +269,17 @@ impl Method {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn adjacent_overload_signatures_valid() {
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+    assert_lint_ok! {
+      AdjacentOverloadSignatures,
       r#"
 function error(a: string);
 function error(b: number);
 function error(ab: string | number) {}
 export { error };
       "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 import { connect } from 'react-redux';
 export interface ErrorMessageModel {
@@ -291,82 +289,62 @@ function mapStateToProps() {}
 function mapDispatchToProps() {}
 export default connect(mapStateToProps, mapDispatchToProps)(ErrorMessage);
       "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 export const foo = 'a',
   bar = 'b';
 export interface Foo {}
 export class Foo {}
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 export interface Foo {}
 export const foo = 'a',
   bar = 'b';
 export class Foo {}
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 const foo = 'a',
   bar = 'b';
 interface Foo {}
 class Foo {}
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {}
 const foo = 'a',
   bar = 'b';
 class Foo {}
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 export class Foo {}
 export class Bar {}
 export type FooBar = Foo | Bar;
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 export interface Foo {}
 export class Foo {}
 export class Bar {}
 export type FooBar = Foo | Bar;
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 export function foo(s: string);
 export function foo(n: number);
 export function foo(sn: string | number) {}
 export function bar(): void {}
 export function baz(): void {}
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 function foo(s: string);
 function foo(n: number);
 function foo(sn: string | number) {}
 function bar(): void {}
 function baz(): void {}
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 declare function foo(s: string);
 declare function foo(n: number);
 declare function foo(sn: string | number);
 declare function bar(): void;
 declare function baz(): void;
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 declare module 'Foo' {
   export function foo(s: string): void;
@@ -375,9 +353,7 @@ declare module 'Foo' {
   export function bar(): void;
   export function baz(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 declare namespace Foo {
   export function foo(s: string): void;
@@ -386,9 +362,7 @@ declare namespace Foo {
   export function bar(): void;
   export function baz(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 type Foo = {
   foo(s: string): void;
@@ -397,9 +371,7 @@ type Foo = {
   bar(): void;
   baz(): void;
 };
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 type Foo = {
   foo(s: string): void;
@@ -408,9 +380,7 @@ type Foo = {
   bar(): void;
   baz(): void;
 };
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {
   (s: string): void;
@@ -420,9 +390,7 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {
   (s: string): void;
@@ -433,9 +401,7 @@ interface Foo {
   baz(): void;
   call(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {
   foo(s: string): void;
@@ -444,9 +410,7 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {
   foo(s: string): void;
@@ -455,9 +419,7 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {
   foo(): void;
@@ -467,9 +429,7 @@ interface Foo {
     baz(sn: string | number): void;
   };
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 interface Foo {
   new (s: string);
@@ -477,9 +437,7 @@ interface Foo {
   new (sn: string | number);
   foo(): void;
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 class Foo {
   constructor(s: string);
@@ -489,8 +447,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -500,8 +456,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -511,8 +465,6 @@ class Foo {
   baz(): void {}
 }
     "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 class Foo {
   foo(s: string): void;
@@ -521,9 +473,7 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 class Foo {
   foo(s: string): void;
@@ -532,9 +482,7 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 class Foo {
   name: string;
@@ -544,9 +492,7 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 class Foo {
   name: string;
@@ -557,103 +503,113 @@ class Foo {
   baz(): void {}
   foo() {}
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"
 class Test {
   static test() {}
   untest() {}
   test() {}
 }
-    "#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
+      "#,
       r#"export default function <T>(foo: T) {}"#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"export default function named<T>(foo: T) {}"#,
-    );
-    assert_lint_ok::<AdjacentOverloadSignatures>(
       r#"
 interface Foo {
   [Symbol.toStringTag](): void;
   [Symbol.iterator](): void;
 }
-    "#,
-    );
+      "#,
+    };
   }
 
   #[test]
   fn adjacent_overload_signatures_invalid() {
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
+    assert_lint_err! {
+      AdjacentOverloadSignatures,
       r#"
 export function foo(s: string);
 export function foo(n: number);
 export function bar(): void {}
 export function baz(): void {}
 export function foo(sn: string | number) {}
-      "#,
-      6,
-      0,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 0,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 export function foo(s: string);
 export function foo(n: number);
 export type bar = number;
 export type baz = number | string;
 export function foo(sn: string | number) {}
-      "#,
-      6,
-      0,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 0,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 function foo(s: string);
 function foo(n: number);
 function bar(): void {}
 function baz(): void {}
 function foo(sn: string | number) {}
-      "#,
-      6,
-      0,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 0,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 function foo(s: string);
 function foo(n: number);
 type bar = number;
 type baz = number | string;
 function foo(sn: string | number) {}
-      "#,
-      6,
-      0,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 0,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 function foo(s: string) {}
 function foo(n: number) {}
 const a = '';
 const b = '';
 function foo(sn: string | number) {}
-      "#,
-      6,
-      0,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 0,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 function foo(s: string) {}
 function foo(n: number) {}
 class Bar {}
 function foo(sn: string | number) {}
-      "#,
-      5,
-      0,
-    );
-
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 0,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 function foo(s: string) {}
 function foo(n: number) {}
 function foo(sn: string | number) {}
@@ -663,34 +619,43 @@ class Bar {
   name: string;
   foo(sn: string | number) {}
 }
-      "#,
-      9,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 9,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 declare function foo(s: string);
 declare function foo(n: number);
 declare function bar(): void;
 declare function baz(): void;
 declare function foo(sn: string | number);
-      "#,
-      6,
-      8,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 8,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 declare function foo(s: string);
 declare function foo(n: number);
 const a = '';
 const b = '';
 declare function foo(sn: string | number);
-      "#,
-      6,
-      8,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 6,
+              col: 8,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 declare module 'Foo' {
   export function foo(s: string): void;
   export function foo(n: number): void;
@@ -698,12 +663,15 @@ declare module 'Foo' {
   export function baz(): void;
   export function foo(sn: string | number): void;
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 declare module 'Foo' {
   export function foo(s: string): void;
   export function foo(n: number): void;
@@ -713,12 +681,15 @@ declare module 'Foo' {
   function baz(n: number): void;
   function baz(sn: string | number): void;
 }
-      "#,
-      8,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 8,
+              col: 2,
+              message: "All 'baz' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 declare namespace Foo {
   export function foo(s: string): void;
   export function foo(n: number): void;
@@ -726,12 +697,15 @@ declare namespace Foo {
   export function baz(): void;
   export function foo(sn: string | number): void;
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 declare namespace Foo {
   export function foo(s: string): void;
   export function foo(n: number): void;
@@ -741,12 +715,15 @@ declare namespace Foo {
   function baz(n: number): void;
   function baz(sn: string | number): void;
 }
-      "#,
-      8,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 8,
+              col: 2,
+              message: "All 'baz' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 type Foo = {
   foo(s: string): void;
   foo(n: number): void;
@@ -754,12 +731,15 @@ type Foo = {
   baz(): void;
   foo(sn: string | number): void;
 };
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 type Foo = {
   foo(s: string): void;
   ['foo'](n: number): void;
@@ -767,12 +747,15 @@ type Foo = {
   baz(): void;
   foo(sn: string | number): void;
 };
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 type Foo = {
   foo(s: string): void;
   name: string;
@@ -781,12 +764,15 @@ type Foo = {
   bar(): void;
   baz(): void;
 };
-      "#,
-      5,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   (s: string): void;
   foo(n: number): void;
@@ -795,12 +781,15 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-      "#,
-      5,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'call' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   foo(s: string): void;
   foo(n: number): void;
@@ -808,12 +797,15 @@ interface Foo {
   baz(): void;
   foo(sn: string | number): void;
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   foo(s: string): void;
   ['foo'](n: number): void;
@@ -821,12 +813,15 @@ interface Foo {
   baz(): void;
   foo(sn: string | number): void;
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   foo(s: string): void;
   'foo'(n: number): void;
@@ -834,12 +829,15 @@ interface Foo {
   baz(): void;
   foo(sn: string | number): void;
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   foo(s: string): void;
   name: string;
@@ -848,12 +846,15 @@ interface Foo {
   bar(): void;
   baz(): void;
 }
-      "#,
-      5,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   foo(): void;
   bar: {
@@ -863,12 +864,15 @@ interface Foo {
     baz(sn: string | number): void;
   };
 }
-      "#,
-      8,
-      4,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 8,
+              col: 4,
+              message: "All 'baz' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   new (s: string);
   new (n: number);
@@ -876,12 +880,15 @@ interface Foo {
   bar(): void;
   new (sn: string | number);
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line_n::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'new' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 interface Foo {
   new (s: string);
   foo(): void;
@@ -889,11 +896,21 @@ interface Foo {
   bar(): void;
   new (sn: string | number);
 }
-      "#,
-      vec![(5, 2), (7, 2)],
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'new' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            },
+            {
+              line: 7,
+              col: 2,
+              message: "All 'new' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   constructor(s: string);
   constructor(n: number);
@@ -901,12 +918,15 @@ class Foo {
   baz(): void {}
   constructor(sn: string | number) {}
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'constructor' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   foo(s: string): void;
   foo(n: number): void;
@@ -914,12 +934,15 @@ class Foo {
   baz(): void {}
   foo(sn: string | number): void {}
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   foo(s: string): void;
   ['foo'](n: number): void;
@@ -927,12 +950,15 @@ class Foo {
   baz(): void {}
   foo(sn: string | number): void {}
 }
-      "#,
-      7,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   // prettier-ignore
   "foo"(s: string): void;
@@ -941,12 +967,15 @@ class Foo {
   baz(): void {}
   foo(sn: string | number): void {}
 }
-      "#,
-      8,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 8,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   constructor(s: string);
   name: string;
@@ -955,12 +984,15 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-      "#,
-      5,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'constructor' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   foo(s: string): void;
   name: string;
@@ -969,12 +1001,15 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-      "#,
-      5,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   static foo(s: string): void;
   name: string;
@@ -983,12 +1018,15 @@ class Foo {
   bar(): void {}
   baz(): void {}
 }
-      "#,
-      5,
-      2,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 5,
+              col: 2,
+              message: "All 'foo' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   foo() {
     class Bar {
@@ -998,12 +1036,15 @@ class Foo {
     }
   }
 }
-      "#,
-      7,
-      6,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 6,
+              message: "All 'bar' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 class Foo {
   foo() {
     class Bar {
@@ -1013,12 +1054,15 @@ class Foo {
     }
   }
 }
-      "#,
-      7,
-      6,
-    );
-    assert_lint_err_on_line::<AdjacentOverloadSignatures>(
-      r#"
+      "#: [
+            {
+              line: 7,
+              col: 6,
+              message: "All 'bar' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ],
+r#"
 type Foo = {
   foo(): void;
   bar: {
@@ -1028,9 +1072,14 @@ type Foo = {
     baz(sn: string | number): void;
   };
 }
-      "#,
-      8,
-      4,
-    );
+      "#: [
+            {
+              line: 8,
+              col: 4,
+              message: "All 'baz' signatures should be adjacent",
+              hint: "Make sure all overloaded signatures are grouped together"
+            }
+          ]
+    };
   }
 }

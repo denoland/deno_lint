@@ -129,8 +129,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn require_yield_ok() {
-    assert_lint_ok::<RequireYield>(
+  fn require_yield_valid() {
+    assert_lint_ok! {
+      RequireYield,
       r#"
 function foo() {}
 function* bar() { 
@@ -154,11 +155,11 @@ const obj = {
   }
 };
       "#,
-    );
+    };
   }
 
   #[test]
-  fn require_yield() {
+  fn require_yield_invalid() {
     assert_lint_err::<RequireYield>(r#"function* bar() { return "bar"; }"#, 0);
     assert_lint_err::<RequireYield>(
       r#"(function* foo() { return "foo"; })();"#,

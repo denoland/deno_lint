@@ -123,11 +123,11 @@ fn check_comment(comment: &Comment) -> bool {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ban_ts_comment_valid() {
-    assert_lint_ok_n::<BanTsComment>(vec![
+    assert_lint_ok! {
+      BanTsComment,
       r#"// just a comment containing @ts-expect-error somewhere"#,
       r#"/* @ts-expect-error */"#,
       r#"/** @ts-expect-error */"#,
@@ -135,9 +135,6 @@ mod tests {
 // @ts-expect-error in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok_n::<BanTsComment>(vec![
       r#"// just a comment containing @ts-ignore somewhere"#,
       r#"/* @ts-ignore */"#,
       r#"/** @ts-ignore */"#,
@@ -145,9 +142,6 @@ mod tests {
 // @ts-ignore in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok_n::<BanTsComment>(vec![
       r#"// just a comment containing @ts-nocheck somewhere"#,
       r#"/* @ts-nocheck */"#,
       r#"/** @ts-nocheck */"#,
@@ -155,9 +149,6 @@ mod tests {
 // @ts-nocheck in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok_n::<BanTsComment>(vec![
       r#"// just a comment containing @ts-check somewhere"#,
       r#"/* @ts-check */"#,
       r#"/** @ts-check */"#,
@@ -165,38 +156,46 @@ mod tests {
 // @ts-check in a block
 */
 "#,
-    ]);
-
-    assert_lint_ok::<BanTsComment>(
       r#"if (false) {
 // @ts-ignore: Unreachable code error
 console.log('hello');
 }"#,
-    );
-    assert_lint_ok::<BanTsComment>(
       r#"if (false) {
 // @ts-expect-error: Unreachable code error
 console.log('hello');
 }"#,
-    );
-    assert_lint_ok::<BanTsComment>(
       r#"if (false) {
 // @ts-nocheck: Unreachable code error
 console.log('hello');
 }"#,
-    );
-
-    assert_lint_ok::<BanTsComment>(
-      r#"// @ts-expect-error: Suppress next line"#,
-    );
-    assert_lint_ok::<BanTsComment>(r#"// @ts-ignore: Suppress next line"#);
-    assert_lint_ok::<BanTsComment>(r#"// @ts-nocheck: Suppress next line"#);
+    };
   }
 
   #[test]
   fn ban_ts_comment_invalid() {
-    assert_lint_err::<BanTsComment>(r#"// @ts-expect-error"#, 0);
-    assert_lint_err::<BanTsComment>(r#"// @ts-ignore"#, 0);
-    assert_lint_err::<BanTsComment>(r#"// @ts-nocheck"#, 0);
+    assert_lint_err! {
+      BanTsComment,
+      r#"// @ts-expect-error"#: [
+            {
+              col: 0,
+              message: "ts directives are not allowed without comment",
+              hint: "Add an in-line comment explaining the reason for using this directive",
+            }
+          ],
+    r#"// @ts-ignore"#: [
+            {
+              col: 0,
+              message: "ts directives are not allowed without comment",
+              hint: "Add an in-line comment explaining the reason for using this directive",
+            }
+          ],
+    r#"// @ts-nocheck"#: [
+            {
+              col: 0,
+              message: "ts directives are not allowed without comment",
+              hint: "Add an in-line comment explaining the reason for using this directive",
+            }
+          ]
+    };
   }
 }

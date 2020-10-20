@@ -68,9 +68,13 @@ mod tests {
 
   #[test]
   fn no_namespace_valid() {
-    assert_lint_ok::<NoNamespace>(r#"declare global {}"#);
-    assert_lint_ok::<NoNamespace>(r#"declare module 'foo' {}"#);
+    assert_lint_ok! {
+      NoNamespace,
+      r#"declare global {}"#,
+      r#"declare module 'foo' {}"#,
+    };
   }
+
   #[test]
   fn no_namespace_invalid() {
     assert_lint_err::<NoNamespace>("module foo {}", 0);

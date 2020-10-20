@@ -158,14 +158,15 @@ mod tests {
 
   #[test]
   fn ban_types_valid() {
-    assert_lint_ok::<BanTypes>("let f = Object();");
-    assert_lint_ok::<BanTypes>(
+    assert_lint_ok! {
+      BanTypes,
+      "let f = Object();",
       "let f: { x: number; y: number } = { x: 1, y: 1 };",
-    );
-    assert_lint_ok::<BanTypes>("let f = Object();");
-    assert_lint_ok::<BanTypes>("let g = Object.create(null);");
-    assert_lint_ok::<BanTypes>("let h = String(false);");
-    assert_lint_ok::<BanTypes>("let e: foo.String;");
+      "let f = Object();",
+      "let g = Object.create(null);",
+      "let h = String(false);",
+      "let e: foo.String;",
+    };
   }
 
   #[test]

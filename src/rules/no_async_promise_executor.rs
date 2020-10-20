@@ -83,13 +83,14 @@ mod tests {
 
   #[test]
   fn no_async_promise_executor_valid() {
-    assert_lint_ok_n::<NoAsyncPromiseExecutor>(vec![
+    assert_lint_ok! {
+      NoAsyncPromiseExecutor,
       "new Promise(function(resolve, reject) {});",
       "new Promise((resolve, reject) => {});",
       "new Promise((resolve, reject) => {}, async function unrelated() {})",
       "new Foo(async (resolve, reject) => {})",
       "new class { foo() { new Promise(function(resolve, reject) {}); } }",
-    ]);
+    };
   }
 
   #[test]

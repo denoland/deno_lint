@@ -1495,65 +1495,44 @@ mod prefer_const_tests {
 
   #[test]
   fn prefer_const_valid() {
-    assert_lint_ok::<PreferConst>(r#"var x = 0;"#);
-    assert_lint_ok::<PreferConst>(r#"let x;"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; x += 1;"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; x -= 1;"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; x++;"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; ++x;"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; x--;"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; --x;"#);
-    assert_lint_ok::<PreferConst>(r#"let x; { x = 0; } foo(x);"#);
-    assert_lint_ok::<PreferConst>(r#"let x = 0; x = 1;"#);
-    assert_lint_ok::<PreferConst>(r#"const x = 0;"#);
-    assert_lint_ok::<PreferConst>(
+    assert_lint_ok! {
+      PreferConst,
+      r#"var x = 0;"#,
+      r#"let x;"#,
+      r#"let x = 0; x += 1;"#,
+      r#"let x = 0; x -= 1;"#,
+      r#"let x = 0; x++;"#,
+      r#"let x = 0; ++x;"#,
+      r#"let x = 0; x--;"#,
+      r#"let x = 0; --x;"#,
+      r#"let x; { x = 0; } foo(x);"#,
+      r#"let x = 0; x = 1;"#,
+      r#"const x = 0;"#,
       r#"for (let i = 0, end = 10; i < end; ++i) {}"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"for (let i = 0, end = 10; i < end; i += 2) {}"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"for (let i in [1,2,3]) { i = 0; }"#);
-    assert_lint_ok::<PreferConst>(r#"for (let x of [1,2,3]) { x = 0; }"#);
-    assert_lint_ok::<PreferConst>(r#"(function() { var x = 0; })();"#);
-    assert_lint_ok::<PreferConst>(r#"(function() { let x; })();"#);
-    assert_lint_ok::<PreferConst>(
+      r#"for (let i in [1,2,3]) { i = 0; }"#,
+      r#"for (let x of [1,2,3]) { x = 0; }"#,
+      r#"(function() { var x = 0; })();"#,
+      r#"(function() { let x; })();"#,
       r#"(function() { let x; { x = 0; } foo(x); })();"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"(function() { let x = 0; x = 1; })();"#);
-    assert_lint_ok::<PreferConst>(r#"(function() { const x = 0; })();"#);
-    assert_lint_ok::<PreferConst>(
+      r#"(function() { let x = 0; x = 1; })();"#,
+      r#"(function() { const x = 0; })();"#,
       r#"(function() { for (let i = 0, end = 10; i < end; ++i) {} })();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"(function() { for (let i in [1,2,3]) { i = 0; } })();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"(function() { for (let x of [1,2,3]) { x = 0; } })();"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"(function(x = 0) { })();"#);
-    assert_lint_ok::<PreferConst>(r#"let a; while (a = foo());"#);
-    assert_lint_ok::<PreferConst>(r#"let a; do {} while (a = foo());"#);
-    assert_lint_ok::<PreferConst>(r#"let a; for (; a = foo(); );"#);
-    assert_lint_ok::<PreferConst>(r#"let a; for (;; ++a);"#);
-    assert_lint_ok::<PreferConst>(r#"let a; for (const {b = ++a} in foo());"#);
-    assert_lint_ok::<PreferConst>(r#"let a; for (const {b = ++a} of foo());"#);
-    assert_lint_ok::<PreferConst>(
+      r#"(function(x = 0) { })();"#,
+      r#"let a; while (a = foo());"#,
+      r#"let a; do {} while (a = foo());"#,
+      r#"let a; for (; a = foo(); );"#,
+      r#"let a; for (;; ++a);"#,
+      r#"let a; for (const {b = ++a} in foo());"#,
+      r#"let a; for (const {b = ++a} of foo());"#,
       r#"let a; for (const x of [1,2,3]) { if (a) {} a = foo(); }"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let a; for (const x of [1,2,3]) { a = a || foo(); bar(a); }"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let a; for (const x of [1,2,3]) { foo(++a); }"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let a; function foo() { if (a) {} a = bar(); }"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let a; function foo() { a = a || bar(); baz(a); }"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"let a; function foo() { bar(++a); }"#);
-    assert_lint_ok::<PreferConst>(
+      r#"let a; function foo() { bar(++a); }"#,
       r#"
       let id;
       function foo() {
@@ -1564,95 +1543,51 @@ mod prefer_const_tests {
       }
       foo();
       "#,
-    );
-    assert_lint_ok::<PreferConst>(r#"let a; function init() { a = foo(); }"#);
-    assert_lint_ok::<PreferConst>(r#"let a; if (true) a = 0; foo(a);"#);
-    assert_lint_ok::<PreferConst>(
+      r#"let a; function init() { a = foo(); }"#,
+      r#"let a; if (true) a = 0; foo(a);"#,
       r#"
         (function (a) {
             let b;
             ({ a, b } = obj);
         })();
         "#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"
         (function (a) {
             let b;
             ([ a, b ] = obj);
         })();
         "#,
-    );
-    assert_lint_ok::<PreferConst>(r#"var a; { var b; ({ a, b } = obj); }"#);
-    assert_lint_ok::<PreferConst>(r#"let a; { let b; ({ a, b } = obj); }"#);
-    assert_lint_ok::<PreferConst>(r#"var a; { var b; ([ a, b ] = obj); }"#);
-    assert_lint_ok::<PreferConst>(r#"let a; { let b; ([ a, b ] = obj); }"#);
-    assert_lint_ok::<PreferConst>(r#"let x; { x = 0; foo(x); }"#);
-    assert_lint_ok::<PreferConst>(
+      r#"var a; { var b; ({ a, b } = obj); }"#,
+      r#"let a; { let b; ({ a, b } = obj); }"#,
+      r#"var a; { var b; ([ a, b ] = obj); }"#,
+      r#"let a; { let b; ([ a, b ] = obj); }"#,
+      r#"let x; { x = 0; foo(x); }"#,
       r#"(function() { let x; { x = 0; foo(x); } })();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let x; for (const a of [1,2,3]) { x = foo(); bar(x); }"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"(function() { let x; for (const a of [1,2,3]) { x = foo(); bar(x); } })();"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"let x; for (x of array) { x; }"#);
-    assert_lint_ok::<PreferConst>(
+      r#"let x; for (x of array) { x; }"#,
       r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [typeNode.returnType, ...predicate] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [typeNode.returnType,, predicate] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [typeNode.returnType=5, predicate] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [[typeNode.returnType=5], predicate] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [[typeNode.returnType, predicate]] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [typeNode.returnType, [predicate]] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [, [typeNode.returnType, predicate]] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [, {foo:typeNode.returnType, predicate}] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let predicate; [, {foo:typeNode.returnType, ...predicate}] = foo();"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let a; const b = {}; ({ a, c: b.c } = func());"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"const x = [1,2]; let y; [,y] = x; y = 0;"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"const x = [1,2,3]; let y, z; [y,,z] = x; y = 0; z = 0;"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"try { foo(); } catch (e) {}"#);
-    assert_lint_ok::<PreferConst>(
+      r#"try { foo(); } catch (e) {}"#,
       r#"let a; try { foo(); a = 1; } catch (e) {}"#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"let a; try { foo(); } catch (e) { a = 1; }"#,
-    );
 
-    // https://github.com/denoland/deno_lint/issues/358
-    assert_lint_ok::<PreferConst>(
+      // https://github.com/denoland/deno_lint/issues/358
       r#"let a; const b = (a = foo === bar || baz === qux);"#,
-    );
-    assert_lint_ok::<PreferConst>(r#"let i = 0; b[i++] = 0;"#);
+      r#"let i = 0; b[i++] = 0;"#,
 
-    // hoisting
-    assert_lint_ok::<PreferConst>(
+      // hoisting
       r#"
       function foo() {
         a += 1;
@@ -1660,8 +1595,6 @@ mod prefer_const_tests {
       let a = 1;
       foo();
       "#,
-    );
-    assert_lint_ok::<PreferConst>(
       r#"
       let a = 1;
       function foo() {
@@ -1676,14 +1609,12 @@ mod prefer_const_tests {
       a *= 2;
       console.log(a); // 2
       "#,
-    );
 
-    // https://github.com/denoland/deno_lint/issues/358#issuecomment-703587510
-    assert_lint_ok::<PreferConst>(r#"let a = 0; for (a in [1, 2, 3]) foo(a);"#);
-    assert_lint_ok::<PreferConst>(r#"let a = 0; for (a of [1, 2, 3]) foo(a);"#);
-    assert_lint_ok::<PreferConst>(
+      // https://github.com/denoland/deno_lint/issues/358#issuecomment-703587510
+      r#"let a = 0; for (a in [1, 2, 3]) foo(a);"#,
+      r#"let a = 0; for (a of [1, 2, 3]) foo(a);"#,
       r#"let a = 0; for (a = 0; a < 10; a++) foo(a);"#,
-    );
+    };
   }
 
   #[test]

@@ -91,17 +91,20 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_non_null_asserted_optional_chain_ok() {
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar!;");
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo.bar()!;");
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar();");
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("foo?.bar;");
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar).baz!;");
-    assert_lint_ok::<NoNonNullAssertedOptionalChain>("(foo?.bar()).baz!;");
+  fn no_non_null_asserted_optional_chain_valid() {
+    assert_lint_ok! {
+      NoNonNullAssertedOptionalChain,
+      "foo.bar!;",
+      "foo.bar()!;",
+      "foo?.bar();",
+      "foo?.bar;",
+      "(foo?.bar).baz!;",
+      "(foo?.bar()).baz!;",
+    };
   }
 
   #[test]
-  fn no_non_null_asserted_optional_chain_err() {
+  fn no_non_null_asserted_optional_chain_invalid() {
     assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar!;", 0);
     assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.['bar']!;", 0);
     assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar()!;", 0);

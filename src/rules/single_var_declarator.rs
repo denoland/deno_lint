@@ -57,7 +57,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn single_var_declarator_test() {
+  fn single_var_declarator_invalid() {
     assert_lint_err::<SingleVarDeclarator>(
       r#"const a1 = "a", b1 = "b", c1 = "c";"#,
       0,

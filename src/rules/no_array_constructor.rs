@@ -97,33 +97,22 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_array_constructor_call_valid() {
-    assert_lint_ok_n::<NoArrayConstructor>(vec![
+  fn no_array_constructor_valid() {
+    assert_lint_ok! {
+      NoArrayConstructor,
       "Array(x)",
       "Array(9)",
       "Array.foo()",
       "foo.Array()",
-    ]);
-  }
-
-  #[test]
-  fn no_array_constructor_new_valid() {
-    assert_lint_ok_n::<NoArrayConstructor>(vec![
       "new Array(x)",
       "new Array(9)",
       "new foo.Array()",
       "new Array.foo",
-    ]);
-  }
-
-  #[test]
-  fn no_array_constructor_typescript_valid() {
-    assert_lint_ok_n::<NoArrayConstructor>(vec![
       "new Array<Foo>(1, 2, 3);",
       "new Array<Foo>()",
       "Array<Foo>(1, 2, 3);",
       "Array<Foo>();",
-    ]);
+    };
   }
 
   #[test]

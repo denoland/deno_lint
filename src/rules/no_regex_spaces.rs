@@ -116,7 +116,8 @@ mod tests {
 
   #[test]
   fn no_regex_spaces_valid() {
-    assert_lint_ok_n::<NoRegexSpaces>(vec![
+    assert_lint_ok! {
+      NoRegexSpaces,
       "var foo = /foo/;",
       "var foo = RegExp('foo')",
       "var foo = / /;",
@@ -132,9 +133,11 @@ mod tests {
       "var foo = /  ?/;",
       "var foo = /  */;",
       "var foo = /  {2}/;",
+
       // don't report if RegExp shadowed
       "var RegExp = function() {}; var foo = new RegExp('bar   baz');",
       "var RegExp = function() {}; var foo = RegExp('bar   baz');",
+
       // don't report if there are no consecutive spaces in the source code
       r"var foo = /bar \\ baz/;",
       r"var foo = /bar\\ \\ baz/;",
@@ -146,6 +149,7 @@ mod tests {
       r"var foo = new RegExp('bar \\u0020 baz')",
       r"var foo = new RegExp('bar\\u0020\\u0020baz')",
       r"var foo = new RegExp('bar \\\\u0020 baz')",
+
       // don't report spaces in character classes
       "var foo = /[  ]/;",
       "var foo = /[   ]/;",
@@ -156,11 +160,12 @@ mod tests {
       "var foo = new RegExp(' [  ] ');",
       "var foo = RegExp(' [  ] [  ] ');",
       "var foo = new RegExp(' \\[   \\] ');",
+
       // TODO(@disizali) invalid regexes must handled on separated rule called `no-invalid-regexp`.
       // "var foo = new RegExp('[  ');",
       // "var foo = new RegExp('{  ', 'u');",
       // "var foo = new RegExp(' \\[   ');",
-    ]);
+    };
   }
 
   #[test]

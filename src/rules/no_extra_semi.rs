@@ -163,23 +163,26 @@ mod tests {
 
   #[test]
   fn no_extra_semi_valid() {
-    assert_lint_ok::<NoExtraSemi>("var x = 5;");
-    assert_lint_ok::<NoExtraSemi>("function foo(){}");
-    assert_lint_ok::<NoExtraSemi>("for(;;);");
-    assert_lint_ok::<NoExtraSemi>("while(0);");
-    assert_lint_ok::<NoExtraSemi>("do;while(0);");
-    assert_lint_ok::<NoExtraSemi>("for(a in b);");
-    assert_lint_ok::<NoExtraSemi>("for(a of b);");
-    assert_lint_ok::<NoExtraSemi>("if(true);");
-    assert_lint_ok::<NoExtraSemi>("if(true); else;");
-    assert_lint_ok::<NoExtraSemi>("foo: ;");
-    assert_lint_ok::<NoExtraSemi>("foo: bar: ;");
-    assert_lint_ok::<NoExtraSemi>("with(foo);");
-    assert_lint_ok::<NoExtraSemi>("class A { }");
-    assert_lint_ok::<NoExtraSemi>("var A = class { };");
-    assert_lint_ok::<NoExtraSemi>("class A { a() { this; } }");
-    assert_lint_ok::<NoExtraSemi>("var A = class { a() { this; } };");
-    assert_lint_ok::<NoExtraSemi>("class A { } a;");
+    assert_lint_ok! {
+      NoExtraSemi,
+      "var x = 5;",
+      "function foo(){}",
+      "for(;;);",
+      "while(0);",
+      "do;while(0);",
+      "for(a in b);",
+      "for(a of b);",
+      "if(true);",
+      "if(true); else;",
+      "foo: ;",
+      "foo: bar: ;",
+      "with(foo);",
+      "class A { }",
+      "var A = class { };",
+      "class A { a() { this; } }",
+      "var A = class { a() { this; } };",
+      "class A { } a;",
+    };
   }
 
   #[test]

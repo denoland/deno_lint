@@ -165,32 +165,27 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_empty_ok() {
-    assert_lint_ok::<NoEmpty>(r#"function foobar() {}"#);
-    assert_lint_ok::<NoEmpty>(
+  fn no_empty_valid() {
+    assert_lint_ok! {
+      NoEmpty,
+      r#"function foobar() {}"#,
       r#"
 class Foo {
   constructor() {}
 }
       "#,
-    );
-    assert_lint_ok::<NoEmpty>(r#"if (foo) { var bar = ""; }"#);
-    assert_lint_ok::<NoEmpty>(
+      r#"if (foo) { var bar = ""; }"#,
       r#"
 if (foo) {
   // This block is not empty
 }
     "#,
-    );
-    assert_lint_ok::<NoEmpty>(
       r#"
     switch (foo) {
       case bar:
         break;
     }
       "#,
-    );
-    assert_lint_ok::<NoEmpty>(
       r#"
 if (foo) {
   if (bar) {
@@ -198,9 +193,7 @@ if (foo) {
   }
 }
       "#,
-    );
-    assert_lint_ok::<NoEmpty>("const testFunction = (): void => {};");
-    assert_lint_ok::<NoEmpty>(
+      "const testFunction = (): void => {};",
       r#"
       switch (foo) {
         case 1:
@@ -210,7 +203,7 @@ if (foo) {
           return 1;
       }
       "#,
-    );
+    };
   }
 
   #[test]

@@ -187,13 +187,14 @@ mod tests {
 
   #[test]
   fn explicit_module_boundary_types_valid() {
-    assert_lint_ok_n::<ExplicitModuleBoundaryTypes>(vec![
+    assert_lint_ok! {
+      ExplicitModuleBoundaryTypes,
       "function test() { return }",
       "export var fn = function (): number { return 1; }",
       "export var arrowFn = (arg: string): string => `test ${arg}`",
       "export var arrowFn = (arg: unknown): string => `test ${arg}`",
       "class Test { method() { return; } }",
-    ]);
+    };
   }
 
   #[test]

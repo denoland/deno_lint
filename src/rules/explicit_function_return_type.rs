@@ -85,11 +85,12 @@ mod tests {
 
   #[test]
   fn explicit_function_return_type_valid() {
-    assert_lint_ok_n::<ExplicitFunctionReturnType>(vec![
+    assert_lint_ok! {
+      ExplicitFunctionReturnType,
       "function fooTyped(): void { }",
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
-    ]);
+    };
   }
 
   #[test]
