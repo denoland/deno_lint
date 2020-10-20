@@ -8,6 +8,7 @@ pub static GLOBALS: &[&str] = &[
   "AbortController",
   "AbortSignal",
   "addEventListener",
+  "AggregateError",
   "Array",
   "ArrayBuffer",
   "atob",
