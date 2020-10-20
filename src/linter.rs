@@ -8,7 +8,6 @@ use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::time::Instant;
 use swc_common::comments::CommentKind;
 use swc_common::comments::SingleThreadedComments;
@@ -26,7 +25,7 @@ lazy_static! {
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
-  pub source_map: Arc<SourceMap>,
+  pub source_map: Rc<SourceMap>,
   pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
   pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
