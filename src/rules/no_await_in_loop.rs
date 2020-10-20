@@ -27,6 +27,44 @@ impl LintRule for NoAwaitInLoop {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires `await` is not used in a for loop body
+
+Async and await are used in Javascript to provide parallel execution.  If each
+element in the for loop is waited upon using `await`, then this negates the
+benefits of using async/await as no more elements in the loop can be processed
+until the current element finishes.  
+
+A common solution is to refactor the code to run the loop body asynchronously and
+capture the promises generated.  After the loop finishes you can then await all
+the promises at once.
+    
+### Valid:
+```javascript
+async function doSomething(items) {
+  const results = [];
+  for (const item of items) {
+    // Kick off all item processing asynchronously...
+    results.push(someAsyncProcessing(item));
+  }
+  // ...and then await their completion after the loop
+  return processResults(await Promise.all(results));
+}
+```
+
+### Invalid:
+```javascript
+async function doSomething(items) {
+  const results = [];
+  for (const item of items) {
+    // Each item in the array blocks on the previous one finishing
+    results.push(await someAsyncProcessing(item));
+  }
+  return processResults(results);
+}
+```"#
+  }
 }
 
 struct NoAwaitInLoopVisitor<'c> {
@@ -39,10 +77,11 @@ impl<'c> NoAwaitInLoopVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-await-in-loop",
       "Unexpected `await` inside a loop.",
+      "Remove `await` in loop body, store all promises generated and then `await Promise.all(storedPromises)` after the loop"
     );
   }
 }
