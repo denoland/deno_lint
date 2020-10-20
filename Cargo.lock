@@ -338,9 +338,9 @@ checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
 name = "jsdoc"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdd68439473eb90046bf17e8adaf982b1d2cb177e176905fe5325cc70701096e"
+checksum = "6b7ba145aff1448ead0e6c40841ddcec6e8868ba91895f92b77343f788f54db2"
 dependencies = [
  "nom",
  "serde",
@@ -852,9 +852,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.39.0"
+version = "0.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "310a37e3a148fe43ea60a61313bd61211d33f44e21d772b5d733d2788534a6e5"
+checksum = "9df01dea2cb40f7b242c479ac583353f17f82a0ef30ae3ee89d9a2f503ad596c"
 dependencies = [
  "either",
  "enum_kind",
@@ -886,9 +886,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.26.1"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f03b0469dc1152e7483537a81d378bc32b7bd43e849b03d9a8d95bc0bda5e004"
+checksum = "27ecc38cd778c4e5e1b7786ee73d5921e2799a7f3529803f63a75cde936389e7"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -947,9 +947,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit"
-version = "0.19.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd3ae418cb75a360fbd33b5cfc8dbb87bea84122afc24bdf286fba74ea8f0f91"
+checksum = "221496af0bf3f55ee5bb99d1b776844b6cbbca3fdd574169d5e3a3ab5d4acad9"
 dependencies = [
  "num-bigint",
  "swc_atoms",
@@ -960,9 +960,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.10.1"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2e45301deb76f64b4a1b9800a42c674bdf0950e96784405a336d045382712ac"
+checksum = "6daadf581c50c59197b56ba12d6eea8279809cc0b591d7250ffd59e4f18c9580"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",
@@ -985,9 +985,9 @@ dependencies = [
 
 [[package]]
 name = "swc_visit"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b95ece564c6d6bf980140cedd960697226098800f2de07dad6a140c2dbdcc742"
+checksum = "d3b3f9b0633d96209d3a1a3dc8e4b7fd61be8b204d04513f8d59d46e8a73c1ed"
 dependencies = [
  "either",
  "swc_visit_macros",
@@ -995,9 +995,9 @@ dependencies = [
 
 [[package]]
 name = "swc_visit_macros"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59a75265aea70df7a405e2aafb104c976017fe9a54e7b770017d0583873a3cff"
+checksum = "d86b27648c524b340cb535375d52a84efdfb7e864082ca5955cea3932e0b8ea4"
 dependencies = [
  "Inflector",
  "pmutil",

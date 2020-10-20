@@ -4,8 +4,8 @@ use super::LintRule;
 use swc_ecmascript::ast::{Expr, NewExpr, ParenExpr};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoAsyncPromiseExecutor;
 
@@ -28,7 +28,7 @@ impl LintRule for NoAsyncPromiseExecutor {
     module: &swc_ecmascript::ast::Module,
   ) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
-    visitor.visit_module(module, module);
+    module.visit_all_with(module, &mut visitor);
   }
 }
 
@@ -51,11 +51,10 @@ fn is_async_function(expr: &Expr) -> bool {
   }
 }
 
-impl<'c> Visit for NoAsyncPromiseExecutorVisitor<'c> {
+impl<'c> VisitAll for NoAsyncPromiseExecutorVisitor<'c> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
-    new_expr.visit_children_with(self);
     if let Expr::Ident(ident) = &*new_expr.callee {
       let name = ident.sym.as_ref();
       if name != "Promise" {
