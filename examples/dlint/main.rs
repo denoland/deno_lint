@@ -16,6 +16,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 mod plugin;
+mod js;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")

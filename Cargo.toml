@@ -30,3 +30,4 @@ annotate-snippets = { version = "0.9.0", features = ["color"] }
 clap = "2.33.1"
 env_logger = "0.7.1"
 rayon = "1.4.0"
+deno_core = "0.64.0"
