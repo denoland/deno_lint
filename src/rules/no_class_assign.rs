@@ -31,6 +31,28 @@ impl LintRule for NoClassAssign {
     let mut visitor = NoClassAssignVisitor::new(context);
     module.visit_all_with(module, &mut visitor);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows modifying variables of class declarations
+
+Declaring a class such as `class A{}`, creates a variable `A`.  Like any variable
+this can be modified or reassigned. In most cases this is a mistake and not what
+was intended.
+
+### Invalid:
+```typescript
+class A {}
+A = 0;  // reassigning the class variable itself
+```
+    
+### Valid:
+```typescript
+class A{}
+let c = new A();
+c = 0;  // reassigning the variable `c`
+```
+"#
+  }
 }
 
 struct NoClassAssignVisitor<'c> {
@@ -52,10 +74,11 @@ impl<'c> VisitAll for NoClassAssignVisitor<'c> {
       let var = self.context.scope.var(&id);
       if let Some(var) = var {
         if let BindingKind::Class = var.kind() {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             assign_expr.span,
             "no-class-assign",
             "Reassigning class declaration is not allowed",
+            "Do you have the right variable here?",
           );
         }
       }

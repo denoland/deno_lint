@@ -49,6 +49,16 @@ type safety with the function.
 Finally, `Object` means "any non-nullish value" rather than "any object type".
 `Record<string, unknown>` is a good choice for a meaning of "any object type".
 
+### Invalid:
+```typescript
+let a: Boolean;
+let b: String;
+let c: Number;
+let d: Symbol;
+let e: Function;
+let f: Object;
+```
+
 ### Valid:
 ```typescript
 let a: boolean;
@@ -58,16 +68,7 @@ let d: symbol;
 let e: () => number;
 let f: Record<string, unknown>;
 ```
-
-### Invalid:
-```typescript
-let a: Boolean;
-let b: String;
-let c: Number;
-let d: Symbol;
-let e: Function;
-let f: Object;
-```"#
+"#
   }
 }
 

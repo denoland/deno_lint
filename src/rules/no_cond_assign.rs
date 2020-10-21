@@ -31,6 +31,21 @@ impl LintRule for NoCondAssign {
 
 Use of the assignment operator within a conditional statement is often the result of mistyping the equality operator, `==`. If an assignment within a conditional statement is required then this rule allows it by wrapping the assignment in parentheses.
 
+### Invalid:
+```typescript
+var x;
+if (x = 0) {
+  var b = 1;
+}
+```
+```typescript
+function setHeight(someNode) {
+  do {
+    someNode.height = "100px";
+  } while (someNode = someNode.parentNode);
+}
+```
+
 ### Valid:
 ```typescript
 var x;
@@ -45,21 +60,7 @@ function setHeight(someNode) {
   } while ((someNode = someNode.parentNode));
 }
 ```
-
-### Invalid:
-```typescript
-var x;
-if (x = 0) {
-  var b = 1;
-}
-```
-```typescript
-function setHeight(someNode) {
-  do {
-    someNode.height = "100px";
-  } while (someNode = someNode.parentNode);
-}
-```"#
+"#
   }
 }
 
@@ -73,10 +74,11 @@ impl<'c> NoCondAssignVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-cond-assign",
       "Expected a conditional expression and instead saw an assignment",
+      "Change assignment (`=`) to comparison (`===`) or move assignment out of condition"
     );
   }
 

@@ -35,17 +35,14 @@ Comparing a value directly against negative may not work as expected as it will 
 
 ### Invalid:
 ```typescript
-if (x === -0) {
-}
+if (x === -0) {}
 ```
+
 ### Valid:
 ```typescript
-if (x === 0) {
-}
-```
-```typescript
-if (Object.is(x, -0)) {
-}
+if (x === 0) {}
+
+if (Object.is(x, -0)) {}
 ```"#
   }
 }
@@ -69,10 +66,11 @@ impl<'c> VisitAll for NoCompareNegZeroVisitor<'c> {
     }
 
     if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         bin_expr.span,
         "no-compare-neg-zero",
         "Do not compare against -0",
+        "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
       );
     }
   }

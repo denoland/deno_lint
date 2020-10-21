@@ -62,6 +62,12 @@ impl LintRule for BanUntaggedTodo {
 
 TODOs without reference to a user or an issue become stale with no easy way to get more information.
 
+### Invalid:
+```typescript
+// TODO Improve calc engine
+export function calcValue(): number { }
+```
+
 ### Valid:
 ```typescript
 // TODO Improve calc engine (@djones)
@@ -71,12 +77,7 @@ export function calcValue(): number { }
 // TODO Improve calc engine (#332)
 export function calcValue(): number { }
 ```
-
-### Invalid:
-```typescript
-// TODO Improve calc engine
-export function calcValue(): number { }
-```"#
+"#
   }
 }
 
