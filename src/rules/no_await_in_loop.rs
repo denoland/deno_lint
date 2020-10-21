@@ -39,6 +39,18 @@ until the current element finishes.
 A common solution is to refactor the code to run the loop body asynchronously and
 capture the promises generated.  After the loop finishes you can then await all
 the promises at once.
+
+### Invalid:
+```javascript
+async function doSomething(items) {
+  const results = [];
+  for (const item of items) {
+    // Each item in the array blocks on the previous one finishing
+    results.push(await someAsyncProcessing(item));
+  }
+  return processResults(results);
+}
+```
     
 ### Valid:
 ```javascript
@@ -52,18 +64,7 @@ async function doSomething(items) {
   return processResults(await Promise.all(results));
 }
 ```
-
-### Invalid:
-```javascript
-async function doSomething(items) {
-  const results = [];
-  for (const item of items) {
-    // Each item in the array blocks on the previous one finishing
-    results.push(await someAsyncProcessing(item));
-  }
-  return processResults(results);
-}
-```"#
+"#
   }
 }
 

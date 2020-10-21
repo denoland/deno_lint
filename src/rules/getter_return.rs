@@ -44,6 +44,17 @@ impl LintRule for GetterReturn {
 
 Getter functions return the value of a property.  If the function returns no
 value then this contract is broken.
+
+### Invalid:
+```typescript
+let foo = { 
+  get bar() {}
+};
+
+class Person { 
+  get name() {}
+}
+```
     
 ### Valid:
 ```typescript
@@ -59,17 +70,7 @@ class Person {
   }
 }
 ```
-
-### Invalid:
-```typescript
-let foo = { 
-  get bar() {}
-};
-
-class Person { 
-  get name() {}
-}
-```"#
+"#
   }
 }
 

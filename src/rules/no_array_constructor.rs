@@ -45,13 +45,6 @@ the `Array` global may be redefined.
 
 The one exception to this rule is when creating a new array of fixed size, e.g.
 `new Array(6)`.  This is the conventional way to create arrays of fixed length.
-    
-### Valid:
-```typescript
-const a = new Array(100);
-const b = [];
-const c = [1,2,3];
-```
 
 ### Invalid:
 ```typescript
@@ -59,7 +52,15 @@ const c = [1,2,3];
 const a = new Array(100, 1, 2, 3);
 
 const b = new Array(); // use [] instead
-```"#
+```
+    
+### Valid:
+```typescript
+const a = new Array(100);
+const b = [];
+const c = [1,2,3];
+```
+"#
   }
 }
 

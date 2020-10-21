@@ -40,18 +40,6 @@ Defined constructors of derived classes (e.g. `class A extends B`) must always c
 `super()`.  Classes which extend non-constructors (e.g. `class A extends null`) must
 not have a constructor.
 
-### Valid:
-```typescript
-class A {}
-class B extends A {}
-class C extends A {
-  constructor() {
-    super();
-  }
-}
-class D extends null {}
-```
-
 ### Invalid:
 ```typescript
 class A {}
@@ -75,7 +63,20 @@ class E extends null {
     super();
   }
 }
-```"#
+```
+
+### Valid:
+```typescript
+class A {}
+class B extends A {}
+class C extends A {
+  constructor() {
+    super();
+  }
+}
+class D extends null {}
+```
+"#
   }
 }
 

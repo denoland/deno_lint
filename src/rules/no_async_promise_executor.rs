@@ -46,18 +46,19 @@ sign that it is not actually necessary to use the new Promise constructor and th
 code can be restructured to avoid the use of a promise, or the scope of the new
 Promise constructor can be reduced, extracting the async code and changing it to
 be synchronous.
+
+### Invalid:
+```typescript
+new Promise(async function(resolve, reject) {});
+new Promise(async (resolve, reject) => {});
+```
     
 ### Valid:
 ```typescript
 new Promise(function(resolve, reject) {});
 new Promise((resolve, reject) => {});
 ```
-
-### Invalid:
-```typescript
-new Promise(async function(resolve, reject) {});
-new Promise(async (resolve, reject) => {});
-```"#
+"#
   }
 }
 
