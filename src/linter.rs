@@ -67,10 +67,14 @@ impl Context {
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
-    let start =
-      Position::new(span.lo(), self.source_map.lookup_char_pos(span.lo()));
-    let end =
-      Position::new(span.hi(), self.source_map.lookup_char_pos(span.hi()));
+    let start = Position::new(
+      self.source_map.lookup_byte_offset(span.lo()).pos,
+      self.source_map.lookup_char_pos(span.lo()),
+    );
+    let end = Position::new(
+      self.source_map.lookup_byte_offset(span.hi()).pos,
+      self.source_map.lookup_char_pos(span.hi()),
+    );
 
     let diagnostic = LintDiagnostic {
       range: Range { start, end },

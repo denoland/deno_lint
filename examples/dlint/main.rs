@@ -47,8 +47,12 @@ fn get_slice_source_and_range<'a>(
   range: &Range,
 ) -> (&'a str, (usize, usize)) {
   let (_, first_line_start) = line_start_indexes[range.start.line - 1];
-  let (last_line_no, _) = line_start_indexes[range.end.line - 1];
-  let last_line_end = line_start_indexes[last_line_no + 1].1 - 1;
+  let last_line_end = if range.end.line == line_start_indexes.len() {
+    source.len() - 1
+  } else {
+    let (last_line_no, _) = line_start_indexes[range.end.line - 1];
+    line_start_indexes[last_line_no + 1].1 - 1
+  };
   let adjusted_start = range.start.byte_pos - first_line_start;
   let adjusted_end = range.end.byte_pos - first_line_start;
   let adjusted_range = (adjusted_start, adjusted_end);
