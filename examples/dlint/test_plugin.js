@@ -5,4 +5,7 @@ class Plugin extends Visitor {
       return e;
     }
 }
-  
+
+let mod = Deno.core.jsonOpSync('module', {});
+console.log(mod)
+new Plugin().collectDiagnostics(mod);

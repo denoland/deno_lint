@@ -124,7 +124,7 @@ impl Emitter for SwcErrorBuffer {
 ///
 /// Allows to build more complicated parser by providing a callback
 /// to `parse_module`.
-pub(crate) struct AstParser {
+pub struct AstParser {
   pub(crate) buffered_error: SwcErrorBuffer,
   pub(crate) source_map: Arc<SourceMap>,
   pub(crate) handler: Handler,
@@ -161,7 +161,7 @@ impl AstParser {
     }
   }
 
-  pub(crate) fn parse_module(
+  pub fn parse_module(
     &self,
     file_name: &str,
     syntax: Syntax,

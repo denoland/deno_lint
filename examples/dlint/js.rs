@@ -5,7 +5,7 @@ use deno_core::OpState;
 use deno_core::ZeroCopyBuf;
 use serde_json::Value;
 
-fn create_js_runtime() -> JsRuntime {
+pub fn create_js_runtime() -> JsRuntime {
     let mut runtime = JsRuntime::new(Default::default());
     prepare(&mut runtime);
     runtime
@@ -28,7 +28,7 @@ fn prepare(js_runtime: &mut JsRuntime) {
     }));
 }
 
-fn run_visitor(module: &'static swc_ecmascript::ast::Module, js_runtime: &mut JsRuntime) {
+pub fn run_visitor(module: swc_ecmascript::ast::Module, js_runtime: &mut JsRuntime) {
     js_runtime.register_op("module", deno_core::json_op_sync(move |
         state: &mut OpState,
         args: Value,
@@ -37,5 +37,4 @@ fn run_visitor(module: &'static swc_ecmascript::ast::Module, js_runtime: &mut Js
         Ok(serde_json::json!(module))
     }));
     js_runtime.execute("plugin.js", include_str!("test_plugin.js")).unwrap();
-    js_runtime.execute("run_plugin.js", "Deno.core.jsonOpSync('report', new Plugin().collectDiagnostics(Deno.core.jsonOpSync('module', {})));").unwrap();
 }
