@@ -1,6 +1,5 @@
 use deno_core::JsRuntime;
 use deno_core::error::AnyError;
-use deno_core::BufVec;
 use deno_core::OpState;
 use deno_core::ZeroCopyBuf;
 use serde_json::Value;
@@ -19,7 +18,7 @@ fn prepare(js_runtime: &mut JsRuntime) {
       )
       .unwrap();
     js_runtime.register_op("report", deno_core::json_op_sync(|
-        state: &mut OpState,
+        _state: &mut OpState,
         args: Value,
         _bufs: &mut [ZeroCopyBuf],
       | -> Result<Value, AnyError> {
@@ -30,8 +29,8 @@ fn prepare(js_runtime: &mut JsRuntime) {
 
 pub fn run_visitor(module: swc_ecmascript::ast::Module, js_runtime: &mut JsRuntime) {
     js_runtime.register_op("module", deno_core::json_op_sync(move |
-        state: &mut OpState,
-        args: Value,
+        _state: &mut OpState,
+        _args: Value,
         _bufs: &mut [ZeroCopyBuf],
       | -> Result<Value, AnyError> {
         Ok(serde_json::json!(module))
