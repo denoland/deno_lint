@@ -15,7 +15,6 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-mod plugin;
 mod js;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
@@ -113,14 +112,13 @@ fn run_linter(paths: Vec<String>) {
 
     let mut linter = LinterBuilder::default()
       .rules(get_recommended_rules())
-      .rules(vec![Box::new(plugin::WarnRawGitImport)])
       .build();
     let mut rt = js::create_js_runtime();
     let (parse_result, _) = linter
       .ast_parser
       .parse_module(&file_path, linter.syntax, &source_code);
     let module = parse_result.expect("Failed to parse ast");
-    js::run_visitor(module, &mut rt);
+   
     let file_diagnostics = linter
       .lint(file_path.to_string(), source_code.clone())
       .expect("Failed to lint");
@@ -131,6 +129,7 @@ fn run_linter(paths: Vec<String>) {
     for diagnostic in file_diagnostics {
       display_diagnostic(&diagnostic, &source_code);
     }
+    js::run_visitor(module, &mut rt);
   });
 
   let err_count = error_counts.load(Ordering::Relaxed);
