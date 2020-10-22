@@ -1,11 +1,10 @@
 class Plugin extends Visitor {
     visitImportDeclaration(e) {
-      Deno.core.print(e);
-      this.addDiagnostic("x");
+      this.addDiagnostic(e);
       return e;
     }
 }
-
+Deno.core.ops();
 let mod = Deno.core.jsonOpSync('module', {});
-console.log(mod)
-new Plugin().collectDiagnostics(mod);
+let res = new Plugin().collectDiagnostics(mod);
+Deno.core.jsonOpSync('report', res);
