@@ -1,4 +1,3 @@
 import * as xD from "xD";
 
-// deno-lint-ignore adjaaad-signatures
-asd
+new Array(0, 1, 2);
