@@ -114,11 +114,12 @@ fn run_linter(paths: Vec<String>) {
       .rules(get_recommended_rules())
       .build();
     let mut rt = js::create_js_runtime();
-    let (parse_result, _) = linter
-      .ast_parser
-      .parse_module(&file_path, linter.syntax, &source_code);
+    let (parse_result, _) =
+      linter
+        .ast_parser
+        .parse_module(&file_path, linter.syntax, &source_code);
     let module = parse_result.expect("Failed to parse ast");
-   
+
     let file_diagnostics = linter
       .lint(file_path.to_string(), source_code.clone())
       .expect("Failed to lint");
