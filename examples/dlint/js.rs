@@ -22,9 +22,8 @@ fn prepare(js_runtime: &mut JsRuntime, cb: impl Fn(deno_lint::diagnostic::LintDi
        args: Value,
        _bufs: &mut [ZeroCopyBuf]|
        -> Result<Value, AnyError> {
-        println!("{}", args);
-        let module: deno_lint::diagnostic::LintDiagnostic = serde_json::from_value(args).unwrap();
-        cb(module);
+        let module: Vec<deno_lint::diagnostic::LintDiagnostic> = serde_json::from_value(args).unwrap();
+        cb(module[0].clone());
         Ok(serde_json::json!({}))
       },
     ),
