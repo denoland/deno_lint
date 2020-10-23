@@ -117,7 +117,8 @@ fn run_linter(paths: Vec<String>) {
     let mut linter = LinterBuilder::default()
       .rules(get_recommended_rules())
       .build();
-    let mut rt = js::create_js_runtime();
+    let src = source_code.clone();
+    let mut rt = js::create_js_runtime(move |diagnostics| { display_diagnostic(&diagnostics, &src) });
     let (parse_result, _) =
       linter
         .ast_parser
