@@ -4,14 +4,18 @@ use deno_core::OpState;
 use deno_core::ZeroCopyBuf;
 use serde_json::Value;
 
-
-pub fn create_js_runtime(cb: impl Fn(deno_lint::diagnostic::LintDiagnostic) + 'static) -> JsRuntime {
+pub fn create_js_runtime(
+  cb: impl Fn(deno_lint::diagnostic::LintDiagnostic) + 'static,
+) -> JsRuntime {
   let mut runtime = JsRuntime::new(Default::default());
   prepare(&mut runtime, cb);
   runtime
 }
 
-fn prepare(js_runtime: &mut JsRuntime, cb: impl Fn(deno_lint::diagnostic::LintDiagnostic) + 'static) {
+fn prepare(
+  js_runtime: &mut JsRuntime,
+  cb: impl Fn(deno_lint::diagnostic::LintDiagnostic) + 'static,
+) {
   js_runtime
     .execute("visitor.js", include_str!("visitor.js"))
     .unwrap();
@@ -19,10 +23,11 @@ fn prepare(js_runtime: &mut JsRuntime, cb: impl Fn(deno_lint::diagnostic::LintDi
     "report",
     deno_core::json_op_sync(
       move |_state: &mut OpState,
-       args: Value,
-       _bufs: &mut [ZeroCopyBuf]|
-       -> Result<Value, AnyError> {
-        let module: Vec<deno_lint::diagnostic::LintDiagnostic> = serde_json::from_value(args).unwrap();
+            args: Value,
+            _bufs: &mut [ZeroCopyBuf]|
+            -> Result<Value, AnyError> {
+        let module: Vec<deno_lint::diagnostic::LintDiagnostic> =
+          serde_json::from_value(args).unwrap();
         cb(module[0].clone());
         Ok(serde_json::json!({}))
       },
