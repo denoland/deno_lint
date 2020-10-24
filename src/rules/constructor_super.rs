@@ -198,7 +198,7 @@ impl<'c> ConstructorSuperVisitor<'c> {
     let super_calls = super_call_spans(constructor);
 
     // in case where there are more than one `super()` calls.
-    for exceeded_super_span in super_call_spans(constructor).iter().skip(1) {
+    for exceeded_super_span in super_calls.iter().skip(1) {
       let kind = DiagnosticKind::TooManySuper;
       self.context.add_diagnostic_with_hint(
         *exceeded_super_span,
