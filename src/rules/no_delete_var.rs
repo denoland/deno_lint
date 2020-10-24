@@ -52,8 +52,8 @@ delete c; // would return false
 ### Valid:
 ```typescript
 var obj = {
-  a: 1
-}
+  a: 1,
+};
 delete obj.a; // returns true;
 ```
 "#
