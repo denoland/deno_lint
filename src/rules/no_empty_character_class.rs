@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
 use swc_ecmascript::ast::Regex;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -51,24 +52,23 @@ impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
       .span_to_snippet(regex.span)
       .expect("error in loading snippet");
 
-    lazy_static! {
+    static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
-      * plain-English description of the following regexp:
-      * 0. `^` fix the match at the beginning of the string
-      * 1. `\/`: the `/` that begins the regexp
-      * 2. `([^\\[]|\\.|\[([^\\\]]|\\.)+\])*`: regexp contents; 0 or more of the following
-      * 2.0. `[^\\[]`: any character that's not a `\` or a `[` (anything but escape sequences and character classes)
-      * 2.1. `\\.`: an escape sequence
-      * 2.2. `\[([^\\\]]|\\.)+\]`: a character class that isn't empty
-      * 3. `\/` the `/` that ends the regexp
-      * 4. `[gimuy]*`: optional regexp flags
-      * 5. `$`: fix the match at the end of the string
-      */
-      static ref RULE_REGEX: regex::Regex = regex::Regex::new(
-        r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[gimuys]*$"
-      )
-      .unwrap();
-    }
+       * plain-English description of the following regexp:
+       * 0. `^` fix the match at the beginning of the string
+       * 1. `\/`: the `/` that begins the regexp
+       * 2. `([^\\[]|\\.|\[([^\\\]]|\\.)+\])*`: regexp contents; 0 or more of the following
+       * 2.0. `[^\\[]`: any character that's not a `\` or a `[` (anything but escape sequences and character classes)
+       * 2.1. `\\.`: an escape sequence
+       * 2.2. `\[([^\\\]]|\\.)+\]`: a character class that isn't empty
+       * 3. `\/` the `/` that ends the regexp
+       * 4. `[gimuy]*`: optional regexp flags
+       * 5. `$`: fix the match at the end of the string
+       */
+      regex::Regex::new(r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[gimuys]*$")
+        .unwrap()
+    });
+
     if !RULE_REGEX.is_match(&raw_regex) {
       self.context.add_diagnostic(
         regex.span,
