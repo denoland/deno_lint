@@ -308,13 +308,18 @@ mod tests {
       DiagnosticKind::NoSuper.message_and_hint();
     let (unnecessary_constructor_message, unnecessary_constructor_hint) =
       DiagnosticKind::UnnecessaryConstructor.message_and_hint();
-    // TODO(magurotuna): remove this `allow`
-    #[allow(unused)]
     let (unnecessary_super_message, unnecessary_super_hint) =
       DiagnosticKind::UnnecessarySuper.message_and_hint();
 
     assert_lint_err! {
       ConstructorSuper,
+      "class A { constructor() { super(); } }": [
+        {
+          col: 26,
+          message: unnecessary_super_message,
+          hint: unnecessary_super_hint,
+        }
+      ],
       "class A extends null { constructor() { super(); } }": [
         {
           col: 23,
