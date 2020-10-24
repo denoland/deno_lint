@@ -61,9 +61,8 @@ for(let i = 0; i < 2; i++) {}
   }
 }
 
-const MESSAGE: &'static str =
-  "Update clause moves variable in the wrong direction";
-const HINT: &'static str =
+const MESSAGE: &str = "Update clause moves variable in the wrong direction";
+const HINT: &str =
   "Flip the update clause logic or change the continuation step condition";
 
 struct ForDirectionVisitor<'c> {
