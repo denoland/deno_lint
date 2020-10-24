@@ -56,14 +56,14 @@ switch (someText) {
 ```typescript
 const someText = "a";
 switch (someText) {
-    case "a":
-        break;
-    case "b":
-        break;
-    case "c":
-        break;
-    default:
-        break;
+  case "a":
+    break;
+  case "b":
+    break;
+  case "c":
+    break;
+  default:
+    break;
 }
 ```
 "#
