@@ -5,6 +5,8 @@ use crate::scopes::{analyze, Scope};
 use crate::swc_util::get_default_ts_config;
 use crate::swc_util::AstParser;
 use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -17,10 +19,8 @@ use swc_common::Span;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
-lazy_static! {
-  static ref IGNORE_COMMENT_CODE_RE: regex::Regex =
-    regex::Regex::new(r",\s*|\s").unwrap();
-}
+static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
+  Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
 
 pub struct Context {
   pub file_name: String,

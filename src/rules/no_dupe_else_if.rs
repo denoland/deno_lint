@@ -27,6 +27,37 @@ impl LintRule for NoDupeElseIf {
     let mut visitor = NoDupeElseIfVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using the same condition twice in an `if`/`else if` statement
+
+When you reuse a condition in an `if`/`else if` statement, the duplicate condition
+will never be reached (without unusual side-effects) meaning this is almost always
+a bug.
+    
+### Invalid:
+```typescript
+if (a) {}
+else if (b) {}
+else if (a) {} // duplicate of condition above
+
+if (a === 5) {}
+else if (a === 6) {}
+else if (a === 5) {} // duplicate of condition above
+```
+
+### Valid:
+```typescript
+if (a) {}
+else if (b) {}
+else if (c) {}
+
+if (a === 5) {}
+else if (a === 6) {}
+else if (a === 7) {}
+```
+"#
+  }
 }
 
 /// A visitor to check the `no-dupe-else-if` rule.
@@ -94,7 +125,11 @@ impl<'c> Visit for NoDupeElseIfVisitor<'c> {
             {
               self
               .context
-              .add_diagnostic(span, "no-dupe-else-if", "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain.");
+              .add_diagnostic_with_hint(span,
+                "no-dupe-else-if", 
+                "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain.",
+                "Remove or rework the `else if` condition which is duplicated"
+              );
               break;
             }
           }

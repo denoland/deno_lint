@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
+use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
 use swc_common::{Span, Spanned};
@@ -51,10 +52,8 @@ fn to_camelcase(ident_name: &str) -> String {
     return ident_name.to_string();
   }
 
-  lazy_static! {
-    static ref UNDERSCORE_CHAR_RE: Regex =
-      Regex::new(r"([^_])_([a-z])").unwrap();
-  }
+  static UNDERSCORE_CHAR_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"([^_])_([a-z])").unwrap());
 
   let result = UNDERSCORE_CHAR_RE.replace_all(ident_name, |caps: &Captures| {
     format!("{}{}", &caps[1], caps[2].to_ascii_uppercase())
@@ -170,10 +169,9 @@ impl IdentToCheck {
       }
       IdentToCheck::Class(name) => {
         let camel_cased = to_camelcase(name);
-        lazy_static! {
-          static ref FIRST_CHAR_LOWERCASE: Regex =
-            Regex::new(r"^[a-z]").unwrap();
-        }
+        static FIRST_CHAR_LOWERCASE: Lazy<Regex> =
+          Lazy::new(|| Regex::new(r"^[a-z]").unwrap());
+
         // Class name should be in pascal case
         let pascal_cased = FIRST_CHAR_LOWERCASE
           .replace(&camel_cased, |caps: &Captures| {

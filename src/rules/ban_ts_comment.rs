@@ -2,6 +2,8 @@
 use super::Context;
 use super::LintRule;
 
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 use swc_common::Span;
@@ -113,10 +115,9 @@ fn check_comment(comment: &Comment) -> bool {
     return false;
   }
 
-  lazy_static! {
-    static ref BTC_REGEX: regex::Regex =
-      regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#).unwrap();
-  }
+  static BTC_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#).unwrap()
+  });
 
   BTC_REGEX.is_match(&comment.text)
 }

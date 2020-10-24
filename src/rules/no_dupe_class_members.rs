@@ -35,6 +35,30 @@ impl LintRule for NoDupeClassMembers {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using a class member function name more than once
+
+Declaring a function of the same name twice in a class will cause the previous
+declaration(s) to be overwritten, causing unexpected behaviors.
+    
+### Invalid:
+```typescript
+class Foo {
+  bar() {}
+  bar() {}
+}
+```
+
+### Valid:
+```typescript
+class Foo {
+  bar() {}
+  fizz() {}
+}
+```
+"#
+  }
 }
 
 struct NoDupeClassMembersVisitor<'c> {
@@ -47,10 +71,11 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span, name: &str) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-dupe-class-members",
       format!("Duplicate name '{}'", name),
+      "Rename or remove the function with the duplicated name",
     );
   }
 }

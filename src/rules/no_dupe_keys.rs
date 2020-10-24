@@ -75,10 +75,11 @@ impl<'c> NoDupeKeysVisitor<'c> {
   }
 
   fn report(&mut self, span: Span, key: impl AsRef<str>) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-dupe-keys",
       format!("Duplicate key '{}'", key.as_ref()),
+      "Remove or rename the duplicate key",
     );
   }
 
