@@ -42,7 +42,6 @@ impl Context {
     self.diagnostics.push(diagnostic);
   }
 
-  #[allow(unused)]
   pub(crate) fn add_diagnostic_with_hint(
     &mut self,
     span: Span,
