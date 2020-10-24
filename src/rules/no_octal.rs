@@ -1,6 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_ecmascript::ast::Number;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -42,9 +44,7 @@ impl<'c> NoOctalVisitor<'c> {
 
 impl<'c> Visit for NoOctalVisitor<'c> {
   fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
-    lazy_static! {
-      static ref OCTAL: regex::Regex = regex::Regex::new(r"^0[0-9]").unwrap();
-    }
+    static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
     let raw_number = self
       .context

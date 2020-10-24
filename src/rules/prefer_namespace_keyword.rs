@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
 use swc_ecmascript::visit::Node;
@@ -50,10 +51,8 @@ impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
     if let TsModuleName::Str(_) = &mod_decl.id {
       return;
     }
-    lazy_static! {
-      static ref KEYWORD: Regex =
-        Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap();
-    }
+    static KEYWORD: Lazy<Regex> =
+      Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
 
     let snippet = self
       .context

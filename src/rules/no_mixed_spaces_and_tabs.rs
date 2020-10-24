@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use regex::Regex;
 
+use once_cell::sync::Lazy;
 use swc_common::BytePos;
 use swc_common::Span;
 use swc_common::Spanned;
@@ -12,9 +13,8 @@ use swc_ecmascript::ast::Tpl;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-lazy_static! {
-  static ref RE: Regex = Regex::new("^([\t ]*(\t | \t))").unwrap();
-}
+static RE: Lazy<Regex> =
+  Lazy::new(|| Regex::new("^([\t ]*(\t | \t))").unwrap());
 
 pub struct NoMixedSpacesAndTabs;
 

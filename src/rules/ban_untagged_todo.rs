@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
@@ -94,9 +95,8 @@ fn check_comment(comment: &Comment) -> bool {
     return false;
   }
 
-  lazy_static! {
-    static ref TODO_RE: Regex = Regex::new(r#"todo\((#|@)\S+\)"#).unwrap();
-  }
+  static TODO_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"todo\((#|@)\S+\)"#).unwrap());
 
   if TODO_RE.is_match(text) {
     return false;
