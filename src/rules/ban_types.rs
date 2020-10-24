@@ -103,7 +103,7 @@ or if you want a type meaning `any value`, you probably want `unknown` instead."
 );
 
 fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
-  BAN_TYPES_MESSAGE.get(ident.as_ref()).map(|v| *v)
+  BAN_TYPES_MESSAGE.get(ident.as_ref()).copied()
 }
 
 impl<'c> Visit for BanTypesVisitor<'c> {
