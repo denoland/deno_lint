@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::extract_regex;
+use once_cell::sync::Lazy;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
@@ -43,14 +44,14 @@ impl<'c> NoRegexSpacesVisitor<'c> {
   }
 
   fn check_regex(&mut self, regex: &str, span: Span) {
-    lazy_static! {
-      static ref DOUBLE_SPACE: regex::Regex =
-        regex::Regex::new(r"(?u) {2}").unwrap();
-      static ref BRACKETS: regex::Regex =
-        regex::Regex::new(r"\[.*?[^\\]\]").unwrap();
-      static ref SPACES: regex::Regex =
-        regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap();
-    }
+    static DOUBLE_SPACE: Lazy<regex::Regex> =
+      Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
+    static BRACKETS: Lazy<regex::Regex> =
+      Lazy::new(|| regex::Regex::new(r"\[.*?[^\\]\]").unwrap());
+    static SPACES: Lazy<regex::Regex> = Lazy::new(|| {
+      regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap()
+    });
+
     if !DOUBLE_SPACE.is_match(regex) {
       return;
     }
