@@ -1,8 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use std::collections::HashMap;
 use swc_ecmascript::ast::{
-  Ident, TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
+  TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
   TsTypeParamInstantiation, TsTypeRef,
 };
 use swc_ecmascript::visit::Node;
@@ -82,30 +83,30 @@ impl<'c> BanTypesVisitor<'c> {
   }
 }
 
-const BANNED_TYPES: [(&str, &str); 6] = [
-  ("String", "Use `string` instead"),
-  ("Boolean", "Use `boolean` instead"),
-  ("Number", "Use `number` instead"),
-  ("Symbol", "Use `symbol` instead"),
-  ("Function", "Define the function shape Explicitly."),
-  ("Object", "if you want a type meaning `any object` use `Record<string, unknown>` instead,
-or if you want a type meaning `any value`, you probably want `unknown` instead."),
-];
+lazy_static! {
+  static ref BAN_TYPES_MESSAGE: HashMap<&'static str, &'static str> = {
+    let mut map = HashMap::new();
+    map.insert("String", "Use `string` instead");
+    map.insert("Boolean", "Use `boolean` instead");
+    map.insert("Number", "Use `number` instead");
+    map.insert("Symbol", "Use `symbol` instead");
+    map.insert("Function", "Define the function shape Explicitly.");
+    map.insert("Object",
+    "if you want a type meaning `any object` use `Record<string, unknown>` instead,
+or if you want a type meaning `any value`, you probably want `unknown` instead.");
+    map.insert("object", "Use `Record<string, unknown>` instead");
+    map
+  };
+}
 
-fn get_message(ident: &Ident) -> Option<&'static str> {
-  BANNED_TYPES.iter().find_map(|&(ty, msg)| {
-    if ty == ident.sym.as_ref() {
-      Some(msg)
-    } else {
-      None
-    }
-  })
+fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
+  BAN_TYPES_MESSAGE.get(ident.as_ref()).map(|v| *v)
 }
 
 impl<'c> Visit for BanTypesVisitor<'c> {
   fn visit_ts_type_ref(&mut self, ts_type_ref: &TsTypeRef, _parent: &dyn Node) {
     if let TsEntityName::Ident(ident) = &ts_type_ref.type_name {
-      if let Some(message) = get_message(ident) {
+      if let Some(message) = get_message(&ident.sym) {
         self
           .context
           .add_diagnostic(ts_type_ref.span, "ban-types", message);
@@ -115,6 +116,7 @@ impl<'c> Visit for BanTypesVisitor<'c> {
       self.visit_ts_type_param_instantiation(type_param, ts_type_ref);
     }
   }
+
   fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
     if !ts_type_lit.members.is_empty() {
       for element in ts_type_lit.members.iter() {
@@ -125,9 +127,10 @@ impl<'c> Visit for BanTypesVisitor<'c> {
     self.context.add_diagnostic(
       ts_type_lit.span,
       "ban-types",
-      BANNED_TYPES[5].1, // `Object` message
+      get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
     );
   }
+
   fn visit_ts_keyword_type(
     &mut self,
     ts_keyword_type: &TsKeywordType,
@@ -137,10 +140,11 @@ impl<'c> Visit for BanTypesVisitor<'c> {
       self.context.add_diagnostic(
         ts_keyword_type.span,
         "ban-types",
-        "Use `Record<string, unknown>` instead",
+        get_message("object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `object` key
       );
     }
   }
+
   fn visit_ts_type_param_instantiation(
     &mut self,
     ts_type_param_instantiation: &TsTypeParamInstantiation,
