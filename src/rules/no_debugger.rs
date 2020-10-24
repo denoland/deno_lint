@@ -48,7 +48,7 @@ function isLongString(x: string) {
 
 ### Valid:
 ```typescript
-function isLongString(x:string) {
+function isLongString(x: string) {
   return x.length > 100;  // set breakpoint here instead
 }
 ```
