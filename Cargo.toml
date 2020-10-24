@@ -16,7 +16,6 @@ name = "deno_lint"
 name = "dlint"
 
 [dependencies]
-lazy_static = "1.4.0"
 log = "0.4.11"
 serde = { version = "1.0.88", features = ["derive"] }
 serde_json = { version = "1.0" }

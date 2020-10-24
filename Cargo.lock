@@ -197,7 +197,6 @@ dependencies = [
  "annotate-snippets",
  "clap",
  "env_logger",
- "lazy_static",
  "log",
  "once_cell",
  "rayon",
