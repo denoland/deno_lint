@@ -159,7 +159,6 @@ impl<'c> Visit for BanTypesVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ban_types_valid() {
@@ -176,27 +175,122 @@ mod tests {
 
   #[test]
   fn ban_types_invalid() {
-    assert_lint_err::<BanTypes>("let a: String;", 7);
-    assert_lint_err::<BanTypes>("let a: Object;", 7);
-    assert_lint_err::<BanTypes>("let a: Number;", 7);
-    assert_lint_err::<BanTypes>("let a: Function;", 7);
-    assert_lint_err::<BanTypes>("let a: object;", 7);
-    assert_lint_err::<BanTypes>("let a: {};", 7);
-    assert_lint_err::<BanTypes>("let a: { b: String};", 12);
-    assert_lint_err::<BanTypes>("let a: { b: Number};", 12);
-    assert_lint_err_n::<BanTypes>(
-      "let a: { b: object, c: Object};",
-      vec![12, 23],
-    );
-    assert_lint_err::<BanTypes>("let a: { b: { c : Function}};", 18);
-    assert_lint_err::<BanTypes>("let a: Array<String>", 13);
-    assert_lint_err_n::<BanTypes>("let a: Number<Function>", vec![7, 14]);
-    assert_lint_err::<BanTypes>("function foo(a: String) {}", 16);
-    assert_lint_err::<BanTypes>("function foo(): Number {}", 16);
-    assert_lint_err::<BanTypes>("let a: () => Number;", 13);
-    assert_lint_err::<BanTypes>("'a' as String;", 7);
-    assert_lint_err::<BanTypes>("1 as Number;", 5);
-    assert_lint_err_on_line_n::<BanTypes>(
+    fn message(ty: &str) -> &str {
+      get_message(ty).unwrap()
+    }
+
+    assert_lint_err! {
+      BanTypes,
+      "let a: String;": [
+        {
+          col: 7,
+          message: message("String"),
+        }
+      ],
+      "let a: Object;": [
+        {
+          col: 7,
+          message: message("Object"),
+        }
+      ],
+      "let a: Number;": [
+        {
+          col: 7,
+          message: message("Number"),
+        }
+      ],
+      "let a: Function;": [
+        {
+          col: 7,
+          message: message("Function"),
+        }
+      ],
+      "let a: object;": [
+        {
+          col: 7,
+          message: message("object"),
+        }
+      ],
+      "let a: {};": [
+        {
+          col: 7,
+          message: message("Object"),
+        }
+      ],
+      "let a: { b: String };": [
+        {
+          col: 12,
+          message: message("String"),
+        }
+      ],
+      "let a: { b: Number };": [
+        {
+          col: 12,
+          message: message("Number"),
+        }
+      ],
+      "let a: { b: object, c: Object };": [
+        {
+          col: 12,
+          message: message("object"),
+        },
+        {
+          col: 23,
+          message: message("Object"),
+        }
+      ],
+      "let a: { b: { c : Function } };": [
+        {
+          col: 18,
+          message: message("Function"),
+        }
+      ],
+      "let a: Array<String>": [
+        {
+          col: 13,
+          message: message("String"),
+        }
+      ],
+      "let a: Number<Function>": [
+        {
+          col: 7,
+          message: message("Number"),
+        },
+        {
+          col: 14,
+          message: message("Function"),
+        }
+      ],
+      "function foo(a: String) {}": [
+        {
+          col: 16,
+          message: message("String"),
+        }
+      ],
+      "function foo(): Number {}": [
+        {
+          col: 16,
+          message: message("Number"),
+        }
+      ],
+      "let a: () => Number;": [
+        {
+          col: 13,
+          message: message("Number"),
+        }
+      ],
+      "'a' as String;": [
+        {
+          col: 7,
+          message: message("String"),
+        }
+      ],
+      "1 as Number;": [
+        {
+          col: 5,
+          message: message("Number"),
+        }
+      ],
       "
 class Foo<F = String> extends Bar<String> implements Baz<Object> {
   constructor(foo: String | Object) {}
@@ -204,17 +298,48 @@ class Foo<F = String> extends Bar<String> implements Baz<Object> {
   exit(): Array<String> {
     const foo: String = 1 as String;
   }
-}",
-      vec![
-        (2, 14),
-        (2, 34),
-        (2, 57),
-        (3, 19),
-        (3, 28),
-        (5, 16),
-        (6, 15),
-        (6, 29),
-      ],
-    )
+}": [
+        {
+          line: 2,
+          col: 14,
+          message: message("String"),
+        },
+        {
+          line: 2,
+          col: 34,
+          message: message("String"),
+        },
+        {
+          line: 2,
+          col: 57,
+          message: message("Object"),
+        },
+        {
+          line: 3,
+          col: 19,
+          message: message("String"),
+        },
+        {
+          line: 3,
+          col: 28,
+          message: message("Object"),
+        },
+        {
+          line: 5,
+          col: 16,
+          message: message("String"),
+        },
+        {
+          line: 6,
+          col: 15,
+          message: message("String"),
+        },
+        {
+          line: 6,
+          col: 29,
+          message: message("String"),
+        }
+      ]
+    };
   }
 }
