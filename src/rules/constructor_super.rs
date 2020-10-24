@@ -267,7 +267,7 @@ mod tests {
       "class A extends B { }",
       "class A extends B { constructor() { super(); } }",
 
-      // TODO(magurotuna): these needs control flow analysis.
+      // TODO(magurotuna): control flow analysis is required to handle these cases
       // "class A extends B { constructor() { if (true) { super(); } else { super(); } } }",
       // "class A extends B { constructor() { a ? super() : super(); } }",
       // "class A extends B { constructor() { if (a) super(); else super(); } }",
