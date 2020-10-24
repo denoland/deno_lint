@@ -58,6 +58,8 @@ let c: Number;
 let d: Symbol;
 let e: Function;
 let f: Object;
+let g: object;
+let h: {};
 ```
 
 ### Valid:
