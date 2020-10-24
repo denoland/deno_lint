@@ -188,13 +188,13 @@ fn print_rule_info(maybe_rule_name: Option<&str>) {
   let maybe_rule = rules.into_iter().find(|r| r.code() == rule_name);
 
   if let Some(rule) = maybe_rule {
-    println!("- {}", rule.code());
-    println!();
+    let skin = termimad::MadSkin::default();
     let mut docs = rule.docs();
     if docs.is_empty() {
       docs = "documentation not available"
     }
-    println!("{}", docs);
+    let text = format!("# {}\n\n{}", rule.code(), docs);
+    skin.print_text(&text);
   } else {
     eprintln!("Rule not found!");
     std::process::exit(1);
