@@ -1,6 +1,7 @@
 use super::{Context, LintRule};
 use regex::{Matches, Regex};
 
+use once_cell::sync::Lazy;
 use swc_common::{hygiene::SyntaxContext, BytePos, Span};
 use swc_ecmascript::ast::Module;
 use swc_ecmascript::ast::Str;
@@ -9,10 +10,11 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoIrregularWhitespace;
 
-lazy_static! {
-  static ref IRREGULAR_WHITESPACE: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap();
-  static ref IRREGULAR_LINE_TERMINATORS: Regex = Regex::new(r"[\u2028\u2029]").unwrap();
-}
+static IRREGULAR_WHITESPACE: Lazy<Regex> = Lazy::new(|| {
+  Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap()
+});
+static IRREGULAR_LINE_TERMINATORS: Lazy<Regex> =
+  Lazy::new(|| Regex::new(r"[\u2028\u2029]").unwrap());
 
 fn test_for_whitespace(value: &str) -> Option<Vec<Matches>> {
   let mut matches_vector: Vec<Matches> = vec![];
