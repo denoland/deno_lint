@@ -12,6 +12,7 @@ mod test_util;
 mod control_flow;
 pub mod diagnostic;
 mod globals;
+mod ignore_directives;
 mod js_regex;
 pub mod linter;
 pub mod rules;
