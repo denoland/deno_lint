@@ -40,7 +40,7 @@ code to stop in production.
     
 ### Invalid:
 ```typescript
-function isLongString(x:string) {
+function isLongString(x: string) {
   debugger;
   return x.length > 100;
 }
