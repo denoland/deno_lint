@@ -317,98 +317,98 @@ mod tests {
       ConstructorSuper,
       "class A extends null { constructor() { super(); } }": [
         {
-          col: 37,
+          col: 23,
           message: unnecessary_constructor_message,
           hint: unnecessary_constructor_hint,
         }
       ],
       "class A extends null { constructor() { } }": [
         {
-          col: 37,
+          col: 23,
           message: unnecessary_constructor_message,
           hint: unnecessary_constructor_hint,
         }
       ],
-      "class A extends 100 { constructor() { super(); } }": [
+      "class A extends 1000 { constructor() { super(); } }": [
         {
-          col: 36,
+          col: 23,
           message: unnecessary_constructor_message,
           hint: unnecessary_constructor_hint,
         }
       ],
-      "class A extends 'test' { constructor() { super(); } }": [
+      "class A extends 'ab' { constructor() { super(); } }": [
         {
-          col: 39,
+          col: 23,
           message: unnecessary_constructor_message,
           hint: unnecessary_constructor_hint,
         }
       ],
       "class A extends B { constructor() { } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { for (var a of b) super.foo(); } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { var c = class extends D { constructor() { super(); } } } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { var c = () => super(); } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { var C = class extends D { constructor() { super(); } } } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class A extends B { constructor() { super(); super(); } }": [
         {
-          col: 34,
+          col: 45,
           message: too_many_super_message,
           hint: too_many_super_hint,
         }
       ],
       "class A extends B { constructor() { return; super(); } }": [
         {
-          col: 34,
+          col: 20,
           message: no_super_message,
           hint: no_super_hint,
         }
       ],
       "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }": [
         {
-          col: 38,
+          col: 24,
           message: no_super_message,
           hint: no_super_hint,
         }
@@ -425,7 +425,7 @@ class A extends B {
         "#: [
         {
           line: 5,
-          col: 20,
+          col: 6,
           message: no_super_message,
           hint: no_super_hint,
         }
@@ -444,7 +444,7 @@ class A extends B {
         "#: [
         {
           line: 8,
-          col: 20,
+          col: 6,
           message: no_super_message,
           hint: no_super_hint,
         }
@@ -463,7 +463,7 @@ class A extends B {
         "#: [
         {
           line: 5,
-          col: 20,
+          col: 6,
           message: unnecessary_constructor_message,
           hint: unnecessary_constructor_hint,
         }
@@ -480,7 +480,7 @@ class A extends B {
         "#: [
         {
           line: 5,
-          col: 20,
+          col: 6,
           message: unnecessary_constructor_message,
           hint: unnecessary_constructor_hint,
         }
