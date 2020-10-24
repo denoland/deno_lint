@@ -1,8 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use swc_ecmascript::ast::{
-  Ident, TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
+  TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
   TsTypeParamInstantiation, TsTypeRef,
 };
 use swc_ecmascript::visit::Node;
@@ -57,6 +59,8 @@ let c: Number;
 let d: Symbol;
 let e: Function;
 let f: Object;
+let g: object;
+let h: {};
 ```
 
 ### Valid:
@@ -82,30 +86,30 @@ impl<'c> BanTypesVisitor<'c> {
   }
 }
 
-const BANNED_TYPES: [(&str, &str); 6] = [
-  ("String", "Use `string` instead"),
-  ("Boolean", "Use `boolean` instead"),
-  ("Number", "Use `number` instead"),
-  ("Symbol", "Use `symbol` instead"),
-  ("Function", "Define the function shape Explicitly."),
-  ("Object", "if you want a type meaning `any object` use `Record<string, unknown>` instead,
-or if you want a type meaning `any value`, you probably want `unknown` instead."),
-];
+static BAN_TYPES_MESSAGE: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(
+  || {
+    let mut map = HashMap::new();
+    map.insert("String", "Use `string` instead");
+    map.insert("Boolean", "Use `boolean` instead");
+    map.insert("Number", "Use `number` instead");
+    map.insert("Symbol", "Use `symbol` instead");
+    map.insert("Function", "Define the function shape Explicitly.");
+    map.insert("Object",
+  "if you want a type meaning `any object` use `Record<string, unknown>` instead,
+or if you want a type meaning `any value`, you probably want `unknown` instead.");
+    map.insert("object", "Use `Record<string, unknown>` instead");
+    map
+  },
+);
 
-fn get_message(ident: &Ident) -> Option<&'static str> {
-  BANNED_TYPES.iter().find_map(|&(ty, msg)| {
-    if ty == ident.sym.as_ref() {
-      Some(msg)
-    } else {
-      None
-    }
-  })
+fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
+  BAN_TYPES_MESSAGE.get(ident.as_ref()).copied()
 }
 
 impl<'c> Visit for BanTypesVisitor<'c> {
   fn visit_ts_type_ref(&mut self, ts_type_ref: &TsTypeRef, _parent: &dyn Node) {
     if let TsEntityName::Ident(ident) = &ts_type_ref.type_name {
-      if let Some(message) = get_message(ident) {
+      if let Some(message) = get_message(&ident.sym) {
         self
           .context
           .add_diagnostic(ts_type_ref.span, "ban-types", message);
@@ -115,6 +119,7 @@ impl<'c> Visit for BanTypesVisitor<'c> {
       self.visit_ts_type_param_instantiation(type_param, ts_type_ref);
     }
   }
+
   fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
     if !ts_type_lit.members.is_empty() {
       for element in ts_type_lit.members.iter() {
@@ -125,9 +130,10 @@ impl<'c> Visit for BanTypesVisitor<'c> {
     self.context.add_diagnostic(
       ts_type_lit.span,
       "ban-types",
-      BANNED_TYPES[5].1, // `Object` message
+      get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
     );
   }
+
   fn visit_ts_keyword_type(
     &mut self,
     ts_keyword_type: &TsKeywordType,
@@ -137,10 +143,11 @@ impl<'c> Visit for BanTypesVisitor<'c> {
       self.context.add_diagnostic(
         ts_keyword_type.span,
         "ban-types",
-        "Use `Record<string, unknown>` instead",
+        get_message("object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `object` key
       );
     }
   }
+
   fn visit_ts_type_param_instantiation(
     &mut self,
     ts_type_param_instantiation: &TsTypeParamInstantiation,
@@ -155,7 +162,6 @@ impl<'c> Visit for BanTypesVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ban_types_valid() {
@@ -172,27 +178,122 @@ mod tests {
 
   #[test]
   fn ban_types_invalid() {
-    assert_lint_err::<BanTypes>("let a: String;", 7);
-    assert_lint_err::<BanTypes>("let a: Object;", 7);
-    assert_lint_err::<BanTypes>("let a: Number;", 7);
-    assert_lint_err::<BanTypes>("let a: Function;", 7);
-    assert_lint_err::<BanTypes>("let a: object;", 7);
-    assert_lint_err::<BanTypes>("let a: {};", 7);
-    assert_lint_err::<BanTypes>("let a: { b: String};", 12);
-    assert_lint_err::<BanTypes>("let a: { b: Number};", 12);
-    assert_lint_err_n::<BanTypes>(
-      "let a: { b: object, c: Object};",
-      vec![12, 23],
-    );
-    assert_lint_err::<BanTypes>("let a: { b: { c : Function}};", 18);
-    assert_lint_err::<BanTypes>("let a: Array<String>", 13);
-    assert_lint_err_n::<BanTypes>("let a: Number<Function>", vec![7, 14]);
-    assert_lint_err::<BanTypes>("function foo(a: String) {}", 16);
-    assert_lint_err::<BanTypes>("function foo(): Number {}", 16);
-    assert_lint_err::<BanTypes>("let a: () => Number;", 13);
-    assert_lint_err::<BanTypes>("'a' as String;", 7);
-    assert_lint_err::<BanTypes>("1 as Number;", 5);
-    assert_lint_err_on_line_n::<BanTypes>(
+    fn message(ty: &str) -> &str {
+      get_message(ty).unwrap()
+    }
+
+    assert_lint_err! {
+      BanTypes,
+      "let a: String;": [
+        {
+          col: 7,
+          message: message("String"),
+        }
+      ],
+      "let a: Object;": [
+        {
+          col: 7,
+          message: message("Object"),
+        }
+      ],
+      "let a: Number;": [
+        {
+          col: 7,
+          message: message("Number"),
+        }
+      ],
+      "let a: Function;": [
+        {
+          col: 7,
+          message: message("Function"),
+        }
+      ],
+      "let a: object;": [
+        {
+          col: 7,
+          message: message("object"),
+        }
+      ],
+      "let a: {};": [
+        {
+          col: 7,
+          message: message("Object"),
+        }
+      ],
+      "let a: { b: String };": [
+        {
+          col: 12,
+          message: message("String"),
+        }
+      ],
+      "let a: { b: Number };": [
+        {
+          col: 12,
+          message: message("Number"),
+        }
+      ],
+      "let a: { b: object, c: Object };": [
+        {
+          col: 12,
+          message: message("object"),
+        },
+        {
+          col: 23,
+          message: message("Object"),
+        }
+      ],
+      "let a: { b: { c : Function } };": [
+        {
+          col: 18,
+          message: message("Function"),
+        }
+      ],
+      "let a: Array<String>": [
+        {
+          col: 13,
+          message: message("String"),
+        }
+      ],
+      "let a: Number<Function>": [
+        {
+          col: 7,
+          message: message("Number"),
+        },
+        {
+          col: 14,
+          message: message("Function"),
+        }
+      ],
+      "function foo(a: String) {}": [
+        {
+          col: 16,
+          message: message("String"),
+        }
+      ],
+      "function foo(): Number {}": [
+        {
+          col: 16,
+          message: message("Number"),
+        }
+      ],
+      "let a: () => Number;": [
+        {
+          col: 13,
+          message: message("Number"),
+        }
+      ],
+      "'a' as String;": [
+        {
+          col: 7,
+          message: message("String"),
+        }
+      ],
+      "1 as Number;": [
+        {
+          col: 5,
+          message: message("Number"),
+        }
+      ],
       "
 class Foo<F = String> extends Bar<String> implements Baz<Object> {
   constructor(foo: String | Object) {}
@@ -200,17 +301,48 @@ class Foo<F = String> extends Bar<String> implements Baz<Object> {
   exit(): Array<String> {
     const foo: String = 1 as String;
   }
-}",
-      vec![
-        (2, 14),
-        (2, 34),
-        (2, 57),
-        (3, 19),
-        (3, 28),
-        (5, 16),
-        (6, 15),
-        (6, 29),
-      ],
-    )
+}": [
+        {
+          line: 2,
+          col: 14,
+          message: message("String"),
+        },
+        {
+          line: 2,
+          col: 34,
+          message: message("String"),
+        },
+        {
+          line: 2,
+          col: 57,
+          message: message("Object"),
+        },
+        {
+          line: 3,
+          col: 19,
+          message: message("String"),
+        },
+        {
+          line: 3,
+          col: 28,
+          message: message("Object"),
+        },
+        {
+          line: 5,
+          col: 16,
+          message: message("String"),
+        },
+        {
+          line: 6,
+          col: 15,
+          message: message("String"),
+        },
+        {
+          line: 6,
+          col: 29,
+          message: message("String"),
+        }
+      ]
+    };
   }
 }
