@@ -41,14 +41,14 @@ never be reached meaning this is almost always a bug.
 ```typescript
 const someText = "a";
 switch (someText) {
-    case "a":
-        break;
-    case "b":
-        break;
-    case "a":  // duplicate test expression
-        break;
-    default:
-        break;
+  case "a":
+    break;
+  case "b":
+    break;
+  case "a": // duplicate test expression
+    break;
+  default:
+    break;
 }
 ```
 
