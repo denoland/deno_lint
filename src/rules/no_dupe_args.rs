@@ -35,6 +35,28 @@ impl LintRule for NoDupeArgs {
     module.visit_all_with(module, &mut visitor);
     visitor.report_errors();
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using an argument name more than once in a function signature
+
+If you supply multiple arguments of the same name to a function, the last instance
+will shadow the preceding one(s).  This is most likely an unintentional typo.
+    
+### Invalid:
+```typescript
+function withDupes(a, b, a) {
+  console.log("I'm the value of the second a:", a);
+}
+```
+
+### Valid:
+```typescript
+function withoutDupes(a, b, c) {
+  console.log("I'm the value of the first (and only) a:", a);
+}
+```
+"#
+  }
 }
 
 struct NoDupeArgsVisitor<'c> {
@@ -52,10 +74,11 @@ impl<'c> NoDupeArgsVisitor<'c> {
 
   fn report_errors(&mut self) {
     for span in &self.error_spans {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         *span,
         "no-dupe-args",
         "Duplicate arguments not allowed",
+        "Rename or remove the duplicate (e.g. same name) argument",
       );
     }
   }
