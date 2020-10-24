@@ -88,6 +88,16 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
+  fn lint_program(
+    &self,
+    context: &mut Context,
+    program: &swc_ecmascript::ast::Program,
+  ) {
+    if let swc_ecmascript::ast::Program::Module(module) = program {
+      self.lint_module(context, module)
+    }
+    todo!();
+  }
   fn lint_module(
     &self,
     context: &mut Context,
