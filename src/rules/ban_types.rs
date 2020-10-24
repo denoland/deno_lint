@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use swc_ecmascript::ast::{
   TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
@@ -85,8 +86,8 @@ impl<'c> BanTypesVisitor<'c> {
   }
 }
 
-lazy_static! {
-  static ref BAN_TYPES_MESSAGE: HashMap<&'static str, &'static str> = {
+static BAN_TYPES_MESSAGE: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(
+  || {
     let mut map = HashMap::new();
     map.insert("String", "Use `string` instead");
     map.insert("Boolean", "Use `boolean` instead");
@@ -94,12 +95,12 @@ lazy_static! {
     map.insert("Symbol", "Use `symbol` instead");
     map.insert("Function", "Define the function shape Explicitly.");
     map.insert("Object",
-    "if you want a type meaning `any object` use `Record<string, unknown>` instead,
+  "if you want a type meaning `any object` use `Record<string, unknown>` instead,
 or if you want a type meaning `any value`, you probably want `unknown` instead.");
     map.insert("object", "Use `Record<string, unknown>` instead");
     map
-  };
-}
+  },
+);
 
 fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
   BAN_TYPES_MESSAGE.get(ident.as_ref()).map(|v| *v)
