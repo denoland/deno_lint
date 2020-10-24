@@ -219,50 +219,48 @@ mod tests {
   fn constructor_super_valid() {
     assert_lint_ok! {
       ConstructorSuper,
-      r#"
-// non derived classes.
-class A { }
-class A { constructor() { } }
+      // non derived classes.
+      "class A { }",
+      "class A { constructor() { } }",
 
-/*
- * inherit from non constructors.
- * those are valid if we don't define the constructor.
- */
-class A extends null { }
+      // inherit from non constructors.
+      // those are valid if we don't define the constructor.
+      "class A extends null { }",
 
-// derived classes.
-class A extends B { }
-class A extends B { constructor() { super(); } }
-// class A extends B { constructor() { if (true) { super(); } else { super(); } } }
-class A extends (class B {}) { constructor() { super(); } }
-class A extends (B = C) { constructor() { super(); } }
-class A extends (B || C) { constructor() { super(); } }
-class A extends (a ? B : C) { constructor() { super(); } }
-class A extends (B, C) { constructor() { super(); } }
+      // derived classes.
+      "class A extends B { }",
+      "class A extends B { constructor() { super(); } }",
 
-// nested.
-class A { constructor() { class B extends C { constructor() { super(); } } } }
-class A extends B { constructor() { super(); class C extends D { constructor() { super(); } } } }
-class A extends B { constructor() { super(); class C { constructor() { } } } }
+      // TODO(magurotuna): these needs control flow analysis.
+      // "class A extends B { constructor() { if (true) { super(); } else { super(); } } }",
+      // "class A extends B { constructor() { a ? super() : super(); } }",
+      // "class A extends B { constructor() { if (a) super(); else super(); } }",
+      // "class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }",
+      // "class A extends B { constructor() { try {} finally { super(); } } }",
+      // "class A extends B { constructor() { if (a) throw Error(); super(); } }",
 
-// multi code path.
-// class A extends B { constructor() { a ? super() : super(); } }
-// class A extends B { constructor() { if (a) super(); else super(); } }
-// class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }
-// class A extends B { constructor() { try {} finally { super(); } } }
-// class A extends B { constructor() { if (a) throw Error(); super(); } }
+      // derived classes.
+      "class A extends (class B {}) { constructor() { super(); } }",
+      "class A extends (B = C) { constructor() { super(); } }",
+      "class A extends (B || C) { constructor() { super(); } }",
+      "class A extends (a ? B : C) { constructor() { super(); } }",
+      "class A extends (B, C) { constructor() { super(); } }",
 
-// returning value is a substitute of 'super()'.
-class A extends B { constructor() { if (true) return a; super(); } }
-class A extends null { constructor() { return a; } }
-class A { constructor() { return a; } }
+      // nested.
+      "class A { constructor() { class B extends C { constructor() { super(); } } } }",
+      "class A extends B { constructor() { super(); class C extends D { constructor() { super(); } } } }",
+      "class A extends B { constructor() { super(); class C { constructor() { } } } }",
 
-// https://github.com/eslint/eslint/issues/5261
-class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } } }
+      // returning value is a substitute of 'super()'.
+      "class A extends B { constructor() { if (true) return a; super(); } }",
+      "class A extends null { constructor() { return a; } }",
+      "class A { constructor() { return a; } }",
 
-// https://github.com/eslint/eslint/issues/5319
-class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }
-      "#,
+      // https://github.com/eslint/eslint/issues/5261
+      "class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } } }",
+
+      // https://github.com/eslint/eslint/issues/5319
+      "class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }",
     };
   }
 
