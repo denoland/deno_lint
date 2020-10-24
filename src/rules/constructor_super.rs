@@ -1,7 +1,8 @@
 use super::Context;
 use super::LintRule;
+use swc_common::Span;
 use swc_ecmascript::ast::{
-  Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
+  Class, ClassMember, Constructor, Expr, ExprOrSuper, ReturnStmt, Stmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -112,6 +113,53 @@ impl DiagnosticKind {
   }
 }
 
+fn inherits_from_non_constructor(class: &Class) -> bool {
+  if let Some(expr) = &class.super_class {
+    if let Expr::Lit(_) = &**expr {
+      return true;
+    }
+  }
+  false
+}
+
+fn super_call_spans(constructor: &Constructor) -> Vec<Span> {
+  if let Some(block_stmt) = &constructor.body {
+    block_stmt
+      .stmts
+      .iter()
+      .filter_map(|stmt| extract_super_span(stmt))
+      .collect()
+  } else {
+    vec![]
+  }
+}
+
+fn extract_super_span(stmt: &Stmt) -> Option<Span> {
+  if let Stmt::Expr(expr) = stmt {
+    if let Expr::Call(call) = &*expr.expr {
+      if matches!(&call.callee, ExprOrSuper::Super(_)) {
+        return Some(call.span);
+      }
+    }
+  }
+  None
+}
+
+fn return_before_super(constructor: &Constructor) -> Option<&ReturnStmt> {
+  if let Some(block_stmt) = &constructor.body {
+    for stmt in &block_stmt.stmts {
+      if extract_super_span(stmt).is_some() {
+        return None;
+      }
+
+      if let Stmt::Return(ret) = stmt {
+        return Some(ret);
+      }
+    }
+  }
+  None
+}
+
 struct ConstructorSuperVisitor<'c> {
   context: &'c mut Context,
 }
@@ -122,76 +170,64 @@ impl<'c> ConstructorSuperVisitor<'c> {
   }
 
   fn check_constructor(&mut self, constructor: &Constructor, class: &Class) {
-    let mut sup = None;
-    let mut span = constructor.span;
-    if let Some(block_stmt) = &constructor.body {
-      span = block_stmt.span;
-      for stmt in &block_stmt.stmts {
-        if let Stmt::Expr(expr) = stmt {
-          if let Expr::Call(call) = &*expr.expr {
-            if let ExprOrSuper::Super(s) = &call.callee {
-              if sup.is_none() {
-                sup = Some(s)
-              } else {
-                let kind = DiagnosticKind::TooManySuper;
-                self.context.add_diagnostic_with_hint(
-                  span,
-                  "constructor-super",
-                  kind.message(),
-                  kind.hint(),
-                );
-              }
-            }
-          }
-        } else if let Stmt::Return(ret) = stmt {
-          // returning value is a substitute of 'super()'.
-          if sup.is_none() {
-            if ret.arg.is_none() && class.super_class.is_some() {
-              let kind = DiagnosticKind::NoSuper;
-              self.context.add_diagnostic_with_hint(
-                span,
-                "constructor-super",
-                kind.message(),
-                kind.hint(),
-              );
-            }
-            return;
-          }
-        }
-      }
-    }
-
-    if let Some(expr) = &class.super_class {
-      if let Expr::Lit(_) = &**expr {
-        let kind = DiagnosticKind::UnnecessaryConstructor;
+    // returning value is a substitute of 'super()'.
+    if let Some(ret) = return_before_super(constructor) {
+      if ret.arg.is_none() && class.super_class.is_some() {
+        let kind = DiagnosticKind::NoSuper;
         self.context.add_diagnostic_with_hint(
-          span,
-          "constructor-super",
-          kind.message(),
-          kind.hint(),
-        );
-        return;
-      }
-    }
-
-    if sup.is_some() {
-      if class.super_class.is_none() {
-        let kind = DiagnosticKind::UnnecessarySuper;
-        self.context.add_diagnostic_with_hint(
-          span,
+          constructor.span,
           "constructor-super",
           kind.message(),
           kind.hint(),
         );
       }
-    } else if class.super_class.is_some() {
-      let kind = DiagnosticKind::TooManySuper;
+      return;
+    }
+
+    if inherits_from_non_constructor(class) {
+      let kind = DiagnosticKind::UnnecessaryConstructor;
       self.context.add_diagnostic_with_hint(
-        span,
+        constructor.span,
         "constructor-super",
         kind.message(),
         kind.hint(),
       );
+      return;
+    }
+
+    let super_calls = super_call_spans(constructor);
+
+    // in case where there are more than one `super()` calls.
+    for exceeded_super_span in super_call_spans(constructor).iter().skip(1) {
+      let kind = DiagnosticKind::TooManySuper;
+      self.context.add_diagnostic_with_hint(
+        *exceeded_super_span,
+        "constructor-super",
+        kind.message(),
+        kind.hint(),
+      );
+    }
+
+    match (super_calls.is_empty(), class.super_class.is_some()) {
+      (true, true) => {
+        let kind = DiagnosticKind::NoSuper;
+        self.context.add_diagnostic_with_hint(
+          constructor.span,
+          "constructor-super",
+          kind.message(),
+          kind.hint(),
+        );
+      }
+      (false, false) => {
+        let kind = DiagnosticKind::UnnecessarySuper;
+        self.context.add_diagnostic_with_hint(
+          super_calls[0],
+          "constructor-super",
+          kind.message(),
+          kind.hint(),
+        );
+      }
+      _ => {}
     }
   }
 }
