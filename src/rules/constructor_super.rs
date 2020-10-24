@@ -1,7 +1,8 @@
 use super::Context;
 use super::LintRule;
+use swc_common::Span;
 use swc_ecmascript::ast::{
-  Class, ClassMember, Constructor, Expr, ExprOrSuper, Stmt,
+  Class, ClassMember, Constructor, Expr, ExprOrSuper, ReturnStmt, Stmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -80,6 +81,85 @@ class D extends null {}
   }
 }
 
+enum DiagnosticKind {
+  TooManySuper,
+  NoSuper,
+  UnnecessaryConstructor,
+  UnnecessarySuper,
+}
+
+impl DiagnosticKind {
+  #[cfg(test)]
+  fn message_and_hint(&self) -> (&'static str, &'static str) {
+    (self.message(), self.hint())
+  }
+
+  fn message(&self) -> &'static str {
+    match *self {
+      DiagnosticKind::TooManySuper => "Constructors of derived classes must call super() only once",
+      DiagnosticKind::NoSuper => "Constructors of derived classes must call super()",
+      DiagnosticKind::UnnecessaryConstructor => "Classes which inherit from a non constructor must not define a constructor",
+      DiagnosticKind::UnnecessarySuper => "Constructors of non derived classes must not call super()",
+    }
+  }
+
+  fn hint(&self) -> &'static str {
+    match *self {
+      DiagnosticKind::TooManySuper => "Remove extra calls to super()",
+      DiagnosticKind::NoSuper => "Add call to super() in the constructor",
+      DiagnosticKind::UnnecessaryConstructor => "Remove constructor",
+      DiagnosticKind::UnnecessarySuper => "Remove call to super()",
+    }
+  }
+}
+
+fn inherits_from_non_constructor(class: &Class) -> bool {
+  if let Some(expr) = &class.super_class {
+    if let Expr::Lit(_) = &**expr {
+      return true;
+    }
+  }
+  false
+}
+
+fn super_call_spans(constructor: &Constructor) -> Vec<Span> {
+  if let Some(block_stmt) = &constructor.body {
+    block_stmt
+      .stmts
+      .iter()
+      .filter_map(|stmt| extract_super_span(stmt))
+      .collect()
+  } else {
+    vec![]
+  }
+}
+
+fn extract_super_span(stmt: &Stmt) -> Option<Span> {
+  if let Stmt::Expr(expr) = stmt {
+    if let Expr::Call(call) = &*expr.expr {
+      if matches!(&call.callee, ExprOrSuper::Super(_)) {
+        return Some(call.span);
+      }
+    }
+  }
+  None
+}
+
+fn return_before_super(constructor: &Constructor) -> Option<&ReturnStmt> {
+  if let Some(block_stmt) = &constructor.body {
+    for stmt in &block_stmt.stmts {
+      if extract_super_span(stmt).is_some() {
+        return None;
+      }
+
+      if let Stmt::Return(ret) = stmt {
+        return Some(ret);
+      }
+    }
+  }
+  None
+}
+
 struct ConstructorSuperVisitor<'c> {
   context: &'c mut Context,
 }
@@ -88,72 +168,66 @@ impl<'c> ConstructorSuperVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
+
   fn check_constructor(&mut self, constructor: &Constructor, class: &Class) {
-    let mut sup = None;
-    let mut span = constructor.span;
-    if let Some(block_stmt) = &constructor.body {
-      span = block_stmt.span;
-      for stmt in &block_stmt.stmts {
-        if let Stmt::Expr(expr) = stmt {
-          if let Expr::Call(call) = &*expr.expr {
-            if let ExprOrSuper::Super(s) = &call.callee {
-              if sup.is_none() {
-                sup = Some(s)
-              } else {
-                self.context.add_diagnostic_with_hint(
-                  span,
-                  "constructor-super",
-                  "Constructors of derived classes must call super() only once",
-                  "Remove extra calls to super()",
-                );
-              }
-            }
-          }
-        } else if let Stmt::Return(ret) = stmt {
-          // returning value is a substitute of 'super()'.
-          if sup.is_none() {
-            if ret.arg.is_none() && class.super_class.is_some() {
-              self.context.add_diagnostic_with_hint(
-                span,
-                "constructor-super",
-                "Constructors of derived classes must call super()",
-                "Add call to super() in the constructor",
-              );
-            }
-            return;
-          }
-        }
-      }
-    }
-
-    if let Some(expr) = &class.super_class {
-      if let Expr::Lit(_) = &**expr {
+    // returning value is a substitute of 'super()'.
+    if let Some(ret) = return_before_super(constructor) {
+      if ret.arg.is_none() && class.super_class.is_some() {
+        let kind = DiagnosticKind::NoSuper;
         self.context.add_diagnostic_with_hint(
-          span,
+          constructor.span,
           "constructor-super",
-          "Classes which inherit from a non constructor must not define a constructor",
-          "Remove constructor"
-        );
-        return;
-      }
-    }
-
-    if sup.is_some() {
-      if class.super_class.is_none() {
-        self.context.add_diagnostic_with_hint(
-          span,
-          "constructor-super",
-          "Constructors of non derived classes must not call super()",
-          "Remove call to super()",
+          kind.message(),
+          kind.hint(),
         );
       }
-    } else if class.super_class.is_some() {
+      return;
+    }
+
+    if inherits_from_non_constructor(class) {
+      let kind = DiagnosticKind::UnnecessaryConstructor;
       self.context.add_diagnostic_with_hint(
-        span,
+        constructor.span,
         "constructor-super",
-        "Constructors of derived classes must call super()",
-        "Add call to super() in the constructor",
+        kind.message(),
+        kind.hint(),
       );
+      return;
+    }
+
+    let super_calls = super_call_spans(constructor);
+
+    // in case where there are more than one `super()` calls.
+    for exceeded_super_span in super_calls.iter().skip(1) {
+      let kind = DiagnosticKind::TooManySuper;
+      self.context.add_diagnostic_with_hint(
+        *exceeded_super_span,
+        "constructor-super",
+        kind.message(),
+        kind.hint(),
+      );
+    }
+
+    match (super_calls.is_empty(), class.super_class.is_some()) {
+      (true, true) => {
+        let kind = DiagnosticKind::NoSuper;
+        self.context.add_diagnostic_with_hint(
+          constructor.span,
+          "constructor-super",
+          kind.message(),
+          kind.hint(),
+        );
+      }
+      (false, false) => {
+        let kind = DiagnosticKind::UnnecessarySuper;
+        self.context.add_diagnostic_with_hint(
+          super_calls[0],
+          "constructor-super",
+          kind.message(),
+          kind.hint(),
+        );
+      }
+      _ => {}
     }
   }
 }
@@ -176,118 +250,174 @@ impl<'c> Visit for ConstructorSuperVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn constructor_super_valid() {
     assert_lint_ok! {
       ConstructorSuper,
-      r#"
-// non derived classes.
-class A { }
-class A { constructor() { } }
+      // non derived classes.
+      "class A { }",
+      "class A { constructor() { } }",
 
-/*
- * inherit from non constructors.
- * those are valid if we don't define the constructor.
- */
-class A extends null { }
+      // inherit from non constructors.
+      // those are valid if we don't define the constructor.
+      "class A extends null { }",
 
-// derived classes.
-class A extends B { }
-class A extends B { constructor() { super(); } }
-// class A extends B { constructor() { if (true) { super(); } else { super(); } } }
-class A extends (class B {}) { constructor() { super(); } }
-class A extends (B = C) { constructor() { super(); } }
-class A extends (B || C) { constructor() { super(); } }
-class A extends (a ? B : C) { constructor() { super(); } }
-class A extends (B, C) { constructor() { super(); } }
+      // derived classes.
+      "class A extends B { }",
+      "class A extends B { constructor() { super(); } }",
 
-// nested.
-class A { constructor() { class B extends C { constructor() { super(); } } } }
-class A extends B { constructor() { super(); class C extends D { constructor() { super(); } } } }
-class A extends B { constructor() { super(); class C { constructor() { } } } }
+      // TODO(magurotuna): control flow analysis is required to handle these cases
+      // "class A extends B { constructor() { if (true) { super(); } else { super(); } } }",
+      // "class A extends B { constructor() { a ? super() : super(); } }",
+      // "class A extends B { constructor() { if (a) super(); else super(); } }",
+      // "class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }",
+      // "class A extends B { constructor() { try {} finally { super(); } } }",
+      // "class A extends B { constructor() { if (a) throw Error(); super(); } }",
 
-// multi code path.
-// class A extends B { constructor() { a ? super() : super(); } }
-// class A extends B { constructor() { if (a) super(); else super(); } }
-// class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }
-// class A extends B { constructor() { try {} finally { super(); } } }
-// class A extends B { constructor() { if (a) throw Error(); super(); } }
+      // derived classes.
+      "class A extends (class B {}) { constructor() { super(); } }",
+      "class A extends (B = C) { constructor() { super(); } }",
+      "class A extends (B || C) { constructor() { super(); } }",
+      "class A extends (a ? B : C) { constructor() { super(); } }",
+      "class A extends (B, C) { constructor() { super(); } }",
 
-// returning value is a substitute of 'super()'.
-class A extends B { constructor() { if (true) return a; super(); } }
-class A extends null { constructor() { return a; } }
-class A { constructor() { return a; } }
+      // nested.
+      "class A { constructor() { class B extends C { constructor() { super(); } } } }",
+      "class A extends B { constructor() { super(); class C extends D { constructor() { super(); } } } }",
+      "class A extends B { constructor() { super(); class C { constructor() { } } } }",
 
-// https://github.com/eslint/eslint/issues/5261
-class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } } }
+      // returning value is a substitute of 'super()'.
+      "class A extends B { constructor() { if (true) return a; super(); } }",
+      "class A extends null { constructor() { return a; } }",
+      "class A { constructor() { return a; } }",
 
-// https://github.com/eslint/eslint/issues/5319
-class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }
-      "#,
+      // https://github.com/eslint/eslint/issues/5261
+      "class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } } }",
+
+      // https://github.com/eslint/eslint/issues/5319
+      "class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }",
     };
   }
 
   #[test]
   fn constructor_super_invalid() {
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends null { constructor() { super(); } }",
-      37,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends null { constructor() { } }",
-      37,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends 100 { constructor() { super(); } }",
-      36,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends 'test' { constructor() { super(); } }",
-      39,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { for (var a of b) super.foo(); } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { var c = class extends D { constructor() { super(); } } } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { var c = () => super(); } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { var C = class extends D { constructor() { super(); } } } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { super(); super(); } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class A extends B { constructor() { return; super(); } }",
-      34,
-    );
-    assert_lint_err::<ConstructorSuper>(
-      "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }",
-      38,
-    );
-    assert_lint_err_on_line::<ConstructorSuper>(
+    let (too_many_super_message, too_many_super_hint) =
+      DiagnosticKind::TooManySuper.message_and_hint();
+    let (no_super_message, no_super_hint) =
+      DiagnosticKind::NoSuper.message_and_hint();
+    let (unnecessary_constructor_message, unnecessary_constructor_hint) =
+      DiagnosticKind::UnnecessaryConstructor.message_and_hint();
+    let (unnecessary_super_message, unnecessary_super_hint) =
+      DiagnosticKind::UnnecessarySuper.message_and_hint();
+
+    assert_lint_err! {
+      ConstructorSuper,
+      "class A { constructor() { super(); } }": [
+        {
+          col: 26,
+          message: unnecessary_super_message,
+          hint: unnecessary_super_hint,
+        }
+      ],
+      "class A extends null { constructor() { super(); } }": [
+        {
+          col: 23,
+          message: unnecessary_constructor_message,
+          hint: unnecessary_constructor_hint,
+        }
+      ],
+      "class A extends null { constructor() { } }": [
+        {
+          col: 23,
+          message: unnecessary_constructor_message,
+          hint: unnecessary_constructor_hint,
+        }
+      ],
+      "class A extends 1000 { constructor() { super(); } }": [
+        {
+          col: 23,
+          message: unnecessary_constructor_message,
+          hint: unnecessary_constructor_hint,
+        }
+      ],
+      "class A extends 'ab' { constructor() { super(); } }": [
+        {
+          col: 23,
+          message: unnecessary_constructor_message,
+          hint: unnecessary_constructor_hint,
+        }
+      ],
+      "class A extends B { constructor() { } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { for (var a of b) super.foo(); } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { var c = class extends D { constructor() { super(); } } } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { var c = () => super(); } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { class C extends D { constructor() { super(); } } } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { var C = class extends D { constructor() { super(); } } } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { super(); super(); } }": [
+        {
+          col: 45,
+          message: too_many_super_message,
+          hint: too_many_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { return; super(); } }": [
+        {
+          col: 20,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
+      "class Foo extends Bar { constructor() { for (a in b) for (c in d); } }": [
+        {
+          col: 24,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -297,11 +427,14 @@ class A extends B {
     super();
   }
 }
-        "#,
-      5,
-      20,
-    );
-    assert_lint_err_on_line::<ConstructorSuper>(
+        "#: [
+        {
+          line: 5,
+          col: 6,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -313,11 +446,14 @@ class A extends B {
     }
   }
 }
-        "#,
-      8,
-      20,
-    );
-    assert_lint_err_on_line::<ConstructorSuper>(
+        "#: [
+        {
+          line: 8,
+          col: 6,
+          message: no_super_message,
+          hint: no_super_hint,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -329,11 +465,14 @@ class A extends B {
     super();
   }
 }
-        "#,
-      5,
-      20,
-    );
-    assert_lint_err_on_line::<ConstructorSuper>(
+        "#: [
+        {
+          line: 5,
+          col: 6,
+          message: unnecessary_constructor_message,
+          hint: unnecessary_constructor_hint,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -343,9 +482,14 @@ class A extends B {
     super();
   }
 }
-        "#,
-      5,
-      20,
-    );
+        "#: [
+        {
+          line: 5,
+          col: 6,
+          message: unnecessary_constructor_message,
+          hint: unnecessary_constructor_hint,
+        }
+      ]
+    };
   }
 }
