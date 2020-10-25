@@ -10,6 +10,10 @@ use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoArrayConstructor;
 
+const CODE: &str = "no-array-constructor";
+const MESSAGE: &str = "Array Constructor is not allowed";
+const HINT: &str = "Use array literal notation (e.g. []) or single argument specifying array size only (e.g. new Array(5)";
+
 impl LintRule for NoArrayConstructor {
   fn new() -> Box<Self> {
     Box::new(NoArrayConstructor)
@@ -20,7 +24,7 @@ impl LintRule for NoArrayConstructor {
   }
 
   fn code(&self) -> &'static str {
-    "no-array-constructor"
+    CODE
   }
 
   fn lint_module(
@@ -75,12 +79,9 @@ impl<'c> NoArrayConstructorVisitor<'c> {
 
   fn check_args(&mut self, args: Vec<ExprOrSpread>, span: Span) {
     if args.len() != 1 {
-      self.context.add_diagnostic_with_hint(
-        span,
-        "no-array-constructor",
-        "Array Constructor is not allowed",
-        "Use array literal notation (e.g. []) or single argument specifying array size only (e.g. new Array(5)",
-      );
+      self
+        .context
+        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 }
@@ -126,7 +127,6 @@ impl<'c> VisitAll for NoArrayConstructorVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_array_constructor_valid() {
@@ -149,30 +149,25 @@ mod tests {
 
   #[test]
   fn no_array_constructor_invalid() {
-    assert_lint_err::<NoArrayConstructor>("new Array", 0);
-    assert_lint_err::<NoArrayConstructor>("new Array()", 0);
-    assert_lint_err::<NoArrayConstructor>("new Array(x, y)", 0);
-    assert_lint_err::<NoArrayConstructor>("new Array(0, 1, 2)", 0);
-    // nested
-    assert_lint_err_on_line::<NoArrayConstructor>(
+    assert_lint_err! {
+      NoArrayConstructor,
+      "new Array": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Array()": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Array(x, y)": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Array(0, 1, 2)": [{ col: 0, message: MESSAGE, hint: HINT }],
+      // nested
       r#"
 const a = new class {
   foo() {
     let arr = new Array();
   }
 }();
-"#,
-      4,
-      14,
-    );
-    assert_lint_err_on_line::<NoArrayConstructor>(
+      "#: [{ line: 4, col: 14, message: MESSAGE, hint: HINT }],
       r#"
 const a = (() => {
   let arr = new Array();
 })();
-"#,
-      3,
-      12,
-    );
+      "#: [{ line: 3, col: 12, message: MESSAGE, hint: HINT }],
+    }
   }
 }
