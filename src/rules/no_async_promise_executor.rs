@@ -11,7 +11,8 @@ pub struct NoAsyncPromiseExecutor;
 
 const CODE: &str = "no-async-promise-executor";
 const MESSAGE: &str = "Async promise executors are not allowed";
-const HINT: &str = "Remove `async` from executor function and adjust promise code as needed";
+const HINT: &str =
+  "Remove `async` from executor function and adjust promise code as needed";
 
 impl LintRule for NoAsyncPromiseExecutor {
   fn new() -> Box<Self> {
