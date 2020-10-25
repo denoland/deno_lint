@@ -209,20 +209,8 @@ impl RuleFormatter for PrettyFormatter {
   }
 }
 
-fn print_rules<F: RuleFormatter>(
-  rules: Vec<Rule>,
-  maybe_rule_name: Option<&str>,
-) {
-  let mut rules = if let Some(filter_rule_name) = maybe_rule_name {
-    rules
-      .into_iter()
-      .filter(|r| r.code == filter_rule_name)
-      .collect()
-  } else {
-    rules
-  };
-
-  match F::format(&mut rules) {
+fn print_rules<F: RuleFormatter>(rules: &mut [Rule]) {
+  match F::format(rules) {
     Err(e) => {
       eprintln!("{}", e);
       std::process::exit(1);
@@ -231,6 +219,10 @@ fn print_rules<F: RuleFormatter>(
       println!("{}", text);
     }
   }
+}
+
+fn filter_rules(rules: Vec<Rule>, rule_name: &str) -> Vec<Rule> {
+  rules.into_iter().filter(|r| r.code == rule_name).collect()
 }
 
 fn main() {
@@ -250,22 +242,30 @@ fn main() {
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
-      let maybe_rule_name = rules_matches.value_of("RULE_NAME");
-      let rules = get_rules_by_tag(RuleTag::Recommended);
+      let mut rules =
+        if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
+          filter_rules(get_rules_by_tag(RuleTag::Recommended), rule_name)
+        } else {
+          get_rules_by_tag(RuleTag::Recommended)
+        };
       if json {
-        print_rules::<JsonFormatter>(rules, maybe_rule_name);
+        print_rules::<JsonFormatter>(&mut rules);
       } else {
-        print_rules::<PrettyFormatter>(rules, maybe_rule_name);
+        print_rules::<PrettyFormatter>(&mut rules);
       }
     }
     ("all-rules", Some(all_rules_matches)) => {
       let json = all_rules_matches.is_present("json");
-      let maybe_rule_name = all_rules_matches.value_of("RULE_NAME");
-      let rules = get_rules_by_tag(RuleTag::All);
+      let mut rules =
+        if let Some(rule_name) = all_rules_matches.value_of("RULE_NAME") {
+          filter_rules(get_rules_by_tag(RuleTag::All), rule_name)
+        } else {
+          get_rules_by_tag(RuleTag::All)
+        };
       if json {
-        print_rules::<JsonFormatter>(rules, maybe_rule_name);
+        print_rules::<JsonFormatter>(&mut rules);
       } else {
-        print_rules::<PrettyFormatter>(rules, maybe_rule_name);
+        print_rules::<PrettyFormatter>(&mut rules);
       }
     }
     _ => unreachable!(),
