@@ -322,23 +322,14 @@ impl Linter {
     let start = Instant::now();
     let file_ignore_directive =
       comments.with_leading(program.span().lo(), |c| {
-        let directives = c
-          .iter()
-          .filter_map(|comment| {
-            parse_ignore_comment(
-              &self.ignore_file_directives,
-              &*self.ast_parser.source_map,
-              comment,
-              true,
-            )
-          })
-          .collect::<Vec<IgnoreDirective>>();
-
-        if directives.is_empty() {
-          None
-        } else {
-          Some(directives[0].clone())
-        }
+        c.iter().find_map(|comment| {
+          parse_ignore_comment(
+            &self.ignore_file_directives,
+            &*self.ast_parser.source_map,
+            comment,
+            true,
+          )
+        })
       });
 
     // If there's a file ignore directive that has no codes specified we must ignore
