@@ -28,6 +28,37 @@ impl LintRule for NoEmptyInterface {
     let mut visitor = NoEmptyInterfaceVisitor::new(context);
     visitor.visit_module(module, module);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the declaration of an empty interface
+
+An interface with no members serves no purpose.  Either the interface extends
+another interface, in which case the supertype can be used, or it does not
+extend a supertype in which case it is the equivalent to an empty object.  This
+rule will capture these situations as either unnecessary code or a mistaken
+empty implementation.
+    
+### Invalid:
+```typescript
+interface Foo {}
+interface Foo extends Bar {}
+```
+
+### Valid:
+```typescript
+interface Foo {
+  name: string;
+}
+
+interface Bar {
+  age: number;
+}
+
+// Using an empty interface as a union type is allowed
+interface Baz extends Foo, Bar {}
+```
+"#
+  }
 }
 
 struct NoEmptyInterfaceVisitor<'c> {
@@ -48,13 +79,18 @@ impl<'c> Visit for NoEmptyInterfaceVisitor<'c> {
   ) {
     if interface_decl.extends.len() <= 1 && interface_decl.body.body.is_empty()
     {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         interface_decl.span,
         "no-empty-interface",
         if interface_decl.extends.is_empty() {
           "An empty interface is equivalent to `{}`."
         } else {
           "An interface declaring no members is equivalent to its supertype."
+        },
+        if interface_decl.extends.is_empty() {
+          "Remove this interface or add members to this interface."
+        } else {
+          "Use the supertype instead, or add members to this interface."
         },
       );
     }

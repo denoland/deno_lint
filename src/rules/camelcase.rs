@@ -36,6 +36,36 @@ impl LintRule for Camelcase {
     visitor.visit_module(module, module);
     visitor.report_errors();
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Enforces the use of camelCase in variable names
+
+Consistency in a code base is key for readability and maintainability.  This rule
+enforces variable definitions and assignments to be in camelCase.  Of note:
+* `_` is allowed at the start or end of a variable
+* All uppercase variable names (e.g. constants) may have `_` in their name
+* Function calls are exempt
+* This rule also applies to variables imported via ES6 module imports
+    
+### Invalid:
+```typescript
+let first_name = "Ichigo";
+function do_something(){}
+import { not_camelCased } from "external-module";
+```
+
+### Valid:
+```typescript
+let firstName = "Ichigo";
+const FIRST_NAME = "Ichigo";
+const __myPrivateVariable = "Hoshimiya";
+const myPrivateVariable_ = "Hoshimiya";
+function doSomething(){} // function declarations must be camelCase but...
+do_something();  // ...snake_case function calls are allowed
+import { not_camelCased as camelCased } from "external-module";
+```
+"#
+  }
 }
 
 /// Check if it contains underscores, except for leading and trailing ones

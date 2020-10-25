@@ -31,6 +31,29 @@ impl LintRule for NoEmpty {
 
 Empty block statements are legal but often represent that something was missed and can make code less readable. This rule ignores block statements that only contain comments. This rule also ignores empty constructors and function bodies (including arrow functions), which are covered by the `no-empty-function` rule.
 
+### Invalid:
+```typescript
+if (foo) {
+}
+```
+```typescript
+while (foo) {
+}
+```
+```typescript
+switch(foo) {
+}
+```
+```typescript
+try {
+  doSomething();
+} catch(ex) {
+
+} finally {
+
+}
+```
+
 ### Valid:
 ```typescript
 if (foo) {
@@ -56,29 +79,7 @@ try {
   /* continue regardless of error */
 }
 ```
-
-### Invalid:
-```typescript
-if (foo) {
-}
-```
-```typescript
-while (foo) {
-}
-```
-```typescript
-switch(foo) {
-}
-```
-```typescript
-try {
-  doSomething();
-} catch(ex) {
-
-} finally {
-
-}
-```"#
+"#
   }
 }
 
@@ -122,10 +123,11 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
     if block_stmt.stmts.is_empty() {
       if !block_stmt.contains_comments(&self.context) {
-        self.context.add_diagnostic(
+        self.context.add_diagnostic_with_hint(
           block_stmt.span,
           "no-empty",
           "Empty block statement",
+          "Add code or comment to the empty block",
         );
       }
     } else {
@@ -135,10 +137,11 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
 
   fn visit_switch_stmt(&mut self, switch: &SwitchStmt, _parent: &dyn Node) {
     if switch.cases.is_empty() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         switch.span,
         "no-empty",
         "Empty switch statement",
+        "Add case statement(s) to the empty switch",
       );
     }
     switch.visit_children_with(self);
