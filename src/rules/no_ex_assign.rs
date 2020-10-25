@@ -23,13 +23,13 @@ impl LintRule for NoExAssign {
     "no-ex-assign"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoExAssignVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 

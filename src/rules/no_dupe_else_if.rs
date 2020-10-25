@@ -4,7 +4,7 @@ use crate::swc_util::DropSpan;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  BinExpr, BinaryOp, Expr, IfStmt, Module, ParenExpr, Stmt,
+  BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Program, Stmt,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
@@ -23,9 +23,9 @@ impl LintRule for NoDupeElseIf {
     "no-dupe-else-if"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {

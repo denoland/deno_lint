@@ -10,9 +10,9 @@ use swc_ecmascript::ast::{
   ArrayPat, AssignPat, AssignPatProp, ClassDecl, ClassExpr,
   ExportNamespaceSpecifier, Expr, FnDecl, FnExpr, GetterProp, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  KeyValuePatProp, KeyValueProp, MethodProp, Module, ObjectLit, ObjectPat,
-  ObjectPatProp, Param, Pat, Prop, PropName, PropOrSpread, RestPat, SetterProp,
-  VarDeclarator,
+  KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
+  ObjectPatProp, Param, Pat, Program, Prop, PropName, PropOrSpread, RestPat,
+  SetterProp, VarDeclarator,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -31,9 +31,9 @@ impl LintRule for Camelcase {
     "camelcase"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = CamelcaseVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
     visitor.report_errors();
   }
 }

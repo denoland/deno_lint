@@ -89,19 +89,7 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_program(&self, context: &mut Context, program: &Program) {
-    match program {
-      Program::Module(module) => {
-        self.lint_module(context, module);
-      }
-      Program::Script(_script) => todo!(),
-    }
-  }
-  fn lint_module(
-    &self,
-    context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
-  );
+  fn lint_program(&self, context: &mut Context, program: &Program);
   fn code(&self) -> &'static str;
   fn tags(&self) -> &[&'static str] {
     &[]

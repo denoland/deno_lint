@@ -24,13 +24,13 @@ impl LintRule for NoExtraNonNullAssertion {
     "no-extra-non-null-assertion"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 

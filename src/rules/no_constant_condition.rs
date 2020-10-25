@@ -5,7 +5,7 @@ use super::LintRule;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
-  BinaryOp, CondExpr, Expr, IfStmt, Lit, Module, UnaryOp,
+  BinaryOp, CondExpr, Expr, IfStmt, Lit, Program, UnaryOp,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
@@ -24,9 +24,9 @@ impl LintRule for NoConstantCondition {
     "no-constant-condition"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoConstantConditionVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
