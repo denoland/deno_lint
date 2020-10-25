@@ -146,6 +146,8 @@ fn run_linter(paths: Vec<String>) {
 struct Rule {
   code: &'static str,
   docs: &'static str,
+  #[serde(skip_serializing)]
+  recommended: bool,
 }
 
 enum RuleTag {
@@ -158,6 +160,7 @@ fn get_rules_by_tag(tag: RuleTag) -> Vec<Rule> {
     Rule {
       code: rule.code(),
       docs: rule.docs(),
+      recommended: rule.tags().contains(&"recommended"),
     }
   }
 
@@ -203,8 +206,14 @@ impl RuleFormatter for PrettyFormatter {
 
     rules.sort_by_key(|r| r.code);
     let mut list = Vec::with_capacity(1 + rules.len());
-    list.push("Available rules:".to_string());
-    list.extend(rules.iter().map(|r| format!(" - {}", r.code)));
+    list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
+    list.extend(rules.iter().map(|r| {
+      let mut s = format!(" - {}", r.code);
+      if r.recommended {
+        s += " ✔️";
+      }
+      s
+    }));
     Ok(list.join("\n"))
   }
 }
