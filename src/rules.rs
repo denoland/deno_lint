@@ -1,5 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
+use swc_ecmascript::ast::Program;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -88,15 +89,13 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
-    if let swc_ecmascript::ast::Program::Module(module) = program {
-      self.lint_module(context, module)
+  fn lint_program(&self, context: &mut Context, program: &Program) {
+    match program {
+      Program::Module(module) => {
+        self.lint_module(context, module);
+      }
+      Program::Script(_script) => todo!(),
     }
-    todo!();
   }
   fn lint_module(
     &self,
