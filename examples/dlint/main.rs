@@ -23,15 +23,8 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
           Arg::with_name("RULE_NAME")
             .help("Show detailed information about rule"),
         )
-        .arg(Arg::with_name("json").long("json")),
-    )
-    .subcommand(
-      SubCommand::with_name("all-rules")
-        .arg(
-          Arg::with_name("RULE_NAME")
-            .help("Show detailed information about rule"),
-        )
-        .arg(Arg::with_name("json").long("json")),
+        .arg(Arg::with_name("json").long("json"))
+        .arg(Arg::with_name("all").long("all")),
     )
     .subcommand(
       SubCommand::with_name("run").arg(
@@ -251,25 +244,16 @@ fn main() {
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
+      let tag = if rules_matches.is_present("all") {
+        RuleTag::All
+      } else {
+        RuleTag::Recommended
+      };
       let mut rules =
         if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
-          filter_rules(get_rules_by_tag(RuleTag::Recommended), rule_name)
+          filter_rules(get_rules_by_tag(tag), rule_name)
         } else {
-          get_rules_by_tag(RuleTag::Recommended)
-        };
-      if json {
-        print_rules::<JsonFormatter>(&mut rules);
-      } else {
-        print_rules::<PrettyFormatter>(&mut rules);
-      }
-    }
-    ("all-rules", Some(all_rules_matches)) => {
-      let json = all_rules_matches.is_present("json");
-      let mut rules =
-        if let Some(rule_name) = all_rules_matches.value_of("RULE_NAME") {
-          filter_rules(get_rules_by_tag(RuleTag::All), rule_name)
-        } else {
-          get_rules_by_tag(RuleTag::All)
+          get_rules_by_tag(tag)
         };
       if json {
         print_rules::<JsonFormatter>(&mut rules);
