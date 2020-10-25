@@ -16,7 +16,7 @@ impl LintRule for NoInvalidRegexp {
     Box::new(NoInvalidRegexp)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

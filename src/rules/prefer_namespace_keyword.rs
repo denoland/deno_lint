@@ -17,7 +17,7 @@ impl LintRule for PreferNamespaceKeyword {
     Box::new(PreferNamespaceKeyword)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

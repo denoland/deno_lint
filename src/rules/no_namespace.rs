@@ -12,7 +12,7 @@ impl LintRule for NoNamespace {
     Box::new(NoNamespace)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

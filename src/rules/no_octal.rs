@@ -14,7 +14,7 @@ impl LintRule for NoOctal {
     Box::new(NoOctal)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

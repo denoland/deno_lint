@@ -17,7 +17,7 @@ impl LintRule for NoEmptyCharacterClass {
     Box::new(NoEmptyCharacterClass)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

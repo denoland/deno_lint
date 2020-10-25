@@ -16,7 +16,7 @@ impl LintRule for NoUnsafeNegation {
     Box::new(NoUnsafeNegation)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

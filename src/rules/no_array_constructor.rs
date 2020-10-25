@@ -19,7 +19,7 @@ impl LintRule for NoArrayConstructor {
     Box::new(NoArrayConstructor)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

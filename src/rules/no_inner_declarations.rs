@@ -14,7 +14,7 @@ impl LintRule for NoInnerDeclarations {
     Box::new(NoInnerDeclarations)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

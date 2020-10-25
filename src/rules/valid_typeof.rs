@@ -18,7 +18,7 @@ impl LintRule for ValidTypeof {
     Box::new(ValidTypeof)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

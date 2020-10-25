@@ -12,7 +12,7 @@ impl LintRule for UseIsNaN {
     Box::new(UseIsNaN)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

@@ -13,7 +13,7 @@ impl LintRule for NoThisAlias {
     Box::new(NoThisAlias)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

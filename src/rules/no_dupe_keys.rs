@@ -18,7 +18,7 @@ impl LintRule for NoDupeKeys {
     Box::new(NoDupeKeys)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
