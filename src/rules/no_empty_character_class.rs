@@ -11,6 +11,8 @@ pub struct NoEmptyCharacterClass;
 
 const CODE: &str = "no-empty-character-class";
 const MESSAGE: &str = "empty character class in RegExp is not allowed";
+const HINT: &str =
+  "Remove or rework the empty character class (`[]`) in the RegExp";
 
 impl LintRule for NoEmptyCharacterClass {
   fn new() -> Box<Self> {
@@ -98,12 +100,9 @@ impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
     });
 
     if !RULE_REGEX.is_match(&raw_regex) {
-      self.context.add_diagnostic_with_hint(
-        regex.span,
-        CODE,
-        MESSAGE,
-        "Remove or rework the empty character class (`[]`) in the RegExp",
-      );
+      self
+        .context
+        .add_diagnostic_with_hint(regex.span, CODE, MESSAGE, HINT);
     }
   }
 }
@@ -139,38 +138,47 @@ mod tests {
       r#"const foo = /^abc[]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /foo[]bar/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /[]]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /\[[]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /\\[\\[\\]a-z[]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"/^abc[]/.test("abcdefg");"#: [{
         col: 0,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"if (foo.match(/^abc[]/)) {}"#: [{
         col: 14,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#""abcdefg".match(/^abc[]/);"#: [{
         col: 16,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"if (/^abc[]/.test(foo)) {}"#: [{
         col: 4,
         message: MESSAGE,
+        hint: HINT,
       }],
     }
   }
