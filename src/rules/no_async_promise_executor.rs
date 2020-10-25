@@ -9,6 +9,10 @@ use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoAsyncPromiseExecutor;
 
+const CODE: &str = "no-async-promise-executor";
+const MESSAGE: &str = "Async promise executors are not allowed";
+const HINT: &str = "Remove `async` from executor function and adjust promise code as needed";
+
 impl LintRule for NoAsyncPromiseExecutor {
   fn new() -> Box<Self> {
     Box::new(NoAsyncPromiseExecutor)
@@ -19,7 +23,7 @@ impl LintRule for NoAsyncPromiseExecutor {
   }
 
   fn code(&self) -> &'static str {
-    "no-async-promise-executor"
+    CODE
   }
 
   fn lint_module(
@@ -96,9 +100,9 @@ impl<'c> VisitAll for NoAsyncPromiseExecutorVisitor<'c> {
           if is_async_function(&*first_arg.expr) {
             self.context.add_diagnostic_with_hint(
               new_expr.span,
-              "no-async-promise-executor",
-              "Async promise executors are not allowed",
-              "Remove `async` from executor function and adjust promise code as needed",
+              CODE,
+              MESSAGE,
+              HINT,
             );
           }
         }
@@ -110,7 +114,6 @@ impl<'c> VisitAll for NoAsyncPromiseExecutorVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_async_promise_executor_valid() {
@@ -126,33 +129,20 @@ mod tests {
 
   #[test]
   fn no_async_promise_executor_invalid() {
-    assert_lint_err::<NoAsyncPromiseExecutor>(
-      "new Promise(async function(resolve, reject) {});",
-      0,
-    );
-    assert_lint_err::<NoAsyncPromiseExecutor>(
-      "new Promise(async function foo(resolve, reject) {});",
-      0,
-    );
-    assert_lint_err::<NoAsyncPromiseExecutor>(
-      "new Promise(async (resolve, reject) => {});",
-      0,
-    );
-    assert_lint_err::<NoAsyncPromiseExecutor>(
-      "new Promise(((((async () => {})))));",
-      0,
-    );
-    // nested
-    assert_lint_err_on_line::<NoAsyncPromiseExecutor>(
+    assert_lint_err! {
+      NoAsyncPromiseExecutor,
+      "new Promise(async function(resolve, reject) {});": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Promise(async function foo(resolve, reject) {});": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Promise(async (resolve, reject) => {});": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Promise(((((async () => {})))));": [{ col: 0, message: MESSAGE, hint: HINT }],
+      // nested
       r#"
 const a = new class {
   foo() {
     let b = new Promise(async function(resolve, reject) {});
   }
 }
-      "#,
-      4,
-      12,
-    );
+      "#: [{ line: 4, col: 12, message: MESSAGE, hint: HINT }],
+    }
   }
 }
