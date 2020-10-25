@@ -294,7 +294,6 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.9.0/tests/lib/rules/getter-return.js
@@ -381,70 +380,138 @@ const obj = {
 
   #[test]
   fn getter_return_invalid() {
-    // object getter
-    assert_lint_err::<GetterReturn>("const foo = { get getter() {} };", 14);
-    assert_lint_err::<GetterReturn>(
-      "const foo = { get bar() { ~function() { return true; } } };",
-      14,
-    );
-    assert_lint_err::<GetterReturn>(
-      "const foo = { get bar() { if (baz) { return true; } } };",
-      14,
-    );
-    assert_lint_err::<GetterReturn>(
-      "const foo = { get bar() { return; } };",
-      26,
-    );
-    // class getter
-    assert_lint_err::<GetterReturn>("class Foo { get bar() {} }", 12);
-    assert_lint_err::<GetterReturn>(
-      "const foo = class { static get bar() {} }",
-      20,
-    );
-    assert_lint_err::<GetterReturn>(
-      "class Foo { get bar(){ if (baz) { return true; } } }",
-      12,
-    );
-    assert_lint_err::<GetterReturn>(
-      "class Foo { get bar(){ ~function () { return true; }() } }",
-      12,
-    );
-    // Object.defineProperty
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get: function(){} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get(){} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get: () => {} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#,
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#,
-      36,
-    );
-    // optional chaining
-    assert_lint_err::<GetterReturn>(
-      r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#,
-      37,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#,
-      39,
-    );
-    // nested
-    assert_lint_err_on_line::<GetterReturn>(
+    fn msg1(getter_name: &str) -> String {
+      format!("Expected to return a value in {}.", getter_name)
+    }
+
+    fn msg2(getter_name: &str) -> String {
+      format!("Expected {} to always return a value.", getter_name)
+    }
+
+    assert_lint_err! {
+      GetterReturn,
+
+      // object getter
+      "const foo = { get getter() {} };": [
+        {
+          col: 14,
+          message: msg1("getter"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "const foo = { get bar() { ~function() { return true; } } };": [
+        {
+          col: 14,
+          message: msg1("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "const foo = { get bar() { if (baz) { return true; } } };": [
+        {
+          col: 14,
+          message: msg2("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "const foo = { get bar() { return; } };": [
+        {
+          col: 26,
+          message: msg1("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+
+      // class getter
+      "class Foo { get bar() {} }": [
+        {
+          col: 12,
+          message: msg1("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "const foo = class { static get bar() {} }": [
+        {
+          col: 20,
+          message: msg1("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "class Foo { get bar(){ if (baz) { return true; } } }": [
+        {
+          col: 12,
+          message: msg2("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "class Foo { get bar(){ ~function () { return true; }() } }": [
+        {
+          col: 12,
+          message: msg1("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+
+      // Object.defineProperty
+      "Object.defineProperty(foo, 'bar', { get: function(){} });": [
+        {
+          col: 36,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });": [
+        {
+          col: 36,
+          message: msg1("getfoo"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "Object.defineProperty(foo, 'bar', { get(){} });": [
+        {
+          col: 36,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      "Object.defineProperty(foo, 'bar', { get: () => {} });": [
+        {
+          col: 36,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#: [
+        {
+          col: 36,
+          message: msg2("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
+        {
+          col: 36,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+
+      // optional chaining
+      r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#: [
+        {
+          col: 37,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+      r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#: [
+        {
+          col: 39,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+
+      // nested
       r#"
 const foo = {
   get getter() {
@@ -454,11 +521,14 @@ const foo = {
     return 42;
   }
 };
-      "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<GetterReturn>(
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: msg1("getter"),
+          hint: "Return a value from the getter function",
+        }
+      ],
       r#"
 class Foo {
   get foo() {
@@ -468,11 +538,14 @@ class Foo {
     return 42;
   }
 }
-      "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<GetterReturn>(
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: msg1("bar"),
+          hint: "Return a value from the getter function",
+        }
+      ],
       r#"
 Object.defineProperty(foo, 'bar', {
   get: function() {
@@ -482,14 +555,28 @@ Object.defineProperty(foo, 'bar', {
     return 42;
   }
 });
-      "#,
-      5,
-      6,
-    );
-    // other
-    assert_lint_err_n::<GetterReturn>(
-      "class b { get getterA() {} private get getterB() {} }",
-      vec![10, 27],
-    );
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: msg1("[GETTER]"),
+          hint: "Return a value from the getter function",
+        }
+      ],
+
+      // other
+      "class b { get getterA() {} private get getterB() {} }": [
+        {
+          col: 10,
+          message: msg1("getterA"),
+          hint: "Return a value from the getter function",
+        },
+        {
+          col: 27,
+          message: msg1("getterB"),
+          hint: "Return a value from the getter function",
+        }
+      ]
+    };
   }
 }
