@@ -8,10 +8,9 @@ use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::rules::get_recommended_rules;
+use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use rayon::prelude::*;
-use serde_json::json;
-use serde_json::Value;
+use serde::Serialize;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -24,7 +23,8 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
           Arg::with_name("RULE_NAME")
             .help("Show detailed information about rule"),
         )
-        .arg(Arg::with_name("json").long("json")),
+        .arg(Arg::with_name("json").long("json"))
+        .arg(Arg::with_name("all").long("all")),
     )
     .subcommand(
       SubCommand::with_name("run").arg(
@@ -135,74 +135,96 @@ fn run_linter(paths: Vec<String>) {
   }
 }
 
-fn print_rule_info_json(maybe_rule_name: Option<&str>) {
-  let rules = get_recommended_rules();
+#[derive(Clone, Copy, Serialize)]
+struct Rule {
+  code: &'static str,
+  docs: &'static str,
+  #[serde(skip_serializing)]
+  recommended: bool,
+}
 
-  if maybe_rule_name.is_none() {
-    let rules_json = rules
-      .iter()
-      .map(|r| {
-        json!({
-          "code": r.code(),
-          "docs": r.docs(),
-        })
-      })
-      .collect::<Vec<Value>>();
+enum RuleTag {
+  Recommended,
+  All,
+}
 
-    let json_str = serde_json::to_string_pretty(&rules_json).unwrap();
-    println!("{}", json_str);
-    return;
+fn get_rules_by_tag(tag: RuleTag) -> Vec<Rule> {
+  fn to_rule(rule: Box<dyn LintRule>) -> Rule {
+    Rule {
+      code: rule.code(),
+      docs: rule.docs(),
+      recommended: rule.tags().contains(&"recommended"),
+    }
   }
 
-  let rule_name = maybe_rule_name.unwrap();
-  let maybe_rule = rules.into_iter().find(|r| r.code() == rule_name);
-
-  if let Some(rule) = maybe_rule {
-    let rule_json = json!({
-      "code": rule.code(),
-      "docs": rule.docs(),
-    });
-    let json_str = serde_json::to_string_pretty(&rule_json).unwrap();
-    println!("{}", json_str);
-  } else {
-    eprintln!("Rule not found!");
-    std::process::exit(1);
+  match tag {
+    RuleTag::Recommended => {
+      get_recommended_rules().into_iter().map(to_rule).collect()
+    }
+    RuleTag::All => get_all_rules().into_iter().map(to_rule).collect(),
   }
 }
 
-fn print_rule_info(maybe_rule_name: Option<&str>) {
-  let rules = get_recommended_rules();
+trait RuleFormatter {
+  fn format(rules: &mut [Rule]) -> Result<String, &'static str>;
+}
 
-  if maybe_rule_name.is_none() {
-    let mut rule_names = rules
-      .iter()
-      .map(|r| r.code())
-      .map(|name| format!(" - {}", name))
-      .collect::<Vec<String>>();
+enum JsonFormatter {}
+enum PrettyFormatter {}
 
-    rule_names.sort();
-    rule_names.insert(0, "Available rules:".to_string());
-
-    let rule_list = rule_names.join("\n");
-    println!("{}", rule_list);
-    return;
-  }
-
-  let rule_name = maybe_rule_name.unwrap();
-  let maybe_rule = rules.into_iter().find(|r| r.code() == rule_name);
-
-  if let Some(rule) = maybe_rule {
-    println!("- {}", rule.code());
-    println!();
-    let mut docs = rule.docs();
-    if docs.is_empty() {
-      docs = "documentation not available"
+impl RuleFormatter for JsonFormatter {
+  fn format(rules: &mut [Rule]) -> Result<String, &'static str> {
+    if rules.is_empty() {
+      return Err("Rule not found!");
     }
-    println!("{}", docs);
-  } else {
-    eprintln!("Rule not found!");
-    std::process::exit(1);
+    serde_json::to_string_pretty(rules).map_err(|_| "failed to format!")
   }
+}
+
+impl RuleFormatter for PrettyFormatter {
+  fn format(rules: &mut [Rule]) -> Result<String, &'static str> {
+    if rules.is_empty() {
+      return Err("Rule not found!");
+    }
+
+    if rules.len() == 1 {
+      let rule = &rules[0];
+      let docs = if rule.docs.is_empty() {
+        "documentation not available"
+      } else {
+        rule.docs
+      };
+      return Ok(format!("- {code}\n\n{docs}", code = rule.code, docs = docs));
+    }
+
+    rules.sort_by_key(|r| r.code);
+    let mut list = Vec::with_capacity(1 + rules.len());
+    list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
+    list.extend(rules.iter().map(|r| {
+      let mut s = format!(" - {}", r.code);
+      if r.recommended {
+        s += " ✔️";
+      }
+      s
+    }));
+    Ok(list.join("\n"))
+  }
+}
+
+fn print_rules<F: RuleFormatter>(rules: &mut [Rule]) {
+  match F::format(rules) {
+    Err(e) => {
+      eprintln!("{}", e);
+      std::process::exit(1);
+    }
+    Ok(text) => {
+      println!("{}", text);
+    }
+  }
+}
+
+fn filter_rules(rules: Vec<Rule>, rule_name: &str) -> Vec<Rule> {
+  rules.into_iter().filter(|r| r.code == rule_name).collect()
 }
 
 fn main() {
@@ -222,11 +244,21 @@ fn main() {
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
-      let maybe_rule_name = rules_matches.value_of("RULE_NAME");
-      if json {
-        print_rule_info_json(maybe_rule_name);
+      let tag = if rules_matches.is_present("all") {
+        RuleTag::All
       } else {
-        print_rule_info(maybe_rule_name);
+        RuleTag::Recommended
+      };
+      let mut rules =
+        if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
+          filter_rules(get_rules_by_tag(tag), rule_name)
+        } else {
+          get_rules_by_tag(tag)
+        };
+      if json {
+        print_rules::<JsonFormatter>(&mut rules);
+      } else {
+        print_rules::<PrettyFormatter>(&mut rules);
       }
     }
     _ => unreachable!(),
