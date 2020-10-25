@@ -7,6 +7,7 @@ use clap::Arg;
 use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
+use deno_lint::linter::FileType;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_recommended_rules;
 use rayon::prelude::*;
@@ -117,7 +118,7 @@ fn run_linter(paths: Vec<String>) {
       .build();
 
     let file_diagnostics = linter
-      .lint(file_path.to_string(), source_code.clone())
+      .lint(file_path.to_string(), source_code.clone(), FileType::Module)
       .expect("Failed to lint");
 
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);

@@ -5,7 +5,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
   DoWhileStmt, Expr, FnDecl, ForInStmt, ForOfStmt, ForStmt, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
-  Module, Param, Pat, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
+  Param, Pat, Program, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -75,14 +75,14 @@ pub enum ScopeKind {
   Catch,
 }
 
-pub fn analyze(module: &Module) -> Scope {
+pub fn analyze(program: &Program) -> Scope {
   let mut scope = Scope {
     vars: Default::default(),
     symbols: Default::default(),
   };
   let mut path = vec![];
 
-  module.visit_with(
+  program.visit_with(
     &Invalid { span: DUMMY_SP },
     &mut Analyzer {
       scope: &mut scope,
@@ -299,6 +299,7 @@ impl Visit for Analyzer<'_> {
 mod tests {
   use super::{analyze, BindingKind, Scope, ScopeKind, Var};
   use crate::swc_util::{self, AstParser};
+  use swc_ecmascript::ast::Program;
   use swc_ecmascript::utils::Id;
 
   fn test_scope(source_code: &str) -> Scope {
@@ -308,7 +309,7 @@ mod tests {
       ast_parser.parse_module("file_name.ts", syntax, source_code);
     let module = parse_result.unwrap();
 
-    analyze(&module)
+    analyze(&Program::Module(module))
   }
 
   fn id(scope: &Scope, s: &str) -> Id {

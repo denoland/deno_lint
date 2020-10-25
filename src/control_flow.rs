@@ -15,12 +15,12 @@ pub struct ControlFlow {
 }
 
 impl ControlFlow {
-  pub fn analyze(m: &Module) -> Self {
+  pub fn analyze(program: &Program) -> Self {
     let mut v = Analyzer {
-      scope: Scope::new(None, BlockKind::Module),
+      scope: Scope::new(None, BlockKind::Program),
       info: Default::default(),
     };
-    m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+    program.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
     ControlFlow { meta: v.info }
   }
 
@@ -36,8 +36,8 @@ impl ControlFlow {
 /// Kind of a basic block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockKind {
-  /// Module
-  Module,
+  /// Program (module or script)
+  Program,
   /// Function's body
   Function,
   /// Switch case
@@ -177,7 +177,7 @@ impl Analyzer<'_> {
 
     if let Some(end) = end {
       match kind {
-        BlockKind::Module => {}
+        BlockKind::Program => {}
         BlockKind::Function => {
           match end {
             End::Forced | End::Continue => self.mark_as_end(lo, end),
@@ -658,7 +658,7 @@ mod tests {
 
   fn analyze_flow(src: &str) -> ControlFlow {
     let module = parse(src);
-    ControlFlow::analyze(&module)
+    ControlFlow::analyze(&Program::Module(module))
   }
 
   macro_rules! assert_flow {

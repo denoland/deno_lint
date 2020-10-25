@@ -161,6 +161,47 @@ impl AstParser {
     }
   }
 
+  pub(crate) fn parse_script(
+    &self,
+    file_name: &str,
+    syntax: Syntax,
+    source_code: &str,
+  ) -> (
+    Result<swc_ecmascript::ast::Script, SwcDiagnosticBuffer>,
+    SingleThreadedComments,
+  ) {
+    let swc_source_file = self.source_map.new_source_file(
+      FileName::Custom(file_name.to_string()),
+      source_code.to_string(),
+    );
+
+    let buffered_err = self.buffered_error.clone();
+
+    let comments = SingleThreadedComments::default();
+    let lexer = Lexer::new(
+      syntax,
+      JscTarget::Es2019,
+      StringInput::from(&*swc_source_file),
+      Some(&comments),
+    );
+
+    let mut parser = Parser::new_from(lexer);
+
+    let parse_result = parser.parse_script().map_err(move |err| {
+      let mut diagnostic_builder = err.into_diagnostic(&self.handler);
+      diagnostic_builder.emit();
+      SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+    });
+
+    let parse_result = parse_result.map(|module| {
+      GLOBALS.set(&self.globals, || {
+        module.fold_with(&mut ts_resolver(self.top_level_mark))
+      })
+    });
+
+    (parse_result, comments)
+  }
+
   pub(crate) fn parse_module(
     &self,
     file_name: &str,
