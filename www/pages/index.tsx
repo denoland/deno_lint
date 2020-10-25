@@ -16,6 +16,7 @@ interface Data {
 
 interface RuleData {
   code: string;
+  snippet: string;
   docs: string;
   tags: string[];
 }
@@ -86,6 +87,8 @@ function IndexPage(props: PageProps<Data>) {
 }
 
 function Rule(props: { rule: RuleData }) {
+  const [extended, setExtended] = useState(false);
+
   const ref = useRef<HTMLDivElement | undefined>();
   const { rule } = props;
 
@@ -96,7 +99,7 @@ function Rule(props: { rule: RuleData }) {
         hljs.highlightBlock(block);
       });
     }
-  }, [ref]);
+  }, [ref, extended]);
 
   return (
     <section
@@ -121,11 +124,39 @@ function Rule(props: { rule: RuleData }) {
       </div>
       <div class="relative bg-gray-50 p-3">
         {rule.docs.length > 0
-          ? <div
-            dangerouslySetInnerHTML={{ __html: rule.docs }}
-            ref={ref}
-            class="prose max-w-none"
-          />
+          ? (
+            extended
+              ? (
+                <>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: rule.docs }}
+                    ref={ref}
+                    class="prose max-w-none"
+                  />
+                  <a
+                    class="mt-4 block cursor-pointer text-blue-600 hover:underline"
+                    onClick={() => setExtended(false)}
+                  >
+                    View Less
+                  </a>
+                </>
+              )
+              : (
+                <>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: rule.snippet }}
+                    ref={ref}
+                    class="prose max-w-none"
+                  />
+                  <a
+                    class="mt-4 block cursor-pointer text-blue-600 hover:underline"
+                    onClick={() => setExtended(true)}
+                  >
+                    View More
+                  </a>
+                </>
+              )
+          )
           : <div class="text-gray-500 italic">no docs available</div>}
       </div>
     </section>
@@ -139,6 +170,7 @@ export const getStaticData = async (): Promise<GetStaticData<Data>> => {
 
   const rules = json.map((rule: any) => ({
     code: rule.code,
+    snippet: md.render(rule.docs.split("\n")[0]),
     docs: md.render(rule.docs),
     tags: rule.tags,
   }));
