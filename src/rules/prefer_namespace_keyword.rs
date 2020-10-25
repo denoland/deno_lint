@@ -9,6 +9,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct PreferNamespaceKeyword;
 
+const CODE: &str = "prefer-namespace-keyword";
+const MESSAGE: &str = "`module` keyword in module decleration is not allowed";
+
 impl LintRule for PreferNamespaceKeyword {
   fn new() -> Box<Self> {
     Box::new(PreferNamespaceKeyword)
@@ -19,7 +22,7 @@ impl LintRule for PreferNamespaceKeyword {
   }
 
   fn code(&self) -> &'static str {
-    "prefer-namespace-keyword"
+    CODE
   }
 
   fn lint_module(
@@ -63,11 +66,7 @@ impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
     if let Some(capt) = KEYWORD.captures(&snippet) {
       let keyword = capt.name("keyword").unwrap().as_str();
       if keyword == "module" && !mod_decl.global {
-        self.context.add_diagnostic(
-          mod_decl.span,
-          "prefer-namespace-keyword",
-          "`module` keyword in module decleration is not allowed",
-        )
+        self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE)
       }
     }
     for stmt in &mod_decl.body {
@@ -79,7 +78,6 @@ impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn prefer_namespace_keyword_valid() {
@@ -95,13 +93,13 @@ mod tests {
 
   #[test]
   fn prefer_namespace_keyword_invalid() {
-    assert_lint_err::<PreferNamespaceKeyword>(r#"module foo {}"#, 0);
-    assert_lint_err_on_line_n::<PreferNamespaceKeyword>(
+    assert_lint_err! {
+      PreferNamespaceKeyword,
+      r#"module foo {}"#: [{ col: 0, message: MESSAGE }],
       r#"
       declare module foo {
         declare module bar {}
-      }"#,
-      vec![(2, 6), (3, 8)],
-    );
+      }"#: [{ line: 2, col: 6, message: MESSAGE}, { line: 3, col: 8, message: MESSAGE }],
+    }
   }
 }
