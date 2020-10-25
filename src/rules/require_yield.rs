@@ -14,6 +14,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct RequireYield;
 
+const CODE: &str = "require-yield";
+const MESSAGE: &str = "Generator function has no `yield`";
+
 impl LintRule for RequireYield {
   fn new() -> Box<Self> {
     Box::new(RequireYield)
@@ -24,7 +27,7 @@ impl LintRule for RequireYield {
   }
 
   fn code(&self) -> &'static str {
-    "require-yield"
+    CODE
   }
 
   fn lint_module(
@@ -64,11 +67,7 @@ impl<'c> RequireYieldVisitor<'c> {
       // is non-empty
       if let Some(body) = &function.body {
         if !body.stmts.is_empty() && yield_count == 0 {
-          self.context.add_diagnostic(
-            function.span,
-            "require-yield",
-            "Generator function has no `yield`",
-          );
+          self.context.add_diagnostic(function.span, CODE, MESSAGE);
         }
       }
     }
@@ -126,7 +125,6 @@ impl<'c> Visit for RequireYieldVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn require_yield_valid() {
@@ -160,16 +158,12 @@ const obj = {
 
   #[test]
   fn require_yield_invalid() {
-    assert_lint_err::<RequireYield>(r#"function* bar() { return "bar"; }"#, 0);
-    assert_lint_err::<RequireYield>(
-      r#"(function* foo() { return "foo"; })();"#,
-      1,
-    );
-    assert_lint_err::<RequireYield>(
-      r#"function* nested() { function* gen() { yield "gen"; } }"#,
-      0,
-    );
-    assert_lint_err_on_line_n::<RequireYield>(
+    assert_lint_err! {
+      RequireYield,
+      r#"function* bar() { return "bar"; }"#: [{ col: 0, message: MESSAGE }],
+      r#"(function* foo() { return "foo"; })();"#: [{ col: 1, message: MESSAGE }],
+      r#"function* nested() { function* gen() { yield "gen"; } }"#: [{ col: 0, message: MESSAGE }],
+      r#"const obj = { *foo() { return "foo"; } };"#: [{ col: 14, message: MESSAGE }],
       r#"
 class Fizz {
   *fizz() {
@@ -180,12 +174,7 @@ class Fizz {
     return "buzz";
   }
 }
-    "#,
-      vec![(3, 2), (7, 2)],
-    );
-    assert_lint_err::<RequireYield>(
-      r#"const obj = { *foo() { return "foo"; } };"#,
-      14,
-    );
+    "#: [{ line: 3, col: 2, message: MESSAGE }, { line: 7, col: 2, message: MESSAGE }],
+    }
   }
 }
