@@ -7,6 +7,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoExplicitAny;
 
+const CODE: &str = "no-explicit-any";
+const MESSAGE: &str = "`any` type is not allowed";
+
 impl LintRule for NoExplicitAny {
   fn new() -> Box<Self> {
     Box::new(NoExplicitAny)
@@ -17,7 +20,7 @@ impl LintRule for NoExplicitAny {
   }
 
   fn code(&self) -> &'static str {
-    "no-explicit-any"
+    CODE
   }
 
   fn lint_module(
@@ -49,11 +52,9 @@ impl<'c> Visit for NoExplicitAnyVisitor<'c> {
     use swc_ecmascript::ast::TsKeywordTypeKind::*;
 
     if ts_keyword_type.kind == TsAnyKeyword {
-      self.context.add_diagnostic(
-        ts_keyword_type.span,
-        "no-explicit-any",
-        "`any` type is not allowed",
-      );
+      self
+        .context
+        .add_diagnostic(ts_keyword_type.span, CODE, MESSAGE);
     }
   }
 }
@@ -61,7 +62,6 @@ impl<'c> Visit for NoExplicitAnyVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_explicit_any_valid() {
@@ -89,28 +89,17 @@ type RequireWrapper = (
 
   #[test]
   fn no_explicit_any_invalid() {
-    assert_lint_err::<NoExplicitAny>(
-      "function foo(): any { return undefined; }",
-      16,
-    );
-    assert_lint_err::<NoExplicitAny>(
-      "function bar(): Promise<any> { return undefined; }",
-      24,
-    );
-    assert_lint_err::<NoExplicitAny>("const a: any = {};", 9);
-
-    assert_lint_err_on_line::<NoExplicitAny>(
+    assert_lint_err! {
+      NoExplicitAny,
+      "function foo(): any { return undefined; }": [{ col: 16, message: MESSAGE }],
+      "function bar(): Promise<any> { return undefined; }": [{ col: 24, message: MESSAGE }],
+      "const a: any = {};": [{ col: 9, message: MESSAGE }],
       r#"
 class Foo {
   static _extensions: {
     [key: string]: (module: Module, filename: string) => any;
   } = Object.create(null);
-}"#,
-      4,
-      57,
-    );
-
-    assert_lint_err_on_line_n::<NoExplicitAny>(
+}"#: [{ line: 4, col: 57, message: MESSAGE }],
       r#"
 type RequireWrapper = (
   exports: any,
@@ -118,8 +107,7 @@ type RequireWrapper = (
   module: Module,
   __filename: string,
   __dirname: string
-) => void;"#,
-      vec![(3, 11), (4, 11)],
-    );
+) => void;"#: [{ line: 3, col: 11, message: MESSAGE }, { line: 4, col: 11, message: MESSAGE }],
+    }
   }
 }
