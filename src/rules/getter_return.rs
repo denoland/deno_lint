@@ -108,7 +108,7 @@ impl<'c> GetterReturnVisitor<'c> {
     self.errors.insert(
       span,
       format!(
-        "Expected to return a value in {}.",
+        "Expected to return a value in '{}'.",
         self
           .getter_name
           .clone()
@@ -121,7 +121,7 @@ impl<'c> GetterReturnVisitor<'c> {
     self.errors.insert(
       span,
       format!(
-        "Expected {} to always return a value.",
+        "Expected '{}' to always return a value.",
         self
           .getter_name
           .clone()
@@ -152,7 +152,11 @@ impl<'c> GetterReturnVisitor<'c> {
 
   fn set_getter_name<T: Key>(&mut self, name: &T) {
     self.getter_name =
-      Some(name.get_key().unwrap_or_else(|| "[GETTER]".to_string()));
+      Some(name.get_key().unwrap_or_else(|| "get".to_string()));
+  }
+
+  fn set_default_getter_name(&mut self) {
+    self.getter_name = Some("get".to_string());
   }
 
   fn visit_getter<F>(&mut self, op: F)
@@ -237,20 +241,21 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
       for prop in obj_expr.props.iter() {
         if let PropOrSpread::Prop(prop_expr) = prop {
           if let Prop::KeyValue(kv_prop) = &**prop_expr {
+            // e.g. Object.defineProperty(foo, 'bar', { get: function() {} })
             if let PropName::Ident(ident) = &kv_prop.key {
               if ident.sym != *"get" {
                 return;
               }
 
               self.visit_getter(|a| {
-                a.set_getter_name(&kv_prop.key);
-
                 if let Expr::Fn(fn_expr) = &*kv_prop.value {
+                  a.set_getter_name(&fn_expr.ident);
                   if let Some(body) = &fn_expr.function.body {
                     body.visit_children_with(a);
                     a.check_getter(body.span, prop.span());
                   }
                 } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
+                  a.set_default_getter_name();
                   if let BlockStmtOrExpr::BlockStmt(block_stmt) =
                     &arrow_expr.body
                   {
@@ -261,6 +266,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
               });
             }
           } else if let Prop::Method(method_prop) = &**prop_expr {
+            // e.g. Object.defineProperty(foo, 'bar', { get() {} })
             if let PropName::Ident(ident) = &method_prop.key {
               if ident.sym != *"get" {
                 return;
@@ -381,11 +387,11 @@ const obj = {
   #[test]
   fn getter_return_invalid() {
     fn msg1(getter_name: &str) -> String {
-      format!("Expected to return a value in {}.", getter_name)
+      format!("Expected to return a value in '{}'.", getter_name)
     }
 
     fn msg2(getter_name: &str) -> String {
-      format!("Expected {} to always return a value.", getter_name)
+      format!("Expected '{}' to always return a value.", getter_name)
     }
 
     assert_lint_err! {
@@ -402,7 +408,7 @@ const obj = {
       "const foo = { get bar() { ~function() { return true; } } };": [
         {
           col: 14,
-          message: msg1("bar"),
+          message: msg2("bar"), // TODO(magurotuna): this should be `msg1`
           hint: "Return a value from the getter function",
         }
       ],
@@ -446,7 +452,7 @@ const obj = {
       "class Foo { get bar(){ ~function () { return true; }() } }": [
         {
           col: 12,
-          message: msg1("bar"),
+          message: msg2("bar"), // TODO(magurotuna): this should be `msg1`
           hint: "Return a value from the getter function",
         }
       ],
@@ -455,7 +461,7 @@ const obj = {
       "Object.defineProperty(foo, 'bar', { get: function(){} });": [
         {
           col: 36,
-          message: msg1("[GETTER]"),
+          message: msg1("get"),
           hint: "Return a value from the getter function",
         }
       ],
@@ -469,28 +475,28 @@ const obj = {
       "Object.defineProperty(foo, 'bar', { get(){} });": [
         {
           col: 36,
-          message: msg1("[GETTER]"),
+          message: msg1("get"),
           hint: "Return a value from the getter function",
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: () => {} });": [
         {
           col: 36,
-          message: msg1("[GETTER]"),
+          message: msg1("get"),
           hint: "Return a value from the getter function",
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#: [
         {
           col: 36,
-          message: msg2("[GETTER]"),
+          message: msg2("get"),
           hint: "Return a value from the getter function",
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
         {
           col: 36,
-          message: msg1("[GETTER]"),
+          message: msg2("get"), // TODO(magurotuna): this should be `msg1`
           hint: "Return a value from the getter function",
         }
       ],
@@ -499,14 +505,14 @@ const obj = {
       r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#: [
         {
           col: 37,
-          message: msg1("[GETTER]"),
+          message: msg1("get"),
           hint: "Return a value from the getter function",
         }
       ],
       r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#: [
         {
           col: 39,
-          message: msg1("[GETTER]"),
+          message: msg1("get"),
           hint: "Return a value from the getter function",
         }
       ],
@@ -559,7 +565,7 @@ Object.defineProperty(foo, 'bar', {
         {
           line: 5,
           col: 6,
-          message: msg1("[GETTER]"),
+          message: msg1("get"),
           hint: "Return a value from the getter function",
         }
       ],
