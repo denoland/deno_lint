@@ -38,7 +38,11 @@ mod lint_tests {
       .build();
 
     linter
-      .lint("lint_test.ts".to_string(), source.to_string())
+      .lint(
+        "lint_test.ts".to_string(),
+        source.to_string(),
+        FileType::Module,
+      )
       .expect("Failed to lint")
   }
 

@@ -7,8 +7,8 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 use swc_ecmascript::ast::{
-  ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, Module,
-  ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
+  ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, ModuleDecl,
+  Pat, Program, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
 
 pub struct ExplicitModuleBoundaryTypes;
@@ -22,9 +22,9 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     "explicit-module-boundary-types"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {

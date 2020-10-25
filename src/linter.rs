@@ -16,8 +16,16 @@ use swc_common::comments::SingleThreadedComments;
 use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_common::Spanned;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
+
+/// Describes if file should be treated as a script
+/// or ES module.
+pub enum FileType {
+  Module,
+  Script,
+}
 
 pub struct Context {
   pub file_name: String,
@@ -192,6 +200,7 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
+    file_type: FileType,
   ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
     assert!(
       !self.has_linted,
@@ -199,21 +208,40 @@ impl Linter {
     );
     self.has_linted = true;
     let start = Instant::now();
-    let diagnostics = if source_code.is_empty() {
-      vec![]
-    } else {
-      let (parse_result, comments) =
-        self
-          .ast_parser
-          .parse_module(&file_name, self.syntax, &source_code);
-      let end_parse_module = Instant::now();
-      debug!(
-        "ast_parser.parse_module took {:#?}",
-        end_parse_module - start
-      );
-      let module = parse_result?;
-      self.lint_module(file_name, module, comments)
-    };
+    let mut diagnostics = vec![];
+
+    if !source_code.is_empty() {
+      let (program, comments) = match file_type {
+        FileType::Script => {
+          let (parse_result, comments) =
+            self
+              .ast_parser
+              .parse_script(&file_name, self.syntax, &source_code);
+          let end_parse_script = Instant::now();
+          debug!(
+            "ast_parser.parse_script took {:#?}",
+            end_parse_script - start
+          );
+          let script = parse_result?;
+          (swc_ecmascript::ast::Program::Script(script), comments)
+        }
+        FileType::Module => {
+          let (parse_result, comments) =
+            self
+              .ast_parser
+              .parse_module(&file_name, self.syntax, &source_code);
+          let end_parse_module = Instant::now();
+          debug!(
+            "ast_parser.parse_module took {:#?}",
+            end_parse_module - start
+          );
+          let module = parse_result?;
+          (swc_ecmascript::ast::Program::Module(module), comments)
+        }
+      };
+
+      diagnostics = self.lint_program(file_name, program, comments);
+    }
 
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
@@ -285,17 +313,16 @@ impl Linter {
     filtered_diagnostics
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     file_name: String,
-    module: swc_ecmascript::ast::Module,
+    program: swc_ecmascript::ast::Program,
     comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let file_ignore_directive = comments.with_leading(module.span.lo(), |c| {
-      let directives = c
-        .iter()
-        .filter_map(|comment| {
+    let file_ignore_directive =
+      comments.with_leading(program.span().lo(), |c| {
+        c.iter().find_map(|comment| {
           parse_ignore_comment(
             &self.ignore_file_directives,
             &*self.ast_parser.source_map,
@@ -303,14 +330,7 @@ impl Linter {
             true,
           )
         })
-        .collect::<Vec<IgnoreDirective>>();
-
-      if directives.is_empty() {
-        None
-      } else {
-        Some(directives[0].clone())
-      }
-    });
+      });
 
     // If there's a file ignore directive that has no codes specified we must ignore
     // whole file and skip linting it.
@@ -341,8 +361,8 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = analyze(&module);
-    let control_flow = ControlFlow::analyze(&module);
+    let scope = analyze(&program);
+    let control_flow = ControlFlow::analyze(&program);
 
     let mut context = Context {
       file_name,
@@ -359,7 +379,7 @@ impl Linter {
     };
 
     for rule in &self.rules {
-      rule.lint_module(&mut context, &module);
+      rule.lint_program(&mut context, &program);
     }
 
     let d = self.filter_diagnostics(&mut context, &self.rules);

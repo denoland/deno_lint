@@ -31,15 +31,16 @@ impl LintRule for NoMixedSpacesAndTabs {
     "no-mixed-spaces-and-tabs"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
 
-    let file_and_lines = context.source_map.span_to_lines(module.span).unwrap();
+    let file_and_lines =
+      context.source_map.span_to_lines(program.span()).unwrap();
     let file = file_and_lines.file;
 
     let mut excluded_ranges = visitor.ranges;

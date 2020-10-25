@@ -24,12 +24,12 @@ impl LintRule for NoRedeclare {
     "no-redeclare"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoRedeclareVisitor {
       context,
       bindings: Default::default(),
     };
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 

@@ -5,7 +5,7 @@ use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
-use swc_ecmascript::ast::{BinExpr, Module};
+use swc_ecmascript::ast::{BinExpr, Program};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct ValidTypeof;
@@ -26,9 +26,9 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = ValidTypeofVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {

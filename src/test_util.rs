@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::FileType;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
@@ -153,7 +154,11 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .build();
 
   linter
-    .lint("deno_lint_test.tsx".to_string(), source.to_string())
+    .lint(
+      "deno_lint_test.tsx".to_string(),
+      source.to_string(),
+      FileType::Module,
+    )
     .expect("Failed to lint")
 }
 

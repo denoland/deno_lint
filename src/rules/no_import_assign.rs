@@ -31,17 +31,17 @@ impl LintRule for NoImportAssign {
     CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut collector = Collector {
       imports: Default::default(),
       ns_imports: Default::default(),
       other_bindings: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_with(program, &mut collector);
 
     let mut visitor = NoImportAssignVisitor::new(
       context,
@@ -49,7 +49,7 @@ impl LintRule for NoImportAssign {
       collector.ns_imports,
       collector.other_bindings,
     );
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 

@@ -6,7 +6,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  GetterProp, KeyValueProp, MethodProp, Module, ObjectLit, Prop, PropOrSpread,
+  GetterProp, KeyValueProp, MethodProp, ObjectLit, Program, Prop, PropOrSpread,
   SetterProp,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
@@ -26,9 +26,9 @@ impl LintRule for NoDupeKeys {
     "no-dupe-keys"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
