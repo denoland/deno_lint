@@ -193,9 +193,9 @@ impl AstParser {
       SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
     });
 
-    let parse_result = parse_result.map(|module| {
+    let parse_result = parse_result.map(|script| {
       GLOBALS.set(&self.globals, || {
-        module.fold_with(&mut ts_resolver(self.top_level_mark))
+        script.fold_with(&mut ts_resolver(self.top_level_mark))
       })
     });
 
