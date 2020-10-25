@@ -64,11 +64,7 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
   fn visit_object_pat(&mut self, obj_pat: &ObjectPat, _parent: &dyn Node) {
     if obj_pat.props.is_empty() {
       if obj_pat.type_ann.is_none() {
-        self.context.add_diagnostic(
-          obj_pat.span,
-          CODE,
-          MESSAGE,
-        )
+        self.context.add_diagnostic(obj_pat.span, CODE, MESSAGE)
       }
     } else {
       for prop in &obj_pat.props {
@@ -79,11 +75,7 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
 
   fn visit_array_pat(&mut self, arr_pat: &ArrayPat, _parent: &dyn Node) {
     if arr_pat.elems.is_empty() {
-      self.context.add_diagnostic(
-        arr_pat.span,
-        CODE,
-        MESSAGE,
-      )
+      self.context.add_diagnostic(arr_pat.span, CODE, MESSAGE)
     } else {
       for elem in &arr_pat.elems {
         if let Some(element) = elem {
