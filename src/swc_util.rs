@@ -273,6 +273,12 @@ pub(crate) trait Key {
   fn get_key(&self) -> Option<String>;
 }
 
+impl Key for Ident {
+  fn get_key(&self) -> Option<String> {
+    Some(self.sym.to_string())
+  }
+}
+
 impl Key for PropOrSpread {
   fn get_key(&self) -> Option<String> {
     use PropOrSpread::*;
@@ -370,6 +376,12 @@ impl Key for MemberExpr {
     }
 
     (&*self.prop).get_key()
+  }
+}
+
+impl<K: Key> Key for Option<K> {
+  fn get_key(&self) -> Option<String> {
+    self.as_ref().and_then(|k| k.get_key())
   }
 }
 
