@@ -15,7 +15,7 @@ impl LintRule for NoCompareNegZero {
     Box::new(NoCompareNegZero)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

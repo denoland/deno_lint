@@ -17,7 +17,7 @@ impl LintRule for BanTypes {
     Box::new(BanTypes)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

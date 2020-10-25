@@ -16,7 +16,7 @@ impl LintRule for PreferAsConst {
     Box::new(PreferAsConst)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

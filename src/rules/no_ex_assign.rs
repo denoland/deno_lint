@@ -18,7 +18,7 @@ impl LintRule for NoExAssign {
     Box::new(NoExAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

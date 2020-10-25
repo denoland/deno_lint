@@ -108,7 +108,7 @@ jobs:
 
       - name: Generate rules json
         if: contains(matrix.os, 'ubuntu')
-        run: target/release/examples/dlint rules --json > docs.json
+        run: target/release/examples/dlint rules --json --all > docs.json
 
       - name: Build website
         if: contains(matrix.os, 'ubuntu')

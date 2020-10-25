@@ -17,7 +17,7 @@ impl LintRule for NoExtraBooleanCast {
     Box::new(NoExtraBooleanCast)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

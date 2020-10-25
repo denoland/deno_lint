@@ -13,7 +13,7 @@ impl LintRule for NoUnsafeFinally {
     Box::new(NoUnsafeFinally)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

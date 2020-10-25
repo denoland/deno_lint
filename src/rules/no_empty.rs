@@ -13,7 +13,7 @@ impl LintRule for NoEmpty {
     Box::new(NoEmpty)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

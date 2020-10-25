@@ -91,7 +91,7 @@ pub trait LintRule {
     Self: Sized;
   fn lint_program(&self, context: &mut Context, program: &Program);
   fn code(&self) -> &'static str;
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &[]
   }
   fn docs(&self) -> &'static str {

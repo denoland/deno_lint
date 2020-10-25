@@ -1,6 +1,7 @@
 export { Fragment, h } from "https://x.lcas.dev/preact@10.5.3/mod.js";
 export {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "https://x.lcas.dev/preact@10.5.3/hooks.js";

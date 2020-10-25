@@ -16,7 +16,7 @@ impl LintRule for NoRegexSpaces {
     Box::new(NoRegexSpaces)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

@@ -16,7 +16,7 @@ impl LintRule for NoExtraSemi {
     Box::new(NoExtraSemi)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

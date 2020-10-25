@@ -19,7 +19,7 @@ impl LintRule for NoPrototypeBuiltins {
     Box::new(NoPrototypeBuiltins)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

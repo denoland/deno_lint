@@ -23,7 +23,7 @@ impl LintRule for ForDirection {
     Box::new(ForDirection)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

@@ -16,7 +16,7 @@ impl LintRule for NoUnusedLabels {
     Box::new(NoUnusedLabels)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

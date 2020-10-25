@@ -27,7 +27,7 @@ impl LintRule for NoSelfAssign {
     Box::new(NoSelfAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

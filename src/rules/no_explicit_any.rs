@@ -15,7 +15,7 @@ impl LintRule for NoExplicitAny {
     Box::new(NoExplicitAny)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

@@ -19,7 +19,7 @@ impl LintRule for NoDupeClassMembers {
     Box::new(NoDupeClassMembers)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

@@ -14,7 +14,7 @@ impl LintRule for NoDuplicateCase {
     Box::new(NoDuplicateCase)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
