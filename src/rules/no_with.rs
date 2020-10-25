@@ -8,6 +8,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoWith;
 
+const CODE: &str = "no-with";
+const MESSAGE: &str = "`with` statement is not allowed";
+
 impl LintRule for NoWith {
   fn new() -> Box<Self> {
     Box::new(NoWith)
@@ -18,7 +21,7 @@ impl LintRule for NoWith {
   }
 
   fn code(&self) -> &'static str {
-    "no-with"
+    CODE
   }
 
   fn lint_module(
@@ -45,21 +48,19 @@ impl<'c> Visit for NoWithVisitor<'c> {
   noop_visit_type!();
 
   fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
-    self.context.add_diagnostic(
-      with_stmt.span,
-      "no-with",
-      "`with` statement is not allowed",
-    );
+    self.context.add_diagnostic(with_stmt.span, CODE, MESSAGE);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_with_invalid() {
-    assert_lint_err::<NoWith>("with (someVar) { console.log('asdf'); }", 0)
+    assert_lint_err! {
+      NoWith,
+      "with (someVar) { console.log('asdf'); }": [{ col: 0, message: MESSAGE }],
+    }
   }
 }
