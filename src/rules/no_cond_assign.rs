@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Program;
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCondAssign;
@@ -21,9 +21,9 @@ impl LintRule for NoCondAssign {
     "no-cond-assign"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoCondAssignVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {

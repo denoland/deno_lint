@@ -9,6 +9,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoEmptyCharacterClass;
 
+const CODE: &str = "no-empty-character-class";
+const MESSAGE: &str = "empty character class in RegExp is not allowed";
+
 impl LintRule for NoEmptyCharacterClass {
   fn new() -> Box<Self> {
     Box::new(NoEmptyCharacterClass)
@@ -19,16 +22,16 @@ impl LintRule for NoEmptyCharacterClass {
   }
 
   fn code(&self) -> &'static str {
-    "no-empty-character-class"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoEmptyCharacterClassVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {
@@ -97,8 +100,8 @@ impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
     if !RULE_REGEX.is_match(&raw_regex) {
       self.context.add_diagnostic_with_hint(
         regex.span,
-        "no-empty-character-class",
-        "empty character class in RegExp is not allowed",
+        CODE,
+        MESSAGE,
         "Remove or rework the empty character class (`[]`) in the RegExp",
       );
     }
@@ -108,7 +111,6 @@ impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_empty_character_class_valid() {
@@ -131,35 +133,45 @@ mod tests {
   }
 
   #[test]
-  fn no_empty_character_class() {
-    assert_lint_err::<NoEmptyCharacterClass>(r#"const foo = /^abc[]/;"#, 12);
-    assert_lint_err::<NoEmptyCharacterClass>(r#"const foo = /foo[]bar/;"#, 12);
-    assert_lint_err::<NoEmptyCharacterClass>(r#"const foo = /[]]/;"#, 12);
-    assert_lint_err::<NoEmptyCharacterClass>(r#"const foo = /\[[]/;"#, 12);
-    assert_lint_err::<NoEmptyCharacterClass>(
-      r#"const foo = /\\[\\[\\]a-z[]/;"#,
-      12,
-    );
-  }
-
-  #[test]
-  fn no_empty_character_class_match() {
-    assert_lint_err::<NoEmptyCharacterClass>(r#"/^abc[]/.test("abcdefg");"#, 0);
-    assert_lint_err::<NoEmptyCharacterClass>(
-      r#"if (foo.match(/^abc[]/)) {}"#,
-      14,
-    );
-  }
-
-  #[test]
-  fn no_empty_character_class_test() {
-    assert_lint_err::<NoEmptyCharacterClass>(
-      r#""abcdefg".match(/^abc[]/);"#,
-      16,
-    );
-    assert_lint_err::<NoEmptyCharacterClass>(
-      r#"if (/^abc[]/.test(foo)) {}"#,
-      4,
-    );
+  fn no_empty_character_invalid() {
+    assert_lint_err! {
+      NoEmptyCharacterClass,
+      r#"const foo = /^abc[]/;"#: [{
+        col: 12,
+        message: MESSAGE,
+      }],
+      r#"const foo = /foo[]bar/;"#: [{
+        col: 12,
+        message: MESSAGE,
+      }],
+      r#"const foo = /[]]/;"#: [{
+        col: 12,
+        message: MESSAGE,
+      }],
+      r#"const foo = /\[[]/;"#: [{
+        col: 12,
+        message: MESSAGE,
+      }],
+      r#"const foo = /\\[\\[\\]a-z[]/;"#: [{
+        col: 12,
+        message: MESSAGE,
+      }],
+      r#"/^abc[]/.test("abcdefg");"#: [{
+        col: 0,
+        message: MESSAGE,
+      }],
+      r#"if (foo.match(/^abc[]/)) {}"#: [{
+        col: 14,
+        message: MESSAGE,
+      }],
+      r#""abcdefg".match(/^abc[]/);"#: [{
+        col: 16,
+        message: MESSAGE,
+      }],
+      r#"if (/^abc[]/.test(foo)) {}"#: [{
+        col: 4,
+        message: MESSAGE,
+      }],
+    }
   }
 }

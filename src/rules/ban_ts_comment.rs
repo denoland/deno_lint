@@ -44,10 +44,10 @@ impl LintRule for BanTsComment {
     "ban-ts-comment"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    _module: &swc_ecmascript::ast::Module,
+    _program: &swc_ecmascript::ast::Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 

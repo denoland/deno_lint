@@ -12,6 +12,7 @@ mod test_util;
 mod control_flow;
 pub mod diagnostic;
 mod globals;
+mod ignore_directives;
 mod js_regex;
 pub mod linter;
 pub mod rules;
@@ -37,7 +38,11 @@ mod lint_tests {
       .build();
 
     linter
-      .lint("lint_test.ts".to_string(), source.to_string())
+      .lint(
+        "lint_test.ts".to_string(),
+        source.to_string(),
+        FileType::Module,
+      )
       .expect("Failed to lint")
   }
 

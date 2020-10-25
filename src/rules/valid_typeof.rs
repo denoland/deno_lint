@@ -5,10 +5,13 @@ use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
-use swc_ecmascript::ast::{BinExpr, Module};
+use swc_ecmascript::ast::{BinExpr, Program};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct ValidTypeof;
+
+const CODE: &str = "valid-typeof";
+const MESSAGE: &str = "Invalid typeof comparison value";
 
 impl LintRule for ValidTypeof {
   fn new() -> Box<Self> {
@@ -20,12 +23,12 @@ impl LintRule for ValidTypeof {
   }
 
   fn code(&self) -> &'static str {
-    "valid-typeof"
+    CODE
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = ValidTypeofVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {
@@ -111,19 +114,11 @@ impl<'c> Visit for ValidTypeofVisitor<'c> {
           Unary(unary) if unary.op == TypeOf => {}
           Lit(Str(str)) => {
             if !is_valid_typeof_string(&str.value) {
-              self.context.add_diagnostic(
-                str.span,
-                "valid-typeof",
-                "Invalid typeof comparison value",
-              );
+              self.context.add_diagnostic(str.span, CODE, MESSAGE);
             }
           }
           _ => {
-            self.context.add_diagnostic(
-              operand.span(),
-              "valid-typeof",
-              "Invalid typeof comparison value",
-            );
+            self.context.add_diagnostic(operand.span(), CODE, MESSAGE);
           }
         }
       }
@@ -159,7 +154,6 @@ impl EqExpr for BinExpr {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn valid_typeof_valid() {
@@ -175,12 +169,36 @@ typeof bar == "undefined"
 
   #[test]
   fn valid_typeof_invalid() {
-    assert_lint_err::<ValidTypeof>(r#"typeof foo === "strnig""#, 15);
-    assert_lint_err::<ValidTypeof>(r#"typeof foo == "undefimed""#, 14);
-    assert_lint_err::<ValidTypeof>(r#"typeof bar != "nunber""#, 14);
-    assert_lint_err::<ValidTypeof>(r#"typeof bar !== "fucntion""#, 15);
-    assert_lint_err::<ValidTypeof>(r#"typeof foo === undefined"#, 15);
-    assert_lint_err::<ValidTypeof>(r#"typeof bar == Object"#, 14);
-    assert_lint_err::<ValidTypeof>(r#"typeof baz === anotherVariable"#, 15);
+    assert_lint_err! {
+      ValidTypeof,
+      r#"typeof foo === "strnig""#: [{
+        col: 15,
+        message: MESSAGE
+      }],
+      r#"typeof foo == "undefimed""#: [{
+        col: 14,
+        message: MESSAGE
+      }],
+      r#"typeof bar != "nunber""#: [{
+        col: 14,
+        message: MESSAGE
+      }],
+      r#"typeof bar !== "fucntion""#: [{
+        col: 15,
+        message: MESSAGE
+      }],
+      r#"typeof foo === undefined"#: [{
+        col: 15,
+        message: MESSAGE
+      }],
+      r#"typeof bar == Object"#: [{
+        col: 14,
+        message: MESSAGE
+      }],
+      r#"typeof baz === anotherVariable"#: [{
+        col: 15,
+        message: MESSAGE
+      }],
+    }
   }
 }

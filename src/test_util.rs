@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::FileType;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
@@ -61,16 +62,16 @@ pub struct LintErrTester<T: LintRule + 'static> {
 pub struct LintErr {
   pub line: usize,
   pub col: usize,
-  pub message: &'static str,
-  pub hint: Option<&'static str>,
+  pub message: String,
+  pub hint: Option<String>,
 }
 
 #[derive(Default)]
 pub struct LintErrBuilder {
   line: Option<usize>,
   col: Option<usize>,
-  message: Option<&'static str>,
-  hint: Option<&'static str>,
+  message: Option<String>,
+  hint: Option<String>,
 }
 
 impl LintErrBuilder {
@@ -90,21 +91,21 @@ impl LintErrBuilder {
     self
   }
 
-  pub fn message(&mut self, message: &'static str) -> &mut Self {
-    self.message = Some(message);
+  pub fn message(&mut self, message: impl Into<String>) -> &mut Self {
+    self.message = Some(message.into());
     self
   }
 
-  pub fn hint(&mut self, hint: &'static str) -> &mut Self {
-    self.hint = Some(hint);
+  pub fn hint(&mut self, hint: impl Into<String>) -> &mut Self {
+    self.hint = Some(hint.into());
     self
   }
 
-  pub fn build(&self) -> LintErr {
+  pub fn build(self) -> LintErr {
     LintErr {
       line: self.line.unwrap_or(1),
       col: self.col.unwrap_or(0),
-      message: self.message.unwrap_or(""),
+      message: self.message.unwrap_or_else(|| "".to_string()),
       hint: self.hint,
     }
   }
@@ -132,7 +133,13 @@ impl<T: LintRule + 'static> LintErrTester<T> {
         hint,
       } = error;
       assert_diagnostic_2(
-        diagnostic, rule_code, *line, *col, self.src, message, hint,
+        diagnostic,
+        rule_code,
+        *line,
+        *col,
+        self.src,
+        message,
+        hint.as_deref(),
       );
     }
   }
@@ -147,7 +154,11 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .build();
 
   linter
-    .lint("deno_lint_test.tsx".to_string(), source.to_string())
+    .lint(
+      "deno_lint_test.tsx".to_string(),
+      source.to_string(),
+      FileType::Module,
+    )
     .expect("Failed to lint")
 }
 
@@ -183,7 +194,7 @@ fn assert_diagnostic_2(
   col: usize,
   source: &str,
   message: &str,
-  hint: &Option<&str>,
+  hint: Option<&str>,
 ) {
   assert_eq!(
     code, diagnostic.code,
@@ -207,7 +218,7 @@ fn assert_diagnostic_2(
   );
   assert_eq!(
     hint,
-    &diagnostic.hint.as_deref(),
+    diagnostic.hint.as_deref(),
     "Diagnostic hint is expected to be \"{:?}\", but got \"{:?}\"\n\nsource:\n{}\n",
     hint,
     diagnostic.hint.as_deref(),

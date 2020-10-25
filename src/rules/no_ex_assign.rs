@@ -10,6 +10,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoExAssign;
 
+const CODE: &str = "no-ex-assign";
+const MESSAGE: &str = "Reassigning exception parameter is not allowed";
+
 impl LintRule for NoExAssign {
   fn new() -> Box<Self> {
     Box::new(NoExAssign)
@@ -20,16 +23,16 @@ impl LintRule for NoExAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-ex-assign"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoExAssignVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -54,11 +57,7 @@ impl<'c> Visit for NoExAssignVisitor<'c> {
 
       if let Some(var) = var {
         if let BindingKind::CatchClause = var.kind() {
-          self.context.add_diagnostic(
-            assign_expr.span,
-            "no-ex-assign",
-            "Reassigning exception parameter is not allowed",
-          );
+          self.context.add_diagnostic(assign_expr.span, CODE, MESSAGE);
         }
       }
     }
@@ -68,7 +67,6 @@ impl<'c> Visit for NoExAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_err_on_line_n;
 
   #[test]
   fn no_ex_assign_valid() {
@@ -85,15 +83,41 @@ function foo() { try { } catch (e) { return false; } }
 
   #[test]
   fn no_ex_assign_invalid() {
-    assert_lint_err_on_line_n::<NoExAssign>(
+    assert_lint_err! {
+      NoExAssign,
       r#"
 try {} catch (e) { e = 1; }
 try {} catch (ex) { ex = 1; }
 try {} catch (ex) { [ex] = []; }
 try {} catch (ex) { ({x: ex = 0} = {}); }
 try {} catch ({message}) { message = 1; }
-      "#,
-      vec![(2, 19), (3, 20), (4, 20), (5, 21), (6, 27)],
-    );
+      "#: [
+        {
+          line: 2,
+          col: 19,
+          message: MESSAGE,
+        },
+        {
+          line: 3,
+          col: 20,
+          message: MESSAGE,
+        },
+        {
+          line: 4,
+          col: 20,
+          message: MESSAGE,
+        },
+        {
+          line: 5,
+          col: 21,
+          message: MESSAGE,
+        },
+        {
+          line: 6,
+          col: 27,
+          message: MESSAGE,
+        },
+      ]
+    }
   }
 }

@@ -18,10 +18,10 @@ impl LintRule for BanUntaggedIgnore {
     "ban-untagged-ignore"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    _module: &swc_ecmascript::ast::Module,
+    _program: &swc_ecmascript::ast::Program,
   ) {
     let violated_spans: Vec<Span> = context
       .ignore_directives
@@ -69,7 +69,6 @@ export function duplicateArgumentsFn(a, b, a) { }
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ban_ts_ignore_valid() {
@@ -86,15 +85,21 @@ function bar() {
 
   #[test]
   fn ban_ts_ignore_invalid() {
-    assert_lint_err_on_line::<BanUntaggedIgnore>(
+    assert_lint_err! {
+      BanUntaggedIgnore,
       r#"
 // deno-lint-ignore
 function foo() {
   // pass
 }
-    "#,
-      2,
-      0,
-    );
+      "#: [
+        {
+          line: 2,
+          col: 0,
+          message: "Ignore directive requires lint rule name(s)",
+          hint: "Add one or more lint rule names.  E.g. // deno-lint-ignore adjacent-overload-signatures",
+        }
+      ]
+    };
   }
 }

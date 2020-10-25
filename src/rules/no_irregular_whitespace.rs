@@ -2,8 +2,8 @@ use super::{Context, LintRule};
 use regex::{Matches, Regex};
 
 use once_cell::sync::Lazy;
-use swc_common::{hygiene::SyntaxContext, BytePos, Span};
-use swc_ecmascript::ast::Module;
+use swc_common::{hygiene::SyntaxContext, BytePos, Span, Spanned};
+use swc_ecmascript::ast::Program;
 use swc_ecmascript::ast::Str;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -46,13 +46,14 @@ impl LintRule for NoIrregularWhitespace {
     "no-irregular-whitespace"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoIrregularWhitespaceVisitor::default();
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
 
     let excluded_ranges = visitor.ranges.iter();
 
-    let file_and_lines = context.source_map.span_to_lines(module.span).unwrap();
+    let file_and_lines =
+      context.source_map.span_to_lines(program.span()).unwrap();
     let file = file_and_lines.file;
 
     for line_index in 0..file.count_lines() {

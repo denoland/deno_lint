@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_ecmascript::ast::{
-  ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Module,
+  ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Program,
   SwitchStmt,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
@@ -21,9 +21,9 @@ impl LintRule for NoEmpty {
     "no-empty"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoEmptyVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {

@@ -26,13 +26,13 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
     visitor.report_errors();
   }
 
