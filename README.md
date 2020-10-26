@@ -138,7 +138,7 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 
 ### Files
 
-To ignore whole file `// deno-lint-ignore-file` directive should placed at the top of the file.
+To ignore whole file use `// deno-lint-ignore-file` directive at the top of the file.
 
 ```ts
 // deno-lint-ignore-file
@@ -178,8 +178,8 @@ function foo(): any {
 
 ### Diagnostics
 
-To ignore certain diagnostic `// deno-lint-ignore <codes...>` directive should be placed
-before offending line.
+To ignore specific diagnostic use `// deno-lint-ignore <codes...>` directive on the preceding
+line of the offending line.
 
 ```ts
 // deno-lint-ignore no-explicit-any
@@ -193,7 +193,7 @@ function bar(a: any) {
 }
 ```
 
-Specyfing rule code that will be ignored is required.
+Specyfing rule name that should be ignored is required.
 
 ## Example
 
