@@ -41,17 +41,26 @@ impl LintRule for Camelcase {
     r#"Enforces the use of camelCase in variable names
 
 Consistency in a code base is key for readability and maintainability.  This rule
-enforces variable definitions and assignments to be in camelCase.  Of note:
+enforces variable declarations and object property names which you create to be
+in camelCase.  Of note:
 * `_` is allowed at the start or end of a variable
 * All uppercase variable names (e.g. constants) may have `_` in their name
-* Function calls are exempt
-* This rule also applies to variables imported via ES6 module imports
+* This rule also applies to variables imported or exported via ES modules
     
 ### Invalid:
 ```typescript
 let first_name = "Ichigo";
+const obj = { last_name: "Hoshimiya" };
+const { last_name } = obj;
+
 function do_something(){}
-import { not_camelCased } from "external-module";
+function foo({ snake_case = "default value" }) {}
+
+class snake_case_class {}
+class Also_Not_Valid_Class {}
+
+import { not_camelCased } from "external-module.js";
+export * as not_camelCased from "mod.ts";
 ```
 
 ### Valid:
@@ -60,9 +69,16 @@ let firstName = "Ichigo";
 const FIRST_NAME = "Ichigo";
 const __myPrivateVariable = "Hoshimiya";
 const myPrivateVariable_ = "Hoshimiya";
+const { last_name: lastName } = obj;  // where `obj` is defined externally
+
 function doSomething(){} // function declarations must be camelCase but...
 do_something();  // ...snake_case function calls are allowed
-import { not_camelCased as camelCased } from "external-module";
+function foo({ snake_case: camelCase = "default value" }) {}
+
+class PascalCaseClass {}
+
+import { not_camelCased as camelCased } from "external-module.js";
+export * as camelCased from "mod.ts";
 ```
 "#
   }
