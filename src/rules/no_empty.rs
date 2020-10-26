@@ -141,7 +141,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
         switch.span,
         "no-empty",
         "Empty switch statement",
-        "Add case statement(s) to the empty switch",
+        "Add case statement(s) to the empty switch, or remove",
       );
     }
     switch.visit_children_with(self);
