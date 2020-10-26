@@ -2,7 +2,7 @@
 
 ### Files
 
-To ignore whole file use `// deno-lint-ignore-file` directive at the top of the file.
+To ignore a whole file use `// deno-lint-ignore-file` at the top of the file:
 
 ```ts
 // deno-lint-ignore-file
@@ -12,7 +12,7 @@ function foo(): any {
 }
 ```
 
-Ignore directive must be placed before first stament or declaration:
+The ignore directive must be placed before the first statement or declaration:
 
 ```ts
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
@@ -42,7 +42,7 @@ function foo(): any {
 
 ### Diagnostics
 
-To ignore specific diagnostic use `// deno-lint-ignore <codes...>` directive on the preceding
+To ignore specific diagnostics use `// deno-lint-ignore <codes...>` on the preceding
 line of the offending line.
 
 ```ts
@@ -57,4 +57,4 @@ function bar(a: any) {
 }
 ```
 
-Specyfing rule name that should be ignored is required.
+You must specify the names of the rules to be ignored.
