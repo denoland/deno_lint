@@ -10,6 +10,10 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoDeleteVar;
 
+const CODE: &str = "no-delete-var";
+const MESSAGE: &str = "Variables shouldn't be deleted";
+const HINT: &str = "Remove the deletion statement";
+
 impl LintRule for NoDeleteVar {
   fn new() -> Box<Self> {
     Box::new(NoDeleteVar)
@@ -20,7 +24,7 @@ impl LintRule for NoDeleteVar {
   }
 
   fn code(&self) -> &'static str {
-    "no-delete-var"
+    CODE
   }
 
   fn lint_program(
@@ -81,9 +85,9 @@ impl<'c> Visit for NoDeleteVarVisitor<'c> {
     if let Expr::Ident(_) = *unary_expr.arg {
       self.context.add_diagnostic_with_hint(
         unary_expr.span,
-        "no-delete-var",
-        "Variables shouldn't be deleted",
-        "Remove the deletion statement",
+        CODE,
+        MESSAGE,
+        HINT,
       );
     }
   }
@@ -92,13 +96,12 @@ impl<'c> Visit for NoDeleteVarVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn no_delete_var_test() {
-    assert_lint_err::<NoDeleteVar>(
-      r#"var someVar = "someVar"; delete someVar;"#,
-      25,
-    );
+  fn no_delete_var_invalid() {
+    assert_lint_err! {
+      NoDeleteVar,
+      r#"var someVar = "someVar"; delete someVar;"#: [{ col: 25, message: MESSAGE, hint: HINT }],
+    }
   }
 }
