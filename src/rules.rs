@@ -85,6 +85,37 @@ pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
 
+pub trait LintRule2 {
+  type Message;
+  type Hint;
+
+  const CODE: &'static str;
+  const TAGS: &'static [&'static str];
+  const DOCS: &'static str;
+
+  fn new2() -> Box<Self>
+  where
+    Self: 'static + Sized;
+
+  fn code2(&self) -> &'static str {
+    Self::CODE
+  }
+
+  fn tags2(&self) -> &'static [&'static str] {
+    Self::TAGS
+  }
+
+  fn docs2(&self) -> &'static str {
+    Self::DOCS
+  }
+
+  fn lint_program(
+    &self,
+    context: &mut Context,
+    program: &swc_ecmascript::ast::Program,
+  );
+}
+
 pub trait LintRule {
   fn new() -> Box<Self>
   where
@@ -100,6 +131,8 @@ pub trait LintRule {
 }
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+  let a = no_delete_var::NoDeleteVar::new2();
+  eprintln!("{}", a.code2());
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),

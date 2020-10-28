@@ -64,6 +64,68 @@ delete obj.a; // returns true;
   }
 }
 
+use super::LintRule2;
+use derive_more::Display;
+
+#[derive(Display)]
+pub enum NoDeleteVarMessage {
+  #[display(fmt = "Variables shouldn't be deleted")]
+  Unexpected,
+}
+
+#[derive(Display)]
+pub enum NoDeleteVarHint {
+  #[display(fmt = "Variables shouldn't be deleted")]
+  Remove,
+  #[display(fmt = "This is dummy hint with some string {}", _0)]
+  Dummy(String),
+}
+
+impl LintRule2 for NoDeleteVar {
+  type Message = NoDeleteVarMessage;
+  type Hint = NoDeleteVarHint;
+
+  const CODE: &'static str = "no-delete-var";
+  const TAGS: &'static [&'static str] = &["recommended"];
+  const DOCS: &'static str = r#"Disallows the deletion of variables
+
+`delete` is used to remove a property from an object.  Variables declared via
+`var`, `let` and `const` cannot be deleted (`delete` will return false).  Setting
+`strict` mode on will raise a syntax error when attempting to delete a variable.
+    
+### Invalid:
+```typescript
+const a = 1;
+let b = 2;
+var c = 3;
+delete a; // would return false
+delete b; // would return false
+delete c; // would return false
+```
+
+### Valid:
+```typescript
+var obj = {
+  a: 1,
+};
+delete obj.a; // returns true;
+```
+"#;
+
+  fn new2() -> Box<Self> {
+    Box::new(NoDeleteVar)
+  }
+
+  fn lint_program(
+    &self,
+    context: &mut Context,
+    program: &swc_ecmascript::ast::Program,
+  ) {
+    let mut visitor = NoDeleteVarVisitor::new(context);
+    visitor.visit_program(program, program);
+  }
+}
+
 struct NoDeleteVarVisitor<'c> {
   context: &'c mut Context,
 }
