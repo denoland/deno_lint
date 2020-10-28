@@ -12,6 +12,7 @@ pub struct NoExAssign;
 
 const CODE: &str = "no-ex-assign";
 const MESSAGE: &str = "Reassigning exception parameter is not allowed";
+const HINT: &str = "Use a different variable for the assignment";
 
 impl LintRule for NoExAssign {
   fn new() -> Box<Self> {
@@ -33,6 +34,33 @@ impl LintRule for NoExAssign {
   ) {
     let mut visitor = NoExAssignVisitor::new(context);
     visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the reassignment of exception parameters 
+
+There is generally no good reason to reassign an exception parameter.  Once
+reassigned the code from that point on has no reference to the error anymore.
+    
+### Invalid:
+```typescript
+try {
+  someFunc();
+} catch (e) {
+  e = true;
+  // can no longer access the thrown error
+}
+```
+
+### Valid:
+```typescript
+try {
+  someFunc();
+} catch (e) {
+  const anotherVar = true;
+}
+```
+"#
   }
 }
 
@@ -57,7 +85,12 @@ impl<'c> Visit for NoExAssignVisitor<'c> {
 
       if let Some(var) = var {
         if let BindingKind::CatchClause = var.kind() {
-          self.context.add_diagnostic(assign_expr.span, CODE, MESSAGE);
+          self.context.add_diagnostic_with_hint(
+            assign_expr.span,
+            CODE,
+            MESSAGE,
+            HINT,
+          );
         }
       }
     }
@@ -96,26 +129,31 @@ try {} catch ({message}) { message = 1; }
           line: 2,
           col: 19,
           message: MESSAGE,
+          hint: HINT,
         },
         {
           line: 3,
           col: 20,
           message: MESSAGE,
+          hint: HINT,
         },
         {
           line: 4,
           col: 20,
           message: MESSAGE,
+          hint: HINT,
         },
         {
           line: 5,
           col: 21,
           message: MESSAGE,
+          hint: HINT,
         },
         {
           line: 6,
           col: 27,
           message: MESSAGE,
+          hint: HINT,
         },
       ]
     }
