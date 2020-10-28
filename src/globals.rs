@@ -5,6 +5,7 @@
 /// Adapted from https://www.npmjs.com/package/globals
 #[allow(unused)]
 pub static GLOBALS: &[&str] = &[
+  "alert",
   "AbortController",
   "AbortSignal",
   "addEventListener",
@@ -25,6 +26,7 @@ pub static GLOBALS: &[&str] = &[
   "close",
   "closed",
   "CloseEvent",
+  "confirm",
   "console",
   "constructor",
   "CountQueuingStrategy",
@@ -35,6 +37,7 @@ pub static GLOBALS: &[&str] = &[
   "decodeURI",
   "decodeURIComponent",
   "Deno",
+  "DedicatedWorkerGlobalScope",
   "dispatchEvent",
   "DOMException",
   "encodeURI",
@@ -87,6 +90,7 @@ pub static GLOBALS: &[&str] = &[
   "postMessage",
   "ProgressEvent",
   "Promise",
+  "prompt",
   "propertyIsEnumerable",
   "Proxy",
   "queueMicrotask",
