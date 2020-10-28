@@ -170,6 +170,11 @@ impl<'c> ConstructorSuperVisitor<'c> {
   }
 
   fn check_constructor(&mut self, constructor: &Constructor, class: &Class) {
+    // Declarations shouldn't be linted
+    if constructor.body.is_none() {
+      return;
+    }
+
     // returning value is a substitute of 'super()'.
     if let Some(ret) = return_before_super(constructor) {
       if ret.arg.is_none() && class.super_class.is_some() {
@@ -297,6 +302,11 @@ mod tests {
 
       // https://github.com/eslint/eslint/issues/5319
       "class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }",
+
+      // https://github.com/denoland/deno_lint/issues/464
+      "declare class DOMException extends Error {
+        constructor(message?: string, name?: string);
+      }"
     };
   }
 
