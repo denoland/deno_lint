@@ -45,7 +45,7 @@ enforces variable declarations and object property names which you create to be
 in camelCase.  Of note:
 * `_` is allowed at the start or end of a variable
 * All uppercase variable names (e.g. constants) may have `_` in their name
-* This rule also applies to variables imported or exported via ES modules
+* This rule also applies to variables imported or exported via ES modules, but not to object properties of those variables
     
 ### Invalid:
 ```typescript
@@ -69,7 +69,7 @@ let firstName = "Ichigo";
 const FIRST_NAME = "Ichigo";
 const __myPrivateVariable = "Hoshimiya";
 const myPrivateVariable_ = "Hoshimiya";
-const { last_name: lastName } = obj;  // where `obj` is defined externally
+const { last_name: lastName } = obj;
 
 function doSomething(){} // function declarations must be camelCase but...
 do_something();  // ...snake_case function calls are allowed
