@@ -9,6 +9,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoOctal;
 
+const CODE: &str = "no-octal";
+const MESSAGE: &str = "`Octal number` is not allowed";
+
 impl LintRule for NoOctal {
   fn new() -> Box<Self> {
     Box::new(NoOctal)
@@ -19,7 +22,7 @@ impl LintRule for NoOctal {
   }
 
   fn code(&self) -> &'static str {
-    "no-octal"
+    CODE
   }
 
   fn lint_program(
@@ -53,11 +56,7 @@ impl<'c> Visit for NoOctalVisitor<'c> {
       .expect("error in loading snippet");
 
     if OCTAL.is_match(&raw_number) {
-      self.context.add_diagnostic(
-        literal_num.span,
-        "no-octal",
-        "`Octal number` is not allowed",
-      );
+      self.context.add_diagnostic(literal_num.span, CODE, MESSAGE);
     }
   }
 }
@@ -65,7 +64,6 @@ impl<'c> Visit for NoOctalVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_octal_valid() {
@@ -80,7 +78,10 @@ mod tests {
 
   #[test]
   fn no_octal_invalid() {
-    assert_lint_err::<NoOctal>("07", 0);
-    assert_lint_err::<NoOctal>("let x = 7 + 07", 12);
+    assert_lint_err! {
+      NoOctal,
+      "07": [{col: 0, message: MESSAGE}],
+      "let x = 7 + 07": [{col: 12, message: MESSAGE}],
+    }
   }
 }
