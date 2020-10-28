@@ -12,6 +12,12 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoObjCalls;
 
+const CODE: &str = "no-obj-calls";
+
+fn get_message(callee_name: &str) -> String {
+  format!("`{}` call as function is not allowed", callee_name)
+}
+
 impl LintRule for NoObjCalls {
   fn new() -> Box<Self> {
     Box::new(NoObjCalls)
@@ -22,7 +28,7 @@ impl LintRule for NoObjCalls {
   }
 
   fn code(&self) -> &'static str {
-    "no-obj-calls"
+    CODE
   }
 
   fn lint_program(
@@ -51,7 +57,7 @@ impl<'c> NoObjCallsVisitor<'c> {
         self.context.add_diagnostic(
           span,
           "no-obj-calls",
-          format!("`{}` call as function is not allowed", callee_name),
+          get_message(callee_name),
         );
       }
       _ => {}
@@ -80,7 +86,6 @@ impl<'c> Visit for NoObjCallsVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_obj_calls_valid() {
@@ -95,13 +100,16 @@ mod tests {
 
   #[test]
   fn no_obj_calls_invalid() {
-    assert_lint_err::<NoObjCalls>(r#"Math();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"new Math();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"JSON();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"new JSON();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"Reflect();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"new Reflect();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"Atomics();"#, 0);
-    assert_lint_err::<NoObjCalls>(r#"new Atomics();"#, 0);
+    assert_lint_err! {
+      NoObjCalls,
+      "Math();": [{col: 0, message: get_message("Math")}],
+      "new Math();": [{col: 0, message: get_message("Math")}],
+      "JSON();": [{col: 0, message: get_message("JSON")}],
+      "new JSON();": [{col: 0, message: get_message("JSON")}],
+      "Reflect();": [{col: 0, message: get_message("Reflect")}],
+      "new Reflect();": [{col: 0, message: get_message("Reflect")}],
+      "Atomics();": [{col: 0, message: get_message("Atomics")}],
+      "new Atomics();": [{col: 0, message: get_message("Atomics")}],
+    }
   }
 }
