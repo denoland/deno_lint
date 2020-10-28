@@ -134,5 +134,6 @@ pub static GLOBALS: &[&str] = &[
   "window",
   "Window",
   "Worker",
+  "WorkerGlobalScope",
   "WritableStream",
 ];
