@@ -14,6 +14,15 @@ const BANNED_PROPERTIES: &[&str] =
 
 pub struct NoPrototypeBuiltins;
 
+const CODE: &str = "no-prototype-builtins";
+
+fn get_message(prop: &str) -> String {
+  format!(
+    "Access to Object.prototype.{} is not allowed from target object",
+    prop
+  )
+}
+
 impl LintRule for NoPrototypeBuiltins {
   fn new() -> Box<Self> {
     Box::new(NoPrototypeBuiltins)
@@ -24,7 +33,7 @@ impl LintRule for NoPrototypeBuiltins {
   }
 
   fn code(&self) -> &'static str {
-    "no-prototype-builtins"
+    CODE
   }
 
   fn lint_program(
@@ -69,11 +78,8 @@ impl<'c> Visit for NoPrototypeBuiltinsVisitor<'c> {
       if BANNED_PROPERTIES.contains(&prop_name) {
         self.context.add_diagnostic(
           call_expr.span,
-          "no-prototype-builtins",
-          format!(
-            "Access to Object.prototype.{} is not allowed from target object",
-            prop_name
-          ),
+          CODE,
+          get_message(prop_name),
         );
       }
     }
@@ -83,7 +89,6 @@ impl<'c> Visit for NoPrototypeBuiltinsVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_prototype_builtins_valid() {
@@ -111,15 +116,12 @@ mod tests {
 
   #[test]
   fn no_prototype_builtins_invalid() {
-    assert_lint_err::<NoPrototypeBuiltins>(r#"foo.hasOwnProperty("bar");"#, 0);
-    assert_lint_err::<NoPrototypeBuiltins>(r#"foo.isPrototypeOf("bar");"#, 0);
-    assert_lint_err::<NoPrototypeBuiltins>(
-      r#"foo.propertyIsEnumberable("bar");"#,
-      0,
-    );
-    assert_lint_err::<NoPrototypeBuiltins>(
-      r#"foo.bar.baz.hasOwnProperty("bar");"#,
-      0,
-    );
+    assert_lint_err! {
+      NoPrototypeBuiltins,
+      "foo.hasOwnProperty('bar');": [{col: 0, message: get_message("hasOwnProperty")}],
+      "foo.isPrototypeOf('bar');": [{col: 0, message: get_message("isPrototypeOf")}],
+      "foo.propertyIsEnumberable('bar');": [{col: 0, message: get_message("propertyIsEnumberable")}],
+      "foo.bar.baz.hasOwnProperty('bar');": [{col: 0, message: get_message("hasOwnProperty")}],
+    }
   }
 }
