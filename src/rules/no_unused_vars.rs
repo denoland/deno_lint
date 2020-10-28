@@ -11,7 +11,7 @@ use swc_ecmascript::{
     ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor,
     Decl, ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
     ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-    KeyValueProp, MemberExpr, MethodKind, Module, NamedExport, Param, Pat,
+    KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Program,
     Prop, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
     TsModuleDecl, TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl,
     VarDeclOrPat, VarDeclarator,
@@ -32,20 +32,20 @@ impl LintRule for NoUnusedVars {
     "no-unused-vars"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut collector = Collector {
       used_vars: Default::default(),
       cur_defining: Default::default(),
       used_types: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_with(program, &mut collector);
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
       collector.used_vars,
       collector.used_types,
     );
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 

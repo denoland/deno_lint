@@ -25,7 +25,7 @@ function IgnoringRulesPage(props: PageProps<Data>) {
   }, [ref]);
 
   return (
-    <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
+    <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
       <Header />
       <main
         dangerouslySetInnerHTML={{ __html: props.data.html }}

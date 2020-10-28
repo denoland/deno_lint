@@ -8,26 +8,29 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoWith;
 
+const CODE: &str = "no-with";
+const MESSAGE: &str = "`with` statement is not allowed";
+
 impl LintRule for NoWith {
   fn new() -> Box<Self> {
     Box::new(NoWith)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-with"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoWithVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -45,21 +48,19 @@ impl<'c> Visit for NoWithVisitor<'c> {
   noop_visit_type!();
 
   fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
-    self.context.add_diagnostic(
-      with_stmt.span,
-      "no-with",
-      "`with` statement is not allowed",
-    );
+    self.context.add_diagnostic(with_stmt.span, CODE, MESSAGE);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_with_invalid() {
-    assert_lint_err::<NoWith>("with (someVar) { console.log('asdf'); }", 0)
+    assert_lint_err! {
+      NoWith,
+      "with (someVar) { console.log('asdf'); }": [{ col: 0, message: MESSAGE }],
+    }
   }
 }

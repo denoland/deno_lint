@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use regex::Regex;
 
+use once_cell::sync::Lazy;
 use swc_common::BytePos;
 use swc_common::Span;
 use swc_common::Spanned;
@@ -12,9 +13,8 @@ use swc_ecmascript::ast::Tpl;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
-lazy_static! {
-  static ref RE: Regex = Regex::new("^([\t ]*(\t | \t))").unwrap();
-}
+static RE: Lazy<Regex> =
+  Lazy::new(|| Regex::new("^([\t ]*(\t | \t))").unwrap());
 
 pub struct NoMixedSpacesAndTabs;
 
@@ -23,7 +23,7 @@ impl LintRule for NoMixedSpacesAndTabs {
     Box::new(NoMixedSpacesAndTabs)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -31,15 +31,16 @@ impl LintRule for NoMixedSpacesAndTabs {
     "no-mixed-spaces-and-tabs"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
 
-    let file_and_lines = context.source_map.span_to_lines(module.span).unwrap();
+    let file_and_lines =
+      context.source_map.span_to_lines(program.span()).unwrap();
     let file = file_and_lines.file;
 
     let mut excluded_ranges = visitor.ranges;

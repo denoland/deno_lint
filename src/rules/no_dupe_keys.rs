@@ -6,7 +6,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  GetterProp, KeyValueProp, MethodProp, Module, ObjectLit, Prop, PropOrSpread,
+  GetterProp, KeyValueProp, MethodProp, ObjectLit, Program, Prop, PropOrSpread,
   SetterProp,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
@@ -18,7 +18,7 @@ impl LintRule for NoDupeKeys {
     Box::new(NoDupeKeys)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -26,9 +26,9 @@ impl LintRule for NoDupeKeys {
     "no-dupe-keys"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -75,10 +75,11 @@ impl<'c> NoDupeKeysVisitor<'c> {
   }
 
   fn report(&mut self, span: Span, key: impl AsRef<str>) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-dupe-keys",
       format!("Duplicate key '{}'", key.as_ref()),
+      "Remove or rename the duplicate key",
     );
   }
 

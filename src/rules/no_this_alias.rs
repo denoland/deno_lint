@@ -13,7 +13,7 @@ impl LintRule for NoThisAlias {
     Box::new(NoThisAlias)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -21,13 +21,13 @@ impl LintRule for NoThisAlias {
     "no-this-alias"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoThisAliasVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 

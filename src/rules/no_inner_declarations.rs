@@ -14,7 +14,7 @@ impl LintRule for NoInnerDeclarations {
     Box::new(NoInnerDeclarations)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -22,13 +22,13 @@ impl LintRule for NoInnerDeclarations {
     "no-inner-declarations"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &ast::Module) {
+  fn lint_program(&self, context: &mut Context, program: &ast::Program) {
     let mut valid_visitor = ValidDeclsVisitor::new();
-    valid_visitor.visit_module(module, module);
+    valid_visitor.visit_program(program, program);
     let mut valid_decls = valid_visitor.valid_decls;
     valid_decls.dedup();
     let mut visitor = NoInnerDeclarationsVisitor::new(context, valid_decls);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 

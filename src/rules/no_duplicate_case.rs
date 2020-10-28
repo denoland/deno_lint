@@ -14,7 +14,7 @@ impl LintRule for NoDuplicateCase {
     Box::new(NoDuplicateCase)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -22,13 +22,51 @@ impl LintRule for NoDuplicateCase {
     "no-duplicate-case"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using the same case clause in a switch statement more than once
+
+When you reuse a case test expression in a `switch` statement, the duplicate case will
+never be reached meaning this is almost always a bug.
+    
+### Invalid:
+```typescript
+const someText = "a";
+switch (someText) {
+  case "a":
+    break;
+  case "b":
+    break;
+  case "a": // duplicate test expression
+    break;
+  default:
+    break;
+}
+```
+
+### Valid:
+```typescript
+const someText = "a";
+switch (someText) {
+  case "a":
+    break;
+  case "b":
+    break;
+  case "c":
+    break;
+  default:
+    break;
+}
+```
+"#
   }
 }
 
@@ -58,10 +96,11 @@ impl<'c> Visit for NoDuplicateCaseVisitor<'c> {
         let span = test.span();
         let test_txt = self.context.source_map.span_to_snippet(span).unwrap();
         if !seen.insert(test_txt) {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             span,
             "no-duplicate-case",
             "Duplicate values in `case` are not allowed",
+            "Remove or rename the duplicate case clause",
           );
         }
       }

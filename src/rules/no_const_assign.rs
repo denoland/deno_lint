@@ -23,13 +23,38 @@ impl LintRule for NoConstAssign {
     "no-const-assign"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoConstAssignVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows modifying a variable declared as `const`.
+
+Modifying a variable declared as `const` will result in a runtime error.
+
+### Invalid:
+```typescript
+const a = 0;
+a = 1;
+a += 1;
+a++;
+++a;
+```
+
+### Valid:
+```typescript
+const a = 0;
+const b = a + 1;
+
+// `c` is out of scope on each loop iteration, allowing a new assignment
+for (const c in [1,2,3]) {}
+```
+"#
   }
 }
 
@@ -94,10 +119,11 @@ impl<'c> NoConstAssignVisitor<'c> {
     let id = name.to_id();
     if let Some(v) = self.context.scope.var(&id) {
       if let BindingKind::Const = v.kind() {
-        self.context.add_diagnostic(
+        self.context.add_diagnostic_with_hint(
           span,
           "no-const-assign",
           "Reassigning constant variable is not allowed",
+          "Change `const` declaration to `let` or double check the correct variable is used"
         );
       }
     }

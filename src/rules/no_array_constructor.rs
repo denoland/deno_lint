@@ -10,26 +10,61 @@ use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoArrayConstructor;
 
+const CODE: &str = "no-array-constructor";
+const MESSAGE: &str = "Array Constructor is not allowed";
+const HINT: &str = "Use array literal notation (e.g. []) or single argument specifying array size only (e.g. new Array(5)";
+
 impl LintRule for NoArrayConstructor {
   fn new() -> Box<Self> {
     Box::new(NoArrayConstructor)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-array-constructor"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Enforce conventional usage of array construction
+
+Array construction is conventionally done via literal notation such as `[]` or
+`[1,2,3]`.  Using the `new Array()` is discouraged as is `new Array(1,2,3)`. There
+are two reasons for this.  The first is that a single supplied argument defines
+the array length, while multiple arguments instead populate the array of no fixed
+size.  This confusion is avoided when pre-populated arrays are only created using
+literal notation.  The second argument to avoiding the `Array` constructor is that
+the `Array` global may be redefined.
+
+The one exception to this rule is when creating a new array of fixed size, e.g.
+`new Array(6)`.  This is the conventional way to create arrays of fixed length.
+
+### Invalid:
+```typescript
+// This is 4 elements, not a size 100 array of 3 elements
+const a = new Array(100, 1, 2, 3);
+
+const b = new Array(); // use [] instead
+```
+    
+### Valid:
+```typescript
+const a = new Array(100);
+const b = [];
+const c = [1,2,3];
+```
+"#
   }
 }
 
@@ -44,11 +79,9 @@ impl<'c> NoArrayConstructorVisitor<'c> {
 
   fn check_args(&mut self, args: Vec<ExprOrSpread>, span: Span) {
     if args.len() != 1 {
-      self.context.add_diagnostic(
-        span,
-        "no-array-constructor",
-        "Array Constructor is not allowed",
-      );
+      self
+        .context
+        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 }
@@ -94,7 +127,6 @@ impl<'c> VisitAll for NoArrayConstructorVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_array_constructor_valid() {
@@ -117,30 +149,25 @@ mod tests {
 
   #[test]
   fn no_array_constructor_invalid() {
-    assert_lint_err::<NoArrayConstructor>("new Array", 0);
-    assert_lint_err::<NoArrayConstructor>("new Array()", 0);
-    assert_lint_err::<NoArrayConstructor>("new Array(x, y)", 0);
-    assert_lint_err::<NoArrayConstructor>("new Array(0, 1, 2)", 0);
-    // nested
-    assert_lint_err_on_line::<NoArrayConstructor>(
+    assert_lint_err! {
+      NoArrayConstructor,
+      "new Array": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Array()": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Array(x, y)": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Array(0, 1, 2)": [{ col: 0, message: MESSAGE, hint: HINT }],
+      // nested
       r#"
 const a = new class {
   foo() {
     let arr = new Array();
   }
 }();
-"#,
-      4,
-      14,
-    );
-    assert_lint_err_on_line::<NoArrayConstructor>(
+      "#: [{ line: 4, col: 14, message: MESSAGE, hint: HINT }],
       r#"
 const a = (() => {
   let arr = new Array();
 })();
-"#,
-      3,
-      12,
-    );
+      "#: [{ line: 3, col: 12, message: MESSAGE, hint: HINT }],
+    }
   }
 }

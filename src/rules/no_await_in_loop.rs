@@ -10,22 +10,65 @@ use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct NoAwaitInLoop;
 
+const CODE: &str = "no-await-in-loop";
+const MESSAGE: &str = "Unexpected `await` inside a loop.";
+const HINT: &str = "Remove `await` in loop body, store all promises generated and then `await Promise.all(storedPromises)` after the loop";
+
 impl LintRule for NoAwaitInLoop {
   fn new() -> Box<Self> {
     Box::new(NoAwaitInLoop)
   }
 
   fn code(&self) -> &'static str {
-    "no-await-in-loop"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires `await` is not used in a for loop body
+
+Async and await are used in Javascript to provide parallel execution.  If each
+element in the for loop is waited upon using `await`, then this negates the
+benefits of using async/await as no more elements in the loop can be processed
+until the current element finishes.  
+
+A common solution is to refactor the code to run the loop body asynchronously and
+capture the promises generated.  After the loop finishes you can then await all
+the promises at once.
+
+### Invalid:
+```javascript
+async function doSomething(items) {
+  const results = [];
+  for (const item of items) {
+    // Each item in the array blocks on the previous one finishing
+    results.push(await someAsyncProcessing(item));
+  }
+  return processResults(results);
+}
+```
+    
+### Valid:
+```javascript
+async function doSomething(items) {
+  const results = [];
+  for (const item of items) {
+    // Kick off all item processing asynchronously...
+    results.push(someAsyncProcessing(item));
+  }
+  // ...and then await their completion after the loop
+  return processResults(await Promise.all(results));
+}
+```
+"#
   }
 }
 
@@ -39,11 +82,9 @@ impl<'c> NoAwaitInLoopVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic(
-      span,
-      "no-await-in-loop",
-      "Unexpected `await` inside a loop.",
-    );
+    self
+      .context
+      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 }
 
@@ -238,7 +279,6 @@ impl<'a, 'b> Visit for FunctionVisitor<'a, 'b> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_await_in_loop_valid() {
@@ -371,7 +411,8 @@ for (let thing in await things) {
 
   #[test]
   fn no_await_in_loop_invalid() {
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+    assert_lint_err! {
+      NoAwaitInLoop,
       r#"
 async function foo(things) {
   const results = [];
@@ -380,112 +421,57 @@ async function foo(things) {
   }
   return baz(results);
 }
-      "#,
-      5,
-      17,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 5, col: 17, message: MESSAGE, hint: HINT }],
       r#"
 for (const thing of things) {
   results.push(await foo(thing));
 }
-      "#,
-      3,
-      15,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 3, col: 15, message: MESSAGE, hint: HINT }],
       r#"
 for (let i = 0; i < await foo(); i++) {
   bar();
 }
-      "#,
-      2,
-      20,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 2, col: 20, message: MESSAGE, hint: HINT }],
       r#"
 for (let i = 0; i < 42; await foo(i)) {
   bar();
 }
-      "#,
-      2,
-      24,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 2, col: 24, message: MESSAGE, hint: HINT }],
       r#"
 for (let i = 0; i < 42; i++) {
   await bar();
 }
-      "#,
-      3,
-      2,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
       r#"
 for (const thing in things) {
   await foo(thing);
 }
-      "#,
-      3,
-      2,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
       r#"
 while (await foo()) {
   bar();
 }
-      "#,
-      2,
-      7,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 2, col: 7, message: MESSAGE, hint: HINT }],
       r#"
 while (true) {
   await foo();
 }
-      "#,
-      3,
-      2,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
       r#"
 while (true) {
   await foo();
 }
-      "#,
-      3,
-      2,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
       r#"
 do {
   foo();
 } while (await bar());
-      "#,
-      4,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 4, col: 9, message: MESSAGE, hint: HINT }],
       r#"
 do {
   await foo();
 } while (true);
-      "#,
-      3,
-      2,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
       r#"
 for await (const thing of things) {
   async function foo() {
@@ -495,12 +481,8 @@ for await (const thing of things) {
   }
   await baz();
 }
-      "#,
-      5,
-      6,
-    );
+      "#: [{ line: 5, col: 6, message: MESSAGE, hint: HINT }],
 
-    assert_lint_err_on_line::<NoAwaitInLoop>(
       r#"
 function foo() {
   async function bar() {
@@ -509,12 +491,7 @@ function foo() {
     }
   }
 }
-      "#,
-      5,
-      6,
-    );
-
-    assert_lint_err_on_line::<NoAwaitInLoop>(
+      "#: [{ line: 5, col: 6, message: MESSAGE, hint: HINT }],
       r#"
 async function foo() {
   for (const thing of things) {
@@ -524,9 +501,7 @@ async function foo() {
     }
   }
 }
-      "#,
-      6,
-      6,
-    );
+      "#: [{ line: 6, col: 6, message: MESSAGE, hint: HINT }],
+    }
   }
 }

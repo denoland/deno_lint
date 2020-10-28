@@ -19,7 +19,7 @@ impl LintRule for NoDupeClassMembers {
     Box::new(NoDupeClassMembers)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -27,13 +27,37 @@ impl LintRule for NoDupeClassMembers {
     "no-dupe-class-members"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using a class member function name more than once
+
+Declaring a function of the same name twice in a class will cause the previous
+declaration(s) to be overwritten, causing unexpected behaviors.
+    
+### Invalid:
+```typescript
+class Foo {
+  bar() {}
+  bar() {}
+}
+```
+
+### Valid:
+```typescript
+class Foo {
+  bar() {}
+  fizz() {}
+}
+```
+"#
   }
 }
 
@@ -47,10 +71,11 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span, name: &str) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-dupe-class-members",
       format!("Duplicate name '{}'", name),
+      "Rename or remove the function with the duplicated name",
     );
   }
 }

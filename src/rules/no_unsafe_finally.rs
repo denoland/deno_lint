@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Span;
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Program;
 use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
@@ -13,7 +13,7 @@ impl LintRule for NoUnsafeFinally {
     Box::new(NoUnsafeFinally)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -21,9 +21,9 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {

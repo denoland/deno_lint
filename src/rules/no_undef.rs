@@ -21,7 +21,7 @@ impl LintRule for NoUndef {
     Box::new(NoUndef)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -29,15 +29,15 @@ impl LintRule for NoUndef {
     "no-undef"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut collector = BindingCollector {
       top_level_ctxt: context.top_level_ctxt,
       declared: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_with(program, &mut collector);
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 

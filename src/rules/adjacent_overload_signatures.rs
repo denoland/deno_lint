@@ -7,7 +7,7 @@ use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
   Class, ClassMember, ClassMethod, Decl, ExportDecl, Expr, FnDecl, Ident, Lit,
-  Module, ModuleDecl, ModuleItem, Stmt, Str, TsInterfaceBody,
+  Module, ModuleDecl, ModuleItem, Program, Stmt, Str, TsInterfaceBody,
   TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
 };
 use swc_ecmascript::visit::VisitAllWith;
@@ -20,7 +20,7 @@ impl LintRule for AdjacentOverloadSignatures {
     Box::new(AdjacentOverloadSignatures)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -28,48 +28,15 @@ impl LintRule for AdjacentOverloadSignatures {
     "adjacent-overload-signatures"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
     r#"Requires overload signatures to be adjacent to each other.
 
 Overloaded signatures which are not next to each other can lead to code which is hard to read and maintain.
-
-### Valid:
-(bar is declared after foo)
-```typescript
-type FooType = {
-  foo(s: string): void;
-  foo(n: number): void;
-  foo(sn: string | number): void;
-  bar(): void;
-};
-```
-```typescript
-interface FooInterface {
-  foo(s: string): void;
-  foo(n: number): void;
-  foo(sn: string | number): void;
-  bar(): void;
-}
-```
-```typescript
-class FooClass {
-  foo(s: string): void;
-  foo(n: number): void;
-  foo(sn: string | number): void {}
-  bar(): void {}
-}
-```
-```typescript
-export function foo(s: string): void;
-export function foo(n: number): void;
-export function foo(sn: string | number): void {}
-export function bar(): void {}
-```
 
 ### Invalid:
 (bar is declared in-between foo overloads)
@@ -102,6 +69,38 @@ export function foo(s: string): void;
 export function foo(n: number): void;
 export function bar(): void {}
 export function foo(sn: string | number): void {}
+```
+### Valid:
+(bar is declared after foo)
+```typescript
+type FooType = {
+  foo(s: string): void;
+  foo(n: number): void;
+  foo(sn: string | number): void;
+  bar(): void;
+};
+```
+```typescript
+interface FooInterface {
+  foo(s: string): void;
+  foo(n: number): void;
+  foo(sn: string | number): void;
+  bar(): void;
+}
+```
+```typescript
+class FooClass {
+  foo(s: string): void;
+  foo(n: number): void;
+  foo(sn: string | number): void {}
+  bar(): void {}
+}
+```
+```typescript
+export function foo(s: string): void;
+export function foo(n: number): void;
+export function foo(sn: string | number): void {}
+export function bar(): void {}
 ```"#
   }
 }

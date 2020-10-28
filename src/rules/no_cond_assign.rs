@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Program;
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCondAssign;
@@ -13,7 +13,7 @@ impl LintRule for NoCondAssign {
     Box::new(NoCondAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -21,15 +21,30 @@ impl LintRule for NoCondAssign {
     "no-cond-assign"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoCondAssignVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
     r#"Disallows the use of the assignment operator, `=`, in conditional statements.
 
 Use of the assignment operator within a conditional statement is often the result of mistyping the equality operator, `==`. If an assignment within a conditional statement is required then this rule allows it by wrapping the assignment in parentheses.
+
+### Invalid:
+```typescript
+var x;
+if (x = 0) {
+  var b = 1;
+}
+```
+```typescript
+function setHeight(someNode) {
+  do {
+    someNode.height = "100px";
+  } while (someNode = someNode.parentNode);
+}
+```
 
 ### Valid:
 ```typescript
@@ -45,21 +60,7 @@ function setHeight(someNode) {
   } while ((someNode = someNode.parentNode));
 }
 ```
-
-### Invalid:
-```typescript
-var x;
-if (x = 0) {
-  var b = 1;
-}
-```
-```typescript
-function setHeight(someNode) {
-  do {
-    someNode.height = "100px";
-  } while (someNode = someNode.parentNode);
-}
-```"#
+"#
   }
 }
 
@@ -73,10 +74,11 @@ impl<'c> NoCondAssignVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-cond-assign",
       "Expected a conditional expression and instead saw an assignment",
+      "Change assignment (`=`) to comparison (`===`) or move assignment out of condition"
     );
   }
 

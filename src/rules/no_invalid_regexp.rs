@@ -11,26 +11,29 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoInvalidRegexp;
 
+const CODE: &str = "no-invalid-regexp";
+const MESSAGE: &str = "Invalid RegExp literal";
+
 impl LintRule for NoInvalidRegexp {
   fn new() -> Box<Self> {
     Box::new(NoInvalidRegexp)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-invalid-regexp"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoInvalidRegexpVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -86,11 +89,7 @@ impl<'c> NoInvalidRegexpVisitor<'c> {
       || (self.check_for_invalid_pattern(pattern, true)
         && self.check_for_invalid_pattern(pattern, false))
     {
-      self.context.add_diagnostic(
-        span,
-        "no-invalid-regexp",
-        "Invalid RegExp literal",
-      );
+      self.context.add_diagnostic(span, CODE, MESSAGE);
     }
   }
 
@@ -142,7 +141,6 @@ impl<'c> Visit for NoInvalidRegexpVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_invalid_regexp_valid() {
@@ -187,22 +185,16 @@ let re = new RegExp('foo', x);"#,
 
   #[test]
   fn no_invalid_regexp_invalid() {
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"RegExp('[');"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"RegExp('.', 'z');"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"new RegExp(')');"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"new RegExp('\\');"#, 1, 0);
-
-    assert_lint_err_on_line::<NoInvalidRegexp>(
-      r#"var foo = new RegExp('(', '');"#,
-      1,
-      10,
-    );
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"/(?<a>a)\k</"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"/(?<!a){1}/"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(
-      r#"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u"#,
-      1,
-      0,
-    );
+    assert_lint_err! {
+      NoInvalidRegexp,
+      r#"RegExp('[');"#: [{ col: 0, message: MESSAGE }],
+      r#"RegExp('.', 'z');"#: [{ col: 0, message: MESSAGE }],
+      r#"new RegExp(')');"#: [{ col: 0, message: MESSAGE }],
+      r#"new RegExp('\\');"#: [{ col: 0, message: MESSAGE }],
+      r#"var foo = new RegExp('(', '');"#: [{ col: 10, message: MESSAGE }],
+      r#"/(?<a>a)\k</"#: [{ col: 0, message: MESSAGE }],
+      r#"/(?<!a){1}/"#: [{ col: 0, message: MESSAGE }],
+      r#"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u"#: [{ col: 0, message: MESSAGE }],
+    }
   }
 }

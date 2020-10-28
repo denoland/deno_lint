@@ -5,7 +5,7 @@ use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Num;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp::Minus;
-use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Module};
+use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Program};
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCompareNegZero;
@@ -15,7 +15,7 @@ impl LintRule for NoCompareNegZero {
     Box::new(NoCompareNegZero)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -23,9 +23,9 @@ impl LintRule for NoCompareNegZero {
     "no-compare-neg-zero"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -35,17 +35,14 @@ Comparing a value directly against negative may not work as expected as it will 
 
 ### Invalid:
 ```typescript
-if (x === -0) {
-}
+if (x === -0) {}
 ```
+
 ### Valid:
 ```typescript
-if (x === 0) {
-}
-```
-```typescript
-if (Object.is(x, -0)) {
-}
+if (x === 0) {}
+
+if (Object.is(x, -0)) {}
 ```"#
   }
 }
@@ -69,10 +66,11 @@ impl<'c> VisitAll for NoCompareNegZeroVisitor<'c> {
     }
 
     if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         bin_expr.span,
         "no-compare-neg-zero",
         "Do not compare against -0",
+        "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
       );
     }
   }

@@ -12,6 +12,10 @@ See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
 ---
 
+## Supported rules
+
+Visit https://lint.deno.land for the list of available rules.
+
 ## Performance
 
 Blazing fast, see comparison with ESLint:
@@ -50,150 +54,6 @@ Blazing fast, see comparison with ESLint:
 _Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
 Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
 See [`./benchmarks/`](./benchmarks/) directory for more info._
-
-## Supported rules
-
-- [`adjacent-overload-signatures`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/adjacent-overload-signatures.md)
-- [`ban-ts-comment`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-ts-comment.md)
-- [`ban-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/ban-types.md)
-- `ban-untagged-ignore`
-- `ban-untagged-todo`
-- [`camelcase`](https://eslint.org/docs/rules/camelcase)
-- [`constructor-super`](https://eslint.org/docs/rules/constructor-super)
-- [`default-param-last`](https://eslint.org/docs/rules/default-param-last)
-- [`eqeqeq`](https://eslint.org/docs/rules/eqeqeq)
-- [`explicit-function-return-type`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/explicit-function-return-type.md)
-- [`explicit-module-boundary-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/explicit-module-boundary-types.md)
-- [`for-direction`](https://eslint.org/docs/rules/for-direction)
-- [`getter-return`](https://eslint.org/docs/rules/getter-return)
-- [`no-array-constructor`](https://eslint.org/docs/rules/no-array-constructor)
-- [`no-async-promise-executor`](https://eslint.org/docs/rules/no-async-promise-executor)
-- [`no-await-in-loop`](https://eslint.org/docs/rules/no-await-in-loop)
-- [`no-case-declarations`](https://eslint.org/docs/rules/no-case-declarations)
-- [`no-class-assign`](https://eslint.org/docs/rules/no-class-assign)
-- [`no-compare-neg-zero`](https://eslint.org/docs/rules/no-compare-neg-zero)
-- [`no-cond-assign`](https://eslint.org/docs/rules/no-cond-assign)
-- [`no-const-assign`](https://eslint.org/docs/rules/no-const-assign)
-- [`no-constant-condition`](https://eslint.org/docs/rules/no-constant-condition)
-- [`no-control-regex`](https://eslint.org/docs/rules/no-control-regex)
-- [`no-debugger`](https://eslint.org/docs/rules/no-debugger)
-- [`no-delete-var`](https://eslint.org/docs/rules/no-delete-var)
-- [`no-dupe-args`](https://eslint.org/docs/rules/no-dupe-args)
-- [`no-dupe-class-members`](https://eslint.org/docs/rules/no-dupe-class-members)
-- [`no-dupe-else-if`](https://eslint.org/docs/rules/no-dupe-else-if)
-- [`no-dupe-keys`](https://eslint.org/docs/rules/no-dupe-keys)
-- [`no-duplicate-case`](https://eslint.org/docs/rules/no-duplicate-case)
-- [`no-empty`](https://eslint.org/docs/rules/no-empty)
-- [`no-empty-character-class`](https://eslint.org/docs/rules/no-empty-character-class)
-- [`no-empty-interface`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-empty-interface.md)
-- [`no-empty-pattern`](https://eslint.org/docs/rules/no-empty-pattern)
-- [`no-eval`](https://eslint.org/docs/rules/no-eval)
-- [`no-ex-assign`](https://eslint.org/docs/rules/no-ex-assign)
-- [`no-explicit-any`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-explicit-any.md)
-- [`no-extra-boolean-cast`](https://eslint.org/docs/rules/no-extra-boolean-cast)
-- [`no-extra-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-extra-non-null-assertion.md)
-- [`no-extra-semi`](https://eslint.org/docs/rules/no-extra-semi)
-- [`no-func-assign`](https://eslint.org/docs/rules/no-func-assign)
-- [`no-global-assign`](https://eslint.org/docs/rules/no-global-assign)
-- [`no-import-assign`](https://eslint.org/docs/rules/no-import-assign)
-- [`no-inferrable-types`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-inferrable-types.md)
-- [`no-invalid-regexp`](https://eslint.org/docs/rules/no-invalid-regexp)
-- [`no-irregular-whitespace`](https://eslint.org/docs/rules/no-irregular-whitespace)
-- [`no-misused-new`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-misused-new.md)
-- [`no-mixed-spaces-and-tabs`](https://eslint.org/docs/rules/no-mixed-spaces-and-tabs)
-- [`no-namespace`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-namespace.md)
-- [`no-new-symbol`](https://eslint.org/docs/rules/no-new-symbol)
-- [`no-non-null-asserted-optional-chain`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-non-null-asserted-optional-chain.md)
-- [`no-non-null-assertion`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-non-null-assertion.md)
-- [`no-obj-calls`](https://eslint.org/docs/rules/no-obj-calls)
-- [`no-octal`](https://eslint.org/docs/rules/no-octal)
-- [`no-prototype-builtins`](https://eslint.org/docs/rules/no-prototype-builtins)
-- [`no-redeclare`](https://eslint.org/docs/rules/no-redeclare)
-- [`no-regex-spaces`](https://eslint.org/docs/rules/no-regex-spaces)
-- [`no-self-assign`](https://eslint.org/docs/rules/no-self-assign)
-- [`no-setter-return`](https://eslint.org/docs/rules/no-setter-return)
-- [`no-shadow-restricted-names`](https://eslint.org/docs/rules/no-shadow-restricted-names)
-- [`no-sparse-arrays`](https://eslint.org/docs/rules/no-sparse-arrays)
-- [`no-this-alias`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-this-alias.md)
-- [`no-this-before-super`](https://eslint.org/docs/rules/no-this-before-super)
-- [`no-throw-literal`](https://eslint.org/docs/rules/no-throw-literal)
-- [`no-undef`](https://eslint.org/docs/rules/no-undef)
-- [`no-unexpected-multiline`](https://eslint.org/docs/rules/no-unexpected-multiline)
-- [`no-unsafe-finally`](https://eslint.org/docs/rules/no-unsafe-finally)
-- [`no-unsafe-negation`](https://eslint.org/docs/rules/no-unsafe-negation)
-- [`no-unused-labels`](https://eslint.org/docs/rules/no-unused-labels)
-- [`no-unused-vars`](https://eslint.org/docs/rules/no-unused-vars)
-- [`no-var`](https://eslint.org/docs/rules/no-var)
-- [`no-with`](https://eslint.org/docs/rules/no-with)
-- [`prefer-as-const`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-as-const.md)
-- [`prefer-const`](https://eslint.org/docs/rules/prefer-const)
-- [`prefer-namespace-keyword`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/prefer-namespace-keyword.md)
-- [`require-yield`](https://eslint.org/docs/rules/require-yield)
-- `single-var-declarator`
-- [`triple-slash-reference`](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/triple-slash-reference.md)
-- [`use-isnan`](https://eslint.org/docs/rules/use-isnan)
-- [`valid-typeof`](https://eslint.org/docs/rules/valid-typeof)
-
-## Ignore directives
-
-### Files
-
-To ignore whole file `// deno-lint-ignore-file` directive should placed at the top of the file.
-
-```ts
-// deno-lint-ignore-file
-
-function foo(): any {
-  // ...
-}
-```
-
-Ignore directive must be placed before first stament or declaration:
-
-```ts
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
-
-/**
- * Some JS doc
- **/
-
-// deno-lint-ignore-file
-
-import { bar } from "./bar.js";
-
-function foo(): any {
-  // ...
-}
-```
-
-You can also ignore certain diagnostics in the whole file
-
-```ts
-// deno-lint-ignore-file no-explicit-any no-empty
-
-function foo(): any {
-  // ...
-}
-```
-
-### Diagnostics
-
-To ignore certain diagnostic `// deno-lint-ignore <codes...>` directive should be placed
-before offending line.
-
-```ts
-// deno-lint-ignore no-explicit-any
-function foo(): any {
-  // ...
-}
-
-// deno-lint-ignore no-explicit-any explicit-function-return-type
-function bar(a: any) {
-  // ...
-}
-```
-
-Specyfing rule code that will be ignored is required.
 
 ## Example
 

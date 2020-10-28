@@ -2,6 +2,8 @@
 use super::Context;
 use super::LintRule;
 
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 use swc_common::Span;
@@ -34,7 +36,7 @@ impl LintRule for BanTsComment {
     Box::new(BanTsComment)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -42,10 +44,10 @@ impl LintRule for BanTsComment {
     "ban-ts-comment"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    _module: &swc_ecmascript::ast::Module,
+    _program: &swc_ecmascript::ast::Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 
@@ -76,6 +78,20 @@ impl LintRule for BanTsComment {
 
 Typescript directives reduce the effectiveness of the compiler, something which should only be done in exceptional circumstances.  The reason why should be documented in a comment alongside the directive.
 
+### Invalid:
+```typescript
+// @ts-expect-error
+let a: number = "I am a string";
+```
+```typescript
+// @ts-ignore
+let a: number = "I am a string";
+```
+```typescript
+// @ts-nocheck
+let a: number = "I am a string";
+```
+
 ### Valid:
 ```typescript
 // @ts-expect-error: Temporary workaround (see ticket #422)
@@ -89,20 +105,7 @@ let a: number = "I am a string";
 // @ts-nocheck: Temporary workaround (see ticket #422)
 let a: number = "I am a string";
 ```
-
-### Invalid:
-```typescript
-// @ts-expect-error
-let a: number = "I am a string";
-```
-```typescript
-// @ts-ignore
-let a: number = "I am a string";
-```
-```typescript
-// @ts-nocheck
-let a: number = "I am a string";
-```"#
+"#
   }
 }
 
@@ -112,10 +115,9 @@ fn check_comment(comment: &Comment) -> bool {
     return false;
   }
 
-  lazy_static! {
-    static ref BTC_REGEX: regex::Regex =
-      regex::Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#).unwrap();
-  }
+  static BTC_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#).unwrap()
+  });
 
   BTC_REGEX.is_match(&comment.text)
 }

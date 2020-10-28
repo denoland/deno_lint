@@ -15,30 +15,33 @@ use swc_ecmascript::{
 
 pub struct NoImportAssign;
 
+const CODE: &str = "no-import-assign";
+const MESSAGE: &str = "Assignment to import is not allowed";
+
 impl LintRule for NoImportAssign {
   fn new() -> Box<Self> {
     Box::new(NoImportAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-import-assign"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut collector = Collector {
       imports: Default::default(),
       ns_imports: Default::default(),
       other_bindings: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_with(program, &mut collector);
 
     let mut visitor = NoImportAssignVisitor::new(
       context,
@@ -46,7 +49,7 @@ impl LintRule for NoImportAssign {
       collector.ns_imports,
       collector.other_bindings,
     );
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 
@@ -142,20 +145,12 @@ impl<'c> NoImportAssignVisitor<'c> {
     }
 
     if self.ns_imports.contains(&i.to_id()) {
-      self.context.add_diagnostic(
-        span,
-        "no-import-assign",
-        "Assignment to import is not allowed",
-      );
+      self.context.add_diagnostic(span, CODE, MESSAGE);
       return;
     }
 
     if !is_assign_to_prop && self.imports.contains(&i.to_id()) {
-      self.context.add_diagnostic(
-        span,
-        "no-import-assign",
-        "Assignment to import is not allowed",
-      );
+      self.context.add_diagnostic(span, CODE, MESSAGE);
     }
   }
 
@@ -340,7 +335,6 @@ impl<'c> Visit for NoImportAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_import_assign_valid() {
@@ -408,266 +402,66 @@ mod tests {
 
   #[test]
   fn no_import_assign_invalid() {
-    assert_lint_err::<NoImportAssign>("import mod1 from 'mod'; mod1 = 0", 24);
-
-    assert_lint_err::<NoImportAssign>("import mod2 from 'mod'; mod2 += 0", 24);
-
-    assert_lint_err::<NoImportAssign>("import mod3 from 'mod'; mod3++", 24);
-    assert_lint_err::<NoImportAssign>(
-      "import mod4 from 'mod'; for (mod4 in foo);",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import mod5 from 'mod'; for (mod5 of foo);",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import mod6 from 'mod'; [mod6] = foo",
-      25,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import mod7 from 'mod'; [mod7 = 0] = foo",
-      25,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import mod8 from 'mod'; [...mod8] = foo",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import mod9 from 'mod'; ({ bar: mod9 } = foo)",
-      32,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
-      33,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import mod11 from 'mod'; ({ ...mod11 } = foo)",
-      31,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named1} from 'mod'; named1 = 0",
-      28,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import {named2} from 'mod'; named2 += 0",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named3} from 'mod'; named3++",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named4} from 'mod'; for (named4 in foo);",
-      33,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import {named5} from 'mod'; for (named5 of foo);",
-      33,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named6} from 'mod'; [named6] = foo",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named7} from 'mod'; [named7 = 0] = foo",
-      29,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import {named8} from 'mod'; [...named8] = foo",
-      32,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named9} from 'mod'; ({ bar: named9 } = foo)",
-      36,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named10} from 'mod'; ({ bar: named10 = 0 } = foo)",
-      37,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import {named11} from 'mod'; ({ ...named11 } = foo)",
-      35,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import {named12 as foo} from 'mod'; foo = 0; named12 = 0",
-      36,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod1 from 'mod'; mod1 = 0",
-      29,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod2 from 'mod'; mod2 += 0",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod3 from 'mod'; mod3++",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod4 from 'mod'; for (mod4 in foo);",
-      34,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod5 from 'mod'; for (mod5 of foo);",
-      34,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod6 from 'mod'; [mod6] = foo",
-      30,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod7 from 'mod'; [mod7 = 0] = foo",
-      30,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod8 from 'mod'; [...mod8] = foo",
-      33,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod9 from 'mod'; ({ bar: mod9 } = foo)",
-      37,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)",
-      38,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod11 from 'mod'; ({ ...mod11 } = foo)",
-      36,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod1 from 'mod'; mod1.named = 0",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod2 from 'mod'; mod2.named += 0",
-      29,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod3 from 'mod'; mod3.named++",
-      29,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod4 from 'mod'; for (mod4.named in foo);",
-      34,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod5 from 'mod'; for (mod5.named of foo);",
-      34,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod6 from 'mod'; [mod6.named] = foo",
-      30,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod7 from 'mod'; [mod7.named = 0] = foo",
-      30,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod8 from 'mod'; [...mod8.named] = foo",
-      33,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)",
-      37,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod10 from 'mod'; ({ bar: mod10.named = 0 } = foo)",
-      38,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod11 from 'mod'; ({ ...mod11.named } = foo)",
-      36,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod12 from 'mod'; delete mod12.named",
-      30,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Object.assign(mod, obj)",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Object.defineProperty(mod, key, d)",
-      28,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Object.setPrototypeOf(mod, proto)",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Object.freeze(mod)",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Reflect.defineProperty(mod, key, d)",
-      28,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Reflect.deleteProperty(mod, key)",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Reflect.set(mod, key, value)",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Reflect.setPrototypeOf(mod, proto)",
-      28,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import mod, * as mod_ns from 'mod'; mod.prop = 0; mod_ns.prop = 0",
-      50,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; Object?.defineProperty(mod, key, d)",
-      28,
-    );
-
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; (Object?.defineProperty)(mod, key, d)",
-      28,
-    );
-    assert_lint_err::<NoImportAssign>(
-      "import * as mod from 'mod'; delete mod?.prop",
-      28,
-    );
+    assert_lint_err! {
+      NoImportAssign,
+      "import mod1 from 'mod'; mod1 = 0": [{ col: 24, message: MESSAGE }],
+      "import mod2 from 'mod'; mod2 += 0": [{ col: 24, message: MESSAGE }],
+      "import mod3 from 'mod'; mod3++": [{ col: 24, message: MESSAGE }],
+      "import mod4 from 'mod'; for (mod4 in foo);": [{ col: 29, message: MESSAGE }],
+      "import mod5 from 'mod'; for (mod5 of foo);": [{ col: 29, message: MESSAGE }],
+      "import mod6 from 'mod'; [mod6] = foo": [{ col: 25, message: MESSAGE }],
+      "import mod7 from 'mod'; [mod7 = 0] = foo": [{ col: 25, message: MESSAGE }],
+      "import mod8 from 'mod'; [...mod8] = foo": [{ col: 28, message: MESSAGE }],
+      "import mod9 from 'mod'; ({ bar: mod9 } = foo)": [{ col: 32, message: MESSAGE }],
+      "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)": [{ col: 33, message: MESSAGE }],
+      "import mod11 from 'mod'; ({ ...mod11 } = foo)": [{ col: 31, message: MESSAGE }],
+      "import {named1} from 'mod'; named1 = 0": [{ col: 28, message: MESSAGE }],
+      "import {named2} from 'mod'; named2 += 0": [{ col: 28, message: MESSAGE }],
+      "import {named3} from 'mod'; named3++": [{ col: 28, message: MESSAGE }],
+      "import {named4} from 'mod'; for (named4 in foo);": [{ col: 33, message: MESSAGE }],
+      "import {named5} from 'mod'; for (named5 of foo);": [{ col: 33, message: MESSAGE }],
+      "import {named6} from 'mod'; [named6] = foo": [{ col: 29, message: MESSAGE }],
+      "import {named7} from 'mod'; [named7 = 0] = foo": [{ col: 29, message: MESSAGE }],
+      "import {named8} from 'mod'; [...named8] = foo": [{ col: 32, message: MESSAGE }],
+      "import {named9} from 'mod'; ({ bar: named9 } = foo)": [{ col: 36, message: MESSAGE }],
+      "import {named10} from 'mod'; ({ bar: named10 = 0 } = foo)": [{ col: 37, message: MESSAGE }],
+      "import {named11} from 'mod'; ({ ...named11 } = foo)": [{ col: 35, message: MESSAGE }],
+      "import {named12 as foo} from 'mod'; foo = 0; named12 = 0": [{ col: 36, message: MESSAGE }],
+      "import * as mod1 from 'mod'; mod1 = 0": [{ col: 29, message: MESSAGE }],
+      "import * as mod2 from 'mod'; mod2 += 0": [{ col: 29, message: MESSAGE }],
+      "import * as mod3 from 'mod'; mod3++": [{ col: 29, message: MESSAGE }],
+      "import * as mod4 from 'mod'; for (mod4 in foo);": [{ col: 34, message: MESSAGE }],
+      "import * as mod5 from 'mod'; for (mod5 of foo);": [{ col: 34, message: MESSAGE }],
+      "import * as mod6 from 'mod'; [mod6] = foo": [{ col: 30, message: MESSAGE }],
+      "import * as mod7 from 'mod'; [mod7 = 0] = foo": [{ col: 30, message: MESSAGE }],
+      "import * as mod8 from 'mod'; [...mod8] = foo": [{ col: 33, message: MESSAGE }],
+      "import * as mod9 from 'mod'; ({ bar: mod9 } = foo)": [{ col: 37, message: MESSAGE }],
+      "import * as mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)": [{ col: 38, message: MESSAGE }],
+      "import * as mod11 from 'mod'; ({ ...mod11 } = foo)": [{ col: 36, message: MESSAGE }],
+      "import * as mod1 from 'mod'; mod1.named = 0": [{ col: 29, message: MESSAGE }],
+      "import * as mod2 from 'mod'; mod2.named += 0": [{ col: 29, message: MESSAGE }],
+      "import * as mod3 from 'mod'; mod3.named++": [{ col: 29, message: MESSAGE }],
+      "import * as mod4 from 'mod'; for (mod4.named in foo);": [{ col: 34, message: MESSAGE }],
+      "import * as mod5 from 'mod'; for (mod5.named of foo);": [{ col: 34, message: MESSAGE }],
+      "import * as mod6 from 'mod'; [mod6.named] = foo": [{ col: 30, message: MESSAGE }],
+      "import * as mod7 from 'mod'; [mod7.named = 0] = foo": [{ col: 30, message: MESSAGE }],
+      "import * as mod8 from 'mod'; [...mod8.named] = foo": [{ col: 33, message: MESSAGE }],
+      "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)": [{ col: 37, message: MESSAGE }],
+      "import * as mod10 from 'mod'; ({ bar: mod10.named = 0 } = foo)": [{ col: 38, message: MESSAGE }],
+      "import * as mod11 from 'mod'; ({ ...mod11.named } = foo)": [{ col: 36, message: MESSAGE }],
+      "import * as mod12 from 'mod'; delete mod12.named": [{ col: 30, message: MESSAGE }],
+      "import * as mod from 'mod'; Object.assign(mod, obj)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Object.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Object.setPrototypeOf(mod, proto)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Object.freeze(mod)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Reflect.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Reflect.deleteProperty(mod, key)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Reflect.set(mod, key, value)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; Reflect.setPrototypeOf(mod, proto)": [{ col: 28, message: MESSAGE }],
+      "import mod, * as mod_ns from 'mod'; mod.prop = 0; mod_ns.prop = 0": [{ col: 50, message: MESSAGE }],
+      "import * as mod from 'mod'; Object?.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; (Object?.defineProperty)(mod, key, d)": [{ col: 28, message: MESSAGE }],
+      "import * as mod from 'mod'; delete mod?.prop": [{ col: 28, message: MESSAGE }],
+    }
   }
 }

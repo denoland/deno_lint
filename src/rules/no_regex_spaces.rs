@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::extract_regex;
+use once_cell::sync::Lazy;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
@@ -15,7 +16,7 @@ impl LintRule for NoRegexSpaces {
     Box::new(NoRegexSpaces)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -23,13 +24,13 @@ impl LintRule for NoRegexSpaces {
     "no-regex-spaces"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -43,14 +44,14 @@ impl<'c> NoRegexSpacesVisitor<'c> {
   }
 
   fn check_regex(&mut self, regex: &str, span: Span) {
-    lazy_static! {
-      static ref DOUBLE_SPACE: regex::Regex =
-        regex::Regex::new(r"(?u) {2}").unwrap();
-      static ref BRACKETS: regex::Regex =
-        regex::Regex::new(r"\[.*?[^\\]\]").unwrap();
-      static ref SPACES: regex::Regex =
-        regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap();
-    }
+    static DOUBLE_SPACE: Lazy<regex::Regex> =
+      Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
+    static BRACKETS: Lazy<regex::Regex> =
+      Lazy::new(|| regex::Regex::new(r"\[.*?[^\\]\]").unwrap());
+    static SPACES: Lazy<regex::Regex> = Lazy::new(|| {
+      regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap()
+    });
+
     if !DOUBLE_SPACE.is_match(regex) {
       return;
     }

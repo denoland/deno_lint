@@ -1,5 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
+use swc_ecmascript::ast::Program;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -88,13 +89,9 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(
-    &self,
-    context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
-  );
+  fn lint_program(&self, context: &mut Context, program: &Program);
   fn code(&self) -> &'static str;
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &[]
   }
   fn docs(&self) -> &'static str {

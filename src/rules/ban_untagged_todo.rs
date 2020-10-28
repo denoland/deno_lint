@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
@@ -28,10 +29,10 @@ impl LintRule for BanUntaggedTodo {
     "ban-untagged-todo"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    _module: &swc_ecmascript::ast::Module,
+    _program: &swc_ecmascript::ast::Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 
@@ -62,6 +63,12 @@ impl LintRule for BanUntaggedTodo {
 
 TODOs without reference to a user or an issue become stale with no easy way to get more information.
 
+### Invalid:
+```typescript
+// TODO Improve calc engine
+export function calcValue(): number { }
+```
+
 ### Valid:
 ```typescript
 // TODO Improve calc engine (@djones)
@@ -71,12 +78,7 @@ export function calcValue(): number { }
 // TODO Improve calc engine (#332)
 export function calcValue(): number { }
 ```
-
-### Invalid:
-```typescript
-// TODO Improve calc engine
-export function calcValue(): number { }
-```"#
+"#
   }
 }
 
@@ -93,9 +95,8 @@ fn check_comment(comment: &Comment) -> bool {
     return false;
   }
 
-  lazy_static! {
-    static ref TODO_RE: Regex = Regex::new(r#"todo\((#|@)\S+\)"#).unwrap();
-  }
+  static TODO_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"todo\((#|@)\S+\)"#).unwrap());
 
   if TODO_RE.is_match(text) {
     return false;

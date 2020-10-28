@@ -192,13 +192,13 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.2.4"
+version = "0.2.6"
 dependencies = [
  "annotate-snippets",
  "clap",
  "env_logger",
- "lazy_static",
  "log",
+ "once_cell",
  "rayon",
  "regex",
  "serde",

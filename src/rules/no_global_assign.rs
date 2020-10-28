@@ -18,7 +18,7 @@ impl LintRule for NoGlobalAssign {
     Box::new(NoGlobalAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -26,18 +26,18 @@ impl LintRule for NoGlobalAssign {
     "no-global-assign"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut collector = Collector {
       bindings: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_with(program, &mut collector);
 
     let mut visitor = NoGlobalAssignVisitor::new(context, collector.bindings);
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 

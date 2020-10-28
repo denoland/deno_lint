@@ -7,8 +7,8 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 use swc_ecmascript::ast::{
-  ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, Module,
-  ModuleDecl, Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
+  ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, ModuleDecl,
+  Pat, Program, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
 
 pub struct ExplicitModuleBoundaryTypes;
@@ -22,9 +22,9 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     "explicit-module-boundary-types"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {
@@ -34,6 +34,20 @@ Having fully typed function arguments and return values clearly defines the
 inputs and outputs of a module (known as the module boundary).  This will make
 it very clear to any users of the module how to supply inputs and handle
 outputs in a type safe manner.
+
+### Invalid:
+```typescript
+// Missing return type (e.g. void)
+export function printDoc(doc: string, doubleSided: boolean) { return; }
+
+// Missing argument type (e.g. `arg` is of type string)
+export var arrowFn = (arg): string => `hello ${arg}`;
+
+// Missing return type (e.g. boolean)
+export function isValid() {
+  return true;
+}
+```
 
 ### Valid:
 ```typescript
@@ -48,20 +62,7 @@ function isValid() {
   return true;
 }
 ```
-
-### Invalid:
-```typescript
-// Missing return type (e.g. void)
-export function printDoc(doc: string, doubleSided: boolean) { return; }
-
-// Missing argument type (e.g. `arg` is of type string)
-export var arrowFn = (arg): string => `hello ${arg}`;
-
-// Missing return type (e.g. boolean)
-export function isValid() {
-  return true;
-}
-```"#
+"#
   }
 }
 

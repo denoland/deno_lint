@@ -19,13 +19,13 @@ impl LintRule for DefaultParamLast {
     "default-param-last"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
-    module.visit_all_with(module, &mut visitor);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -35,6 +35,12 @@ Parameters with default values are optional by nature but cannot be left out
 of the function call without mapping the function inputs to different parameters
 which is confusing and error prone.  Specifying them last allows them to be left
 out without changing the semantics of the other parameters.
+
+### Invalid:
+```typescript
+function f(a = 2, b) {}
+function f(a = 5, b, c = 5) {}
+```
     
 ### Valid:
 ```typescript
@@ -46,12 +52,7 @@ function f(a, b = 5, c = 5) {}
 function f(a, b = 5, ...c) {}
 function f(a = 2, b = 3) {}
 ```
-
-### Invalid:
-```typescript
-function f(a = 2, b) {}
-function f(a = 5, b, c = 5) {}
-```"#
+"#
   }
 }
 

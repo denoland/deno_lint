@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{
-  ClassDecl, ClassMember, Expr, Ident, Module, PropName, TsEntityName,
+  ClassDecl, ClassMember, Expr, Ident, Program, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
@@ -16,12 +16,12 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoMisusedNewVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 

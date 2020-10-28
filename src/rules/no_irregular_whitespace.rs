@@ -1,18 +1,20 @@
 use super::{Context, LintRule};
 use regex::{Matches, Regex};
 
-use swc_common::{hygiene::SyntaxContext, BytePos, Span};
-use swc_ecmascript::ast::Module;
+use once_cell::sync::Lazy;
+use swc_common::{hygiene::SyntaxContext, BytePos, Span, Spanned};
+use swc_ecmascript::ast::Program;
 use swc_ecmascript::ast::Str;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoIrregularWhitespace;
 
-lazy_static! {
-  static ref IRREGULAR_WHITESPACE: Regex = Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap();
-  static ref IRREGULAR_LINE_TERMINATORS: Regex = Regex::new(r"[\u2028\u2029]").unwrap();
-}
+static IRREGULAR_WHITESPACE: Lazy<Regex> = Lazy::new(|| {
+  Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap()
+});
+static IRREGULAR_LINE_TERMINATORS: Lazy<Regex> =
+  Lazy::new(|| Regex::new(r"[\u2028\u2029]").unwrap());
 
 fn test_for_whitespace(value: &str) -> Option<Vec<Matches>> {
   let mut matches_vector: Vec<Matches> = vec![];
@@ -36,7 +38,7 @@ impl LintRule for NoIrregularWhitespace {
     Box::new(NoIrregularWhitespace)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -44,13 +46,14 @@ impl LintRule for NoIrregularWhitespace {
     "no-irregular-whitespace"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoIrregularWhitespaceVisitor::default();
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
 
     let excluded_ranges = visitor.ranges.iter();
 
-    let file_and_lines = context.source_map.span_to_lines(module.span).unwrap();
+    let file_and_lines =
+      context.source_map.span_to_lines(program.span()).unwrap();
     let file = file_and_lines.file;
 
     for line_index in 0..file.count_lines() {

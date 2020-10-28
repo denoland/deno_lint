@@ -8,26 +8,29 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoEmptyPattern;
 
+const CODE: &str = "no-empty-pattern";
+const MESSAGE: &str = "empty patterns are not allowed";
+
 impl LintRule for NoEmptyPattern {
   fn new() -> Box<Self> {
     Box::new(NoEmptyPattern)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-empty-pattern"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -61,11 +64,7 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
   fn visit_object_pat(&mut self, obj_pat: &ObjectPat, _parent: &dyn Node) {
     if obj_pat.props.is_empty() {
       if obj_pat.type_ann.is_none() {
-        self.context.add_diagnostic(
-          obj_pat.span,
-          "no-empty-pattern",
-          "empty patterns are not allowed",
-        )
+        self.context.add_diagnostic(obj_pat.span, CODE, MESSAGE)
       }
     } else {
       for prop in &obj_pat.props {
@@ -76,11 +75,7 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
 
   fn visit_array_pat(&mut self, arr_pat: &ArrayPat, _parent: &dyn Node) {
     if arr_pat.elems.is_empty() {
-      self.context.add_diagnostic(
-        arr_pat.span,
-        "no-empty-pattern",
-        "empty patterns are not allowed",
-      )
+      self.context.add_diagnostic(arr_pat.span, CODE, MESSAGE)
     } else {
       for elem in &arr_pat.elems {
         if let Some(element) = elem {
@@ -98,7 +93,6 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_empty_pattern_valid() {
@@ -116,14 +110,44 @@ mod tests {
 
   #[test]
   fn no_empty_pattern_invalid() {
-    assert_lint_err::<NoEmptyPattern>("const {} = foo", 6);
-    assert_lint_err::<NoEmptyPattern>("const [] = foo", 6);
-    assert_lint_err::<NoEmptyPattern>("const {a: {}} = foo", 10);
-    assert_lint_err::<NoEmptyPattern>("const {a, b: {}} = foo", 13);
-    assert_lint_err::<NoEmptyPattern>("const {a: []} = foo", 10);
-    assert_lint_err::<NoEmptyPattern>("function foo({}) {}", 13);
-    assert_lint_err::<NoEmptyPattern>("function foo([]) {}", 13);
-    assert_lint_err::<NoEmptyPattern>("function foo({a: {}}) {}", 17);
-    assert_lint_err::<NoEmptyPattern>("function foo({a: []}) {}", 17);
+    assert_lint_err! {
+      NoEmptyPattern,
+      "const {} = foo": [{
+        col: 6,
+        message: MESSAGE,
+      }],
+      "const [] = foo": [{
+        col: 6,
+        message: MESSAGE,
+      }],
+      "const {a: {}} = foo": [{
+        col: 10,
+        message: MESSAGE,
+      }],
+      "const {a, b: {}} = foo": [{
+        col: 13,
+        message: MESSAGE,
+      }],
+      "const {a: []} = foo": [{
+        col: 10,
+        message: MESSAGE,
+      }],
+      "function foo({}) {}": [{
+        col: 13,
+        message: MESSAGE,
+      }],
+      "function foo([]) {}": [{
+        col: 13,
+        message: MESSAGE,
+      }],
+      "function foo({a: {}}) {}": [{
+        col: 17,
+        message: MESSAGE,
+      }],
+      "function foo({a: []}) {}": [{
+        col: 17,
+        message: MESSAGE,
+      }],
+    }
   }
 }
