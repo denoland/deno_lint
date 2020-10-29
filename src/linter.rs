@@ -363,6 +363,10 @@ impl Linter {
 
     let scope = analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
+    let top_level_ctxt = swc_common::GLOBALS
+      .set(&self.ast_parser.globals, || {
+        SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
+      });
 
     let mut context = Context {
       file_name,
@@ -373,9 +377,7 @@ impl Linter {
       ignore_directives: RefCell::new(ignore_directives),
       scope,
       control_flow,
-      top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
-        SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
-      }),
+      top_level_ctxt,
     };
 
     for rule in &self.rules {

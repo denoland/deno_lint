@@ -117,15 +117,18 @@ impl<'c> NoGlobalAssignVisitor<'c> {
     }
 
     // We only care about globals.
-    if !GLOBALS.contains(&&*id.0) {
-      return;
-    }
+    let maybe_global = GLOBALS.iter().find(|(name, _)| name == &&*id.0);
 
-    self.context.add_diagnostic(
-      span,
-      "no-global-assign",
-      "Assignment to global is not allowed",
-    );
+    if let Some(global) = maybe_global {
+      // If global can be overwritten then don't need to report anything
+      if !global.1 {
+        self.context.add_diagnostic(
+          span,
+          "no-global-assign",
+          "Assignment to global is not allowed",
+        );
+      }
+    }
   }
 }
 
@@ -162,6 +165,7 @@ mod tests {
       "var string;",
       "top = 0;",
       "require = 0;",
+      "onmessage = function () {};",
     };
   }
 

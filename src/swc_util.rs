@@ -12,10 +12,10 @@ use swc_common::errors::Handler;
 use swc_common::errors::HandlerFlags;
 use swc_common::FileName;
 use swc_common::Globals;
+use swc_common::Mark;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
-use swc_common::{Mark, GLOBALS};
 use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
   PrivateName, Prop, PropName, PropOrSpread, Str, Tpl,
@@ -194,7 +194,7 @@ impl AstParser {
     });
 
     let parse_result = parse_result.map(|script| {
-      GLOBALS.set(&self.globals, || {
+      swc_common::GLOBALS.set(&self.globals, || {
         script.fold_with(&mut ts_resolver(self.top_level_mark))
       })
     });
@@ -235,7 +235,7 @@ impl AstParser {
     });
 
     let parse_result = parse_result.map(|module| {
-      GLOBALS.set(&self.globals, || {
+      swc_common::GLOBALS.set(&self.globals, || {
         module.fold_with(&mut ts_resolver(self.top_level_mark))
       })
     });
