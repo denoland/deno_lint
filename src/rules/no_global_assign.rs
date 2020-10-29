@@ -121,16 +121,14 @@ impl<'c> NoGlobalAssignVisitor<'c> {
 
     if let Some(global) = maybe_global {
       // If global can be overwritten then don't need to report anything
-      if global.1 {
-        return;
+      if !global.1 {
+        self.context.add_diagnostic(
+          span,
+          "no-global-assign",
+          "Assignment to global is not allowed",
+        );
       }
     }
-
-    self.context.add_diagnostic(
-      span,
-      "no-global-assign",
-      "Assignment to global is not allowed",
-    );
   }
 }
 
@@ -167,6 +165,7 @@ mod tests {
       "var string;",
       "top = 0;",
       "require = 0;",
+      "onmessage = function () {};",
     };
   }
 
