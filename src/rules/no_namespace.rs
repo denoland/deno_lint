@@ -46,7 +46,7 @@ impl<'c> Visit for NoNamespaceVisitor<'c> {
     mod_decl: &TsModuleDecl,
     parent: &dyn Node,
   ) {
-    if !mod_decl.global {
+    if !mod_decl.global && !mod_decl.declare {
       if let TsModuleName::Ident(_) = mod_decl.id {
         self.context.add_diagnostic(
           mod_decl.span,
@@ -72,15 +72,15 @@ mod tests {
       NoNamespace,
       r#"declare global {}"#,
       r#"declare module 'foo' {}"#,
+      r#"declare module foo {}"#,
+      r#"declare namespace foo {}"#,
     };
   }
 
   #[test]
   fn no_namespace_invalid() {
     assert_lint_err::<NoNamespace>("module foo {}", 0);
-    assert_lint_err::<NoNamespace>("declare module foo {}", 0);
     assert_lint_err::<NoNamespace>("namespace foo {}", 0);
-    assert_lint_err::<NoNamespace>("declare namespace foo {}", 0);
     assert_lint_err_n::<NoNamespace>(
       "namespace Foo.Bar { namespace Baz.Bas {} }",
       vec![0, 20],
