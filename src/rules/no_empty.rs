@@ -206,6 +206,14 @@ if (foo) {
           return 1;
       }
       "#,
+      // https://github.com/denoland/deno_lint/issues/469
+      "try { foo(); } catch { /* pass */ }",
+      r#"
+try {
+  foo();
+} catch { // pass
+}
+      "#,
     };
   }
 
