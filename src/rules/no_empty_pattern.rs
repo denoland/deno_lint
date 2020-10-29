@@ -10,6 +10,8 @@ pub struct NoEmptyPattern;
 
 const CODE: &str = "no-empty-pattern";
 const MESSAGE: &str = "empty patterns are not allowed";
+const HINT: &str =
+  "Add variable to pattern or apply correct default value syntax with `=`";
 
 impl LintRule for NoEmptyPattern {
   fn new() -> Box<Self> {
@@ -31,6 +33,43 @@ impl LintRule for NoEmptyPattern {
   ) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
     visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of empty patterns in destructuring 
+
+In destructuring, it is possible to use empty patterns such as `{}` or `[]` which
+have no effect, most likely not what the author intended.
+    
+### Invalid:
+```typescript
+// In these examples below, {} and [] are not object literals or empty arrays, 
+// but placeholders for destructured variable names
+const {} = someObj;
+const [] = someArray;
+const {a: {}} = someObj;
+const [a: []] = someArray;
+function myFunc({}) {}
+function myFunc([]) {}
+```
+
+### Valid:
+```typescript
+const {a} = someObj;
+const [a] = someArray;
+
+// Correct way to default destructured variable to object literal
+const {a = {}} = someObj;
+
+// Correct way to default destructured variable to empty array
+const [a = []] = someArray;
+
+function myFunc({a}) {}
+function myFunc({a = {}}) {}
+function myFunc([a]) {}
+function myFunc([a = []]) {}
+```
+"#
   }
 }
 
@@ -64,7 +103,9 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
   fn visit_object_pat(&mut self, obj_pat: &ObjectPat, _parent: &dyn Node) {
     if obj_pat.props.is_empty() {
       if obj_pat.type_ann.is_none() {
-        self.context.add_diagnostic(obj_pat.span, CODE, MESSAGE)
+        self
+          .context
+          .add_diagnostic_with_hint(obj_pat.span, CODE, MESSAGE, HINT)
       }
     } else {
       for prop in &obj_pat.props {
@@ -75,7 +116,9 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
 
   fn visit_array_pat(&mut self, arr_pat: &ArrayPat, _parent: &dyn Node) {
     if arr_pat.elems.is_empty() {
-      self.context.add_diagnostic(arr_pat.span, CODE, MESSAGE)
+      self
+        .context
+        .add_diagnostic_with_hint(arr_pat.span, CODE, MESSAGE, HINT)
     } else {
       for elem in &arr_pat.elems {
         if let Some(element) = elem {
@@ -115,38 +158,47 @@ mod tests {
       "const {} = foo": [{
         col: 6,
         message: MESSAGE,
+        hint: HINT,
       }],
       "const [] = foo": [{
         col: 6,
         message: MESSAGE,
+        hint: HINT,
       }],
       "const {a: {}} = foo": [{
         col: 10,
         message: MESSAGE,
+        hint: HINT,
       }],
       "const {a, b: {}} = foo": [{
         col: 13,
         message: MESSAGE,
+        hint: HINT,
       }],
       "const {a: []} = foo": [{
         col: 10,
         message: MESSAGE,
+        hint: HINT,
       }],
       "function foo({}) {}": [{
         col: 13,
         message: MESSAGE,
+        hint: HINT,
       }],
       "function foo([]) {}": [{
         col: 13,
         message: MESSAGE,
+        hint: HINT,
       }],
       "function foo({a: {}}) {}": [{
         col: 17,
         message: MESSAGE,
+        hint: HINT,
       }],
       "function foo({a: []}) {}": [{
         col: 17,
         message: MESSAGE,
+        hint: HINT,
       }],
     }
   }

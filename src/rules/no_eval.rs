@@ -27,6 +27,28 @@ impl LintRule for NoEval {
     let mut visitor = NoEvalVisitor::new(context);
     visitor.visit_program(program, program);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of `eval` 
+
+`eval` is a potentially dangerous function which can open your code to a number
+of security vulnerabilities.  In addition to being slow, `eval` is also often
+unnecessary with better solutions available.
+    
+### Invalid:
+```typescript
+const obj = { x: "foo" };
+const key = "x",
+const value = eval("obj." + key);
+```
+
+### Valid:
+```typescript
+const obj = { x: "foo" };
+const value = obj[x];
+```
+"#
+  }
 }
 
 struct NoEvalVisitor<'c> {
@@ -47,10 +69,11 @@ impl<'c> Visit for NoEvalVisitor<'c> {
       if let Expr::Ident(ident) = expr.as_ref() {
         let name = ident.sym.as_ref();
         if name == "eval" {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             call_expr.span,
             "no-eval",
             "`eval` call is not allowed",
+            "Remove the use of `eval`",
           );
         }
       }
@@ -65,6 +88,10 @@ mod tests {
 
   #[test]
   fn no_eval_test() {
-    assert_lint_err::<NoEval>(r#"eval("123");"#, 0)
+    assert_lint_err::<NoEval>(r#"eval("123");"#, 0);
+    // TODO These tests should pass (#466)
+    // assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 0);
+    // assert_lint_err::<NoEval>(r#"var foo = eval;"#, 0);
+    // assert_lint_err::<NoEval>(r#"this.eval("123");"#, 0);
   }
 }
