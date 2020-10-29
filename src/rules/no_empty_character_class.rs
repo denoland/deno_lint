@@ -11,6 +11,8 @@ pub struct NoEmptyCharacterClass;
 
 const CODE: &str = "no-empty-character-class";
 const MESSAGE: &str = "empty character class in RegExp is not allowed";
+const HINT: &str =
+  "Remove or rework the empty character class (`[]`) in the RegExp";
 
 impl LintRule for NoEmptyCharacterClass {
   fn new() -> Box<Self> {
@@ -32,6 +34,31 @@ impl LintRule for NoEmptyCharacterClass {
   ) {
     let mut visitor = NoEmptyCharacterClassVisitor::new(context);
     visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using the empty character class in a regular expression
+
+Regular expression character classes are a series of characters in brackets, e.g. `[abc]`.
+if nothing is supplied in the brackets it will not match anything which is likely
+a typo or mistake.
+    
+### Invalid:
+```typescript
+/^abc[]/.test("abcdefg");  // false, as `d` does not match an empty character class
+"abcdefg".match(/^abc[]/); // null
+```
+
+### Valid:
+```typescript
+// Without a character class
+/^abc/.test("abcdefg"); // true
+"abcdefg".match(/^abc/); // ["abc"]
+
+// With a valid character class
+/^abc[a-z]/.test("abcdefg"); // true
+"abcdefg".match(/^abc[a-z]/); // ["abcd"]```
+"#
   }
 }
 
@@ -73,7 +100,9 @@ impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
     });
 
     if !RULE_REGEX.is_match(&raw_regex) {
-      self.context.add_diagnostic(regex.span, CODE, MESSAGE);
+      self
+        .context
+        .add_diagnostic_with_hint(regex.span, CODE, MESSAGE, HINT);
     }
   }
 }
@@ -109,38 +138,47 @@ mod tests {
       r#"const foo = /^abc[]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /foo[]bar/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /[]]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /\[[]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"const foo = /\\[\\[\\]a-z[]/;"#: [{
         col: 12,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"/^abc[]/.test("abcdefg");"#: [{
         col: 0,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"if (foo.match(/^abc[]/)) {}"#: [{
         col: 14,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#""abcdefg".match(/^abc[]/);"#: [{
         col: 16,
         message: MESSAGE,
+        hint: HINT,
       }],
       r#"if (/^abc[]/.test(foo)) {}"#: [{
         col: 4,
         message: MESSAGE,
+        hint: HINT,
       }],
     }
   }
