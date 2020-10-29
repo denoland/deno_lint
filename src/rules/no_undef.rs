@@ -16,6 +16,8 @@ use std::collections::HashSet;
 
 pub struct NoUndef;
 
+const CODE: &str = "no-undef";
+
 impl LintRule for NoUndef {
   fn new() -> Box<Self> {
     Box::new(NoUndef)
@@ -26,7 +28,7 @@ impl LintRule for NoUndef {
   }
 
   fn code(&self) -> &'static str {
-    "no-undef"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -180,7 +182,7 @@ impl<'c> NoUndefVisitor<'c> {
 
     self.context.add_diagnostic(
       ident.span,
-      "no-undef",
+      CODE,
       format!("{} is not defined", ident.sym),
     )
   }
