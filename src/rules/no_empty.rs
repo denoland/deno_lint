@@ -206,6 +206,7 @@ if (foo) {
           return 1;
       }
       "#,
+
       // https://github.com/denoland/deno_lint/issues/469
       "try { foo(); } catch { /* pass */ }",
       r#"
@@ -218,12 +219,8 @@ try {
   }
 
   #[test]
-  fn it_fails_for_an_empty_if_block() {
+  fn no_empty_invalid() {
     assert_lint_err::<NoEmpty>("if (foo) { }", 9);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_block_with_preceding_comments() {
     assert_lint_err_on_line::<NoEmpty>(
       r#"
 // This is an empty block
@@ -232,88 +229,24 @@ if (foo) { }
       3,
       9,
     );
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_while_block() {
     assert_lint_err::<NoEmpty>("while (foo) { }", 12);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_do_while_block() {
     assert_lint_err::<NoEmpty>("do { } while (foo);", 3);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_for_block() {
     assert_lint_err::<NoEmpty>("for(;;) { }", 8);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_for_in_block() {
     assert_lint_err::<NoEmpty>("for(var foo in bar) { }", 20);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_for_of_block() {
     assert_lint_err::<NoEmpty>("for(var foo of bar) { }", 20);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_switch_block() {
     assert_lint_err::<NoEmpty>("switch (foo) { }", 0);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_try_catch_block() {
     assert_lint_err_n::<NoEmpty>("try { } catch (err) { }", vec![4, 20]);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_try_catch_finally_block() {
     assert_lint_err_n::<NoEmpty>(
       "try { } catch (err) { } finally { }",
       vec![4, 20, 32],
     );
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_if_block() {
     assert_lint_err::<NoEmpty>("if (foo) { if (bar) { } }", 20);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_while_block() {
     assert_lint_err::<NoEmpty>("if (foo) { while (bar) { } }", 23);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_do_while_block() {
     assert_lint_err::<NoEmpty>("if (foo) { do { } while (bar); }", 14);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_for_block() {
     assert_lint_err::<NoEmpty>("if (foo) { for(;;) { } }", 19);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_for_in_block() {
     assert_lint_err::<NoEmpty>("if (foo) { for(var bar in foo) { } }", 31);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_for_of_block() {
     assert_lint_err::<NoEmpty>("if (foo) { for(var bar of foo) { } }", 31);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_switch() {
     assert_lint_err::<NoEmpty>("if (foo) { switch (foo) { } }", 11);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_if_block_in_switch_discriminant() {
     assert_lint_err_on_line::<NoEmpty>(
       r#"
 switch (
