@@ -8,6 +8,8 @@ use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoEmpty;
 
+const CODE: &str = "no-empty";
+
 impl LintRule for NoEmpty {
   fn new() -> Box<Self> {
     Box::new(NoEmpty)
@@ -18,7 +20,7 @@ impl LintRule for NoEmpty {
   }
 
   fn code(&self) -> &'static str {
-    "no-empty"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -125,7 +127,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
       if !block_stmt.contains_comments(&self.context) {
         self.context.add_diagnostic_with_hint(
           block_stmt.span,
-          "no-empty",
+          CODE,
           "Empty block statement",
           "Add code or comment to the empty block",
         );
@@ -139,7 +141,7 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
     if switch.cases.is_empty() {
       self.context.add_diagnostic_with_hint(
         switch.span,
-        "no-empty",
+        CODE,
         "Empty switch statement",
         "Add case statement(s) to the empty switch, or remove",
       );
