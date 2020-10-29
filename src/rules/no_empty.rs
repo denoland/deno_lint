@@ -185,6 +185,11 @@ if (foo) {
 }
     "#,
       r#"
+if (foo) {
+  /* This block is not empty */
+}
+    "#,
+      r#"
     switch (foo) {
       case bar:
         break;
@@ -379,6 +384,35 @@ switch (
         {
           line: 4,
           col: 14,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+
+      // https://github.com/denoland/deno_lint/issues/469
+      "try { foo(); } catch /* outside block */{ }": [
+        {
+          col: 40,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "try { foo(); } catch { }/* outside block */": [
+        {
+          col: 21,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      r#"
+try {
+  foo();
+} catch {
+}// pass
+      "#: [
+        {
+          line: 4,
+          col: 8,
           message: "Empty block statement",
           hint: "Add code or comment to the empty block",
         }
