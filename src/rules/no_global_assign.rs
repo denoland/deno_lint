@@ -117,8 +117,13 @@ impl<'c> NoGlobalAssignVisitor<'c> {
     }
 
     // We only care about globals.
-    if !GLOBALS.contains(&&*id.0) {
-      return;
+    let maybe_global = GLOBALS.iter().find(|(name, _)| name == &&*id.0);
+
+    if let Some(global) = maybe_global {
+      // If global can be overwritten then don't need to report anything
+      if global.1 {
+        return;
+      }
     }
 
     self.context.add_diagnostic(

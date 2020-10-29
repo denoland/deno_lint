@@ -174,7 +174,7 @@ impl<'c> NoUndefVisitor<'c> {
     }
 
     // Globals
-    if GLOBALS.contains(&&*ident.sym) {
+    if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
       return;
     }
 
