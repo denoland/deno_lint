@@ -161,6 +161,11 @@ impl ContainsComments for BlockStmt {
       .values()
       .flatten()
       .any(|comment| self.span.contains(comment.span))
+      || context
+        .trailing_comments
+        .values()
+        .flatten()
+        .any(|comment| self.span.contains(comment.span))
   }
 }
 
