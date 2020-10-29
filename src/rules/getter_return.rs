@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::Key;
+use derive_more::Display;
 use std::collections::BTreeMap;
 use std::mem;
 use swc_common::{Span, Spanned};
@@ -16,6 +17,22 @@ use swc_ecmascript::visit::VisitWith;
 
 pub struct GetterReturn;
 
+const CODE: &str = "getter-return";
+
+#[derive(Display)]
+enum GetterReturnMessage {
+  #[display(fmt = "Expected to return a value in '{}'.", _0)]
+  Expected(String),
+  #[display(fmt = "Expected '{}' to always return a value.", _0)]
+  ExpectedAlways(String),
+}
+
+#[derive(Display)]
+enum GetterReturnHint {
+  #[display(fmt = "Return a value from the getter function")]
+  Return,
+}
+
 impl LintRule for GetterReturn {
   fn new() -> Box<Self> {
     Box::new(GetterReturn)
@@ -26,7 +43,7 @@ impl LintRule for GetterReturn {
   }
 
   fn code(&self) -> &'static str {
-    "getter-return"
+    CODE
   }
 
   fn lint_program(
@@ -76,7 +93,7 @@ class Person {
 
 struct GetterReturnVisitor<'c> {
   context: &'c mut Context,
-  errors: BTreeMap<Span, String>,
+  errors: BTreeMap<Span, GetterReturnMessage>,
   /// If this visitor is currently in a getter, its name is stored.
   getter_name: Option<String>,
   // `true` if a getter contains as least one return statement.
@@ -97,9 +114,9 @@ impl<'c> GetterReturnVisitor<'c> {
     for (span, msg) in &self.errors {
       self.context.add_diagnostic_with_hint(
         *span,
-        "getter-return",
+        CODE,
         msg,
-        "Return a value from the getter function",
+        GetterReturnHint::Return,
       );
     }
   }
@@ -107,12 +124,11 @@ impl<'c> GetterReturnVisitor<'c> {
   fn report_expected(&mut self, span: Span) {
     self.errors.insert(
       span,
-      format!(
-        "Expected to return a value in '{}'.",
+      GetterReturnMessage::Expected(
         self
           .getter_name
           .clone()
-          .expect("the name of getter is not set")
+          .expect("the name of getter is not set"),
       ),
     );
   }
@@ -120,12 +136,11 @@ impl<'c> GetterReturnVisitor<'c> {
   fn report_always_expected(&mut self, span: Span) {
     self.errors.insert(
       span,
-      format!(
-        "Expected '{}' to always return a value.",
+      GetterReturnMessage::ExpectedAlways(
         self
           .getter_name
           .clone()
-          .expect("the name of getter is not set")
+          .expect("the name of getter is not set"),
       ),
     );
   }
@@ -386,14 +401,6 @@ const obj = {
 
   #[test]
   fn getter_return_invalid() {
-    fn msg1(getter_name: &str) -> String {
-      format!("Expected to return a value in '{}'.", getter_name)
-    }
-
-    fn msg2(getter_name: &str) -> String {
-      format!("Expected '{}' to always return a value.", getter_name)
-    }
-
     assert_lint_err! {
       GetterReturn,
 
@@ -401,29 +408,30 @@ const obj = {
       "const foo = { get getter() {} };": [
         {
           col: 14,
-          message: msg1("getter"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("getter".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = { get bar() { ~function() { return true; } } };": [
         {
           col: 14,
-          message: msg2("bar"), // TODO(magurotuna): this should be `msg1`
-          hint: "Return a value from the getter function",
+          // TODO(magurotuna): thie message should be `Expected`
+          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = { get bar() { if (baz) { return true; } } };": [
         {
           col: 14,
-          message: msg2("bar"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = { get bar() { return; } };": [
         {
           col: 26,
-          message: msg1("bar"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -431,29 +439,30 @@ const obj = {
       "class Foo { get bar() {} }": [
         {
           col: 12,
-          message: msg1("bar"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = class { static get bar() {} }": [
         {
           col: 20,
-          message: msg1("bar"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "class Foo { get bar(){ if (baz) { return true; } } }": [
         {
           col: 12,
-          message: msg2("bar"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "class Foo { get bar(){ ~function () { return true; }() } }": [
         {
           col: 12,
-          message: msg2("bar"), // TODO(magurotuna): this should be `msg1`
-          hint: "Return a value from the getter function",
+          // TODO(magurotuna): thie message should be `Expected`
+          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -461,43 +470,44 @@ const obj = {
       "Object.defineProperty(foo, 'bar', { get: function(){} });": [
         {
           col: 36,
-          message: msg1("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });": [
         {
           col: 36,
-          message: msg1("getfoo"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("getfoo".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "Object.defineProperty(foo, 'bar', { get(){} });": [
         {
           col: 36,
-          message: msg1("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: () => {} });": [
         {
           col: 36,
-          message: msg1("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#: [
         {
           col: 36,
-          message: msg2("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::ExpectedAlways("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
         {
           col: 36,
-          message: msg2("get"), // TODO(magurotuna): this should be `msg1`
-          hint: "Return a value from the getter function",
+          // TODO(magurotuna): thie message should be `Expected`
+          message: GetterReturnMessage::ExpectedAlways("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -505,15 +515,15 @@ const obj = {
       r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#: [
         {
           col: 37,
-          message: msg1("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#: [
         {
           col: 39,
-          message: msg1("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -531,8 +541,8 @@ const foo = {
         {
           line: 5,
           col: 6,
-          message: msg1("getter"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("getter".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"
@@ -548,8 +558,8 @@ class Foo {
         {
           line: 5,
           col: 6,
-          message: msg1("bar"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("bar".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"
@@ -565,8 +575,8 @@ Object.defineProperty(foo, 'bar', {
         {
           line: 5,
           col: 6,
-          message: msg1("get"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("get".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -574,13 +584,13 @@ Object.defineProperty(foo, 'bar', {
       "class b { get getterA() {} private get getterB() {} }": [
         {
           col: 10,
-          message: msg1("getterA"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("getterA".to_string()),
+          hint: GetterReturnHint::Return,
         },
         {
           col: 27,
-          message: msg1("getterB"),
-          hint: "Return a value from the getter function",
+          message: GetterReturnMessage::Expected("getterB".to_string()),
+          hint: GetterReturnHint::Return,
         }
       ]
     };
