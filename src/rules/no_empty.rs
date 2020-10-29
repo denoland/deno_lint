@@ -167,7 +167,6 @@ impl ContainsComments for BlockStmt {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_empty_valid() {
@@ -222,34 +221,146 @@ try {
 
   #[test]
   fn no_empty_invalid() {
-    assert_lint_err::<NoEmpty>("if (foo) { }", 9);
-    assert_lint_err_on_line::<NoEmpty>(
+    assert_lint_err! {
+      NoEmpty,
+      "if (foo) { }": [
+        {
+          col: 9,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
       r#"
 // This is an empty block
 if (foo) { }
-      "#,
-      3,
-      9,
-    );
-    assert_lint_err::<NoEmpty>("while (foo) { }", 12);
-    assert_lint_err::<NoEmpty>("do { } while (foo);", 3);
-    assert_lint_err::<NoEmpty>("for(;;) { }", 8);
-    assert_lint_err::<NoEmpty>("for(var foo in bar) { }", 20);
-    assert_lint_err::<NoEmpty>("for(var foo of bar) { }", 20);
-    assert_lint_err::<NoEmpty>("switch (foo) { }", 0);
-    assert_lint_err_n::<NoEmpty>("try { } catch (err) { }", vec![4, 20]);
-    assert_lint_err_n::<NoEmpty>(
-      "try { } catch (err) { } finally { }",
-      vec![4, 20, 32],
-    );
-    assert_lint_err::<NoEmpty>("if (foo) { if (bar) { } }", 20);
-    assert_lint_err::<NoEmpty>("if (foo) { while (bar) { } }", 23);
-    assert_lint_err::<NoEmpty>("if (foo) { do { } while (bar); }", 14);
-    assert_lint_err::<NoEmpty>("if (foo) { for(;;) { } }", 19);
-    assert_lint_err::<NoEmpty>("if (foo) { for(var bar in foo) { } }", 31);
-    assert_lint_err::<NoEmpty>("if (foo) { for(var bar of foo) { } }", 31);
-    assert_lint_err::<NoEmpty>("if (foo) { switch (foo) { } }", 11);
-    assert_lint_err_on_line::<NoEmpty>(
+      "#: [
+        {
+          line: 3,
+          col: 9,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "while (foo) { }": [
+        {
+          col: 12,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "do { } while (foo);": [
+        {
+          col: 3,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "for(;;) { }": [
+        {
+          col: 8,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "for(var foo in bar) { }": [
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "for(var foo of bar) { }": [
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "switch (foo) { }": [
+        {
+          col: 0,
+          message: "Empty switch statement",
+          hint: "Add case statement(s) to the empty switch, or remove",
+        }
+      ],
+      "try { } catch (err) { }": [
+        {
+          col: 4,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        },
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "try { } catch (err) { } finally { }": [
+        {
+          col: 4,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        },
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        },
+        {
+          col: 32,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { if (bar) { } }": [
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { while (bar) { } }": [
+        {
+          col: 23,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { do { } while (bar); }": [
+        {
+          col: 14,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { for(;;) { } }": [
+        {
+          col: 19,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { for(var bar in foo) { } }": [
+        {
+          col: 31,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { for(var bar of foo) { } }": [
+        {
+          col: 31,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { switch (foo) { } }": [
+        {
+          col: 11,
+          message: "Empty switch statement",
+          hint: "Add case statement(s) to the empty switch, or remove",
+        }
+      ],
       r#"
 switch (
   (() => {
@@ -264,9 +375,14 @@ switch (
     bar();
     break;
 }
-      "#,
-      4,
-      14,
-    );
+      "#: [
+        {
+          line: 4,
+          col: 14,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ]
+    };
   }
 }
