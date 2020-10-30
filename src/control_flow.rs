@@ -487,28 +487,31 @@ impl Visit for Analyzer<'_> {
     n.update.visit_with(n, self);
     n.test.visit_with(n, self);
 
-    let mut stmt_end = None;
+    let mut is_infinite_loop = false;
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       n.body.visit_with(n, a);
 
       if a.scope.found_break.is_none() {
-        if n.test.is_none() {
-          // Infinite loop
-          a.mark_as_end(n.span.lo, End::Forced);
-          stmt_end = Some(End::Forced);
-        } else if let (_, Value::Known(true)) =
-          n.test.as_ref().unwrap().as_bool()
-        {
-          // Infinite loop
-          a.mark_as_end(n.span.lo, End::Forced);
-          stmt_end = Some(End::Forced);
+        match &n.test {
+          None => {
+            // Infinite loop
+            a.mark_as_end(n.span.lo, End::Forced);
+            is_infinite_loop = true;
+          }
+          Some(test) => {
+            if matches!(test.as_bool(), (_, Value::Known(true))) {
+              // Infinite loop
+              a.mark_as_end(n.span.lo, End::Forced);
+              is_infinite_loop = true;
+            }
+          }
         }
       }
     });
 
-    if let Some(end) = stmt_end {
-      self.scope.end = Some(end)
+    if is_infinite_loop {
+      self.scope.end = Some(End::Forced);
     }
   }
 
