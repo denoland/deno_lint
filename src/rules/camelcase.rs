@@ -119,6 +119,17 @@ fn to_camelcase(ident_name: &str) -> String {
 enum IdentToCheck {
   /// Normal variable name e.g. `foo` in `const foo = 42;`
   Variable(String),
+  /// Object key name, for example:
+  ///
+  /// ```typescript
+  /// const obj = { foo: 42 }; // key_name: foo, is_shorthand: false
+  ///
+  /// const obj2 = { someVariable }; // key_name: someVariable, is_shorthand: true
+  /// ```
+  ObjectKey {
+    key_name: String,
+    is_shorthand: bool,
+  },
   /// Function name e.g. `foo` in `function foo() {}`
   Function(String),
   /// Class name e.g. `Foo` in `class Foo {}`
@@ -156,6 +167,13 @@ impl IdentToCheck {
     Self::Variable(name.as_ref().to_string())
   }
 
+  fn object_key(key_name: impl AsRef<str>, is_shorthand: bool) -> Self {
+    Self::ObjectKey {
+      key_name: key_name.as_ref().to_string(),
+      is_shorthand,
+    }
+  }
+
   fn function(name: impl AsRef<str>) -> Self {
     Self::Function(name.as_ref().to_string())
   }
@@ -191,6 +209,7 @@ impl IdentToCheck {
       IdentToCheck::Variable(name)
       | IdentToCheck::Function(name)
       | IdentToCheck::Class(name) => name,
+      IdentToCheck::ObjectKey { ref key_name, .. } => key_name,
       IdentToCheck::ObjectPat {
         key_name,
         value_name,
@@ -216,6 +235,24 @@ impl IdentToCheck {
     match self {
       IdentToCheck::Variable(name) | IdentToCheck::Function(name) => {
         format!("Consider renaming `{}` to `{}`", name, to_camelcase(name))
+      }
+      IdentToCheck::ObjectKey {
+        ref key_name,
+        is_shorthand,
+      } => {
+        if *is_shorthand {
+          format!(
+            r#"Consider writing `{camel_cased}: {original}` or `"{original}": {original}`"#,
+            camel_cased = to_camelcase(key_name),
+            original = key_name
+          )
+        } else {
+          format!(
+            r#"Consider renaming `{original}` to `{camel_cased}`, or wrapping it in quotation mark like `"{original}"`"#,
+            camel_cased = to_camelcase(key_name),
+            original = key_name
+          )
+        }
       }
       IdentToCheck::Class(name) => {
         let camel_cased = to_camelcase(name);
@@ -380,28 +417,39 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
           for prop in props {
             if let PropOrSpread::Prop(prop) = prop {
               match &**prop {
-                Prop::Shorthand(ident) => self.check_ident(
-                  ident,
-                  IdentToCheck::object_pat::<Ident, Ident>(ident, None),
-                ),
+                Prop::Shorthand(ident) => {
+                  self.check_ident(ident, IdentToCheck::object_key(ident, true))
+                }
                 Prop::KeyValue(KeyValueProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::variable(ident));
+                    self.check_ident(
+                      ident,
+                      IdentToCheck::object_key(ident, false),
+                    );
                   }
                 }
                 Prop::Getter(GetterProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::function(ident));
+                    self.check_ident(
+                      ident,
+                      IdentToCheck::object_key(ident, false),
+                    );
                   }
                 }
                 Prop::Setter(SetterProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::function(ident));
+                    self.check_ident(
+                      ident,
+                      IdentToCheck::object_key(ident, false),
+                    );
                   }
                 }
                 Prop::Method(MethodProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::function(ident));
+                    self.check_ident(
+                      ident,
+                      IdentToCheck::object_key(ident, false),
+                    );
                   }
                 }
                 Prop::Assign(_) => {}
