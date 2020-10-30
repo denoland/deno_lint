@@ -1,5 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use std::collections::HashMap;
+use swc_common::comments::Comment;
+use swc_common::BytePos;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, Program,
   SwitchStmt,
@@ -7,6 +10,8 @@ use swc_ecmascript::ast::{
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoEmpty;
+
+const CODE: &str = "no-empty";
 
 impl LintRule for NoEmpty {
   fn new() -> Box<Self> {
@@ -18,7 +23,7 @@ impl LintRule for NoEmpty {
   }
 
   fn code(&self) -> &'static str {
-    "no-empty"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -30,6 +35,29 @@ impl LintRule for NoEmpty {
     r#"Disallows the use of empty block statements.
 
 Empty block statements are legal but often represent that something was missed and can make code less readable. This rule ignores block statements that only contain comments. This rule also ignores empty constructors and function bodies (including arrow functions), which are covered by the `no-empty-function` rule.
+
+### Invalid:
+```typescript
+if (foo) {
+}
+```
+```typescript
+while (foo) {
+}
+```
+```typescript
+switch(foo) {
+}
+```
+```typescript
+try {
+  doSomething();
+} catch(ex) {
+
+} finally {
+
+}
+```
 
 ### Valid:
 ```typescript
@@ -56,29 +84,7 @@ try {
   /* continue regardless of error */
 }
 ```
-
-### Invalid:
-```typescript
-if (foo) {
-}
-```
-```typescript
-while (foo) {
-}
-```
-```typescript
-switch(foo) {
-}
-```
-```typescript
-try {
-  doSomething();
-} catch(ex) {
-
-} finally {
-
-}
-```"#
+"#
   }
 }
 
@@ -122,10 +128,11 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
     if block_stmt.stmts.is_empty() {
       if !block_stmt.contains_comments(&self.context) {
-        self.context.add_diagnostic(
+        self.context.add_diagnostic_with_hint(
           block_stmt.span,
-          "no-empty",
+          CODE,
           "Empty block statement",
+          "Add code or comment to the empty block",
         );
       }
     } else {
@@ -135,10 +142,11 @@ impl<'c> Visit for NoEmptyVisitor<'c> {
 
   fn visit_switch_stmt(&mut self, switch: &SwitchStmt, _parent: &dyn Node) {
     if switch.cases.is_empty() {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         switch.span,
-        "no-empty",
+        CODE,
         "Empty switch statement",
+        "Add case statement(s) to the empty switch, or remove",
       );
     }
     switch.visit_children_with(self);
@@ -151,18 +159,20 @@ trait ContainsComments {
 
 impl ContainsComments for BlockStmt {
   fn contains_comments(&self, context: &Context) -> bool {
-    context
-      .leading_comments
-      .values()
-      .flatten()
-      .any(|comment| self.span.contains(comment.span))
+    let contains = |comments: &HashMap<BytePos, Vec<Comment>>| {
+      comments
+        .values()
+        .flatten()
+        .any(|comment| self.span.contains(comment.span))
+    };
+
+    contains(&context.leading_comments) || contains(&context.trailing_comments)
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_empty_valid() {
@@ -178,6 +188,11 @@ class Foo {
       r#"
 if (foo) {
   // This block is not empty
+}
+    "#,
+      r#"
+if (foo) {
+  /* This block is not empty */
 }
     "#,
       r#"
@@ -203,107 +218,160 @@ if (foo) {
           return 1;
       }
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/469
+      "try { foo(); } catch { /* pass */ }",
+      r#"
+try {
+  foo();
+} catch { // pass
+}
+      "#,
     };
   }
 
   #[test]
-  fn it_fails_for_an_empty_if_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { }", 9);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_block_with_preceding_comments() {
-    assert_lint_err_on_line::<NoEmpty>(
+  fn no_empty_invalid() {
+    assert_lint_err! {
+      NoEmpty,
+      "if (foo) { }": [
+        {
+          col: 9,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
       r#"
 // This is an empty block
 if (foo) { }
-      "#,
-      3,
-      9,
-    );
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_while_block() {
-    assert_lint_err::<NoEmpty>("while (foo) { }", 12);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_do_while_block() {
-    assert_lint_err::<NoEmpty>("do { } while (foo);", 3);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_for_block() {
-    assert_lint_err::<NoEmpty>("for(;;) { }", 8);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_for_in_block() {
-    assert_lint_err::<NoEmpty>("for(var foo in bar) { }", 20);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_for_of_block() {
-    assert_lint_err::<NoEmpty>("for(var foo of bar) { }", 20);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_switch_block() {
-    assert_lint_err::<NoEmpty>("switch (foo) { }", 0);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_try_catch_block() {
-    assert_lint_err_n::<NoEmpty>("try { } catch (err) { }", vec![4, 20]);
-  }
-
-  #[test]
-  fn it_fails_for_an_empty_try_catch_finally_block() {
-    assert_lint_err_n::<NoEmpty>(
-      "try { } catch (err) { } finally { }",
-      vec![4, 20, 32],
-    );
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_if_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { if (bar) { } }", 20);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_while_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { while (bar) { } }", 23);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_do_while_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { do { } while (bar); }", 14);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_for_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { for(;;) { } }", 19);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_for_in_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { for(var bar in foo) { } }", 31);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_for_of_block() {
-    assert_lint_err::<NoEmpty>("if (foo) { for(var bar of foo) { } }", 31);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_switch() {
-    assert_lint_err::<NoEmpty>("if (foo) { switch (foo) { } }", 11);
-  }
-
-  #[test]
-  fn it_fails_for_a_nested_empty_if_block_in_switch_discriminant() {
-    assert_lint_err_on_line::<NoEmpty>(
+      "#: [
+        {
+          line: 3,
+          col: 9,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "while (foo) { }": [
+        {
+          col: 12,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "do { } while (foo);": [
+        {
+          col: 3,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "for(;;) { }": [
+        {
+          col: 8,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "for(var foo in bar) { }": [
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "for(var foo of bar) { }": [
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "switch (foo) { }": [
+        {
+          col: 0,
+          message: "Empty switch statement",
+          hint: "Add case statement(s) to the empty switch, or remove",
+        }
+      ],
+      "try { } catch (err) { }": [
+        {
+          col: 4,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        },
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "try { } catch (err) { } finally { }": [
+        {
+          col: 4,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        },
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        },
+        {
+          col: 32,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { if (bar) { } }": [
+        {
+          col: 20,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { while (bar) { } }": [
+        {
+          col: 23,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { do { } while (bar); }": [
+        {
+          col: 14,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { for(;;) { } }": [
+        {
+          col: 19,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { for(var bar in foo) { } }": [
+        {
+          col: 31,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { for(var bar of foo) { } }": [
+        {
+          col: 31,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "if (foo) { switch (foo) { } }": [
+        {
+          col: 11,
+          message: "Empty switch statement",
+          hint: "Add case statement(s) to the empty switch, or remove",
+        }
+      ],
       r#"
 switch (
   (() => {
@@ -318,9 +386,43 @@ switch (
     bar();
     break;
 }
-      "#,
-      4,
-      14,
-    );
+      "#: [
+        {
+          line: 4,
+          col: 14,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+
+      // https://github.com/denoland/deno_lint/issues/469
+      "try { foo(); } catch /* outside block */{ }": [
+        {
+          col: 40,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      "try { foo(); } catch { }/* outside block */": [
+        {
+          col: 21,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      r#"
+try {
+  foo();
+} catch {
+}// pass
+      "#: [
+        {
+          line: 4,
+          col: 8,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ]
+    };
   }
 }
