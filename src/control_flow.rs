@@ -946,6 +946,24 @@ function foo() {
   }
 
   #[test]
+  fn for_4() {
+    // never enter the block of for
+    let src = r#"
+function foo() {
+  for (let i = 0; false; i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 48, false, Some(End::Continue)); // BlockStmt of for statement
+    assert_flow!(flow, 54, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 70, false, None); // `bar();`
+  }
+
+  #[test]
   fn for_in_1() {
     let src = r#"
 function foo() {
