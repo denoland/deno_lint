@@ -901,6 +901,42 @@ function foo() {
   }
 
   #[test]
+  fn for_2() {
+    // infinite loop
+    let src = r#"
+function foo() {
+  for (let i = 0; true; i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 47, false, Some(End::Forced)); // BlockStmt of for statement
+    assert_flow!(flow, 53, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 69, true, None); // `bar();`
+  }
+
+  #[test]
+  fn for_3() {
+    // infinite loop
+    let src = r#"
+function foo() {
+  for (let i = 0;; i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 42, false, Some(End::Forced)); // BlockStmt of for statement
+    assert_flow!(flow, 48, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 64, true, None); // `bar();`
+  }
+
+  #[test]
   fn for_in_1() {
     let src = r#"
 function foo() {
