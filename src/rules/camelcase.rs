@@ -45,6 +45,7 @@ enforces variable declarations and object property names which you create to be
 in camelCase.  Of note:
 * `_` is allowed at the start or end of a variable
 * All uppercase variable names (e.g. constants) may have `_` in their name
+* If you have to use a snake_case key in an object for some reasons, wrap it in quatations
 * This rule also applies to variables imported or exported via ES modules, but not to object properties of those variables
     
 ### Invalid:
@@ -69,6 +70,7 @@ let firstName = "Ichigo";
 const FIRST_NAME = "Ichigo";
 const __myPrivateVariable = "Hoshimiya";
 const myPrivateVariable_ = "Hoshimiya";
+const obj = { "last_name": "Hoshimiya" }; // if an object key is wrapped in quotations, then it's valid
 const { last_name: lastName } = obj;
 
 function doSomething(){} // function declarations must be camelCase but...
@@ -659,6 +661,12 @@ mod tests {
       r#"({...obj.fo_o.ba_r} = baz);"#,
       r#"({c: {...obj.fo_o }} = baz);"#,
       r#"not_ignored_foo = 0;"#,
+
+      // https://github.com/denoland/deno_lint/issues/475
+      // We are forced to use snake_case keys in object literals in some cases such as an object
+      // representing database schema. In such cases, one is allowed to use snake_case by wrapping
+      // keys in quotation marks.
+      r#"const obj = { "created_at": "2020-10-30T13:16:45+09:00" }"#,
     };
   }
 
@@ -677,14 +685,14 @@ mod tests {
             {
               col: 12,
               message: "Identifier 'bar_baz' is not in camel case.",
-              hint: "Consider renaming `bar_baz` to `barBaz`",
+              hint: r#"Consider renaming `bar_baz` to `barBaz`, or wrapping it in quotation mark like `"bar_baz"`"#,
             }
           ],
     r#"var o = {bar_baz: 1}"#: [
             {
               col: 9,
               message: "Identifier 'bar_baz' is not in camel case.",
-              hint: "Consider renaming `bar_baz` to `barBaz`",
+              hint: r#"Consider renaming `bar_baz` to `barBaz`, or wrapping it in quotation mark like `"bar_baz"`"#,
             }
           ],
     r#"var { category_id: category_alias } = query;"#: [
