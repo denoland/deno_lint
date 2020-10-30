@@ -109,7 +109,7 @@ enum End {
   /// Break or continue
   Break,
   /// Pass through a block, like a function's block statement which ends without returning a value
-  /// or throwing an exception. Note that a node marked as `End::Pass` won't prevent further execution, which is
+  /// or throwing an exception. Note that a node marked as `End::Continue` won't prevent further execution, which is
   /// different from `End::Forced` or `End::Break`.
   Continue,
 }
@@ -397,7 +397,7 @@ impl Visit for Analyzer<'_> {
     if let Some(end) = case_end {
       self.mark_as_end(n.span.lo, end);
     } else {
-      self.mark_as_end(n.span.lo, End::Continue); // TODO(magurotuna): is `End::Pass` suitable?
+      self.mark_as_end(n.span.lo, End::Continue);
     }
 
     self.scope.end = prev_end;
@@ -521,7 +521,7 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(n, a);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
-      // it as `End::Pass`.
+      // it as `End::Continue`.
       a.mark_as_end(body_lo, End::Continue);
       a.scope.end = Some(End::Continue);
     });
@@ -536,7 +536,7 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(n, a);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
-      // it as `End::Pass`.
+      // it as `End::Continue`.
       a.mark_as_end(body_lo, End::Continue);
       a.scope.end = Some(End::Continue);
     });
@@ -737,7 +737,7 @@ function foo() {
 
     // BlockStmt of while
     // This block contains `return 1;` but whether entering the block depends on the specific value
-    // of `a`, so we treat it as `End::Pass`.
+    // of `a`, so we treat it as `End::Continue`.
     assert_flow!(flow, 30, false, Some(End::Continue));
 
     assert_flow!(flow, 36, false, Some(End::Forced)); // return stmt
