@@ -893,7 +893,8 @@ function foo() {
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
 
     // BlockStmt of for statement
-    // This is `End::Continue` because the program won't enter the block if `f()` is false.
+    // This is marked as `End::Continue` because it's quite difficult to decide statically whether
+    // the program enters the block or not.
     assert_flow!(flow, 46, false, Some(End::Continue));
 
     assert_flow!(flow, 52, false, Some(End::Forced)); // return stmt
