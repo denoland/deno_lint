@@ -135,6 +135,23 @@ function foo() {
       // https://github.com/denoland/deno_lint/issues/477
       "function foo() { for (;false;) { return 0; } return 1; }",
       "function foo() { var x = 1; for (let i = 0; i < bar(); i++) { return; } x = 2; }",
+      r#"
+function foo() {
+  const partsA = [];
+  const partsB = [];
+  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+    const partA = partsA[i];
+    const partB = partsB[i];
+    if (partA === undefined) return -1;
+    if (partB === undefined) return 1;
+    if (partA === partB) continue;
+    const priorityA = partA.startsWith(":") ? partA.endsWith("*") ? 0 : 1 : 2;
+    const priorityB = partB.startsWith(":") ? partB.endsWith("*") ? 0 : 1 : 2;
+    return Math.max(Math.min(priorityB - priorityA, 1), -1);
+  }
+  return 0;
+}
+      "#,
 
       "function foo() { var x = 1; for (x in {}) { return; } x = 2; }",
       "function foo() { var x = 1; for (x of []) { return; } x = 2; }",
@@ -354,6 +371,7 @@ console.log("unreachable???");
         "function foo() { var x = 1; do { return; } while (x); x = 2; }": [{ col: 54, message: MESSAGE }],
         "function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }": [{ col: 69, message: MESSAGE }],
         "function foo() { var x = 1; for (;;) { if (x) continue; } x = 2; }": [{ col: 58, message: MESSAGE }],
+        "function foo() { var x = 1; for (;true;) { if (x) continue; } x = 2; }": [{ col: 62, message: MESSAGE }],
         "function foo() { var x = 1; while (true) { } x = 2; }": [{ col: 45, message: MESSAGE }],
         "const arrow_direction = arrow => {
         switch (arrow) {
