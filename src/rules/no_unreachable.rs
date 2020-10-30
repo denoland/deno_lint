@@ -132,6 +132,10 @@ function foo() {
 "#,
 
       "function foo() { var x = 1; while (x) { return; } x = 2; }",
+      // https://github.com/denoland/deno_lint/issues/477
+      "function foo() { for (;false;) { return 0; } return 1; }",
+      "function foo() { var x = 1; for (let i = 0; i < bar(); i++) { return; } x = 2; }",
+
       "function foo() { var x = 1; for (x in {}) { return; } x = 2; }",
       "function foo() { var x = 1; for (x of []) { return; } x = 2; }",
       "function foo() { var x = 1; try { return; } finally { x = 2; } }",
