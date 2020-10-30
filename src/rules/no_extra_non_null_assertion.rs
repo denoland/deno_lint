@@ -32,6 +32,34 @@ impl LintRule for NoExtraNonNullAssertion {
     let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
     visitor.visit_program(program, program);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows unnecessary non-null assertions
+
+Non-null assertions are specified with an `!` saying to the compiler that you 
+know this value is not null.  Specifying this operator more than once in a row,
+or in combination with the optional chaining operator (`?`) is confusing and
+unnecessary.
+
+### Invalid:
+```typescript
+const foo: { str: string } | null = null; 
+const bar = foo!!.str;
+
+function myFunc(bar: undefined | string) { return bar!!; }
+function anotherFunc(bar?: { str: string }) { return bar!?.str; }
+```
+
+### Valid:
+```typescript
+const foo: { str: string } | null = null; 
+const bar = foo!.str;
+
+function myFunc(bar: undefined | string) { return bar!; }
+function anotherFunc(bar?: { str: string }) { return bar?.str; }
+```
+"#
+  }
 }
 
 struct NoExtraNonNullAssertionVisitor<'c> {
@@ -44,10 +72,11 @@ impl<'c> NoExtraNonNullAssertionVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-extra-non-null-assertion",
       "Extra non-null assertion is forbidden",
+      "Remove the extra non-null assertion operator (`!`)",
     );
   }
 
