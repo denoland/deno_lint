@@ -58,20 +58,16 @@ impl Context {
     message: impl ToString,
     hint: impl ToString,
   ) {
-    let diagnostic = self.create_diagnostic(
-      span,
-      code.to_string(),
-      message.to_string(),
-      Some(hint.to_string()),
-    );
+    let diagnostic =
+      self.create_diagnostic(span, code, message, Some(hint.to_string()));
     self.diagnostics.push(diagnostic);
   }
 
   fn create_diagnostic(
     &self,
     span: Span,
-    code: String,
-    message: String,
+    code: impl ToString,
+    message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
@@ -87,8 +83,8 @@ impl Context {
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
       filename: self.file_name.clone(),
-      message,
-      code,
+      message: message.to_string(),
+      code: code.to_string(),
       hint: maybe_hint,
     };
 
@@ -290,7 +286,7 @@ impl Linter {
           {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
-              "ban-unused-ignore".to_string(),
+              "ban-unused-ignore",
               format!("Ignore for code \"{}\" was not used.", code),
               None,
             );
@@ -300,7 +296,7 @@ impl Linter {
           if self.lint_unknown_rules && !rule_codes.contains(code) {
             filtered_diagnostics.push(context.create_diagnostic(
               ignore_directive.span,
-              "ban-unknown-rule-code".to_string(),
+              "ban-unknown-rule-code",
               format!("Unknown rule for code \"{}\"", code),
               None,
             ))
