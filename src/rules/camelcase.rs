@@ -51,8 +51,9 @@ in camelCase.  Of note:
 ### Invalid:
 ```typescript
 let first_name = "Ichigo";
-const obj = { last_name: "Hoshimiya" };
-const { last_name } = obj;
+const obj1 = { last_name: "Hoshimiya" };
+const obj2 = { first_name };
+const { last_name } = obj1;
 
 function do_something(){}
 function foo({ snake_case = "default value" }) {}
@@ -70,7 +71,8 @@ let firstName = "Ichigo";
 const FIRST_NAME = "Ichigo";
 const __myPrivateVariable = "Hoshimiya";
 const myPrivateVariable_ = "Hoshimiya";
-const obj = { "last_name": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
+const obj1 = { "last_name": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
+const obj2 = { "first_name": first_name };
 const { last_name: lastName } = obj;
 
 function doSomething(){} // function declarations must be camelCase but...
@@ -667,6 +669,7 @@ mod tests {
       // representing database schema. In such cases, one is allowed to use snake_case by wrapping
       // keys in quotation marks.
       r#"const obj = { "created_at": "2020-10-30T13:16:45+09:00" }"#,
+      r#"const obj = { "created_at": created_at }"#,
     };
   }
 
@@ -688,11 +691,18 @@ mod tests {
               hint: r#"Consider renaming `bar_baz` to `barBaz`, or wrapping it in quotation mark like `"bar_baz"`"#,
             }
           ],
-    r#"var o = {bar_baz: 1}"#: [
+    r#"var o = { bar_baz: 1 }"#: [
             {
-              col: 9,
+              col: 10,
               message: "Identifier 'bar_baz' is not in camel case.",
               hint: r#"Consider renaming `bar_baz` to `barBaz`, or wrapping it in quotation mark like `"bar_baz"`"#,
+            }
+          ],
+    r#"var o = { bar_baz }"#: [
+            {
+              col: 10,
+              message: "Identifier 'bar_baz' is not in camel case.",
+              hint: r#"Consider writing `barBaz: bar_baz` or `"bar_baz": bar_baz`"#,
             }
           ],
     r#"var { category_id: category_alias } = query;"#: [
