@@ -420,31 +420,10 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
                 Prop::Shorthand(ident) => {
                   self.check_ident(ident, IdentToCheck::object_key(ident, true))
                 }
-                Prop::KeyValue(KeyValueProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(
-                      ident,
-                      IdentToCheck::object_key(ident, false),
-                    );
-                  }
-                }
-                Prop::Getter(GetterProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(
-                      ident,
-                      IdentToCheck::object_key(ident, false),
-                    );
-                  }
-                }
-                Prop::Setter(SetterProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(
-                      ident,
-                      IdentToCheck::object_key(ident, false),
-                    );
-                  }
-                }
-                Prop::Method(MethodProp { ref key, .. }) => {
+                Prop::KeyValue(KeyValueProp { ref key, .. })
+                | Prop::Getter(GetterProp { ref key, .. })
+                | Prop::Setter(SetterProp { ref key, .. })
+                | Prop::Method(MethodProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
                     self.check_ident(
                       ident,
