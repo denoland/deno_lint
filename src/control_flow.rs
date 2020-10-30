@@ -109,7 +109,7 @@ enum End {
   /// Break or continue
   Break,
   /// Pass through a block, like a function's block statement which ends without returning a value
-  /// or throwing an exception. Note that a node marked as `End::Pass` won't prevent further execution, which is
+  /// or throwing an exception. Note that a node marked as `End::Continue` won't prevent further execution, which is
   /// different from `End::Forced` or `End::Break`.
   Continue,
 }
@@ -397,7 +397,7 @@ impl Visit for Analyzer<'_> {
     if let Some(end) = case_end {
       self.mark_as_end(n.span.lo, end);
     } else {
-      self.mark_as_end(n.span.lo, End::Continue); // TODO(magurotuna): is `End::Pass` suitable?
+      self.mark_as_end(n.span.lo, End::Continue);
     }
 
     self.scope.end = prev_end;
@@ -487,28 +487,36 @@ impl Visit for Analyzer<'_> {
     n.update.visit_with(n, self);
     n.test.visit_with(n, self);
 
-    let mut stmt_end = None;
+    let mut is_infinite_loop = false;
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       n.body.visit_with(n, a);
 
       if a.scope.found_break.is_none() {
-        if n.test.is_none() {
-          // Infinite loop
-          a.mark_as_end(n.span.lo, End::Forced);
-          stmt_end = Some(End::Forced);
-        } else if let (_, Value::Known(true)) =
-          n.test.as_ref().unwrap().as_bool()
-        {
-          // Infinite loop
-          a.mark_as_end(n.span.lo, End::Forced);
-          stmt_end = Some(End::Forced);
+        match &n.test {
+          None => {
+            // Infinite loop
+            a.mark_as_end(n.span.lo, End::Forced);
+            is_infinite_loop = true;
+          }
+          Some(test) => {
+            if matches!(test.as_bool(), (_, Value::Known(true))) {
+              // Infinite loop
+              a.mark_as_end(n.span.lo, End::Forced);
+              is_infinite_loop = true;
+            }
+          }
         }
+      }
+
+      if !is_infinite_loop {
+        a.mark_as_end(n.span.lo, End::Continue);
+        a.scope.end = Some(End::Continue);
       }
     });
 
-    if let Some(end) = stmt_end {
-      self.scope.end = Some(end)
+    if is_infinite_loop {
+      self.scope.end = Some(End::Forced);
     }
   }
 
@@ -521,7 +529,7 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(n, a);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
-      // it as `End::Pass`.
+      // it as `End::Continue`.
       a.mark_as_end(body_lo, End::Continue);
       a.scope.end = Some(End::Continue);
     });
@@ -536,7 +544,7 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(n, a);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
-      // it as `End::Pass`.
+      // it as `End::Continue`.
       a.mark_as_end(body_lo, End::Continue);
       a.scope.end = Some(End::Continue);
     });
@@ -737,7 +745,7 @@ function foo() {
 
     // BlockStmt of while
     // This block contains `return 1;` but whether entering the block depends on the specific value
-    // of `a`, so we treat it as `End::Pass`.
+    // of `a`, so we treat it as `End::Continue`.
     assert_flow!(flow, 30, false, Some(End::Continue));
 
     assert_flow!(flow, 36, false, Some(End::Forced)); // return stmt
@@ -877,6 +885,82 @@ function foo() {
     assert_flow!(flow, 23, false, Some(End::Forced)); // BlockStmt of do-while
     assert_flow!(flow, 29, false, Some(End::Forced)); // throw stmt
     assert_flow!(flow, 55, true, Some(End::Forced)); // return stmt
+  }
+
+  #[test]
+  fn for_1() {
+    let src = r#"
+function foo() {
+  for (let i = 0; f(); i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+
+    // BlockStmt of for statement
+    // This is marked as `End::Continue` because it's quite difficult to decide statically whether
+    // the program enters the block or not.
+    assert_flow!(flow, 46, false, Some(End::Continue));
+
+    assert_flow!(flow, 52, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 68, false, None); // `bar();`
+  }
+
+  #[test]
+  fn for_2() {
+    // infinite loop
+    let src = r#"
+function foo() {
+  for (let i = 0; true; i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 47, false, Some(End::Forced)); // BlockStmt of for statement
+    assert_flow!(flow, 53, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 69, true, None); // `bar();`
+  }
+
+  #[test]
+  fn for_3() {
+    // infinite loop
+    let src = r#"
+function foo() {
+  for (let i = 0;; i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 42, false, Some(End::Forced)); // BlockStmt of for statement
+    assert_flow!(flow, 48, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 64, true, None); // `bar();`
+  }
+
+  #[test]
+  fn for_4() {
+    // never enter the block of for
+    let src = r#"
+function foo() {
+  for (let i = 0; false; i++) {
+    return 1;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 48, false, Some(End::Continue)); // BlockStmt of for statement
+    assert_flow!(flow, 54, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 70, false, None); // `bar();`
   }
 
   #[test]
