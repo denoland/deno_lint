@@ -508,6 +508,11 @@ impl Visit for Analyzer<'_> {
           }
         }
       }
+
+      if !is_infinite_loop {
+        a.mark_as_end(n.span.lo, End::Continue);
+        a.scope.end = Some(End::Continue);
+      }
     });
 
     if is_infinite_loop {
