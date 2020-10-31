@@ -51,6 +51,20 @@ macro_rules! assert_lint_err {
   };
 }
 
+#[macro_export]
+macro_rules! variant {
+  ($enum:ident, $variant:ident) => {{
+    $enum::$variant
+  }};
+  ($enum:ident, $variant:ident, $($value:expr),* $(,)?) => {{
+    $enum::$variant(
+      $(
+        $value.to_string(),
+      )*
+    )
+  }};
+}
+
 #[derive(Default)]
 pub struct LintErrTester<T: LintRule + 'static> {
   pub src: &'static str,
