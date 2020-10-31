@@ -20,13 +20,6 @@ use swc_common::Spanned;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
-/// Describes if file should be treated as a script
-/// or ES module.
-pub enum FileType {
-  Module,
-  Script,
-}
-
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
@@ -200,7 +193,6 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-    file_type: FileType,
   ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
     assert!(
       !self.has_linted,
@@ -211,35 +203,16 @@ impl Linter {
     let mut diagnostics = vec![];
 
     if !source_code.is_empty() {
-      let (program, comments) = match file_type {
-        FileType::Script => {
-          let (parse_result, comments) =
-            self
-              .ast_parser
-              .parse_script(&file_name, self.syntax, &source_code);
-          let end_parse_script = Instant::now();
-          debug!(
-            "ast_parser.parse_script took {:#?}",
-            end_parse_script - start
-          );
-          let script = parse_result?;
-          (swc_ecmascript::ast::Program::Script(script), comments)
-        }
-        FileType::Module => {
-          let (parse_result, comments) =
-            self
-              .ast_parser
-              .parse_module(&file_name, self.syntax, &source_code);
-          let end_parse_module = Instant::now();
-          debug!(
-            "ast_parser.parse_module took {:#?}",
-            end_parse_module - start
-          );
-          let module = parse_result?;
-          (swc_ecmascript::ast::Program::Module(module), comments)
-        }
-      };
-
+      let (parse_result, comments) =
+        self
+          .ast_parser
+          .parse_program(&file_name, self.syntax, &source_code);
+      let end_parse_program = Instant::now();
+      debug!(
+        "ast_parser.parse_program took {:#?}",
+        end_parse_program - start
+      );
+      let program = parse_result?;
       diagnostics = self.lint_program(file_name, program, comments);
     }
 
