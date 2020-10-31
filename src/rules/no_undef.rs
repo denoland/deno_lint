@@ -280,7 +280,7 @@ mod tests {
       "if (typeof a === 'undefined') {}",
       "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
       "var toString = 1;",
-      "function myFunc(...foo) {  return foo;}",
+      "function myFunc(...foo) {  return foo; }",
       "function myFunc() { console.log(arguments); }",
       // TODO(kdy1): Parse as jsx
       // "var React, App, a=1; React.render(<App attr={a} />);",
