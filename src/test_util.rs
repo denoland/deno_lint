@@ -115,7 +115,7 @@ impl<T: LintRule + 'static> LintErrTester<T> {
   pub fn run(&self) {
     let rule = T::new();
     let rule_code = rule.code();
-    let diagnostics = lint(rule, self.src);
+    let diagnostics = lint(rule, self.src, FileType::Module);
     assert_eq!(
       self.errors.len(),
       diagnostics.len(),
@@ -145,7 +145,11 @@ impl<T: LintRule + 'static> LintErrTester<T> {
   }
 }
 
-fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
+fn lint(
+  rule: Box<dyn LintRule>,
+  source: &str,
+  file_type: FileType,
+) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
@@ -157,7 +161,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .lint(
       "deno_lint_test.tsx".to_string(),
       source.to_string(),
-      FileType::Module,
+      file_type,
     )
     .expect("Failed to lint")
 }
@@ -228,7 +232,7 @@ fn assert_diagnostic_2(
 
 pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
   let rule = T::new();
-  let diagnostics = lint(rule, source);
+  let diagnostics = lint(rule, source, FileType::Module);
   if !diagnostics.is_empty() {
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
@@ -248,7 +252,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source);
+  let diagnostics = lint(rule, source, FileType::Module);
   assert_eq!(
     diagnostics.len(),
     1,
@@ -276,7 +280,7 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source);
+  let diagnostics = lint(rule, source, FileType::Module);
   assert_eq!(
     diagnostics.len(),
     expected.len(),

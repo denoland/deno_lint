@@ -22,6 +22,7 @@ use swc_ecmascript::parser::Syntax;
 
 /// Describes if file should be treated as a script
 /// or ES module.
+#[derive(Clone, Copy)]
 pub enum FileType {
   Module,
   Script,
