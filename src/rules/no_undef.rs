@@ -358,6 +358,24 @@ mod tests {
       }
     }
     "#,
+
+      // https://github.com/denoland/deno_lint/issues/463
+      r#"
+(() => {
+  function foo() {
+    return new Bar();
+  }
+  class Bar {}
+})();
+      "#,
+      r#"
+const f = () => {
+  function foo() {
+    return new Bar();
+  }
+  class Bar {}
+};
+      "#,
     };
   }
 
