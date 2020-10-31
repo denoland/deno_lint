@@ -1,10 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::KeyDisplay;
+use crate::swc_util::Key;
 use derive_more::Display;
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use std::mem;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
@@ -21,11 +20,11 @@ pub struct GetterReturn;
 const CODE: &str = "getter-return";
 
 #[derive(Display)]
-enum GetterReturnMessage<'a> {
+enum GetterReturnMessage {
   #[display(fmt = "Expected to return a value in '{}'.", _0)]
-  Expected(&'a dyn Display),
+  Expected(String),
   #[display(fmt = "Expected '{}' to always return a value.", _0)]
-  ExpectedAlways(&'a dyn Display),
+  ExpectedAlways(String),
 }
 
 #[derive(Display)]
@@ -92,19 +91,16 @@ class Person {
   }
 }
 
-struct GetterReturnVisitor<'c, 'a> {
+struct GetterReturnVisitor<'c> {
   context: &'c mut Context,
-  errors: BTreeMap<Span, GetterReturnMessage<'a>>,
+  errors: BTreeMap<Span, GetterReturnMessage>,
   /// If this visitor is currently in a getter, its name is stored.
-  getter_name: Option<&'a dyn Display>,
+  getter_name: Option<String>,
   // `true` if a getter contains as least one return statement.
   has_return: bool,
 }
 
-impl<'c, 'a> GetterReturnVisitor<'c, 'a>
-where
-  'c: 'a,
-{
+impl<'c> GetterReturnVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self {
       context,
@@ -114,7 +110,7 @@ where
     }
   }
 
-  fn report(&'a mut self) {
+  fn report(&mut self) {
     for (span, msg) in &self.errors {
       self.context.add_diagnostic_with_hint(
         *span,
@@ -125,25 +121,31 @@ where
     }
   }
 
-  fn report_expected(&'a mut self, span: Span) {
+  fn report_expected(&mut self, span: Span) {
     self.errors.insert(
       span,
       GetterReturnMessage::Expected(
-        &self.getter_name.expect("the name of getter is not set"),
+        self
+          .getter_name
+          .clone()
+          .expect("the name of getter is not set"),
       ),
     );
   }
 
-  fn report_always_expected(&'a mut self, span: Span) {
+  fn report_always_expected(&mut self, span: Span) {
     self.errors.insert(
       span,
       GetterReturnMessage::ExpectedAlways(
-        &self.getter_name.expect("the name of getter is not set"),
+        self
+          .getter_name
+          .clone()
+          .expect("the name of getter is not set"),
       ),
     );
   }
 
-  fn check_getter(&'a mut self, getter_body_span: Span, getter_span: Span) {
+  fn check_getter(&mut self, getter_body_span: Span, getter_span: Span) {
     if self.getter_name.is_none() {
       return;
     }
@@ -163,18 +165,18 @@ where
     }
   }
 
-  fn set_getter_name<T: KeyDisplay>(&'a mut self, name: &'a T) {
+  fn set_getter_name<T: Key>(&mut self, name: &T) {
     self.getter_name =
-      Some(name.get_key_ref().unwrap_or(&"get") as &'a dyn Display);
+      Some(name.get_key().unwrap_or_else(|| "get".to_string()));
   }
 
-  fn set_default_getter_name(&'a mut self) {
-    self.getter_name = Some(&"get");
+  fn set_default_getter_name(&mut self) {
+    self.getter_name = Some("get".to_string());
   }
 
-  fn visit_getter<F>(&'a mut self, op: F)
+  fn visit_getter<F>(&mut self, op: F)
   where
-    F: FnOnce(&'a mut Self),
+    F: FnOnce(&mut Self),
   {
     let prev_name = mem::take(&mut self.getter_name);
     let prev_has_return = self.has_return;
@@ -184,10 +186,7 @@ where
   }
 }
 
-impl<'c, 'a> Visit for GetterReturnVisitor<'c, 'a>
-where
-  'c: 'a,
-{
+impl<'c> Visit for GetterReturnVisitor<'c> {
   noop_visit_type!();
 
   fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {

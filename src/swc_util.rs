@@ -314,128 +314,115 @@ pub(crate) trait Key {
   fn get_key(&self) -> Option<String>;
 }
 
-pub(crate) trait KeyDisplay {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display>;
-}
-
-impl<T: KeyDisplay> Key for T {
+impl Key for Ident {
   fn get_key(&self) -> Option<String> {
-    self.get_key_ref().map(ToString::to_string)
+    Some(self.sym.to_string())
   }
 }
 
-impl KeyDisplay for Ident {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
-    Some(&self.sym.as_ref())
-  }
-}
-
-impl KeyDisplay for PropOrSpread {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for PropOrSpread {
+  fn get_key(&self) -> Option<String> {
     use PropOrSpread::*;
     match self {
-      Prop(p) => (&**p).get_key_ref(),
+      Prop(p) => (&**p).get_key(),
       Spread(_) => None,
     }
   }
 }
 
-impl KeyDisplay for Prop {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for Prop {
+  fn get_key(&self) -> Option<String> {
     use Prop::*;
     match self {
-      KeyValue(key_value) => key_value.key.get_key_ref(),
-      Getter(getter) => getter.key.get_key_ref(),
-      Setter(setter) => setter.key.get_key_ref(),
-      Method(method) => method.key.get_key_ref(),
+      KeyValue(key_value) => key_value.key.get_key(),
+      Getter(getter) => getter.key.get_key(),
+      Setter(setter) => setter.key.get_key(),
+      Method(method) => method.key.get_key(),
       Shorthand(_) => None,
       Assign(_) => None,
     }
   }
 }
 
-impl KeyDisplay for Lit {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for Lit {
+  fn get_key(&self) -> Option<String> {
     use swc_ecmascript::ast::BigInt;
     use swc_ecmascript::ast::Bool;
     use swc_ecmascript::ast::JSXText;
     use swc_ecmascript::ast::Number;
     use swc_ecmascript::ast::Regex;
     match self {
-      Lit::Str(Str { ref value, .. }) => Some(value),
+      Lit::Str(Str { ref value, .. }) => Some(value.to_string()),
       Lit::Bool(Bool { ref value, .. }) => {
         let str_val = if *value { "true" } else { "false" };
-        Some(&str_val)
+        Some(str_val.to_string())
       }
-      Lit::Null(_) => Some(&"null"),
-      Lit::Num(Number { ref value, .. }) => Some(value),
-      Lit::BigInt(BigInt { ref value, .. }) => Some(value),
-      Lit::Regex(Regex { ref exp, .. }) => Some(exp),
-      Lit::JSXText(JSXText { ref raw, .. }) => Some(raw),
+      Lit::Null(_) => Some("null".to_string()),
+      Lit::Num(Number { ref value, .. }) => Some(value.to_string()),
+      Lit::BigInt(BigInt { ref value, .. }) => Some(value.to_string()),
+      Lit::Regex(Regex { ref exp, .. }) => Some(format!("/{}/", exp)),
+      Lit::JSXText(JSXText { ref raw, .. }) => Some(raw.to_string()),
     }
   }
 }
 
-impl KeyDisplay for Tpl {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for Tpl {
+  fn get_key(&self) -> Option<String> {
     if self.exprs.is_empty() {
-      self
-        .quasis
-        .get(0)
-        .map(|q| &q.raw.value.as_ref() as &dyn fmt::Display)
+      self.quasis.get(0).map(|q| q.raw.value.to_string())
     } else {
       None
     }
   }
 }
 
-impl KeyDisplay for Expr {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for Expr {
+  fn get_key(&self) -> Option<String> {
     match self {
-      Expr::Ident(ident) => Some(&ident.sym.as_ref()),
-      Expr::Lit(lit) => lit.get_key_ref(),
-      Expr::Tpl(tpl) => tpl.get_key_ref(),
+      Expr::Ident(ident) => Some(ident.sym.to_string()),
+      Expr::Lit(lit) => lit.get_key(),
+      Expr::Tpl(tpl) => tpl.get_key(),
       _ => None,
     }
   }
 }
 
-impl KeyDisplay for PropName {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for PropName {
+  fn get_key(&self) -> Option<String> {
     match self {
-      PropName::Ident(identifier) => Some(&identifier.sym.as_ref()),
-      PropName::Str(str) => Some(&str.value.as_ref()),
-      PropName::Num(num) => Some(&num.value),
+      PropName::Ident(identifier) => Some(identifier.sym.to_string()),
+      PropName::Str(str) => Some(str.value.to_string()),
+      PropName::Num(num) => Some(num.to_string()),
       PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-        Expr::Lit(lit) => lit.get_key_ref(),
-        Expr::Tpl(tpl) => tpl.get_key_ref(),
+        Expr::Lit(lit) => lit.get_key(),
+        Expr::Tpl(tpl) => tpl.get_key(),
         _ => None,
       },
     }
   }
 }
 
-impl KeyDisplay for PrivateName {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
-    Some(&self.id.sym.as_ref())
+impl Key for PrivateName {
+  fn get_key(&self) -> Option<String> {
+    Some(self.id.sym.to_string())
   }
 }
 
-impl KeyDisplay for MemberExpr {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
+impl Key for MemberExpr {
+  fn get_key(&self) -> Option<String> {
     if let Expr::Ident(ident) = &*self.prop {
       if !self.computed {
-        return Some(&ident.sym.as_ref());
+        return Some(ident.sym.to_string());
       }
     }
 
-    (&*self.prop).get_key_ref()
+    (&*self.prop).get_key()
   }
 }
 
-impl<K: KeyDisplay> KeyDisplay for Option<K> {
-  fn get_key_ref(&self) -> Option<&dyn fmt::Display> {
-    self.as_ref().and_then(|k| k.get_key_ref())
+impl<K: Key> Key for Option<K> {
+  fn get_key(&self) -> Option<String> {
+    self.as_ref().and_then(|k| k.get_key())
   }
 }
 
