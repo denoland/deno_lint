@@ -409,7 +409,7 @@ const obj = {
         {
           col: 14,
           message: variant!(GetterReturnMessage, Expected, "getter"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = { get bar() { ~function() { return true; } } };": [
@@ -417,21 +417,21 @@ const obj = {
           col: 14,
           // TODO(magurotuna): thie message should be `Expected`
           message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = { get bar() { if (baz) { return true; } } };": [
         {
           col: 14,
           message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = { get bar() { return; } };": [
         {
           col: 26,
           message: variant!(GetterReturnMessage, Expected, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -440,21 +440,21 @@ const obj = {
         {
           col: 12,
           message: variant!(GetterReturnMessage, Expected, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "const foo = class { static get bar() {} }": [
         {
           col: 20,
           message: variant!(GetterReturnMessage, Expected, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "class Foo { get bar(){ if (baz) { return true; } } }": [
         {
           col: 12,
           message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "class Foo { get bar(){ ~function () { return true; }() } }": [
@@ -462,7 +462,7 @@ const obj = {
           col: 12,
           // TODO(magurotuna): thie message should be `Expected`
           message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -471,35 +471,35 @@ const obj = {
         {
           col: 36,
           message: variant!(GetterReturnMessage, Expected, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });": [
         {
           col: 36,
           message: variant!(GetterReturnMessage, Expected, "getfoo"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "Object.defineProperty(foo, 'bar', { get(){} });": [
         {
           col: 36,
           message: variant!(GetterReturnMessage, Expected, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: () => {} });": [
         {
           col: 36,
           message: variant!(GetterReturnMessage, Expected, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#: [
         {
           col: 36,
           message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
@@ -507,7 +507,7 @@ const obj = {
           col: 36,
           // TODO(magurotuna): thie message should be `Expected`
           message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -516,14 +516,14 @@ const obj = {
         {
           col: 37,
           message: variant!(GetterReturnMessage, Expected, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#: [
         {
           col: 39,
           message: variant!(GetterReturnMessage, Expected, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -542,7 +542,7 @@ const foo = {
           line: 5,
           col: 6,
           message: variant!(GetterReturnMessage, Expected, "getter"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"
@@ -559,7 +559,7 @@ class Foo {
           line: 5,
           col: 6,
           message: variant!(GetterReturnMessage, Expected, "bar"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
       r#"
@@ -576,7 +576,7 @@ Object.defineProperty(foo, 'bar', {
           line: 5,
           col: 6,
           message: variant!(GetterReturnMessage, Expected, "get"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ],
 
@@ -585,12 +585,12 @@ Object.defineProperty(foo, 'bar', {
         {
           col: 10,
           message: variant!(GetterReturnMessage, Expected, "getterA"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         },
         {
           col: 27,
           message: variant!(GetterReturnMessage, Expected, "getterB"),
-          hint: variant!(GetterReturnHint, Return),
+          hint: GetterReturnHint::Return,
         }
       ]
     };

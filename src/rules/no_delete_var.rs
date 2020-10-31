@@ -115,8 +115,8 @@ mod tests {
       r#"var someVar = "someVar"; delete someVar;"#: [
         {
           col: 25,
-          message: variant!(NoDeleteVarMessage, Unexpected),
-          hint: variant!(NoDeleteVarHint, Remove),
+          message: NoDeleteVarMessage::Unexpected,
+          hint: NoDeleteVarHint::Remove,
         }
       ],
     }
