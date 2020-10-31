@@ -24,10 +24,6 @@ impl LintRule for TripleSlashReference {
     Box::new(TripleSlashReference)
   }
 
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
-  }
-
   fn code(&self) -> &'static str {
     "triple-slash-reference"
   }
