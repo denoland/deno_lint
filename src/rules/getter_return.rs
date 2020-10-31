@@ -408,30 +408,30 @@ const obj = {
       "const foo = { get getter() {} };": [
         {
           col: 14,
-          message: GetterReturnMessage::Expected("getter".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "getter"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "const foo = { get bar() { ~function() { return true; } } };": [
         {
           col: 14,
           // TODO(magurotuna): thie message should be `Expected`
-          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "const foo = { get bar() { if (baz) { return true; } } };": [
         {
           col: 14,
-          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "const foo = { get bar() { return; } };": [
         {
           col: 26,
-          message: GetterReturnMessage::Expected("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
 
@@ -439,30 +439,30 @@ const obj = {
       "class Foo { get bar() {} }": [
         {
           col: 12,
-          message: GetterReturnMessage::Expected("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "const foo = class { static get bar() {} }": [
         {
           col: 20,
-          message: GetterReturnMessage::Expected("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "class Foo { get bar(){ if (baz) { return true; } } }": [
         {
           col: 12,
-          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "class Foo { get bar(){ ~function () { return true; }() } }": [
         {
           col: 12,
           // TODO(magurotuna): thie message should be `Expected`
-          message: GetterReturnMessage::ExpectedAlways("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
 
@@ -470,44 +470,44 @@ const obj = {
       "Object.defineProperty(foo, 'bar', { get: function(){} });": [
         {
           col: 36,
-          message: GetterReturnMessage::Expected("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });": [
         {
           col: 36,
-          message: GetterReturnMessage::Expected("getfoo".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "getfoo"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "Object.defineProperty(foo, 'bar', { get(){} });": [
         {
           col: 36,
-          message: GetterReturnMessage::Expected("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       "Object.defineProperty(foo, 'bar', { get: () => {} });": [
         {
           col: 36,
-          message: GetterReturnMessage::Expected("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#: [
         {
           col: 36,
-          message: GetterReturnMessage::ExpectedAlways("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
         {
           col: 36,
           // TODO(magurotuna): thie message should be `Expected`
-          message: GetterReturnMessage::ExpectedAlways("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
 
@@ -515,15 +515,15 @@ const obj = {
       r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#: [
         {
           col: 37,
-          message: GetterReturnMessage::Expected("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#: [
         {
           col: 39,
-          message: GetterReturnMessage::Expected("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
 
@@ -541,8 +541,8 @@ const foo = {
         {
           line: 5,
           col: 6,
-          message: GetterReturnMessage::Expected("getter".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "getter"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       r#"
@@ -558,8 +558,8 @@ class Foo {
         {
           line: 5,
           col: 6,
-          message: GetterReturnMessage::Expected("bar".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
       r#"
@@ -575,8 +575,8 @@ Object.defineProperty(foo, 'bar', {
         {
           line: 5,
           col: 6,
-          message: GetterReturnMessage::Expected("get".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ],
 
@@ -584,13 +584,13 @@ Object.defineProperty(foo, 'bar', {
       "class b { get getterA() {} private get getterB() {} }": [
         {
           col: 10,
-          message: GetterReturnMessage::Expected("getterA".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "getterA"),
+          hint: variant!(GetterReturnHint, Return),
         },
         {
           col: 27,
-          message: GetterReturnMessage::Expected("getterB".to_string()),
-          hint: GetterReturnHint::Return,
+          message: variant!(GetterReturnMessage, Expected, "getterB"),
+          hint: variant!(GetterReturnHint, Return),
         }
       ]
     };

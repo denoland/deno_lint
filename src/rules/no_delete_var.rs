@@ -112,7 +112,13 @@ mod tests {
   fn no_delete_var_invalid() {
     assert_lint_err! {
       NoDeleteVar,
-      r#"var someVar = "someVar"; delete someVar;"#: [{ col: 25, message: NoDeleteVarMessage::Unexpected, hint: NoDeleteVarHint::Remove }],
+      r#"var someVar = "someVar"; delete someVar;"#: [
+        {
+          col: 25,
+          message: variant!(NoDeleteVarMessage, Unexpected),
+          hint: variant!(NoDeleteVarHint, Remove),
+        }
+      ],
     }
   }
 }
