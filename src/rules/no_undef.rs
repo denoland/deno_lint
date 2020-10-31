@@ -281,7 +281,10 @@ mod tests {
       "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
       "var toString = 1;",
       "function myFunc(...foo) {  return foo; }",
+
+      // https://github.com/denoland/deno_lint/issues/317
       "function myFunc() { console.log(arguments); }",
+
       // TODO(kdy1): Parse as jsx
       // "var React, App, a=1; React.render(<App attr={a} />);",
       "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
