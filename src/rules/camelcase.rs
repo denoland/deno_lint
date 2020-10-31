@@ -45,13 +45,15 @@ enforces variable declarations and object property names which you create to be
 in camelCase.  Of note:
 * `_` is allowed at the start or end of a variable
 * All uppercase variable names (e.g. constants) may have `_` in their name
+* If you have to use a snake_case key in an object for some reasons, wrap it in quotation mark
 * This rule also applies to variables imported or exported via ES modules, but not to object properties of those variables
     
 ### Invalid:
 ```typescript
 let first_name = "Ichigo";
-const obj = { last_name: "Hoshimiya" };
-const { last_name } = obj;
+const obj1 = { last_name: "Hoshimiya" };
+const obj2 = { first_name };
+const { last_name } = obj1;
 
 function do_something(){}
 function foo({ snake_case = "default value" }) {}
@@ -69,6 +71,8 @@ let firstName = "Ichigo";
 const FIRST_NAME = "Ichigo";
 const __myPrivateVariable = "Hoshimiya";
 const myPrivateVariable_ = "Hoshimiya";
+const obj1 = { "last_name": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
+const obj2 = { "first_name": first_name };
 const { last_name: lastName } = obj;
 
 function doSomething(){} // function declarations must be camelCase but...
@@ -115,6 +119,17 @@ fn to_camelcase(ident_name: &str) -> String {
 enum IdentToCheck {
   /// Normal variable name e.g. `foo` in `const foo = 42;`
   Variable(String),
+  /// Object key name, for example:
+  ///
+  /// ```typescript
+  /// const obj = { foo: 42 }; // key_name: foo, is_shorthand: false
+  ///
+  /// const obj2 = { someVariable }; // key_name: someVariable, is_shorthand: true
+  /// ```
+  ObjectKey {
+    key_name: String,
+    is_shorthand: bool,
+  },
   /// Function name e.g. `foo` in `function foo() {}`
   Function(String),
   /// Class name e.g. `Foo` in `class Foo {}`
@@ -152,6 +167,13 @@ impl IdentToCheck {
     Self::Variable(name.as_ref().to_string())
   }
 
+  fn object_key(key_name: impl AsRef<str>, is_shorthand: bool) -> Self {
+    Self::ObjectKey {
+      key_name: key_name.as_ref().to_string(),
+      is_shorthand,
+    }
+  }
+
   fn function(name: impl AsRef<str>) -> Self {
     Self::Function(name.as_ref().to_string())
   }
@@ -187,6 +209,7 @@ impl IdentToCheck {
       IdentToCheck::Variable(name)
       | IdentToCheck::Function(name)
       | IdentToCheck::Class(name) => name,
+      IdentToCheck::ObjectKey { ref key_name, .. } => key_name,
       IdentToCheck::ObjectPat {
         key_name,
         value_name,
@@ -212,6 +235,24 @@ impl IdentToCheck {
     match self {
       IdentToCheck::Variable(name) | IdentToCheck::Function(name) => {
         format!("Consider renaming `{}` to `{}`", name, to_camelcase(name))
+      }
+      IdentToCheck::ObjectKey {
+        ref key_name,
+        is_shorthand,
+      } => {
+        if *is_shorthand {
+          format!(
+            r#"Consider writing `{camel_cased}: {original}` or `"{original}": {original}`"#,
+            camel_cased = to_camelcase(key_name),
+            original = key_name
+          )
+        } else {
+          format!(
+            r#"Consider renaming `{original}` to `{camel_cased}`, or wrapping it in quotation mark like `"{original}"`"#,
+            camel_cased = to_camelcase(key_name),
+            original = key_name
+          )
+        }
       }
       IdentToCheck::Class(name) => {
         let camel_cased = to_camelcase(name);
@@ -376,28 +417,18 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
           for prop in props {
             if let PropOrSpread::Prop(prop) = prop {
               match &**prop {
-                Prop::Shorthand(ident) => self.check_ident(
-                  ident,
-                  IdentToCheck::object_pat::<Ident, Ident>(ident, None),
-                ),
-                Prop::KeyValue(KeyValueProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::variable(ident));
-                  }
+                Prop::Shorthand(ident) => {
+                  self.check_ident(ident, IdentToCheck::object_key(ident, true))
                 }
-                Prop::Getter(GetterProp { ref key, .. }) => {
+                Prop::KeyValue(KeyValueProp { ref key, .. })
+                | Prop::Getter(GetterProp { ref key, .. })
+                | Prop::Setter(SetterProp { ref key, .. })
+                | Prop::Method(MethodProp { ref key, .. }) => {
                   if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::function(ident));
-                  }
-                }
-                Prop::Setter(SetterProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::function(ident));
-                  }
-                }
-                Prop::Method(MethodProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(ident, IdentToCheck::function(ident));
+                    self.check_ident(
+                      ident,
+                      IdentToCheck::object_key(ident, false),
+                    );
                   }
                 }
                 Prop::Assign(_) => {}
@@ -659,6 +690,13 @@ mod tests {
       r#"({...obj.fo_o.ba_r} = baz);"#,
       r#"({c: {...obj.fo_o }} = baz);"#,
       r#"not_ignored_foo = 0;"#,
+
+      // https://github.com/denoland/deno_lint/issues/475
+      // We are forced to use snake_case keys in object literals in some cases such as an object
+      // representing database schema. In such cases, one is allowed to use snake_case by wrapping
+      // keys in quotation marks.
+      r#"const obj = { "created_at": "2020-10-30T13:16:45+09:00" }"#,
+      r#"const obj = { "created_at": created_at }"#,
     };
   }
 
@@ -677,14 +715,21 @@ mod tests {
             {
               col: 12,
               message: "Identifier 'bar_baz' is not in camel case.",
-              hint: "Consider renaming `bar_baz` to `barBaz`",
+              hint: r#"Consider renaming `bar_baz` to `barBaz`, or wrapping it in quotation mark like `"bar_baz"`"#,
             }
           ],
-    r#"var o = {bar_baz: 1}"#: [
+    r#"var o = { bar_baz: 1 }"#: [
             {
-              col: 9,
+              col: 10,
               message: "Identifier 'bar_baz' is not in camel case.",
-              hint: "Consider renaming `bar_baz` to `barBaz`",
+              hint: r#"Consider renaming `bar_baz` to `barBaz`, or wrapping it in quotation mark like `"bar_baz"`"#,
+            }
+          ],
+    r#"var o = { bar_baz }"#: [
+            {
+              col: 10,
+              message: "Identifier 'bar_baz' is not in camel case.",
+              hint: r#"Consider writing `barBaz: bar_baz` or `"bar_baz": bar_baz`"#,
             }
           ],
     r#"var { category_id: category_alias } = query;"#: [
