@@ -32,10 +32,7 @@ impl LintRule for NoUndef {
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
-    let mut collector = BindingCollector {
-      top_level_ctxt: context.top_level_ctxt,
-      declared: Default::default(),
-    };
+    let mut collector = BindingCollector::new(context.top_level_ctxt);
     program.visit_with(program, &mut collector);
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
@@ -55,6 +52,13 @@ struct BindingCollector {
 }
 
 impl BindingCollector {
+  fn new(top_level_ctxt: SyntaxContext) -> Self {
+    Self {
+      top_level_ctxt,
+      declared: Default::default(),
+    }
+  }
+
   fn declare(&mut self, i: Id) {
     if i.1 != self.top_level_ctxt {
       return;
