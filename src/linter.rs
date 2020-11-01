@@ -1,13 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::ast_parser::get_default_ts_config;
+use crate::ast_parser::AstParser;
+use crate::ast_parser::SwcDiagnosticBuffer;
+use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::LintRule;
-use crate::scopes::{analyze, Scope};
-use crate::swc_util::get_default_ts_config;
-use crate::swc_util::AstParser;
-use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use crate::scopes::analyze;
+use crate::scopes::Scope;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
