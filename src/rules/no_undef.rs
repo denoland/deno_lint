@@ -818,6 +818,29 @@ impl<'c> NoUndefVisitor<'c> {
     )
   }
 
+  /// `Pat` appears in two contexts:
+  ///
+  /// 1. variable declarations e.g.
+  ///
+  /// ```typescript
+  /// const { foo } = obj;
+  /// function ({ foo }) {}
+  /// for (const { foo } of elements) {}
+  /// for (const { foo } in elements) {}
+  /// try {} catch (foo) {}
+  /// ```
+  ///
+  /// 2. variable assignments e.g.
+  ///
+  /// ```typescript
+  /// let foo;
+  ///
+  /// ({ foo } = obj);
+  /// for ({ foo } of elements) {}
+  /// for ({ foo } in elements) {}
+  /// ```
+  ///
+  /// We have to differentiate these two contexts, which is why `is_decl` parameter exists.
   fn check_pat(&mut self, pat: &Pat, is_decl: bool) {
     match pat {
       Pat::Ident(ident) => {
