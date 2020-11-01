@@ -1,5 +1,4 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
@@ -1023,19 +1022,6 @@ impl<'c> Visit for NoUndefVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  #[test]
-  fn magurotuna() {
-    assert_lint_ok! {
-      NoUndef,
-      "[1,2,3].forEach(obj => {\n  obj++; \n});",
-      r#"
-        for (const [key, value] of [1,2,3]) {
-          console.log(`${key}: ${value}\r\n`);
-        }
-        "#,
-    };
-  }
 
   #[test]
   fn no_undef_valid() {
