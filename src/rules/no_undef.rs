@@ -51,11 +51,11 @@ mod decl_finder {
   use swc_atoms::JsWord;
   use swc_common::{Span, Spanned, DUMMY_SP};
   use swc_ecmascript::ast::{
-    ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class, Constructor,
-    DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt,
-    Invalid, ObjectPatProp, ParamOrTsParamProp, Pat, Program, Stmt,
-    TsParamPropParam, VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat,
-    WhileStmt, WithStmt,
+    ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class, ClassDecl,
+    Constructor, DoWhileStmt, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt,
+    Function, Ident, IfStmt, Invalid, ObjectPatProp, ParamOrTsParamProp, Pat,
+    Program, Stmt, TsParamPropParam, VarDecl, VarDeclKind, VarDeclOrExpr,
+    VarDeclOrPat, WhileStmt, WithStmt,
   };
   use swc_ecmascript::utils::find_ids;
   use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
@@ -104,7 +104,7 @@ mod decl_finder {
       false
     }
 
-    /// Find a scope to which the span directly belongs and return it.
+    /// Find a scope to which the span directly belongs.
     fn find_scope(&self, span: Span) -> ScopeRange {
       // To do a search, create a dummy scope range although the span might not represent any
       // block.
@@ -126,6 +126,154 @@ mod decl_finder {
     }
   }
 
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+    use crate::test_util::parse;
+    use swc_ecmascript::ast::{Ident, VarDecl};
+    use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+
+    fn decl_finder(src: &str) -> DeclFinder {
+      let mut builder = DeclFinderBuilder::new();
+      builder.build_from_module(&parse(src))
+    }
+
+    fn get_idents(src: &str, query: &'static str) -> Vec<Ident> {
+      struct IdentGetter {
+        query: &'static str,
+        found_ident: Vec<Ident>,
+      }
+
+      impl Visit for IdentGetter {
+        noop_visit_type!();
+
+        fn visit_ident(&mut self, ident: &Ident, _: &dyn Node) {
+          if ident.sym.as_ref() == self.query {
+            self.found_ident.push(ident.clone());
+          } else {
+            ident.visit_children_with(self);
+          }
+        }
+      }
+
+      let mut getter = IdentGetter {
+        query,
+        found_ident: Vec::new(),
+      };
+      let parsed = parse(src);
+      getter.visit_module(&parsed, &parsed);
+      getter.found_ident
+    }
+
+    #[test]
+    fn decl_in_outer_scope() {
+      let src = r#"
+let target = 0;
+function foo() {
+  target = 1;
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_assignment = &idents[1];
+      assert!(finder.decl_exists(&target_assignment));
+    }
+
+    #[test]
+    fn class_hoisting() {
+      let src = r#"
+function foo() {
+  let a = new Target(); // hoisting
+  class Target {}
+}
+        "#;
+      let idents = get_idents(src, "Target");
+      let finder = decl_finder(src);
+      let target_new_call = &idents[0];
+      assert!(finder.decl_exists(&target_new_call));
+    }
+
+    #[test]
+    fn class_no_decl() {
+      let src = r#"
+function foo() {
+  let a = new Target(); // no declaration
+}
+        "#;
+      let idents = get_idents(src, "Target");
+      let finder = decl_finder(src);
+      let target_new_call = &idents[0];
+      assert!(!finder.decl_exists(&target_new_call));
+    }
+
+    #[test]
+    fn arrow_function_hoisting() {
+      let src = r#"
+function foo() {
+  target(); // hoisting
+  console.log(42);
+  let a = 'a';
+  const target = () => {};
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[0];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_as_function_param() {
+      let src = r#"
+function foo(target) {
+  target();
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn function_decl_hoisting() {
+      let src = r#"
+target();
+function target() {}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[0];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn function_expr_name_discarded() {
+      let src = r#"
+const f = function target() {};
+target();
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(!finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_in_child_scope() {
+      let src = r#"
+function foo() {
+  let target = 0;
+}
+target = 1;
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_assignment = &idents[1];
+      assert!(!finder.decl_exists(&target_assignment));
+    }
+  }
+
   #[derive(Debug)]
   pub(crate) struct DeclFinderBuilder {
     scopes: BTreeMap<ScopeRange, Scope>,
@@ -137,6 +285,18 @@ mod decl_finder {
       Self {
         scopes: BTreeMap::new(),
         cur_scope: ScopeRange::Program,
+      }
+    }
+
+    // TODO(magurotuna): remove this
+    pub(crate) fn build_from_module(
+      mut self,
+      module: &swc_ecmascript::ast::Module,
+    ) -> DeclFinder {
+      self.visit_module(module, &Invalid { span: DUMMY_SP });
+
+      DeclFinder {
+        scopes: self.scopes,
       }
     }
 
@@ -209,6 +369,29 @@ mod decl_finder {
         .scopes
         .insert(ScopeRange::Program, Rc::new(RefCell::new(scope)));
       program.visit_children_with(self);
+    }
+
+    // TODO(magurotuna): remove this
+    fn visit_module(
+      &mut self,
+      module: &swc_ecmascript::ast::Module,
+      _: &dyn Node,
+    ) {
+      let scope = RawScope::new(None);
+      self
+        .scopes
+        .insert(ScopeRange::Program, Rc::new(RefCell::new(scope)));
+      module.visit_children_with(self);
+    }
+
+    fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+      self.insert_var(&fn_decl.ident);
+      fn_decl.visit_children_with(self);
+    }
+
+    fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
+      // Note that we don't need to store the function name
+      fn_expr.function.visit_with(fn_expr, self);
     }
 
     fn visit_function(&mut self, function: &Function, _: &dyn Node) {
@@ -394,6 +577,11 @@ mod decl_finder {
       });
     }
 
+    fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
+      self.insert_var(&class_decl.ident);
+      class_decl.visit_children_with(self);
+    }
+
     fn visit_class(&mut self, class: &Class, _: &dyn Node) {
       for decorator in &class.decorators {
         decorator.visit_children_with(self);
@@ -447,10 +635,8 @@ mod decl_finder {
 
     fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
       var_decl.visit_children_with(self);
-      if var_decl.kind == VarDeclKind::Let {
-        for decl in &var_decl.decls {
-          self.extract_decl_idents(&decl.name);
-        }
+      for decl in &var_decl.decls {
+        self.extract_decl_idents(&decl.name);
       }
     }
   }
