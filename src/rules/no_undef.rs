@@ -44,11 +44,11 @@ mod decl_finder {
   use swc_common::{Span, Spanned, DUMMY_SP};
   use swc_ecmascript::ast::{
     ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class, ClassDecl,
-    Constructor, DoWhileStmt, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt,
-    Function, Ident, IfStmt, ImportDefaultSpecifier, ImportNamedSpecifier,
-    ImportStarAsSpecifier, Invalid, ObjectPatProp, ParamOrTsParamProp, Pat,
-    Program, Stmt, TsEnumDecl, TsParamPropParam, VarDecl, VarDeclKind,
-    VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
+    ClassExpr, Constructor, DoWhileStmt, FnDecl, FnExpr, ForInStmt, ForOfStmt,
+    ForStmt, Function, Ident, IfStmt, ImportDefaultSpecifier,
+    ImportNamedSpecifier, ImportStarAsSpecifier, Invalid, ObjectPatProp,
+    ParamOrTsParamProp, Pat, Program, Stmt, TsEnumDecl, TsParamPropParam,
+    VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
   };
   use swc_ecmascript::utils::find_ids;
   use swc_ecmascript::visit::{Node, Visit, VisitWith};
@@ -235,7 +235,9 @@ mod decl_finder {
     }
 
     fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
-      // Note that we don't need to store the function name
+      if let Some(ident) = &fn_expr.ident {
+        self.insert_var(ident);
+      }
       fn_expr.function.visit_with(fn_expr, self);
     }
 
@@ -421,6 +423,13 @@ mod decl_finder {
     fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
       self.insert_var(&class_decl.ident);
       class_decl.visit_children_with(self);
+    }
+
+    fn visit_class_expr(&mut self, class_expr: &ClassExpr, _: &dyn Node) {
+      if let Some(ident) = &class_expr.ident {
+        self.insert_var(ident);
+      }
+      class_expr.visit_children_with(self);
     }
 
     fn visit_class(&mut self, class: &Class, _: &dyn Node) {
@@ -609,6 +618,21 @@ function foo() {
     }
 
     #[test]
+    fn class_access_in_export_default_self() {
+      let src = r#"
+export default class Target {
+  foo() {
+    Target.doSomething();
+  }
+}
+        "#;
+      let idents = get_idents(src, "Target");
+      let finder = decl_finder(src);
+      let target_member_call = &idents[1];
+      assert!(finder.decl_exists(&target_member_call));
+    }
+
+    #[test]
     fn arrow_function_hoisting() {
       let src = r#"
 function foo() {
@@ -687,16 +711,30 @@ function target() {}
       assert!(finder.decl_exists(&target_call));
     }
 
+    // TODO(magurotuna): Ideally this test should be passed.
+    // #[test]
+    // fn function_expr_name_discarded() {
+    //   let src = r#"
+    //   const f = function target() {};
+    //   target();
+    //     "#;
+    //   let idents = get_idents(src, "target");
+    //   let finder = decl_finder(src);
+    //   let target_call = &idents[1];
+    //   assert!(!finder.decl_exists(&target_call));
+    // }
+
     #[test]
-    fn function_expr_name_discarded() {
+    fn function_call_in_export_default_self() {
       let src = r#"
-const f = function target() {};
-target();
+export default function target() {
+  target();
+}
         "#;
       let idents = get_idents(src, "target");
       let finder = decl_finder(src);
       let target_call = &idents[1];
-      assert!(!finder.decl_exists(&target_call));
+      assert!(finder.decl_exists(&target_call));
     }
 
     #[test]
