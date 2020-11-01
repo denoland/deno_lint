@@ -4,16 +4,11 @@ use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
 use swc_atoms::js_word;
-use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
-  utils::ident::IdentLike,
   visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
-use swc_ecmascript::{utils::find_ids, utils::Id};
-
-use std::collections::HashSet;
 
 pub struct NoUndef;
 
@@ -33,10 +28,10 @@ impl LintRule for NoUndef {
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
-    let mut collector = BindingCollector::new(context.top_level_ctxt);
-    program.visit_with(program, &mut collector);
+    let decl_builder = decl_finder::DeclFinderBuilder::new();
+    let decl_finder = decl_builder.build(program);
 
-    let mut visitor = NoUndefVisitor::new(context, collector.declared);
+    let mut visitor = NoUndefVisitor::new(context, decl_finder);
     program.visit_with(program, &mut visitor);
   }
 }
@@ -81,6 +76,7 @@ mod decl_finder {
     Block(Span),
   }
 
+  #[derive(Debug)]
   pub(crate) struct DeclFinder {
     scopes: BTreeMap<ScopeRange, Scope>,
   }
@@ -88,7 +84,6 @@ mod decl_finder {
   impl DeclFinder {
     /// Look for a variable declaration that corresponds the given ident by traversing from the scope
     /// where the ident is to the parent. If the declaration is found, it returns true.
-    #[allow(unused)]
     pub(crate) fn decl_exists(&self, ident: &Ident) -> bool {
       let ident_scope = self.find_scope(ident.span);
       let mut cur_scope = self.scopes.get(&ident_scope).map(Rc::clone);
@@ -132,7 +127,6 @@ mod decl_finder {
   }
 
   impl DeclFinderBuilder {
-    #[allow(unused)]
     pub(crate) fn new() -> Self {
       Self {
         scopes: BTreeMap::new(),
@@ -153,7 +147,6 @@ mod decl_finder {
       }
     }
 
-    #[allow(unused)]
     pub(crate) fn build(mut self, program: &Program) -> DeclFinder {
       self.visit_program(program, &Invalid { span: DUMMY_SP });
 
@@ -322,10 +315,8 @@ mod decl_finder {
     fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
       self.with_child_scope(for_of_stmt, |a| {
         if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
-          if var_decl.kind == VarDeclKind::Let {
-            for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name);
-            }
+          for decl in &var_decl.decls {
+            a.extract_decl_idents(&decl.name);
           }
         }
 
@@ -342,10 +333,8 @@ mod decl_finder {
     fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
       self.with_child_scope(for_in_stmt, |a| {
         if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
-          if var_decl.kind == VarDeclKind::Let {
-            for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name);
-            }
+          for decl in &var_decl.decls {
+            a.extract_decl_idents(&decl.name);
           }
         }
 
@@ -647,6 +636,46 @@ function foo(target) {
     }
 
     #[test]
+    fn decl_in_for_of() {
+      let src = r#"
+for (const target of [1, 2, 3]) {
+  console.log(target);
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_used = &idents[1];
+      assert!(finder.decl_exists(&target_used));
+    }
+
+    #[test]
+    fn decl_in_for_in() {
+      let src = r#"
+for (const target in [1, 2, 3]) {
+  console.log(target);
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_used = &idents[1];
+      assert!(finder.decl_exists(&target_used));
+    }
+
+    #[test]
+    fn decl_as_caught_error() {
+      let src = r#"
+try {}
+catch (target) {
+  console.log(target);
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_used = &idents[1];
+      assert!(finder.decl_exists(&target_used));
+    }
+
+    #[test]
     fn function_decl_hoisting() {
       let src = r#"
 target();
@@ -734,148 +763,46 @@ const a = Target.Foo;
       let target_used = &idents[1];
       assert!(finder.decl_exists(&target_used));
     }
-  }
-}
 
-/// Collects top level bindings, which have top level syntax
-/// context passed to the resolver.
-struct BindingCollector {
-  /// Optimization. Unresolved references and top
-  /// level bindings will have this context.
-  top_level_ctxt: SyntaxContext,
-
-  /// If there exists a binding with such id, it's not global.
-  declared: HashSet<Id>,
-}
-
-impl BindingCollector {
-  fn new(top_level_ctxt: SyntaxContext) -> Self {
-    Self {
-      top_level_ctxt,
-      declared: Default::default(),
+    #[test]
+    fn decl_in_param_of_anonymous_function() {
+      let src = r#"
+[1,2,3].forEach(target => {
+  console.log(target);
+});
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_used = &idents[1];
+      assert!(finder.decl_exists(&target_used));
     }
-  }
-
-  fn declare(&mut self, i: Id) {
-    if i.1 != self.top_level_ctxt {
-      return;
-    }
-    self.declared.insert(i);
-  }
-}
-
-impl Visit for BindingCollector {
-  fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
-    self.declare(f.ident.to_id());
-  }
-
-  fn visit_class_decl(&mut self, f: &ClassDecl, _: &dyn Node) {
-    self.declare(f.ident.to_id());
-  }
-
-  fn visit_class_expr(&mut self, n: &ClassExpr, _: &dyn Node) {
-    if let Some(i) = &n.ident {
-      self.declare(i.to_id());
-    }
-  }
-
-  fn visit_import_named_specifier(
-    &mut self,
-    i: &ImportNamedSpecifier,
-    _: &dyn Node,
-  ) {
-    self.declare(i.local.to_id());
-  }
-
-  fn visit_import_default_specifier(
-    &mut self,
-    i: &ImportDefaultSpecifier,
-    _: &dyn Node,
-  ) {
-    self.declare(i.local.to_id());
-  }
-
-  fn visit_import_star_as_specifier(
-    &mut self,
-    i: &ImportStarAsSpecifier,
-    _: &dyn Node,
-  ) {
-    self.declare(i.local.to_id());
-  }
-
-  fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
-    let ids: Vec<Id> = find_ids(&v.name);
-    for id in ids {
-      self.declare(id);
-    }
-  }
-
-  fn visit_ts_enum_decl(&mut self, e: &TsEnumDecl, _: &dyn Node) {
-    self.declare(e.id.to_id());
-  }
-
-  fn visit_ts_param_prop_param(&mut self, p: &TsParamPropParam, _: &dyn Node) {
-    match p {
-      TsParamPropParam::Ident(i) => {
-        self.declare(i.to_id());
-      }
-      TsParamPropParam::Assign(i) => {
-        let ids: Vec<Id> = find_ids(&i.left);
-        for id in ids {
-          self.declare(id);
-        }
-      }
-    }
-  }
-
-  fn visit_param(&mut self, p: &Param, _: &dyn Node) {
-    let ids: Vec<Id> = find_ids(&p.pat);
-    for id in ids {
-      self.declare(id);
-    }
-  }
-  fn visit_catch_clause(&mut self, c: &CatchClause, _: &dyn Node) {
-    if let Some(pat) = &c.param {
-      let ids: Vec<Id> = find_ids(pat);
-      for id in ids {
-        self.declare(id);
-      }
-    }
-
-    c.body.visit_with(c, self);
   }
 }
 
 struct NoUndefVisitor<'c> {
   context: &'c mut Context,
-  declared: HashSet<Id>,
+  decl_finder: decl_finder::DeclFinder,
 }
 
 impl<'c> NoUndefVisitor<'c> {
-  fn new(context: &'c mut Context, declared: HashSet<Id>) -> Self {
-    Self { context, declared }
+  fn new(
+    context: &'c mut Context,
+    decl_finder: decl_finder::DeclFinder,
+  ) -> Self {
+    Self {
+      context,
+      decl_finder,
+    }
   }
 
   fn check(&mut self, ident: &Ident) {
-    if self.context.scope.var(&ident.to_id()).is_some() {
-      return;
-    }
-    // Thanks to this if statement, we can check for Map in
-    //
-    // function foo(Map) { ... }
-    //
-    if ident.span.ctxt != self.context.top_level_ctxt {
+    if self.decl_finder.decl_exists(ident) {
       return;
     }
 
     // Implicitly defined
     // See: https://github.com/denoland/deno_lint/issues/317
     if ident.sym == *"arguments" {
-      return;
-    }
-
-    // Ignore top level bindings declared in the file.
-    if self.declared.contains(&ident.to_id()) {
       return;
     }
 
@@ -890,61 +817,163 @@ impl<'c> NoUndefVisitor<'c> {
       format!("{} is not defined", ident.sym),
     )
   }
+
+  fn check_pat(&mut self, pat: &Pat, is_decl: bool) {
+    match pat {
+      Pat::Ident(ident) => {
+        if !is_decl {
+          self.check(ident);
+        }
+      }
+      Pat::Array(array) => {
+        for elem in &array.elems {
+          if let Some(elem) = elem {
+            self.check_pat(elem, is_decl);
+          }
+        }
+      }
+      Pat::Rest(rest) => {
+        self.check_pat(&*rest.arg, is_decl);
+      }
+      Pat::Object(object) => {
+        for prop in &object.props {
+          match prop {
+            ObjectPatProp::KeyValue(kv) => {
+              self.check_pat(&*kv.value, is_decl);
+            }
+            ObjectPatProp::Assign(assign) => {
+              if !is_decl {
+                self.check(&assign.key);
+              }
+              if let Some(value) = &assign.value {
+                self.visit_expr(&**value, assign);
+              }
+            }
+            ObjectPatProp::Rest(rest) => {
+              self.check_pat(&*rest.arg, is_decl);
+            }
+          }
+        }
+      }
+      Pat::Assign(assign) => {
+        self.check_pat(&*assign.left, is_decl);
+        self.visit_expr(&*assign.right, assign);
+      }
+      Pat::Invalid(_) => {}
+      Pat::Expr(expr) => {
+        self.visit_expr(&**expr, pat);
+      }
+    }
+  }
 }
 
 impl<'c> Visit for NoUndefVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
-    e.obj.visit_with(e, self);
-    if e.computed {
-      e.prop.visit_with(e, self);
+  fn visit_member_expr(&mut self, member_expr: &MemberExpr, _: &dyn Node) {
+    member_expr.obj.visit_with(member_expr, self);
+    if member_expr.computed {
+      member_expr.prop.visit_with(member_expr, self);
     }
   }
 
-  fn visit_unary_expr(&mut self, e: &UnaryExpr, _: &dyn Node) {
-    if e.op == UnaryOp::TypeOf {
+  fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _: &dyn Node) {
+    if unary_expr.op == UnaryOp::TypeOf {
       return;
     }
 
-    e.visit_children_with(self);
+    unary_expr.visit_children_with(self);
   }
 
-  fn visit_expr(&mut self, e: &Expr, _: &dyn Node) {
-    e.visit_children_with(self);
+  fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
+    expr.visit_children_with(self);
 
-    if let Expr::Ident(ident) = e {
+    if let Expr::Ident(ident) = expr {
       self.check(ident)
     }
   }
 
-  fn visit_class_prop(&mut self, p: &ClassProp, _: &dyn Node) {
-    p.value.visit_with(p, self)
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
+    match &assign_expr.left {
+      PatOrExpr::Expr(expr) => {
+        expr.visit_with(assign_expr, self);
+      }
+      PatOrExpr::Pat(pat) => {
+        self.check_pat(&*pat, false);
+      }
+    }
+    assign_expr.right.visit_with(assign_expr, self);
   }
 
-  fn visit_prop(&mut self, p: &Prop, _: &dyn Node) {
-    p.visit_children_with(self);
+  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+    for decl in &var_decl.decls {
+      self.check_pat(&decl.name, true);
+      if let Some(init) = &decl.init {
+        init.visit_with(var_decl, self);
+      }
+    }
+  }
 
-    if let Prop::Shorthand(i) = &p {
+  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
+    param.decorators.visit_with(param, self);
+    self.check_pat(&param.pat, true);
+  }
+
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    for param in &arrow_expr.params {
+      self.check_pat(param, true);
+    }
+    arrow_expr.body.visit_with(arrow_expr, self);
+  }
+
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
+    if let Some(param) = &catch_clause.param {
+      self.check_pat(param, true);
+    }
+    catch_clause.body.visit_with(catch_clause, self);
+  }
+
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
+    match &for_of_stmt.left {
+      VarDeclOrPat::VarDecl(var_decl) => {
+        var_decl.visit_with(for_of_stmt, self);
+      }
+      VarDeclOrPat::Pat(pat) => {
+        self.check_pat(pat, false);
+      }
+    }
+    for_of_stmt.right.visit_with(for_of_stmt, self);
+    for_of_stmt.body.visit_with(for_of_stmt, self);
+  }
+
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
+    match &for_in_stmt.left {
+      VarDeclOrPat::VarDecl(var_decl) => {
+        var_decl.visit_with(for_in_stmt, self);
+      }
+      VarDeclOrPat::Pat(pat) => {
+        self.check_pat(pat, false);
+      }
+    }
+    for_in_stmt.right.visit_with(for_in_stmt, self);
+    for_in_stmt.body.visit_with(for_in_stmt, self);
+  }
+
+  fn visit_class_prop(&mut self, class_prop: &ClassProp, _: &dyn Node) {
+    // don't check the key of class_prop
+    class_prop.value.visit_with(class_prop, self)
+  }
+
+  fn visit_prop(&mut self, prop: &Prop, _: &dyn Node) {
+    prop.visit_children_with(self);
+
+    if let Prop::Shorthand(i) = &prop {
       self.check(i);
     }
   }
 
-  fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
-    if let Pat::Ident(i) = p {
-      self.check(i);
-    } else {
-      p.visit_children_with(self);
-    }
-  }
-
-  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
-    self.check(&p.key);
-    p.value.visit_with(p, self);
-  }
-
-  fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
-    if let ExprOrSuper::Expr(callee) = &e.callee {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
+    if let ExprOrSuper::Expr(callee) = &call_expr.callee {
       if let Expr::Ident(i) = &**callee {
         if i.sym == js_word!("import") {
           return;
@@ -952,13 +981,26 @@ impl<'c> Visit for NoUndefVisitor<'c> {
       }
     }
 
-    e.visit_children_with(self)
+    call_expr.visit_children_with(self)
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn magurotuna() {
+    assert_lint_ok! {
+      NoUndef,
+      "[1,2,3].forEach(obj => {\n  obj++; \n});",
+      r#"
+        for (const [key, value] of [1,2,3]) {
+          console.log(`${key}: ${value}\r\n`);
+        }
+        "#,
+    };
+  }
 
   #[test]
   fn no_undef_valid() {
@@ -987,6 +1029,7 @@ mod tests {
 
       // TODO(kdy1): Parse as jsx
       // "var React, App, a=1; React.render(<App attr={a} />);",
+
       "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
       "var Foo; class Bar extends Foo { constructor() { super();  }}",
       "import Warning from '../lib/warning'; var warn = new Warning('text');",
@@ -1077,39 +1120,6 @@ const f = () => {
 };
       "#,
     };
-  }
-
-  // TODO(magurotuna): remove
-  #[test]
-  fn magurotuna() {
-    assert_lint_ok! {
-              NoUndef,
-              r#"
-function foo() {
-  const c = new Bar();
-  class Bar {}
-  return c;
-}
-                "#,
-              /*
-              r#"
-    (() => {
-      class Bar {}
-      function foo() {
-        return new Bar();
-      }
-    })();
-          "#, */
-              /*
-              r#"
-    (() => {
-      function foo() {
-        return new Bar();
-      }
-      class Bar {}
-    })();
-          "#, */
-            };
   }
 
   #[test]
