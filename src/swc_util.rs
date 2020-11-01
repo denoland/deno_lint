@@ -1,9 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::rc::Rc;
-use std::sync::RwLock;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::errors::Diagnostic;
 use swc_common::errors::DiagnosticBuilder;
@@ -78,7 +78,7 @@ impl SwcDiagnosticBuffer {
     error_buffer: SwcErrorBuffer,
     parser: &AstParser,
   ) -> Self {
-    let s = error_buffer.0.read().unwrap().clone();
+    let s = error_buffer.0.borrow().clone();
 
     let diagnostics = s
       .iter()
@@ -106,17 +106,17 @@ impl SwcDiagnosticBuffer {
 }
 
 #[derive(Clone)]
-pub(crate) struct SwcErrorBuffer(Rc<RwLock<Vec<Diagnostic>>>);
+pub(crate) struct SwcErrorBuffer(Rc<RefCell<Vec<Diagnostic>>>);
 
 impl SwcErrorBuffer {
   pub(crate) fn default() -> Self {
-    Self(Rc::new(RwLock::new(vec![])))
+    Self(Rc::new(RefCell::new(vec![])))
   }
 }
 
 impl Emitter for SwcErrorBuffer {
   fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.write().unwrap().push((**db).clone());
+    self.0.borrow_mut().push((**db).clone());
   }
 }
 
