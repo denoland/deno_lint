@@ -6,7 +6,6 @@ use swc_ecmascript::ast;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
-// use swc_ecmascript::visit::VisitAll;
 
 pub struct NoInnerDeclarations;
 

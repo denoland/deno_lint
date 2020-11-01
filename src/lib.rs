@@ -76,7 +76,6 @@ mod lint_tests {
       false,
     );
 
-    eprintln!("diagnostics {:#?}", diagnostics);
     assert_eq!(diagnostics.len(), 0);
   }
 
