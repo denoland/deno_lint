@@ -162,7 +162,7 @@ target: Record<string, any>,
 object | undefined {}
   "#;
     let ast_parser = AstParser::new();
-    let (parse_result, comments) = ast_parser.parse_module(
+    let (parse_result, comments) = ast_parser.parse_program(
       "test.ts",
       swc_util::get_default_ts_config(),
       &source_code,

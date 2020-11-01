@@ -299,17 +299,16 @@ impl Visit for Analyzer<'_> {
 mod tests {
   use super::{analyze, BindingKind, Scope, ScopeKind, Var};
   use crate::swc_util::{self, AstParser};
-  use swc_ecmascript::ast::Program;
   use swc_ecmascript::utils::Id;
 
   fn test_scope(source_code: &str) -> Scope {
     let ast_parser = AstParser::new();
     let syntax = swc_util::get_default_ts_config();
     let (parse_result, _comments) =
-      ast_parser.parse_module("file_name.ts", syntax, source_code);
-    let module = parse_result.unwrap();
+      ast_parser.parse_program("file_name.ts", syntax, source_code);
+    let program = parse_result.unwrap();
 
-    analyze(&Program::Module(module))
+    analyze(&program)
   }
 
   fn id(scope: &Scope, s: &str) -> Id {

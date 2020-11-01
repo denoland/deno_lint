@@ -665,8 +665,8 @@ mod tests {
   use crate::test_util::*;
 
   fn analyze_flow(src: &str) -> ControlFlow {
-    let module = parse(src);
-    ControlFlow::analyze(&Program::Module(module))
+    let program = parse(src);
+    ControlFlow::analyze(&program)
   }
 
   macro_rules! assert_flow {
