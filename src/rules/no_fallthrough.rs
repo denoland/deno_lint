@@ -50,7 +50,7 @@ switch(myVar) {
   case 2:
     console.log('2');
 }
-// Outputs both 1 and 2.  What this intentional?
+// If myVar = 1, outputs both `1` and `2`.  Was this intentional?
 ```
 
 ### Valid:
@@ -64,7 +64,7 @@ switch(myVar) {
     console.log('2');
     break;
 }
-// Outputs 1 OR 2
+// If myVar = 1, outputs only `1`
 
 switch(myVar) {
   case 1:
@@ -74,7 +74,7 @@ switch(myVar) {
   case 2:
     console.log('2');
 }
-// Intentionally outputs both 1 and 2
+// If myVar = 1, intentionally outputs both `1` and `2`
 ```
 "#
   }
