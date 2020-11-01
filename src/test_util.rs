@@ -153,13 +153,14 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .rules(vec![rule])
     .build();
 
-  linter
+  let (_, diagnostics) = linter
     .lint(
       "deno_lint_test.tsx".to_string(),
       source.to_string(),
       FileType::Module,
     )
-    .expect("Failed to lint")
+    .expect("Failed to lint");
+  diagnostics
 }
 
 pub fn assert_diagnostic(

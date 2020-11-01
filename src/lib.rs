@@ -37,13 +37,14 @@ mod lint_tests {
       .rules(get_recommended_rules())
       .build();
 
-    linter
+    let (_, diagnostics) = linter
       .lint(
         "lint_test.ts".to_string(),
         source.to_string(),
         FileType::Module,
       )
-      .expect("Failed to lint")
+      .expect("Failed to lint");
+    diagnostics
   }
 
   #[test]

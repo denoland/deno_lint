@@ -9,9 +9,11 @@ use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::FileType;
 use deno_lint::linter::LinterBuilder;
+use deno_lint::linter::SourceFile;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use rayon::prelude::*;
 use serde::Serialize;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -65,50 +67,61 @@ fn get_slice_source_and_range<'a>(
   (slice_str, adjusted_range)
 }
 
-fn display_diagnostic(diagnostic: &LintDiagnostic, source: &str) {
-  let line_start_indexes = std::iter::once(0)
-    .chain(source.match_indices('\n').map(|l| l.0 + 1))
+fn display_diagnostics(
+  diagnostics: &[LintDiagnostic],
+  source_file: Rc<SourceFile>,
+) {
+  let source_code = &source_file.src;
+  let line_start_indexes = source_file
+    .lines
+    .iter()
+    .map(|pos| pos.0 as usize)
     .enumerate()
     .collect::<Vec<_>>();
-  let (slice_source, range) =
-    get_slice_source_and_range(&line_start_indexes, source, &diagnostic.range);
 
-  let footer = if let Some(hint) = &diagnostic.hint {
-    vec![snippet::Annotation {
-      label: Some(hint),
-      id: None,
-      annotation_type: snippet::AnnotationType::Help,
-    }]
-  } else {
-    vec![]
-  };
+  for diagnostic in diagnostics {
+    let (slice_source, range) = get_slice_source_and_range(
+      &line_start_indexes,
+      source_code,
+      &diagnostic.range,
+    );
+    let footer = if let Some(hint) = &diagnostic.hint {
+      vec![snippet::Annotation {
+        label: Some(hint),
+        id: None,
+        annotation_type: snippet::AnnotationType::Help,
+      }]
+    } else {
+      vec![]
+    };
 
-  let snippet = snippet::Snippet {
-    title: Some(snippet::Annotation {
-      label: Some(&diagnostic.message),
-      id: Some(&diagnostic.code),
-      annotation_type: snippet::AnnotationType::Error,
-    }),
-    footer,
-    slices: vec![snippet::Slice {
-      source: &slice_source,
-      line_start: diagnostic.range.start.line,
-      origin: Some(&diagnostic.filename),
-      fold: false,
-      annotations: vec![snippet::SourceAnnotation {
-        range,
-        label: "",
+    let snippet = snippet::Snippet {
+      title: Some(snippet::Annotation {
+        label: Some(&diagnostic.message),
+        id: Some(&diagnostic.code),
         annotation_type: snippet::AnnotationType::Error,
+      }),
+      footer,
+      slices: vec![snippet::Slice {
+        source: &slice_source,
+        line_start: diagnostic.range.start.line,
+        origin: Some(&diagnostic.filename),
+        fold: false,
+        annotations: vec![snippet::SourceAnnotation {
+          range,
+          label: "",
+          annotation_type: snippet::AnnotationType::Error,
+        }],
       }],
-    }],
-    opt: display_list::FormatOptions {
-      color: true,
-      anonymized_line_numbers: false,
-      margin: None,
-    },
-  };
-  let display_list = display_list::DisplayList::from(snippet);
-  eprintln!("{}", display_list);
+      opt: display_list::FormatOptions {
+        color: true,
+        anonymized_line_numbers: false,
+        margin: None,
+      },
+    };
+    let display_list = display_list::DisplayList::from(snippet);
+    eprintln!("{}", display_list);
+  }
 }
 
 fn run_linter(paths: Vec<String>, is_script: bool) {
@@ -129,16 +142,14 @@ fn run_linter(paths: Vec<String>, is_script: bool) {
       .rules(get_recommended_rules())
       .build();
 
-    let file_diagnostics = linter
-      .lint(file_path.to_string(), source_code.clone(), file_type)
+    let (source_file, file_diagnostics) = linter
+      .lint(file_path.to_string(), source_code, file_type)
       .expect("Failed to lint");
 
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
     let _g = output_lock.lock().unwrap();
 
-    for diagnostic in file_diagnostics {
-      display_diagnostic(&diagnostic, &source_code);
-    }
+    display_diagnostics(&file_diagnostics, source_file);
   });
 
   let err_count = error_counts.load(Ordering::Relaxed);

@@ -20,6 +20,8 @@ use swc_common::Spanned;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
+pub use swc_common::SourceFile;
+
 /// Describes if file should be treated as a script
 /// or ES module.
 pub enum FileType {
@@ -201,7 +203,10 @@ impl Linter {
     file_name: String,
     source_code: String,
     file_type: FileType,
-  ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
+  ) -> Result<
+    (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
+    SwcDiagnosticBuffer,
+  > {
     assert!(
       !self.has_linted,
       "Linter can be used only on a single module."
@@ -240,12 +245,17 @@ impl Linter {
         }
       };
 
-      diagnostics = self.lint_program(file_name, program, comments);
+      diagnostics = self.lint_program(file_name.clone(), program, comments);
     }
 
+    let source_file = self
+      .ast_parser
+      .source_map
+      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .unwrap();
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    Ok(diagnostics)
+    Ok((source_file, diagnostics))
   }
 
   fn filter_diagnostics(
