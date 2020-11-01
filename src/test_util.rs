@@ -1,9 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
-use crate::swc_util;
 use std::marker::PhantomData;
 use swc_ecmascript::ast::Program;
 
@@ -148,7 +148,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
-    .syntax(swc_util::get_default_ts_config())
+    .syntax(ast_parser::get_default_ts_config())
     .rules(vec![rule])
     .build();
 
@@ -287,8 +287,8 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
 }
 
 pub fn parse(source_code: &str) -> Program {
-  let ast_parser = swc_util::AstParser::new();
-  let syntax = swc_util::get_default_ts_config();
+  let ast_parser = ast_parser::AstParser::new();
+  let syntax = ast_parser::get_default_ts_config();
   let (parse_result, _comments) =
     ast_parser.parse_program("file_name.ts", syntax, source_code);
   parse_result.unwrap()

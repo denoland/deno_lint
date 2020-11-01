@@ -55,42 +55,42 @@ pub(crate) fn extract_regex(
   }
 }
 
-pub(crate) trait Key {
-  fn get_key(&self) -> Option<String>;
+pub(crate) trait StringRepr {
+  fn string_repr(&self) -> Option<String>;
 }
 
-impl Key for Ident {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Ident {
+  fn string_repr(&self) -> Option<String> {
     Some(self.sym.to_string())
   }
 }
 
-impl Key for PropOrSpread {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for PropOrSpread {
+  fn string_repr(&self) -> Option<String> {
     use PropOrSpread::*;
     match self {
-      Prop(p) => (&**p).get_key(),
+      Prop(p) => (&**p).string_repr(),
       Spread(_) => None,
     }
   }
 }
 
-impl Key for Prop {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Prop {
+  fn string_repr(&self) -> Option<String> {
     use Prop::*;
     match self {
-      KeyValue(key_value) => key_value.key.get_key(),
-      Getter(getter) => getter.key.get_key(),
-      Setter(setter) => setter.key.get_key(),
-      Method(method) => method.key.get_key(),
+      KeyValue(key_value) => key_value.key.string_repr(),
+      Getter(getter) => getter.key.string_repr(),
+      Setter(setter) => setter.key.string_repr(),
+      Method(method) => method.key.string_repr(),
       Shorthand(_) => None,
       Assign(_) => None,
     }
   }
 }
 
-impl Key for Lit {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Lit {
+  fn string_repr(&self) -> Option<String> {
     use swc_ecmascript::ast::BigInt;
     use swc_ecmascript::ast::Bool;
     use swc_ecmascript::ast::JSXText;
@@ -111,8 +111,8 @@ impl Key for Lit {
   }
 }
 
-impl Key for Tpl {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Tpl {
+  fn string_repr(&self) -> Option<String> {
     if self.exprs.is_empty() {
       self.quasis.get(0).map(|q| q.raw.value.to_string())
     } else {
@@ -121,53 +121,53 @@ impl Key for Tpl {
   }
 }
 
-impl Key for Expr {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Expr {
+  fn string_repr(&self) -> Option<String> {
     match self {
       Expr::Ident(ident) => Some(ident.sym.to_string()),
-      Expr::Lit(lit) => lit.get_key(),
-      Expr::Tpl(tpl) => tpl.get_key(),
+      Expr::Lit(lit) => lit.string_repr(),
+      Expr::Tpl(tpl) => tpl.string_repr(),
       _ => None,
     }
   }
 }
 
-impl Key for PropName {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for PropName {
+  fn string_repr(&self) -> Option<String> {
     match self {
       PropName::Ident(identifier) => Some(identifier.sym.to_string()),
       PropName::Str(str) => Some(str.value.to_string()),
       PropName::Num(num) => Some(num.to_string()),
       PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-        Expr::Lit(lit) => lit.get_key(),
-        Expr::Tpl(tpl) => tpl.get_key(),
+        Expr::Lit(lit) => lit.string_repr(),
+        Expr::Tpl(tpl) => tpl.string_repr(),
         _ => None,
       },
     }
   }
 }
 
-impl Key for PrivateName {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for PrivateName {
+  fn string_repr(&self) -> Option<String> {
     Some(self.id.sym.to_string())
   }
 }
 
-impl Key for MemberExpr {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for MemberExpr {
+  fn string_repr(&self) -> Option<String> {
     if let Expr::Ident(ident) = &*self.prop {
       if !self.computed {
         return Some(ident.sym.to_string());
       }
     }
 
-    (&*self.prop).get_key()
+    (&*self.prop).string_repr()
   }
 }
 
-impl<K: Key> Key for Option<K> {
-  fn get_key(&self) -> Option<String> {
-    self.as_ref().and_then(|k| k.get_key())
+impl<S: StringRepr> StringRepr for Option<S> {
+  fn string_repr(&self) -> Option<String> {
+    self.as_ref().and_then(|k| k.string_repr())
   }
 }
 

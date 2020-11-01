@@ -136,8 +136,8 @@ pub fn parse_ignore_comment(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::swc_util;
-  use crate::swc_util::AstParser;
+  use crate::ast_parser;
+  use crate::ast_parser::AstParser;
   use std::rc::Rc;
 
   #[test]
@@ -164,7 +164,7 @@ object | undefined {}
     let ast_parser = AstParser::new();
     let (parse_result, comments) = ast_parser.parse_program(
       "test.ts",
-      swc_util::get_default_ts_config(),
+      ast_parser::get_default_ts_config(),
       &source_code,
     );
     parse_result.expect("Failed to parse");

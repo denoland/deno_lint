@@ -298,12 +298,13 @@ impl Visit for Analyzer<'_> {
 #[cfg(test)]
 mod tests {
   use super::{analyze, BindingKind, Scope, ScopeKind, Var};
-  use crate::swc_util::{self, AstParser};
+  use crate::ast_parser;
+  use crate::ast_parser::AstParser;
   use swc_ecmascript::utils::Id;
 
   fn test_scope(source_code: &str) -> Scope {
     let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
+    let syntax = ast_parser::get_default_ts_config();
     let (parse_result, _comments) =
       ast_parser.parse_program("file_name.ts", syntax, source_code);
     let program = parse_result.unwrap();

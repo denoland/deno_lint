@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
@@ -358,7 +358,7 @@ impl<'c> CamelcaseVisitor<'c> {
                 self.check_ident(
                   value_ident,
                   IdentToCheck::object_pat(
-                    &key.get_key().unwrap_or_else(|| "[KEY]".to_string()),
+                    &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
                     Some(value_ident),
                   ),
                 );
