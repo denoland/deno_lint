@@ -63,6 +63,7 @@ impl Variable {
     self.initialized = initialized;
     self.reassigned = reassigned;
   }
+
   fn should_report(&self) -> bool {
     if self.is_param {
       return false;
