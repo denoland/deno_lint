@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-// TODO(magurotuna): remove
-#![allow(unused)]
+
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
-use swc_atoms::{js_word, JsWord};
-use swc_common::{Span, Spanned, SyntaxContext};
+use swc_atoms::js_word;
+use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
@@ -14,9 +13,7 @@ use swc_ecmascript::{
 };
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
-use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::rc::Rc;
+use std::collections::HashSet;
 
 pub struct NoUndef;
 
@@ -53,12 +50,13 @@ mod decl_finder {
   use swc_ecmascript::ast::{
     ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class, ClassDecl,
     Constructor, DoWhileStmt, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt,
-    Function, Ident, IfStmt, Invalid, ObjectPatProp, ParamOrTsParamProp, Pat,
-    Program, Stmt, TsParamPropParam, VarDecl, VarDeclKind, VarDeclOrExpr,
-    VarDeclOrPat, WhileStmt, WithStmt,
+    Function, Ident, IfStmt, ImportDefaultSpecifier, ImportNamedSpecifier,
+    ImportStarAsSpecifier, Invalid, ObjectPatProp, ParamOrTsParamProp, Pat,
+    Program, Stmt, TsEnumDecl, TsParamPropParam, VarDecl, VarDeclKind,
+    VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
   };
   use swc_ecmascript::utils::find_ids;
-  use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+  use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
   type Scope = Rc<RefCell<RawScope>>;
 
@@ -90,6 +88,7 @@ mod decl_finder {
   impl DeclFinder {
     /// Look for a variable declaration that corresponds the given ident by traversing from the scope
     /// where the ident is to the parent. If the declaration is found, it returns true.
+    #[allow(unused)]
     pub(crate) fn decl_exists(&self, ident: &Ident) -> bool {
       let ident_scope = self.find_scope(ident.span);
       let mut cur_scope = self.scopes.get(&ident_scope).map(Rc::clone);
@@ -126,154 +125,6 @@ mod decl_finder {
     }
   }
 
-  #[cfg(test)]
-  mod tests {
-    use super::*;
-    use crate::test_util::parse;
-    use swc_ecmascript::ast::{Ident, VarDecl};
-    use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
-
-    fn decl_finder(src: &str) -> DeclFinder {
-      let mut builder = DeclFinderBuilder::new();
-      builder.build_from_module(&parse(src))
-    }
-
-    fn get_idents(src: &str, query: &'static str) -> Vec<Ident> {
-      struct IdentGetter {
-        query: &'static str,
-        found_ident: Vec<Ident>,
-      }
-
-      impl Visit for IdentGetter {
-        noop_visit_type!();
-
-        fn visit_ident(&mut self, ident: &Ident, _: &dyn Node) {
-          if ident.sym.as_ref() == self.query {
-            self.found_ident.push(ident.clone());
-          } else {
-            ident.visit_children_with(self);
-          }
-        }
-      }
-
-      let mut getter = IdentGetter {
-        query,
-        found_ident: Vec::new(),
-      };
-      let parsed = parse(src);
-      getter.visit_module(&parsed, &parsed);
-      getter.found_ident
-    }
-
-    #[test]
-    fn decl_in_outer_scope() {
-      let src = r#"
-let target = 0;
-function foo() {
-  target = 1;
-}
-        "#;
-      let idents = get_idents(src, "target");
-      let finder = decl_finder(src);
-      let target_assignment = &idents[1];
-      assert!(finder.decl_exists(&target_assignment));
-    }
-
-    #[test]
-    fn class_hoisting() {
-      let src = r#"
-function foo() {
-  let a = new Target(); // hoisting
-  class Target {}
-}
-        "#;
-      let idents = get_idents(src, "Target");
-      let finder = decl_finder(src);
-      let target_new_call = &idents[0];
-      assert!(finder.decl_exists(&target_new_call));
-    }
-
-    #[test]
-    fn class_no_decl() {
-      let src = r#"
-function foo() {
-  let a = new Target(); // no declaration
-}
-        "#;
-      let idents = get_idents(src, "Target");
-      let finder = decl_finder(src);
-      let target_new_call = &idents[0];
-      assert!(!finder.decl_exists(&target_new_call));
-    }
-
-    #[test]
-    fn arrow_function_hoisting() {
-      let src = r#"
-function foo() {
-  target(); // hoisting
-  console.log(42);
-  let a = 'a';
-  const target = () => {};
-}
-        "#;
-      let idents = get_idents(src, "target");
-      let finder = decl_finder(src);
-      let target_call = &idents[0];
-      assert!(finder.decl_exists(&target_call));
-    }
-
-    #[test]
-    fn decl_as_function_param() {
-      let src = r#"
-function foo(target) {
-  target();
-}
-        "#;
-      let idents = get_idents(src, "target");
-      let finder = decl_finder(src);
-      let target_call = &idents[1];
-      assert!(finder.decl_exists(&target_call));
-    }
-
-    #[test]
-    fn function_decl_hoisting() {
-      let src = r#"
-target();
-function target() {}
-        "#;
-      let idents = get_idents(src, "target");
-      let finder = decl_finder(src);
-      let target_call = &idents[0];
-      assert!(finder.decl_exists(&target_call));
-    }
-
-    #[test]
-    fn function_expr_name_discarded() {
-      let src = r#"
-const f = function target() {};
-target();
-        "#;
-      let idents = get_idents(src, "target");
-      let finder = decl_finder(src);
-      let target_call = &idents[1];
-      assert!(!finder.decl_exists(&target_call));
-    }
-
-    #[test]
-    fn decl_in_child_scope() {
-      let src = r#"
-function foo() {
-  let target = 0;
-}
-target = 1;
-        "#;
-      let idents = get_idents(src, "target");
-      let finder = decl_finder(src);
-      let target_assignment = &idents[1];
-      assert!(!finder.decl_exists(&target_assignment));
-    }
-  }
-
   #[derive(Debug)]
   pub(crate) struct DeclFinderBuilder {
     scopes: BTreeMap<ScopeRange, Scope>,
@@ -281,6 +132,7 @@ target = 1;
   }
 
   impl DeclFinderBuilder {
+    #[allow(unused)]
     pub(crate) fn new() -> Self {
       Self {
         scopes: BTreeMap::new(),
@@ -289,6 +141,7 @@ target = 1;
     }
 
     // TODO(magurotuna): remove this
+    #[allow(unused)]
     pub(crate) fn build_from_module(
       mut self,
       module: &swc_ecmascript::ast::Module,
@@ -300,6 +153,7 @@ target = 1;
       }
     }
 
+    #[allow(unused)]
     pub(crate) fn build(mut self, program: &Program) -> DeclFinder {
       self.visit_program(program, &Invalid { span: DUMMY_SP });
 
@@ -361,8 +215,6 @@ target = 1;
   }
 
   impl Visit for DeclFinderBuilder {
-    noop_visit_type!();
-
     fn visit_program(&mut self, program: &Program, _: &dyn Node) {
       let scope = RawScope::new(None);
       self
@@ -638,6 +490,249 @@ target = 1;
       for decl in &var_decl.decls {
         self.extract_decl_idents(&decl.name);
       }
+    }
+
+    fn visit_import_named_specifier(
+      &mut self,
+      import_named_specifier: &ImportNamedSpecifier,
+      _: &dyn Node,
+    ) {
+      self.insert_var(&import_named_specifier.local);
+      import_named_specifier.visit_children_with(self);
+    }
+
+    fn visit_import_default_specifier(
+      &mut self,
+      import_default_specifier: &ImportDefaultSpecifier,
+      _: &dyn Node,
+    ) {
+      self.insert_var(&import_default_specifier.local);
+      import_default_specifier.visit_children_with(self);
+    }
+
+    fn visit_import_star_as_specifier(
+      &mut self,
+      import_star_as_specifier: &ImportStarAsSpecifier,
+      _: &dyn Node,
+    ) {
+      self.insert_var(&import_star_as_specifier.local);
+      import_star_as_specifier.visit_children_with(self);
+    }
+
+    fn visit_ts_enum_decl(&mut self, ts_enum_decl: &TsEnumDecl, _: &dyn Node) {
+      self.insert_var(&ts_enum_decl.id);
+      ts_enum_decl.visit_children_with(self);
+    }
+
+    fn visit_ts_param_prop_param(
+      &mut self,
+      ts_param_prop_param: &TsParamPropParam,
+      _: &dyn Node,
+    ) {
+      match ts_param_prop_param {
+        TsParamPropParam::Ident(ident) => {
+          self.insert_var(ident);
+        }
+        TsParamPropParam::Assign(assign) => {
+          self.extract_decl_idents(&Pat::Assign(assign.clone()));
+        }
+      }
+      ts_param_prop_param.visit_children_with(self);
+    }
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+    use crate::test_util::parse;
+    use swc_ecmascript::ast::Ident;
+    use swc_ecmascript::visit::{Node, Visit, VisitWith};
+
+    fn decl_finder(src: &str) -> DeclFinder {
+      let builder = DeclFinderBuilder::new();
+      builder.build_from_module(&parse(src))
+    }
+
+    fn get_idents(src: &str, query: &'static str) -> Vec<Ident> {
+      struct IdentGetter {
+        query: &'static str,
+        found_ident: Vec<Ident>,
+      }
+
+      impl Visit for IdentGetter {
+        fn visit_ident(&mut self, ident: &Ident, _: &dyn Node) {
+          if ident.sym.as_ref() == self.query {
+            self.found_ident.push(ident.clone());
+          } else {
+            ident.visit_children_with(self);
+          }
+        }
+      }
+
+      let mut getter = IdentGetter {
+        query,
+        found_ident: Vec::new(),
+      };
+      let parsed = parse(src);
+      getter.visit_module(&parsed, &parsed);
+      getter.found_ident
+    }
+
+    #[test]
+    fn decl_in_outer_scope() {
+      let src = r#"
+let target = 0;
+function foo() {
+  target = 1;
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_assignment = &idents[1];
+      assert!(finder.decl_exists(&target_assignment));
+    }
+
+    #[test]
+    fn class_hoisting() {
+      let src = r#"
+function foo() {
+  let a = new Target(); // hoisting
+  class Target {}
+}
+        "#;
+      let idents = get_idents(src, "Target");
+      let finder = decl_finder(src);
+      let target_new_call = &idents[0];
+      assert!(finder.decl_exists(&target_new_call));
+    }
+
+    #[test]
+    fn class_no_decl() {
+      let src = r#"
+function foo() {
+  let a = new Target(); // no declaration
+}
+        "#;
+      let idents = get_idents(src, "Target");
+      let finder = decl_finder(src);
+      let target_new_call = &idents[0];
+      assert!(!finder.decl_exists(&target_new_call));
+    }
+
+    #[test]
+    fn arrow_function_hoisting() {
+      let src = r#"
+function foo() {
+  target(); // hoisting
+  const target = () => {};
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[0];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_as_function_param() {
+      let src = r#"
+function foo(target) {
+  target();
+}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn function_decl_hoisting() {
+      let src = r#"
+target();
+function target() {}
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[0];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn function_expr_name_discarded() {
+      let src = r#"
+const f = function target() {};
+target();
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(!finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_in_child_scope() {
+      let src = r#"
+function foo() {
+  let target = 0;
+}
+target = 1;
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_assignment = &idents[1];
+      assert!(!finder.decl_exists(&target_assignment));
+    }
+
+    #[test]
+    fn decl_as_default_import() {
+      let src = r#"
+import target from "mod.ts";
+target();
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_as_named_import() {
+      let src = r#"
+import { target } from "mod.ts";
+target();
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_as_star_as_import() {
+      let src = r#"
+import * as target from "mod.ts";
+target();
+        "#;
+      let idents = get_idents(src, "target");
+      let finder = decl_finder(src);
+      let target_call = &idents[1];
+      assert!(finder.decl_exists(&target_call));
+    }
+
+    #[test]
+    fn decl_enum() {
+      let src = r#"
+enum Target {
+  Foo,
+  Bar,
+}
+const a = Target.Foo;
+        "#;
+      let idents = get_idents(src, "Target");
+      let finder = decl_finder(src);
+      let target_used = &idents[1];
+      assert!(finder.decl_exists(&target_used));
     }
   }
 }
