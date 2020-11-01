@@ -1,9 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// TODO(magurotuna): remove
+#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
-use swc_atoms::js_word;
-use swc_common::SyntaxContext;
+use swc_atoms::{js_word, JsWord};
+use swc_common::{Span, Spanned, SyntaxContext};
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
@@ -12,7 +14,9 @@ use swc_ecmascript::{
 };
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::rc::Rc;
 
 pub struct NoUndef;
 
@@ -37,6 +41,418 @@ impl LintRule for NoUndef {
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
     program.visit_with(program, &mut visitor);
+  }
+}
+
+mod decl_finder {
+  use std::cell::RefCell;
+  use std::collections::{BTreeMap, BTreeSet};
+  use std::rc::Rc;
+  use swc_atoms::JsWord;
+  use swc_common::{Span, Spanned, DUMMY_SP};
+  use swc_ecmascript::ast::{
+    ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class, Constructor,
+    DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Function, Ident, IfStmt,
+    Invalid, ObjectPatProp, ParamOrTsParamProp, Pat, Program, Stmt,
+    TsParamPropParam, VarDecl, VarDeclKind, VarDeclOrExpr, VarDeclOrPat,
+    WhileStmt, WithStmt,
+  };
+  use swc_ecmascript::utils::find_ids;
+  use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+
+  type Scope = Rc<RefCell<RawScope>>;
+
+  #[derive(Debug)]
+  struct RawScope {
+    parent: Option<Scope>,
+    variables: BTreeSet<JsWord>,
+  }
+
+  impl RawScope {
+    fn new(parent: Option<Scope>) -> Self {
+      Self {
+        parent,
+        variables: BTreeSet::new(),
+      }
+    }
+  }
+
+  #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+  enum ScopeRange {
+    Program,
+    Block(Span),
+  }
+
+  pub(crate) struct DeclFinder {
+    scopes: BTreeMap<ScopeRange, Scope>,
+  }
+
+  impl DeclFinder {
+    /// Look for a variable declaration that corresponds the given ident by traversing from the scope
+    /// where the ident is to the parent. If the declaration is found, it returns true.
+    pub(crate) fn decl_exists(&self, ident: &Ident) -> bool {
+      let ident_scope = self.find_scope(ident.span);
+      let mut cur_scope = self.scopes.get(&ident_scope).map(Rc::clone);
+
+      while let Some(scope) = cur_scope {
+        if scope.borrow().variables.contains(&ident.sym) {
+          return true;
+        }
+        cur_scope = scope.borrow().parent.as_ref().map(Rc::clone);
+      }
+
+      false
+    }
+
+    /// Find a scope to which the span directly belongs and return it.
+    fn find_scope(&self, span: Span) -> ScopeRange {
+      // To do a search, create a dummy scope range although the span might not represent any
+      // block.
+      let dummy_scope_range = ScopeRange::Block(span);
+
+      self
+        .scopes
+        .range(..dummy_scope_range)
+        .rev()
+        .find_map(|(range, _)| {
+          if let ScopeRange::Block(stored_span) = range {
+            if stored_span.hi() >= span.hi() {
+              return Some(*range);
+            }
+          }
+          None
+        })
+        .unwrap_or(ScopeRange::Program)
+    }
+  }
+
+  #[derive(Debug)]
+  pub(crate) struct DeclFinderBuilder {
+    scopes: BTreeMap<ScopeRange, Scope>,
+    cur_scope: ScopeRange,
+  }
+
+  impl DeclFinderBuilder {
+    pub(crate) fn new() -> Self {
+      Self {
+        scopes: BTreeMap::new(),
+        cur_scope: ScopeRange::Program,
+      }
+    }
+
+    pub(crate) fn build(mut self, program: &Program) -> DeclFinder {
+      self.visit_program(program, &Invalid { span: DUMMY_SP });
+
+      DeclFinder {
+        scopes: self.scopes,
+      }
+    }
+
+    fn insert_var(&mut self, ident: &Ident) {
+      let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
+      scope.variables.insert(ident.sym.clone());
+    }
+
+    fn extract_decl_idents(&mut self, pat: &Pat) {
+      match pat {
+        Pat::Ident(ident) => self.insert_var(ident),
+        Pat::Array(array_pat) => {
+          for elem in &array_pat.elems {
+            if let Some(elem_pat) = elem {
+              self.extract_decl_idents(elem_pat);
+            }
+          }
+        }
+        Pat::Rest(rest_pat) => self.extract_decl_idents(&*rest_pat.arg),
+        Pat::Object(object_pat) => {
+          for prop in &object_pat.props {
+            match prop {
+              ObjectPatProp::KeyValue(key_value) => {
+                self.extract_decl_idents(&*key_value.value)
+              }
+              ObjectPatProp::Assign(assign) => {
+                self.insert_var(&assign.key);
+              }
+              ObjectPatProp::Rest(rest) => self.extract_decl_idents(&*rest.arg),
+            }
+          }
+        }
+        Pat::Assign(assign_pat) => self.extract_decl_idents(&*assign_pat.left),
+        _ => {}
+      }
+    }
+
+    fn with_child_scope<F, S>(&mut self, node: S, op: F)
+    where
+      S: Spanned,
+      F: FnOnce(&mut Self),
+    {
+      let parent_scope_range = self.cur_scope;
+      let parent_scope = self.scopes.get(&parent_scope_range).map(Rc::clone);
+      let child_scope = RawScope::new(parent_scope);
+      self.scopes.insert(
+        ScopeRange::Block(node.span()),
+        Rc::new(RefCell::new(child_scope)),
+      );
+      self.cur_scope = ScopeRange::Block(node.span());
+      op(self);
+      self.cur_scope = parent_scope_range;
+    }
+  }
+
+  impl Visit for DeclFinderBuilder {
+    noop_visit_type!();
+
+    fn visit_program(&mut self, program: &Program, _: &dyn Node) {
+      let scope = RawScope::new(None);
+      self
+        .scopes
+        .insert(ScopeRange::Program, Rc::new(RefCell::new(scope)));
+      program.visit_children_with(self);
+    }
+
+    fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+      self.with_child_scope(function, |a| {
+        for param in &function.params {
+          param.visit_children_with(a);
+          let idents: Vec<Ident> = find_ids(&param.pat);
+          for ident in idents {
+            a.insert_var(&ident);
+          }
+        }
+        if let Some(body) = &function.body {
+          body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+      self.with_child_scope(arrow_expr, |a| {
+        for param in &arrow_expr.params {
+          param.visit_children_with(a);
+          let idents: Vec<Ident> = find_ids(param);
+          for ident in idents {
+            a.insert_var(&ident);
+          }
+        }
+        match &arrow_expr.body {
+          BlockStmtOrExpr::BlockStmt(block_stmt) => {
+            block_stmt.visit_children_with(a);
+          }
+          BlockStmtOrExpr::Expr(expr) => {
+            expr.visit_children_with(a);
+          }
+        }
+      });
+    }
+
+    fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
+      self.with_child_scope(block_stmt, |a| {
+        block_stmt.visit_children_with(a);
+      });
+    }
+
+    fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
+      self.with_child_scope(for_stmt, |a| {
+        match &for_stmt.init {
+          Some(VarDeclOrExpr::VarDecl(var_decl)) => {
+            var_decl.visit_children_with(a);
+            if var_decl.kind == VarDeclKind::Let {
+              for decl in &var_decl.decls {
+                a.extract_decl_idents(&decl.name);
+              }
+            }
+          }
+          Some(VarDeclOrExpr::Expr(expr)) => {
+            expr.visit_children_with(a);
+          }
+          None => {}
+        }
+
+        if let Some(test_expr) = &for_stmt.test {
+          test_expr.visit_children_with(a);
+        }
+        if let Some(update_expr) = &for_stmt.update {
+          update_expr.visit_children_with(a);
+        }
+
+        if let Stmt::Block(block_stmt) = &*for_stmt.body {
+          block_stmt.visit_children_with(a);
+        } else {
+          for_stmt.body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
+      self.with_child_scope(for_of_stmt, |a| {
+        if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
+          if var_decl.kind == VarDeclKind::Let {
+            for decl in &var_decl.decls {
+              a.extract_decl_idents(&decl.name);
+            }
+          }
+        }
+
+        for_of_stmt.right.visit_children_with(a);
+
+        if let Stmt::Block(block_stmt) = &*for_of_stmt.body {
+          block_stmt.visit_children_with(a);
+        } else {
+          for_of_stmt.body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
+      self.with_child_scope(for_in_stmt, |a| {
+        if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
+          if var_decl.kind == VarDeclKind::Let {
+            for decl in &var_decl.decls {
+              a.extract_decl_idents(&decl.name);
+            }
+          }
+        }
+
+        for_in_stmt.right.visit_children_with(a);
+
+        if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
+          block_stmt.visit_children_with(a);
+        } else {
+          for_in_stmt.body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
+      self.with_child_scope(if_stmt, |a| {
+        if_stmt.test.visit_children_with(a);
+        // BlockStmt needs special handling to avoid creating a duplicate scope
+        if let Stmt::Block(body) = &*if_stmt.cons {
+          body.visit_children_with(a);
+        } else {
+          if_stmt.cons.visit_children_with(a);
+        }
+      });
+
+      if let Some(alt) = &if_stmt.alt {
+        self.with_child_scope(alt, |a| {
+          alt.visit_children_with(a);
+        });
+      }
+    }
+
+    fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
+      self.with_child_scope(while_stmt, |a| {
+        while_stmt.test.visit_children_with(a);
+        // BlockStmt needs special handling to avoid creating a duplicate scope
+        if let Stmt::Block(body) = &*while_stmt.body {
+          body.visit_children_with(a);
+        } else {
+          while_stmt.body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_do_while_stmt(
+      &mut self,
+      do_while_stmt: &DoWhileStmt,
+      _: &dyn Node,
+    ) {
+      self.with_child_scope(do_while_stmt, |a| {
+        // BlockStmt needs special handling to avoid creating a duplicate scope
+        if let Stmt::Block(body) = &*do_while_stmt.body {
+          body.visit_children_with(a);
+        } else {
+          do_while_stmt.body.visit_children_with(a);
+        }
+        do_while_stmt.test.visit_children_with(a);
+      });
+    }
+
+    fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
+      self.with_child_scope(with_stmt, |a| {
+        with_stmt.obj.visit_children_with(a);
+        // BlockStmt needs special handling to avoid creating a duplicate scope
+        if let Stmt::Block(body) = &*with_stmt.body {
+          body.visit_children_with(a);
+        } else {
+          with_stmt.body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
+      self.with_child_scope(catch_clause, |a| {
+        if let Some(param) = &catch_clause.param {
+          let idents: Vec<Ident> = find_ids(param);
+          for ident in idents {
+            a.insert_var(&ident);
+          }
+        }
+        catch_clause.body.visit_children_with(a);
+      });
+    }
+
+    fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+      for decorator in &class.decorators {
+        decorator.visit_children_with(self);
+      }
+      if let Some(super_class) = &class.super_class {
+        super_class.visit_children_with(self);
+      }
+      self.with_child_scope(class, |a| {
+        for member in &class.body {
+          member.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+      self.with_child_scope(constructor, |a| {
+        for param in &constructor.params {
+          match param {
+            ParamOrTsParamProp::TsParamProp(ts_param_prop) => {
+              for decorator in &ts_param_prop.decorators {
+                decorator.visit_children_with(a);
+              }
+              match &ts_param_prop.param {
+                TsParamPropParam::Ident(ident) => {
+                  a.insert_var(ident);
+                }
+                TsParamPropParam::Assign(assign_pat) => {
+                  assign_pat.visit_children_with(a);
+                  let idents: Vec<Ident> = find_ids(&assign_pat.left);
+                  for ident in idents {
+                    a.insert_var(&ident);
+                  }
+                }
+              }
+            }
+            ParamOrTsParamProp::Param(param) => {
+              param.visit_children_with(a);
+              let idents: Vec<Ident> = find_ids(&param.pat);
+              for ident in idents {
+                a.insert_var(&ident);
+              }
+            }
+          }
+        }
+
+        if let Some(body) = &constructor.body {
+          body.visit_children_with(a);
+        }
+      });
+    }
+
+    fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+      var_decl.visit_children_with(self);
+      if var_decl.kind == VarDeclKind::Let {
+        for decl in &var_decl.decls {
+          self.extract_decl_idents(&decl.name);
+        }
+      }
+    }
   }
 }
 
@@ -160,7 +576,11 @@ impl<'c> NoUndefVisitor<'c> {
   }
 
   fn check(&mut self, ident: &Ident) {
-    dbg!(ident);
+    dbg!(&self.context.scope);
+    if self.context.scope.var(&ident.to_id()).is_some() {
+      dbg!("zzzzzzzzzzzzzzzzz");
+      return;
+    }
     // Thanks to this if statement, we can check for Map in
     //
     // function foo(Map) { ... }
@@ -219,6 +639,7 @@ impl<'c> Visit for NoUndefVisitor<'c> {
     e.visit_children_with(self);
 
     if let Expr::Ident(ident) = e {
+      dbg!(&ident);
       self.check(ident)
     }
   }
@@ -384,28 +805,37 @@ const f = () => {
     };
   }
 
+  // TODO(magurotuna): remove
   #[test]
   fn magurotuna() {
     assert_lint_ok! {
-      NoUndef,
-      // TODO(magurotuna): remove
-      r#"
-(() => {
+              NoUndef,
+              r#"
+function foo() {
+  const c = new Bar();
   class Bar {}
-  function foo() {
-    return new Bar();
-  }
-})();
-      "#,
-      r#"
-(() => {
-  function foo() {
-    return new Bar();
-  }
-  class Bar {}
-})();
-      "#,
-    };
+  return c;
+}
+                "#,
+              /*
+              r#"
+    (() => {
+      class Bar {}
+      function foo() {
+        return new Bar();
+      }
+    })();
+          "#, */
+              /*
+              r#"
+    (() => {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    })();
+          "#, */
+            };
   }
 
   #[test]
