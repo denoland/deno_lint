@@ -99,12 +99,12 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
           hi: cases[case_idx + 1].span.lo(),
           ctxt: case.span.ctxt,
         };
-        let snippet = self.context.source_map.span_to_snippet(span).unwrap();
+        let span_lines = self.context.source_map.span_to_lines(span).unwrap();
         // When the case body contains only new lines `case.cons` will be empty.
-        // This means there are no statements detected so we must detect case bodies made up of only new lines
-        // by counting the total amount of new lines.
-        // If there's more than 1 new line and `case.cons` is empty this indicates the case body only contains new lines.
-        should_emit_err = snippet.matches('\n').count() > 1;
+        // This means there are no statements detected so we must detect case
+        // bodies made up of only new lines by counting the total amount of new lines.
+        // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
+        should_emit_err = span_lines.lines.len() > 2;
       }
 
       prev_span = case.span;
