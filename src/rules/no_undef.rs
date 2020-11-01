@@ -857,9 +857,7 @@ impl<'c> NoUndefVisitor<'c> {
   }
 
   fn check(&mut self, ident: &Ident) {
-    dbg!(&self.context.scope);
     if self.context.scope.var(&ident.to_id()).is_some() {
-      dbg!("zzzzzzzzzzzzzzzzz");
       return;
     }
     // Thanks to this if statement, we can check for Map in
@@ -867,26 +865,22 @@ impl<'c> NoUndefVisitor<'c> {
     // function foo(Map) { ... }
     //
     if ident.span.ctxt != self.context.top_level_ctxt {
-      dbg!("aaaaaaaaaa");
       return;
     }
 
     // Implicitly defined
     // See: https://github.com/denoland/deno_lint/issues/317
     if ident.sym == *"arguments" {
-      dbg!("bbbbbbbbb");
       return;
     }
 
     // Ignore top level bindings declared in the file.
     if self.declared.contains(&ident.to_id()) {
-      dbg!("ccccccccccccc");
       return;
     }
 
     // Globals
     if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
-      dbg!("dddddddddddddd");
       return;
     }
 
@@ -920,7 +914,6 @@ impl<'c> Visit for NoUndefVisitor<'c> {
     e.visit_children_with(self);
 
     if let Expr::Ident(ident) = e {
-      dbg!(&ident);
       self.check(ident)
     }
   }
