@@ -7,7 +7,7 @@ use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
   Class, ClassMember, ClassMethod, Decl, ExportDecl, Expr, FnDecl, Ident, Lit,
-  Module, ModuleDecl, ModuleItem, Program, Stmt, Str, TsInterfaceBody,
+  Module, ModuleDecl, ModuleItem, Program, Script, Stmt, Str, TsInterfaceBody,
   TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
 };
 use swc_ecmascript::visit::VisitAllWith;
@@ -147,30 +147,43 @@ impl<'c> AdjacentOverloadSignaturesVisitor<'c> {
   }
 }
 
+fn extract_ident_from_decl(decl: &Decl) -> Option<String> {
+  match decl {
+    Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.to_string()),
+    _ => None,
+  }
+}
+
 trait ExtractMethod {
   fn get_method(&self) -> Option<Method>;
 }
 
+impl ExtractMethod for ExportDecl {
+  fn get_method(&self) -> Option<Method> {
+    let method_name = extract_ident_from_decl(&self.decl);
+    method_name.map(Method::Method)
+  }
+}
+
+impl ExtractMethod for Stmt {
+  fn get_method(&self) -> Option<Method> {
+    let method_name = match self {
+      Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
+      _ => None,
+    };
+    method_name.map(Method::Method)
+  }
+}
+
 impl ExtractMethod for ModuleItem {
   fn get_method(&self) -> Option<Method> {
-    let extract_ident = |decl: &Decl| match decl {
-      Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.to_string()),
+    match self {
+      ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
+        export_decl.get_method()
+      }
+      ModuleItem::Stmt(stmt) => stmt.get_method(),
       _ => None,
-    };
-
-    let method_name = match self {
-      ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-        ref decl,
-        ..
-      })) => extract_ident(decl),
-      ModuleItem::Stmt(ref stmt) => match stmt {
-        Stmt::Decl(ref decl) => extract_ident(decl),
-        _ => None,
-      },
-      _ => None,
-    };
-
-    method_name.map(Method::Method)
+    }
   }
 }
 
@@ -218,6 +231,10 @@ impl ExtractMethod for TsTypeElement {
 }
 
 impl<'c> VisitAll for AdjacentOverloadSignaturesVisitor<'c> {
+  fn visit_script(&mut self, script: &Script, _parent: &dyn Node) {
+    self.check(&script.body);
+  }
+
   fn visit_module(&mut self, module: &Module, _parent: &dyn Node) {
     self.check(&module.body);
   }

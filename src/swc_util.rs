@@ -161,13 +161,13 @@ impl AstParser {
     }
   }
 
-  pub(crate) fn parse_script(
+  pub(crate) fn parse_program(
     &self,
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
   ) -> (
-    Result<swc_ecmascript::ast::Script, SwcDiagnosticBuffer>,
+    Result<swc_ecmascript::ast::Program, SwcDiagnosticBuffer>,
     SingleThreadedComments,
   ) {
     let swc_source_file = self.source_map.new_source_file(
@@ -187,7 +187,7 @@ impl AstParser {
 
     let mut parser = Parser::new_from(lexer);
 
-    let parse_result = parser.parse_script().map_err(move |err| {
+    let parse_result = parser.parse_program().map_err(move |err| {
       let mut diagnostic_builder = err.into_diagnostic(&self.handler);
       diagnostic_builder.emit();
       SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
@@ -202,60 +202,9 @@ impl AstParser {
     (parse_result, comments)
   }
 
-  pub(crate) fn parse_module(
-    &self,
-    file_name: &str,
-    syntax: Syntax,
-    source_code: &str,
-  ) -> (
-    Result<swc_ecmascript::ast::Module, SwcDiagnosticBuffer>,
-    SingleThreadedComments,
-  ) {
-    let swc_source_file = self.source_map.new_source_file(
-      FileName::Custom(file_name.to_string()),
-      source_code.to_string(),
-    );
-
-    let buffered_err = self.buffered_error.clone();
-
-    let comments = SingleThreadedComments::default();
-    let lexer = Lexer::new(
-      syntax,
-      JscTarget::Es2019,
-      StringInput::from(&*swc_source_file),
-      Some(&comments),
-    );
-
-    let mut parser = Parser::new_from(lexer);
-
-    let parse_result = parser.parse_module().map_err(move |err| {
-      let mut diagnostic_builder = err.into_diagnostic(&self.handler);
-      diagnostic_builder.emit();
-      SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
-    });
-
-    let parse_result = parse_result.map(|module| {
-      swc_common::GLOBALS.set(&self.globals, || {
-        module.fold_with(&mut ts_resolver(self.top_level_mark))
-      })
-    });
-
-    (parse_result, comments)
-  }
-
   pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
     self.source_map.lookup_char_pos(span.lo())
   }
-
-  // pub(crate) fn get_span_comments(
-  //   &self,
-  //   span: Span,
-  // ) -> Vec<swc_common::comments::Comment> {
-  //   match self.leading_comments.get(&span.lo()) {
-  //     Some(c) => c.clone(),
-  //     None => vec![],
-  //   }
-  // }
 }
 
 impl Default for AstParser {

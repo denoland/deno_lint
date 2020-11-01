@@ -63,6 +63,16 @@ impl ValidDeclsVisitor {
 impl Visit for ValidDeclsVisitor {
   noop_visit_type!();
 
+  fn visit_script(&mut self, item: &ast::Script, parent: &dyn Node) {
+    for stmt in &item.body {
+      if let ast::Stmt::Decl(decl) = stmt {
+        self.check_decl(decl)
+      }
+    }
+
+    swc_ecmascript::visit::visit_script(self, item, parent);
+  }
+
   fn visit_module_item(&mut self, item: &ast::ModuleItem, parent: &dyn Node) {
     match item {
       ast::ModuleItem::ModuleDecl(module_decl) => match module_decl {

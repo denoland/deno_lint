@@ -7,7 +7,6 @@ use clap::Arg;
 use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
-use deno_lint::linter::FileType;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use rayon::prelude::*;
@@ -28,18 +27,12 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("all").long("all")),
     )
     .subcommand(
-      SubCommand::with_name("run")
-        .arg(
-          Arg::with_name("script")
-            .long("script")
-            .help("Treat files as scripts instead of modules"),
-        )
-        .arg(
-          Arg::with_name("FILES")
-            .help("Sets the input file to use")
-            .required(true)
-            .multiple(true),
-        ),
+      SubCommand::with_name("run").arg(
+        Arg::with_name("FILES")
+          .help("Sets the input file to use")
+          .required(true)
+          .multiple(true),
+      ),
     )
 }
 
@@ -111,17 +104,11 @@ fn display_diagnostic(diagnostic: &LintDiagnostic, source: &str) {
   eprintln!("{}", display_list);
 }
 
-fn run_linter(paths: Vec<String>, is_script: bool) {
+fn run_linter(paths: Vec<String>) {
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
   paths.par_iter().for_each(|file_path| {
-    let file_type = if is_script {
-      FileType::Script
-    } else {
-      FileType::Module
-    };
-
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
@@ -130,7 +117,7 @@ fn run_linter(paths: Vec<String>, is_script: bool) {
       .build();
 
     let file_diagnostics = linter
-      .lint(file_path.to_string(), source_code.clone(), file_type)
+      .lint(file_path.to_string(), source_code.clone())
       .expect("Failed to lint");
 
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
@@ -252,8 +239,7 @@ fn main() {
         .unwrap()
         .map(|p| p.to_string())
         .collect();
-      let is_script = run_matches.is_present("script");
-      run_linter(paths, is_script);
+      run_linter(paths);
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
