@@ -160,27 +160,32 @@ impl<'c> NoUndefVisitor<'c> {
   }
 
   fn check(&mut self, ident: &Ident) {
+    dbg!(ident);
     // Thanks to this if statement, we can check for Map in
     //
     // function foo(Map) { ... }
     //
     if ident.span.ctxt != self.context.top_level_ctxt {
+      dbg!("aaaaaaaaaa");
       return;
     }
 
     // Implicitly defined
     // See: https://github.com/denoland/deno_lint/issues/317
     if ident.sym == *"arguments" {
+      dbg!("bbbbbbbbb");
       return;
     }
 
     // Ignore top level bindings declared in the file.
     if self.declared.contains(&ident.to_id()) {
+      dbg!("ccccccccccccc");
       return;
     }
 
     // Globals
     if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
+      dbg!("dddddddddddddd");
       return;
     }
 
@@ -375,6 +380,30 @@ const f = () => {
   }
   class Bar {}
 };
+      "#,
+    };
+  }
+
+  #[test]
+  fn magurotuna() {
+    assert_lint_ok! {
+      NoUndef,
+      // TODO(magurotuna): remove
+      r#"
+(() => {
+  class Bar {}
+  function foo() {
+    return new Bar();
+  }
+})();
+      "#,
+      r#"
+(() => {
+  function foo() {
+    return new Bar();
+  }
+  class Bar {}
+})();
       "#,
     };
   }
