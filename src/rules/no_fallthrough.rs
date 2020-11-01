@@ -1,6 +1,6 @@
 use super::LintRule;
 use crate::linter::Context;
-use swc_common::{comments::Comment, Spanned, DUMMY_SP};
+use swc_common::{comments::Comment, Span, Spanned, DUMMY_SP};
 use swc_ecmascript::{
   ast::*,
   visit::{noop_visit_type, Node, Visit, VisitWith},
@@ -93,18 +93,18 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
           _ => false,
         };
 
-      if case_idx + 1 < cases.len() {
-        // A case is not allowed to fall through to default handler
-        if cases[case_idx + 1].test.is_none() {
-          if empty {
-            should_emit_err = true;
-          }
-        } else {
-          // Fallthrough
-          if empty {
-            should_emit_err = false;
-          }
-        }
+      if case_idx + 1 < cases.len() && empty {
+        let span = Span {
+          lo: case.span.lo(),
+          hi: cases[case_idx + 1].span.lo(),
+          ctxt: case.span.ctxt,
+        };
+        let span_lines = self.context.source_map.span_to_lines(span).unwrap();
+        // When the case body contains only new lines `case.cons` will be empty.
+        // This means there are no statements detected so we must detect case
+        // bodies made up of only new lines by counting the total amount of new lines.
+        // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
+        should_emit_err = span_lines.lines.len() > 2;
       }
 
       prev_span = case.span;
@@ -164,6 +164,9 @@ mod tests {
       "switch (foo) { case 0: try {} finally { break; } default: b(); }",
       "switch (foo) { case 0: try { throw 0; } catch (err) { break; } default: b(); }",
       "switch (foo) { case 0: do { throw 0; } while(a); default: b(); }",
+      "switch('test') { case 'symbol':\n case 'function': default: b(); }",
+      "switch('test') { case 'symbol':\n case 'function':\n default: b(); }",
+      "switch('test') { case 'symbol': case 'function': default: b(); }",
     };
   }
 
@@ -199,6 +202,10 @@ mod tests {
     );
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0:\n\n default: b() }",
+      14,
+    );
+    assert_lint_err::<NoFallthrough>(
+      "switch(foo) { case 0:\n\n b()\n default: b() }",
       14,
     );
 

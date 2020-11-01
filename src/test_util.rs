@@ -1,12 +1,11 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
 use crate::diagnostic::LintDiagnostic;
-use crate::linter::FileType;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use crate::swc_util;
 use std::marker::PhantomData;
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Program;
 
 #[macro_export]
 macro_rules! assert_lint_ok {
@@ -115,7 +114,7 @@ impl<T: LintRule + 'static> LintErrTester<T> {
   pub fn run(&self) {
     let rule = T::new();
     let rule_code = rule.code();
-    let diagnostics = lint(rule, self.src, FileType::Module);
+    let diagnostics = lint(rule, self.src);
     assert_eq!(
       self.errors.len(),
       diagnostics.len(),
@@ -145,11 +144,7 @@ impl<T: LintRule + 'static> LintErrTester<T> {
   }
 }
 
-fn lint(
-  rule: Box<dyn LintRule>,
-  source: &str,
-  file_type: FileType,
-) -> Vec<LintDiagnostic> {
+fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
@@ -158,11 +153,7 @@ fn lint(
     .build();
 
   linter
-    .lint(
-      "deno_lint_test.tsx".to_string(),
-      source.to_string(),
-      file_type,
-    )
+    .lint("deno_lint_test.tsx".to_string(), source.to_string())
     .expect("Failed to lint")
 }
 
@@ -232,7 +223,7 @@ fn assert_diagnostic_2(
 
 pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
   let rule = T::new();
-  let diagnostics = lint(rule, source, FileType::Module);
+  let diagnostics = lint(rule, source);
   if !diagnostics.is_empty() {
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
@@ -252,7 +243,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source, FileType::Module);
+  let diagnostics = lint(rule, source);
   assert_eq!(
     diagnostics.len(),
     1,
@@ -280,7 +271,7 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source, FileType::Module);
+  let diagnostics = lint(rule, source);
   assert_eq!(
     diagnostics.len(),
     expected.len(),
@@ -295,10 +286,10 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   }
 }
 
-pub fn parse(source_code: &str) -> Module {
+pub fn parse(source_code: &str) -> Program {
   let ast_parser = swc_util::AstParser::new();
   let syntax = swc_util::get_default_ts_config();
   let (parse_result, _comments) =
-    ast_parser.parse_module("file_name.ts", syntax, source_code);
+    ast_parser.parse_program("file_name.ts", syntax, source_code);
   parse_result.unwrap()
 }

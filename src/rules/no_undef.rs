@@ -134,19 +134,6 @@ mod decl_finder {
       }
     }
 
-    // TODO(magurotuna): remove this
-    #[allow(unused)]
-    pub(crate) fn build_from_module(
-      mut self,
-      module: &swc_ecmascript::ast::Module,
-    ) -> DeclFinder {
-      self.visit_module(module, &Invalid { span: DUMMY_SP });
-
-      DeclFinder {
-        scopes: self.scopes,
-      }
-    }
-
     pub(crate) fn build(mut self, program: &Program) -> DeclFinder {
       self.visit_program(program, &Invalid { span: DUMMY_SP });
 
@@ -214,19 +201,6 @@ mod decl_finder {
         .scopes
         .insert(ScopeRange::Program, Rc::new(RefCell::new(scope)));
       program.visit_children_with(self);
-    }
-
-    // TODO(magurotuna): remove this
-    fn visit_module(
-      &mut self,
-      module: &swc_ecmascript::ast::Module,
-      _: &dyn Node,
-    ) {
-      let scope = RawScope::new(None);
-      self
-        .scopes
-        .insert(ScopeRange::Program, Rc::new(RefCell::new(scope)));
-      module.visit_children_with(self);
     }
 
     fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
@@ -548,7 +522,7 @@ mod decl_finder {
 
     fn decl_finder(src: &str) -> DeclFinder {
       let builder = DeclFinderBuilder::new();
-      builder.build_from_module(&parse(src))
+      builder.build(&parse(src))
     }
 
     fn get_idents(src: &str, query: &'static str) -> Vec<Ident> {
@@ -572,7 +546,7 @@ mod decl_finder {
         found_ident: Vec::new(),
       };
       let parsed = parse(src);
-      getter.visit_module(&parsed, &parsed);
+      getter.visit_program(&parsed, &parsed);
       getter.found_ident
     }
 
