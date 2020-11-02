@@ -39,6 +39,22 @@ impl LintRule for NoGlobalAssign {
     let mut visitor = NoGlobalAssignVisitor::new(context, collector.bindings);
     program.visit_with(program, &mut visitor);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows assignment to native Javascript objects
+
+In Javascript, `String` and `Object` for example are native objects.  Like any
+object, they can be reassigned, but it is almost never wise to do so as this
+can lead to unexpected results and difficult to track down bugs.
+    
+### Invalid:
+```typescript
+Object = null;
+undefined = true;
+window = {};
+```
+"#
+  }
 }
 
 struct Collector {
@@ -122,10 +138,11 @@ impl<'c> NoGlobalAssignVisitor<'c> {
     if let Some(global) = maybe_global {
       // If global can be overwritten then don't need to report anything
       if !global.1 {
-        self.context.add_diagnostic(
+        self.context.add_diagnostic_with_hint(
           span,
           "no-global-assign",
           "Assignment to global is not allowed",
+          "Remove the assignment to the global variable",
         );
       }
     }

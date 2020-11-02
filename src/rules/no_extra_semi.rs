@@ -32,6 +32,28 @@ impl LintRule for NoExtraSemi {
     let mut visitor = NoExtraSemiVisitor::new(context);
     visitor.visit_program(program, program);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of unnecessary semi-colons
+
+Extra (and unnecessary) semi-colons can cause confusion when reading the code as
+well as making the code less clean.
+    
+### Invalid:
+```typescript
+const x = 5;;
+
+function foo() {};
+```
+
+### Valid:
+```typescript
+const x = 5;
+
+function foo() {}
+```
+"#
+  }
 }
 
 struct NoExtraSemiVisitor<'c> {
@@ -48,10 +70,11 @@ impl<'c> Visit for NoExtraSemiVisitor<'c> {
   noop_visit_type!();
 
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt, _parent: &dyn Node) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       empty_stmt.span,
       "no-extra-semi",
       "Unnecessary semicolon.",
+      "Remove the extra (and unnecessary) semi-colon",
     );
   }
 

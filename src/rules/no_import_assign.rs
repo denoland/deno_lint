@@ -17,6 +17,7 @@ pub struct NoImportAssign;
 
 const CODE: &str = "no-import-assign";
 const MESSAGE: &str = "Assignment to import is not allowed";
+const HINT: &str = "Assign to another variable, this assignment is invalid";
 
 impl LintRule for NoImportAssign {
   fn new() -> Box<Self> {
@@ -50,6 +51,37 @@ impl LintRule for NoImportAssign {
       collector.other_bindings,
     );
     program.visit_with(program, &mut visitor);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows reassignment of imported module bindings
+
+ES module import bindings should be treated as read-only since modifying them
+during code execution will likely result in runtime errors.  It also makes for
+poor code readability and difficult maintenance.
+
+### Invalid:
+```typescript
+import defaultMod, { namedMod } from './mod.js'; 
+import * as modNameSpace from './mod2.js';
+
+defaultMod = 0;
+namedMod = true;
+modNameSpace.someExportedMember = "hello";
+modNameSpace = {};
+```
+
+### Valid:
+```typescript
+import defaultMod, { namedMod } from './mod.js'; 
+import * as modNameSpace from './mod2.js';
+
+// properties of bound imports may be set
+defaultMod.prop = 1;
+namedMod.prop = true;
+modNameSpace.someExportedMember.prop = "hello";
+```
+"#
   }
 }
 
@@ -145,12 +177,16 @@ impl<'c> NoImportAssignVisitor<'c> {
     }
 
     if self.ns_imports.contains(&i.to_id()) {
-      self.context.add_diagnostic(span, CODE, MESSAGE);
+      self
+        .context
+        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
       return;
     }
 
     if !is_assign_to_prop && self.imports.contains(&i.to_id()) {
-      self.context.add_diagnostic(span, CODE, MESSAGE);
+      self
+        .context
+        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 
@@ -404,64 +440,64 @@ mod tests {
   fn no_import_assign_invalid() {
     assert_lint_err! {
       NoImportAssign,
-      "import mod1 from 'mod'; mod1 = 0": [{ col: 24, message: MESSAGE }],
-      "import mod2 from 'mod'; mod2 += 0": [{ col: 24, message: MESSAGE }],
-      "import mod3 from 'mod'; mod3++": [{ col: 24, message: MESSAGE }],
-      "import mod4 from 'mod'; for (mod4 in foo);": [{ col: 29, message: MESSAGE }],
-      "import mod5 from 'mod'; for (mod5 of foo);": [{ col: 29, message: MESSAGE }],
-      "import mod6 from 'mod'; [mod6] = foo": [{ col: 25, message: MESSAGE }],
-      "import mod7 from 'mod'; [mod7 = 0] = foo": [{ col: 25, message: MESSAGE }],
-      "import mod8 from 'mod'; [...mod8] = foo": [{ col: 28, message: MESSAGE }],
-      "import mod9 from 'mod'; ({ bar: mod9 } = foo)": [{ col: 32, message: MESSAGE }],
-      "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)": [{ col: 33, message: MESSAGE }],
-      "import mod11 from 'mod'; ({ ...mod11 } = foo)": [{ col: 31, message: MESSAGE }],
-      "import {named1} from 'mod'; named1 = 0": [{ col: 28, message: MESSAGE }],
-      "import {named2} from 'mod'; named2 += 0": [{ col: 28, message: MESSAGE }],
-      "import {named3} from 'mod'; named3++": [{ col: 28, message: MESSAGE }],
-      "import {named4} from 'mod'; for (named4 in foo);": [{ col: 33, message: MESSAGE }],
-      "import {named5} from 'mod'; for (named5 of foo);": [{ col: 33, message: MESSAGE }],
-      "import {named6} from 'mod'; [named6] = foo": [{ col: 29, message: MESSAGE }],
-      "import {named7} from 'mod'; [named7 = 0] = foo": [{ col: 29, message: MESSAGE }],
-      "import {named8} from 'mod'; [...named8] = foo": [{ col: 32, message: MESSAGE }],
-      "import {named9} from 'mod'; ({ bar: named9 } = foo)": [{ col: 36, message: MESSAGE }],
-      "import {named10} from 'mod'; ({ bar: named10 = 0 } = foo)": [{ col: 37, message: MESSAGE }],
-      "import {named11} from 'mod'; ({ ...named11 } = foo)": [{ col: 35, message: MESSAGE }],
-      "import {named12 as foo} from 'mod'; foo = 0; named12 = 0": [{ col: 36, message: MESSAGE }],
-      "import * as mod1 from 'mod'; mod1 = 0": [{ col: 29, message: MESSAGE }],
-      "import * as mod2 from 'mod'; mod2 += 0": [{ col: 29, message: MESSAGE }],
-      "import * as mod3 from 'mod'; mod3++": [{ col: 29, message: MESSAGE }],
-      "import * as mod4 from 'mod'; for (mod4 in foo);": [{ col: 34, message: MESSAGE }],
-      "import * as mod5 from 'mod'; for (mod5 of foo);": [{ col: 34, message: MESSAGE }],
-      "import * as mod6 from 'mod'; [mod6] = foo": [{ col: 30, message: MESSAGE }],
-      "import * as mod7 from 'mod'; [mod7 = 0] = foo": [{ col: 30, message: MESSAGE }],
-      "import * as mod8 from 'mod'; [...mod8] = foo": [{ col: 33, message: MESSAGE }],
-      "import * as mod9 from 'mod'; ({ bar: mod9 } = foo)": [{ col: 37, message: MESSAGE }],
-      "import * as mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)": [{ col: 38, message: MESSAGE }],
-      "import * as mod11 from 'mod'; ({ ...mod11 } = foo)": [{ col: 36, message: MESSAGE }],
-      "import * as mod1 from 'mod'; mod1.named = 0": [{ col: 29, message: MESSAGE }],
-      "import * as mod2 from 'mod'; mod2.named += 0": [{ col: 29, message: MESSAGE }],
-      "import * as mod3 from 'mod'; mod3.named++": [{ col: 29, message: MESSAGE }],
-      "import * as mod4 from 'mod'; for (mod4.named in foo);": [{ col: 34, message: MESSAGE }],
-      "import * as mod5 from 'mod'; for (mod5.named of foo);": [{ col: 34, message: MESSAGE }],
-      "import * as mod6 from 'mod'; [mod6.named] = foo": [{ col: 30, message: MESSAGE }],
-      "import * as mod7 from 'mod'; [mod7.named = 0] = foo": [{ col: 30, message: MESSAGE }],
-      "import * as mod8 from 'mod'; [...mod8.named] = foo": [{ col: 33, message: MESSAGE }],
-      "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)": [{ col: 37, message: MESSAGE }],
-      "import * as mod10 from 'mod'; ({ bar: mod10.named = 0 } = foo)": [{ col: 38, message: MESSAGE }],
-      "import * as mod11 from 'mod'; ({ ...mod11.named } = foo)": [{ col: 36, message: MESSAGE }],
-      "import * as mod12 from 'mod'; delete mod12.named": [{ col: 30, message: MESSAGE }],
-      "import * as mod from 'mod'; Object.assign(mod, obj)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Object.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Object.setPrototypeOf(mod, proto)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Object.freeze(mod)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Reflect.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Reflect.deleteProperty(mod, key)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Reflect.set(mod, key, value)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; Reflect.setPrototypeOf(mod, proto)": [{ col: 28, message: MESSAGE }],
-      "import mod, * as mod_ns from 'mod'; mod.prop = 0; mod_ns.prop = 0": [{ col: 50, message: MESSAGE }],
-      "import * as mod from 'mod'; Object?.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; (Object?.defineProperty)(mod, key, d)": [{ col: 28, message: MESSAGE }],
-      "import * as mod from 'mod'; delete mod?.prop": [{ col: 28, message: MESSAGE }],
+      "import mod1 from 'mod'; mod1 = 0": [{ col: 24, message: MESSAGE, hint: HINT }],
+      "import mod2 from 'mod'; mod2 += 0": [{ col: 24, message: MESSAGE, hint: HINT }],
+      "import mod3 from 'mod'; mod3++": [{ col: 24, message: MESSAGE, hint: HINT }],
+      "import mod4 from 'mod'; for (mod4 in foo);": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import mod5 from 'mod'; for (mod5 of foo);": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import mod6 from 'mod'; [mod6] = foo": [{ col: 25, message: MESSAGE, hint: HINT }],
+      "import mod7 from 'mod'; [mod7 = 0] = foo": [{ col: 25, message: MESSAGE, hint: HINT }],
+      "import mod8 from 'mod'; [...mod8] = foo": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import mod9 from 'mod'; ({ bar: mod9 } = foo)": [{ col: 32, message: MESSAGE, hint: HINT }],
+      "import mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)": [{ col: 33, message: MESSAGE, hint: HINT }],
+      "import mod11 from 'mod'; ({ ...mod11 } = foo)": [{ col: 31, message: MESSAGE, hint: HINT }],
+      "import {named1} from 'mod'; named1 = 0": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import {named2} from 'mod'; named2 += 0": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import {named3} from 'mod'; named3++": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import {named4} from 'mod'; for (named4 in foo);": [{ col: 33, message: MESSAGE, hint: HINT }],
+      "import {named5} from 'mod'; for (named5 of foo);": [{ col: 33, message: MESSAGE, hint: HINT }],
+      "import {named6} from 'mod'; [named6] = foo": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import {named7} from 'mod'; [named7 = 0] = foo": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import {named8} from 'mod'; [...named8] = foo": [{ col: 32, message: MESSAGE, hint: HINT }],
+      "import {named9} from 'mod'; ({ bar: named9 } = foo)": [{ col: 36, message: MESSAGE, hint: HINT }],
+      "import {named10} from 'mod'; ({ bar: named10 = 0 } = foo)": [{ col: 37, message: MESSAGE, hint: HINT }],
+      "import {named11} from 'mod'; ({ ...named11 } = foo)": [{ col: 35, message: MESSAGE, hint: HINT }],
+      "import {named12 as foo} from 'mod'; foo = 0; named12 = 0": [{ col: 36, message: MESSAGE, hint: HINT }],
+      "import * as mod1 from 'mod'; mod1 = 0": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import * as mod2 from 'mod'; mod2 += 0": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import * as mod3 from 'mod'; mod3++": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import * as mod4 from 'mod'; for (mod4 in foo);": [{ col: 34, message: MESSAGE, hint: HINT }],
+      "import * as mod5 from 'mod'; for (mod5 of foo);": [{ col: 34, message: MESSAGE, hint: HINT }],
+      "import * as mod6 from 'mod'; [mod6] = foo": [{ col: 30, message: MESSAGE, hint: HINT }],
+      "import * as mod7 from 'mod'; [mod7 = 0] = foo": [{ col: 30, message: MESSAGE, hint: HINT }],
+      "import * as mod8 from 'mod'; [...mod8] = foo": [{ col: 33, message: MESSAGE, hint: HINT }],
+      "import * as mod9 from 'mod'; ({ bar: mod9 } = foo)": [{ col: 37, message: MESSAGE, hint: HINT }],
+      "import * as mod10 from 'mod'; ({ bar: mod10 = 0 } = foo)": [{ col: 38, message: MESSAGE, hint: HINT }],
+      "import * as mod11 from 'mod'; ({ ...mod11 } = foo)": [{ col: 36, message: MESSAGE, hint: HINT }],
+      "import * as mod1 from 'mod'; mod1.named = 0": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import * as mod2 from 'mod'; mod2.named += 0": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import * as mod3 from 'mod'; mod3.named++": [{ col: 29, message: MESSAGE, hint: HINT }],
+      "import * as mod4 from 'mod'; for (mod4.named in foo);": [{ col: 34, message: MESSAGE, hint: HINT }],
+      "import * as mod5 from 'mod'; for (mod5.named of foo);": [{ col: 34, message: MESSAGE, hint: HINT }],
+      "import * as mod6 from 'mod'; [mod6.named] = foo": [{ col: 30, message: MESSAGE, hint: HINT }],
+      "import * as mod7 from 'mod'; [mod7.named = 0] = foo": [{ col: 30, message: MESSAGE, hint: HINT }],
+      "import * as mod8 from 'mod'; [...mod8.named] = foo": [{ col: 33, message: MESSAGE, hint: HINT }],
+      "import * as mod9 from 'mod'; ({ bar: mod9.named } = foo)": [{ col: 37, message: MESSAGE, hint: HINT }],
+      "import * as mod10 from 'mod'; ({ bar: mod10.named = 0 } = foo)": [{ col: 38, message: MESSAGE, hint: HINT }],
+      "import * as mod11 from 'mod'; ({ ...mod11.named } = foo)": [{ col: 36, message: MESSAGE, hint: HINT }],
+      "import * as mod12 from 'mod'; delete mod12.named": [{ col: 30, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Object.assign(mod, obj)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Object.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Object.setPrototypeOf(mod, proto)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Object.freeze(mod)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Reflect.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Reflect.deleteProperty(mod, key)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Reflect.set(mod, key, value)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Reflect.setPrototypeOf(mod, proto)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import mod, * as mod_ns from 'mod'; mod.prop = 0; mod_ns.prop = 0": [{ col: 50, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; Object?.defineProperty(mod, key, d)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; (Object?.defineProperty)(mod, key, d)": [{ col: 28, message: MESSAGE, hint: HINT }],
+      "import * as mod from 'mod'; delete mod?.prop": [{ col: 28, message: MESSAGE, hint: HINT }],
     }
   }
 }
