@@ -787,6 +787,24 @@ const a = Target.Foo;
       let target_used = &idents[1];
       assert!(finder.decl_exists(&target_used));
     }
+
+    // TODO(magurotuna): This should be passed. Variables declared with `var` are not block-scoped,
+    // but function-scoped. We need to fix the handling for `var` declared variables.
+    // #[test]
+    // fn function_scoped_var() {
+    //   let src = r#"
+    //     function foo() {
+    //       target++;
+    //       {
+    //         var target = 0;
+    //       }
+    //     }
+    //     "#;
+    //   let idents = get_idents(src, "target");
+    //   let finder = decl_finder(src);
+    //   let target_used = &idents[0];
+    //   assert!(finder.decl_exists(&target_used));
+    // }
   }
 }
 
