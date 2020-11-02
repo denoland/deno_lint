@@ -1,9 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::swc_util::Key;
+use swc_common::Span;
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
+use swc_ecmascript::ast::VarDeclarator;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -59,23 +62,41 @@ impl<'c> NoEvalVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self { context }
   }
+
+  fn maybe_diagnose_identifier(&mut self, id: &str, span: &Span) {
+    if id == "eval" {
+      self.context.add_diagnostic_with_hint(
+        *span,
+        "no-eval",
+        "`eval` call is not allowed",
+        "Remove the use of `eval`",
+      );
+    }
+  }
 }
 
 impl<'c> Visit for NoEvalVisitor<'c> {
   noop_visit_type!();
 
+  fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
+    if let Some(expr) = &v.init {
+      if let Expr::Ident(ident) = expr.as_ref() {
+        self.maybe_diagnose_identifier(&ident.sym.as_ref(), &v.span);
+      }
+    }
+  }
+
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr.as_ref() {
-        let name = ident.sym.as_ref();
-        if name == "eval" {
-          self.context.add_diagnostic_with_hint(
-            call_expr.span,
-            "no-eval",
-            "`eval` call is not allowed",
-            "Remove the use of `eval`",
-          );
+      match expr.as_ref() {
+        Expr::Ident(ident) => {
+          self.maybe_diagnose_identifier(&ident.sym.as_ref(), &call_expr.span)
         }
+        Expr::Member(member_expr) => self.maybe_diagnose_identifier(
+          &member_expr.get_key().unwrap(),
+          &call_expr.span,
+        ),
+        _ => {}
       }
     }
   }
@@ -91,7 +112,7 @@ mod tests {
     assert_lint_err::<NoEval>(r#"eval("123");"#, 0);
     // TODO These tests should pass (#466)
     // assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 0);
-    // assert_lint_err::<NoEval>(r#"var foo = eval;"#, 0);
-    // assert_lint_err::<NoEval>(r#"this.eval("123");"#, 0);
+    assert_lint_err::<NoEval>(r#"var foo = eval;"#, 4);
+    assert_lint_err::<NoEval>(r#"this.eval("123");"#, 0);
   }
 }
