@@ -20,6 +20,8 @@ use swc_common::Spanned;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
+pub use swc_common::SourceFile;
+
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
@@ -193,32 +195,37 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
+  ) -> Result<
+    (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
+    SwcDiagnosticBuffer,
+  > {
     assert!(
       !self.has_linted,
       "Linter can be used only on a single module."
     );
     self.has_linted = true;
     let start = Instant::now();
-    let mut diagnostics = vec![];
 
-    if !source_code.is_empty() {
-      let (parse_result, comments) =
-        self
-          .ast_parser
-          .parse_program(&file_name, self.syntax, &source_code);
-      let end_parse_program = Instant::now();
-      debug!(
-        "ast_parser.parse_program took {:#?}",
-        end_parse_program - start
-      );
-      let program = parse_result?;
-      diagnostics = self.lint_program(file_name, program, comments);
-    }
+    let (parse_result, comments) =
+      self
+        .ast_parser
+        .parse_program(&file_name, self.syntax, &source_code);
+    let end_parse_program = Instant::now();
+    debug!(
+      "ast_parser.parse_program took {:#?}",
+      end_parse_program - start
+    );
+    let program = parse_result?;
+    let diagnostics = self.lint_program(file_name.clone(), program, comments);
 
+    let source_file = self
+      .ast_parser
+      .source_map
+      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .unwrap();
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    Ok(diagnostics)
+    Ok((source_file, diagnostics))
   }
 
   fn filter_diagnostics(
