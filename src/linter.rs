@@ -205,21 +205,18 @@ impl Linter {
     );
     self.has_linted = true;
     let start = Instant::now();
-    let mut diagnostics = vec![];
 
-    if !source_code.is_empty() {
-      let (parse_result, comments) =
-        self
-          .ast_parser
-          .parse_program(&file_name, self.syntax, &source_code);
-      let end_parse_program = Instant::now();
-      debug!(
-        "ast_parser.parse_program took {:#?}",
-        end_parse_program - start
-      );
-      let program = parse_result?;
-      diagnostics = self.lint_program(file_name, program, comments);
-    }
+    let (parse_result, comments) =
+      self
+        .ast_parser
+        .parse_program(&file_name, self.syntax, &source_code);
+    let end_parse_program = Instant::now();
+    debug!(
+      "ast_parser.parse_program took {:#?}",
+      end_parse_program - start
+    );
+    let program = parse_result?;
+    let diagnostics = self.lint_program(file_name.clone(), program, comments);
 
     let source_file = self
       .ast_parser
