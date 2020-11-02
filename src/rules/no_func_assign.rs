@@ -54,16 +54,15 @@ function myFunc() {}
 ### Valid:
 ```typescript
 function foo() {}
-const someVar = bar;
+const someVar = foo;
 
 const a = function baz() {
   const someStr = "now I'm a string";
 }
 
-myFunc = existingFunc;
-function myFunc() {}
+const anotherFuncRef = existingFunc;
 
-const myFuncVar = function() {}
+let myFuncVar = function() {}
 myFuncVar = bar;  // variable reassignment, not function re-declaration
 ```
 "#
