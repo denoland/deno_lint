@@ -48,7 +48,7 @@ impl IgnoreDirective {
 }
 
 pub fn parse_ignore_directives(
-  ignore_diagnostic_directives: &[String],
+  ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
   leading_comments: &HashMap<BytePos, Vec<Comment>>,
   trailing_comments: &HashMap<BytePos, Vec<Comment>>,
@@ -58,7 +58,7 @@ pub fn parse_ignore_directives(
   leading_comments.values().for_each(|comments| {
     for comment in comments {
       if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directives,
+        &ignore_diagnostic_directive,
         source_map,
         comment,
         false,
@@ -71,7 +71,7 @@ pub fn parse_ignore_directives(
   trailing_comments.values().for_each(|comments| {
     for comment in comments {
       if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directives,
+        &ignore_diagnostic_directive,
         source_map,
         comment,
         false,
@@ -87,7 +87,7 @@ pub fn parse_ignore_directives(
 }
 
 pub fn parse_ignore_comment(
-  ignore_diagnostic_directives: &[String],
+  ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
   comment: &Comment,
   is_global: bool,
@@ -98,33 +98,32 @@ pub fn parse_ignore_comment(
 
   let comment_text = comment.text.trim();
 
-  for ignore_dir in ignore_diagnostic_directives {
-    if let Some(prefix) = comment_text.split_whitespace().next() {
-      if prefix == ignore_dir {
-        let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
-        let comment_text =
-          IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
-        let codes = comment_text
-          .split(',')
-          .filter(|code| !code.is_empty())
-          .map(|code| String::from(code.trim()))
-          .collect::<Vec<String>>();
+  if let Some(prefix) = comment_text.split_whitespace().next() {
+    if prefix == ignore_diagnostic_directive {
+      let comment_text = comment_text
+        .strip_prefix(ignore_diagnostic_directive)
+        .unwrap();
+      let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
+      let codes = comment_text
+        .split(',')
+        .filter(|code| !code.is_empty())
+        .map(|code| String::from(code.trim()))
+        .collect::<Vec<String>>();
 
-        let location = source_map.lookup_char_pos(comment.span.lo());
-        let position = Position::new(comment.span.lo(), location);
-        let mut used_codes = HashMap::new();
-        codes.iter().for_each(|code| {
-          used_codes.insert(code.to_string(), false);
-        });
+      let location = source_map.lookup_char_pos(comment.span.lo());
+      let position = Position::new(comment.span.lo(), location);
+      let mut used_codes = HashMap::new();
+      codes.iter().for_each(|code| {
+        used_codes.insert(code.to_string(), false);
+      });
 
-        return Some(IgnoreDirective {
-          position,
-          span: comment.span,
-          codes,
-          used_codes,
-          is_global,
-        });
-      }
+      return Some(IgnoreDirective {
+        position,
+        span: comment.span,
+        codes,
+        used_codes,
+        is_global,
+      });
     }
   }
 
@@ -176,7 +175,7 @@ object | undefined {}
     let leading = leading_coms.into_iter().collect();
     let trailing = trailing_coms.into_iter().collect();
     let directives = parse_ignore_directives(
-      &["deno-lint-ignore".to_string()],
+      "deno-lint-ignore",
       &ast_parser.source_map,
       &leading,
       &trailing,
