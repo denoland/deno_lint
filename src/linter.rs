@@ -8,7 +8,6 @@ use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::LintRule;
-use crate::scopes::analyze;
 use crate::scopes::Scope;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -343,7 +342,7 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = analyze(&program);
+    let scope = Scope::analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {
