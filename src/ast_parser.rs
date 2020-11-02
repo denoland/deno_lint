@@ -14,6 +14,7 @@ use swc_common::Globals;
 use swc_common::Mark;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_ecmascript::ast;
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::EsConfig;
 use swc_ecmascript::parser::JscTarget;
@@ -156,10 +157,7 @@ impl AstParser {
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
-  ) -> (
-    Result<swc_ecmascript::ast::Program, SwcDiagnosticBuffer>,
-    SingleThreadedComments,
-  ) {
+  ) -> Result<(ast::Program, SingleThreadedComments), SwcDiagnosticBuffer> {
     let swc_source_file = self.source_map.new_source_file(
       FileName::Custom(file_name.to_string()),
       source_code.to_string(),
@@ -183,13 +181,13 @@ impl AstParser {
       SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
     });
 
-    let parse_result = parse_result.map(|script| {
+    let parse_result = parse_result.map(|program| {
       swc_common::GLOBALS.set(&self.globals, || {
-        script.fold_with(&mut ts_resolver(self.top_level_mark))
+        program.fold_with(&mut ts_resolver(self.top_level_mark))
       })
     });
 
-    (parse_result, comments)
+    parse_result.map(|program| (program, comments))
   }
 
   pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {

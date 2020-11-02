@@ -305,9 +305,9 @@ mod tests {
   fn test_scope(source_code: &str) -> Scope {
     let ast_parser = AstParser::new();
     let syntax = ast_parser::get_default_ts_config();
-    let (parse_result, _comments) =
-      ast_parser.parse_program("file_name.ts", syntax, source_code);
-    let program = parse_result.unwrap();
+    let (program, _comments) = ast_parser
+      .parse_program("file_name.ts", syntax, source_code)
+      .unwrap();
 
     Scope::analyze(&program)
   }

@@ -162,12 +162,13 @@ target: Record<string, any>,
 object | undefined {}
   "#;
     let ast_parser = AstParser::new();
-    let (parse_result, comments) = ast_parser.parse_program(
-      "test.ts",
-      ast_parser::get_default_ts_config(),
-      &source_code,
-    );
-    parse_result.expect("Failed to parse");
+    let (_program, comments) = ast_parser
+      .parse_program(
+        "test.ts",
+        ast_parser::get_default_ts_config(),
+        &source_code,
+      )
+      .expect("Failed to parse");
     let (leading, trailing) = comments.take_all();
     let leading_coms = Rc::try_unwrap(leading)
       .expect("Failed to get leading comments")

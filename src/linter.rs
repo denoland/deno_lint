@@ -207,7 +207,7 @@ impl Linter {
     self.has_linted = true;
     let start = Instant::now();
 
-    let (parse_result, comments) =
+    let parse_result =
       self
         .ast_parser
         .parse_program(&file_name, self.syntax, &source_code);
@@ -216,7 +216,7 @@ impl Linter {
       "ast_parser.parse_program took {:#?}",
       end_parse_program - start
     );
-    let program = parse_result?;
+    let (program, comments) = parse_result?;
     let diagnostics = self.lint_program(file_name.clone(), program, comments);
 
     let source_file = self
