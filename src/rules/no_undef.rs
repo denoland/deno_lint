@@ -46,6 +46,7 @@ impl LintRule for NoUndef {
 struct BindingCollector {
   /// Optimization. Unresolved references and top
   /// level bindings will have this context.
+  #[allow(unused)]
   top_level_ctxt: SyntaxContext,
 
   /// If there exists a binding with such id, it's not global.
@@ -54,9 +55,6 @@ struct BindingCollector {
 
 impl BindingCollector {
   fn declare(&mut self, i: Id) {
-    if i.1 != self.top_level_ctxt {
-      return;
-    }
     self.declared.insert(i);
   }
 }
@@ -64,6 +62,7 @@ impl BindingCollector {
 impl Visit for BindingCollector {
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
+    f.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, f: &ClassDecl, _: &dyn Node) {
@@ -348,6 +347,24 @@ mod tests {
         this.emit("error", err);
       }
     }
+    "#,
+
+      r#"
+    (() => {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    })();
+        "#,
+
+      r#"
+function magurotuna() {
+  function foo() {
+    return new Bar();
+  }
+  class Bar {}
+}
     "#,
     };
   }
