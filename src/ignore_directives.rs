@@ -37,9 +37,7 @@ impl IgnoreDirective {
 
     let mut should_ignore = false;
     for code in self.codes.iter() {
-      // `ends_with` allows to skip `@typescript-eslint` prefix - not ideal
-      // but works for now
-      if code.ends_with(&diagnostic.code) {
+      if code == &diagnostic.code {
         should_ignore = true;
         *self.used_codes.get_mut(code).unwrap() = true;
       }
