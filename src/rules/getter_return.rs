@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
 use derive_more::Display;
 use std::collections::BTreeMap;
 use std::mem;
@@ -165,9 +165,9 @@ impl<'c> GetterReturnVisitor<'c> {
     }
   }
 
-  fn set_getter_name<T: Key>(&mut self, name: &T) {
+  fn set_getter_name<S: StringRepr>(&mut self, name: &S) {
     self.getter_name =
-      Some(name.get_key().unwrap_or_else(|| "get".to_string()));
+      Some(name.string_repr().unwrap_or_else(|| "get".to_string()));
   }
 
   fn set_default_getter_name(&mut self) {

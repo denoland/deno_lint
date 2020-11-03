@@ -21,6 +21,24 @@ pub struct Scope {
 }
 
 impl Scope {
+  pub fn analyze(program: &Program) -> Self {
+    let mut scope = Self {
+      vars: Default::default(),
+      symbols: Default::default(),
+    };
+    let mut path = vec![];
+
+    program.visit_with(
+      &Invalid { span: DUMMY_SP },
+      &mut Analyzer {
+        scope: &mut scope,
+        path: &mut path,
+      },
+    );
+
+    scope
+  }
+
   // Get all declarations with a symbol.
   #[allow(dead_code)]
   pub fn ids_with_symbol(&self, sym: &JsWord) -> Option<&Vec<Id>> {
@@ -73,24 +91,6 @@ pub enum ScopeKind {
   Switch,
   With,
   Catch,
-}
-
-pub fn analyze(program: &Program) -> Scope {
-  let mut scope = Scope {
-    vars: Default::default(),
-    symbols: Default::default(),
-  };
-  let mut path = vec![];
-
-  program.visit_with(
-    &Invalid { span: DUMMY_SP },
-    &mut Analyzer {
-      scope: &mut scope,
-      path: &mut path,
-    },
-  );
-
-  scope
 }
 
 struct Analyzer<'a> {
@@ -297,19 +297,19 @@ impl Visit for Analyzer<'_> {
 
 #[cfg(test)]
 mod tests {
-  use super::{analyze, BindingKind, Scope, ScopeKind, Var};
-  use crate::swc_util::{self, AstParser};
-  use swc_ecmascript::ast::Program;
+  use super::{BindingKind, Scope, ScopeKind, Var};
+  use crate::ast_parser;
+  use crate::ast_parser::AstParser;
   use swc_ecmascript::utils::Id;
 
   fn test_scope(source_code: &str) -> Scope {
     let ast_parser = AstParser::new();
-    let syntax = swc_util::get_default_ts_config();
-    let (parse_result, _comments) =
-      ast_parser.parse_module("file_name.ts", syntax, source_code);
-    let module = parse_result.unwrap();
+    let syntax = ast_parser::get_default_ts_config();
+    let (program, _comments) = ast_parser
+      .parse_program("file_name.ts", syntax, source_code)
+      .unwrap();
 
-    analyze(&Program::Module(module))
+    Scope::analyze(&program)
   }
 
   fn id(scope: &Scope, s: &str) -> Id {

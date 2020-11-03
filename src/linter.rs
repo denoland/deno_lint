@@ -1,13 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::ast_parser::get_default_ts_config;
+use crate::ast_parser::AstParser;
+use crate::ast_parser::SwcDiagnosticBuffer;
+use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::LintRule;
-use crate::scopes::{analyze, Scope};
-use crate::swc_util::get_default_ts_config;
-use crate::swc_util::AstParser;
-use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use crate::scopes::Scope;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -20,12 +21,7 @@ use swc_common::Spanned;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
-/// Describes if file should be treated as a script
-/// or ES module.
-pub enum FileType {
-  Module,
-  Script,
-}
+pub use swc_common::SourceFile;
 
 pub struct Context {
   pub file_name: String,
@@ -98,8 +94,8 @@ impl Context {
 }
 
 pub struct LinterBuilder {
-  ignore_file_directives: Vec<String>,
-  ignore_diagnostic_directives: Vec<String>,
+  ignore_file_directive: String,
+  ignore_diagnostic_directive: String,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
@@ -109,8 +105,8 @@ pub struct LinterBuilder {
 impl LinterBuilder {
   pub fn default() -> Self {
     Self {
-      ignore_file_directives: vec!["deno-lint-ignore-file".to_string()],
-      ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
+      ignore_file_directive: "deno-lint-ignore-file".to_string(),
+      ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
       lint_unused_ignore_directives: true,
       lint_unknown_rules: true,
       syntax: get_default_ts_config(),
@@ -120,8 +116,8 @@ impl LinterBuilder {
 
   pub fn build(self) -> Linter {
     Linter::new(
-      self.ignore_file_directives,
-      self.ignore_diagnostic_directives,
+      self.ignore_file_directive,
+      self.ignore_diagnostic_directive,
       self.lint_unused_ignore_directives,
       self.lint_unknown_rules,
       self.syntax,
@@ -129,15 +125,13 @@ impl LinterBuilder {
     )
   }
 
-  pub fn ignore_file_directives(mut self, directives: Vec<&str>) -> Self {
-    self.ignore_file_directives =
-      directives.iter().map(|s| s.to_string()).collect();
+  pub fn ignore_file_directive(mut self, directive: &str) -> Self {
+    self.ignore_file_directive = directive.to_owned();
     self
   }
 
-  pub fn ignore_diagnostic_directives(mut self, directives: Vec<&str>) -> Self {
-    self.ignore_diagnostic_directives =
-      directives.iter().map(|s| s.to_string()).collect();
+  pub fn ignore_diagnostic_directive(mut self, directive: &str) -> Self {
+    self.ignore_diagnostic_directive = directive.to_owned();
     self
   }
 
@@ -168,8 +162,8 @@ impl LinterBuilder {
 pub struct Linter {
   has_linted: bool,
   ast_parser: AstParser,
-  ignore_file_directives: Vec<String>,
-  ignore_diagnostic_directives: Vec<String>,
+  ignore_file_directive: String,
+  ignore_diagnostic_directive: String,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: Syntax,
@@ -178,8 +172,8 @@ pub struct Linter {
 
 impl Linter {
   fn new(
-    ignore_file_directives: Vec<String>,
-    ignore_diagnostic_directives: Vec<String>,
+    ignore_file_directive: String,
+    ignore_diagnostic_directive: String,
     lint_unused_ignore_directives: bool,
     lint_unknown_rules: bool,
     syntax: Syntax,
@@ -188,8 +182,8 @@ impl Linter {
     Linter {
       has_linted: false,
       ast_parser: AstParser::new(),
-      ignore_file_directives,
-      ignore_diagnostic_directives,
+      ignore_file_directive,
+      ignore_diagnostic_directive,
       lint_unused_ignore_directives,
       lint_unknown_rules,
       syntax,
@@ -201,52 +195,37 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-    file_type: FileType,
-  ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
+  ) -> Result<
+    (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
+    SwcDiagnosticBuffer,
+  > {
     assert!(
       !self.has_linted,
       "Linter can be used only on a single module."
     );
     self.has_linted = true;
     let start = Instant::now();
-    let mut diagnostics = vec![];
 
-    if !source_code.is_empty() {
-      let (program, comments) = match file_type {
-        FileType::Script => {
-          let (parse_result, comments) =
-            self
-              .ast_parser
-              .parse_script(&file_name, self.syntax, &source_code);
-          let end_parse_script = Instant::now();
-          debug!(
-            "ast_parser.parse_script took {:#?}",
-            end_parse_script - start
-          );
-          let script = parse_result?;
-          (swc_ecmascript::ast::Program::Script(script), comments)
-        }
-        FileType::Module => {
-          let (parse_result, comments) =
-            self
-              .ast_parser
-              .parse_module(&file_name, self.syntax, &source_code);
-          let end_parse_module = Instant::now();
-          debug!(
-            "ast_parser.parse_module took {:#?}",
-            end_parse_module - start
-          );
-          let module = parse_result?;
-          (swc_ecmascript::ast::Program::Module(module), comments)
-        }
-      };
+    let parse_result =
+      self
+        .ast_parser
+        .parse_program(&file_name, self.syntax, &source_code);
+    let end_parse_program = Instant::now();
+    debug!(
+      "ast_parser.parse_program took {:#?}",
+      end_parse_program - start
+    );
+    let (program, comments) = parse_result?;
+    let diagnostics = self.lint_program(file_name.clone(), program, comments);
 
-      diagnostics = self.lint_program(file_name, program, comments);
-    }
-
+    let source_file = self
+      .ast_parser
+      .source_map
+      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .unwrap();
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    Ok(diagnostics)
+    Ok((source_file, diagnostics))
   }
 
   fn filter_diagnostics(
@@ -325,7 +304,7 @@ impl Linter {
       comments.with_leading(program.span().lo(), |c| {
         c.iter().find_map(|comment| {
           parse_ignore_comment(
-            &self.ignore_file_directives,
+            &self.ignore_file_directive,
             &*self.ast_parser.source_map,
             comment,
             true,
@@ -352,7 +331,7 @@ impl Linter {
     let trailing = trailing_coms.into_iter().collect();
 
     let mut ignore_directives = parse_ignore_directives(
-      &self.ignore_diagnostic_directives,
+      &self.ignore_diagnostic_directive,
       &self.ast_parser.source_map,
       &leading,
       &trailing,
@@ -362,7 +341,7 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = analyze(&program);
+    let scope = Scope::analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {

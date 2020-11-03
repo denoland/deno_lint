@@ -9,6 +9,7 @@ extern crate log;
 #[macro_use]
 mod test_util;
 
+pub mod ast_parser;
 mod control_flow;
 pub mod diagnostic;
 mod globals;
@@ -37,13 +38,10 @@ mod lint_tests {
       .rules(get_recommended_rules())
       .build();
 
-    linter
-      .lint(
-        "lint_test.ts".to_string(),
-        source.to_string(),
-        FileType::Module,
-      )
-      .expect("Failed to lint")
+    let (_, diagnostics) = linter
+      .lint("lint_test.ts".to_string(), source.to_string())
+      .expect("Failed to lint");
+    diagnostics
   }
 
   #[test]
