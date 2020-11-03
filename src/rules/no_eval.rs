@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
 use swc_common::Span;
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
@@ -85,7 +85,7 @@ impl<'c> Visit for NoEvalVisitor<'c> {
   fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
     if let Some(expr) = &v.init {
       if let Expr::Ident(ident) = expr.as_ref() {
-        let ident_name = &ident.get_key().unwrap();
+        let ident_name = &ident.string_repr().unwrap();
         self.maybe_add_diagnostic(ident_name, v.span);
       }
     }
@@ -95,11 +95,11 @@ impl<'c> Visit for NoEvalVisitor<'c> {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       match expr.as_ref() {
         Expr::Ident(ident) => {
-          let ident_name = &ident.get_key().unwrap();
+          let ident_name = &ident.string_repr().unwrap();
           self.maybe_add_diagnostic(ident_name, call_expr.span)
         }
         Expr::Member(member_expr) => {
-          let member_name = &member_expr.get_key().unwrap();
+          let member_name = &member_expr.string_repr().unwrap();
           self.maybe_add_diagnostic(member_name, call_expr.span)
         }
         Expr::Paren(paren) => {
