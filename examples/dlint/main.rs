@@ -127,6 +127,8 @@ fn run_linter(paths: Vec<String>) {
 
     let mut linter = LinterBuilder::default()
       .rules(get_recommended_rules())
+      .lint_unknown_rules(true)
+      .lint_unused_ignore_directives(true)
       .build();
 
     let (source_file, file_diagnostics) = linter
