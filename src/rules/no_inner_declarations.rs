@@ -67,7 +67,7 @@ function someFunc(someVal:number): void {
   var foo = true;
   if (someVal > 4) {
     let b = 10;
-    const fn  = function doSomethingElse() {}
+    const fn = function doSomethingElse() {}
   }
 }
 ```
