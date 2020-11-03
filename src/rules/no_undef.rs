@@ -3,12 +3,11 @@ use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
 use swc_atoms::js_word;
-use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
   visit::Node,
-  visit::{noop_visit_type, Visit, VisitWith},
+  visit::{noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith},
 };
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
@@ -31,25 +30,16 @@ impl LintRule for NoUndef {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut collector = BindingCollector {
-      top_level_ctxt: context.top_level_ctxt,
       declared: Default::default(),
     };
-    program.visit_with(program, &mut collector);
+    program.visit_all_with(program, &mut collector);
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
     program.visit_with(program, &mut visitor);
   }
 }
 
-/// Collects top level bindings, which have top level syntax
-/// context passed to the resolver.
 struct BindingCollector {
-  /// Optimization. Unresolved references and top
-  /// level bindings will have this context.
-  #[allow(unused)]
-  top_level_ctxt: SyntaxContext,
-
-  /// If there exists a binding with such id, it's not global.
   declared: HashSet<Id>,
 }
 
@@ -59,10 +49,9 @@ impl BindingCollector {
   }
 }
 
-impl Visit for BindingCollector {
+impl VisitAll for BindingCollector {
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
-    f.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, f: &ClassDecl, _: &dyn Node) {
@@ -137,8 +126,6 @@ impl Visit for BindingCollector {
         self.declare(id);
       }
     }
-
-    c.body.visit_with(c, self);
   }
 }
 
@@ -357,14 +344,21 @@ mod tests {
       class Bar {}
     })();
         "#,
-
       r#"
-function magurotuna() {
-  function foo() {
-    return new Bar();
-  }
-  class Bar {}
-}
+    function f() {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    }
+    "#,
+      r#"
+    function f() {
+      foo++;
+      {
+        var foo = 1;
+      }
+    }
     "#,
     };
   }
@@ -435,6 +429,18 @@ function magurotuna() {
         {
           col: 27,
           message: "b is not defined",
+        },
+      ],
+      "foo++; function f() { var foo = 0; }": [
+        {
+          col: 0,
+          message: "foo is not defined",
+        },
+      ],
+      "foo++; { let foo = 0; }": [
+        {
+          col: 0,
+          message: "foo is not defined",
         },
       ],
     };
