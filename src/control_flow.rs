@@ -1218,7 +1218,6 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
     assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
     assert_flow!(flow, 27, false, Some(End::Forced)); // BloskStmt of if
