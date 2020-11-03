@@ -366,6 +366,7 @@ Object.defineProperty(foo, 'bar', {
   }
 });
       "#,
+
       // https://github.com/denoland/deno_lint/issues/348
       r#"
 const obj = {
@@ -381,6 +382,51 @@ const obj = {
   }
 };
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/462
+      r#"
+const obj = {
+  get body() {
+    if (foo) {
+      return 1;
+    } else {
+      doSomething();
+    }
+    return 0;
+  }
+}
+      "#,
+      r#"
+const obj = {
+  get body() {
+    if (this._stream) {
+      return this._stream;
+    }
+
+    if (!this._bodySource) {
+      return null;
+    } else if (this._bodySource instanceof ReadableStream) {
+      this._stream = this._bodySource;
+    } else {
+      const buf = bodyToArrayBuffer(this._bodySource);
+      if (!(buf instanceof ArrayBuffer)) {
+        throw new Error(
+          `Expected ArrayBuffer from body`,
+        );
+      }
+
+      this._stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(buf));
+          controller.close();
+        },
+      });
+    }
+
+    return this._stream;
+  }
+};
+      "#
     };
   }
 
