@@ -145,7 +145,7 @@ fn run_linter(paths: Vec<String>, filter_rule_name: Option<&str>) {
     let file_diagnostics = if let Some(rule_name) = filter_rule_name {
       file_diagnostics
         .into_iter()
-        .filter(|d| &d.code == rule_name)
+        .filter(|d| d.code == rule_name)
         .collect()
     } else {
       file_diagnostics
