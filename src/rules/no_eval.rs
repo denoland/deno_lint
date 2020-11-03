@@ -63,15 +63,19 @@ impl<'c> NoEvalVisitor<'c> {
     Self { context }
   }
 
-  fn maybe_diagnose_identifier(&mut self, id: &str, span: &Span) {
-    if id == "eval" {
-      self.context.add_diagnostic_with_hint(
-        *span,
-        "no-eval",
-        "`eval` call is not allowed",
-        "Remove the use of `eval`",
-      );
+  fn maybe_add_diagnostic(&mut self, source: &str, span: Span) {
+    if source.contains("eval") {
+      self.add_diagnostic(span);
     }
+  }
+
+  fn add_diagnostic(&mut self, span: Span) {
+    self.context.add_diagnostic_with_hint(
+      span,
+      "no-eval",
+      "`eval` call is not allowed",
+      "Remove the use of `eval`",
+    );
   }
 }
 
@@ -81,7 +85,8 @@ impl<'c> Visit for NoEvalVisitor<'c> {
   fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
     if let Some(expr) = &v.init {
       if let Expr::Ident(ident) = expr.as_ref() {
-        self.maybe_diagnose_identifier(&ident.sym.as_ref(), &v.span);
+        let ident_name = &ident.get_key().unwrap();
+        self.maybe_add_diagnostic(ident_name, v.span);
       }
     }
   }
@@ -90,12 +95,18 @@ impl<'c> Visit for NoEvalVisitor<'c> {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       match expr.as_ref() {
         Expr::Ident(ident) => {
-          self.maybe_diagnose_identifier(&ident.sym.as_ref(), &call_expr.span)
+          let ident_name = &ident.get_key().unwrap();
+          self.maybe_add_diagnostic(ident_name, call_expr.span)
         }
-        Expr::Member(member_expr) => self.maybe_diagnose_identifier(
-          &member_expr.get_key().unwrap(),
-          &call_expr.span,
-        ),
+        Expr::Member(member_expr) => {
+          let member_name = &member_expr.get_key().unwrap();
+          self.maybe_add_diagnostic(member_name, call_expr.span)
+        }
+        Expr::Paren(paren) => {
+          let paren_snippet =
+            &self.context.source_map.span_to_snippet(paren.span).unwrap();
+          self.maybe_add_diagnostic(paren_snippet, call_expr.span);
+        }
         _ => {}
       }
     }
@@ -110,8 +121,7 @@ mod tests {
   #[test]
   fn no_eval_test() {
     assert_lint_err::<NoEval>(r#"eval("123");"#, 0);
-    // TODO These tests should pass (#466)
-    // assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 0);
+    assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 0);
     assert_lint_err::<NoEval>(r#"var foo = eval;"#, 4);
     assert_lint_err::<NoEval>(r#"this.eval("123");"#, 0);
   }
