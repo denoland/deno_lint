@@ -7,7 +7,7 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
-use crate::rules::{get_recommended_rules, LintRule};
+use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -236,16 +236,13 @@ impl Linter {
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
-    #[allow(clippy::borrowed_box)]
-    fn to_code(rule: &Box<dyn LintRule>) -> String {
-      rule.code().to_string()
-    }
-
-    let executed_rule_codes =
-      rules.iter().map(to_code).collect::<HashSet<String>>();
-    let available_rule_codes = get_recommended_rules()
+    let executed_rule_codes = rules
       .iter()
-      .map(to_code)
+      .map(|r| r.code().to_string())
+      .collect::<HashSet<String>>();
+    let available_rule_codes = get_all_rules()
+      .iter()
+      .map(|r| r.code().to_string())
       .collect::<HashSet<String>>();
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
