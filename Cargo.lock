@@ -196,6 +196,7 @@ version = "0.2.8"
 dependencies = [
  "annotate-snippets",
  "clap",
+ "derive_more",
  "env_logger",
  "log",
  "once_cell",
@@ -206,6 +207,17 @@ dependencies = [
  "swc_atoms",
  "swc_common",
  "swc_ecmascript",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41cb0e6161ad61ed084a36ba71fbba9e3ac5aee3606fb607fe08da6acbcf3d8c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

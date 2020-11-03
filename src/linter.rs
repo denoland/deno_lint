@@ -39,30 +39,31 @@ impl Context {
   pub(crate) fn add_diagnostic(
     &mut self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
   ) {
-    let diagnostic = self.create_diagnostic(span, code, message, None);
+    let diagnostic =
+      self.create_diagnostic(span, code.to_string(), message.to_string(), None);
     self.diagnostics.push(diagnostic);
   }
 
   pub(crate) fn add_diagnostic_with_hint(
     &mut self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
-    hint: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
+    hint: impl ToString,
   ) {
     let diagnostic =
-      self.create_diagnostic(span, code, message, Some(hint.into()));
+      self.create_diagnostic(span, code, message, Some(hint.to_string()));
     self.diagnostics.push(diagnostic);
   }
 
   fn create_diagnostic(
     &self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
@@ -78,8 +79,8 @@ impl Context {
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
       filename: self.file_name.clone(),
-      message: message.into(),
-      code: code.into(),
+      message: message.to_string(),
+      code: code.to_string(),
       hint: maybe_hint,
     };
 
