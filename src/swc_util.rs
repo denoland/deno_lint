@@ -1,217 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
-use std::cell::RefCell;
-use std::error::Error;
-use std::fmt;
-use std::rc::Rc;
-use swc_common::comments::SingleThreadedComments;
-use swc_common::errors::Diagnostic;
-use swc_common::errors::DiagnosticBuilder;
-use swc_common::errors::Emitter;
-use swc_common::errors::Handler;
-use swc_common::errors::HandlerFlags;
-use swc_common::FileName;
-use swc_common::Globals;
-use swc_common::Mark;
-use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
   PrivateName, Prop, PropName, PropOrSpread, Str, Tpl,
 };
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::EsConfig;
-use swc_ecmascript::parser::JscTarget;
-use swc_ecmascript::parser::Parser;
-use swc_ecmascript::parser::StringInput;
-use swc_ecmascript::parser::Syntax;
-use swc_ecmascript::parser::TsConfig;
-use swc_ecmascript::transforms::resolver::ts_resolver;
+use swc_ecmascript::utils::{find_ids, ident::IdentLike};
 use swc_ecmascript::visit::Fold;
-use swc_ecmascript::{
-  utils::{find_ids, ident::IdentLike},
-  visit::FoldWith,
-};
-
-#[allow(unused)]
-pub fn get_default_es_config() -> Syntax {
-  let mut config = EsConfig::default();
-  config.num_sep = true;
-  config.class_private_props = false;
-  config.class_private_methods = false;
-  config.class_props = false;
-  config.export_default_from = true;
-  config.export_namespace_from = true;
-  config.dynamic_import = true;
-  config.nullish_coalescing = true;
-  config.optional_chaining = true;
-  config.import_meta = true;
-  config.top_level_await = true;
-  Syntax::Es(config)
-}
-
-pub fn get_default_ts_config() -> Syntax {
-  let mut ts_config = TsConfig::default();
-  ts_config.dynamic_import = true;
-  ts_config.decorators = true;
-  Syntax::Typescript(ts_config)
-}
-
-#[derive(Clone, Debug)]
-pub struct SwcDiagnosticBuffer {
-  pub diagnostics: Vec<String>,
-}
-
-impl Error for SwcDiagnosticBuffer {}
-
-impl fmt::Display for SwcDiagnosticBuffer {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let msg = self.diagnostics.join(",");
-
-    f.pad(&msg)
-  }
-}
-
-impl SwcDiagnosticBuffer {
-  pub(crate) fn from_swc_error(
-    error_buffer: SwcErrorBuffer,
-    parser: &AstParser,
-  ) -> Self {
-    let s = error_buffer.0.borrow().clone();
-
-    let diagnostics = s
-      .iter()
-      .map(|d| {
-        let mut msg = d.message();
-
-        if let Some(span) = d.span.primary_span() {
-          let location = parser.get_span_location(span);
-          let filename = match &location.file.name {
-            FileName::Custom(n) => n,
-            _ => unreachable!(),
-          };
-          msg = format!(
-            "{} at {}:{}:{}",
-            msg, filename, location.line, location.col_display
-          );
-        }
-
-        msg
-      })
-      .collect::<Vec<String>>();
-
-    Self { diagnostics }
-  }
-}
-
-#[derive(Clone)]
-pub(crate) struct SwcErrorBuffer(Rc<RefCell<Vec<Diagnostic>>>);
-
-impl SwcErrorBuffer {
-  pub(crate) fn default() -> Self {
-    Self(Rc::new(RefCell::new(vec![])))
-  }
-}
-
-impl Emitter for SwcErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.borrow_mut().push((**db).clone());
-  }
-}
-
-/// Low-level utility structure with common AST parsing functions.
-///
-/// Allows to build more complicated parser by providing a callback
-/// to `parse_module`.
-pub(crate) struct AstParser {
-  pub(crate) buffered_error: SwcErrorBuffer,
-  pub(crate) source_map: Rc<SourceMap>,
-  pub(crate) handler: Handler,
-  pub(crate) globals: Globals,
-  /// The marker passed to the resolver (from swc).
-  ///
-  /// This mark is applied to top level bindings and unresolved references.
-  pub(crate) top_level_mark: Mark,
-}
-
-impl AstParser {
-  pub(crate) fn new() -> Self {
-    let buffered_error = SwcErrorBuffer::default();
-
-    let handler = Handler::with_emitter_and_flags(
-      Box::new(buffered_error.clone()),
-      HandlerFlags {
-        dont_buffer_diagnostics: true,
-        can_emit_warnings: true,
-        ..Default::default()
-      },
-    );
-
-    let globals = Globals::new();
-    let top_level_mark =
-      swc_common::GLOBALS.set(&globals, || Mark::fresh(Mark::root()));
-
-    AstParser {
-      buffered_error,
-      source_map: Rc::new(SourceMap::default()),
-      handler,
-      globals,
-      top_level_mark,
-    }
-  }
-
-  pub(crate) fn parse_program(
-    &self,
-    file_name: &str,
-    syntax: Syntax,
-    source_code: &str,
-  ) -> (
-    Result<swc_ecmascript::ast::Program, SwcDiagnosticBuffer>,
-    SingleThreadedComments,
-  ) {
-    let swc_source_file = self.source_map.new_source_file(
-      FileName::Custom(file_name.to_string()),
-      source_code.to_string(),
-    );
-
-    let buffered_err = self.buffered_error.clone();
-
-    let comments = SingleThreadedComments::default();
-    let lexer = Lexer::new(
-      syntax,
-      JscTarget::Es2019,
-      StringInput::from(&*swc_source_file),
-      Some(&comments),
-    );
-
-    let mut parser = Parser::new_from(lexer);
-
-    let parse_result = parser.parse_program().map_err(move |err| {
-      let mut diagnostic_builder = err.into_diagnostic(&self.handler);
-      diagnostic_builder.emit();
-      SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
-    });
-
-    let parse_result = parse_result.map(|script| {
-      swc_common::GLOBALS.set(&self.globals, || {
-        script.fold_with(&mut ts_resolver(self.top_level_mark))
-      })
-    });
-
-    (parse_result, comments)
-  }
-
-  pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
-    self.source_map.lookup_char_pos(span.lo())
-  }
-}
-
-impl Default for AstParser {
-  fn default() -> Self {
-    Self::new()
-  }
-}
 
 /// A folder to drop all spans of a subtree.
 struct SpanDropper;
@@ -259,42 +55,42 @@ pub(crate) fn extract_regex(
   }
 }
 
-pub(crate) trait Key {
-  fn get_key(&self) -> Option<String>;
+pub(crate) trait StringRepr {
+  fn string_repr(&self) -> Option<String>;
 }
 
-impl Key for Ident {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Ident {
+  fn string_repr(&self) -> Option<String> {
     Some(self.sym.to_string())
   }
 }
 
-impl Key for PropOrSpread {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for PropOrSpread {
+  fn string_repr(&self) -> Option<String> {
     use PropOrSpread::*;
     match self {
-      Prop(p) => (&**p).get_key(),
+      Prop(p) => (&**p).string_repr(),
       Spread(_) => None,
     }
   }
 }
 
-impl Key for Prop {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Prop {
+  fn string_repr(&self) -> Option<String> {
     use Prop::*;
     match self {
-      KeyValue(key_value) => key_value.key.get_key(),
-      Getter(getter) => getter.key.get_key(),
-      Setter(setter) => setter.key.get_key(),
-      Method(method) => method.key.get_key(),
+      KeyValue(key_value) => key_value.key.string_repr(),
+      Getter(getter) => getter.key.string_repr(),
+      Setter(setter) => setter.key.string_repr(),
+      Method(method) => method.key.string_repr(),
       Shorthand(_) => None,
       Assign(_) => None,
     }
   }
 }
 
-impl Key for Lit {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Lit {
+  fn string_repr(&self) -> Option<String> {
     use swc_ecmascript::ast::BigInt;
     use swc_ecmascript::ast::Bool;
     use swc_ecmascript::ast::JSXText;
@@ -315,8 +111,8 @@ impl Key for Lit {
   }
 }
 
-impl Key for Tpl {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Tpl {
+  fn string_repr(&self) -> Option<String> {
     if self.exprs.is_empty() {
       self.quasis.get(0).map(|q| q.raw.value.to_string())
     } else {
@@ -325,53 +121,53 @@ impl Key for Tpl {
   }
 }
 
-impl Key for Expr {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for Expr {
+  fn string_repr(&self) -> Option<String> {
     match self {
       Expr::Ident(ident) => Some(ident.sym.to_string()),
-      Expr::Lit(lit) => lit.get_key(),
-      Expr::Tpl(tpl) => tpl.get_key(),
+      Expr::Lit(lit) => lit.string_repr(),
+      Expr::Tpl(tpl) => tpl.string_repr(),
       _ => None,
     }
   }
 }
 
-impl Key for PropName {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for PropName {
+  fn string_repr(&self) -> Option<String> {
     match self {
       PropName::Ident(identifier) => Some(identifier.sym.to_string()),
       PropName::Str(str) => Some(str.value.to_string()),
       PropName::Num(num) => Some(num.to_string()),
       PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-        Expr::Lit(lit) => lit.get_key(),
-        Expr::Tpl(tpl) => tpl.get_key(),
+        Expr::Lit(lit) => lit.string_repr(),
+        Expr::Tpl(tpl) => tpl.string_repr(),
         _ => None,
       },
     }
   }
 }
 
-impl Key for PrivateName {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for PrivateName {
+  fn string_repr(&self) -> Option<String> {
     Some(self.id.sym.to_string())
   }
 }
 
-impl Key for MemberExpr {
-  fn get_key(&self) -> Option<String> {
+impl StringRepr for MemberExpr {
+  fn string_repr(&self) -> Option<String> {
     if let Expr::Ident(ident) = &*self.prop {
       if !self.computed {
         return Some(ident.sym.to_string());
       }
     }
 
-    (&*self.prop).get_key()
+    (&*self.prop).string_repr()
   }
 }
 
-impl<K: Key> Key for Option<K> {
-  fn get_key(&self) -> Option<String> {
-    self.as_ref().and_then(|k| k.get_key())
+impl<S: StringRepr> StringRepr for Option<S> {
+  fn string_repr(&self) -> Option<String> {
+    self.as_ref().and_then(|k| k.string_repr())
   }
 }
 

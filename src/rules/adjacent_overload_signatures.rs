@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
 use std::collections::HashSet;
 use swc_common::Span;
 use swc_common::Spanned;
@@ -192,7 +192,7 @@ impl ExtractMethod for ClassMember {
     match self {
       ClassMember::Method(ClassMethod {
         ref key, is_static, ..
-      }) => key.get_key().map(|k| {
+      }) => key.string_repr().map(|k| {
         if *is_static {
           Method::Static(k)
         } else {

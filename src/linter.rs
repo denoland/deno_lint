@@ -1,13 +1,14 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::ast_parser::get_default_ts_config;
+use crate::ast_parser::AstParser;
+use crate::ast_parser::SwcDiagnosticBuffer;
+use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::LintRule;
-use crate::scopes::{analyze, Scope};
-use crate::swc_util::get_default_ts_config;
-use crate::swc_util::AstParser;
-use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use crate::scopes::Scope;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -204,7 +205,7 @@ impl Linter {
     self.has_linted = true;
     let start = Instant::now();
 
-    let (parse_result, comments) =
+    let parse_result =
       self
         .ast_parser
         .parse_program(&file_name, self.syntax, &source_code);
@@ -213,7 +214,7 @@ impl Linter {
       "ast_parser.parse_program took {:#?}",
       end_parse_program - start
     );
-    let program = parse_result?;
+    let (program, comments) = parse_result?;
     let diagnostics = self.lint_program(file_name.clone(), program, comments);
 
     let source_file = self
@@ -339,7 +340,7 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = analyze(&program);
+    let scope = Scope::analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {

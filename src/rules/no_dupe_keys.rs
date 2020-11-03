@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
@@ -188,17 +188,17 @@ impl<'c> VisitAll for NoDupeKeysVisitor<'c> {
             self.check_key(span, Some(ident.as_ref()), &mut keys);
           }
           Prop::KeyValue(KeyValueProp { key, .. }) => {
-            self.check_key(span, key.get_key(), &mut keys);
+            self.check_key(span, key.string_repr(), &mut keys);
           }
           Prop::Assign(_) => {}
           Prop::Getter(GetterProp { key, .. }) => {
-            self.check_getter(span, key.get_key(), &mut keys);
+            self.check_getter(span, key.string_repr(), &mut keys);
           }
           Prop::Setter(SetterProp { key, .. }) => {
-            self.check_setter(span, key.get_key(), &mut keys);
+            self.check_setter(span, key.string_repr(), &mut keys);
           }
           Prop::Method(MethodProp { key, .. }) => {
-            self.check_key(span, key.get_key(), &mut keys);
+            self.check_key(span, key.string_repr(), &mut keys);
           }
         }
       }

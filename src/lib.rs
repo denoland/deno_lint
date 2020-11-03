@@ -9,6 +9,7 @@ extern crate log;
 #[macro_use]
 mod test_util;
 
+pub mod ast_parser;
 mod control_flow;
 pub mod diagnostic;
 mod globals;
