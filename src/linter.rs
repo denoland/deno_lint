@@ -7,10 +7,10 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
-use crate::rules::LintRule;
+use crate::rules::{get_recommended_rules, LintRule};
 use crate::scopes::Scope;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
@@ -236,10 +236,16 @@ impl Linter {
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
-    let rule_codes = rules
+    fn to_code(rule: &Box<dyn LintRule>) -> String {
+      rule.code().to_string()
+    }
+
+    let executed_rule_codes =
+      rules.iter().map(to_code).collect::<HashSet<String>>();
+    let available_rule_codes = get_recommended_rules()
       .iter()
-      .map(|r| r.code().to_string())
-      .collect::<Vec<String>>();
+      .map(to_code)
+      .collect::<HashSet<String>>();
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -260,7 +266,7 @@ impl Linter {
         for (code, used) in ignore_directive.used_codes.iter() {
           if self.lint_unused_ignore_directives
             && !used
-            && rule_codes.contains(code)
+            && executed_rule_codes.contains(code)
           {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
@@ -271,7 +277,7 @@ impl Linter {
             filtered_diagnostics.push(diagnostic);
           }
 
-          if self.lint_unknown_rules && !rule_codes.contains(code) {
+          if self.lint_unknown_rules && !available_rule_codes.contains(code) {
             filtered_diagnostics.push(context.create_diagnostic(
               ignore_directive.span,
               "ban-unknown-rule-code",
