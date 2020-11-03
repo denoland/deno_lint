@@ -3,12 +3,11 @@ use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
 use swc_atoms::js_word;
-use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
   visit::Node,
-  visit::{noop_visit_type, Visit, VisitWith},
+  visit::{noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith},
 };
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
@@ -31,37 +30,27 @@ impl LintRule for NoUndef {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut collector = BindingCollector {
-      top_level_ctxt: context.top_level_ctxt,
       declared: Default::default(),
     };
-    program.visit_with(program, &mut collector);
+    program.visit_all_with(program, &mut collector);
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
     program.visit_with(program, &mut visitor);
   }
 }
 
-/// Collects top level bindings, which have top level syntax
-/// context passed to the resolver.
 struct BindingCollector {
-  /// Optimization. Unresolved references and top
-  /// level bindings will have this context.
-  top_level_ctxt: SyntaxContext,
-
   /// If there exists a binding with such id, it's not global.
   declared: HashSet<Id>,
 }
 
 impl BindingCollector {
   fn declare(&mut self, i: Id) {
-    if i.1 != self.top_level_ctxt {
-      return;
-    }
     self.declared.insert(i);
   }
 }
 
-impl Visit for BindingCollector {
+impl VisitAll for BindingCollector {
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
   }
@@ -138,8 +127,6 @@ impl Visit for BindingCollector {
         self.declare(id);
       }
     }
-
-    c.body.visit_with(c, self);
   }
 }
 
@@ -349,6 +336,32 @@ mod tests {
       }
     }
     "#,
+
+      // https://github.com/denoland/deno_lint/issues/463
+      r#"
+    (() => {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    })();
+        "#,
+      r#"
+    function f() {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    }
+    "#,
+      r#"
+    function f() {
+      foo++;
+      {
+        var foo = 1;
+      }
+    }
+    "#,
     };
   }
 
@@ -418,6 +431,18 @@ mod tests {
         {
           col: 27,
           message: "b is not defined",
+        },
+      ],
+      "foo++; function f() { var foo = 0; }": [
+        {
+          col: 0,
+          message: "foo is not defined",
+        },
+      ],
+      "foo++; { let foo = 0; }": [
+        {
+          col: 0,
+          message: "foo is not defined",
         },
       ],
     };

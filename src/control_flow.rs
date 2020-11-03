@@ -230,7 +230,11 @@ impl Analyzer<'_> {
 
   /// Mark a statement as finisher - finishes execution - and expose it.
   fn mark_as_end(&mut self, lo: BytePos, end: End) {
-    if self.scope.end.is_none() {
+    // `End::Continue` doesn't mean much about execution status, just indicating that execution has
+    // not yet stopped so far. So if `End::Forced` or `End::Break` comes and the current
+    // `self.scope.end` is `Some(End::Continue)`, then `self.scope.end` should be replaced with the
+    // coming value.
+    if matches!(self.scope.end, None | Some(End::Continue)) {
       self.scope.end = Some(end);
     }
     self.info.entry(lo).or_default().end = Some(end);
@@ -417,7 +421,6 @@ impl Visit for Analyzer<'_> {
     match &n.alt {
       Some(alt) => {
         self.with_child_scope(BlockKind::If, alt.span().lo, |a| {
-          //
           a.visit_stmt_or_block(&alt);
         });
         let alt_reason = self.get_end_reason(alt.span().lo);
@@ -1200,6 +1203,28 @@ function foo() {
     assert_flow!(flow, 49, false, Some(End::Forced)); // else
     assert_flow!(flow, 55, false, Some(End::Forced)); // return stmt
     assert_flow!(flow, 71, false, None); // `baz();`
+  }
+
+  #[test]
+  fn if_3() {
+    let src = r#"
+function foo() {
+  if (a) {
+    return 1;
+  } else {
+    bar();
+  }
+  return 0;
+}
+"#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(End::Continue)); // if
+    assert_flow!(flow, 27, false, Some(End::Forced)); // BloskStmt of if
+    assert_flow!(flow, 33, false, Some(End::Forced)); // `return 1;`
+    assert_flow!(flow, 52, false, Some(End::Continue)); // else
+    assert_flow!(flow, 58, false, None); // `bar();`
+    assert_flow!(flow, 71, false, Some(End::Forced)); // `return 0;`
   }
 
   #[test]
