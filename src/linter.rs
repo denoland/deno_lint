@@ -236,6 +236,7 @@ impl Linter {
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
+    #[allow(clippy::borrowed_box)]
     fn to_code(rule: &Box<dyn LintRule>) -> String {
       rule.code().to_string()
     }
