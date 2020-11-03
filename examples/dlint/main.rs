@@ -29,12 +29,19 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("all").long("all")),
     )
     .subcommand(
-      SubCommand::with_name("run").arg(
-        Arg::with_name("FILES")
-          .help("Sets the input file to use")
-          .required(true)
-          .multiple(true),
-      ),
+      SubCommand::with_name("run")
+        .arg(
+          Arg::with_name("FILES")
+            .help("Sets the input file to use")
+            .required(true)
+            .multiple(true),
+        )
+        .arg(
+          Arg::with_name("RULE")
+            .long("rule")
+            .help("Runs a certain rule")
+            .takes_value(true),
+        ),
     )
 }
 
@@ -117,7 +124,10 @@ fn display_diagnostics(
   }
 }
 
-fn run_linter(paths: Vec<String>) {
+fn run_linter<F>(paths: Vec<String>, get_rules: F)
+where
+  F: Fn() -> Vec<Box<dyn LintRule>> + Sync,
+{
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
@@ -125,9 +135,7 @@ fn run_linter(paths: Vec<String>) {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
-    let mut linter = LinterBuilder::default()
-      .rules(get_recommended_rules())
-      .build();
+    let mut linter = LinterBuilder::default().rules(get_rules()).build();
 
     let (source_file, file_diagnostics) = linter
       .lint(file_path.to_string(), source_code)
@@ -250,7 +258,17 @@ fn main() {
         .unwrap()
         .map(|p| p.to_string())
         .collect();
-      run_linter(paths);
+      let get_rules = || {
+        if let Some(rule_name) = run_matches.value_of("RULE") {
+          get_recommended_rules()
+            .into_iter()
+            .filter(|r| r.code() == rule_name)
+            .collect()
+        } else {
+          get_recommended_rules()
+        }
+      };
+      run_linter(paths, get_rules);
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
