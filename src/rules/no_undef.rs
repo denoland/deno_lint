@@ -40,6 +40,7 @@ impl LintRule for NoUndef {
 }
 
 struct BindingCollector {
+  /// If there exists a binding with such id, it's not global.
   declared: HashSet<Id>,
 }
 
@@ -336,6 +337,7 @@ mod tests {
     }
     "#,
 
+      // https://github.com/denoland/deno_lint/issues/463
       r#"
     (() => {
       function foo() {
