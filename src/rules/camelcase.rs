@@ -137,17 +137,22 @@ enum IdentToCheck {
   /// Key and value name in object pattern, for example:
   ///
   /// ```typescript
-  /// const { foo } = obj1; // key_name: foo, value_name: None
+  /// // key_name: foo, value_name: None, has_default: false
+  /// const { foo } = obj1;
   ///
-  /// const { foo: bar } = obj2; // key_name: foo, value_name: Some(bar)
+  /// // key_name: foo, value_name: Some(bar), has_default: false
+  /// const { foo: bar } = obj2;
   ///
-  /// const { foo: bar = default_value } = obj3; // key_name: foo, value_name: Some(bar)
+  /// // key_name: foo, value_name: Some(bar), has_default: true
+  /// const { foo: bar = baz } = obj3; // key_name: foo, value_name: Some(bar),
   ///
-  /// function f({ foo }) {} // key_name: foo, value_name: None
+  /// // key_name: foo, value_name: None, has_default: false
+  /// function f({ foo }) {}
   /// ```
   ObjectPat {
     key_name: String,
     value_name: Option<String>,
+    has_default: bool,
   },
   /// Local name and imported name in named import, for example:
   ///
@@ -182,7 +187,11 @@ impl IdentToCheck {
     Self::Class(name.as_ref().to_string())
   }
 
-  fn object_pat<K, V>(key_name: &K, value_name: Option<&V>) -> Self
+  fn object_pat<K, V>(
+    key_name: &K,
+    value_name: Option<&V>,
+    has_default: bool,
+  ) -> Self
   where
     K: AsRef<str>,
     V: AsRef<str>,
@@ -190,6 +199,7 @@ impl IdentToCheck {
     Self::ObjectPat {
       key_name: key_name.as_ref().to_string(),
       value_name: value_name.map(|v| v.as_ref().to_string()),
+      has_default,
     }
   }
 
@@ -213,6 +223,7 @@ impl IdentToCheck {
       IdentToCheck::ObjectPat {
         key_name,
         value_name,
+        ..
       } => {
         if let Some(value_name) = value_name {
           value_name
@@ -269,20 +280,29 @@ impl IdentToCheck {
       IdentToCheck::ObjectPat {
         key_name,
         value_name,
+        has_default,
       } => {
         if let Some(value_name) = value_name {
-          format!(
+          return format!(
             "Consider renaming `{}` to `{}`",
             value_name,
             to_camelcase(value_name),
-          )
-        } else {
-          format!(
-            "Consider replacing `{{ {key} }}` with `{{ {key}: {value} }}`",
+          );
+        }
+
+        if *has_default {
+          return format!(
+            "Consider replacing `{{ {key} = .. }}` with `{{ {key}: {value} = .. }}`",
             key = key_name,
             value = to_camelcase(key_name),
-          )
+          );
         }
+
+        format!(
+          "Consider replacing `{{ {key} }}` with `{{ {key}: {value} }}`",
+          key = key_name,
+          value = to_camelcase(key_name),
+        )
       }
       IdentToCheck::NamedImport { local, imported } => {
         if imported.is_some() {
@@ -354,22 +374,49 @@ impl<'c> CamelcaseVisitor<'c> {
         for prop in props {
           match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { ref key, ref value }) => {
-              if let Pat::Ident(value_ident) = &**value {
-                self.check_ident(
-                  value_ident,
-                  IdentToCheck::object_pat(
-                    &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
-                    Some(value_ident),
-                  ),
-                );
-              } else {
-                self.check_pat(&**value);
+              match &**value {
+                Pat::Ident(value_ident) => {
+                  self.check_ident(
+                    value_ident,
+                    IdentToCheck::object_pat(
+                      &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
+                      Some(value_ident),
+                      false,
+                    ),
+                  );
+                }
+                Pat::Assign(AssignPat { ref left, .. }) => {
+                  if let Pat::Ident(value_ident) = &**left {
+                    self.check_ident(
+                      value_ident,
+                      IdentToCheck::object_pat(
+                        &key
+                          .string_repr()
+                          .unwrap_or_else(|| "[KEY]".to_string()),
+                        Some(value_ident),
+                        true,
+                      ),
+                    );
+                  } else {
+                    self.check_pat(&**value);
+                  }
+                }
+                _ => {
+                  self.check_pat(&**value);
+                }
               }
             }
-            ObjectPatProp::Assign(AssignPatProp { ref key, .. }) => {
+            ObjectPatProp::Assign(AssignPatProp {
+              ref key, ref value, ..
+            }) => {
+              let has_default = value.is_some();
               self.check_ident(
                 key,
-                IdentToCheck::object_pat::<Ident, Ident>(key, None),
+                IdentToCheck::object_pat::<Ident, Ident>(
+                  key,
+                  None,
+                  has_default,
+                ),
               );
             }
             ObjectPatProp::Rest(RestPat { ref arg, .. }) => {
@@ -570,6 +617,7 @@ mod tests {
         IdentToCheck::ObjectPat {
           key_name: s("foo_bar"),
           value_name: None,
+          has_default: false,
         },
         "Consider replacing `{ foo_bar }` with `{ foo_bar: fooBar }`",
       ),
@@ -577,6 +625,23 @@ mod tests {
         IdentToCheck::ObjectPat {
           key_name: s("foo_bar"),
           value_name: Some(s("snake_case")),
+          has_default: false,
+        },
+        "Consider renaming `snake_case` to `snakeCase`",
+      ),
+      (
+        IdentToCheck::ObjectPat {
+          key_name: s("foo_bar"),
+          value_name: None,
+          has_default: true,
+        },
+        "Consider replacing `{ foo_bar = .. }` with `{ foo_bar: fooBar = .. }`",
+      ),
+      (
+        IdentToCheck::ObjectPat {
+          key_name: s("foo_bar"),
+          value_name: Some(s("snake_case")),
+          has_default: true,
         },
         "Consider renaming `snake_case` to `snakeCase`",
       ),
@@ -757,7 +822,7 @@ mod tests {
             {
               col: 6,
               message: "Identifier 'category_id' is not in camel case.",
-              hint: "Consider replacing `{ category_id }` with `{ category_id: categoryId }`",
+              hint: "Consider replacing `{ category_id = .. }` with `{ category_id: categoryId = .. }`",
             }
           ],
     r#"import no_camelcased from "external-module";"#: [
@@ -855,7 +920,7 @@ mod tests {
             {
               col: 15,
               message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+              hint: "Consider replacing `{ no_camelcased = .. }` with `{ no_camelcased: noCamelcased = .. }`",
             }
           ],
     r#"const no_camelcased = 0; function foo({ camelcased_value = no_camelcased }) {}"#: [
@@ -867,7 +932,7 @@ mod tests {
             {
               col: 40,
               message: "Identifier 'camelcased_value' is not in camel case.",
-              hint: "Consider replacing `{ camelcased_value }` with `{ camelcased_value: camelcasedValue }`",
+              hint: "Consider replacing `{ camelcased_value = .. }` with `{ camelcased_value: camelcasedValue = .. }`",
             }
           ],
     r#"const { bar: no_camelcased } = foo;"#: [
@@ -902,14 +967,14 @@ mod tests {
             {
               col: 8,
               message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+              hint: "Consider replacing `{ no_camelcased = .. }` with `{ no_camelcased: noCamelcased = .. }`",
             }
           ],
     r#"const { no_camelcased = foo_bar } = bar;"#: [
             {
               col: 8,
               message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+              hint: "Consider replacing `{ no_camelcased = .. }` with `{ no_camelcased: noCamelcased = .. }`",
             }
           ],
     r#"const f = function no_camelcased() {};"#: [
