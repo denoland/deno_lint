@@ -132,8 +132,17 @@ fn run_linter(paths: Vec<String>, filter_rule_name: Option<&str>) {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
+    let rules = if let Some(rule_name) = filter_rule_name {
+      get_recommended_rules()
+        .into_iter()
+        .filter(|r| r.code() == rule_name)
+        .collect()
+    } else {
+      get_recommended_rules()
+    };
+
     let mut linter = LinterBuilder::default()
-      .rules(get_recommended_rules())
+      .rules(rules)
       .lint_unknown_rules(true)
       .lint_unused_ignore_directives(true)
       .build();
@@ -141,15 +150,6 @@ fn run_linter(paths: Vec<String>, filter_rule_name: Option<&str>) {
     let (source_file, file_diagnostics) = linter
       .lint(file_path.to_string(), source_code)
       .expect("Failed to lint");
-
-    let file_diagnostics = if let Some(rule_name) = filter_rule_name {
-      file_diagnostics
-        .into_iter()
-        .filter(|d| d.code == rule_name)
-        .collect()
-    } else {
-      file_diagnostics
-    };
 
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
     let _g = output_lock.lock().unwrap();
