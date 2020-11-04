@@ -29,12 +29,19 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("all").long("all")),
     )
     .subcommand(
-      SubCommand::with_name("run").arg(
-        Arg::with_name("FILES")
-          .help("Sets the input file to use")
-          .required(true)
-          .multiple(true),
-      ),
+      SubCommand::with_name("run")
+        .arg(
+          Arg::with_name("FILES")
+            .help("Sets the input file to use")
+            .required(true)
+            .multiple(true),
+        )
+        .arg(
+          Arg::with_name("RULE_CODE")
+            .long("rule")
+            .help("Runs a certain rule")
+            .takes_value(true),
+        ),
     )
 }
 
@@ -117,7 +124,7 @@ fn display_diagnostics(
   }
 }
 
-fn run_linter(paths: Vec<String>) {
+fn run_linter(paths: Vec<String>, filter_rule_name: Option<&str>) {
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
@@ -125,8 +132,17 @@ fn run_linter(paths: Vec<String>) {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
+    let rules = if let Some(rule_name) = filter_rule_name {
+      get_recommended_rules()
+        .into_iter()
+        .filter(|r| r.code() == rule_name)
+        .collect()
+    } else {
+      get_recommended_rules()
+    };
+
     let mut linter = LinterBuilder::default()
-      .rules(get_recommended_rules())
+      .rules(rules)
       .lint_unknown_rules(true)
       .lint_unused_ignore_directives(true)
       .build();
@@ -252,7 +268,7 @@ fn main() {
         .unwrap()
         .map(|p| p.to_string())
         .collect();
-      run_linter(paths);
+      run_linter(paths, run_matches.value_of("RULE_CODE"));
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
