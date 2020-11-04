@@ -8,6 +8,7 @@ use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
 use swc_ecmascript::ast::VarDeclarator;
 use swc_ecmascript::visit::noop_visit_type;
+use swc_ecmascript::visit::swc_ecma_ast::ParenExpr;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
@@ -64,7 +65,7 @@ impl<'c> NoEvalVisitor<'c> {
   }
 
   fn maybe_add_diagnostic(&mut self, source: &str, span: Span) {
-    if source.contains("eval") {
+    if source == "eval" {
       self.add_diagnostic(span);
     }
   }
@@ -76,6 +77,28 @@ impl<'c> NoEvalVisitor<'c> {
       "`eval` call is not allowed",
       "Remove the use of `eval`",
     );
+  }
+
+  fn handle_paren_callee(&mut self, p: &ParenExpr) {
+    match p.expr.as_ref() {
+      // Nested paren callee ((eval))('var foo = 0;')
+      Expr::Paren(paren) => self.handle_paren_callee(paren),
+      // Single argument callee: (eval)('var foo = 0;')
+      Expr::Ident(ident) => {
+        let ident_name = &ident.string_repr().unwrap();
+        self.maybe_add_diagnostic(ident_name, ident.span)
+      }
+      // Multiple arguments callee: (0, eval)('var foo = 0;')
+      Expr::Seq(seq) => {
+        for expr in &seq.exprs {
+          if let Expr::Ident(ident) = expr.as_ref() {
+            let ident_name = &ident.string_repr().unwrap();
+            self.maybe_add_diagnostic(ident_name, ident.span)
+          }
+        }
+      }
+      _ => {}
+    }
   }
 }
 
@@ -102,11 +125,7 @@ impl<'c> Visit for NoEvalVisitor<'c> {
           let member_name = &member_expr.string_repr().unwrap();
           self.maybe_add_diagnostic(member_name, call_expr.span)
         }
-        Expr::Paren(paren) => {
-          let paren_snippet =
-            &self.context.source_map.span_to_snippet(paren.span).unwrap();
-          self.maybe_add_diagnostic(paren_snippet, call_expr.span);
-        }
+        Expr::Paren(paren) => self.handle_paren_callee(paren),
         _ => {}
       }
     }
@@ -121,7 +140,8 @@ mod tests {
   #[test]
   fn no_eval_test() {
     assert_lint_err::<NoEval>(r#"eval("123");"#, 0);
-    assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 0);
+    assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 4);
+    assert_lint_err::<NoEval>(r#"((eval))("var a = 0");"#, 2);
     assert_lint_err::<NoEval>(r#"var foo = eval;"#, 4);
     assert_lint_err::<NoEval>(r#"this.eval("123");"#, 0);
   }
