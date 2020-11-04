@@ -64,8 +64,8 @@ impl<'c> NoEvalVisitor<'c> {
     Self { context }
   }
 
-  fn maybe_add_diagnostic(&mut self, source: &str, span: Span) {
-    if source == "eval" {
+  fn maybe_add_diagnostic(&mut self, source: &dyn StringRepr, span: Span) {
+    if source.string_repr().unwrap() == "eval" {
       self.add_diagnostic(span);
     }
   }
@@ -84,16 +84,12 @@ impl<'c> NoEvalVisitor<'c> {
       // Nested paren callee ((eval))('var foo = 0;')
       Expr::Paren(paren) => self.handle_paren_callee(paren),
       // Single argument callee: (eval)('var foo = 0;')
-      Expr::Ident(ident) => {
-        let ident_name = &ident.string_repr().unwrap();
-        self.maybe_add_diagnostic(ident_name, ident.span)
-      }
+      Expr::Ident(ident) => self.maybe_add_diagnostic(ident, ident.span),
       // Multiple arguments callee: (0, eval)('var foo = 0;')
       Expr::Seq(seq) => {
         for expr in &seq.exprs {
           if let Expr::Ident(ident) = expr.as_ref() {
-            let ident_name = &ident.string_repr().unwrap();
-            self.maybe_add_diagnostic(ident_name, ident.span)
+            self.maybe_add_diagnostic(ident, ident.span)
           }
         }
       }
@@ -108,8 +104,7 @@ impl<'c> Visit for NoEvalVisitor<'c> {
   fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
     if let Some(expr) = &v.init {
       if let Expr::Ident(ident) = expr.as_ref() {
-        let ident_name = &ident.string_repr().unwrap();
-        self.maybe_add_diagnostic(ident_name, v.span);
+        self.maybe_add_diagnostic(ident, v.span);
       }
     }
   }
@@ -117,13 +112,9 @@ impl<'c> Visit for NoEvalVisitor<'c> {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       match expr.as_ref() {
-        Expr::Ident(ident) => {
-          let ident_name = &ident.string_repr().unwrap();
-          self.maybe_add_diagnostic(ident_name, call_expr.span)
-        }
+        Expr::Ident(ident) => self.maybe_add_diagnostic(ident, call_expr.span),
         Expr::Member(member_expr) => {
-          let member_name = &member_expr.string_repr().unwrap();
-          self.maybe_add_diagnostic(member_name, call_expr.span)
+          self.maybe_add_diagnostic(member_expr, call_expr.span)
         }
         Expr::Paren(paren) => self.handle_paren_callee(paren),
         _ => {}
