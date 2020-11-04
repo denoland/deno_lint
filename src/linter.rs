@@ -7,10 +7,10 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
-use crate::rules::LintRule;
+use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
@@ -39,30 +39,31 @@ impl Context {
   pub(crate) fn add_diagnostic(
     &mut self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
   ) {
-    let diagnostic = self.create_diagnostic(span, code, message, None);
+    let diagnostic =
+      self.create_diagnostic(span, code.to_string(), message.to_string(), None);
     self.diagnostics.push(diagnostic);
   }
 
   pub(crate) fn add_diagnostic_with_hint(
     &mut self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
-    hint: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
+    hint: impl ToString,
   ) {
     let diagnostic =
-      self.create_diagnostic(span, code, message, Some(hint.into()));
+      self.create_diagnostic(span, code, message, Some(hint.to_string()));
     self.diagnostics.push(diagnostic);
   }
 
   fn create_diagnostic(
     &self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
@@ -78,8 +79,8 @@ impl Context {
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
       filename: self.file_name.clone(),
-      message: message.into(),
-      code: code.into(),
+      message: message.to_string(),
+      code: code.to_string(),
       hint: maybe_hint,
     };
 
@@ -236,10 +237,14 @@ impl Linter {
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
-    let rule_codes = rules
+    let executed_rule_codes = rules
       .iter()
       .map(|r| r.code().to_string())
-      .collect::<Vec<String>>();
+      .collect::<HashSet<String>>();
+    let available_rule_codes = get_all_rules()
+      .iter()
+      .map(|r| r.code().to_string())
+      .collect::<HashSet<String>>();
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -260,7 +265,7 @@ impl Linter {
         for (code, used) in ignore_directive.used_codes.iter() {
           if self.lint_unused_ignore_directives
             && !used
-            && rule_codes.contains(code)
+            && executed_rule_codes.contains(code)
           {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
@@ -271,7 +276,7 @@ impl Linter {
             filtered_diagnostics.push(diagnostic);
           }
 
-          if self.lint_unknown_rules && !rule_codes.contains(code) {
+          if self.lint_unknown_rules && !available_rule_codes.contains(code) {
             filtered_diagnostics.push(context.create_diagnostic(
               ignore_directive.span,
               "ban-unknown-rule-code",

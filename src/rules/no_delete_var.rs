@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp;
@@ -11,8 +12,18 @@ use swc_ecmascript::visit::Visit;
 pub struct NoDeleteVar;
 
 const CODE: &str = "no-delete-var";
-const MESSAGE: &str = "Variables shouldn't be deleted";
-const HINT: &str = "Remove the deletion statement";
+
+#[derive(Display)]
+enum NoDeleteVarMessage {
+  #[display(fmt = "Variables shouldn't be deleted")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoDeleteVarHint {
+  #[display(fmt = "Remove the deletion statement")]
+  Remove,
+}
 
 impl LintRule for NoDeleteVar {
   fn new() -> Box<Self> {
@@ -86,8 +97,8 @@ impl<'c> Visit for NoDeleteVarVisitor<'c> {
       self.context.add_diagnostic_with_hint(
         unary_expr.span,
         CODE,
-        MESSAGE,
-        HINT,
+        NoDeleteVarMessage::Unexpected,
+        NoDeleteVarHint::Remove,
       );
     }
   }
@@ -101,7 +112,13 @@ mod tests {
   fn no_delete_var_invalid() {
     assert_lint_err! {
       NoDeleteVar,
-      r#"var someVar = "someVar"; delete someVar;"#: [{ col: 25, message: MESSAGE, hint: HINT }],
+      r#"var someVar = "someVar"; delete someVar;"#: [
+        {
+          col: 25,
+          message: NoDeleteVarMessage::Unexpected,
+          hint: NoDeleteVarHint::Remove,
+        }
+      ],
     }
   }
 }

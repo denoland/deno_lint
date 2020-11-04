@@ -24,6 +24,7 @@ swc_common = "=0.10.5"
 swc_ecmascript = { version = "=0.13.2", features = ["parser", "transforms", "utils", "visit"] }
 regex = "1.3.9"
 once_cell = "1.4.1"
+derive_more = { version = "0.99.11", features = ["display"] }
 
 [dev-dependencies]
 annotate-snippets = { version = "0.9.0", features = ["color"] }

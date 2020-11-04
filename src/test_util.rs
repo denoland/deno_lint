@@ -50,6 +50,20 @@ macro_rules! assert_lint_err {
   };
 }
 
+#[macro_export]
+macro_rules! variant {
+  ($enum:ident, $variant:ident) => {{
+    $enum::$variant
+  }};
+  ($enum:ident, $variant:ident, $($value:expr),* $(,)?) => {{
+    $enum::$variant(
+      $(
+        $value.to_string(),
+      )*
+    )
+  }};
+}
+
 #[derive(Default)]
 pub struct LintErrTester<T: LintRule + 'static> {
   pub src: &'static str,
@@ -90,13 +104,13 @@ impl LintErrBuilder {
     self
   }
 
-  pub fn message(&mut self, message: impl Into<String>) -> &mut Self {
-    self.message = Some(message.into());
+  pub fn message(&mut self, message: impl ToString) -> &mut Self {
+    self.message = Some(message.to_string());
     self
   }
 
-  pub fn hint(&mut self, hint: impl Into<String>) -> &mut Self {
-    self.hint = Some(hint.into());
+  pub fn hint(&mut self, hint: impl ToString) -> &mut Self {
+    self.hint = Some(hint.to_string());
     self
   }
 
