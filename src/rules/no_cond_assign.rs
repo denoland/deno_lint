@@ -1,5 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
@@ -7,6 +8,24 @@ use swc_ecmascript::ast::Program;
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCondAssign;
+
+const CODE: &str = "no-cond-assign";
+
+#[derive(Display)]
+enum NoCondAssignMessage {
+  #[display(
+    fmt = "Expected a conditional expression and instead saw an assignment"
+  )]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoCondAssignHint {
+  #[display(
+    fmt = "Change assignment (`=`) to comparison (`===`) or move assignment out of condition"
+  )]
+  ChangeOrMove,
+}
 
 impl LintRule for NoCondAssign {
   fn new() -> Box<Self> {
@@ -18,7 +37,7 @@ impl LintRule for NoCondAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-cond-assign"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -76,9 +95,9 @@ impl<'c> NoCondAssignVisitor<'c> {
   fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-cond-assign",
-      "Expected a conditional expression and instead saw an assignment",
-      "Change assignment (`=`) to comparison (`===`) or move assignment out of condition"
+      CODE,
+      NoCondAssignMessage::Unexpected,
+      NoCondAssignHint::ChangeOrMove,
     );
   }
 
@@ -149,7 +168,6 @@ impl<'c> VisitAll for NoCondAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_cond_assign_valid() {
@@ -177,41 +195,122 @@ mod tests {
 
   #[test]
   fn no_cond_assign_invalid() {
-    assert_lint_err::<NoCondAssign>("if (x = 0) { }", 4);
-    assert_lint_err::<NoCondAssign>("while (x = 0) { }", 7);
-    assert_lint_err::<NoCondAssign>("do { } while (x = 0);", 14);
-    assert_lint_err::<NoCondAssign>("for (let i = 0; i = 10; i++) { }", 16);
-    assert_lint_err::<NoCondAssign>("const x; if (x = 0) { const b = 1; }", 13);
-    assert_lint_err::<NoCondAssign>(
-      "const x; while (x = 0) { const b = 1; }",
-      16,
-    );
-    assert_lint_err::<NoCondAssign>(
-      "const x = 0, y; do { y = x; } while (x = x + 1);",
-      37,
-    );
-    assert_lint_err::<NoCondAssign>("let x; for(; x+=1 ;){};", 13);
-    assert_lint_err::<NoCondAssign>("let x; if ((x) = (0));", 11);
-    assert_lint_err::<NoCondAssign>("let x; let b = (x = 0) ? 1 : 0;", 16);
-    assert_lint_err::<NoCondAssign>(
-      "(((123.45)).abcd = 54321) ? foo : bar;",
-      1,
-    );
+    assert_lint_err! {
+      NoCondAssign,
+      "if (x = 0) { }": [
+        {
+          col: 4,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "while (x = 0) { }": [
+        {
+          col: 7,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "do { } while (x = 0);": [
+        {
+          col: 14,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "for (let i = 0; i = 10; i++) { }": [
+        {
+          col: 16,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "const x; if (x = 0) { const b = 1; }": [
+        {
+          col: 13,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "const x; while (x = 0) { const b = 1; }": [
+        {
+          col: 16,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "const x = 0, y; do { y = x; } while (x = x + 1);": [
+        {
+          col: 37,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "let x; for(; x+=1 ;){};": [
+        {
+          col: 13,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "let x; if ((x) = (0));": [
+        {
+          col: 11,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "let x; let b = (x = 0) ? 1 : 0;": [
+        {
+          col: 16,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "(((123.45)).abcd = 54321) ? foo : bar;": [
+        {
+          col: 1,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
 
-    // nested
-    assert_lint_err::<NoCondAssign>("if (foo) { if (x = 0) {} }", 15);
-    assert_lint_err::<NoCondAssign>("while (foo) { while (x = 0) {} }", 21);
-    assert_lint_err::<NoCondAssign>(
-      "do { do {} while (x = 0) } while (foo);",
-      18,
-    );
-    assert_lint_err::<NoCondAssign>(
-      "for (let i = 0; i < 10; i++) { for (; j+=1 ;) {} }",
-      38,
-    );
-    assert_lint_err::<NoCondAssign>(
-      "const val = foo ? (x = 0) ? 0 : 1 : 2;",
-      19,
-    );
+      // nested
+      "if (foo) { if (x = 0) {} }": [
+        {
+          col: 15,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "while (foo) { while (x = 0) {} }": [
+        {
+          col: 21,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "do { do {} while (x = 0) } while (foo);": [
+        {
+          col: 18,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "for (let i = 0; i < 10; i++) { for (; j+=1 ;) {} }": [
+        {
+          col: 38,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ],
+      "const val = foo ? (x = 0) ? 0 : 1 : 2;": [
+        {
+          col: 19,
+          message: NoCondAssignMessage::Unexpected,
+          hint: NoCondAssignHint::ChangeOrMove,
+        }
+      ]
+    };
   }
 }
