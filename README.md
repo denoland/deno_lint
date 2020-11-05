@@ -129,7 +129,7 @@ $ cargo test
 
 Prerequisites:
 
-- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), (`stackcollapse-perf`)[https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl], [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), [`stackcollapse-perf`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl), [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
 
 ```shell
 $ RUSTFLAGS='-g' cargo build --release --all-targets # build target
