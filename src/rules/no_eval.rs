@@ -6,13 +6,17 @@ use swc_common::Span;
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
+use swc_ecmascript::ast::ParenExpr;
 use swc_ecmascript::ast::VarDeclarator;
 use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::swc_ecma_ast::ParenExpr;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoEval;
+
+const CODE: &str = "no-eval";
+const MESSAGE: &str = "`eval` call is not allowed";
+const HINT: &str = "Remove the use of `eval`";
 
 impl LintRule for NoEval {
   fn new() -> Box<Self> {
@@ -20,7 +24,7 @@ impl LintRule for NoEval {
   }
 
   fn code(&self) -> &'static str {
-    "no-eval"
+    CODE
   }
 
   fn lint_program(
@@ -65,18 +69,15 @@ impl<'c> NoEvalVisitor<'c> {
   }
 
   fn maybe_add_diagnostic(&mut self, source: &dyn StringRepr, span: Span) {
-    if source.string_repr().unwrap() == "eval" {
+    if source.string_repr().as_deref() == Some("eval") {
       self.add_diagnostic(span);
     }
   }
 
   fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      "no-eval",
-      "`eval` call is not allowed",
-      "Remove the use of `eval`",
-    );
+    self
+      .context
+      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 
   fn handle_paren_callee(&mut self, p: &ParenExpr) {
@@ -113,9 +114,6 @@ impl<'c> Visit for NoEvalVisitor<'c> {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       match expr.as_ref() {
         Expr::Ident(ident) => self.maybe_add_diagnostic(ident, call_expr.span),
-        Expr::Member(member_expr) => {
-          self.maybe_add_diagnostic(member_expr, call_expr.span)
-        }
         Expr::Paren(paren) => self.handle_paren_callee(paren),
         _ => {}
       }
@@ -126,14 +124,42 @@ impl<'c> Visit for NoEvalVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn no_eval_test() {
-    assert_lint_err::<NoEval>(r#"eval("123");"#, 0);
-    assert_lint_err::<NoEval>(r#"(0, eval)("var a = 0");"#, 4);
-    assert_lint_err::<NoEval>(r#"((eval))("var a = 0");"#, 2);
-    assert_lint_err::<NoEval>(r#"var foo = eval;"#, 4);
-    assert_lint_err::<NoEval>(r#"this.eval("123");"#, 0);
+  fn no_eval_valid() {
+    assert_lint_ok! {
+      NoEval,
+      "foo.eval('bar');",
+    }
+  }
+
+  #[test]
+  fn no_eval_invalid() {
+    assert_lint_err! {
+      NoEval,
+      "eval('123');": [{col: 0, message: MESSAGE, hint: HINT}],
+      "(0, eval)('var a = 0');": [{col: 4, message: MESSAGE, hint: HINT}],
+      "((eval))('var a = 0');": [{col: 2, message: MESSAGE, hint: HINT}],
+      "var foo = eval;": [{col: 4, message: MESSAGE, hint: HINT}],
+
+      // TODO
+      // "this.eval("123");": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "var foo = this.eval;": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "(function(exe){ exe('foo') })(eval);": [{col: 0, message: MESSAGE, hint: HINT}],
+      //
+      // "(0, window.eval)('foo');": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "(0, window['eval'])('foo');": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "var foo = window.eval;": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "window.eval('foo');": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "window.window.eval('foo');": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "window.window['eval']('foo');": [{col: 0, message: MESSAGE, hint: HINT}],
+      //
+      // "var foo = globalThis.eval;": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "globalThis.eval('foo')": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "globalThis.globalThis.eval('foo')": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "globalThis.globalThis['eval']('foo')": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "(0, globalThis.eval)('foo')": [{col: 0, message: MESSAGE, hint: HINT}],
+      // "(0, globalThis['eval'])('foo')": [{col: 0, message: MESSAGE, hint: HINT}],
+    }
   }
 }
