@@ -15,14 +15,14 @@ const CODE: &str = "no-compare-neg-zero";
 
 #[derive(Display)]
 enum NoCompareNegZeroMessage {
-  #[display(fmt = "Do not compare against -0")]
+  #[display(fmt = NoCompareNegZeroMessage::Unexpected)]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoCompareNegZeroHint {
   #[display(
-    fmt = "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)"
+    fmt = NoCompareNegZeroHint::ObjectIs
   )]
   ObjectIs,
 }
@@ -179,141 +179,141 @@ mod tests {
       "if (x == -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 == x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x != -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 != x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x === -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 === x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x !== -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 !== x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x < -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 < x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x <= -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 <= x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x > -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 > x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x >= -0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0 >= x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x == -0.0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0.0 == x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (x === -0.0) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
       "if (-0.0 === x) { }": [
         {
           col: 4,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ],
 
@@ -321,8 +321,8 @@ mod tests {
       "{} == { foo: x === -0 }": [
         {
           col: 13,
-          message: "Do not compare against -0",
-          hint: "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
         }
       ]
     };
