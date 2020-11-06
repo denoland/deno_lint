@@ -7,11 +7,8 @@ use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
   visit::Node,
-  visit::{noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith},
+  visit::{noop_visit_type, Visit, VisitWith},
 };
-use swc_ecmascript::{utils::find_ids, utils::Id};
-
-use std::collections::HashSet;
 
 pub struct NoUndef;
 
@@ -29,115 +26,18 @@ impl LintRule for NoUndef {
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
-    let mut collector = BindingCollector {
-      declared: Default::default(),
-    };
-    program.visit_all_with(program, &mut collector);
-
-    let mut visitor = NoUndefVisitor::new(context, collector.declared);
+    let mut visitor = NoUndefVisitor::new(context);
     program.visit_with(program, &mut visitor);
-  }
-}
-
-struct BindingCollector {
-  /// If there exists a binding with such id, it's not global.
-  declared: HashSet<Id>,
-}
-
-impl BindingCollector {
-  fn declare(&mut self, i: Id) {
-    self.declared.insert(i);
-  }
-}
-
-impl VisitAll for BindingCollector {
-  fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
-    self.declare(f.ident.to_id());
-  }
-
-  fn visit_class_decl(&mut self, f: &ClassDecl, _: &dyn Node) {
-    self.declare(f.ident.to_id());
-  }
-
-  fn visit_class_expr(&mut self, n: &ClassExpr, _: &dyn Node) {
-    if let Some(i) = &n.ident {
-      self.declare(i.to_id());
-    }
-  }
-
-  fn visit_import_named_specifier(
-    &mut self,
-    i: &ImportNamedSpecifier,
-    _: &dyn Node,
-  ) {
-    self.declare(i.local.to_id());
-  }
-
-  fn visit_import_default_specifier(
-    &mut self,
-    i: &ImportDefaultSpecifier,
-    _: &dyn Node,
-  ) {
-    self.declare(i.local.to_id());
-  }
-
-  fn visit_import_star_as_specifier(
-    &mut self,
-    i: &ImportStarAsSpecifier,
-    _: &dyn Node,
-  ) {
-    self.declare(i.local.to_id());
-  }
-
-  fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
-    let ids: Vec<Id> = find_ids(&v.name);
-    for id in ids {
-      self.declare(id);
-    }
-  }
-
-  fn visit_ts_enum_decl(&mut self, e: &TsEnumDecl, _: &dyn Node) {
-    self.declare(e.id.to_id());
-  }
-
-  fn visit_ts_param_prop_param(&mut self, p: &TsParamPropParam, _: &dyn Node) {
-    match p {
-      TsParamPropParam::Ident(i) => {
-        self.declare(i.to_id());
-      }
-      TsParamPropParam::Assign(i) => {
-        let ids: Vec<Id> = find_ids(&i.left);
-        for id in ids {
-          self.declare(id);
-        }
-      }
-    }
-  }
-
-  fn visit_param(&mut self, p: &Param, _: &dyn Node) {
-    let ids: Vec<Id> = find_ids(&p.pat);
-    for id in ids {
-      self.declare(id);
-    }
-  }
-  fn visit_catch_clause(&mut self, c: &CatchClause, _: &dyn Node) {
-    if let Some(pat) = &c.param {
-      let ids: Vec<Id> = find_ids(pat);
-      for id in ids {
-        self.declare(id);
-      }
-    }
   }
 }
 
 struct NoUndefVisitor<'c> {
   context: &'c mut Context,
-  declared: HashSet<Id>,
 }
 
 impl<'c> NoUndefVisitor<'c> {
-  fn new(context: &'c mut Context, declared: HashSet<Id>) -> Self {
-    Self { context, declared }
+  fn new(context: &'c mut Context) -> Self {
+    Self { context }
   }
 
   fn check(&mut self, ident: &Ident) {
@@ -156,7 +56,7 @@ impl<'c> NoUndefVisitor<'c> {
     }
 
     // Ignore top level bindings declared in the file.
-    if self.declared.contains(&ident.to_id()) {
+    if self.context.scope.var(&ident.to_id()).is_some() {
       return;
     }
 
