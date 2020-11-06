@@ -142,7 +142,7 @@ mod tests {
       "((eval))('var a = 0');": [{col: 2, message: MESSAGE, hint: HINT}],
       "var foo = eval;": [{col: 4, message: MESSAGE, hint: HINT}],
 
-      // TODO
+      // TODO (see: https://github.com/denoland/deno_lint/pull/490)
       // "this.eval("123");": [{col: 0, message: MESSAGE, hint: HINT}],
       // "var foo = this.eval;": [{col: 0, message: MESSAGE, hint: HINT}],
       // "(function(exe){ exe('foo') })(eval);": [{col: 0, message: MESSAGE, hint: HINT}],
