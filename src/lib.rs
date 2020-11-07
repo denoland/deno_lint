@@ -17,6 +17,7 @@ mod ignore_directives;
 mod js_regex;
 pub mod linter;
 pub mod rules;
+pub mod scoped_rule;
 mod scopes;
 pub mod swc_util;
 
