@@ -136,7 +136,7 @@ class A {}
       "#: [
         {
           line: 3,
-          col: 1,
+          col: 2,
           message: MESSAGE,
           hint: HINT,
         }
@@ -147,7 +147,7 @@ class A {}
       "#: [
         {
           line: 3,
-          col: 1,
+          col: 5,
           message: MESSAGE,
           hint: HINT,
         }
