@@ -1,47 +1,37 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use super::LintRule;
-use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use crate::scoped_rule::ScopeRule;
+use crate::scoped_rule::ScopedRule;
+use crate::scopes::BindingKind;
+use swc_ecmascript::ast::Ident;
+use swc_ecmascript::utils::ident::IdentLike;
 
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-
-pub struct NoExAssign;
+pub type NoExAssign = ScopedRule<NoExAssignImpl>;
+pub struct NoExAssignImpl;
 
 const CODE: &str = "no-ex-assign";
 const MESSAGE: &str = "Reassigning exception parameter is not allowed";
 const HINT: &str = "Use a different variable for the assignment";
 
-impl LintRule for NoExAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoExAssign)
+impl ScopeRule for NoExAssignImpl {
+  fn new() -> Self {
+    NoExAssignImpl
   }
 
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags() -> &'static [&'static str] {
     &["recommended"]
   }
 
-  fn code(&self) -> &'static str {
+  fn code() -> &'static str {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
-    let mut visitor = NoExAssignVisitor::new(context);
-    visitor.visit_program(program, program);
-  }
-
-  fn docs(&self) -> &'static str {
-    r#"Disallows the reassignment of exception parameters 
+  fn docs() -> &'static str {
+    r#"Disallows the reassignment of exception parameters
 
 There is generally no good reason to reassign an exception parameter.  Once
 reassigned the code from that point on has no reference to the error anymore.
-    
+
 ### Invalid:
 ```typescript
 try {
@@ -62,39 +52,18 @@ try {
 ```
 "#
   }
-}
 
-struct NoExAssignVisitor<'c> {
-  context: &'c mut Context,
-}
+  fn check_assignment(&mut self, context: &mut Context, i: &Ident) {
+    let var = context.scope.var(&i.to_id());
 
-impl<'c> NoExAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c> Visit for NoExAssignVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ids = find_lhs_ids(&assign_expr.left);
-
-    for id in ids {
-      let var = self.context.scope.var(&id);
-
-      if let Some(var) = var {
-        if let BindingKind::CatchClause = var.kind() {
-          self.context.add_diagnostic_with_hint(
-            assign_expr.span,
-            CODE,
-            MESSAGE,
-            HINT,
-          );
-        }
+    if let Some(var) = var {
+      if let BindingKind::CatchClause = var.kind() {
+        context.add_diagnostic_with_hint(i.span, CODE, MESSAGE, HINT);
       }
     }
   }
+
+  fn check_usage(&mut self, _: &mut Context, _: &Ident) {}
 }
 
 #[cfg(test)]
@@ -139,13 +108,13 @@ try {} catch ({message}) { message = 1; }
         },
         {
           line: 4,
-          col: 20,
+          col: 21,
           message: MESSAGE,
           hint: HINT,
         },
         {
           line: 5,
-          col: 21,
+          col: 25,
           message: MESSAGE,
           hint: HINT,
         },

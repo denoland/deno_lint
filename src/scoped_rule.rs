@@ -7,6 +7,7 @@ use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::ast::AssignPatProp;
 use swc_ecmascript::ast::CallExpr;
+use swc_ecmascript::ast::CatchClause;
 use swc_ecmascript::ast::ClassProp;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
@@ -186,5 +187,9 @@ where
     }
 
     expr.visit_children_with(self);
+  }
+
+  fn visit_catch_clause(&mut self, cc: &CatchClause, _: &dyn Node) {
+    cc.body.visit_with(cc, self);
   }
 }
