@@ -2,15 +2,35 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::extract_regex;
+use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoControlRegex;
+
+const CODE: &str = "no-control-regex";
+
+#[derive(Display)]
+enum NoControlRegexMessage {
+  #[display(
+    fmt = "Unexpected control character(s) in regular expression: \\x{:x}.",
+    _0
+  )]
+  Unexpected(u64),
+}
+
+#[derive(Display)]
+enum NoControlRegexHint {
+  #[display(
+    fmt = "Disable the rule if the control character (\\x... or \\u00..) was intentional, otherwise rework your RegExp"
+  )]
+  DisableOrRework,
+}
 
 impl LintRule for NoControlRegex {
   fn new() -> Box<Self> {
@@ -22,7 +42,7 @@ impl LintRule for NoControlRegex {
   }
 
   fn code(&self) -> &'static str {
-    "no-control-regex"
+    CODE
   }
 
   fn lint_program(
@@ -31,7 +51,7 @@ impl LintRule for NoControlRegex {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoControlRegexVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -74,12 +94,9 @@ impl<'c> NoControlRegexVisitor<'c> {
   fn add_diagnostic(&mut self, span: Span, cp: u64) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-control-regex",
-      format!(
-        "Unexpected control character(s) in regular expression: \\x{:x}.",
-        cp
-      ),
-      "Disable the rule if the control character (\\x... or \\u00..) was intentional, otherwise rework your RegExp",
+      CODE,
+      NoControlRegexMessage::Unexpected(cp),
+      NoControlRegexHint::DisableOrRework,
     );
   }
 
@@ -141,15 +158,14 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   u64::from_str_radix(s.as_str(), 16).ok()
 }
 
-impl<'c> Visit for NoControlRegexVisitor<'c> {
+impl<'c> VisitAll for NoControlRegexVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
+  fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
-    swc_ecmascript::visit::visit_regex(self, regex, parent);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) = extract_regex(&self.context.scope, ident, args) {
@@ -157,10 +173,9 @@ impl<'c> Visit for NoControlRegexVisitor<'c> {
         }
       }
     }
-    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) =
@@ -170,14 +185,50 @@ impl<'c> Visit for NoControlRegexVisitor<'c> {
         }
       }
     }
-    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
+
+  #[test]
+  fn test_read_hex_n() {
+    let tests = [
+      (r#"1f"#, Some(0x1f)),
+      (r#"001f"#, Some(0x1f)),
+      (r#"1g"#, None),
+      (r#"001g"#, None),
+      (r#"1ff"#, Some(0x1ff)),
+      (r#"abcd"#, Some(0xabcd)),
+    ];
+
+    for &(input, expected) in tests.iter() {
+      assert_eq!(
+        read_hex_n(&mut input.chars().peekable(), input.len()),
+        expected
+      );
+    }
+  }
+
+  #[test]
+  fn test_read_hex_until_brace() {
+    let tests = [
+      (r#"{1f}"#, Some(0x1f)),
+      (r#"{001f}"#, Some(0x1f)),
+      (r#"{1g}"#, None),
+      (r#"{001g}"#, None),
+      (r#"{1ff}"#, Some(0x1ff)),
+      (r#"{abcd}"#, Some(0xabcd)),
+    ];
+
+    for &(input, expected) in tests.iter() {
+      assert_eq!(
+        read_hex_until_brace(&mut input.chars().peekable()),
+        expected,
+      );
+    }
+  }
 
   #[test]
   fn no_control_regex_valid() {
@@ -201,16 +252,85 @@ mod tests {
 
   #[test]
   fn no_control_regex_invalid() {
-    assert_lint_err::<NoControlRegex>(r#"/\x1f/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\u001f/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\u{001f}/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\u{0001f}/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\\\x1f\\x1e/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/\\\x1fFOO\\x00/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"/FOO\\\x1fFOO\\x1f/"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"new RegExp('\\x1f\\x1e')"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"new RegExp('\\x1fFOO\\x00')"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"new RegExp('FOO\\x1fFOO\\x1f')"#, 0);
-    assert_lint_err::<NoControlRegex>(r#"RegExp('\\x1f')"#, 0);
+    assert_lint_err! {
+      NoControlRegex,
+      r#"/\x1f/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"/\u001f/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"/\u{001f}/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"/\u{0001f}/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"/\\\x1f\\x1e/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"/\\\x1fFOO\\x00/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"/FOO\\\x1fFOO\\x1f/"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"new RegExp('\\x1f\\x1e')"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"new RegExp('\\x1fFOO\\x00')"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"new RegExp('FOO\\x1fFOO\\x1f')"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r#"RegExp('\\x1f')"#: [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x1f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ]
+    };
   }
 }
