@@ -6,7 +6,8 @@ use derive_more::Display;
 use std::mem;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
-  ArrowExpr, AwaitExpr, BlockStmt, FnDecl, FnExpr, ForOfStmt, Function,
+  ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, FnDecl, FnExpr, ForOfStmt,
+  Function,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{Visit, VisitWith};
@@ -154,7 +155,13 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       .name(fn_decl.ident.sym.as_ref())
       .is_async(fn_decl.function.is_async)
       .is_generator(fn_decl.function.is_generator)
-      .is_empty(fn_decl.function.body.is_none())
+      .is_empty(
+        fn_decl
+          .function
+          .body
+          .as_ref()
+          .map_or(true, |body| body.stmts.is_empty()),
+      )
       .upper(mem::take(&mut self.function_info))
       .build();
     self.function_info = Some(function_info);
@@ -178,7 +185,13 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       )
       .is_async(fn_expr.function.is_async)
       .is_generator(fn_expr.function.is_generator)
-      .is_empty(fn_expr.function.body.is_none())
+      .is_empty(
+        fn_expr
+          .function
+          .body
+          .as_ref()
+          .map_or(true, |body| body.stmts.is_empty()),
+      )
       .upper(mem::take(&mut self.function_info))
       .build();
     self.function_info = Some(function_info);
@@ -196,7 +209,10 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       .name("[anonymous]")
       .is_async(arrow_expr.is_async)
       .is_generator(arrow_expr.is_generator)
-      .is_empty(false)
+      .is_empty(matches!(
+      &arrow_expr.body,
+      BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
+      ))
       .upper(mem::take(&mut self.function_info))
       .build();
     self.function_info = Some(function_info);
