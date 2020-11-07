@@ -393,6 +393,99 @@ async function* run() {
 
   #[test]
   fn require_await_invalid() {
-    todo!()
+    assert_lint_err! {
+      RequireAwait,
+      "async function foo() { doSomething() }": [
+        {
+          col: 0,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "(async function() { doSomething() })": [
+        {
+          col: 1,
+          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "async () => { doSomething() }": [
+        {
+          col: 0,
+          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "async () => doSomething()": [
+        {
+          col: 0,
+          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "({ async foo() { doSomething() } })": [
+        {
+          col: 3,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "class A { async foo() { doSomething() } }": [
+        {
+          col: 10,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "class A { private async foo() { doSomething() } }": [
+        {
+          col: 10,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "(class { async foo() { doSomething() } })": [
+        {
+          col: 9,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "(class { async ''() { doSomething() } })": [
+        {
+          col: 9,
+          message: variant!(RequireAwaitMessage, MissingAwait, ""),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "async function foo() { async () => { await doSomething() } }": [
+        {
+          col: 0,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+      "async function foo() { await (async () => { doSomething() }) }": [
+        {
+          col: 30,
+          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+    };
+  }
+
+  #[test]
+  fn magurotuna() {
+    assert_lint_err! {
+      RequireAwait,
+      "class A { async foo() { doSomething() } }": [
+        {
+          col: 10,
+          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          hint: RequireAwaitHint::RemoveOrUse,
+        },
+      ],
+    };
   }
 }
