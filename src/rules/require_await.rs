@@ -18,8 +18,16 @@ const CODE: &str = "require-await";
 
 #[derive(Display)]
 enum RequireAwaitMessage {
-  #[display(fmt = "{} has no 'await' expression.", _0)]
-  MissingAwait(String),
+  #[display(fmt = "Async function '{}' has no 'await' expression.", _0)]
+  MissingAwaitInFunction(String),
+  #[display(fmt = "Async function has no 'await' expression.")]
+  MissingAwaitInAnonymousFunction,
+  #[display(fmt = "Async arrow function has no 'await' expression.")]
+  MissingAwaitInArrowFunction,
+  #[display(fmt = "Async method '{}' has no 'await' expression.", _0)]
+  MissingAwaitInMethod(String),
+  #[display(fmt = "Async method has no 'await' expression.")]
+  MissingAwaitInAnonymousMethod,
 }
 
 #[derive(Display)]
@@ -53,8 +61,36 @@ impl LintRule for RequireAwait {
   }
 }
 
+enum FunctionKind {
+  Function(String),
+  AnonymousFunction,
+  ArrowFunction,
+  Method(String),
+  AnonymousMethod,
+}
+
+impl From<FunctionKind> for RequireAwaitMessage {
+  fn from(kind: FunctionKind) -> Self {
+    use FunctionKind::*;
+    use RequireAwaitMessage::*;
+    match kind {
+      Function(name) => MissingAwaitInFunction(name),
+      AnonymousFunction => MissingAwaitInAnonymousFunction,
+      ArrowFunction => MissingAwaitInArrowFunction,
+      Method(name) => MissingAwaitInMethod(name),
+      AnonymousMethod => MissingAwaitInAnonymousMethod,
+    }
+  }
+}
+
+impl Default for FunctionKind {
+  fn default() -> Self {
+    FunctionKind::AnonymousFunction
+  }
+}
+
 struct FunctionInfo {
-  name: String,
+  kind: FunctionKind,
   is_async: bool,
   is_generator: bool,
   is_empty: bool,
@@ -64,7 +100,7 @@ struct FunctionInfo {
 
 #[derive(Default)]
 struct FunctionInfoBuilder {
-  name: Option<String>,
+  kind: Option<FunctionKind>,
   is_async: Option<bool>,
   is_generator: Option<bool>,
   is_empty: Option<bool>,
@@ -76,10 +112,11 @@ impl FunctionInfo {
     FunctionInfoBuilder::default()
   }
 
-  fn should_report(&self) -> Option<String> {
+  fn should_report(&mut self) -> Option<RequireAwaitMessage> {
     if self.is_async && !self.is_generator && !self.is_empty && !self.has_await
     {
-      Some(self.name.clone())
+      let kind = mem::take(&mut self.kind);
+      Some(kind.into())
     } else {
       None
     }
@@ -87,8 +124,8 @@ impl FunctionInfo {
 }
 
 impl FunctionInfoBuilder {
-  fn name(mut self, name: impl Into<String>) -> Self {
-    self.name = Some(name.into());
+  fn kind(mut self, kind: FunctionKind) -> Self {
+    self.kind = Some(kind);
     self
   }
 
@@ -114,7 +151,7 @@ impl FunctionInfoBuilder {
 
   fn build(self) -> Box<FunctionInfo> {
     Box::new(FunctionInfo {
-      name: self.name.unwrap_or_else(|| "[anonymous]".to_string()),
+      kind: self.kind.unwrap_or_default(),
       is_async: self.is_async.unwrap_or_default(),
       is_generator: self.is_generator.unwrap_or_default(),
       is_empty: self.is_empty.unwrap_or_default(),
@@ -138,11 +175,12 @@ impl<'c> RequireAwaitVisitor<'c> {
   }
 
   fn check_function_info(&mut self, span: impl Spanned) {
-    if let Some(name) = self.function_info.as_ref().unwrap().should_report() {
+    if let Some(message) = self.function_info.as_mut().unwrap().should_report()
+    {
       self.context.add_diagnostic_with_hint(
         span.span(),
         CODE,
-        RequireAwaitMessage::MissingAwait(name),
+        message,
         RequireAwaitHint::RemoveOrUse,
       );
     }
@@ -152,7 +190,9 @@ impl<'c> RequireAwaitVisitor<'c> {
 impl<'c> Visit for RequireAwaitVisitor<'c> {
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
     let function_info = FunctionInfo::builder()
-      .name(fn_decl.ident.sym.as_ref())
+      .kind(FunctionKind::Function(
+        fn_decl.ident.sym.as_ref().to_string(),
+      ))
       .is_async(fn_decl.function.is_async)
       .is_generator(fn_decl.function.is_generator)
       .is_empty(
@@ -176,12 +216,12 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
 
   fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
     let function_info = FunctionInfo::builder()
-      .name(
+      .kind(
         fn_expr
           .ident
           .as_ref()
-          .map(|i| i.sym.as_ref().to_string())
-          .unwrap_or_else(|| "[anonymous]".to_string()),
+          .map(|i| FunctionKind::Function(i.sym.as_ref().to_string()))
+          .unwrap_or(FunctionKind::AnonymousFunction),
       )
       .is_async(fn_expr.function.is_async)
       .is_generator(fn_expr.function.is_generator)
@@ -206,7 +246,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
     let function_info = FunctionInfo::builder()
-      .name("[anonymous]")
+      .kind(FunctionKind::ArrowFunction)
       .is_async(arrow_expr.is_async)
       .is_generator(arrow_expr.is_generator)
       .is_empty(matches!(
@@ -227,11 +267,12 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
 
   fn visit_method_prop(&mut self, method_prop: &MethodProp, _: &dyn Node) {
     let function_info = FunctionInfo::builder()
-      .name(
+      .kind(
         method_prop
           .key
           .string_repr()
-          .unwrap_or_else(|| "[anonymous]".to_string()),
+          .map(|name| FunctionKind::Method(name))
+          .unwrap_or(FunctionKind::AnonymousMethod),
       )
       .is_async(method_prop.function.is_async)
       .is_generator(method_prop.function.is_generator)
@@ -256,11 +297,12 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
 
   fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
     let function_info = FunctionInfo::builder()
-      .name(
+      .kind(
         class_method
           .key
           .string_repr()
-          .unwrap_or_else(|| "[anonymous]".to_string()),
+          .map(|name| FunctionKind::Method(name))
+          .unwrap_or(FunctionKind::AnonymousMethod),
       )
       .is_async(class_method.function.is_async)
       .is_generator(class_method.function.is_generator)
@@ -289,11 +331,12 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
     _: &dyn Node,
   ) {
     let function_info = FunctionInfo::builder()
-      .name(
+      .kind(
         private_method
           .key
           .string_repr()
-          .unwrap_or_else(|| "[anonymous]".to_string()),
+          .map(|name| FunctionKind::Method(name))
+          .unwrap_or(FunctionKind::AnonymousMethod),
       )
       .is_async(private_method.function.is_async)
       .is_generator(private_method.function.is_generator)
@@ -397,77 +440,77 @@ async function* run() {
       "async function foo() { doSomething() }": [
         {
           col: 0,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          message: variant!(RequireAwaitMessage, MissingAwaitInFunction, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(async function() { doSomething() })": [
         {
           col: 1,
-          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          message: RequireAwaitMessage::MissingAwaitInAnonymousFunction,
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "async () => { doSomething() }": [
         {
           col: 0,
-          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          message: RequireAwaitMessage::MissingAwaitInArrowFunction,
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "async () => doSomething()": [
         {
           col: 0,
-          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          message: RequireAwaitMessage::MissingAwaitInArrowFunction,
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "({ async foo() { doSomething() } })": [
         {
           col: 3,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          message: variant!(RequireAwaitMessage, MissingAwaitInMethod, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { async foo() { doSomething() } }": [
         {
           col: 10,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          message: variant!(RequireAwaitMessage, MissingAwaitInMethod, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { private async foo() { doSomething() } }": [
         {
           col: 10,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          message: variant!(RequireAwaitMessage, MissingAwaitInMethod, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async foo() { doSomething() } })": [
         {
           col: 9,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          message: variant!(RequireAwaitMessage, MissingAwaitInMethod, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async ''() { doSomething() } })": [
         {
           col: 9,
-          message: variant!(RequireAwaitMessage, MissingAwait, ""),
+          message: variant!(RequireAwaitMessage, MissingAwaitInMethod, ""),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "async function foo() { async () => { await doSomething() } }": [
         {
           col: 0,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
+          message: variant!(RequireAwaitMessage, MissingAwaitInFunction, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "async function foo() { await (async () => { doSomething() }) }": [
         {
           col: 30,
-          message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
+          message: RequireAwaitMessage::MissingAwaitInArrowFunction,
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
