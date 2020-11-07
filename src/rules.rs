@@ -79,6 +79,7 @@ pub mod no_with;
 pub mod prefer_as_const;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
+pub mod require_await;
 pub mod require_yield;
 pub mod single_var_declarator;
 pub mod triple_slash_reference;
