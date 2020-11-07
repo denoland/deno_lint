@@ -125,19 +125,19 @@ impl FunctionInfoBuilder {
     self
   }
 
-  #[allow(clippy::clippy::wrong_self_convention)]
+  #[allow(clippy::wrong_self_convention)]
   fn is_async(mut self, is_async: bool) -> Self {
     self.is_async = Some(is_async);
     self
   }
 
-  #[allow(clippy::clippy::wrong_self_convention)]
+  #[allow(clippy::wrong_self_convention)]
   fn is_generator(mut self, is_generator: bool) -> Self {
     self.is_generator = Some(is_generator);
     self
   }
 
-  #[allow(clippy::clippy::wrong_self_convention)]
+  #[allow(clippy::wrong_self_convention)]
   fn is_empty(mut self, is_empty: bool) -> Self {
     self.is_empty = Some(is_empty);
     self
