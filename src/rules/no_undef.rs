@@ -1,21 +1,15 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use std::collections::HashSet;
 
 use super::Context;
 use crate::globals::GLOBALS;
 use crate::scoped_rule::ScopeRule;
 use crate::scoped_rule::ScopedRule;
-use crate::scopes::BindingKind;
-use swc_ecmascript::utils::Id;
 use swc_ecmascript::{ast::*, utils::ident::IdentLike};
 
 pub type NoUndef = ScopedRule<NoUndefImpl>;
 
 #[derive(Default)]
-pub struct NoUndefImpl {
-  /// declared bindings
-  bindings: HashSet<Id>,
-}
+pub struct NoUndefImpl;
 
 impl ScopeRule for NoUndefImpl {
   fn new() -> Self {
@@ -32,10 +26,6 @@ impl ScopeRule for NoUndefImpl {
 
   fn ignore_typeof() -> bool {
     true
-  }
-
-  fn declare(&mut self, _: &mut Context, i: &Ident, _: BindingKind) {
-    self.bindings.insert(i.to_id());
   }
 
   fn assign(&mut self, context: &mut Context, i: &Ident) {
@@ -58,7 +48,7 @@ impl ScopeRule for NoUndefImpl {
     }
 
     // Ignore top level bindings declared in the file.
-    if self.bindings.contains(&i.to_id()) {
+    if context.scope.var(&i.to_id()).is_some() {
       return;
     }
 

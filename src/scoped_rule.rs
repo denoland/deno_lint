@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use crate::linter::Context;
 use crate::rules::LintRule;
-use crate::scopes::BindingKind;
 use swc_atoms::js_word;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::AssignExpr;
@@ -82,8 +81,6 @@ pub trait ScopeRule {
     ""
   }
 
-  fn declare(&mut self, context: &mut Context, i: &Ident, kind: BindingKind);
-
   fn assign(&mut self, context: &mut Context, i: &Ident);
 
   fn check_usage(&mut self, context: &mut Context, i: &Ident);
@@ -149,17 +146,7 @@ where
     pat.visit_children_with(self);
 
     if let Pat::Ident(i) = pat {
-      if let Some(kind) = self.pat_var_decl_kind {
-        self.rule.declare(
-          self.context,
-          i,
-          match kind {
-            VarDeclKind::Var => BindingKind::Var,
-            VarDeclKind::Let => BindingKind::Let,
-            VarDeclKind::Const => BindingKind::Const,
-          },
-        );
-      } else {
+      if let None = self.pat_var_decl_kind {
         self.rule.assign(self.context, i);
       }
     }
