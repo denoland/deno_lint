@@ -1,43 +1,35 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
-use super::LintRule;
-use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use crate::scoped_rule::ScopeRule;
+use crate::scoped_rule::ScopedRule;
+use crate::scopes::BindingKind;
+use swc_ecmascript::ast::Ident;
+use swc_ecmascript::utils::ident::IdentLike;
 
-pub struct NoFuncAssign;
+pub type NoFuncAssign = ScopedRule<NoFuncAssignImpl>;
 
-impl LintRule for NoFuncAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoFuncAssign)
+pub struct NoFuncAssignImpl;
+
+impl ScopeRule for NoFuncAssignImpl {
+  fn new() -> Self {
+    NoFuncAssignImpl
   }
 
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags() -> &'static [&'static str] {
     &["recommended"]
   }
 
-  fn code(&self) -> &'static str {
+  fn code() -> &'static str {
     "no-func-assign"
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
-    let mut visitor = NoFuncAssignVisitor::new(context);
-    visitor.visit_program(program, program);
-  }
-
-  fn docs(&self) -> &'static str {
+  fn docs() -> &'static str {
     r#"Disallows the overwriting/reassignment of an existing function
 
 Javascript allows for the reassignment of a function definition.  This is
 generally a mistake on the developers part, or poor coding practice as code
 readability and maintainability will suffer.
-    
+
 ### Invalid:
 ```typescript
 function foo() {}
@@ -67,38 +59,22 @@ myFuncVar = bar;  // variable reassignment, not function re-declaration
 ```
 "#
   }
-}
 
-struct NoFuncAssignVisitor<'c> {
-  context: &'c mut Context,
-}
-
-impl<'c> NoFuncAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c> Visit for NoFuncAssignVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
-    let ids = find_lhs_ids(&assign_expr.left);
-
-    for id in ids {
-      let var = self.context.scope.var(&id);
-      if let Some(var) = var {
-        if let BindingKind::Function = var.kind() {
-          self.context.add_diagnostic_with_hint(
-            assign_expr.span,
-            "no-func-assign",
-            "Reassigning function declaration is not allowed",
-            "Remove or rework the reassignment of the existing function",
-          );
-        }
+  fn check_assignment(&mut self, context: &mut Context, i: &Ident) {
+    let var = context.scope.var(&i.to_id());
+    if let Some(var) = var {
+      if let BindingKind::Function = var.kind() {
+        context.add_diagnostic_with_hint(
+          i.span,
+          "no-func-assign",
+          "Reassigning function declaration is not allowed",
+          "Remove or rework the reassignment of the existing function",
+        );
       }
     }
   }
+
+  fn check_usage(&mut self, _: &mut Context, _: &Ident) {}
 }
 
 #[cfg(test)]
