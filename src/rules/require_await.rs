@@ -185,6 +185,27 @@ impl<'c> RequireAwaitVisitor<'c> {
       );
     }
   }
+
+  fn process_function<F>(
+    &mut self,
+    func: &F,
+    new_function_info: Box<FunctionInfo>,
+  ) where
+    F: VisitWith<Self> + Spanned,
+  {
+    // Set the current function's info
+    self.function_info = Some(new_function_info);
+
+    // Visit the function's inside
+    func.visit_children_with(self);
+
+    // Check if the function should be reported
+    self.check_function_info(func);
+
+    // Restore upper function info
+    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
+    self.function_info = upper;
+  }
 }
 
 impl<'c> Visit for RequireAwaitVisitor<'c> {
@@ -204,14 +225,8 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       )
       .upper(mem::take(&mut self.function_info))
       .build();
-    self.function_info = Some(function_info);
 
-    fn_decl.visit_children_with(self);
-
-    self.check_function_info(fn_decl);
-
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
-    self.function_info = upper;
+    self.process_function(fn_decl, function_info);
   }
 
   fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
@@ -234,14 +249,8 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       )
       .upper(mem::take(&mut self.function_info))
       .build();
-    self.function_info = Some(function_info);
 
-    fn_expr.visit_children_with(self);
-
-    self.check_function_info(fn_expr);
-
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
-    self.function_info = upper;
+    self.process_function(fn_expr, function_info);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
@@ -255,14 +264,8 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       ))
       .upper(mem::take(&mut self.function_info))
       .build();
-    self.function_info = Some(function_info);
 
-    arrow_expr.visit_children_with(self);
-
-    self.check_function_info(arrow_expr);
-
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
-    self.function_info = upper;
+    self.process_function(arrow_expr, function_info);
   }
 
   fn visit_method_prop(&mut self, method_prop: &MethodProp, _: &dyn Node) {
@@ -285,14 +288,8 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       )
       .upper(mem::take(&mut self.function_info))
       .build();
-    self.function_info = Some(function_info);
 
-    method_prop.visit_children_with(self);
-
-    self.check_function_info(method_prop);
-
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
-    self.function_info = upper;
+    self.process_function(method_prop, function_info);
   }
 
   fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
@@ -315,14 +312,8 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       )
       .upper(mem::take(&mut self.function_info))
       .build();
-    self.function_info = Some(function_info);
 
-    class_method.visit_children_with(self);
-
-    self.check_function_info(class_method);
-
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
-    self.function_info = upper;
+    self.process_function(class_method, function_info);
   }
 
   fn visit_private_method(
@@ -349,14 +340,8 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       )
       .upper(mem::take(&mut self.function_info))
       .build();
-    self.function_info = Some(function_info);
 
-    private_method.visit_children_with(self);
-
-    self.check_function_info(private_method);
-
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
-    self.function_info = upper;
+    self.process_function(private_method, function_info);
   }
 
   fn visit_await_expr(&mut self, await_expr: &AwaitExpr, _: &dyn Node) {
