@@ -248,9 +248,55 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
 mod tests {
   use super::*;
 
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.13.0/tests/lib/rules/require-await.js
+  // MIT Licensed.
+
   #[test]
   fn require_await_valid() {
-    todo!()
+    assert_lint_ok! {
+      RequireAwait,
+      "async function foo() { await doSomething() }",
+      "(async function() { await doSomething() })",
+      "async () => { await doSomething() }",
+      "async () => await doSomething()",
+      "({ async foo() { await doSomething() } })",
+      "class A { async foo() { await doSomething() } }",
+      "(class { async foo() { await doSomething() } })",
+      "async function foo() { await (async () => { await doSomething() }) }",
+
+      // empty functions are ok.
+      "async function foo() {}",
+      "async () => {}",
+
+      // normal functions are ok.
+      "function foo() { doSomething() }",
+
+      // for-await-of
+      "async function foo() { for await (x of xs); }",
+
+      // global await
+      "await foo()",
+      r#"
+for await (let num of asyncIterable) {
+    console.log(num);
+}
+      "#,
+
+      // generator
+      "async function* run() { yield * anotherAsyncGenerator() }",
+      r#"
+async function* run() {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  yield 'Hello';
+  console.log('World');
+}
+      "#,
+      "async function* run() { }",
+      "const foo = async function *(){}",
+      r#"const foo = async function *(){ console.log("bar") }"#,
+      r#"async function* run() { console.log("bar") }"#,
+    };
   }
 
   #[test]
