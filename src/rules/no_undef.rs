@@ -1,139 +1,77 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use std::collections::HashSet;
+
 use super::Context;
-use super::LintRule;
 use crate::globals::GLOBALS;
-use swc_atoms::js_word;
-use swc_ecmascript::{
-  ast::*,
-  utils::ident::IdentLike,
-  visit::Node,
-  visit::{noop_visit_type, Visit, VisitWith},
-};
+use crate::scoped_rule::ScopeRule;
+use crate::scoped_rule::ScopedRule;
+use crate::scopes::BindingKind;
+use swc_ecmascript::utils::Id;
+use swc_ecmascript::{ast::*, utils::ident::IdentLike};
 
-pub struct NoUndef;
+pub type NoUndef = ScopedRule<NoUndefImpl>;
 
-impl LintRule for NoUndef {
-  fn new() -> Box<Self> {
-    Box::new(NoUndef)
+#[derive(Default)]
+pub struct NoUndefImpl {
+  /// declared bindings
+  bindings: HashSet<Id>,
+}
+
+impl ScopeRule for NoUndefImpl {
+  fn new() -> Self {
+    NoUndefImpl::default()
   }
 
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags() -> &'static [&'static str] {
     &["recommended"]
   }
 
-  fn code(&self) -> &'static str {
+  fn code() -> &'static str {
     "no-undef"
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
-    let mut visitor = NoUndefVisitor::new(context);
-    program.visit_with(program, &mut visitor);
-  }
-}
-
-struct NoUndefVisitor<'c> {
-  context: &'c mut Context,
-}
-
-impl<'c> NoUndefVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
+  fn ignore_typeof() -> bool {
+    true
   }
 
-  fn check(&mut self, ident: &Ident) {
+  fn declare(&mut self, _: &mut Context, i: &Ident, _: BindingKind) {
+    self.bindings.insert(i.to_id());
+  }
+
+  fn assign(&mut self, context: &mut Context, i: &Ident) {
+    self.check_usage(context, i)
+  }
+
+  fn check_usage(&mut self, context: &mut Context, i: &Ident) {
     // Thanks to this if statement, we can check for Map in
     //
     // function foo(Map) { ... }
     //
-    if ident.span.ctxt != self.context.top_level_ctxt {
+    if i.span.ctxt != context.top_level_ctxt {
       return;
     }
 
     // Implicitly defined
     // See: https://github.com/denoland/deno_lint/issues/317
-    if ident.sym == *"arguments" {
+    if i.sym == *"arguments" {
       return;
     }
 
     // Ignore top level bindings declared in the file.
-    if self.context.scope.var(&ident.to_id()).is_some() {
+    if self.bindings.contains(&i.to_id()) {
       return;
     }
 
     // Globals
-    if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
+    if GLOBALS.iter().any(|(name, _)| name == &&*i.sym) {
       return;
     }
 
-    self.context.add_diagnostic(
-      ident.span,
+    context.add_diagnostic(
+      i.span,
       "no-undef",
-      format!("{} is not defined", ident.sym),
+      format!("{} is not defined", i.sym),
     )
-  }
-}
-
-impl<'c> Visit for NoUndefVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
-    e.obj.visit_with(e, self);
-    if e.computed {
-      e.prop.visit_with(e, self);
-    }
-  }
-
-  fn visit_unary_expr(&mut self, e: &UnaryExpr, _: &dyn Node) {
-    if e.op == UnaryOp::TypeOf {
-      return;
-    }
-
-    e.visit_children_with(self);
-  }
-
-  fn visit_expr(&mut self, e: &Expr, _: &dyn Node) {
-    e.visit_children_with(self);
-
-    if let Expr::Ident(ident) = e {
-      self.check(ident)
-    }
-  }
-
-  fn visit_class_prop(&mut self, p: &ClassProp, _: &dyn Node) {
-    p.value.visit_with(p, self)
-  }
-
-  fn visit_prop(&mut self, p: &Prop, _: &dyn Node) {
-    p.visit_children_with(self);
-
-    if let Prop::Shorthand(i) = &p {
-      self.check(i);
-    }
-  }
-
-  fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
-    if let Pat::Ident(i) = p {
-      self.check(i);
-    } else {
-      p.visit_children_with(self);
-    }
-  }
-
-  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
-    self.check(&p.key);
-    p.value.visit_with(p, self);
-  }
-
-  fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
-    if let ExprOrSuper::Expr(callee) = &e.callee {
-      if let Expr::Ident(i) = &**callee {
-        if i.sym == js_word!("import") {
-          return;
-        }
-      }
-    }
-
-    e.visit_children_with(self)
   }
 }
 
