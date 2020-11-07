@@ -2,12 +2,13 @@
 #![allow(unused)]
 use super::Context;
 use super::LintRule;
+use crate::swc_util::StringRepr;
 use derive_more::Display;
 use std::mem;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
-  ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, FnDecl, FnExpr, ForOfStmt,
-  Function,
+  ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, ClassMethod, FnDecl,
+  FnExpr, ForOfStmt, Function, MethodProp, PrivateMethod,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{Visit, VisitWith};
@@ -220,6 +221,97 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
     arrow_expr.visit_children_with(self);
 
     self.check_function_info(arrow_expr);
+
+    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
+    self.function_info = upper;
+  }
+
+  fn visit_method_prop(&mut self, method_prop: &MethodProp, _: &dyn Node) {
+    let function_info = FunctionInfo::builder()
+      .name(
+        method_prop
+          .key
+          .string_repr()
+          .unwrap_or_else(|| "[anonymous]".to_string()),
+      )
+      .is_async(method_prop.function.is_async)
+      .is_generator(method_prop.function.is_generator)
+      .is_empty(
+        method_prop
+          .function
+          .body
+          .as_ref()
+          .map_or(true, |body| body.stmts.is_empty()),
+      )
+      .upper(mem::take(&mut self.function_info))
+      .build();
+    self.function_info = Some(function_info);
+
+    method_prop.visit_children_with(self);
+
+    self.check_function_info(method_prop);
+
+    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
+    self.function_info = upper;
+  }
+
+  fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
+    let function_info = FunctionInfo::builder()
+      .name(
+        class_method
+          .key
+          .string_repr()
+          .unwrap_or_else(|| "[anonymous]".to_string()),
+      )
+      .is_async(class_method.function.is_async)
+      .is_generator(class_method.function.is_generator)
+      .is_empty(
+        class_method
+          .function
+          .body
+          .as_ref()
+          .map_or(true, |body| body.stmts.is_empty()),
+      )
+      .upper(mem::take(&mut self.function_info))
+      .build();
+    self.function_info = Some(function_info);
+
+    class_method.visit_children_with(self);
+
+    self.check_function_info(class_method);
+
+    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
+    self.function_info = upper;
+  }
+
+  fn visit_private_method(
+    &mut self,
+    private_method: &PrivateMethod,
+    _: &dyn Node,
+  ) {
+    let function_info = FunctionInfo::builder()
+      .name(
+        private_method
+          .key
+          .string_repr()
+          .unwrap_or_else(|| "[anonymous]".to_string()),
+      )
+      .is_async(private_method.function.is_async)
+      .is_generator(private_method.function.is_generator)
+      .is_empty(
+        private_method
+          .function
+          .body
+          .as_ref()
+          .map_or(true, |body| body.stmts.is_empty()),
+      )
+      .upper(mem::take(&mut self.function_info))
+      .build();
+    self.function_info = Some(function_info);
+
+    private_method.visit_children_with(self);
+
+    self.check_function_info(private_method);
 
     let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
     self.function_info = upper;
