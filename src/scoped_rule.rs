@@ -5,6 +5,7 @@ use crate::rules::LintRule;
 use swc_atoms::js_word;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::AssignExpr;
+use swc_ecmascript::ast::AssignPatProp;
 use swc_ecmascript::ast::CallExpr;
 use swc_ecmascript::ast::ClassProp;
 use swc_ecmascript::ast::Expr;
@@ -81,7 +82,7 @@ pub trait ScopeRule {
     ""
   }
 
-  fn assign(&mut self, context: &mut Context, i: &Ident);
+  fn check_assignment(&mut self, context: &mut Context, i: &Ident);
 
   fn check_usage(&mut self, context: &mut Context, i: &Ident);
 }
@@ -147,9 +148,14 @@ where
 
     if let Pat::Ident(i) = pat {
       if let None = self.pat_var_decl_kind {
-        self.rule.assign(self.context, i);
+        self.rule.check_assignment(self.context, i);
       }
     }
+  }
+
+  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
+    self.rule.check_assignment(self.context, &p.key);
+    p.value.visit_with(p, self);
   }
 
   fn visit_assign_expr(&mut self, expr: &AssignExpr, _: &dyn Node) {

@@ -28,7 +28,7 @@ impl ScopeRule for NoUndefImpl {
     true
   }
 
-  fn assign(&mut self, context: &mut Context, i: &Ident) {
+  fn check_assignment(&mut self, context: &mut Context, i: &Ident) {
     self.check_usage(context, i)
   }
 
