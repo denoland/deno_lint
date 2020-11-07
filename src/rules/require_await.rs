@@ -1,5 +1,4 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use crate::swc_util::StringRepr;
@@ -7,8 +6,8 @@ use derive_more::Display;
 use std::mem;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
-  ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, ClassMethod, FnDecl,
-  FnExpr, ForOfStmt, Function, MethodProp, PrivateMethod,
+  ArrowExpr, AwaitExpr, BlockStmtOrExpr, ClassMethod, FnDecl, FnExpr,
+  ForOfStmt, MethodProp, PrivateMethod,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{Visit, VisitWith};
@@ -469,20 +468,6 @@ async function* run() {
         {
           col: 30,
           message: variant!(RequireAwaitMessage, MissingAwait, "[anonymous]"),
-          hint: RequireAwaitHint::RemoveOrUse,
-        },
-      ],
-    };
-  }
-
-  #[test]
-  fn magurotuna() {
-    assert_lint_err! {
-      RequireAwait,
-      "class A { async foo() { doSomething() } }": [
-        {
-          col: 10,
-          message: variant!(RequireAwaitMessage, MissingAwait, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
