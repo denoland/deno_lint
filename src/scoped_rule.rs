@@ -148,7 +148,7 @@ where
     pat.visit_children_with(self);
 
     if let Pat::Ident(i) = pat {
-      if let None = self.pat_var_decl_kind {
+      if self.pat_var_decl_kind.is_none() {
         self.rule.check_assignment(self.context, i);
       }
     }
