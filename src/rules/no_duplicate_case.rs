@@ -109,7 +109,12 @@ impl<'c> Visit for NoDuplicateCaseVisitor<'c> {
     for case in &switch_stmt.cases {
       if let Some(test) = &case.test {
         let span = test.span();
-        let test_txt = self.context.source_map.span_to_snippet(span).unwrap();
+        let test_txt = self
+          .context
+          .source_map
+          .span_to_snippet(span)
+          .unwrap()
+          .replace(|c: char| c.is_whitespace(), "");
         if !seen.insert(test_txt) {
           self.context.add_diagnostic_with_hint(
             case.span,
