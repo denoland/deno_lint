@@ -1,14 +1,33 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::swc_util::DropSpan;
+use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Program, Stmt,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeElseIf;
+
+const CODE: &str = "no-dupe-else-if";
+
+#[derive(Display)]
+enum NoDupeElseIfMessage {
+  #[display(
+    fmt = "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain."
+  )]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoDupeElseIfHint {
+  #[display(
+    fmt = "Remove or rework the `else if` condition which is duplicated"
+  )]
+  RemoveOrRework,
+}
 
 impl LintRule for NoDupeElseIf {
   fn new() -> Box<Self> {
@@ -20,12 +39,12 @@ impl LintRule for NoDupeElseIf {
   }
 
   fn code(&self) -> &'static str {
-    "no-dupe-else-if"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -61,7 +80,8 @@ else if (a === 7) {}
 }
 
 /// A visitor to check the `no-dupe-else-if` rule.
-/// Determination logic is ported from ESLint's implementation. For more, see [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
+/// Determination logic is ported from ESLint's implementation. For more, see:
+/// [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
 struct NoDupeElseIfVisitor<'c> {
   context: &'c mut Context,
   checked_span: HashSet<Span>,
@@ -76,10 +96,10 @@ impl<'c> NoDupeElseIfVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoDupeElseIfVisitor<'c> {
+impl<'c> VisitAll for NoDupeElseIfVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
     let span = if_stmt.test.span();
 
     // This check is necessary to avoid outputting the same errors multiple times.
@@ -123,12 +143,11 @@ impl<'c> Visit for NoDupeElseIfVisitor<'c> {
               .iter()
               .any(|or_operands| or_operands.is_empty())
             {
-              self
-              .context
-              .add_diagnostic_with_hint(span,
-                "no-dupe-else-if", 
-                "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain.",
-                "Remove or rework the `else if` condition which is duplicated"
+              self.context.add_diagnostic_with_hint(
+                span,
+                CODE,
+                NoDupeElseIfMessage::Unexpected,
+                NoDupeElseIfHint::RemoveOrRework,
               );
               break;
             }
@@ -142,8 +161,6 @@ impl<'c> Visit for NoDupeElseIfVisitor<'c> {
         }
       }
     }
-
-    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 }
 
@@ -253,7 +270,6 @@ fn append_test(appeared_conditions: &mut Vec<Vec<Vec<Expr>>>, expr: Expr) {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_dupe_else_if_valid() {
@@ -313,221 +329,587 @@ if (a) {
 
   #[test]
   fn no_dupe_else_if_invalid() {
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (a) {} else if (b) {}",
-      19,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a); else if (a);", 17);
-    assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a) {} else {}", 19);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (a) {} else if (c) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (a) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (c) {} else if (a) {}",
-      49,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (b) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (b) {} else {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (c) {} else if (b) {}",
-      49,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a); else if (b); else if (c); else if (b); else if (d); else;",
-      43,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a); else if (b); else if (c); else if (d); else if (b); else if (e);", 56);
-    assert_lint_err_n::<NoDupeElseIf>(
-      "if (a) {} else if (a) {} else if (a) {}",
-      vec![19, 34],
-    );
-    assert_lint_err_n::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (a) {} else if (b) {} else if (a) {}",
-      vec![34, 49, 64],
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a) { if (b) {} } else if (a) {}", 30);
-    assert_lint_err::<NoDupeElseIf>("if (this) {} else if (this) {}", 22);
-    assert_lint_err::<NoDupeElseIf>("if ([a]) {} else if ([a]) {}", 21);
-    assert_lint_err::<NoDupeElseIf>("if ({a: 1}) {} else if ({a: 1}) {}", 24);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (function () {}) {} else if (function () {}) {}",
-      32,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (!a) {} else if (!a) {}", 20);
-    assert_lint_err::<NoDupeElseIf>("if (++a) {} else if (++a) {}", 21);
-    assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a === 1) {}", 25);
-    assert_lint_err::<NoDupeElseIf>("if (1 < a) {} else if (1 < a) {}", 23);
-    assert_lint_err::<NoDupeElseIf>("if (a = b) {} else if (a = b) {}", 23);
-    assert_lint_err::<NoDupeElseIf>("if (a.b) {} else if (a.b) {}", 21);
-    assert_lint_err::<NoDupeElseIf>("if (a[b]) {} else if (a[b]) {}", 22);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a ? 1 : 2) {} else if (a ? 1 : 2) {}",
-      27,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a()) {} else if (a()) {}", 21);
-    assert_lint_err::<NoDupeElseIf>("if (new A()) {} else if (new A()) {}", 25);
-    assert_lint_err::<NoDupeElseIf>("if (true) {} else if (true) {}", 22);
-    assert_lint_err::<NoDupeElseIf>("if (`a`) {} else if (`a`) {}", 21);
-    assert_lint_err::<NoDupeElseIf>("if (a`b`) {} else if (a`b`) {}", 22);
-    assert_lint_err::<NoDupeElseIf>("if (a => {}) {} else if (a => {}) {}", 25);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (class A {}) {} else if (class A {}) {}",
-      28,
-    );
-    assert_lint_err_on_line::<NoDupeElseIf>(
+    assert_lint_err! {
+      NoDupeElseIf,
+      "if (a) {} else if (a) {} else if (b) {}": [
+        {
+          col: 19,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a); else if (a);": [
+        {
+          col: 17,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (a) {} else {}": [
+        {
+          col: 19,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (a) {} else if (c) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (a) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (c) {} else if (a) {}": [
+        {
+          col: 49,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (b) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (b) {} else {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (c) {} else if (b) {}": [
+        {
+          col: 49,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a); else if (b); else if (c); else if (b); else if (d); else;": [
+        {
+          col: 43,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a); else if (b); else if (c); else if (d); else if (b); else if (e);": [
+        {
+          col: 56,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (a) {} else if (a) {}": [
+        {
+          col: 19,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        },
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (a) {} else if (b) {} else if (a) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        },
+        {
+          col: 49,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        },
+        {
+          col: 64,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) { if (b) {} } else if (a) {}": [
+        {
+          col: 30,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (this) {} else if (this) {}": [
+        {
+          col: 22,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if ([a]) {} else if ([a]) {}": [
+        {
+          col: 21,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if ({a: 1}) {} else if ({a: 1}) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (function () {}) {} else if (function () {}) {}": [
+        {
+          col: 32,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (!a) {} else if (!a) {}": [
+        {
+          col: 20,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (++a) {} else if (++a) {}": [
+        {
+          col: 21,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a === 1) {} else if (a === 1) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (1 < a) {} else if (1 < a) {}": [
+        {
+          col: 23,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a = b) {} else if (a = b) {}": [
+        {
+          col: 23,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a.b) {} else if (a.b) {}": [
+        {
+          col: 21,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a[b]) {} else if (a[b]) {}": [
+        {
+          col: 22,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a ? 1 : 2) {} else if (a ? 1 : 2) {}": [
+        {
+          col: 27,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a()) {} else if (a()) {}": [
+        {
+          col: 21,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (new A()) {} else if (new A()) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (true) {} else if (true) {}": [
+        {
+          col: 22,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (`a`) {} else if (`a`) {}": [
+        {
+          col: 21,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a`b`) {} else if (a`b`) {}": [
+        {
+          col: 22,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a => {}) {} else if (a => {}) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (class A {}) {} else if (class A {}) {}": [
+        {
+          col: 28,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
       r#"
 function* foo(a) {
   if (yield a) {}
   else if (yield a) {}
 }
-      "#,
-      4,
-      11,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (new.target) {} else if (new.target) {}",
-      28,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (await a) {} else if (await a) {}", 25);
-    assert_lint_err::<NoDupeElseIf>("if ((a)) {} else if ((a)) {}", 21);
-    assert_lint_err::<NoDupeElseIf>("if (a && b) {} else if (a && b) {}", 24);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a && b || c)  {} else if (a && b || c) {}",
-      30,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (f(a)) {} else if (f(a)) {}", 22);
-    assert_lint_err::<NoDupeElseIf>("if (a === 1) {} else if (a===1) {}", 25);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a === 1) {} else if (a === /* comment */ 1) {}",
-      25,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a === 1) {} else if ((a === 1)) {}",
-      25,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a || b) {} else if (a) {}", 24);
-    assert_lint_err_n::<NoDupeElseIf>(
-      "if (a || b) {} else if (a) {} else if (b) {}",
-      vec![24, 39],
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a || b) {} else if (b || a) {}", 24);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (a || b) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || b) {} else if (c || d) {} else if (a || d) {}",
-      44,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if ((a === b && fn(c)) || d) {} else if (fn(c) && a === b) {}",
-      41,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a && b) {}", 19);
-    assert_lint_err::<NoDupeElseIf>("if (a && b) {} else if (b && a) {}", 24);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a && b) {} else if (a && b && c) {}",
-      24,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || c) {} else if (a && b || c) {}",
-      24,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (c && a || b) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (c && (a || b)) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b && c) {} else if (d && (a || e && c && b)) {}",
-      39,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || b && c) {} else if (b && c && d) {}",
-      29,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a || b) {} else if (b && c) {}", 24);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if ((a || b) && c) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if ((a && (b || c)) || d) {} else if ((c || b) && e && a) {}",
-      38,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a && b || b && c) {} else if (a && b && c) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b && c) {} else if (d && (c && e && b || a)) {}",
-      39,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || (b && (c || d))) {} else if ((d || c) && b) {}",
-      38,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || b) {} else if ((b || a) && c) {}",
-      24,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || b) {} else if (c) {} else if (d) {} else if (b && (a || c)) {}",
-      54,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || b || c) {} else if (a || (b && d) || (c && e)) {}",
-      29,
-    );
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a || (b || c)) {} else if (a || (b && c)) {}",
-      31,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a || b) {} else if (c) {} else if (d) {} else if ((a || c) && (b || d)) {}", 54);
-    assert_lint_err::<NoDupeElseIf>(
-      "if (a) {} else if (b) {} else if (c && (a || d && b)) {}",
-      34,
-    );
-    assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a || a) {}", 19);
-    assert_lint_err::<NoDupeElseIf>("if (a || a) {} else if (a || a) {}", 24);
-    assert_lint_err::<NoDupeElseIf>("if (a || a) {} else if (a) {}", 24);
-    assert_lint_err::<NoDupeElseIf>("if (a) {} else if (a && a) {}", 19);
-    assert_lint_err::<NoDupeElseIf>("if (a && a) {} else if (a && a) {}", 24);
-    assert_lint_err::<NoDupeElseIf>("if (a && a) {} else if (a) {}", 24);
+      "#: [
+        {
+          line: 4,
+          col: 11,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (new.target) {} else if (new.target) {}": [
+        {
+          col: 28,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (await a) {} else if (await a) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if ((a)) {} else if ((a)) {}": [
+        {
+          col: 21,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && b) {} else if (a && b) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && b || c)  {} else if (a && b || c) {}": [
+        {
+          col: 30,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (f(a)) {} else if (f(a)) {}": [
+        {
+          col: 22,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a === 1) {} else if (a===1) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a === 1) {} else if (a === /* comment */ 1) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a === 1) {} else if ((a === 1)) {}": [
+        {
+          col: 25,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (a) {} else if (b) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        },
+        {
+          col: 39,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (b || a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (a || b) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (c || d) {} else if (a || d) {}": [
+        {
+          col: 44,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if ((a === b && fn(c)) || d) {} else if (fn(c) && a === b) {}": [
+        {
+          col: 41,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (a && b) {}": [
+        {
+          col: 19,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && b) {} else if (b && a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && b) {} else if (a && b && c) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || c) {} else if (a && b || c) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (c && a || b) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (c && (a || b)) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b && c) {} else if (d && (a || e && c && b)) {}": [
+        {
+          col: 39,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b && c) {} else if (b && c && d) {}": [
+        {
+          col: 29,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (b && c) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if ((a || b) && c) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if ((a && (b || c)) || d) {} else if ((c || b) && e && a) {}": [
+        {
+          col: 38,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && b || b && c) {} else if (a && b && c) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b && c) {} else if (d && (c && e && b || a)) {}": [
+        {
+          col: 39,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || (b && (c || d))) {} else if ((d || c) && b) {}": [
+        {
+          col: 38,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if ((b || a) && c) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (c) {} else if (d) {} else if (b && (a || c)) {}": [
+        {
+          col: 54,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b || c) {} else if (a || (b && d) || (c && e)) {}": [
+        {
+          col: 29,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || (b || c)) {} else if (a || (b && c)) {}": [
+        {
+          col: 31,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || b) {} else if (c) {} else if (d) {} else if ((a || c) && (b || d)) {}": [
+        {
+          col: 54,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (b) {} else if (c && (a || d && b)) {}": [
+        {
+          col: 34,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (a || a) {}": [
+        {
+          col: 19,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || a) {} else if (a || a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a || a) {} else if (a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a) {} else if (a && a) {}": [
+        {
+          col: 19,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && a) {} else if (a && a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
+      "if (a && a) {} else if (a) {}": [
+        {
+          col: 24,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
 
-    assert_lint_err_on_line::<NoDupeElseIf>(
+      // nested
       r#"
 if (foo) {
   if (a == 1) {}
   else if (a == 1) {}
 }
-      "#,
-      4,
-      11,
-    );
-    assert_lint_err_on_line::<NoDupeElseIf>(
+      "#: [
+        {
+          line: 4,
+          col: 11,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ],
       r#"
 if (foo) {
   if (a == 1) {}
   else if (a > 1) {}
 } else if (foo) {}
-      "#,
-      5,
-      11,
-    );
+      "#: [
+        {
+          line: 5,
+          col: 11,
+          message: NoDupeElseIfMessage::Unexpected,
+          hint: NoDupeElseIfHint::RemoveOrRework,
+        }
+      ]
+    };
   }
 }
