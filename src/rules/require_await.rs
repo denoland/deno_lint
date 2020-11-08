@@ -214,7 +214,7 @@ impl<'c> RequireAwaitVisitor<'c> {
     self.check_function_info(func);
 
     // Restore upper function info
-    let upper = mem::take(&mut self.function_info.as_mut().unwrap().upper);
+    let upper = self.function_info.as_mut().unwrap().upper.take();
     self.function_info = upper;
   }
 }
@@ -234,7 +234,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       is_async: fn_decl.function.is_async,
       is_generator: fn_decl.function.is_generator,
       is_empty: is_body_empty(fn_decl.function.body.as_ref()),
-      upper: mem::take(&mut self.function_info),
+      upper: self.function_info.take(),
       has_await: false,
     };
 
@@ -249,7 +249,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       is_async: fn_expr.function.is_async,
       is_generator: fn_expr.function.is_generator,
       is_empty: is_body_empty(fn_expr.function.body.as_ref()),
-      upper: mem::take(&mut self.function_info),
+      upper: self.function_info.take(),
       has_await: false,
     };
 
@@ -265,7 +265,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
         &arrow_expr.body,
         BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
       ),
-      upper: mem::take(&mut self.function_info),
+      upper: self.function_info.take(),
       has_await: false,
     };
 
@@ -278,7 +278,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       is_async: method_prop.function.is_async,
       is_generator: method_prop.function.is_generator,
       is_empty: is_body_empty(method_prop.function.body.as_ref()),
-      upper: mem::take(&mut self.function_info),
+      upper: self.function_info.take(),
       has_await: false,
     };
 
@@ -291,7 +291,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       is_async: class_method.function.is_async,
       is_generator: class_method.function.is_generator,
       is_empty: is_body_empty(class_method.function.body.as_ref()),
-      upper: mem::take(&mut self.function_info),
+      upper: self.function_info.take(),
       has_await: false,
     };
 
@@ -308,7 +308,7 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
       is_async: private_method.function.is_async,
       is_generator: private_method.function.is_generator,
       is_empty: is_body_empty(private_method.function.body.as_ref()),
-      upper: mem::take(&mut self.function_info),
+      upper: self.function_info.take(),
       has_await: false,
     };
 
