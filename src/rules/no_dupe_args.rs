@@ -180,17 +180,6 @@ function foo(a, b) {
           hint: NoDupeArgsHint::RenameOrRemove,
         }
       ],
-
-      // As of Oct 2020, ESLint's no-dupe-args somehow doesn't check parameters in arrow functions,
-      // but we *do* check them.
-      "const dupeArgs2 = (a, b, a) => {}": [
-        {
-          col: 18,
-          message: NoDupeArgsMessage::Unexpected,
-          hint: NoDupeArgsHint::RenameOrRemove,
-        }
-      ],
-
       "function a(a, b, b) {}": [
         {
           col: 0,
@@ -243,6 +232,31 @@ function foo(a, b) {
       "let a = function (a, b, a, b) {}": [
         {
           col: 8,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+
+      // ESLint's no-dupe-args doesn't check parameters in arrow functions or class methods.
+      // cf. https://eslint.org/docs/rules/no-dupe-args
+      // But we *do* check them.
+      "const dupeArgs = (a, b, a) => {}": [
+        {
+          col: 17,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "const obj = { foo(a, b, a) {} };": [
+        {
+          col: 14,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "class Foo { method(a, b, a) {} }": [
+        {
+          col: 12,
           message: NoDupeArgsMessage::Unexpected,
           hint: NoDupeArgsHint::RenameOrRemove,
         }
