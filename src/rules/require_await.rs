@@ -3,7 +3,6 @@ use super::Context;
 use super::LintRule;
 use crate::swc_util::StringRepr;
 use derive_more::Display;
-use std::mem;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
   ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, ClassMethod, FnDecl,
@@ -161,11 +160,10 @@ struct FunctionInfo {
 }
 
 impl FunctionInfo {
-  fn should_report(&mut self) -> Option<RequireAwaitMessage> {
+  fn should_report(self) -> Option<RequireAwaitMessage> {
     if self.is_async && !self.is_generator && !self.is_empty && !self.has_await
     {
-      let kind = mem::take(&mut self.kind);
-      Some(kind.into())
+      Some(self.kind.into())
     } else {
       None
     }
@@ -185,18 +183,6 @@ impl<'c> RequireAwaitVisitor<'c> {
     }
   }
 
-  fn check_function_info(&mut self, span: impl Spanned) {
-    if let Some(message) = self.function_info.as_mut().unwrap().should_report()
-    {
-      self.context.add_diagnostic_with_hint(
-        span.span(),
-        CODE,
-        message,
-        RequireAwaitHint::RemoveOrUse,
-      );
-    }
-  }
-
   fn process_function<F>(
     &mut self,
     func: &F,
@@ -210,11 +196,21 @@ impl<'c> RequireAwaitVisitor<'c> {
     // Visit the function's inside
     func.visit_children_with(self);
 
+    let mut function_info = self.function_info.take().unwrap();
+
+    let upper = function_info.upper.take();
+
     // Check if the function should be reported
-    self.check_function_info(func);
+    if let Some(message) = function_info.should_report() {
+      self.context.add_diagnostic_with_hint(
+        func.span(),
+        CODE,
+        message,
+        RequireAwaitHint::RemoveOrUse,
+      );
+    }
 
     // Restore upper function info
-    let upper = self.function_info.as_mut().unwrap().upper.take();
     self.function_info = upper;
   }
 }
