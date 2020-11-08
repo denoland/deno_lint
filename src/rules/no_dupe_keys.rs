@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::StringRepr;
+use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
@@ -13,6 +14,20 @@ use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeKeys;
 
+const CODE: &str = "no-dupe-keys";
+
+#[derive(Display)]
+enum NoDupeKeysMessage {
+  #[display(fmt = "Duplicate key '{}'", _0)]
+  Duplicate(String),
+}
+
+#[derive(Display)]
+enum NoDupeKeysHint {
+  #[display(fmt = "Remove or rename the duplicate key")]
+  RemoveOrRename,
+}
+
 impl LintRule for NoDupeKeys {
   fn new() -> Box<Self> {
     Box::new(NoDupeKeys)
@@ -23,7 +38,7 @@ impl LintRule for NoDupeKeys {
   }
 
   fn code(&self) -> &'static str {
-    "no-dupe-keys"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -74,12 +89,12 @@ impl<'c> NoDupeKeysVisitor<'c> {
     Self { context }
   }
 
-  fn report(&mut self, span: Span, key: impl AsRef<str>) {
+  fn report(&mut self, span: Span, key: impl Into<String>) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-dupe-keys",
-      format!("Duplicate key '{}'", key.as_ref()),
-      "Remove or rename the duplicate key",
+      CODE,
+      NoDupeKeysMessage::Duplicate(key.into()),
+      NoDupeKeysHint::RemoveOrRename,
     );
   }
 
@@ -209,7 +224,6 @@ impl<'c> VisitAll for NoDupeKeysVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.11.0/tests/lib/rules/no-dupe-keys.js
@@ -249,60 +263,152 @@ let x = {
 
   #[test]
   fn no_dupe_keys_invalid() {
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", bar: "qux" };"#,
-      10,
-    );
-    assert_lint_err_n::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#,
-      vec![10, 10],
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", "bar": "qux" };"#,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(r#"var foo = { 1: "baz", 0x1: "qux" };"#, 10);
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", get bar() {} };"#,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", set bar() {} };"#,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(r#"var x = { a: b, ['a']: b };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, '': 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, [``]: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 012: 1, 10: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 0b1: 1, 1: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 0o1: 1, 1: 2 };"#, 8);
-    // TODO(magurotuna): this leads to panic due to swc error
-    // It seems like tsc v4.0.2 cannot handle this either
-    // playground: https://www.typescriptlang.org/play?target=99&ts=4.0.2#code/MYewdgzgLgBCBGArGBeGBvAUDGBGMAXDACwBMANJgL4DcQA
-    // assert_lint_err::<NoDupeKeys>(r#"var x = { 1n: 1, 1: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 1_0: 1, 10: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { "z": 1, z: 2 };"#, 8);
-    assert_lint_err_on_line::<NoDupeKeys>(
+    assert_lint_err! {
+      NoDupeKeys,
+      r#"var foo = { bar: "baz", bar: "qux" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        },
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "quux"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", "bar": "qux" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { 1: "baz", 0x1: "qux" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", get bar() {} };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", set bar() {} };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { a: b, ['a']: b };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "a"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { '': 1, '': 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, ""),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { '': 1, [``]: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, ""),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { 012: 1, 10: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "10"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { 0b1: 1, 1: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { 0o1: 1, 1: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+
+      // TODO(magurotuna): this leads to panic due to swc error
+      // It seems like tsc v4.0.2 cannot handle this either
+      // playground: https://www.typescriptlang.org/play?target=99&ts=4.0.2#code/MYewdgzgLgBCBGArGBeGBvAUDGBGMAXDACwBMANJgL4DcQA
+      // r#"var x = { 1n: 1, 1: 2 };"#: [
+      //   {
+      //     col: 8,
+      //     message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+      //     hint: NoDupeKeysHint::RemoveOrRename,
+      //   }
+      // ],
+
+      r#"var x = { 1_0: 1, 10: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "10"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { "z": 1, z: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "z"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
       r#"
 var foo = {
   bar: 1,
   bar: 1,
 }
-"#,
-      2,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var x = { a: 1, b: { a: 2 }, get b() {} };"#,
-      8,
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#,
-      9,
-    );
+"#: [
+        {
+          line: 2,
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { a: 1, b: { a: 2 }, get b() {} };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "b"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#: [
+        {
+          col: 9,
+          message: variant!(NoDupeKeysMessage, Duplicate, "/(?<zero>0)/"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
 
-    // nested
-    assert_lint_err_on_line::<NoDupeKeys>(
+      // nested
       r#"
 let x = {
   key: {
@@ -310,9 +416,14 @@ let x = {
     dup: 1,
   },
 };
-"#,
-      3,
-      7,
-    );
+"#: [
+        {
+          line: 3,
+          col: 7,
+          message: variant!(NoDupeKeysMessage, Duplicate, "dup"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ]
+    };
   }
 }
