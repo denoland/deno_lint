@@ -9,8 +9,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, AwaitExpr, BlockStmtOrExpr, ClassMethod, FnDecl, FnExpr,
   ForOfStmt, MethodProp, PrivateMethod,
 };
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct RequireAwait;
 
@@ -275,6 +274,8 @@ impl<'c> RequireAwaitVisitor<'c> {
 }
 
 impl<'c> Visit for RequireAwaitVisitor<'c> {
+  noop_visit_type!();
+
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
     let function_info = FunctionInfo::builder()
       .kind(FunctionKind::Function(Some(
