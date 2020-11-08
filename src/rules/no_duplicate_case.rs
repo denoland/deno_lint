@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use swc_common::Spanned;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoDuplicateCase;
 
@@ -43,7 +43,7 @@ impl LintRule for NoDuplicateCase {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -95,13 +95,13 @@ impl<'c> NoDuplicateCaseVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoDuplicateCaseVisitor<'c> {
+impl<'c> VisitAll for NoDuplicateCaseVisitor<'c> {
   noop_visit_type!();
 
   fn visit_switch_stmt(
     &mut self,
     switch_stmt: &swc_ecmascript::ast::SwitchStmt,
-    _parent: &dyn Node,
+    _: &dyn Node,
   ) {
     // Works like in ESLint - by comparing text repr of case statement
     let mut seen: HashSet<String> = HashSet::new();
@@ -281,6 +281,28 @@ switch (someText) {
       "var a = 1, f = function(s) { return { p1: s } }; switch (a) {case f(a + 1).p1: break; case f(a+1).p1: break; default: break;}": [
         {
           col: 86,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        }
+      ],
+
+      // nested
+      r#"
+switch (a) {
+  case 1:
+    switch (b) {
+      case 1:
+        break;
+      case 1:
+        break;
+    }
+  default:
+    break;
+}
+      "#: [
+        {
+          line: 7,
+          col: 6,
           message: NoDuplicateCaseMessage::Unexpected,
           hint: NoDuplicateCaseHint::RemoveOrRename,
         }
