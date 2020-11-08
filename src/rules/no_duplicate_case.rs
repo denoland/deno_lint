@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::Spanned;
 use swc_ecmascript::visit::noop_visit_type;
@@ -8,6 +9,20 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoDuplicateCase;
+
+const CODE: &str = "no-duplicate-case";
+
+#[derive(Display)]
+enum NoDuplicateCaseMessage {
+  #[display(fmt = "Duplicate values in `case` are not allowed")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoDuplicateCaseHint {
+  #[display(fmt = "Remove or rename the duplicate case clause")]
+  RemoveOrRename,
+}
 
 impl LintRule for NoDuplicateCase {
   fn new() -> Box<Self> {
@@ -19,7 +34,7 @@ impl LintRule for NoDuplicateCase {
   }
 
   fn code(&self) -> &'static str {
-    "no-duplicate-case"
+    CODE
   }
 
   fn lint_program(
@@ -98,9 +113,9 @@ impl<'c> Visit for NoDuplicateCaseVisitor<'c> {
         if !seen.insert(test_txt) {
           self.context.add_diagnostic_with_hint(
             span,
-            "no-duplicate-case",
-            "Duplicate values in `case` are not allowed",
-            "Remove or rename the duplicate case clause",
+            CODE,
+            NoDuplicateCaseMessage::Unexpected,
+            NoDuplicateCaseHint::RemoveOrRename,
           );
         }
       }
