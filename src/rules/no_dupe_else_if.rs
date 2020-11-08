@@ -1,14 +1,33 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::swc_util::DropSpan;
+use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Program, Stmt,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeElseIf;
+
+const CODE: &str = "no-dupe-else-if";
+
+#[derive(Display)]
+enum NoDupeElseIfMessage {
+  #[display(
+    fmt = "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain."
+  )]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoDupeElseIfHint {
+  #[display(
+    fmt = "Remove or rework the `else if` condition which is duplicated"
+  )]
+  RemoveOrRework,
+}
 
 impl LintRule for NoDupeElseIf {
   fn new() -> Box<Self> {
@@ -20,12 +39,12 @@ impl LintRule for NoDupeElseIf {
   }
 
   fn code(&self) -> &'static str {
-    "no-dupe-else-if"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -61,7 +80,8 @@ else if (a === 7) {}
 }
 
 /// A visitor to check the `no-dupe-else-if` rule.
-/// Determination logic is ported from ESLint's implementation. For more, see [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
+/// Determination logic is ported from ESLint's implementation. For more, see:
+/// [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
 struct NoDupeElseIfVisitor<'c> {
   context: &'c mut Context,
   checked_span: HashSet<Span>,
@@ -76,10 +96,10 @@ impl<'c> NoDupeElseIfVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoDupeElseIfVisitor<'c> {
+impl<'c> VisitAll for NoDupeElseIfVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
     let span = if_stmt.test.span();
 
     // This check is necessary to avoid outputting the same errors multiple times.
@@ -123,12 +143,11 @@ impl<'c> Visit for NoDupeElseIfVisitor<'c> {
               .iter()
               .any(|or_operands| or_operands.is_empty())
             {
-              self
-              .context
-              .add_diagnostic_with_hint(span,
-                "no-dupe-else-if", 
-                "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain.",
-                "Remove or rework the `else if` condition which is duplicated"
+              self.context.add_diagnostic_with_hint(
+                span,
+                CODE,
+                NoDupeElseIfMessage::Unexpected,
+                NoDupeElseIfHint::RemoveOrRework,
               );
               break;
             }
@@ -142,8 +161,6 @@ impl<'c> Visit for NoDupeElseIfVisitor<'c> {
         }
       }
     }
-
-    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 }
 
