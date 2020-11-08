@@ -6,8 +6,8 @@ use derive_more::Display;
 use std::mem;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
-  ArrowExpr, AwaitExpr, BlockStmtOrExpr, ClassMethod, FnDecl, FnExpr,
-  ForOfStmt, MethodProp, PrivateMethod,
+  ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, ClassMethod, FnDecl,
+  FnExpr, ForOfStmt, MethodProp, PrivateMethod,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
@@ -160,20 +160,7 @@ struct FunctionInfo {
   upper: Option<Box<FunctionInfo>>,
 }
 
-#[derive(Default)]
-struct FunctionInfoBuilder {
-  kind: Option<FunctionKind>,
-  is_async: Option<bool>,
-  is_generator: Option<bool>,
-  is_empty: Option<bool>,
-  upper: Option<Box<FunctionInfo>>,
-}
-
 impl FunctionInfo {
-  fn builder() -> FunctionInfoBuilder {
-    FunctionInfoBuilder::default()
-  }
-
   fn should_report(&mut self) -> Option<RequireAwaitMessage> {
     if self.is_async && !self.is_generator && !self.is_empty && !self.has_await
     {
@@ -182,47 +169,6 @@ impl FunctionInfo {
     } else {
       None
     }
-  }
-}
-
-impl FunctionInfoBuilder {
-  fn kind(mut self, kind: FunctionKind) -> Self {
-    self.kind = Some(kind);
-    self
-  }
-
-  #[allow(clippy::wrong_self_convention)]
-  fn is_async(mut self, is_async: bool) -> Self {
-    self.is_async = Some(is_async);
-    self
-  }
-
-  #[allow(clippy::wrong_self_convention)]
-  fn is_generator(mut self, is_generator: bool) -> Self {
-    self.is_generator = Some(is_generator);
-    self
-  }
-
-  #[allow(clippy::wrong_self_convention)]
-  fn is_empty(mut self, is_empty: bool) -> Self {
-    self.is_empty = Some(is_empty);
-    self
-  }
-
-  fn upper(mut self, upper: Option<Box<FunctionInfo>>) -> Self {
-    self.upper = upper;
-    self
-  }
-
-  fn build(self) -> Box<FunctionInfo> {
-    Box::new(FunctionInfo {
-      kind: self.kind.unwrap_or_default(),
-      is_async: self.is_async.unwrap_or_default(),
-      is_generator: self.is_generator.unwrap_or_default(),
-      is_empty: self.is_empty.unwrap_or_default(),
-      has_await: false,
-      upper: self.upper,
-    })
   }
 }
 
@@ -273,98 +219,83 @@ impl<'c> RequireAwaitVisitor<'c> {
   }
 }
 
+fn is_body_empty(maybe_body: Option<&BlockStmt>) -> bool {
+  maybe_body.map_or(true, |body| body.stmts.is_empty())
+}
+
 impl<'c> Visit for RequireAwaitVisitor<'c> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
-    let function_info = FunctionInfo::builder()
-      .kind(FunctionKind::Function(Some(
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Function(Some(
         fn_decl.ident.sym.as_ref().to_string(),
-      )))
-      .is_async(fn_decl.function.is_async)
-      .is_generator(fn_decl.function.is_generator)
-      .is_empty(
-        fn_decl
-          .function
-          .body
-          .as_ref()
-          .map_or(true, |body| body.stmts.is_empty()),
-      )
-      .upper(mem::take(&mut self.function_info))
-      .build();
+      )),
+      is_async: fn_decl.function.is_async,
+      is_generator: fn_decl.function.is_generator,
+      is_empty: is_body_empty(fn_decl.function.body.as_ref()),
+      upper: mem::take(&mut self.function_info),
+      has_await: false,
+    };
 
-    self.process_function(fn_decl, function_info);
+    self.process_function(fn_decl, Box::new(function_info));
   }
 
   fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
-    let function_info = FunctionInfo::builder()
-      .kind(FunctionKind::Function(
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Function(
         fn_expr.ident.as_ref().map(|i| i.sym.as_ref().to_string()),
-      ))
-      .is_async(fn_expr.function.is_async)
-      .is_generator(fn_expr.function.is_generator)
-      .is_empty(
-        fn_expr
-          .function
-          .body
-          .as_ref()
-          .map_or(true, |body| body.stmts.is_empty()),
-      )
-      .upper(mem::take(&mut self.function_info))
-      .build();
+      ),
+      is_async: fn_expr.function.is_async,
+      is_generator: fn_expr.function.is_generator,
+      is_empty: is_body_empty(fn_expr.function.body.as_ref()),
+      upper: mem::take(&mut self.function_info),
+      has_await: false,
+    };
 
-    self.process_function(fn_expr, function_info);
+    self.process_function(fn_expr, Box::new(function_info));
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
-    let function_info = FunctionInfo::builder()
-      .kind(FunctionKind::ArrowFunction)
-      .is_async(arrow_expr.is_async)
-      .is_generator(arrow_expr.is_generator)
-      .is_empty(matches!(
-      &arrow_expr.body,
-      BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
-      ))
-      .upper(mem::take(&mut self.function_info))
-      .build();
+    let function_info = FunctionInfo {
+      kind: FunctionKind::ArrowFunction,
+      is_async: arrow_expr.is_async,
+      is_generator: arrow_expr.is_generator,
+      is_empty: matches!(
+        &arrow_expr.body,
+        BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
+      ),
+      upper: mem::take(&mut self.function_info),
+      has_await: false,
+    };
 
-    self.process_function(arrow_expr, function_info);
+    self.process_function(arrow_expr, Box::new(function_info));
   }
 
   fn visit_method_prop(&mut self, method_prop: &MethodProp, _: &dyn Node) {
-    let function_info = FunctionInfo::builder()
-      .kind(FunctionKind::Method(method_prop.key.string_repr()))
-      .is_async(method_prop.function.is_async)
-      .is_generator(method_prop.function.is_generator)
-      .is_empty(
-        method_prop
-          .function
-          .body
-          .as_ref()
-          .map_or(true, |body| body.stmts.is_empty()),
-      )
-      .upper(mem::take(&mut self.function_info))
-      .build();
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Method(method_prop.key.string_repr()),
+      is_async: method_prop.function.is_async,
+      is_generator: method_prop.function.is_generator,
+      is_empty: is_body_empty(method_prop.function.body.as_ref()),
+      upper: mem::take(&mut self.function_info),
+      has_await: false,
+    };
 
-    self.process_function(method_prop, function_info);
+    self.process_function(method_prop, Box::new(function_info));
   }
 
   fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
-    let function_info = FunctionInfo::builder()
-      .kind(FunctionKind::Method(class_method.key.string_repr()))
-      .is_async(class_method.function.is_async)
-      .is_generator(class_method.function.is_generator)
-      .is_empty(
-        class_method
-          .function
-          .body
-          .as_ref()
-          .map_or(true, |body| body.stmts.is_empty()),
-      )
-      .upper(mem::take(&mut self.function_info))
-      .build();
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Method(class_method.key.string_repr()),
+      is_async: class_method.function.is_async,
+      is_generator: class_method.function.is_generator,
+      is_empty: is_body_empty(class_method.function.body.as_ref()),
+      upper: mem::take(&mut self.function_info),
+      has_await: false,
+    };
 
-    self.process_function(class_method, function_info);
+    self.process_function(class_method, Box::new(function_info));
   }
 
   fn visit_private_method(
@@ -372,21 +303,16 @@ impl<'c> Visit for RequireAwaitVisitor<'c> {
     private_method: &PrivateMethod,
     _: &dyn Node,
   ) {
-    let function_info = FunctionInfo::builder()
-      .kind(FunctionKind::Method(private_method.key.string_repr()))
-      .is_async(private_method.function.is_async)
-      .is_generator(private_method.function.is_generator)
-      .is_empty(
-        private_method
-          .function
-          .body
-          .as_ref()
-          .map_or(true, |body| body.stmts.is_empty()),
-      )
-      .upper(mem::take(&mut self.function_info))
-      .build();
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Method(private_method.key.string_repr()),
+      is_async: private_method.function.is_async,
+      is_generator: private_method.function.is_generator,
+      is_empty: is_body_empty(private_method.function.body.as_ref()),
+      upper: mem::take(&mut self.function_info),
+      has_await: false,
+    };
 
-    self.process_function(private_method, function_info);
+    self.process_function(private_method, Box::new(function_info));
   }
 
   fn visit_await_expr(&mut self, await_expr: &AwaitExpr, _: &dyn Node) {
