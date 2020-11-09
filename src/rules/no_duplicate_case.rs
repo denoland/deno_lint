@@ -3,7 +3,8 @@ use super::Context;
 use super::LintRule;
 use derive_more::Display;
 use std::collections::HashSet;
-use swc_common::Spanned;
+use swc_ecmascript::ast::{Expr, SwitchStmt};
+use swc_ecmascript::utils::drop_span;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -98,24 +99,14 @@ impl<'c> NoDuplicateCaseVisitor<'c> {
 impl<'c> VisitAll for NoDuplicateCaseVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_switch_stmt(
-    &mut self,
-    switch_stmt: &swc_ecmascript::ast::SwitchStmt,
-    _: &dyn Node,
-  ) {
-    // Works like in ESLint - by comparing text repr of case statement
-    let mut seen: HashSet<String> = HashSet::new();
+  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
+    // Check if there are duplicates by comparing span dropped expressions
+    let mut seen: HashSet<Box<Expr>> = HashSet::new();
 
     for case in &switch_stmt.cases {
       if let Some(test) = &case.test {
-        let span = test.span();
-        let test_txt = self
-          .context
-          .source_map
-          .span_to_snippet(span)
-          .unwrap()
-          .replace(|c: char| c.is_whitespace(), "");
-        if !seen.insert(test_txt) {
+        let span_dropped_test = drop_span(test.clone());
+        if !seen.insert(span_dropped_test) {
           self.context.add_diagnostic_with_hint(
             case.span,
             CODE,
@@ -307,53 +298,51 @@ switch (a) {
           hint: NoDuplicateCaseHint::RemoveOrRename,
         }
       ],
-
-      // TODO(magurotuna): to pass the following tests, we have to remove comments and whitespaces somehow.
-      // "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p.p.p1: break; case p. p // comment\n .p1: break; default: break;}": [
-      //   {
-      //     col: 68,
-      //     message: NoDuplicateCaseMessage::Unexpected,
-      //     hint: NoDuplicateCaseHint::RemoveOrRename,
-      //   }
-      // ],
-      // "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p .p\n/* comment */\n.p1: break; case p.p.p1: break; default: break;}": [
-      //   {
-      //     line: 3,
-      //     col: 12,
-      //     message: NoDuplicateCaseMessage::Unexpected,
-      //     hint: NoDuplicateCaseHint::RemoveOrRename,
-      //   }
-      // ],
-      // "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p .p\n/* comment */\n.p1: break; case p. p // comment\n .p1: break; default: break;}": [
-      //   {
-      //     line: 3,
-      //     col: 12,
-      //     message: NoDuplicateCaseMessage::Unexpected,
-      //     hint: NoDuplicateCaseHint::RemoveOrRename,
-      //   }
-      // ],
-      // "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p.p.p1: break; case p. p // comment\n .p1: break; case p .p\n/* comment */\n.p1: break; default: break;}": [
-      //   {
-      //     line: 1,
-      //     col: 68,
-      //     message: NoDuplicateCaseMessage::Unexpected,
-      //     hint: NoDuplicateCaseHint::RemoveOrRename,
-      //   },
-      //   {
-      //     line: 2,
-      //     col: 13,
-      //     message: NoDuplicateCaseMessage::Unexpected,
-      //     hint: NoDuplicateCaseHint::RemoveOrRename,
-      //   }
-      // ],
-      // "var a = 1, f = function(s) { return { p1: s } }; switch (a) {case f(\na + 1 // comment\n).p1: break; case f(a+1)\n.p1: break; default: break;}": [
-      //   {
-      //     line: 3,
-      //     col: 13,
-      //     message: NoDuplicateCaseMessage::Unexpected,
-      //     hint: NoDuplicateCaseHint::RemoveOrRename,
-      //   }
-      // ],
+      "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p.p.p1: break; case p. p // comment\n .p1: break; default: break;}": [
+        {
+          col: 68,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        }
+      ],
+      "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p .p\n/* comment */\n.p1: break; case p.p.p1: break; default: break;}": [
+        {
+          line: 3,
+          col: 12,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        }
+      ],
+      "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p .p\n/* comment */\n.p1: break; case p. p // comment\n .p1: break; default: break;}": [
+        {
+          line: 3,
+          col: 12,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        }
+      ],
+      "var a = 1, p = {p: {p1: 1, p2: 1}}; switch (a) {case p.p.p1: break; case p. p // comment\n .p1: break; case p .p\n/* comment */\n.p1: break; default: break;}": [
+        {
+          line: 1,
+          col: 68,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        },
+        {
+          line: 2,
+          col: 13,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        }
+      ],
+      "var a = 1, f = function(s) { return { p1: s } }; switch (a) {case f(\na + 1 // comment\n).p1: break; case f(a+1)\n.p1: break; default: break;}": [
+        {
+          line: 3,
+          col: 13,
+          message: NoDuplicateCaseMessage::Unexpected,
+          hint: NoDuplicateCaseHint::RemoveOrRename,
+        }
+      ],
     };
   }
 }
