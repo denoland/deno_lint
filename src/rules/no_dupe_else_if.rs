@@ -1,12 +1,12 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::swc_util::DropSpan;
 use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Program, Stmt,
 };
+use swc_ecmascript::utils::drop_span;
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeElseIf;
@@ -105,9 +105,9 @@ impl<'c> VisitAll for NoDupeElseIfVisitor<'c> {
     // This check is necessary to avoid outputting the same errors multiple times.
     if !self.checked_span.contains(&span) {
       self.checked_span.insert(span);
-      let span_dropped_test = if_stmt.test.clone().drop_span();
+      let span_dropped_test = drop_span(if_stmt.test.clone());
       let mut appeared_conditions: Vec<Vec<Vec<Expr>>> = Vec::new();
-      append_test(&mut appeared_conditions, span_dropped_test);
+      append_test(&mut appeared_conditions, *span_dropped_test);
 
       let mut next = if_stmt.alt.as_ref();
       while let Some(cur) = next {
@@ -117,9 +117,9 @@ impl<'c> VisitAll for NoDupeElseIfVisitor<'c> {
         {
           // preserve the span before dropping
           let span = test.span();
-          let span_dropped_test = test.clone().drop_span();
+          let span_dropped_test = drop_span(test.clone());
           let mut current_condition_to_check: Vec<Vec<Vec<Expr>>> =
-            mk_condition_to_check(span_dropped_test.clone())
+            mk_condition_to_check(*span_dropped_test.clone())
               .into_iter()
               .map(split_by_or_then_and)
               .collect();
@@ -154,7 +154,7 @@ impl<'c> VisitAll for NoDupeElseIfVisitor<'c> {
           }
 
           self.checked_span.insert(span);
-          append_test(&mut appeared_conditions, span_dropped_test);
+          append_test(&mut appeared_conditions, *span_dropped_test);
           next = alt.as_ref();
         } else {
           break;
