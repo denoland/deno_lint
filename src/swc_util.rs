@@ -1,34 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
-use swc_common::Span;
-use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
   PrivateName, Prop, PropName, PropOrSpread, Str, Tpl,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike};
-use swc_ecmascript::visit::Fold;
-
-/// A folder to drop all spans of a subtree.
-struct SpanDropper;
-
-impl Fold for SpanDropper {
-  fn fold_span(&mut self, _: Span) -> Span {
-    DUMMY_SP
-  }
-}
-
-/// Provides an additional method to drop spans.
-pub(crate) trait DropSpan {
-  fn drop_span(self) -> Self;
-}
-
-impl DropSpan for Expr {
-  fn drop_span(self) -> Self {
-    let mut dropper = SpanDropper;
-    dropper.fold_expr(self)
-  }
-}
 
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
