@@ -588,7 +588,7 @@ impl<'c> PreferConstVisitor<'c> {
       .any(|i| self.declared_outer_scope_or_param_var(i));
 
     for ident in idents {
-      // If tha pat contains either of the following:
+      // If the pat contains either of the following:
       //
       // - MemberExpresion
       // - variable declared in outer scope
