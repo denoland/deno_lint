@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::mem;
@@ -21,6 +22,18 @@ use swc_ecmascript::visit::{Node, Visit, VisitWith};
 pub struct PreferConst;
 
 const CODE: &str = "prefer-const";
+
+#[derive(Display)]
+enum PreferConstMessage {
+  #[display(fmt = "'{}' is never reassigned", _0)]
+  NeverReassigned(String),
+}
+
+#[derive(Display)]
+enum PreferConstHint {
+  #[display(fmt = "Use 'const' instead")]
+  UseConst,
+}
 
 impl LintRule for PreferConst {
   fn new() -> Box<Self> {
@@ -495,13 +508,11 @@ impl<'c> PreferConstVisitor<'c> {
   }
 
   fn report(&mut self, sym: &JsWord, span: Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       CODE,
-      format!(
-        "'{}' is never reassigned. Use 'const' instead",
-        sym.as_ref()
-      ),
+      PreferConstMessage::NeverReassigned(sym.to_string()),
+      PreferConstHint::UseConst,
     );
   }
 
