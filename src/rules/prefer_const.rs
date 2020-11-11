@@ -20,6 +20,8 @@ use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
 pub struct PreferConst;
 
+const CODE: &str = "prefer-const";
+
 impl LintRule for PreferConst {
   fn new() -> Box<Self> {
     Box::new(PreferConst)
@@ -30,7 +32,7 @@ impl LintRule for PreferConst {
   }
 
   fn code(&self) -> &'static str {
-    "prefer-const"
+    CODE
   }
 
   fn lint_program(
@@ -495,7 +497,7 @@ impl<'c> PreferConstVisitor<'c> {
   fn report(&mut self, sym: &JsWord, span: Span) {
     self.context.add_diagnostic(
       span,
-      "prefer-const",
+      CODE,
       format!(
         "'{}' is never reassigned. Use 'const' instead",
         sym.as_ref()
