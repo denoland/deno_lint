@@ -16,6 +16,8 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+mod config;
+
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
     .setting(AppSettings::SubcommandRequiredElseHelp)
