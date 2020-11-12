@@ -12,8 +12,6 @@
         "include": [
             "benchmarks/oak/**/*.ts"
         ],
-        "exclude": [
-            
-        ]
+        "exclude": []
     }
 }

@@ -142,8 +142,20 @@ fn run_linter(
   let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
 
   let maybe_config = if let Some(p) = config_path {
-    let c =
-      config::load_from_json(&PathBuf::from(p)).expect("Failed to load config");
+    let path = PathBuf::from(p);
+
+    let c = match path.extension().and_then(|s| s.to_str()) {
+      Some("json") => {
+        config::load_from_json(&path).expect("Failed to load config")
+      }
+      Some("toml") => {
+        config::load_from_toml(&path).expect("Failed to load config")
+      }
+      ext => panic!(
+        "Unknown extension: \"{:#?}\". Use .json or .toml instead.",
+        ext
+      ),
+    };
     Some(Arc::new(c))
   } else {
     None

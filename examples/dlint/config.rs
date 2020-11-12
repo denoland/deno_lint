@@ -77,6 +77,12 @@ pub fn load_from_json(config_path: &Path) -> Result<Config, std::io::Error> {
   Ok(config)
 }
 
+pub fn load_from_toml(config_path: &Path) -> Result<Config, std::io::Error> {
+  let toml_str = std::fs::read_to_string(config_path)?;
+  let config: Config = toml::from_str(&toml_str)?;
+  Ok(config)
+}
+
 // Ported from dprint
 // https://github.com/dprint/dprint/blob/358c91fbf0a545a0c9736cc496dc1d998028ae65/crates/dprint/src/cli/run_cli.rs#L686-L756
 fn resolve_file_paths(config: &FilesConfig) -> Result<Vec<PathBuf>, AnyError> {
