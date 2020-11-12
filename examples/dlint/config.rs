@@ -3,20 +3,27 @@ use deno_lint::rules::{get_all_rules, LintRule};
 use serde::Deserialize;
 use std::path::Path;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct RulesConfig {
+  #[serde(default)]
   pub tags: Vec<String>,
+  #[serde(default)]
   pub include: Vec<String>,
+  #[serde(default)]
   pub exclude: Vec<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct FilesConfig {
+  #[serde(default)]
   pub include: Vec<String>,
+  #[serde(default)]
   pub exclude: Vec<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct Config {
+  #[serde(default)]
   pub rules: RulesConfig,
+  #[serde(default)]
   pub files: FilesConfig,
 }
 

@@ -7,13 +7,5 @@
         "exclude": [
             "no-explicit-any"
         ]
-    },
-    "files": {
-        "include": [
-
-        ],
-        "exclude": [
-            
-        ]
     }
 }

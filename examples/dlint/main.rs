@@ -1,8 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
-#[macro_use]
-extern crate log;
-
 use annotate_snippets::display_list;
 use annotate_snippets::snippet;
 use clap::App;
@@ -150,8 +147,8 @@ fn run_linter(
     None
   };
 
-  debug!("recommended rules: {}", get_recommended_rules().len());
-  debug!("config {:#?}", maybe_config);
+  eprintln!("recommended rules: {}", get_recommended_rules().len());
+  eprintln!("config {:#?}", maybe_config);
 
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
@@ -173,7 +170,7 @@ fn run_linter(
         .collect()
     };
 
-    debug!("configured rules: {}", rules.len());
+    eprintln!("configured rules: {}", rules.len());
 
     let mut linter = LinterBuilder::default()
       .rules(rules)
