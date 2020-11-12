@@ -11,6 +11,7 @@ use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::linter::SourceFile;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
+use log::debug;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -148,8 +149,7 @@ fn run_linter(
     None
   };
 
-  // eprintln!("recommended rules: {}", get_recommended_rules().len());
-  // eprintln!("config {:#?}", maybe_config);
+  debug!("Config: {:#?}", maybe_config);
 
   if let Some(config) = maybe_config.clone() {
     paths.extend(config.get_files().expect("Failed to get files from config"));
@@ -175,7 +175,7 @@ fn run_linter(
         .collect()
     };
 
-    // eprintln!("configured rules: {}", rules.len());
+    debug!("Configured rules: {}", rules.len());
 
     let mut linter = LinterBuilder::default()
       .rules(rules)
