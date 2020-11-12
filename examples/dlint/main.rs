@@ -2,6 +2,8 @@
 
 use annotate_snippets::display_list;
 use annotate_snippets::snippet;
+use anyhow::bail;
+use anyhow::Error as AnyError;
 use clap::App;
 use clap::AppSettings;
 use clap::Arg;
@@ -137,34 +139,12 @@ fn display_diagnostics(
 fn run_linter(
   paths: Vec<String>,
   filter_rule_name: Option<&str>,
-  config_path: Option<&str>,
-) {
+  maybe_config: Option<Arc<config::Config>>,
+) -> Result<(), AnyError> {
   let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
 
-  let maybe_config = if let Some(p) = config_path {
-    let path = PathBuf::from(p);
-
-    let c = match path.extension().and_then(|s| s.to_str()) {
-      Some("json") => {
-        config::load_from_json(&path).expect("Failed to load config")
-      }
-      Some("toml") => {
-        config::load_from_toml(&path).expect("Failed to load config")
-      }
-      ext => panic!(
-        "Unknown extension: \"{:#?}\". Use .json or .toml instead.",
-        ext
-      ),
-    };
-    Some(Arc::new(c))
-  } else {
-    None
-  };
-
-  debug!("Config: {:#?}", maybe_config);
-
   if let Some(config) = maybe_config.clone() {
-    paths.extend(config.get_files().expect("Failed to get files from config"));
+    paths.extend(config.get_files()?);
   }
 
   let error_counts = Arc::new(AtomicUsize::new(0));
@@ -172,7 +152,7 @@ fn run_linter(
 
   paths.par_iter().for_each(|file_path| {
     let source_code =
-      std::fs::read_to_string(&file_path).expect("Failed to read file");
+      std::fs::read_to_string(&file_path).expect("Failed to load file");
 
     let mut rules = if let Some(config) = maybe_config.clone() {
       config.get_rules()
@@ -210,6 +190,8 @@ fn run_linter(
     eprintln!("Found {} problems", err_count);
     std::process::exit(1);
   }
+
+  Ok(())
 }
 
 #[derive(Clone, Copy, Serialize)]
@@ -303,7 +285,7 @@ fn filter_rules(rules: Vec<Rule>, rule_name: &str) -> Vec<Rule> {
   rules.into_iter().filter(|r| r.code == rule_name).collect()
 }
 
-fn main() {
+fn main() -> Result<(), AnyError> {
   env_logger::init();
 
   let cli_app = create_cli_app();
@@ -311,16 +293,30 @@ fn main() {
 
   match matches.subcommand() {
     ("run", Some(run_matches)) => {
+      let maybe_config = if let Some(p) = run_matches.value_of("CONFIG") {
+        let path = PathBuf::from(p);
+
+        let c = match path.extension().and_then(|s| s.to_str()) {
+          Some("json") => config::load_from_json(&path)?,
+          Some("toml") => config::load_from_toml(&path)?,
+          ext => bail!(
+            "Unknown extension: \"{:#?}\". Use .json or .toml instead.",
+            ext
+          ),
+        };
+        Some(Arc::new(c))
+      } else {
+        None
+      };
+
+      debug!("Config: {:#?}", maybe_config);
+
       let paths: Vec<String> = run_matches
         .values_of("FILES")
         .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
-      run_linter(
-        paths,
-        run_matches.value_of("RULE_CODE"),
-        run_matches.value_of("CONFIG"),
-      );
+      run_linter(paths, run_matches.value_of("RULE_CODE"), maybe_config)?;
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
@@ -343,4 +339,6 @@ fn main() {
     }
     _ => unreachable!(),
   };
+
+  Ok(())
 }

@@ -1,4 +1,5 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+
 use anyhow::bail;
 use anyhow::Error as AnyError;
 use deno_lint::rules::{get_all_rules, LintRule};
@@ -13,6 +14,7 @@ pub struct RulesConfig {
   pub include: Vec<String>,
   pub exclude: Vec<String>,
 }
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct FilesConfig {
