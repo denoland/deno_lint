@@ -12,6 +12,7 @@ use deno_lint::linter::SourceFile;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use rayon::prelude::*;
 use serde::Serialize;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -42,6 +43,12 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
           Arg::with_name("RULE_CODE")
             .long("rule")
             .help("Runs a certain rule")
+            .takes_value(true),
+        )
+        .arg(
+          Arg::with_name("CONFIG")
+            .long("config")
+            .help("Load config from file")
             .takes_value(true),
         ),
     )
@@ -126,7 +133,23 @@ fn display_diagnostics(
   }
 }
 
-fn run_linter(paths: Vec<String>, filter_rule_name: Option<&str>) {
+fn run_linter(
+  paths: Vec<String>,
+  filter_rule_name: Option<&str>,
+  config_path: Option<&str>,
+) {
+  let maybe_config = if let Some(p) = config_path {
+    let c =
+      config::load_from_json(&PathBuf::from(p)).expect("Failed to load config");
+    Some(c)
+  } else {
+    None
+  };
+
+  let rules_config = maybe_config.map(|c| c.rules);
+
+  eprintln!("recommended set {}", get_recommended_rules().len());
+  eprintln!("rules config {:#?}", rules_config);
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
@@ -134,15 +157,20 @@ fn run_linter(paths: Vec<String>, filter_rule_name: Option<&str>) {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
-    let rules = if let Some(rule_name) = filter_rule_name {
-      get_recommended_rules()
-        .into_iter()
-        .filter(|r| r.code() == rule_name)
-        .collect()
+    let mut rules = if let Some(config) = rules_config.clone() {
+      config::get_rules(config)
     } else {
       get_recommended_rules()
     };
 
+    if let Some(rule_name) = filter_rule_name {
+      rules = rules
+        .into_iter()
+        .filter(|r| r.code() == rule_name)
+        .collect()
+    };
+
+    eprintln!("configured rules {}", rules.len());
     let mut linter = LinterBuilder::default()
       .rules(rules)
       .lint_unknown_rules(true)
@@ -270,7 +298,11 @@ fn main() {
         .unwrap()
         .map(|p| p.to_string())
         .collect();
-      run_linter(paths, run_matches.value_of("RULE_CODE"));
+      run_linter(
+        paths,
+        run_matches.value_of("RULE_CODE"),
+        run_matches.value_of("CONFIG"),
+      );
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
