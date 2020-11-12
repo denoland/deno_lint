@@ -1,4 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+
+#[macro_use]
+extern crate log;
+
 use annotate_snippets::display_list;
 use annotate_snippets::snippet;
 use clap::App;
@@ -141,15 +145,14 @@ fn run_linter(
   let maybe_config = if let Some(p) = config_path {
     let c =
       config::load_from_json(&PathBuf::from(p)).expect("Failed to load config");
-    Some(c)
+    Some(Arc::new(c))
   } else {
     None
   };
 
-  let rules_config = maybe_config.map(|c| c.rules);
+  debug!("recommended rules: {}", get_recommended_rules().len());
+  debug!("config {:#?}", maybe_config);
 
-  eprintln!("recommended set {}", get_recommended_rules().len());
-  eprintln!("rules config {:#?}", rules_config);
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
@@ -157,8 +160,8 @@ fn run_linter(
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to read file");
 
-    let mut rules = if let Some(config) = rules_config.clone() {
-      config::get_rules(config)
+    let mut rules = if let Some(config) = maybe_config.clone() {
+      config.get_rules()
     } else {
       get_recommended_rules()
     };
@@ -170,7 +173,8 @@ fn run_linter(
         .collect()
     };
 
-    eprintln!("configured rules {}", rules.len());
+    debug!("configured rules: {}", rules.len());
+
     let mut linter = LinterBuilder::default()
       .rules(rules)
       .lint_unknown_rules(true)

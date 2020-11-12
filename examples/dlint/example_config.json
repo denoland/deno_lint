@@ -5,7 +5,7 @@
             "ban-untagged-todo"
         ],
         "exclude": [
-
+            "no-explicit-any"
         ]
     },
     "files": {
