@@ -148,8 +148,8 @@ fn run_linter(
     None
   };
 
-  eprintln!("recommended rules: {}", get_recommended_rules().len());
-  eprintln!("config {:#?}", maybe_config);
+  // eprintln!("recommended rules: {}", get_recommended_rules().len());
+  // eprintln!("config {:#?}", maybe_config);
 
   if let Some(config) = maybe_config.clone() {
     paths.extend(config.get_files().expect("Failed to get files from config"));
@@ -175,7 +175,7 @@ fn run_linter(
         .collect()
     };
 
-    eprintln!("configured rules: {}", rules.len());
+    // eprintln!("configured rules: {}", rules.len());
 
     let mut linter = LinterBuilder::default()
       .rules(rules)

@@ -78,6 +78,7 @@ pub fn load_from_json(config_path: &Path) -> Result<Config, std::io::Error> {
 }
 
 // Ported from dprint
+// https://github.com/dprint/dprint/blob/358c91fbf0a545a0c9736cc496dc1d998028ae65/crates/dprint/src/cli/run_cli.rs#L686-L756
 fn resolve_file_paths(config: &FilesConfig) -> Result<Vec<PathBuf>, AnyError> {
   let mut file_patterns = get_file_patterns(config);
   let absolute_paths = take_absolute_paths(&mut file_patterns);
@@ -93,7 +94,7 @@ fn resolve_file_paths(config: &FilesConfig) -> Result<Vec<PathBuf>, AnyError> {
     file_patterns.extend(config.include.clone());
 
     file_patterns.extend(config.exclude.clone().into_iter().map(|exclude| {
-      if exclude.starts_with("!") {
+      if exclude.starts_with('!') {
         exclude
       } else {
         format!("!{}", exclude)
@@ -141,9 +142,11 @@ fn resolve_file_paths(config: &FilesConfig) -> Result<Vec<PathBuf>, AnyError> {
   }
 }
 
+// Ported from dprint
+// https://github.com/dprint/dprint/blob/358c91fbf0a545a0c9736cc496dc1d998028ae65/crates/dprint/src/environment/real_environment.rs#L99-L123
 fn glob(
   base: &Path,
-  file_patterns: &Vec<String>,
+  file_patterns: &[String],
 ) -> Result<Vec<PathBuf>, AnyError> {
   let base = base.canonicalize()?;
   let walker = globwalk::GlobWalkerBuilder::from_patterns(base, file_patterns)
