@@ -37,7 +37,6 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
         .arg(
           Arg::with_name("FILES")
             .help("Sets the input file to use")
-            .required(true)
             .multiple(true),
         )
         .arg(
@@ -139,6 +138,8 @@ fn run_linter(
   filter_rule_name: Option<&str>,
   config_path: Option<&str>,
 ) {
+  let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+
   let maybe_config = if let Some(p) = config_path {
     let c =
       config::load_from_json(&PathBuf::from(p)).expect("Failed to load config");
@@ -149,6 +150,10 @@ fn run_linter(
 
   eprintln!("recommended rules: {}", get_recommended_rules().len());
   eprintln!("config {:#?}", maybe_config);
+
+  if let Some(config) = maybe_config.clone() {
+    paths.extend(config.get_files().expect("Failed to get files from config"));
+  }
 
   let error_counts = Arc::new(AtomicUsize::new(0));
   let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
@@ -179,7 +184,7 @@ fn run_linter(
       .build();
 
     let (source_file, file_diagnostics) = linter
-      .lint(file_path.to_string(), source_code)
+      .lint(file_path.to_string_lossy().to_string(), source_code)
       .expect("Failed to lint");
 
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
@@ -296,7 +301,7 @@ fn main() {
     ("run", Some(run_matches)) => {
       let paths: Vec<String> = run_matches
         .values_of("FILES")
-        .unwrap()
+        .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
       run_linter(

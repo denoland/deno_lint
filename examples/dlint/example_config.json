@@ -10,7 +10,7 @@
     },
     "files": {
         "include": [
-
+            "benchmarks/oak/**/*.ts"
         ],
         "exclude": [
             
