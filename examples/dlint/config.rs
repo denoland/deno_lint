@@ -4,26 +4,23 @@ use serde::Deserialize;
 use std::path::Path;
 
 #[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct RulesConfig {
-  #[serde(default)]
   pub tags: Vec<String>,
-  #[serde(default)]
   pub include: Vec<String>,
-  #[serde(default)]
   pub exclude: Vec<String>,
 }
 #[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct FilesConfig {
-  #[serde(default)]
   pub include: Vec<String>,
-  #[serde(default)]
   pub exclude: Vec<String>,
 }
+
 #[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct Config {
-  #[serde(default)]
   pub rules: RulesConfig,
-  #[serde(default)]
   pub files: FilesConfig,
 }
 
