@@ -8,7 +8,7 @@ use swc_ecmascript::ast::ExprOrSuper;
 use swc_ecmascript::ast::OptChainExpr;
 use swc_ecmascript::ast::TsNonNullExpr;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoExtraNonNullAssertion;
 
@@ -45,7 +45,7 @@ impl LintRule for NoExtraNonNullAssertion {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -106,27 +106,22 @@ impl<'c> NoExtraNonNullAssertionVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoExtraNonNullAssertionVisitor<'c> {
+impl<'c> VisitAll for NoExtraNonNullAssertionVisitor<'c> {
   fn visit_ts_non_null_expr(
     &mut self,
     ts_non_null_expr: &TsNonNullExpr,
-    parent: &dyn Node,
+    _: &dyn Node,
   ) {
     self.check_expr_for_nested_non_null_assert(
       ts_non_null_expr.span,
       &*ts_non_null_expr.expr,
-    );
-    swc_ecmascript::visit::visit_ts_non_null_expr(
-      self,
-      ts_non_null_expr,
-      parent,
     );
   }
 
   fn visit_opt_chain_expr(
     &mut self,
     opt_chain_expr: &OptChainExpr,
-    parent: &dyn Node,
+    _: &dyn Node,
   ) {
     let maybe_expr_or_super = match &*opt_chain_expr.expr {
       Expr::Member(member_expr) => Some(&member_expr.obj),
@@ -139,8 +134,6 @@ impl<'c> Visit for NoExtraNonNullAssertionVisitor<'c> {
         self.check_expr_for_nested_non_null_assert(opt_chain_expr.span, expr);
       }
     }
-
-    swc_ecmascript::visit::visit_opt_chain_expr(self, opt_chain_expr, parent);
   }
 }
 
