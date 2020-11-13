@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSuper;
@@ -10,6 +11,20 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoExtraNonNullAssertion;
+
+const CODE: &str = "no-extra-non-null-assertion";
+
+#[derive(Display)]
+enum NoExtraNonNullAssertionMessage {
+  #[display(fmt = "Extra non-null assertion is forbidden")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoExtraNonNullAssertionHint {
+  #[display(fmt = "Remove the extra non-null assertion operator (`!`)")]
+  Remove,
+}
 
 impl LintRule for NoExtraNonNullAssertion {
   fn new() -> Box<Self> {
@@ -21,7 +36,7 @@ impl LintRule for NoExtraNonNullAssertion {
   }
 
   fn code(&self) -> &'static str {
-    "no-extra-non-null-assertion"
+    CODE
   }
 
   fn lint_program(
@@ -74,9 +89,9 @@ impl<'c> NoExtraNonNullAssertionVisitor<'c> {
   fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-extra-non-null-assertion",
-      "Extra non-null assertion is forbidden",
-      "Remove the extra non-null assertion operator (`!`)",
+      CODE,
+      NoExtraNonNullAssertionMessage::Unexpected,
+      NoExtraNonNullAssertionHint::Remove,
     );
   }
 
