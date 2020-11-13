@@ -9,7 +9,7 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoExtraBooleanCast;
 
@@ -50,7 +50,7 @@ impl LintRule for NoExtraBooleanCast {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoExtraBooleanCastVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -162,50 +162,40 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoExtraBooleanCastVisitor<'c> {
+impl<'c> VisitAll for NoExtraBooleanCastVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_cond_expr(&mut self, cond_expr: &CondExpr, parent: &dyn Node) {
+  fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _: &dyn Node) {
     self.check_condition(&*cond_expr.test);
-    swc_ecmascript::visit::visit_cond_expr(self, cond_expr, parent);
   }
 
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
+  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
     if let Some(ref test_expr) = for_stmt.test {
       self.check_condition(&**test_expr);
     }
-    swc_ecmascript::visit::visit_for_stmt(self, for_stmt, parent);
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, parent: &dyn Node) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
     self.check_condition(&*if_stmt.test);
-    swc_ecmascript::visit::visit_if_stmt(self, if_stmt, parent);
   }
 
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, parent: &dyn Node) {
+  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
     self.check_condition(&*while_stmt.test);
-    swc_ecmascript::visit::visit_while_stmt(self, while_stmt, parent);
   }
 
-  fn visit_do_while_stmt(
-    &mut self,
-    do_while_stmt: &DoWhileStmt,
-    parent: &dyn Node,
-  ) {
+  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
     self.check_condition(&*do_while_stmt.test);
-    swc_ecmascript::visit::visit_do_while_stmt(self, do_while_stmt, parent);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     if expr_or_super_callee_is_boolean(&call_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) = call_expr.args.get(0) {
         self.check_condition(&*expr);
       }
     }
-    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if expr_callee_is_boolean(&new_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) =
         new_expr.args.as_ref().and_then(|a| a.get(0))
@@ -213,12 +203,10 @@ impl<'c> Visit for NoExtraBooleanCastVisitor<'c> {
         self.check_condition(&*expr);
       }
     }
-    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
-  fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, parent: &dyn Node) {
+  fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _: &dyn Node) {
     self.check_unary_expr(unary_expr);
-    swc_ecmascript::visit::visit_unary_expr(self, unary_expr, parent);
   }
 }
 
