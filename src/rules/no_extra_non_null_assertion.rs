@@ -147,7 +147,6 @@ impl<'c> Visit for NoExtraNonNullAssertionVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_extra_non_null_assertion_valid() {
@@ -162,33 +161,57 @@ mod tests {
 
   #[test]
   fn no_extra_non_null_assertion_invalid() {
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"const foo: { str: string } | null = null; const bar = foo!!.str;"#,
-      54,
-    );
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"function foo(bar: undefined | string) { return bar!!; }"#,
-      47,
-    );
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"function foo(bar?: { str: string }) { return bar!?.str; }"#,
-      45,
-    );
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"function foo(bar?: { str: string }) { return (bar!)!.str; }"#,
-      45,
-    );
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"function foo(bar?: { str: string }) { return (bar!)?.str; }"#,
-      45,
-    );
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"function foo(bar?: { str: string }) { return bar!?.(); }"#,
-      45,
-    );
-    assert_lint_err::<NoExtraNonNullAssertion>(
-      r#"function foo(bar?: { str: string }) { return (bar!)?.(); }"#,
-      45,
-    );
+    assert_lint_err! {
+      NoExtraNonNullAssertion,
+      r#"const foo: { str: string } | null = null; const bar = foo!!.str;"#: [
+        {
+          col: 54,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar: undefined | string) { return bar!!; }"#: [
+        {
+          col: 47,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar?: { str: string }) { return bar!?.str; }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar?: { str: string }) { return (bar!)!.str; }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar?: { str: string }) { return (bar!)?.str; }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar?: { str: string }) { return bar!?.(); }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar?: { str: string }) { return (bar!)?.(); }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ]
+    };
   }
 }
