@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::{
   CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
@@ -12,6 +13,24 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoExtraBooleanCast;
 
+const CODE: &str = "no-extra-boolean-cast";
+
+#[derive(Display)]
+enum NoExtraBooleanCastMessage {
+  #[display(fmt = "Redundant Boolean call.")]
+  BooleanCall,
+  #[display(fmt = "Redundant double negation.")]
+  DoubleNegation,
+}
+
+#[derive(Display)]
+enum NoExtraBooleanCastHint {
+  #[display(fmt = "Remove the Boolean call, it is unnecessary")]
+  BooleanCall,
+  #[display(fmt = "Remove the double negation (`!!`), it is unnecessary")]
+  DoubleNegation,
+}
+
 impl LintRule for NoExtraBooleanCast {
   fn new() -> Box<Self> {
     Box::new(NoExtraBooleanCast)
@@ -22,7 +41,7 @@ impl LintRule for NoExtraBooleanCast {
   }
 
   fn code(&self) -> &'static str {
-    "no-extra-boolean-cast"
+    CODE
   }
 
   fn lint_program(
@@ -72,18 +91,18 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
   fn unexpected_call(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-extra-boolean-cast",
-      "Redundant Boolean call.",
-      "Remove the Boolean call, it is unnecessary",
+      CODE,
+      NoExtraBooleanCastMessage::BooleanCall,
+      NoExtraBooleanCastHint::BooleanCall,
     );
   }
 
   fn unexpected_negation(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-extra-boolean-cast",
-      "Redundant double negation.",
-      "Remove the double negation (`!!`), it is unnecessary",
+      CODE,
+      NoExtraBooleanCastMessage::DoubleNegation,
+      NoExtraBooleanCastHint::DoubleNegation,
     );
   }
 
