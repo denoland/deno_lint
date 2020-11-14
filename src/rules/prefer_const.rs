@@ -1,4 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// TODO(magurotuna): delete this directive
+#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use derive_more::Display;
@@ -67,9 +69,7 @@ struct Variable {
   span: Span,
   initialized: bool,
   reassigned: bool,
-  /// If this variable is declared in "init" section of a for statement, it stores `Some(span)` where
-  /// `span` is the span of the for statement. Otherwise, it stores `None`.
-  in_for_init: Option<Span>,
+  special_case: SpecialCase,
   is_param: bool,
 }
 
@@ -78,6 +78,7 @@ impl Variable {
     self.initialized = initialized;
     self.reassigned = reassigned;
   }
+
   fn should_report(&self) -> bool {
     if self.is_param {
       return false;
@@ -91,6 +92,18 @@ impl Variable {
     // - (true, true): false
     self.initialized != self.reassigned
   }
+}
+
+/// Stores span if a variable is declared in places that we have to treat as "special".
+/// Here "special" means that how we decide whether the variable is erronous or not is differenct
+/// from other kind of variables.
+/// For example, in "ForInit" case, we should report diagnostics only if *all* variables in the
+/// same "ForInit" need to be reported. This requires special handling.
+#[derive(Debug, Clone, Copy)]
+enum SpecialCase {
+  NotSpecial,
+  ForInit(Span),
+  Destructuring(Span),
 }
 
 type Scope = Rc<RefCell<RawScope>>;
@@ -156,7 +169,7 @@ impl VariableCollector {
     &mut self,
     ident: &Ident,
     has_init: bool,
-    in_for_init: Option<Span>,
+    special_case: SpecialCase,
     is_param: bool,
   ) {
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
@@ -166,7 +179,7 @@ impl VariableCollector {
         span: ident.span,
         initialized: has_init,
         reassigned: false,
-        in_for_init,
+        special_case,
         is_param,
       },
     );
@@ -176,41 +189,45 @@ impl VariableCollector {
     &mut self,
     pat: &Pat,
     has_init: bool,
-    in_for_init: Option<Span>,
+    special_case: SpecialCase,
   ) {
     match pat {
-      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
+      Pat::Ident(ident) => {
+        self.insert_var(ident, has_init, special_case, false)
+      }
       Pat::Array(array_pat) => {
         for elem in &array_pat.elems {
           if let Some(elem_pat) = elem {
-            self.extract_decl_idents(elem_pat, has_init, in_for_init);
+            self.extract_decl_idents(elem_pat, has_init, special_case);
           }
         }
       }
       Pat::Rest(rest_pat) => {
-        self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
+        self.extract_decl_idents(&*rest_pat.arg, has_init, special_case)
       }
       Pat::Object(object_pat) => {
         for prop in &object_pat.props {
           match prop {
-            ObjectPatProp::KeyValue(key_value) => {
-              self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
-            }
+            ObjectPatProp::KeyValue(key_value) => self.extract_decl_idents(
+              &*key_value.value,
+              has_init,
+              special_case,
+            ),
             ObjectPatProp::Assign(assign) => {
               if assign.value.is_some() {
-                self.insert_var(&assign.key, true, in_for_init, false);
+                self.insert_var(&assign.key, true, special_case, false);
               } else {
-                self.insert_var(&assign.key, has_init, in_for_init, false);
+                self.insert_var(&assign.key, has_init, special_case, false);
               }
             }
             ObjectPatProp::Rest(rest) => {
-              self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
+              self.extract_decl_idents(&*rest.arg, has_init, special_case)
             }
           }
         }
       }
       Pat::Assign(assign_pat) => {
-        self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
+        self.extract_decl_idents(&*assign_pat.left, true, special_case)
       }
       _ => {}
     }
@@ -251,7 +268,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
         for ident in idents {
-          a.insert_var(&ident, true, None, true);
+          a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
         }
       }
       if let Some(body) = &function.body {
@@ -266,7 +283,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, None, true);
+          a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
         }
       }
       match &arrow_expr.body {
@@ -296,7 +313,7 @@ impl Visit for VariableCollector {
               a.extract_decl_idents(
                 &decl.name,
                 decl.init.is_some(),
-                Some(for_stmt.span),
+                SpecialCase::ForInit(for_stmt.span),
               );
             }
           }
@@ -327,7 +344,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, None);
+            a.extract_decl_idents(&decl.name, true, SpecialCase::NotSpecial);
           }
         }
       }
@@ -347,7 +364,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, None);
+            a.extract_decl_idents(&decl.name, true, SpecialCase::NotSpecial);
           }
         }
       }
@@ -421,7 +438,7 @@ impl Visit for VariableCollector {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, None, true);
+          a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
         }
       }
       catch_clause.body.visit_children_with(a);
@@ -452,13 +469,13 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, true, None, true);
+                a.insert_var(ident, true, SpecialCase::NotSpecial, true);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
                 let idents: Vec<Ident> = find_ids(&assign_pat.left);
                 for ident in idents {
-                  a.insert_var(&ident, true, None, true);
+                  a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
                 }
               }
             }
@@ -467,7 +484,7 @@ impl Visit for VariableCollector {
             param.visit_children_with(a);
             let idents: Vec<Ident> = find_ids(&param.pat);
             for ident in idents {
-              a.insert_var(&ident, true, None, true);
+              a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
             }
           }
         }
@@ -483,7 +500,11 @@ impl Visit for VariableCollector {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
       for decl in &var_decl.decls {
-        self.extract_decl_idents(&decl.name, decl.init.is_some(), None);
+        self.extract_decl_idents(
+          &decl.name,
+          decl.init.is_some(),
+          SpecialCase::NotSpecial,
+        );
       }
     }
   }
@@ -625,35 +646,53 @@ impl<'c> PreferConstVisitor<'c> {
 
   fn exit_program(&mut self) {
     let mut for_init_vars = BTreeMap::new();
+    let mut destructuring_vars = BTreeMap::new();
     let scopes = self.scopes.clone();
     for scope in scopes.values() {
       for (sym, status) in scope.borrow().variables.iter() {
-        if let Some(for_span) = status.in_for_init {
-          for_init_vars
-            .entry(for_span)
-            .or_insert_with(Vec::new)
-            .push((sym.clone(), *status));
-        } else if status.should_report() {
-          self.report(sym, status.span);
+        match status.special_case {
+          SpecialCase::NotSpecial => {
+            if status.should_report() {
+              self.report(sym, status.span);
+            }
+          }
+          SpecialCase::ForInit(for_span) => {
+            for_init_vars
+              .entry(for_span)
+              .or_insert_with(Vec::new)
+              .push((sym.clone(), *status));
+          }
+          SpecialCase::Destructuring(dest_span) => {
+            destructuring_vars
+              .entry(dest_span)
+              .or_insert_with(Vec::new)
+              .push((sym.clone(), *status));
+          }
         }
       }
     }
 
-    // With regard to init sections of for statements, we should report diagnostics only if *all*
-    // variables there need to be reported.
-    for (sym, var) in for_init_vars
-      .iter()
-      .filter_map(|(_, vars)| {
-        if vars.iter().all(|(_, status)| status.should_report()) {
-          Some(vars)
-        } else {
-          None
+    // For special cases, we should report diagnostics only if *all* variables there need to be
+    // reported.
+    let mut check_special_case =
+      |vars: BTreeMap<Span, Vec<(JsWord, Variable)>>| {
+        for (sym, var) in vars
+          .iter()
+          .filter_map(|(_, vars)| {
+            if vars.iter().all(|(_, status)| status.should_report()) {
+              Some(vars)
+            } else {
+              None
+            }
+          })
+          .flatten()
+        {
+          self.report(sym, var.span);
         }
-      })
-      .flatten()
-    {
-      self.report(sym, var.span);
-    }
+      };
+
+    check_special_case(for_init_vars);
+    check_special_case(destructuring_vars);
   }
 }
 
