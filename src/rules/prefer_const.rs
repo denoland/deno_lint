@@ -500,11 +500,13 @@ impl Visit for VariableCollector {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
       for decl in &var_decl.decls {
-        self.extract_decl_idents(
-          &decl.name,
-          decl.init.is_some(),
-          SpecialCase::NotSpecial,
-        );
+        let special_case = match decl.name {
+          Pat::Array(_) | Pat::Object(_) | Pat::Rest(_) => {
+            SpecialCase::Destructuring(decl.name.span())
+          }
+          _ => SpecialCase::NotSpecial,
+        };
+        self.extract_decl_idents(&decl.name, decl.init.is_some(), special_case);
       }
     }
   }
@@ -1669,7 +1671,8 @@ mod prefer_const_tests {
       // https://github.com/denoland/deno_lint/issues/522
       // imitates `{ "destructuring": "all" }` in ESLint
       r#"let {a, b} = obj; b = 0;"#,
-      r#"let a, b; ({a, b} = obj); b++;",
+      r#"let a, b; ({a, b} = obj); b++;"#,
+      r#"let a, b, c; ({a, b} = obj1); ({b, c} = obj2) b++;"#,
       r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#,
       r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#,
       r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
