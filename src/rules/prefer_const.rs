@@ -1626,6 +1626,19 @@ mod prefer_const_tests {
       r#"let a = 0; for (a in [1, 2, 3]) foo(a);"#,
       r#"let a = 0; for (a of [1, 2, 3]) foo(a);"#,
       r#"let a = 0; for (a = 0; a < 10; a++) foo(a);"#,
+
+      // https://github.com/denoland/deno_lint/issues/522
+      // imitates `{ "destructuring": "all" }` in ESLint
+      r#"let {a, b} = obj; b = 0;"#,
+      r#"let a, b; ({a, b} = obj); b++;",
+      r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#,
+      r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#,
+      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
+      r#"let { name, ...otherStuff } = obj; otherStuff = {};"#,
+      r#"(function() { let {a: x = -1, b: y} = {a:1,b:2}; y = 0; })();"#,
+      r#"(function() { let [x = -1, y] = [1,2]; y = 0; })();"#,
+      r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#,
+      r#"let [x = -1, y] = [1,2]; y = 0;"#,
     };
   }
 
@@ -1661,20 +1674,6 @@ mod prefer_const_tests {
           hint: PreferConstHint::UseConst,
         }
       ],
-      r#"let [x = -1, y] = [1,2]; y = 0;"#: [
-        {
-          col: 5,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#: [
-        {
-          col: 8,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
       r#"(function() { let x = 1; foo(x); })();"#: [
         {
           col: 18,
@@ -1696,24 +1695,10 @@ mod prefer_const_tests {
           hint: PreferConstHint::UseConst,
         }
       ],
-      r#"(function() { let [x = -1, y] = [1,2]; y = 0; })();"#: [
-        {
-          col: 19,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
       r#"let f = (function() { let g = x; })(); f = 1;"#: [
         {
           col: 26,
           message: variant!(PreferConstMessage, NeverReassigned, "g"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"(function() { let {a: x = -1, b: y} = {a:1,b:2}; y = 0; })();"#: [
-        {
-          col: 22,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
           hint: PreferConstHint::UseConst,
         }
       ],
@@ -1794,27 +1779,6 @@ var foo = function() {
           hint: PreferConstHint::UseConst,
         }
       ],
-      r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#: [
-        {
-          col: 5,
-          message: variant!(PreferConstMessage, NeverReassigned, "a"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#: [
-        {
-          col: 12,
-          message: variant!(PreferConstMessage, NeverReassigned, "c"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#: [
-        {
-          col: 4,
-          message: variant!(PreferConstMessage, NeverReassigned, "a"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
       r#"let [a] = [1]"#: [
         {
           col: 5,
@@ -1831,20 +1795,8 @@ var foo = function() {
       ],
       r#"let {a = 0, b} = obj, c = a; b = a;"#: [
         {
-          col: 5,
-          message: variant!(PreferConstMessage, NeverReassigned, "a"),
-          hint: PreferConstHint::UseConst,
-        },
-        {
           col: 22,
           message: variant!(PreferConstMessage, NeverReassigned, "c"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let { name, ...otherStuff } = obj; otherStuff = {};"#: [
-        {
-          col: 6,
-          message: variant!(PreferConstMessage, NeverReassigned, "name"),
           hint: PreferConstHint::UseConst,
         }
       ],
@@ -1973,16 +1925,6 @@ var foo = function() {
           message: variant!(PreferConstMessage, NeverReassigned, "c"),
           hint: PreferConstHint::UseConst,
         },
-        {
-          col: 32,
-          message: variant!(PreferConstMessage, NeverReassigned, "y"),
-          hint: PreferConstHint::UseConst,
-        },
-        {
-          col: 35,
-          message: variant!(PreferConstMessage, NeverReassigned, "z"),
-          hint: PreferConstHint::UseConst,
-        }
       ],
       r#"let x = 'x', y = 'y'; function someFunc() { let a = 1, b = 2; foo(a, b) }"#: [
         {
