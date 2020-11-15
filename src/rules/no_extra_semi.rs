@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::{
   DoWhileStmt, EmptyStmt, ForInStmt, ForOfStmt, ForStmt, IfStmt, LabeledStmt,
   Stmt, WhileStmt, WithStmt,
@@ -10,6 +11,20 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoExtraSemi;
+
+const CODE: &str = "no-extra-semi";
+
+#[derive(Display)]
+enum NoExtraSemiMessage {
+  #[display(fmt = "Unnecessary semicolon.")]
+  Unnecessary,
+}
+
+#[derive(Display)]
+enum NoExtraSemiHint {
+  #[display(fmt = "Remove the extra (and unnecessary) semi-colon")]
+  Remove,
+}
 
 impl LintRule for NoExtraSemi {
   fn new() -> Box<Self> {
@@ -21,7 +36,7 @@ impl LintRule for NoExtraSemi {
   }
 
   fn code(&self) -> &'static str {
-    "no-extra-semi"
+    CODE
   }
 
   fn lint_program(
@@ -72,9 +87,9 @@ impl<'c> Visit for NoExtraSemiVisitor<'c> {
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt, _parent: &dyn Node) {
     self.context.add_diagnostic_with_hint(
       empty_stmt.span,
-      "no-extra-semi",
-      "Unnecessary semicolon.",
-      "Remove the extra (and unnecessary) semi-colon",
+      CODE,
+      NoExtraSemiMessage::Unnecessary,
+      NoExtraSemiHint::Remove,
     );
   }
 
