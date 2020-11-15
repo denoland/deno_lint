@@ -197,7 +197,6 @@ impl<'c> Visit for NoExtraSemiVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_extra_semi_valid() {
@@ -225,124 +224,285 @@ mod tests {
 
   #[test]
   fn no_extra_semi_invalid() {
-    assert_lint_err::<NoExtraSemi>("var x = 5;;", 10);
-    assert_lint_err::<NoExtraSemi>("function foo(){};", 16);
-    assert_lint_err::<NoExtraSemi>("for(;;);;", 8);
-    assert_lint_err::<NoExtraSemi>("while(0);;", 9);
-    assert_lint_err::<NoExtraSemi>("do;while(0);;", 12);
-    assert_lint_err::<NoExtraSemi>("for(a in b);;", 12);
-    assert_lint_err::<NoExtraSemi>("for(a of b);;", 12);
-    assert_lint_err::<NoExtraSemi>("if(true);;", 9);
-    assert_lint_err::<NoExtraSemi>("if(true){} else;;", 16);
-    assert_lint_err_n::<NoExtraSemi>("if(true){;} else {;}", vec![9, 18]);
-    assert_lint_err::<NoExtraSemi>("foo:;;", 5);
-    assert_lint_err::<NoExtraSemi>("with(foo);;", 10);
-    assert_lint_err::<NoExtraSemi>("with(foo){;}", 10);
-    assert_lint_err::<NoExtraSemi>("class A { ; }", 10);
-    assert_lint_err::<NoExtraSemi>("class A { /*a*/; }", 15);
-    assert_lint_err::<NoExtraSemi>("class A { ; a() {} }", 10);
-    assert_lint_err::<NoExtraSemi>("class A { a() {}; }", 16);
-    assert_lint_err::<NoExtraSemi>("class A { a() {}; b() {} }", 16);
-    assert_lint_err_n::<NoExtraSemi>(
-      "class A {; a() {}; b() {}; }",
-      vec![9, 17, 25],
-    );
-    assert_lint_err::<NoExtraSemi>("class A { a() {}; get b() {} }", 16);
-
-    assert_lint_err_on_line::<NoExtraSemi>(
+    assert_lint_err! {
+      NoExtraSemi,
+      "var x = 5;;": [
+        {
+          col: 10,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "function foo(){};": [
+        {
+          col: 16,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "for(;;);;": [
+        {
+          col: 8,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "while(0);;": [
+        {
+          col: 9,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "do;while(0);;": [
+        {
+          col: 12,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "for(a in b);;": [
+        {
+          col: 12,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "for(a of b);;": [
+        {
+          col: 12,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "if(true);;": [
+        {
+          col: 9,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "if(true){} else;;": [
+        {
+          col: 16,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "if(true){;} else {;}": [
+        {
+          col: 9,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        },
+        {
+          col: 18,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "foo:;;": [
+        {
+          col: 5,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "with(foo);;": [
+        {
+          col: 10,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "with(foo){;}": [
+        {
+          col: 10,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A { ; }": [
+        {
+          col: 10,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A { /*a*/; }": [
+        {
+          col: 15,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A { ; a() {} }": [
+        {
+          col: 10,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A { a() {}; }": [
+        {
+          col: 16,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A { a() {}; b() {} }": [
+        {
+          col: 16,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A {; a() {}; b() {}; }": [
+        {
+          col: 9,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        },
+        {
+          col: 17,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        },
+        {
+          col: 25,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
+      "class A { a() {}; get b() {} }": [
+        {
+          col: 16,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 for (let i = 0; i < n; i++) {
   for (;;);;
 }
-"#,
-      3,
-      11,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 3,
+          col: 11,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 while (a) {
   while (b);;
 }
-"#,
-      3,
-      12,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 3,
+          col: 12,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 do {
   do {
     ;
   } while(a);
 } while(b);
-"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 4,
+          col: 4,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 with(a) {
   with(b) {
     ;
   }
 }
-"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 4,
+          col: 4,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 for (const a of b) {
   for (const c of d) {
     ;
   }
 }
-"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 4,
+          col: 4,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 for (const a in b) {
   for (const c in d) {
     ;
   }
 }
-"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 4,
+          col: 4,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 if (a) {
   if (b) {
     ;
   } else;
 }
-"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 4,
+          col: 4,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 foo: {
   bar: {
     ;
   }
 }
-"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line::<NoExtraSemi>(
+"#: [
+        {
+          line: 4,
+          col: 4,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ],
       r#"
 class A {
   foo() {
     class B { ; }
   }
 }
-"#,
-      4,
-      14,
-    );
+"#: [
+        {
+          line: 4,
+          col: 14,
+          message: NoExtraSemiMessage::Unnecessary,
+          hint: NoExtraSemiHint::Remove,
+        }
+      ]
+    };
   }
 }
