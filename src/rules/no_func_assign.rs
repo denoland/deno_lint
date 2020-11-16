@@ -6,7 +6,7 @@ use derive_more::Display;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoFuncAssign;
 
@@ -45,7 +45,7 @@ impl LintRule for NoFuncAssign {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -96,7 +96,7 @@ impl<'c> NoFuncAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoFuncAssignVisitor<'c> {
+impl<'c> VisitAll for NoFuncAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
@@ -218,7 +218,23 @@ asdf = "foobar";
           message: NoFuncAssignMessage::Unexpected,
           hint: NoFuncAssignHint::RemoveOrRework,
         }
-      ]
+      ],
+
+      // nested
+      r#"
+function foo() {}
+let a;
+a = () => {
+  foo = 42;
+};
+      "#: [
+        {
+          line: 5,
+          col: 2,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
     };
   }
 }
