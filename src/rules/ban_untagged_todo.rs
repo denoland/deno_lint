@@ -9,14 +9,13 @@ use swc_common::Span;
 
 pub struct BanUntaggedTodo;
 
+const CODE: &str = "ban-untagged-todo";
+const MESSAGE: &str = "TODO should be tagged with (@username) or (#issue)";
+const HINT: &str = "Add a user tag, e.g. @djones, or issue reference, e.g. #123, to the TODO comment";
+
 impl BanUntaggedTodo {
   fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic_with_hint(
-      span,
-      "ban-untagged-todo",
-      "TODO should be tagged with (@username) or (#issue)",
-      "Add a user tag, e.g. @djones, or issue reference, e.g. #123, to the TODO comment"
-    );
+    context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 }
 
@@ -26,7 +25,7 @@ impl LintRule for BanUntaggedTodo {
   }
 
   fn code(&self) -> &'static str {
-    "ban-untagged-todo"
+    CODE
   }
 
   fn lint_program(
@@ -68,14 +67,30 @@ TODOs without reference to a user or an issue become stale with no easy way to g
 // TODO Improve calc engine
 export function calcValue(): number { }
 ```
-
-### Valid:
 ```typescript
 // TODO Improve calc engine (@djones)
 export function calcValue(): number { }
 ```
 ```typescript
 // TODO Improve calc engine (#332)
+export function calcValue(): number { }
+```
+
+### Valid:
+```typescript
+// TODO(djones) Improve calc engine
+export function calcValue(): number { }
+```
+```typescript
+// TODO(@djones) Improve calc engine
+export function calcValue(): number { }
+```
+```typescript
+// TODO(#332)
+export function calcValue(): number { }
+```
+```typescript
+// TODO(#332) Improve calc engine
 export function calcValue(): number { }
 ```
 "#
@@ -96,7 +111,7 @@ fn check_comment(comment: &Comment) -> bool {
   }
 
   static TODO_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"todo\((#|@)\S+\)"#).unwrap());
+    Lazy::new(|| Regex::new(r#"todo\((#|@)?\S+\)"#).unwrap());
 
   if TODO_RE.is_match(text) {
     return false;
@@ -108,42 +123,60 @@ fn check_comment(comment: &Comment) -> bool {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn ban_ts_ignore_valid() {
     assert_lint_ok! {
       BanUntaggedTodo,
       r#"
+// TODO(@someusername)
+const c = "c";
+      "#,
+      r#"
+// TODO(@someusername) this should be fixed in next release
+const c = "c";
+      "#,
+      r#"
+// TODO(someusername)
+const c = "c";
+      "#,
+      r#"
+// TODO(someusername) this should be fixed in next release
+const c = "c";
+      "#,
+      r#"
 // TODO(#1234)
 const b = "b";
       "#,
       r#"
-// TODO(@someusername)
-const c = "c";
+// TODO(#1234) this should be fixed in next release
+const b = "b";
       "#,
     };
   }
 
   #[test]
   fn ban_ts_ignore_invalid() {
-    assert_lint_err_on_line::<BanUntaggedTodo>(
+    assert_lint_err! {
+      BanUntaggedTodo,
       r#"
 // TODO
 function foo() {
   // pass
 }
-      "#,
-      2,
-      0,
-    );
-    assert_lint_err_on_line::<BanUntaggedTodo>(
-      r#"
-// TODO(username)
+      "#: [{ col: 0, line: 2, message: MESSAGE, hint: HINT }],
+    r#"
+// TODO this should be fixed in next release (username)
 const a = "a";
-      "#,
-      2,
-      0,
-    );
+      "#: [{ col: 0, line: 2, message: MESSAGE, hint: HINT }],
+    r#"
+// TODO this should be fixed in next release (#1234)
+const b = "b";
+      "#: [{ col: 0, line: 2, message: MESSAGE, hint: HINT }],
+    r#"
+// TODO this should be fixed in next release (@someusername)
+const c = "c";
+      "#: [{ col: 0, line: 2, message: MESSAGE, hint: HINT }],
+    }
   }
 }
