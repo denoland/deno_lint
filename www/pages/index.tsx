@@ -1,28 +1,44 @@
-import { h, MarkdownIt, useEffect, useRef, useState } from "../deps.ts";
+import {
+  Fragment,
+  h,
+  MarkdownIt,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "../deps.ts";
 import type { GetStaticData, PageProps } from "../deps.ts";
 import { Header } from "../components/Header.tsx";
 
 interface Data {
-  rules: Array<Rule>;
+  rules: Array<RuleData>;
 }
 
-interface Rule {
+interface RuleData {
   code: string;
+  snippet: string;
   docs: string;
+  tags: string[];
 }
 
 function IndexPage(props: PageProps<Data>) {
   const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<Rule[]>([]);
+  const [filterRecommended, setFilterRecommended] = useState(true);
 
-  useEffect(() => {
-    const results = props.data.rules
+  const searchResults = useMemo(() => {
+    return props.data.rules
+      .filter((rule) => {
+        if (filterRecommended) {
+          return rule.tags.includes("recommended");
+        } else {
+          return true;
+        }
+      })
       .filter((rule) => rule.code.includes(search));
-    setSearchResults(results);
-  }, [search]);
+  }, [search, filterRecommended]);
 
   return (
-    <div class="mx-auto max-w-screen-lg px-6 sm:px-6 md:px-8">
+    <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
       <Header />
       <main class="my-8">
         <label for="search" class="sr-only">Search</label>
@@ -44,7 +60,24 @@ function IndexPage(props: PageProps<Data>) {
             </button>
           </div>
         </div>
-        <div class="mt-4">
+        <div class="mt-2">
+          <input
+            type="checkbox"
+            id="only_recommended"
+            checked={filterRecommended}
+            onInput={(e) => {
+              setFilterRecommended(e.currentTarget.checked);
+            }}
+          />
+          <label htmlFor="only_recommended" class="ml-2">
+            Show only recommended rules
+          </label>
+        </div>
+        <div class="mt-6 text-gray-600">
+          Showing {searchResults.length} out of {props.data.rules.length}
+          {" "}rules
+        </div>
+        <div>
           {searchResults
             .map((rule) => <Rule rule={rule} />)}
         </div>
@@ -53,7 +86,9 @@ function IndexPage(props: PageProps<Data>) {
   );
 }
 
-function Rule(props: { rule: Rule }) {
+function Rule(props: { rule: RuleData }) {
+  const [extended, setExtended] = useState(false);
+
   const ref = useRef<HTMLDivElement | undefined>();
   const { rule } = props;
 
@@ -64,31 +99,68 @@ function Rule(props: { rule: Rule }) {
         hljs.highlightBlock(block);
       });
     }
-  }, [ref]);
+  }, [ref, extended]);
 
-  return <section
-    class="my-3 border-b border-t border-gray-200 border rounded-lg overflow-hidden"
-    id={rule.code}
-  >
-    <div
-      class="p-3 border-b border-gray-200 flex justify-between items-center bg-white"
+  return (
+    <section
+      class="my-8 border-gray-200 border-2 rounded-lg overflow-hidden"
+      id={rule.code}
     >
-      <h1 class="text-xl font-bold">
-        <a href={`/#${rule.code}`} class="hover:underline">
-          {rule.code}
-        </a>
-      </h1>
-    </div>
-    <div class="relative bg-gray-50 p-3">
-      {rule.docs.length > 0
-        ? <div
-          dangerouslySetInnerHTML={{ __html: rule.docs }}
-          ref={ref}
-          class="prose"
-        />
-        : <div class="text-gray-500 italic">no docs available</div>}
-    </div>
-  </section>;
+      <div
+        class="p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white"
+      >
+        <h1 class="text-xl font-bold">
+          <a href={`/#${rule.code}`} class="hover:underline">
+            {rule.code}
+          </a>
+        </h1>
+        {rule.tags.includes("recommended") && (
+          <span
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800"
+          >
+            Recommended
+          </span>
+        )}
+      </div>
+      <div class="relative bg-gray-50 p-3">
+        {rule.docs.length > 0
+          ? (
+            extended
+              ? (
+                <>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: rule.docs }}
+                    ref={ref}
+                    class="prose max-w-none"
+                  />
+                  <a
+                    class="mt-4 block cursor-pointer text-blue-600 hover:underline"
+                    onClick={() => setExtended(false)}
+                  >
+                    View Less
+                  </a>
+                </>
+              )
+              : (
+                <>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: rule.snippet }}
+                    ref={ref}
+                    class="prose max-w-none"
+                  />
+                  <a
+                    class="mt-4 block cursor-pointer text-blue-600 hover:underline"
+                    onClick={() => setExtended(true)}
+                  >
+                    View More
+                  </a>
+                </>
+              )
+          )
+          : <div class="text-gray-500 italic">no docs available</div>}
+      </div>
+    </section>
+  );
 }
 
 export const getStaticData = async (): Promise<GetStaticData<Data>> => {
@@ -98,7 +170,9 @@ export const getStaticData = async (): Promise<GetStaticData<Data>> => {
 
   const rules = json.map((rule: any) => ({
     code: rule.code,
+    snippet: md.render(rule.docs.split("\n")[0]),
     docs: md.render(rule.docs),
+    tags: rule.tags,
   }));
 
   return {

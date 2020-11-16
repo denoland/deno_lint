@@ -7,26 +7,54 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoExplicitAny;
 
+const CODE: &str = "no-explicit-any";
+const MESSAGE: &str = "`any` type is not allowed";
+const HINT: &str = "Use a specific type other than `any`";
+
 impl LintRule for NoExplicitAny {
   fn new() -> Box<Self> {
     Box::new(NoExplicitAny)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-explicit-any"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows use of the `any` type 
+
+Use of the `any` type disables the type check system around that variable,
+defeating the purpose of Typescript which is to provide type safe code.
+Additionally, the use of `any` hinders code readability, since it is not
+immediately clear what type of value is being referenced.  It is better to be
+explicit about all types.  For a more type-safe alternative to `any`, use 
+`unknown` if you are unable to choose a more specific type.
+
+### Invalid:
+```typescript
+const someNumber: any = "two";
+function foo(): any { return undefined; }
+```
+
+### Valid:
+```typescript
+const someNumber: string = "two";
+function foo(): undefined { return undefined; }
+```
+"#
   }
 }
 
@@ -49,10 +77,11 @@ impl<'c> Visit for NoExplicitAnyVisitor<'c> {
     use swc_ecmascript::ast::TsKeywordTypeKind::*;
 
     if ts_keyword_type.kind == TsAnyKeyword {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         ts_keyword_type.span,
-        "no-explicit-any",
-        "`any` type is not allowed",
+        CODE,
+        MESSAGE,
+        HINT,
       );
     }
   }
@@ -61,11 +90,11 @@ impl<'c> Visit for NoExplicitAnyVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_explicit_any_valid() {
-    assert_lint_ok::<NoExplicitAny>(
+    assert_lint_ok! {
+      NoExplicitAny,
       r#"
 class Foo {
   static _extensions: {
@@ -73,9 +102,6 @@ class Foo {
     [key: string]: (module: Module, filename: string) => any;
   } = Object.create(null);
 }"#,
-    );
-
-    assert_lint_ok::<NoExplicitAny>(
       r#"
 type RequireWrapper = (
   // deno-lint-ignore no-explicit-any
@@ -86,33 +112,22 @@ type RequireWrapper = (
   __filename: string,
   __dirname: string
 ) => void;"#,
-    );
+    };
   }
 
   #[test]
   fn no_explicit_any_invalid() {
-    assert_lint_err::<NoExplicitAny>(
-      "function foo(): any { return undefined; }",
-      16,
-    );
-    assert_lint_err::<NoExplicitAny>(
-      "function bar(): Promise<any> { return undefined; }",
-      24,
-    );
-    assert_lint_err::<NoExplicitAny>("const a: any = {};", 9);
-
-    assert_lint_err_on_line::<NoExplicitAny>(
+    assert_lint_err! {
+      NoExplicitAny,
+      "function foo(): any { return undefined; }": [{ col: 16, message: MESSAGE, hint: HINT }],
+      "function bar(): Promise<any> { return undefined; }": [{ col: 24, message: MESSAGE, hint: HINT }],
+      "const a: any = {};": [{ col: 9, message: MESSAGE, hint: HINT }],
       r#"
 class Foo {
   static _extensions: {
     [key: string]: (module: Module, filename: string) => any;
   } = Object.create(null);
-}"#,
-      4,
-      57,
-    );
-
-    assert_lint_err_on_line_n::<NoExplicitAny>(
+}"#: [{ line: 4, col: 57, message: MESSAGE, hint: HINT }],
       r#"
 type RequireWrapper = (
   exports: any,
@@ -120,8 +135,7 @@ type RequireWrapper = (
   module: Module,
   __filename: string,
   __dirname: string
-) => void;"#,
-      vec![(3, 11), (4, 11)],
-    );
+) => void;"#: [{ line: 3, col: 11, message: MESSAGE, hint: HINT }, { line: 4, col: 11, message: MESSAGE, hint: HINT }],
+    }
   }
 }

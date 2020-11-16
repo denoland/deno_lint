@@ -2,8 +2,8 @@
 use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{
-  ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident, Module,
-  ObjectPatProp, Pat, PatOrExpr, VarDecl,
+  ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
+  ObjectPatProp, Pat, PatOrExpr, Program, VarDecl,
 };
 use swc_ecmascript::{
   utils::ident::IdentLike,
@@ -17,12 +17,12 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -178,20 +178,21 @@ mod tests {
 
   #[test]
   fn no_shadow_restricted_names_valid() {
-    assert_lint_ok::<NoShadowRestrictedNames>("function foo(bar){ var baz; }");
-    assert_lint_ok::<NoShadowRestrictedNames>("!function foo(bar){ var baz; }");
-    assert_lint_ok::<NoShadowRestrictedNames>("!function(bar){ var baz; }");
-    assert_lint_ok::<NoShadowRestrictedNames>("try {} catch(e) {}");
-    assert_lint_ok::<NoShadowRestrictedNames>("export default function() {}");
-    assert_lint_ok::<NoShadowRestrictedNames>("try {} catch {}");
-    assert_lint_ok::<NoShadowRestrictedNames>("var undefined;");
-    assert_lint_ok::<NoShadowRestrictedNames>(
+    assert_lint_ok! {
+      NoShadowRestrictedNames,
+      "function foo(bar){ var baz; }",
+      "!function foo(bar){ var baz; }",
+      "!function(bar){ var baz; }",
+      "try {} catch(e) {}",
+      "export default function() {}",
+      "try {} catch {}",
+      "var undefined;",
       "var undefined; doSomething(undefined);",
-    );
-    assert_lint_ok::<NoShadowRestrictedNames>("var undefined; var undefined;");
-    assert_lint_ok::<NoShadowRestrictedNames>("let undefined");
-    assert_lint_ok::<NoShadowRestrictedNames>("let [...foo] = []");
-    assert_lint_ok::<NoShadowRestrictedNames>("function bar (...rest) {}");
+      "var undefined; var undefined;",
+      "let undefined",
+      "let [...foo] = []",
+      "function bar (...rest) {}",
+    };
   }
 
   #[test]

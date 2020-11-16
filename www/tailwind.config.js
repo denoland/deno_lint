@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-undef
 module.exports = {
-  purge: ["./pages/**/*.tsx"],
+  purge: ["./pages/**/*.tsx", "./components/**/*.tsx"],
   future: {
     removeDeprecatedGapUtilities: true,
     purgeLayersByDefault: true,

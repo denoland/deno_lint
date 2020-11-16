@@ -1,28 +1,23 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 
+use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
-use crate::swc_util;
 use std::marker::PhantomData;
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Program;
 
-// TODO(magurotuna): rename this macro after replacing existing tests with this macro
 #[macro_export]
-macro_rules! assert_lint_ok_macro {
-  ($rule:ty, $src:literal $(,)?) => {
-    $crate::test_util::assert_lint_ok::<$rule>($src);
-  };
-  ($rule:ty, [$($src:literal),* $(,)?] $(,)?) => {
+macro_rules! assert_lint_ok {
+  ($rule:ty, $($src:literal),* $(,)?) => {
     $(
       $crate::test_util::assert_lint_ok::<$rule>($src);
     )*
   };
 }
 
-// TODO(magurotuna): rename this macro after replacing existing tests with this macro
 #[macro_export]
-macro_rules! assert_lint_err_macro {
+macro_rules! assert_lint_err {
   (
     $rule:ty,
     $(
@@ -38,14 +33,11 @@ macro_rules! assert_lint_err_macro {
     $(
       let mut errors = Vec::new();
       $(
-        let mut e = $crate::test_util::LintErr {
-          $($field: $value,)*
-          ..Default::default()
-        };
-        // Line is 1-based in deno_lint, but the default value of `usize` is 0. We should adjust it.
-        if e.line == 0 {
-          e.line = 1;
-        }
+        let mut builder = $crate::test_util::LintErrBuilder::new();
+        $(
+          builder.$field($value);
+        )*
+        let e = builder.build();
         errors.push(e);
       )*
       let t = $crate::test_util::LintErrTester::<$rule> {
@@ -56,6 +48,20 @@ macro_rules! assert_lint_err_macro {
       t.run();
     )*
   };
+}
+
+#[macro_export]
+macro_rules! variant {
+  ($enum:ident, $variant:ident) => {{
+    $enum::$variant
+  }};
+  ($enum:ident, $variant:ident, $($value:expr),* $(,)?) => {{
+    $enum::$variant(
+      $(
+        $value.to_string(),
+      )*
+    )
+  }};
 }
 
 #[derive(Default)]
@@ -69,8 +75,53 @@ pub struct LintErrTester<T: LintRule + 'static> {
 pub struct LintErr {
   pub line: usize,
   pub col: usize,
-  pub message: &'static str,
-  pub hint: Option<&'static str>,
+  pub message: String,
+  pub hint: Option<String>,
+}
+
+#[derive(Default)]
+pub struct LintErrBuilder {
+  line: Option<usize>,
+  col: Option<usize>,
+  message: Option<String>,
+  hint: Option<String>,
+}
+
+impl LintErrBuilder {
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  pub fn line(&mut self, line: usize) -> &mut Self {
+    // Line is 1-based in deno_lint
+    assert!(line >= 1);
+    self.line = Some(line);
+    self
+  }
+
+  pub fn col(&mut self, col: usize) -> &mut Self {
+    self.col = Some(col);
+    self
+  }
+
+  pub fn message(&mut self, message: impl ToString) -> &mut Self {
+    self.message = Some(message.to_string());
+    self
+  }
+
+  pub fn hint(&mut self, hint: impl ToString) -> &mut Self {
+    self.hint = Some(hint.to_string());
+    self
+  }
+
+  pub fn build(self) -> LintErr {
+    LintErr {
+      line: self.line.unwrap_or(1),
+      col: self.col.unwrap_or(0),
+      message: self.message.unwrap_or_else(|| "".to_string()),
+      hint: self.hint,
+    }
+  }
 }
 
 impl<T: LintRule + 'static> LintErrTester<T> {
@@ -95,7 +146,13 @@ impl<T: LintRule + 'static> LintErrTester<T> {
         hint,
       } = error;
       assert_diagnostic_2(
-        diagnostic, rule_code, *line, *col, self.src, message, hint,
+        diagnostic,
+        rule_code,
+        *line,
+        *col,
+        self.src,
+        message,
+        hint.as_deref(),
       );
     }
   }
@@ -105,13 +162,14 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
-    .syntax(swc_util::get_default_ts_config())
+    .syntax(ast_parser::get_default_ts_config())
     .rules(vec![rule])
     .build();
 
-  linter
+  let (_, diagnostics) = linter
     .lint("deno_lint_test.tsx".to_string(), source.to_string())
-    .expect("Failed to lint")
+    .expect("Failed to lint");
+  diagnostics
 }
 
 pub fn assert_diagnostic(
@@ -146,7 +204,7 @@ fn assert_diagnostic_2(
   col: usize,
   source: &str,
   message: &str,
-  hint: &Option<&str>,
+  hint: Option<&str>,
 ) {
   assert_eq!(
     code, diagnostic.code,
@@ -170,7 +228,7 @@ fn assert_diagnostic_2(
   );
   assert_eq!(
     hint,
-    &diagnostic.hint.as_deref(),
+    diagnostic.hint.as_deref(),
     "Diagnostic hint is expected to be \"{:?}\", but got \"{:?}\"\n\nsource:\n{}\n",
     hint,
     diagnostic.hint.as_deref(),
@@ -186,12 +244,6 @@ pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
       diagnostics, source
     );
-  }
-}
-
-pub fn assert_lint_ok_n<T: LintRule + 'static>(cases: Vec<&str>) {
-  for source in cases {
-    assert_lint_ok::<T>(source);
   }
 }
 
@@ -249,10 +301,11 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   }
 }
 
-pub fn parse(source_code: &str) -> Module {
-  let ast_parser = swc_util::AstParser::new();
-  let syntax = swc_util::get_default_ts_config();
-  let (parse_result, _comments) =
-    ast_parser.parse_module("file_name.ts", syntax, source_code);
-  parse_result.unwrap()
+pub fn parse(source_code: &str) -> Program {
+  let ast_parser = ast_parser::AstParser::new();
+  let syntax = ast_parser::get_default_ts_config();
+  let (program, _comments) = ast_parser
+    .parse_program("file_name.ts", syntax, source_code)
+    .unwrap();
+  program
 }

@@ -3,8 +3,8 @@ class Visitor {
                constructor() {
                   this.diagnostics = [];
                 }
-                collectDiagnostics(n) {
-                    this.visitProgram(n);
+                collectDiagnostics(programAst) {
+                    this.visitProgram(programAst);
                     return this.diagnostics;
                 }
                 addDiagnostic(d) {

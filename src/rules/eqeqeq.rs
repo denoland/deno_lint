@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::{BinExpr, BinaryOp};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -8,22 +9,40 @@ use swc_ecmascript::visit::Visit;
 
 pub struct Eqeqeq;
 
+const CODE: &str = "eqeqeq";
+
+#[derive(Display)]
+enum EqeqeqMessage {
+  #[display(fmt = "expected '===' and instead saw '=='.")]
+  ExpectedEqual,
+  #[display(fmt = "expected '!==' and instead saw '!='.")]
+  ExpectedNotEqual,
+}
+
+#[derive(Display)]
+enum EqeqeqHint {
+  #[display(fmt = "Use '==='")]
+  UseEqeqeq,
+  #[display(fmt = "Use '!=='")]
+  UseNoteqeq,
+}
+
 impl LintRule for Eqeqeq {
   fn new() -> Box<Self> {
     Box::new(Eqeqeq)
   }
 
   fn code(&self) -> &'static str {
-    "eqeqeq"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = EqeqeqVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {
@@ -35,17 +54,18 @@ value.  On the other hand `==` and `!=` do type coercion before value checking
 which can lead to unexpected results.  For example `5 == "5"` is true, while
 `5 === "5"` is false.
 
+### Invalid:
+```typescript
+if (a == 5) {}
+if ("hello world" != input) {}
+```
+
 ### Valid:
 ```typescript
 if (a === 5) {}
 if ("hello world" !== input) {}
 ```
-
-### Invalid:
-```typescript
-if (a == 5) {}
-if ("hello world" != input) {}
-```"#
+"#
   }
 }
 
@@ -64,22 +84,14 @@ impl<'c> Visit for EqeqeqVisitor<'c> {
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, parent: &dyn Node) {
     if matches!(bin_expr.op, BinaryOp::EqEq | BinaryOp::NotEq) {
-      let message = if bin_expr.op == BinaryOp::EqEq {
-        "expected '===' and instead saw '=='."
+      let (message, hint) = if bin_expr.op == BinaryOp::EqEq {
+        (EqeqeqMessage::ExpectedEqual, EqeqeqHint::UseEqeqeq)
       } else {
-        "expected '!==' and instead saw '!='."
+        (EqeqeqMessage::ExpectedNotEqual, EqeqeqHint::UseNoteqeq)
       };
-      let hint = if bin_expr.op == BinaryOp::EqEq {
-        "Use '==='"
-      } else {
-        "Use '!=='"
-      };
-      self.context.add_diagnostic_with_hint(
-        bin_expr.span,
-        "eqeqeq",
-        message,
-        hint,
-      )
+      self
+        .context
+        .add_diagnostic_with_hint(bin_expr.span, CODE, message, hint)
     }
     swc_ecmascript::visit::visit_bin_expr(self, bin_expr, parent);
   }
@@ -92,12 +104,15 @@ mod tests {
 
   #[test]
   fn eqeqeq_valid() {
-    assert_lint_ok::<Eqeqeq>("midori === sapphire");
-    assert_lint_ok::<Eqeqeq>("midori !== hazuki");
-    assert_lint_ok::<Eqeqeq>("kumiko === null");
-    assert_lint_ok::<Eqeqeq>("reina !== null");
-    assert_lint_ok::<Eqeqeq>("null === null");
-    assert_lint_ok::<Eqeqeq>("null !== null");
+    assert_lint_ok! {
+      Eqeqeq,
+      "midori === sapphire",
+      "midori !== hazuki",
+      "kumiko === null",
+      "reina !== null",
+      "null === null",
+      "null !== null",
+    };
   }
 
   #[test]

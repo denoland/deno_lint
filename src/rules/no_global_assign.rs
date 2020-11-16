@@ -18,7 +18,7 @@ impl LintRule for NoGlobalAssign {
     Box::new(NoGlobalAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -26,18 +26,34 @@ impl LintRule for NoGlobalAssign {
     "no-global-assign"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut collector = Collector {
       bindings: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_with(program, &mut collector);
 
     let mut visitor = NoGlobalAssignVisitor::new(context, collector.bindings);
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows assignment to native Javascript objects
+
+In Javascript, `String` and `Object` for example are native objects.  Like any
+object, they can be reassigned, but it is almost never wise to do so as this
+can lead to unexpected results and difficult to track down bugs.
+    
+### Invalid:
+```typescript
+Object = null;
+undefined = true;
+window = {};
+```
+"#
   }
 }
 
@@ -117,15 +133,19 @@ impl<'c> NoGlobalAssignVisitor<'c> {
     }
 
     // We only care about globals.
-    if !GLOBALS.contains(&&*id.0) {
-      return;
-    }
+    let maybe_global = GLOBALS.iter().find(|(name, _)| name == &&*id.0);
 
-    self.context.add_diagnostic(
-      span,
-      "no-global-assign",
-      "Assignment to global is not allowed",
-    );
+    if let Some(global) = maybe_global {
+      // If global can be overwritten then don't need to report anything
+      if !global.1 {
+        self.context.add_diagnostic_with_hint(
+          span,
+          "no-global-assign",
+          "Assignment to global is not allowed",
+          "Remove the assignment to the global variable",
+        );
+      }
+    }
   }
 }
 
@@ -155,21 +175,19 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok::<NoGlobalAssign>("string = 'hello world';");
-
-    assert_lint_ok::<NoGlobalAssign>("var string;");
-
-    assert_lint_ok::<NoGlobalAssign>("top = 0;");
+  fn no_global_assign_valid() {
+    assert_lint_ok! {
+      NoGlobalAssign,
+      "string = 'hello world';",
+      "var string;",
+      "top = 0;",
+      "require = 0;",
+      "onmessage = function () {};",
+    };
   }
 
   #[test]
-  fn ok_2() {
-    assert_lint_ok::<NoGlobalAssign>("require = 0;");
-  }
-
-  #[test]
-  fn err_1() {
+  fn no_global_assign_invalid() {
     assert_lint_err::<NoGlobalAssign>("String = 'hello world';", 0);
 
     assert_lint_err::<NoGlobalAssign>("String++;", 0);
@@ -178,10 +196,6 @@ mod tests {
       "({Object = 0, String = 0} = {});",
       vec![2, 14],
     );
-  }
-
-  #[test]
-  fn err_2() {
     assert_lint_err::<NoGlobalAssign>("Array = 1;", 0);
   }
 }

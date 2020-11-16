@@ -9,26 +9,29 @@ use swc_ecmascript::visit::VisitWith;
 
 pub struct NoUnreachable;
 
+const CODE: &str = "no-unreachable";
+const MESSAGE: &str = "This statement is unreachable";
+
 impl LintRule for NoUnreachable {
   fn new() -> Box<Self> {
     Box::new(NoUnreachable)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-unreachable"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoUnreachableVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -65,11 +68,7 @@ impl<'c> Visit for NoUnreachableVisitor<'c> {
 
     if let Some(meta) = self.context.control_flow.meta(stmt.span().lo) {
       if meta.unreachable {
-        self.context.add_diagnostic(
-          stmt.span(),
-          "no-unreachable",
-          "This statement is unreachable",
-        )
+        self.context.add_diagnostic(stmt.span(), CODE, MESSAGE)
       }
     }
   }
@@ -78,65 +77,34 @@ impl<'c> Visit for NoUnreachableVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok::<NoUnreachable>(
+  fn no_unreachable_valid() {
+    assert_lint_ok! {
+      NoUnreachable,
       "function foo() {
           function bar() { return 1; }
           return bar();
       }",
-    );
 
-    assert_lint_ok::<NoUnreachable>(
       "function foo() {
         return bar();
         function bar() {
           return 1;
         }
       }",
-    );
 
-    assert_lint_ok::<NoUnreachable>("function foo() { return x; var x; }");
-  }
-
-  #[test]
-  fn ok_2() {
-    assert_lint_ok::<NoUnreachable>("function foo() { var x = 1; var y = 2; }");
-
-    assert_lint_ok::<NoUnreachable>(
+      "function foo() { return x; var x; }",
+      "function foo() { var x = 1; var y = 2; }",
       "function foo() { var x = 1; var y = 2; return; }",
-    );
-
-    assert_lint_ok::<NoUnreachable>(
       "while (true) { switch (foo) { case 1: x = 1; x = 2;} }",
-    );
-  }
-
-  #[test]
-  fn ok_3() {
-    assert_lint_ok::<NoUnreachable>("while (true) { break; var x; }");
-
-    assert_lint_ok::<NoUnreachable>("while (true) { continue; var x, y; }");
-
-    assert_lint_ok::<NoUnreachable>("while (true) { throw 'message'; var x; }");
-  }
-
-  #[test]
-  fn ok_4() {
-    assert_lint_ok::<NoUnreachable>(
+      "while (true) { break; var x; }",
+      "while (true) { continue; var x, y; }",
+      "while (true) { throw 'message'; var x; }",
       "while (true) { if (true) break; var x = 1; }",
-    );
+      "while (true) continue;",
+      "switch (foo) { case 1: break; var x; }",
 
-    assert_lint_ok::<NoUnreachable>("while (true) continue;");
-
-    assert_lint_ok::<NoUnreachable>("switch (foo) { case 1: break; var x; }");
-  }
-
-  #[test]
-  fn ok_5() {
-    assert_lint_ok::<NoUnreachable>(
       "switch (foo) {
           case 1:
             break;
@@ -144,24 +112,12 @@ mod tests {
           default:
             throw true;
         }",
-    );
 
-    assert_lint_ok::<NoUnreachable>("const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  };}");
-
-    assert_lint_ok::<NoUnreachable>("var x = 1; y = 2; throw 'uh oh'; var y;");
-  }
-
-  #[test]
-  fn ok_6() {
-    assert_lint_ok::<NoUnreachable>(
+      "const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  };}",
+      "var x = 1; y = 2; throw 'uh oh'; var y;",
       "function foo() { var x = 1; if (x) { return; } x = 2; }",
-    );
-
-    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; if (x) { } else { return; } x = 2; }",
-    );
 
-    assert_lint_ok::<NoUnreachable>(
       r#"
 function foo() {
   var x = 1;
@@ -174,51 +130,38 @@ function foo() {
   x = 2; 
 }
 "#,
-    );
-  }
 
-  #[test]
-  fn ok_7() {
-    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; while (x) { return; } x = 2; }",
-    );
+      // https://github.com/denoland/deno_lint/issues/477
+      "function foo() { for (;false;) { return 0; } return 1; }",
+      "function foo() { var x = 1; for (let i = 0; i < bar(); i++) { return; } x = 2; }",
+      r#"
+function foo() {
+  const partsA = [];
+  const partsB = [];
+  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+    const partA = partsA[i];
+    const partB = partsB[i];
+    if (partA === undefined) return -1;
+    if (partB === undefined) return 1;
+    if (partA === partB) continue;
+    const priorityA = partA.startsWith(":") ? partA.endsWith("*") ? 0 : 1 : 2;
+    const priorityB = partB.startsWith(":") ? partB.endsWith("*") ? 0 : 1 : 2;
+    return Math.max(Math.min(priorityB - priorityA, 1), -1);
+  }
+  return 0;
+}
+      "#,
 
-    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; for (x in {}) { return; } x = 2; }",
-    );
-
-    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; for (x of []) { return; } x = 2; }",
-    );
-
-    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; try { return; } finally { x = 2; } }",
-    );
-  }
-
-  #[test]
-  fn ok_8() {
-    assert_lint_ok::<NoUnreachable>(
       "function foo() { var x = 1; for (;;) { if (x) break; } x = 2; }",
-    );
-
-    assert_lint_ok::<NoUnreachable>("A: { break A; } foo()");
-
-    assert_lint_ok::<NoUnreachable>("function* foo() { try { yield 1; return; } catch (err) { return err; } }");
-  }
-
-  #[test]
-  fn ok_9() {
-    assert_lint_ok::<NoUnreachable>(
+      "A: { break A; } foo()",
+      "function* foo() { try { yield 1; return; } catch (err) { return err; } }",
       "function foo() { try { bar(); return; } catch (err) { return err; } }",
-    );
+      "function foo() { try { a.b.c = 1; return; } catch (err) { return err; } }",
 
-    assert_lint_ok::<NoUnreachable>("function foo() { try { a.b.c = 1; return; } catch (err) { return err; } }");
-  }
-
-  #[test]
-  fn ok_10() {
-    assert_lint_ok::<NoUnreachable>(
       r#"
 function normalize(type: string): string | undefined {
   switch (type) {
@@ -233,12 +176,7 @@ function normalize(type: string): string | undefined {
   return type.includes("/") ? type : lookup(type);
 }
 "#,
-    );
-  }
 
-  #[test]
-  fn ok_break_labeled() {
-    assert_lint_ok::<NoUnreachable>(
       "A: {
         switch (5) {
           case 1:
@@ -249,9 +187,7 @@ function normalize(type: string): string | undefined {
       }
       call();
       ",
-    );
 
-    assert_lint_ok::<NoUnreachable>(
       "A: {
         switch (5) {
           case 1:
@@ -262,215 +198,7 @@ function normalize(type: string): string | undefined {
       }
       call();
       ",
-    );
-  }
 
-  #[test]
-  fn err_1() {
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { return x; var x = 1; }",
-      27,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { return x; var x, y = 1; }",
-      27,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "while (true) { continue; var x = 1; }",
-      25,
-    );
-  }
-
-  #[test]
-  fn err_2() {
-    assert_lint_err::<NoUnreachable>("function foo() { return; x = 1; }", 25);
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { throw error; x = 1; }",
-      30,
-    );
-
-    assert_lint_err::<NoUnreachable>("while (true) { break; x = 1; }", 22);
-  }
-
-  #[test]
-  fn err_3() {
-    assert_lint_err::<NoUnreachable>("while (true) { continue; x = 1; }", 25);
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { switch (foo) { case 1: return; x = 1; } }",
-      48,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { switch (foo) { case 1: throw e; x = 1; } }",
-      49,
-    );
-  }
-
-  #[test]
-  fn err_4() {
-    assert_lint_err::<NoUnreachable>(
-      "while (true) { switch (foo) { case 1: break; x = 1; } }",
-      45,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "while (true) { switch (foo) { case 1: continue; x = 1; } }",
-      48,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "var x = 1; throw 'uh oh'; var y = 2;",
-      26,
-    );
-  }
-
-  #[test]
-  fn err_5() {
-    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; if (x) { return; } else { throw e; } x = 2; }", 65);
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { var x = 1; if (x) return; else throw -1; x = 2; }",
-      58,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { var x = 1; try { return; } finally {} x = 2; }",
-      55,
-    );
-  }
-
-  #[test]
-  fn err_6() {
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { var x = 1; try { } finally { return; } x = 2; }",
-      56,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { var x = 1; do { return; } while (x); x = 2; }",
-      54,
-    );
-
-    assert_lint_err::<NoUnreachable>("function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }", 69);
-  }
-
-  #[test]
-  fn err_7() {
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { var x = 1; for (;;) { if (x) continue; } x = 2; }",
-      58,
-    );
-
-    assert_lint_err::<NoUnreachable>(
-      "function foo() { var x = 1; while (true) { } x = 2; }",
-      45,
-    );
-
-    assert_lint_err_on_line::<NoUnreachable>(
-      "const arrow_direction = arrow => {
-        switch (arrow) {
-          default:
-            throw new Error();
-        }
-        g()
-      }",
-      6,
-      8,
-    );
-  }
-
-  #[test]
-  fn err_8() {
-    assert_lint_err_on_line_n::<NoUnreachable>(
-      "function foo() {
-      return;
-      a();
-      b()
-      // comment
-      c();
-  }",
-      vec![(3, 6), (4, 6), (6, 6)],
-    );
-
-    assert_lint_err_on_line_n::<NoUnreachable>(
-      "function foo() {
-      if (a) {
-          return
-          b();
-          c();
-      } else {
-          throw err
-          d();
-      }
-  }",
-      vec![(4, 10), (5, 10), (8, 10)],
-    );
-  }
-
-  #[test]
-  fn err_9() {
-    assert_lint_err_on_line_n::<NoUnreachable>(
-      "function foo() {
-      if (a) {
-          return
-          b();
-          c();
-      } else {
-          throw err
-          d();
-      }
-      e();
-  }",
-      vec![(4, 10), (5, 10), (8, 10), (10, 6)],
-    );
-
-    assert_lint_err_on_line::<NoUnreachable>(
-      "function* foo() {
-      try {
-          return;
-      } catch (err) {
-          return err;
-      }
-  }",
-      5,
-      10,
-    );
-
-    assert_lint_err_on_line::<NoUnreachable>(
-      "function foo() {
-      try {
-          return;
-      } catch (err) {
-          return err;
-      }
-  }",
-      5,
-      10,
-    );
-  }
-
-  #[test]
-  fn err_10() {
-    assert_lint_err_on_line_n::<NoUnreachable>(
-      "function foo() {
-      try {
-          return;
-          let a = 1;
-      } catch (err) {
-          return err;
-      }
-  }",
-      vec![(4, 10), (6, 10)],
-    );
-  }
-
-  #[test]
-  fn deno_ok_1() {
-    assert_lint_ok::<NoUnreachable>(
       r#"
       switch (vers) {
         case "HTTP/1.1":
@@ -508,12 +236,8 @@ function normalize(type: string): string | undefined {
       }
 
       throw new Error(`malformed HTTP version ${vers}`);"#,
-    )
-  }
 
-  #[test]
-  fn issue_340_1() {
-    assert_lint_ok::<NoUnreachable>(
+      // https://github.com/denoland/deno_lint/issues/340
       r#"
       function foo() {
         let ret = "";
@@ -548,12 +272,7 @@ function normalize(type: string): string | undefined {
         return ret;
       }
       "#,
-    );
-  }
 
-  #[test]
-  fn issue_340_2() {
-    assert_lint_ok::<NoUnreachable>(
       r#"
       function foo() {
         let ret = "";
@@ -579,12 +298,7 @@ function normalize(type: string): string | undefined {
         return ret;
       }
       "#,
-    );
-  }
 
-  #[test]
-  fn issue_340_3() {
-    assert_lint_ok::<NoUnreachable>(
       r#"
       function foo() {
         let ret = "";
@@ -610,13 +324,8 @@ function normalize(type: string): string | undefined {
         return ret;
       }
       "#,
-    );
-  }
 
-  // https://github.com/denoland/deno_lint/issues/353
-  #[test]
-  fn issue_353_1() {
-    assert_lint_ok::<NoUnreachable>(
+      // https://github.com/denoland/deno_lint/issues/353
       r#"
 class Class {
   constructor() {
@@ -626,12 +335,7 @@ class Class {
 
 console.log("unreachable???");
       "#,
-    );
-  }
 
-  #[test]
-  fn issue_353_2() {
-    assert_lint_ok::<NoUnreachable>(
       r#"
 class Class {
   constructor() {
@@ -641,14 +345,93 @@ class Class {
 
 console.log("unreachable???");
       "#,
-    );
+    };
   }
 
-  // https://github.com/denoland/deno_lint/issues/348
   #[test]
-  fn issue_348() {
-    assert_lint_err_on_line::<NoUnreachable>(
-      r#"
+  fn no_unreachable_invalid() {
+    assert_lint_err! {
+        NoUnreachable,
+        "function foo() { return x; var x = 1; }": [{ col: 27, message: MESSAGE }],
+        "function foo() { return x; var x, y = 1; }": [{ col: 27, message: MESSAGE }],
+        "while (true) { continue; var x = 1; }": [{ col: 25, message: MESSAGE }],
+        "function foo() { return; x = 1; }": [{ col: 25, message: MESSAGE }],
+        "function foo() { throw error; x = 1; }": [{ col: 30, message: MESSAGE }],
+        "while (true) { break; x = 1; }": [{ col: 22, message: MESSAGE }],
+        "while (true) { continue; x = 1; }": [{ col: 25, message: MESSAGE }],
+        "function foo() { switch (foo) { case 1: return; x = 1; } }": [{ col: 48, message: MESSAGE }],
+        "function foo() { switch (foo) { case 1: throw e; x = 1; } }": [{ col: 49, message: MESSAGE }],
+        "while (true) { switch (foo) { case 1: break; x = 1; } }": [{ col: 45, message: MESSAGE }],
+        "while (true) { switch (foo) { case 1: continue; x = 1; } }": [{ col: 48, message: MESSAGE }],
+        "var x = 1; throw 'uh oh'; var y = 2;": [{ col: 26, message: MESSAGE }],
+        "function foo() { var x = 1; if (x) { return; } else { throw e; } x = 2; }": [{ col: 65, message: MESSAGE }],
+        "function foo() { var x = 1; if (x) return; else throw -1; x = 2; }": [{ col: 58, message: MESSAGE }],
+        "function foo() { var x = 1; try { return; } finally {} x = 2; }": [{ col: 55, message: MESSAGE }],
+        "function foo() { var x = 1; try { } finally { return; } x = 2; }": [{ col: 56, message: MESSAGE }],
+        "function foo() { var x = 1; do { return; } while (x); x = 2; }": [{ col: 54, message: MESSAGE }],
+        "function foo() { var x = 1; while (x) { if (x) break; else continue; x = 2; } }": [{ col: 69, message: MESSAGE }],
+        "function foo() { var x = 1; for (;;) { if (x) continue; } x = 2; }": [{ col: 58, message: MESSAGE }],
+        "function foo() { var x = 1; for (;true;) { if (x) continue; } x = 2; }": [{ col: 62, message: MESSAGE }],
+        "function foo() { var x = 1; while (true) { } x = 2; }": [{ col: 45, message: MESSAGE }],
+        "const arrow_direction = arrow => {
+        switch (arrow) {
+          default:
+            throw new Error();
+        }
+        g()
+      }": [{ line: 6, col: 8, message: MESSAGE }],
+        "function foo() {
+      return;
+      a();
+      b()
+      // comment
+      c();
+  }": [{ line: 3, col: 6, message: MESSAGE }, {line: 4, col: 6, message: MESSAGE }, { line: 6, col: 6, message: MESSAGE }],
+        "function foo() {
+      if (a) {
+          return
+          b();
+          c();
+      } else {
+          throw err
+          d();
+      }
+  }": [{ line: 4, col: 10, message: MESSAGE }, { line: 5, col: 10, message: MESSAGE }, { line: 8, col: 10, message: MESSAGE }],
+        "function foo() {
+      if (a) {
+          return
+          b();
+          c();
+      } else {
+          throw err
+          d();
+      }
+      e();
+  }": [{ line: 4, col: 10, message: MESSAGE }, { line: 5, col: 10, message: MESSAGE }, { line: 8, col: 10, message: MESSAGE}, { line: 10, col: 6, message: MESSAGE }],
+        "function* foo() {
+      try {
+          return;
+      } catch (err) {
+          return err;
+      }
+  }": [{ line: 5, col: 10, message: MESSAGE }],
+        "function foo() {
+      try {
+          return;
+      } catch (err) {
+          return err;
+      }
+  }": [{ line: 5, col: 10, message: MESSAGE }],
+        "function foo() {
+      try {
+          return;
+          let a = 1;
+      } catch (err) {
+          return err;
+      }
+  }": [{ line: 4, col: 10, message: MESSAGE }, { line: 6, col: 10, message: MESSAGE }],
+      // https://github.com/denoland/deno_lint/issues/348
+        r#"
 const obj = {
   get root() {
     let primary = this;
@@ -662,9 +445,7 @@ const obj = {
     return 1;
   }
 };
-      "#,
-      12,
-      4,
-    );
+      "#: [{ line: 12, col: 4, message: MESSAGE }],
+    }
   }
 }

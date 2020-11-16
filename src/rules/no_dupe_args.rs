@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
 use swc_common::Span;
 use swc_ecmascript::ast::ArrowExpr;
@@ -9,16 +10,30 @@ use swc_ecmascript::ast::Param;
 use swc_ecmascript::ast::Pat;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{Visit, VisitWith};
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoDupeArgs;
+
+const CODE: &str = "no-dupe-args";
+
+#[derive(Display)]
+enum NoDupeArgsMessage {
+  #[display(fmt = "Duplicate arguments not allowed")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoDupeArgsHint {
+  #[display(fmt = "Rename or remove the duplicate (e.g. same name) argument")]
+  RenameOrRemove,
+}
 
 impl LintRule for NoDupeArgs {
   fn new() -> Box<Self> {
     Box::new(NoDupeArgs)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -26,14 +41,36 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
-    visitor.visit_module(module, module);
+    program.visit_all_with(program, &mut visitor);
     visitor.report_errors();
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using an argument name more than once in a function signature
+
+If you supply multiple arguments of the same name to a function, the last instance
+will shadow the preceding one(s).  This is most likely an unintentional typo.
+    
+### Invalid:
+```typescript
+function withDupes(a, b, a) {
+  console.log("I'm the value of the second a:", a);
+}
+```
+
+### Valid:
+```typescript
+function withoutDupes(a, b, c) {
+  console.log("I'm the value of the first (and only) a:", a);
+}
+```
+"#
   }
 }
 
@@ -52,10 +89,11 @@ impl<'c> NoDupeArgsVisitor<'c> {
 
   fn report_errors(&mut self) {
     for span in &self.error_spans {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         *span,
-        "no-dupe-args",
-        "Duplicate arguments not allowed",
+        CODE,
+        NoDupeArgsMessage::Unexpected,
+        NoDupeArgsHint::RenameOrRemove,
       );
     }
   }
@@ -87,24 +125,21 @@ impl<'c> NoDupeArgsVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoDupeArgsVisitor<'c> {
+impl<'c> VisitAll for NoDupeArgsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.check_params(function.span, function.params.iter());
-    function.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     self.check_pats(arrow_expr.span, arrow_expr.params.iter());
-    arrow_expr.visit_children_with(self);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.11.0/tests/lib/rules/no-dupe-args.js
@@ -112,61 +147,146 @@ mod tests {
 
   #[test]
   fn no_dupe_args_valid() {
-    assert_lint_ok::<NoDupeArgs>("function a(a, b, c) {}");
-    assert_lint_ok::<NoDupeArgs>("let a = function (a, b, c) {}");
-    assert_lint_ok::<NoDupeArgs>("const a = (a, b, c) => {}");
-    assert_lint_ok::<NoDupeArgs>("function a({a, b}, {c, d}) {}");
-    assert_lint_ok::<NoDupeArgs>("function a([, a]) {}");
-    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
-    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
-    assert_lint_ok::<NoDupeArgs>("function foo([[a, b], [c, d]]) {}");
-    assert_lint_ok::<NoDupeArgs>("const {a, b, c} = obj;");
-    assert_lint_ok::<NoDupeArgs>("const {a, b, c, a} = obj;");
+    assert_lint_ok! {
+      NoDupeArgs,
+      "function a(a, b, c) {}",
+      "let a = function (a, b, c) {}",
+      "const a = (a, b, c) => {}",
+      "function a({a, b}, {c, d}) {}",
+      "function a([, a]) {}",
+      "function foo([[a, b], [c, d]]) {}",
+      "function foo([[a, b], [c, d]]) {}",
+      "function foo([[a, b], [c, d]]) {}",
+      "const {a, b, c} = obj;",
+      "const {a, b, c, a} = obj;",
 
-    // nested
-    assert_lint_ok::<NoDupeArgs>(
+      // nested
       r#"
 function foo(a, b) {
   function bar(b, c) {}
 }
     "#,
-    );
+    };
   }
 
   #[test]
   fn no_dupe_args_invalid() {
-    assert_lint_err::<NoDupeArgs>("function dupeArgs1(a, b, a) {}", 0);
-    // As of Oct 2020, ESLint's no-dupe-args somehow doesn't check parameters in arrow functions,
-    // but we *do* check them.
-    assert_lint_err::<NoDupeArgs>("const dupeArgs2 = (a, b, a) => {}", 18);
+    assert_lint_err! {
+      NoDupeArgs,
+      "function dupeArgs1(a, b, a) {}": [
+        {
+          col: 0,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "function a(a, b, b) {}": [
+        {
+          col: 0,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "function a(a, a, a) {}": [
+        {
+          col: 0,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "function a(a, b, a) {}": [
+        {
+          col: 0,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "function a(a, b, a, b)": [
+        {
+          col: 0,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "let a = function (a, b, b) {}": [
+        {
+          col: 8,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "let a = function (a, a, a) {}": [
+        {
+          col: 8,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "let a = function (a, b, a) {}": [
+        {
+          col: 8,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "let a = function (a, b, a, b) {}": [
+        {
+          col: 8,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
 
-    assert_lint_err::<NoDupeArgs>("function a(a, b, b) {}", 0);
-    assert_lint_err::<NoDupeArgs>("function a(a, a, a) {}", 0);
-    assert_lint_err::<NoDupeArgs>("function a(a, b, a) {}", 0);
-    assert_lint_err::<NoDupeArgs>("function a(a, b, a, b)", 0);
-    assert_lint_err::<NoDupeArgs>("let a = function (a, b, b) {}", 8);
-    assert_lint_err::<NoDupeArgs>("let a = function (a, a, a) {}", 8);
-    assert_lint_err::<NoDupeArgs>("let a = function (a, b, a) {}", 8);
-    assert_lint_err::<NoDupeArgs>("let a = function (a, b, a, b) {}", 8);
+      // ESLint's no-dupe-args doesn't check parameters in arrow functions or class methods.
+      // cf. https://eslint.org/docs/rules/no-dupe-args
+      // But we *do* check them.
+      "const dupeArgs = (a, b, a) => {}": [
+        {
+          col: 17,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "const obj = { foo(a, b, a) {} };": [
+        {
+          col: 14,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
+      "class Foo { method(a, b, a) {} }": [
+        {
+          col: 12,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
 
-    // nested
-    assert_lint_err_on_line::<NoDupeArgs>(
+      // nested
       r#"
 function foo(a, b) {
   function bar(a, b, b) {}
 }
-      "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoDupeArgs>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ],
       r#"
 const foo = (a, b) => {
   const bar = (c, d, d) => {};
 };
-      "#,
-      3,
-      14,
-    );
+      "#: [
+        {
+          line: 3,
+          col: 14,
+          message: NoDupeArgsMessage::Unexpected,
+          hint: NoDupeArgsHint::RenameOrRemove,
+        }
+      ]
+    };
   }
 }

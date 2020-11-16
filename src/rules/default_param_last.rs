@@ -3,9 +3,10 @@ use super::Context;
 use super::LintRule;
 use swc_common::Span;
 use swc_ecmascript::ast::{ArrowExpr, Function, Pat};
+use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::{self, noop_visit_type};
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct DefaultParamLast;
 
@@ -18,13 +19,13 @@ impl LintRule for DefaultParamLast {
     "default-param-last"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
-    visitor.visit_module(module, module);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -34,6 +35,12 @@ Parameters with default values are optional by nature but cannot be left out
 of the function call without mapping the function inputs to different parameters
 which is confusing and error prone.  Specifying them last allows them to be left
 out without changing the semantics of the other parameters.
+
+### Invalid:
+```typescript
+function f(a = 2, b) {}
+function f(a = 5, b, c = 5) {}
+```
     
 ### Valid:
 ```typescript
@@ -45,12 +52,7 @@ function f(a, b = 5, c = 5) {}
 function f(a, b = 5, ...c) {}
 function f(a = 2, b = 3) {}
 ```
-
-### Invalid:
-```typescript
-function f(a = 2, b) {}
-function f(a = 5, b, c = 5) {}
-```"#
+"#
   }
 }
 
@@ -93,17 +95,15 @@ impl<'c> DefaultParamLastVisitor<'c> {
   }
 }
 
-impl<'c> Visit for DefaultParamLastVisitor<'c> {
+impl<'c> VisitAll for DefaultParamLastVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_function(&mut self, function: &Function, parent: &dyn Node) {
+  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     self.check_params(function.params.iter().rev().map(|p| &p.pat));
-    visit::visit_function(self, function, parent);
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
     self.check_params(arrow_expr.params.iter().rev());
-    visit::visit_arrow_expr(self, arrow_expr, parent);
   }
 }
 
@@ -118,7 +118,8 @@ mod tests {
 
   #[test]
   fn default_param_last_valid() {
-    assert_lint_ok_n::<DefaultParamLast>(vec![
+    assert_lint_ok! {
+      DefaultParamLast,
       "function f() {}",
       "function f(a) {}",
       "function fn(a, b) {}",
@@ -138,7 +139,7 @@ class Foo {
   bar(a, b = 2) {}
 }
       "#,
-    ]);
+    };
   }
 
   #[test]

@@ -18,7 +18,7 @@ impl LintRule for NoSetterReturn {
     Box::new(NoSetterReturn)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -26,13 +26,13 @@ impl LintRule for NoSetterReturn {
     "no-setter-return"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoSetterReturnVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -102,7 +102,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn setter_return() {
+  fn no_setter_return_invalid() {
     assert_lint_err::<NoSetterReturn>(
       r#"const a = { set setter(a) { return "something"; } };"#,
       28,

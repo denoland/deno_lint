@@ -3,12 +3,11 @@ use super::Context;
 use super::LintRule;
 use crate::globals::GLOBALS;
 use swc_atoms::js_word;
-use swc_common::SyntaxContext;
 use swc_ecmascript::{
   ast::*,
   utils::ident::IdentLike,
   visit::Node,
-  visit::{noop_visit_type, Visit, VisitWith},
+  visit::{noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith},
 };
 use swc_ecmascript::{utils::find_ids, utils::Id};
 
@@ -21,7 +20,7 @@ impl LintRule for NoUndef {
     Box::new(NoUndef)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -29,39 +28,29 @@ impl LintRule for NoUndef {
     "no-undef"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut collector = BindingCollector {
-      top_level_ctxt: context.top_level_ctxt,
       declared: Default::default(),
     };
-    module.visit_with(module, &mut collector);
+    program.visit_all_with(program, &mut collector);
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 
-/// Collects top level bindings, which have top level syntax
-/// context passed to the resolver.
 struct BindingCollector {
-  /// Optimization. Unresolved references and top
-  /// level bindings will have this context.
-  top_level_ctxt: SyntaxContext,
-
   /// If there exists a binding with such id, it's not global.
   declared: HashSet<Id>,
 }
 
 impl BindingCollector {
   fn declare(&mut self, i: Id) {
-    if i.1 != self.top_level_ctxt {
-      return;
-    }
     self.declared.insert(i);
   }
 }
 
-impl Visit for BindingCollector {
+impl VisitAll for BindingCollector {
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
     self.declare(f.ident.to_id());
   }
@@ -138,8 +127,6 @@ impl Visit for BindingCollector {
         self.declare(id);
       }
     }
-
-    c.body.visit_with(c, self);
   }
 }
 
@@ -174,7 +161,7 @@ impl<'c> NoUndefVisitor<'c> {
     }
 
     // Globals
-    if GLOBALS.contains(&&*ident.sym) {
+    if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
       return;
     }
 
@@ -255,248 +242,51 @@ mod tests {
   use super::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok_macro! {
+  fn no_undef_valid() {
+    assert_lint_ok! {
       NoUndef,
-      [
-        "var a = 1, b = 2; a;",
-        "function a(){}  a();",
-        "function f(b) { b; }",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_2() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "var a; a = 1; a++;",
-        "var a; function f() { a = 1; }",
-        "Object; isNaN();",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_3() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "toString()",
-        "hasOwnProperty()",
-        "function evilEval(stuffToEval) { var ultimateAnswer; ultimateAnswer = 42; eval(stuffToEval); }",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_4() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      ["typeof a", "typeof (a)", "var b = typeof a",]
-    };
-  }
-
-  #[test]
-  fn ok_5() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "typeof a === 'undefined'",
-        "if (typeof a === 'undefined') {}",
-        "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_6() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "var toString = 1;",
-        "function myFunc(...foo) {  return foo;}",
-        "function myFunc() { console.log(arguments); }",
-      ],
-    };
-
-    // TODO(kdy1): Parse as jsx
-    // assert_lint_ok::<NoUndef>(
-    //   "var React, App, a=1; React.render(<App attr={a} />);",
-    // );
-  }
-
-  #[test]
-  fn ok_7() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
-        "var Foo; class Bar extends Foo { constructor() { super();  }}",
-        "import Warning from '../lib/warning'; var warn = new Warning('text');",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_8() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "import * as Warning from '../lib/warning'; var warn = new Warning('text');",
-        "var a; [a] = [0];",
-        "var a; ({a} = {});",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_9() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "var a; ({b: a} = {});",
-        "var obj; [obj.a, obj.b] = [0, 1];",
-        "(foo, bar) => { foo ||= WeakRef; bar ??= FinalizationRegistry; }",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_10() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "Array = 1;",
-        "class A { constructor() { new.target; } }",
-        r#"export * as ns from "source""#,
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_11() {
-    assert_lint_ok_macro! {
-      NoUndef,
-      [
-        "import.meta",
-        "
-        await new Promise((resolve: () => void, _) => {
-          setTimeout(resolve, 100);
-        });
-        ",
-      ],
-    };
-  }
-
-  #[test]
-  fn ok_12() {
-    assert_lint_ok_macro! {
-      NoUndef,
+      "var a = 1, b = 2; a;",
+      "function a(){}  a();",
+      "function f(b) { b; }",
+      "var a; a = 1; a++;",
+      "var a; function f() { a = 1; }",
+      "Object; isNaN();",
+      "toString()",
+      "hasOwnProperty()",
+      "function evilEval(stuffToEval) { var ultimateAnswer; ultimateAnswer = 42; eval(stuffToEval); }",
+      "typeof a",
+      "typeof (a)",
+      "var b = typeof a",
+      "typeof a === 'undefined'",
+      "if (typeof a === 'undefined') {}",
+      "function foo() { var [a, b=4] = [1, 2]; return {a, b}; }",
+      "var toString = 1;",
+      "function myFunc(...foo) {  return foo;}",
+      "function myFunc() { console.log(arguments); }",
+      // TODO(kdy1): Parse as jsx
+      // "var React, App, a=1; React.render(<App attr={a} />);",
+      "var console; [1,2,3].forEach(obj => {\n  console.log(obj);\n});",
+      "var Foo; class Bar extends Foo { constructor() { super();  }}",
+      "import Warning from '../lib/warning'; var warn = new Warning('text');",
+      "import * as Warning from '../lib/warning'; var warn = new Warning('text');",
+      "var a; [a] = [0];",
+      "var a; ({a} = {});",
+      "var a; ({b: a} = {});",
+      "var obj; [obj.a, obj.b] = [0, 1];",
+      "(foo, bar) => { foo ||= WeakRef; bar ??= FinalizationRegistry; }",
+      "Array = 1;",
+      "class A { constructor() { new.target; } }",
+      r#"export * as ns from "source""#,
+      "import.meta",
+      "
+      await new Promise((resolve: () => void, _) => {
+        setTimeout(resolve, 100);
+      });
+      ",
       "
       const importPath = \"./foo.ts\";
       const dataProcessor = await import(importPath);
       ",
-    };
-  }
-
-  #[test]
-  fn err_1() {
-    assert_lint_err_macro! {
-      NoUndef,
-      "a = 1;": [
-        {
-          col: 0,
-          message: "a is not defined",
-        },
-      ],
-      "var a = b;": [
-        {
-          col: 8,
-          message: "b is not defined",
-        },
-      ],
-      "function f() { b; }": [
-        {
-          col: 15,
-          message: "b is not defined",
-        },
-      ],
-    };
-  }
-
-  #[test]
-  fn err_2() {
-    // assert_lint_err_macro! {
-    //   NoUndef,
-    //   "var React; React.render(<img attr={a} />);": [
-    //     {
-    //       col: 0,
-    //       message: "a is not defined",
-    //      },
-    //   ],
-    // };
-  }
-
-  #[test]
-  fn err_3() {
-    assert_lint_err_macro! {
-      NoUndef,
-      // "var React, App; React.render(<App attr={a} />);": [
-      //   {
-      //     col: 0,
-      //     message: "a is not defined",
-      //   },
-      // ],
-      "[a] = [0];": [
-        {
-          col: 1,
-          message: "a is not defined",
-        },
-      ],
-      "({a} = {});": [
-        {
-          col: 2,
-          message: "a is not defined",
-        },
-      ],
-    };
-  }
-
-  #[test]
-  fn err_4() {
-    assert_lint_err_macro! {
-      NoUndef,
-      "({b: a} = {});": [
-        {
-          col: 5,
-          message: "a is not defined",
-        },
-      ],
-      "[obj.a, obj.b] = [0, 1];": [
-        {
-          col: 1,
-          message: "obj is not defined",
-        },
-        {
-          col: 8,
-          message: "obj is not defined",
-        },
-      ],
-      "const c = 0; const a = {...b, c};": [
-        {
-          col: 27,
-          message: "b is not defined",
-        },
-      ],
-    };
-  }
-
-  #[test]
-  fn deno_ok_1() {
-    assert_lint_ok_macro! {
-      NoUndef,
       r#"
     class PartWriter implements Deno.Writer {
       closed = false;
@@ -536,15 +326,7 @@ mod tests {
         return this.writer.write(p);
       }
     }
-
     "#,
-    };
-  }
-
-  #[test]
-  fn deno_ok_2() {
-    assert_lint_ok_macro! {
-      NoUndef,
       r#"
     const listeners = [];
     for (const listener of listeners) {
@@ -554,6 +336,115 @@ mod tests {
       }
     }
     "#,
+
+      // https://github.com/denoland/deno_lint/issues/463
+      r#"
+    (() => {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    })();
+        "#,
+      r#"
+    function f() {
+      function foo() {
+        return new Bar();
+      }
+      class Bar {}
+    }
+    "#,
+      r#"
+    function f() {
+      foo++;
+      {
+        var foo = 1;
+      }
+    }
+    "#,
+    };
+  }
+
+  #[test]
+  fn no_undef_invalid() {
+    assert_lint_err! {
+      NoUndef,
+      "a = 1;": [
+        {
+          col: 0,
+          message: "a is not defined",
+        },
+      ],
+      "var a = b;": [
+        {
+          col: 8,
+          message: "b is not defined",
+        },
+      ],
+      "function f() { b; }": [
+        {
+          col: 15,
+          message: "b is not defined",
+        },
+      ],
+      // "var React; React.render(<img attr={a} />);": [
+      //   {
+      //     col: 0,
+      //     message: "a is not defined",
+      //    },
+      // ],
+      // "var React, App; React.render(<App attr={a} />);": [
+      //   {
+      //     col: 0,
+      //     message: "a is not defined",
+      //   },
+      // ],
+      "[a] = [0];": [
+        {
+          col: 1,
+          message: "a is not defined",
+        },
+      ],
+      "({a} = {});": [
+        {
+          col: 2,
+          message: "a is not defined",
+        },
+      ],
+      "({b: a} = {});": [
+        {
+          col: 5,
+          message: "a is not defined",
+        },
+      ],
+      "[obj.a, obj.b] = [0, 1];": [
+        {
+          col: 1,
+          message: "obj is not defined",
+        },
+        {
+          col: 8,
+          message: "obj is not defined",
+        },
+      ],
+      "const c = 0; const a = {...b, c};": [
+        {
+          col: 27,
+          message: "b is not defined",
+        },
+      ],
+      "foo++; function f() { var foo = 0; }": [
+        {
+          col: 0,
+          message: "foo is not defined",
+        },
+      ],
+      "foo++; { let foo = 0; }": [
+        {
+          col: 0,
+          message: "foo is not defined",
+        },
+      ],
     };
   }
 }

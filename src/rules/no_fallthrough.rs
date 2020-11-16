@@ -1,6 +1,6 @@
 use super::LintRule;
 use crate::linter::Context;
-use swc_common::{comments::Comment, Spanned, DUMMY_SP};
+use swc_common::{comments::Comment, Span, Spanned, DUMMY_SP};
 use swc_ecmascript::{
   ast::*,
   visit::{noop_visit_type, Node, Visit, VisitWith},
@@ -13,7 +13,7 @@ impl LintRule for NoFallthrough {
     Box::new(NoFallthrough)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -21,13 +21,62 @@ impl LintRule for NoFallthrough {
     "no-fallthrough"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoFallthroughVisitor { context };
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the implicit fallthrough of case statements
+
+Case statements without a `break` will execute their body and then fallthrough
+to the next case or default block and execute this block as well.  While this
+is sometimes intentional, many times the developer has forgotten to add a break
+statement, intending only for a single case statement to be executed.  This
+rule enforces that you either end each case statement with a break statement or
+an explicit comment that fallthrough was intentional.  The fallthrough comment
+must contain one of `fallthrough`, `falls through` or `fall through`.
+    
+### Invalid:
+```typescript
+switch(myVar) {
+  case 1:
+    console.log('1');
+
+  case 2:
+    console.log('2');
+}
+// If myVar = 1, outputs both `1` and `2`.  Was this intentional?
+```
+
+### Valid:
+```typescript
+switch(myVar) {
+  case 1:
+    console.log('1');
+    break;
+
+  case 2:
+    console.log('2');
+    break;
+}
+// If myVar = 1, outputs only `1`
+
+switch(myVar) {
+  case 1:
+    console.log('1');
+    /* falls through */
+
+  case 2:
+    console.log('2');
+}
+// If myVar = 1, intentionally outputs both `1` and `2`
+```
+"#
   }
 }
 
@@ -54,10 +103,11 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
           }
         }
         if emit {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             prev_span,
             "no-fallthrough",
             "Fallthrough is not allowed",
+            "Add `break` or comment `/* falls through */` to your case statement"
           );
         }
       }
@@ -93,18 +143,18 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
           _ => false,
         };
 
-      if case_idx + 1 < cases.len() {
-        // A case is not allowed to fall through to default handler
-        if cases[case_idx + 1].test.is_none() {
-          if empty {
-            should_emit_err = true;
-          }
-        } else {
-          // Fallthrough
-          if empty {
-            should_emit_err = false;
-          }
-        }
+      if case_idx + 1 < cases.len() && empty {
+        let span = Span {
+          lo: case.span.lo(),
+          hi: cases[case_idx + 1].span.lo(),
+          ctxt: case.span.ctxt,
+        };
+        let span_lines = self.context.source_map.span_to_lines(span).unwrap();
+        // When the case body contains only new lines `case.cons` will be empty.
+        // This means there are no statements detected so we must detect case
+        // bodies made up of only new lines by counting the total amount of new lines.
+        // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
+        should_emit_err = span_lines.lines.len() > 2;
       }
 
       prev_span = case.span;
@@ -131,153 +181,47 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok::<NoFallthrough>(
+  fn no_fallthrough_valid() {
+    assert_lint_ok! {
+      NoFallthrough,
       "switch(foo) { case 0: a(); /* falls through */ case 1: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: a()\n /* falls through */ case 1: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: a(); /* fall through */ case 1: b(); }",
-    );
-  }
-
-  #[test]
-  fn ok_2() {
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: a(); /* fallthrough */ case 1: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: a(); /* FALLS THROUGH */ case 1: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "function foo() { switch(foo) { case 0: a(); return; case 1: b(); }; }",
-    );
-  }
-
-  #[test]
-  fn ok_3() {
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: a(); throw 'foo'; case 1: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "while (a) { switch(foo) { case 0: a(); continue; case 1: b(); } }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: a(); break; case 1: b(); }",
-    );
-  }
-
-  #[test]
-  fn ok_4() {
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: case 1: a(); break; case 2: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: case 1: break; case 2: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch(foo) { case 0: case 1: break; default: b(); }",
-    );
-  }
-
-  #[test]
-  fn ok_5() {
-    assert_lint_ok::<NoFallthrough>("switch(foo) { case 0: case 1: a(); }");
-
-    assert_lint_ok::<NoFallthrough>(
+      "switch(foo) { case 0: case 1: a(); }",
       "switch(foo) { case 0: case 1: a(); break; }",
-    );
-
-    assert_lint_ok::<NoFallthrough>("switch(foo) { case 0: case 1: break; }");
-  }
-
-  #[test]
-  fn ok_6() {
-    assert_lint_ok::<NoFallthrough>("switch(foo) { case 0:\n case 1: break; }");
-
-    assert_lint_ok::<NoFallthrough>(
+      "switch(foo) { case 0: case 1: break; }",
+      "switch(foo) { case 0:\n case 1: break; }",
       "switch(foo) { case 0: // comment\n case 1: break; }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "function foo() { switch(foo) { case 0: case 1: return; } }",
-    );
-  }
-
-  #[test]
-  fn ok_7() {
-    assert_lint_ok::<NoFallthrough>(
       "function foo() { switch(foo) { case 0: {return;}\n case 1: {return;} } }",
-    );
-
-    assert_lint_ok::<NoFallthrough>("switch(foo) { case 0: case 1: {break;} }");
-
-    assert_lint_ok::<NoFallthrough>("switch(foo) { }");
-  }
-
-  #[test]
-  fn ok_8() {
-    assert_lint_ok::<NoFallthrough>(
+      "switch(foo) { case 0: case 1: {break;} }",
+      "switch(foo) { }",
       "switch(foo) { case 0: switch(bar) { case 2: break; } /* falls through */ case 1: break; }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "function foo() { switch(foo) { case 1: return a; a++; }}",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: a(); /* falls through */ default:  b(); /* comment */ }",
-    );
-  }
-
-  #[test]
-  fn ok_9() {
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: a(); /* falls through */ default: /* comment */ b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: if (a) { break; } else { throw 0; } default: b(); }",
-    );
-
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: try { break; } finally {} default: b(); }",
-    );
-  }
-
-  #[test]
-  fn ok_10() {
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: try {} finally { break; } default: b(); }",
-    );
-  }
-
-  #[test]
-  fn ok_11() {
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: try { throw 0; } catch (err) { break; } default: b(); }",
-    );
-  }
-
-  #[test]
-  fn ok_12() {
-    assert_lint_ok::<NoFallthrough>(
       "switch (foo) { case 0: do { throw 0; } while(a); default: b(); }",
-    );
+      "switch('test') { case 'symbol':\n case 'function': default: b(); }",
+      "switch('test') { case 'symbol':\n case 'function':\n default: b(); }",
+      "switch('test') { case 'symbol': case 'function': default: b(); }",
+    };
   }
 
   #[test]
-  fn err_1() {
+  fn no_fallthrough_invalid() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a();\ncase 1: b() }",
       14,
@@ -292,10 +236,6 @@ mod tests {
       "switch(foo) { case 0: a(); default: b() }",
       14,
     );
-  }
-
-  #[test]
-  fn err_2() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: if (a) { break; } default: b() }",
       14,
@@ -310,21 +250,12 @@ mod tests {
       "switch(foo) { case 0: while (a) { break; } default: b() }",
       14,
     );
-  }
-
-  #[test]
-  #[ignore = "It ends with break statement"]
-  fn err_3_wrong() {
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: do { break; } while (a); default: b() }",
-      47,
-    );
-  }
-
-  #[test]
-  fn err_3() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0:\n\n default: b() }",
+      14,
+    );
+    assert_lint_err::<NoFallthrough>(
+      "switch(foo) { case 0:\n\n b()\n default: b() }",
       14,
     );
 
@@ -332,13 +263,18 @@ mod tests {
       "switch(foo) { case 0:\n // comment\n default: b() }",
       14,
     );
-  }
-
-  #[test]
-  fn err_4() {
     assert_lint_err::<NoFallthrough>(
       "switch(foo) { case 0: a(); /* falling through */ default: b() }",
       14,
+    );
+  }
+
+  #[test]
+  #[ignore = "It ends with break statement"]
+  fn no_fallthrough_invalid_2() {
+    assert_lint_err::<NoFallthrough>(
+      "switch(foo) { case 0: do { break; } while (a); default: b() }",
+      47,
     );
   }
 }

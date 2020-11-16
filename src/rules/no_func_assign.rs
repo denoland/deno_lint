@@ -14,7 +14,7 @@ impl LintRule for NoFuncAssign {
     Box::new(NoFuncAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -22,13 +22,50 @@ impl LintRule for NoFuncAssign {
     "no-func-assign"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the overwriting/reassignment of an existing function
+
+Javascript allows for the reassignment of a function definition.  This is
+generally a mistake on the developers part, or poor coding practice as code
+readability and maintainability will suffer.
+    
+### Invalid:
+```typescript
+function foo() {}
+foo = bar;
+
+const a = function baz() {
+  baz = "now I'm a string";
+}
+
+myFunc = existingFunc;
+function myFunc() {}
+```
+
+### Valid:
+```typescript
+function foo() {}
+const someVar = foo;
+
+const a = function baz() {
+  const someStr = "now I'm a string";
+}
+
+const anotherFuncRef = existingFunc;
+
+let myFuncVar = function() {}
+myFuncVar = bar;  // variable reassignment, not function re-declaration
+```
+"#
   }
 }
 
@@ -52,10 +89,11 @@ impl<'c> Visit for NoFuncAssignVisitor<'c> {
       let var = self.context.scope.var(&id);
       if let Some(var) = var {
         if let BindingKind::Function = var.kind() {
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             assign_expr.span,
             "no-func-assign",
             "Reassigning function declaration is not allowed",
+            "Remove or rework the reassignment of the existing function",
           );
         }
       }

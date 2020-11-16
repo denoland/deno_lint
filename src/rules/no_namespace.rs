@@ -12,7 +12,7 @@ impl LintRule for NoNamespace {
     Box::new(NoNamespace)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -20,13 +20,13 @@ impl LintRule for NoNamespace {
     "no-namespace"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoNamespaceVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -46,7 +46,7 @@ impl<'c> Visit for NoNamespaceVisitor<'c> {
     mod_decl: &TsModuleDecl,
     parent: &dyn Node,
   ) {
-    if !mod_decl.global {
+    if !mod_decl.global && !mod_decl.declare {
       if let TsModuleName::Ident(_) = mod_decl.id {
         self.context.add_diagnostic(
           mod_decl.span,
@@ -68,15 +68,19 @@ mod tests {
 
   #[test]
   fn no_namespace_valid() {
-    assert_lint_ok::<NoNamespace>(r#"declare global {}"#);
-    assert_lint_ok::<NoNamespace>(r#"declare module 'foo' {}"#);
+    assert_lint_ok! {
+      NoNamespace,
+      r#"declare global {}"#,
+      r#"declare module 'foo' {}"#,
+      r#"declare module foo {}"#,
+      r#"declare namespace foo {}"#,
+    };
   }
+
   #[test]
   fn no_namespace_invalid() {
     assert_lint_err::<NoNamespace>("module foo {}", 0);
-    assert_lint_err::<NoNamespace>("declare module foo {}", 0);
     assert_lint_err::<NoNamespace>("namespace foo {}", 0);
-    assert_lint_err::<NoNamespace>("declare namespace foo {}", 0);
     assert_lint_err_n::<NoNamespace>(
       "namespace Foo.Bar { namespace Baz.Bas {} }",
       vec![0, 20],

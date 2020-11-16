@@ -16,13 +16,13 @@ impl LintRule for ExplicitFunctionReturnType {
     "explicit-function-return-type"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 
   fn docs(&self) -> &'static str {
@@ -31,18 +31,19 @@ impl LintRule for ExplicitFunctionReturnType {
 Explicit return types have a number of advantages including easier to understand
 code and better type safety.  It is clear from the signature what the return 
 type of the function (if any) will be.
+
+### Invalid:
+```typescript
+function someCalc() { return 2*2; }
+function anotherCalc() { return; }
+```
     
 ### Valid:
 ```typescript
 function someCalc(): number { return 2*2; }
 function anotherCalc(): void { return; }
 ```
-
-### Invalid:
-```typescript
-function someCalc() { return 2*2; }
-function anotherCalc() { return; }
-```"#
+"#
   }
 }
 
@@ -85,11 +86,12 @@ mod tests {
 
   #[test]
   fn explicit_function_return_type_valid() {
-    assert_lint_ok_n::<ExplicitFunctionReturnType>(vec![
+    assert_lint_ok! {
+      ExplicitFunctionReturnType,
       "function fooTyped(): void { }",
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
-    ]);
+    };
   }
 
   #[test]

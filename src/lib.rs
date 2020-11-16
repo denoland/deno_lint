@@ -3,18 +3,17 @@
 #![deny(warnings)]
 
 #[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
 extern crate log;
 
 #[cfg(test)]
 #[macro_use]
 mod test_util;
 
+pub mod ast_parser;
 mod control_flow;
 pub mod diagnostic;
 mod globals;
+mod ignore_directives;
 mod js_regex;
 pub mod linter;
 pub mod rules;
@@ -25,28 +24,46 @@ pub mod swc_util;
 mod lint_tests {
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
-  use crate::rules::get_recommended_rules;
+  use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::assert_diagnostic;
 
   fn lint(
     source: &str,
     unknown_rules: bool,
     unused_dir: bool,
+    rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
     let mut linter = LinterBuilder::default()
       .lint_unknown_rules(unknown_rules)
       .lint_unused_ignore_directives(unused_dir)
-      .rules(get_recommended_rules())
+      .rules(rules)
       .build();
 
-    linter
+    let (_, diagnostics) = linter
       .lint("lint_test.ts".to_string(), source.to_string())
-      .expect("Failed to lint")
+      .expect("Failed to lint");
+    diagnostics
+  }
+
+  fn lint_recommended_rules(
+    source: &str,
+    unknown_rules: bool,
+    unused_dir: bool,
+  ) -> Vec<LintDiagnostic> {
+    lint(source, unknown_rules, unused_dir, get_recommended_rules())
+  }
+
+  fn lint_specified_rule<T: LintRule + 'static>(
+    source: &str,
+    unknown_rules: bool,
+    unused_dir: bool,
+  ) -> Vec<LintDiagnostic> {
+    lint(source, unknown_rules, unused_dir, vec![T::new()])
   }
 
   #[test]
   fn empty_file() {
-    let diagnostics = lint("", true, false);
+    let diagnostics = lint_recommended_rules("", true, false);
     assert!(diagnostics.is_empty());
   }
 
@@ -59,7 +76,7 @@ mod lint_tests {
    let bar_foo = true
  }
       "#;
-    let diagnostics = lint(src, true, false);
+    let diagnostics = lint_recommended_rules(src, true, false);
 
     assert_diagnostic(&diagnostics[0], "ban-unknown-rule-code", 2, 1, src);
     assert_diagnostic(&diagnostics[1], "ban-unknown-rule-code", 4, 3, src);
@@ -67,7 +84,7 @@ mod lint_tests {
 
   #[test]
   fn ignore_unknown_rules() {
-    let diagnostics = lint(
+    let diagnostics = lint_recommended_rules(
       r#"
  // deno-lint-ignore some-rule
  function foo() {
@@ -82,15 +99,30 @@ mod lint_tests {
   }
 
   #[test]
+  fn unknown_rules_always_know_available_rules() {
+    use crate::rules::camelcase::Camelcase;
+    let diagnostics = lint_specified_rule::<Camelcase>(
+      r#"
+// deno-lint-ignore no-explicit-any
+const fooBar: any = 42;
+      "#,
+      true,
+      false,
+    );
+
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
   fn warn_unused_dir() {
     let src = r#"
  // deno-lint-ignore no-explicit-any
  function bar(p: boolean) {
    // deno-lint-ignore no-misused-new eqeqeq
-   const foo_bar = false
+   const foo = false
  }
       "#;
-    let diagnostics = lint(src, false, true);
+    let diagnostics = lint_recommended_rules(src, false, true);
 
     assert_eq!(diagnostics.len(), 2);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1, src);
@@ -99,7 +131,7 @@ mod lint_tests {
 
   #[test]
   fn ignore_unused_dir() {
-    let diagnostics = lint(
+    let diagnostics = lint_recommended_rules(
       r#"
  // deno-lint-ignore no-explicit-any
  function bar(p: boolean) {
@@ -114,8 +146,23 @@ mod lint_tests {
   }
 
   #[test]
+  fn unused_dir_not_report_unexecuted_rule() {
+    use crate::rules::camelcase::Camelcase;
+    let diagnostics = lint_specified_rule::<Camelcase>(
+      r#"
+// deno-lint-ignore no-explicit-any
+const fooBar = 42;
+      "#,
+      false,
+      true,
+    );
+
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
   fn file_directive_with_code() {
-    let diagnostics = lint(
+    let diagnostics = lint_recommended_rules(
       r#"
  // deno-lint-ignore-file no-explicit-any
 
@@ -139,7 +186,7 @@ mod lint_tests {
    // pass
  }
       "#;
-    let diagnostics = lint(src, false, true);
+    let diagnostics = lint_recommended_rules(src, false, true);
 
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1, src);
@@ -155,7 +202,7 @@ mod lint_tests {
    // pass
  }
       "#;
-    let diagnostics = lint(src, false, true);
+    let diagnostics = lint_recommended_rules(src, false, true);
 
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1, src);

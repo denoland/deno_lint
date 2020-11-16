@@ -1,32 +1,37 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_ecmascript::ast::Number;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoOctal;
 
+const CODE: &str = "no-octal";
+const MESSAGE: &str = "`Octal number` is not allowed";
+
 impl LintRule for NoOctal {
   fn new() -> Box<Self> {
     Box::new(NoOctal)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-octal"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoOctalVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -42,9 +47,7 @@ impl<'c> NoOctalVisitor<'c> {
 
 impl<'c> Visit for NoOctalVisitor<'c> {
   fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
-    lazy_static! {
-      static ref OCTAL: regex::Regex = regex::Regex::new(r"^0[0-9]").unwrap();
-    }
+    static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
     let raw_number = self
       .context
@@ -53,11 +56,7 @@ impl<'c> Visit for NoOctalVisitor<'c> {
       .expect("error in loading snippet");
 
     if OCTAL.is_match(&raw_number) {
-      self.context.add_diagnostic(
-        literal_num.span,
-        "no-octal",
-        "`Octal number` is not allowed",
-      );
+      self.context.add_diagnostic(literal_num.span, CODE, MESSAGE);
     }
   }
 }
@@ -65,20 +64,24 @@ impl<'c> Visit for NoOctalVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn test_literal_octal() {
-    assert_lint_err::<NoOctal>("07", 0);
+  fn no_octal_valid() {
+    assert_lint_ok! {
+      NoOctal,
+      "7",
+      "\"07\"",
+      "0x08",
+      "-0.01",
+    };
   }
 
   #[test]
-  fn test_operand_octal() {
-    assert_lint_err::<NoOctal>("let x = 7 + 07", 12);
-  }
-
-  #[test]
-  fn test_octals_valid() {
-    assert_lint_ok_n::<NoOctal>(vec!["7", "\"07\"", "0x08", "-0.01"]);
+  fn no_octal_invalid() {
+    assert_lint_err! {
+      NoOctal,
+      "07": [{col: 0, message: MESSAGE}],
+      "let x = 7 + 07": [{col: 12, message: MESSAGE}],
+    }
   }
 }

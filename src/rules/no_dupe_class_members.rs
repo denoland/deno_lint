@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use swc_common::Span;
@@ -8,32 +9,68 @@ use swc_ecmascript::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoDupeClassMembers;
+
+const CODE: &str = "no-dupe-class-members";
+
+#[derive(Display)]
+enum NoDupeClassMembersMessage {
+  #[display(fmt = "Duplicate name '{}'", _0)]
+  Duplicate(String),
+}
+
+#[derive(Display)]
+enum NoDupeClassMembersHint {
+  #[display(fmt = "Rename or remove the function with the duplicated name")]
+  RenameOrRemove,
+}
 
 impl LintRule for NoDupeClassMembers {
   fn new() -> Box<Self> {
     Box::new(NoDupeClassMembers)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-dupe-class-members"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows using a class member function name more than once
+
+Declaring a function of the same name twice in a class will cause the previous
+declaration(s) to be overwritten, causing unexpected behaviors.
+    
+### Invalid:
+```typescript
+class Foo {
+  bar() {}
+  bar() {}
+}
+```
+
+### Valid:
+```typescript
+class Foo {
+  bar() {}
+  fizz() {}
+}
+```
+"#
   }
 }
 
@@ -47,10 +84,11 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
   }
 
   fn add_diagnostic(&mut self, span: Span, name: &str) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
-      "no-dupe-class-members",
-      format!("Duplicate name '{}'", name),
+      CODE,
+      NoDupeClassMembersMessage::Duplicate(name.to_string()),
+      NoDupeClassMembersHint::RenameOrRemove,
     );
   }
 }
@@ -58,9 +96,9 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
 impl<'c> Visit for NoDupeClassMembersVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
     let mut visitor = ClassVisitor::new(self);
-    visitor.visit_class(class, parent);
+    class.visit_children_with(&mut visitor);
     visitor.aggregate_dupes();
   }
 }
@@ -95,17 +133,13 @@ impl<'a, 'b> ClassVisitor<'a, 'b> {
 impl<'a, 'b> Visit for ClassVisitor<'a, 'b> {
   noop_visit_type!();
 
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
     let mut visitor = ClassVisitor::new(self.root_visitor);
-    swc_ecmascript::visit::visit_class(&mut visitor, class, parent);
+    class.visit_children_with(&mut visitor);
     visitor.aggregate_dupes();
   }
 
-  fn visit_class_method(
-    &mut self,
-    class_method: &ClassMethod,
-    parent: &dyn Node,
-  ) {
+  fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
     if class_method.function.body.is_some() {
       if let Some(m) = MethodToCheck::new(
         &class_method.key,
@@ -120,7 +154,7 @@ impl<'a, 'b> Visit for ClassVisitor<'a, 'b> {
           .push((class_method.span, name));
       }
     }
-    swc_ecmascript::visit::visit_class_method(self, class_method, parent);
+    class_method.visit_children_with(self);
   }
 }
 
@@ -209,38 +243,29 @@ impl Ord for MethodToCheck {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_dupe_class_members_valid() {
-    assert_lint_ok::<NoDupeClassMembers>(
+    assert_lint_ok! {
+      NoDupeClassMembers,
       r#"
 class Foo {
   bar() {}
   qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   get bar() {}
   set bar(value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   static bar() {}
   bar() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   static bar() {}
@@ -248,25 +273,16 @@ class Foo {
   set bar(value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class A { foo() {} }
 class B { foo() {} }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [bar]() {}
   bar() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   'bar'() {}
@@ -274,9 +290,6 @@ class Foo {
   qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   *'bar'() {}
@@ -284,9 +297,6 @@ class Foo {
   *qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   get 'bar'() {}
@@ -294,162 +304,108 @@ class Foo {
   get qux() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   1() {}
   2() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['bar']() {}
   ['baz']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [`bar`]() {}
   [`baz`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [12]() {}
   [123]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [1.0]() {}
   ['1.0']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [0x1]() {}
   [`0x1`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [null]() {}
   ['']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   get ['bar']() {}
   set ['bar'](value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['bar']() {}
   static ['bar']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['constructor']() {}
   constructor() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   'constructor'() {}
   [`constructor`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   contrructor() {}
   get [`constructor`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   contrructor() {}
   set [`constructor`](value: number) {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   ['bar' + '']() {}
   ['bar']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [`bar${''}`]() {}
   [`bar`]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [-1]() {}
   ['-1']() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   [foo]() {}
   [foo]() {}
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   foo() {
@@ -460,9 +416,6 @@ class Foo {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoDupeClassMembers>(
       r#"
 class Foo {
   bar(v1: number): number;
@@ -470,273 +423,514 @@ class Foo {
   bar(v1: number | string, v2?: boolean): number | string {}
 }
       "#,
-    );
+    };
   }
 
   #[test]
   fn no_dupe_class_members_invalid() {
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+    assert_lint_err! {
+      NoDupeClassMembers,
       r#"
 class Foo {
   bar() {}
   bar() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 !class Foo {
   bar() {}
   bar() {}
 };
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   'bar'() {}
   'bar'() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   10() {}
   1e1() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "10"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "10"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   ['bar']() {}
   ['bar']() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   static ['bar']() {}
   static bar() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   set 'bar'(value: number) {}
   set ['bar'](val: number) {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   ''() {}
   ['']() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, ""),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, ""),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [`bar`]() {}
   [`bar`]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   static get [`bar`]() {}
   static get ['bar']() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   bar() {}
   [`bar`]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   get [`bar`]() {}
   'bar'() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   static 'bar'() {}
   static [`bar`]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   ['constructor']() {}
   ['constructor']() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "constructor"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "constructor"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   static [`constructor`]() {}
   static ['constructor']() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "constructor"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "constructor"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [123]() {}
   [123]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "123"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "123"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [0x10]() {}
   16() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "16"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "16"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [100]() {}
   [1e2]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "100"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "100"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [123.00]() {}
   [`123`]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "123"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "123"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   static '65'() {}
   static [0o101]() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "65"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "65"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [123n]() {}
   123() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "123"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "123"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   [null]() {}
   'null'() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "null"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "null"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   bar() {}
   get bar() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   bar() {}
   bar() {}
   get bar() {}
 }
-      "#,
-      vec![(3, 2), (4, 2), (5, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 5,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   static bar() {}
   static bar() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   set bar(value: number) {}
   bar() {}
 }
-      "#,
-      vec![(3, 2), (4, 2)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 4,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   foo() {
@@ -746,11 +940,20 @@ class Foo {
     }
   }
 }
-      "#,
-      vec![(5, 6), (6, 6)],
-    );
-
-    assert_lint_err_on_line_n::<NoDupeClassMembers>(
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 6,
+          col: 6,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ],
       r#"
 class Foo {
   bar(v1: number): number;
@@ -758,8 +961,20 @@ class Foo {
   bar(v1: number | string, v2?: boolean): number | string {}
   set bar(value: number) {}
 }
-      "#,
-      vec![(5, 2), (6, 2)],
-    );
+      "#: [
+        {
+          line: 5,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        },
+        {
+          line: 6,
+          col: 2,
+          message: variant!(NoDupeClassMembersMessage, Duplicate, "bar"),
+          hint: NoDupeClassMembersHint::RenameOrRemove,
+        }
+      ]
+    };
   }
 }

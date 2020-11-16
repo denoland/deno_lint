@@ -11,25 +11,28 @@ use std::collections::HashSet;
 
 pub struct NoRedeclare;
 
+const CODE: &str = "no-redeclare";
+const MESSAGE: &str = "Redeclaration is not allowed";
+
 impl LintRule for NoRedeclare {
   fn new() -> Box<Self> {
     Box::new(NoRedeclare)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-redeclare"
+    CODE
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoRedeclareVisitor {
       context,
       bindings: Default::default(),
     };
-    module.visit_with(module, &mut visitor);
+    program.visit_with(program, &mut visitor);
   }
 }
 
@@ -44,11 +47,7 @@ impl<'c> NoRedeclareVisitor<'c> {
     let id = i.to_id();
 
     if !self.bindings.insert(id) {
-      self.context.add_diagnostic(
-        i.span,
-        "no-redeclare",
-        "Redeclaration is not allowed",
-      );
+      self.context.add_diagnostic(i.span, CODE, MESSAGE);
     }
   }
 }
@@ -94,165 +93,54 @@ impl<'c> Visit for NoRedeclareVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn ok_1() {
-    assert_lint_ok::<NoRedeclare>(
+  fn no_redeclare_valid() {
+    assert_lint_ok! {
+      NoRedeclare,
       "var a = 3; var b = function() { var a = 10; };",
-    );
-
-    assert_lint_ok::<NoRedeclare>("var a = 3; a = 10;");
-
-    assert_lint_ok::<NoRedeclare>(
+      "var a = 3; a = 10;",
       "if (true) {\n    let b = 2;\n} else {    \nlet b = 3;\n}",
-    );
-  }
-
-  #[test]
-  fn err_1() {
-    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 15);
-
-    assert_lint_err_on_line::<NoRedeclare>(
-      "switch(foo) { case a: var b = 3;\ncase b: var b = 4}",
-      2,
-      12,
-    );
-
-    assert_lint_err::<NoRedeclare>("var a = 3; var a = 10;", 15);
-  }
-
-  #[test]
-  fn err_2() {
-    assert_lint_err::<NoRedeclare>("var a = {}; var a = [];", 16);
-
-    assert_lint_err::<NoRedeclare>("var a; function a() {}", 16);
-
-    assert_lint_err::<NoRedeclare>("function a() {} function a() {}", 25);
-  }
-
-  #[test]
-  fn err_3() {
-    assert_lint_err::<NoRedeclare>(
-      "var a = function() { }; var a = function() { }",
-      28,
-    );
-
-    assert_lint_err::<NoRedeclare>(
-      "var a = function() { }; var a = new Date();",
-      28,
-    );
-
-    assert_lint_err_n::<NoRedeclare>(
-      "var a = 3; var a = 10; var a = 15;",
-      vec![15, 27],
-    );
-  }
-
-  #[test]
-  fn err_4() {
-    assert_lint_err::<NoRedeclare>("var a; var a;", 11);
-
-    assert_lint_err::<NoRedeclare>("export var a; var a;", 18);
-  }
-
-  #[test]
-  fn err_5() {
-    assert_lint_err_on_line_n::<NoRedeclare>(
-      "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(1, 12)],
-    );
-  }
-
-  #[test]
-  fn err_6() {
-    assert_lint_err_on_line_n::<NoRedeclare>(
-      "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(1, 12)],
-    );
-
-    assert_lint_err_on_line_n::<NoRedeclare>(
-      "var a; var {a = 0, b: Object = 0} = {};",
-      vec![(1, 12)],
-    );
-  }
-
-  #[test]
-  fn err_7() {
-    assert_lint_err_on_line_n::<NoRedeclare>(
-      "var a; var {a = 0, b: globalThis = 0} = {};",
-      vec![(1, 12)],
-    );
-  }
-
-  #[test]
-  fn err_8() {
-    assert_lint_err::<NoRedeclare>("function f() { var a; var a; }", 26);
-
-    assert_lint_err::<NoRedeclare>("function f(a) { var a; }", 20);
-
-    assert_lint_err::<NoRedeclare>(
-      "function f() { var a; if (test) { var a; } }",
-      38,
-    );
-  }
-
-  #[test]
-  fn err_9() {
-    assert_lint_err::<NoRedeclare>("for (var a, a;;);", 12);
-
-    assert_lint_err::<NoRedeclare>("let a; let a;", 11);
-
-    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 13);
-  }
-
-  #[test]
-  fn err_11() {
-    assert_lint_err::<NoRedeclare>("let a; const a = 0;", 13);
-
-    assert_lint_err::<NoRedeclare>("const a = 0; const a = 0;", 19);
-
-    assert_lint_err::<NoRedeclare>("if (test) { let a; let a; }", 23);
-  }
-
-  #[test]
-  fn err_12() {
-    assert_lint_err::<NoRedeclare>(
-      "switch (test) { case 0: let a; let a; }",
-      35,
-    );
-
-    assert_lint_err::<NoRedeclare>("for (let a, a;;);", 12);
-
-    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 13);
-  }
-
-  #[test]
-  fn err_13() {
-    assert_lint_err::<NoRedeclare>("for (let [a, a] in xs);", 13);
-
-    assert_lint_err::<NoRedeclare>("function f() { let a; let a; }", 26);
-
-    assert_lint_err::<NoRedeclare>("function f(a) { let a; }", 20);
-  }
-
-  #[test]
-  fn err_14() {
-    assert_lint_err::<NoRedeclare>(
-      "function f() { if (test) { let a; let a; } }",
-      38,
-    );
-  }
-
-  #[test]
-  fn ok_more_1() {
-    assert_lint_ok::<NoRedeclare>(
       "class C {
         constructor(a: string) {}
       }
       class D {
         constructor(a: string) {}
       }",
-    );
+    };
+  }
+
+  #[test]
+  fn no_redeclare_invalid() {
+    assert_lint_err! {
+      NoRedeclare,
+      "var a = 3; var a = 10;": [{col: 15, message: MESSAGE}],
+      "switch(foo) { case a: var b = 3;\ncase b: var b = 4}": [{col: 12, line: 2, message: MESSAGE}],
+      "var a = 3; var a = 10;": [{col: 15, message: MESSAGE}],
+      "var a = {}; var a = [];": [{col: 16, message: MESSAGE}],
+      "var a; function a() {}": [{col: 16, message: MESSAGE}],
+      "function a() {} function a() {}": [{col: 25, message: MESSAGE}],
+      "var a = function() { }; var a = function() { }": [{col: 28, message: MESSAGE}],
+      "var a = function() { }; var a = new Date();": [{col: 28, message: MESSAGE}],
+      "var a; var a;": [{col: 11, message: MESSAGE}],
+      "export var a; var a;": [{col: 18, message: MESSAGE}],
+      "function f() { var a; var a; }": [{col: 26, message: MESSAGE}],
+      "function f(a) { var a; }": [{col: 20, message: MESSAGE}],
+      "function f() { var a; if (test) { var a; } }": [{col: 38, message: MESSAGE}],
+      "for (var a, a;;);": [{col: 12, message: MESSAGE}],
+      "let a; let a;": [{col: 11, message: MESSAGE}],
+      "let a; const a = 0;": [{col: 13, message: MESSAGE}],
+      "const a = 0; const a = 0;": [{col: 19, message: MESSAGE}],
+      "if (test) { let a; let a; }": [{col: 23, message: MESSAGE}],
+      "switch (test) { case 0: let a; let a; }": [{col: 35, message: MESSAGE}],
+      "for (let a, a;;);": [{col: 12, message: MESSAGE}],
+      "for (let [a, a] in xs);": [{col: 13, message: MESSAGE}],
+      "function f() { let a; let a; }": [{col: 26, message: MESSAGE}],
+      "function f(a) { let a; }": [{col: 20, message: MESSAGE}],
+      "function f() { if (test) { let a; let a; } }": [{col: 38, message: MESSAGE}],
+      "var a = 3; var a = 10; var a = 15;": [{col: 15, message: MESSAGE}, {col: 27, message: MESSAGE}],
+      "var a; var {a = 0, b: Object = 0} = {};": [{line: 1, col: 12, message: MESSAGE}],
+      "var a; var {a = 0, b: globalThis = 0} = {};": [{line: 1, col: 12, message: MESSAGE}],
+    }
   }
 }

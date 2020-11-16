@@ -18,13 +18,13 @@ impl LintRule for NoVar {
     "no-var"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoVarVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -58,7 +58,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_var_test() {
+  fn no_var_invalid() {
     assert_lint_err::<NoVar>(
       r#"var someVar = "someString"; const c = "c"; let a = "a";"#,
       0,

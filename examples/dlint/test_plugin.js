@@ -21,6 +21,6 @@ class Plugin extends Visitor {
     }
 }
 Deno.core.ops();
-let mod = Deno.core.jsonOpSync('module', {});
-let res = new Plugin().collectDiagnostics(mod);
+let programAst = Deno.core.jsonOpSync('get_program', {});
+let res = new Plugin().collectDiagnostics(programAst);
 Deno.core.jsonOpSync('report', res);

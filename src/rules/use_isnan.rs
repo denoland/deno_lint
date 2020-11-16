@@ -12,7 +12,7 @@ impl LintRule for UseIsNaN {
     Box::new(UseIsNaN)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -20,13 +20,13 @@ impl LintRule for UseIsNaN {
     "use-isnan"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = UseIsNaNVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -120,7 +120,7 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn use_isnan_test() {
+  fn use_isnan_invalid() {
     assert_lint_err::<UseIsNaN>("42 === NaN", 0);
     assert_lint_err_on_line_n::<UseIsNaN>(
       r#"

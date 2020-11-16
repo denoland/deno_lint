@@ -1,7 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
 
 use swc_common::Span;
 use swc_ecmascript::ast::AssignExpr;
@@ -27,7 +27,7 @@ impl LintRule for NoSelfAssign {
     Box::new(NoSelfAssign)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -35,13 +35,13 @@ impl LintRule for NoSelfAssign {
     "no-self-assign"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -75,7 +75,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
           }
         }
         (Expr::Lit(l_lit), Expr::Lit(r_lit)) => {
-          if l_lit.get_key() == r_lit.get_key() {
+          if l_lit.string_repr() == r_lit.string_repr() {
             return true;
           }
         }
@@ -83,11 +83,15 @@ impl<'c> NoSelfAssignVisitor<'c> {
       };
     }
 
-    let left_name = if left.computed { None } else { left.get_key() };
+    let left_name = if left.computed {
+      None
+    } else {
+      left.string_repr()
+    };
     let right_name = if right.computed {
       None
     } else {
-      right.get_key()
+      right.string_repr()
     };
 
     if let Some(lname) = left_name {
@@ -128,7 +132,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
 
   fn check_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) {
     if self.is_same_member(left, right) {
-      let name = (&*right.prop).get_key().expect("Should be identifier");
+      let name = (&*right.prop).string_repr().expect("Should be identifier");
       self.add_diagnostic(right.span, name);
     }
   }
@@ -186,8 +190,8 @@ impl<'c> NoSelfAssignVisitor<'c> {
         PropOrSpread::Prop(boxed_prop),
       ) => {
         if let Prop::KeyValue(key_value_prop) = &**boxed_prop {
-          let left_name = (&key_val_pat_prop.key).get_key();
-          let right_name = (&key_value_prop.key).get_key();
+          let left_name = (&key_val_pat_prop.key).string_repr();
+          let right_name = (&key_value_prop.key).string_repr();
 
           if let Some(lname) = left_name {
             if let Some(rname) = right_name {
@@ -296,7 +300,8 @@ mod tests {
 
   #[test]
   fn no_self_assign_valid() {
-    assert_lint_ok_n::<NoSelfAssign>(vec![
+    assert_lint_ok! {
+      NoSelfAssign,
       "var a = a;",
       "a = b",
       "a += a",
@@ -331,7 +336,7 @@ mod tests {
       "this.x = this.y",
       "this.x = options.x",
       "this.name = this.constructor.name",
-    ]);
+    };
   }
 
   #[test]

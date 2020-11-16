@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::swc_util::extract_regex;
+use once_cell::sync::Lazy;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
@@ -15,7 +16,7 @@ impl LintRule for NoRegexSpaces {
     Box::new(NoRegexSpaces)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -23,13 +24,13 @@ impl LintRule for NoRegexSpaces {
     "no-regex-spaces"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -43,14 +44,14 @@ impl<'c> NoRegexSpacesVisitor<'c> {
   }
 
   fn check_regex(&mut self, regex: &str, span: Span) {
-    lazy_static! {
-      static ref DOUBLE_SPACE: regex::Regex =
-        regex::Regex::new(r"(?u) {2}").unwrap();
-      static ref BRACKETS: regex::Regex =
-        regex::Regex::new(r"\[.*?[^\\]\]").unwrap();
-      static ref SPACES: regex::Regex =
-        regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap();
-    }
+    static DOUBLE_SPACE: Lazy<regex::Regex> =
+      Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
+    static BRACKETS: Lazy<regex::Regex> =
+      Lazy::new(|| regex::Regex::new(r"\[.*?[^\\]\]").unwrap());
+    static SPACES: Lazy<regex::Regex> = Lazy::new(|| {
+      regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap()
+    });
+
     if !DOUBLE_SPACE.is_match(regex) {
       return;
     }
@@ -116,7 +117,8 @@ mod tests {
 
   #[test]
   fn no_regex_spaces_valid() {
-    assert_lint_ok_n::<NoRegexSpaces>(vec![
+    assert_lint_ok! {
+      NoRegexSpaces,
       "var foo = /foo/;",
       "var foo = RegExp('foo')",
       "var foo = / /;",
@@ -132,9 +134,11 @@ mod tests {
       "var foo = /  ?/;",
       "var foo = /  */;",
       "var foo = /  {2}/;",
+
       // don't report if RegExp shadowed
       "var RegExp = function() {}; var foo = new RegExp('bar   baz');",
       "var RegExp = function() {}; var foo = RegExp('bar   baz');",
+
       // don't report if there are no consecutive spaces in the source code
       r"var foo = /bar \\ baz/;",
       r"var foo = /bar\\ \\ baz/;",
@@ -146,6 +150,7 @@ mod tests {
       r"var foo = new RegExp('bar \\u0020 baz')",
       r"var foo = new RegExp('bar\\u0020\\u0020baz')",
       r"var foo = new RegExp('bar \\\\u0020 baz')",
+
       // don't report spaces in character classes
       "var foo = /[  ]/;",
       "var foo = /[   ]/;",
@@ -156,11 +161,12 @@ mod tests {
       "var foo = new RegExp(' [  ] ');",
       "var foo = RegExp(' [  ] [  ] ');",
       "var foo = new RegExp(' \\[   \\] ');",
+
       // TODO(@disizali) invalid regexes must handled on separated rule called `no-invalid-regexp`.
       // "var foo = new RegExp('[  ');",
       // "var foo = new RegExp('{  ', 'u');",
       // "var foo = new RegExp(' \\[   ');",
-    ]);
+    };
   }
 
   #[test]

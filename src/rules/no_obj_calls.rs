@@ -12,26 +12,32 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoObjCalls;
 
+const CODE: &str = "no-obj-calls";
+
+fn get_message(callee_name: &str) -> String {
+  format!("`{}` call as function is not allowed", callee_name)
+}
+
 impl LintRule for NoObjCalls {
   fn new() -> Box<Self> {
     Box::new(NoObjCalls)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-obj-calls"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoObjCallsVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -51,7 +57,7 @@ impl<'c> NoObjCallsVisitor<'c> {
         self.context.add_diagnostic(
           span,
           "no-obj-calls",
-          format!("`{}` call as function is not allowed", callee_name),
+          get_message(callee_name),
         );
       }
       _ => {}
@@ -80,65 +86,30 @@ impl<'c> Visit for NoObjCallsVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn test_no_call_math() {
-    assert_lint_err::<NoObjCalls>(r#"Math();"#, 0)
+  fn no_obj_calls_valid() {
+    assert_lint_ok! {
+      NoObjCalls,
+      "Math.PI * 2 * 3;",
+      "JSON.parse(\"{}\");",
+      "Reflect.get({ x: 1, y: 2 }, \"x\");",
+      "Atomics.load(foo, 0);",
+    };
   }
 
   #[test]
-  fn test_no_new_math() {
-    assert_lint_err::<NoObjCalls>(r#"new Math();"#, 0)
-  }
-
-  #[test]
-  fn test_no_call_json() {
-    assert_lint_err::<NoObjCalls>(r#"JSON();"#, 0)
-  }
-
-  #[test]
-  fn test_no_new_json() {
-    assert_lint_err::<NoObjCalls>(r#"new JSON();"#, 0)
-  }
-
-  #[test]
-  fn test_no_call_reflect() {
-    assert_lint_err::<NoObjCalls>(r#"Reflect();"#, 0)
-  }
-
-  #[test]
-  fn test_no_new_reflect() {
-    assert_lint_err::<NoObjCalls>(r#"new Reflect();"#, 0)
-  }
-
-  #[test]
-  fn test_no_call_atomicst() {
-    assert_lint_err::<NoObjCalls>(r#"Atomics();"#, 0)
-  }
-
-  #[test]
-  fn test_no_new_atomics() {
-    assert_lint_err::<NoObjCalls>(r#"new Atomics();"#, 0)
-  }
-
-  #[test]
-  fn test_math_func_ok() {
-    assert_lint_ok::<NoObjCalls>("Math.PI * 2 * 3;");
-  }
-
-  #[test]
-  fn test_new_json_ok() {
-    assert_lint_ok::<NoObjCalls>("JSON.parse(\"{}\");");
-  }
-
-  #[test]
-  fn test_reflect_get_ok() {
-    assert_lint_ok::<NoObjCalls>("Reflect.get({ x: 1, y: 2 }, \"x\");");
-  }
-
-  #[test]
-  fn test_atomic_load_ok() {
-    assert_lint_ok::<NoObjCalls>("Atomics.load(foo, 0);");
+  fn no_obj_calls_invalid() {
+    assert_lint_err! {
+      NoObjCalls,
+      "Math();": [{col: 0, message: get_message("Math")}],
+      "new Math();": [{col: 0, message: get_message("Math")}],
+      "JSON();": [{col: 0, message: get_message("JSON")}],
+      "new JSON();": [{col: 0, message: get_message("JSON")}],
+      "Reflect();": [{col: 0, message: get_message("Reflect")}],
+      "new Reflect();": [{col: 0, message: get_message("Reflect")}],
+      "Atomics();": [{col: 0, message: get_message("Atomics")}],
+      "new Atomics();": [{col: 0, message: get_message("Atomics")}],
+    }
   }
 }

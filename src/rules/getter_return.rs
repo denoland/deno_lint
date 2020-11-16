@@ -1,7 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
+use derive_more::Display;
 use std::collections::BTreeMap;
 use std::mem;
 use swc_common::{Span, Spanned};
@@ -16,26 +17,42 @@ use swc_ecmascript::visit::VisitWith;
 
 pub struct GetterReturn;
 
+const CODE: &str = "getter-return";
+
+#[derive(Display)]
+enum GetterReturnMessage {
+  #[display(fmt = "Expected to return a value in '{}'.", _0)]
+  Expected(String),
+  #[display(fmt = "Expected '{}' to always return a value.", _0)]
+  ExpectedAlways(String),
+}
+
+#[derive(Display)]
+enum GetterReturnHint {
+  #[display(fmt = "Return a value from the getter function")]
+  Return,
+}
+
 impl LintRule for GetterReturn {
   fn new() -> Box<Self> {
     Box::new(GetterReturn)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "getter-return"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = GetterReturnVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
     visitor.report();
   }
 
@@ -44,6 +61,17 @@ impl LintRule for GetterReturn {
 
 Getter functions return the value of a property.  If the function returns no
 value then this contract is broken.
+
+### Invalid:
+```typescript
+let foo = { 
+  get bar() {}
+};
+
+class Person { 
+  get name() {}
+}
+```
     
 ### Valid:
 ```typescript
@@ -59,23 +87,13 @@ class Person {
   }
 }
 ```
-
-### Invalid:
-```typescript
-let foo = { 
-  get bar() {}
-};
-
-class Person { 
-  get name() {}
-}
-```"#
+"#
   }
 }
 
 struct GetterReturnVisitor<'c> {
   context: &'c mut Context,
-  errors: BTreeMap<Span, String>,
+  errors: BTreeMap<Span, GetterReturnMessage>,
   /// If this visitor is currently in a getter, its name is stored.
   getter_name: Option<String>,
   // `true` if a getter contains as least one return statement.
@@ -96,9 +114,9 @@ impl<'c> GetterReturnVisitor<'c> {
     for (span, msg) in &self.errors {
       self.context.add_diagnostic_with_hint(
         *span,
-        "getter-return",
+        CODE,
         msg,
-        "Return a value from the getter function",
+        GetterReturnHint::Return,
       );
     }
   }
@@ -106,12 +124,11 @@ impl<'c> GetterReturnVisitor<'c> {
   fn report_expected(&mut self, span: Span) {
     self.errors.insert(
       span,
-      format!(
-        "Expected to return a value in {}.",
+      GetterReturnMessage::Expected(
         self
           .getter_name
           .clone()
-          .expect("the name of getter is not set")
+          .expect("the name of getter is not set"),
       ),
     );
   }
@@ -119,12 +136,11 @@ impl<'c> GetterReturnVisitor<'c> {
   fn report_always_expected(&mut self, span: Span) {
     self.errors.insert(
       span,
-      format!(
-        "Expected {} to always return a value.",
+      GetterReturnMessage::ExpectedAlways(
         self
           .getter_name
           .clone()
-          .expect("the name of getter is not set")
+          .expect("the name of getter is not set"),
       ),
     );
   }
@@ -149,9 +165,13 @@ impl<'c> GetterReturnVisitor<'c> {
     }
   }
 
-  fn set_getter_name<T: Key>(&mut self, name: &T) {
+  fn set_getter_name<S: StringRepr>(&mut self, name: &S) {
     self.getter_name =
-      Some(name.get_key().unwrap_or_else(|| "[GETTER]".to_string()));
+      Some(name.string_repr().unwrap_or_else(|| "get".to_string()));
+  }
+
+  fn set_default_getter_name(&mut self) {
+    self.getter_name = Some("get".to_string());
   }
 
   fn visit_getter<F>(&mut self, op: F)
@@ -236,20 +256,21 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
       for prop in obj_expr.props.iter() {
         if let PropOrSpread::Prop(prop_expr) = prop {
           if let Prop::KeyValue(kv_prop) = &**prop_expr {
+            // e.g. Object.defineProperty(foo, 'bar', { get: function() {} })
             if let PropName::Ident(ident) = &kv_prop.key {
               if ident.sym != *"get" {
                 return;
               }
 
               self.visit_getter(|a| {
-                a.set_getter_name(&kv_prop.key);
-
                 if let Expr::Fn(fn_expr) = &*kv_prop.value {
+                  a.set_getter_name(&fn_expr.ident);
                   if let Some(body) = &fn_expr.function.body {
                     body.visit_children_with(a);
                     a.check_getter(body.span, prop.span());
                   }
                 } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
+                  a.set_default_getter_name();
                   if let BlockStmtOrExpr::BlockStmt(block_stmt) =
                     &arrow_expr.body
                   {
@@ -260,6 +281,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
               });
             }
           } else if let Prop::Method(method_prop) = &**prop_expr {
+            // e.g. Object.defineProperty(foo, 'bar', { get() {} })
             if let PropName::Ident(ident) = &method_prop.key {
               if ident.sym != *"get" {
                 return;
@@ -293,7 +315,6 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.9.0/tests/lib/rules/getter-return.js
@@ -301,29 +322,20 @@ mod tests {
 
   #[test]
   fn getter_return_valid() {
-    assert_lint_ok::<GetterReturn>("let foo = { get bar() { return true; } };");
-    assert_lint_ok::<GetterReturn>("class Foo { get bar() { return true; } }");
-    assert_lint_ok::<GetterReturn>("class Foo { bar() {} }");
-    assert_lint_ok::<GetterReturn>(
+    assert_lint_ok! {
+      GetterReturn,
+      "let foo = { get bar() { return true; } };",
+      "class Foo { get bar() { return true; } }",
+      "class Foo { bar() {} }",
       "class Foo { get bar() { if (baz) { return true; } else { return false; } } }",
-    );
-    assert_lint_ok::<GetterReturn>("class Foo { get() { return true; } }");
-    assert_lint_ok::<GetterReturn>(
+      "class Foo { get() { return true; } }",
       r#"Object.defineProperty(foo, "bar", { get: function () { return true; } });"#,
-    );
-    assert_lint_ok::<GetterReturn>(
       r#"Object.defineProperty(foo, "bar",
          { get: function () { ~function() { return true; }(); return true; } });"#,
-    );
-    assert_lint_ok::<GetterReturn>(
       r#"Object.defineProperties(foo,
          { bar: { get: function() { return true; } } });"#,
-    );
-    assert_lint_ok::<GetterReturn>(
       r#"Object.defineProperties(foo,
          { bar: { get: function () { ~function() { return true; }(); return true; } } });"#,
-    );
-    assert_lint_ok_n::<GetterReturn>(vec![
       "let get = function() {};",
       "let get = function() { return true; };",
       "let foo = { bar() {} };",
@@ -369,10 +381,8 @@ Object.defineProperty(foo, 'bar', {
   }
 });
       "#,
-    ]);
 
-    // https://github.com/denoland/deno_lint/issues/348
-    assert_lint_ok::<GetterReturn>(
+      // https://github.com/denoland/deno_lint/issues/348
       r#"
 const obj = {
   get root() {
@@ -387,75 +397,183 @@ const obj = {
   }
 };
       "#,
-    );
+
+      // https://github.com/denoland/deno_lint/issues/462
+      r#"
+const obj = {
+  get body() {
+    if (foo) {
+      return 1;
+    } else {
+      doSomething();
+    }
+    return 0;
+  }
+}
+      "#,
+      r#"
+const obj = {
+  get body() {
+    if (this._stream) {
+      return this._stream;
+    }
+
+    if (!this._bodySource) {
+      return null;
+    } else if (this._bodySource instanceof ReadableStream) {
+      this._stream = this._bodySource;
+    } else {
+      const buf = bodyToArrayBuffer(this._bodySource);
+      if (!(buf instanceof ArrayBuffer)) {
+        throw new Error(
+          `Expected ArrayBuffer from body`,
+        );
+      }
+
+      this._stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(buf));
+          controller.close();
+        },
+      });
+    }
+
+    return this._stream;
+  }
+};
+      "#
+    };
   }
 
   #[test]
   fn getter_return_invalid() {
-    // object getter
-    assert_lint_err::<GetterReturn>("const foo = { get getter() {} };", 14);
-    assert_lint_err::<GetterReturn>(
-      "const foo = { get bar() { ~function() { return true; } } };",
-      14,
-    );
-    assert_lint_err::<GetterReturn>(
-      "const foo = { get bar() { if (baz) { return true; } } };",
-      14,
-    );
-    assert_lint_err::<GetterReturn>(
-      "const foo = { get bar() { return; } };",
-      26,
-    );
-    // class getter
-    assert_lint_err::<GetterReturn>("class Foo { get bar() {} }", 12);
-    assert_lint_err::<GetterReturn>(
-      "const foo = class { static get bar() {} }",
-      20,
-    );
-    assert_lint_err::<GetterReturn>(
-      "class Foo { get bar(){ if (baz) { return true; } } }",
-      12,
-    );
-    assert_lint_err::<GetterReturn>(
-      "class Foo { get bar(){ ~function () { return true; }() } }",
-      12,
-    );
-    // Object.defineProperty
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get: function(){} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get(){} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      "Object.defineProperty(foo, 'bar', { get: () => {} });",
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#,
-      36,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#,
-      36,
-    );
-    // optional chaining
-    assert_lint_err::<GetterReturn>(
-      r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#,
-      37,
-    );
-    assert_lint_err::<GetterReturn>(
-      r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#,
-      39,
-    );
-    // nested
-    assert_lint_err_on_line::<GetterReturn>(
+    assert_lint_err! {
+      GetterReturn,
+
+      // object getter
+      "const foo = { get getter() {} };": [
+        {
+          col: 14,
+          message: variant!(GetterReturnMessage, Expected, "getter"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "const foo = { get bar() { ~function() { return true; } } };": [
+        {
+          col: 14,
+          // TODO(magurotuna): thie message should be `Expected`
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "const foo = { get bar() { if (baz) { return true; } } };": [
+        {
+          col: 14,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "const foo = { get bar() { return; } };": [
+        {
+          col: 26,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // class getter
+      "class Foo { get bar() {} }": [
+        {
+          col: 12,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "const foo = class { static get bar() {} }": [
+        {
+          col: 20,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "class Foo { get bar(){ if (baz) { return true; } } }": [
+        {
+          col: 12,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "class Foo { get bar(){ ~function () { return true; }() } }": [
+        {
+          col: 12,
+          // TODO(magurotuna): thie message should be `Expected`
+          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // Object.defineProperty
+      "Object.defineProperty(foo, 'bar', { get: function(){} });": [
+        {
+          col: 36,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Object.defineProperty(foo, 'bar', { get: function getfoo(){} });": [
+        {
+          col: 36,
+          message: variant!(GetterReturnMessage, Expected, "getfoo"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Object.defineProperty(foo, 'bar', { get(){} });": [
+        {
+          col: 36,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Object.defineProperty(foo, 'bar', { get: () => {} });": [
+        {
+          col: 36,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      r#"Object.defineProperty(foo, "bar", { get: function() { if(bar) { return true; } } });"#: [
+        {
+          col: 36,
+          message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
+        {
+          col: 36,
+          // TODO(magurotuna): thie message should be `Expected`
+          message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // optional chaining
+      r#"Object?.defineProperty(foo, 'bar', { get: function(){} });"#: [
+        {
+          col: 37,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      r#"(Object?.defineProperty)(foo, 'bar', { get: function(){} });"#: [
+        {
+          col: 39,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // nested
       r#"
 const foo = {
   get getter() {
@@ -465,11 +583,14 @@ const foo = {
     return 42;
   }
 };
-      "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<GetterReturn>(
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: variant!(GetterReturnMessage, Expected, "getter"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
       r#"
 class Foo {
   get foo() {
@@ -479,11 +600,14 @@ class Foo {
     return 42;
   }
 }
-      "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<GetterReturn>(
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
       r#"
 Object.defineProperty(foo, 'bar', {
   get: function() {
@@ -493,14 +617,28 @@ Object.defineProperty(foo, 'bar', {
     return 42;
   }
 });
-      "#,
-      5,
-      6,
-    );
-    // other
-    assert_lint_err_n::<GetterReturn>(
-      "class b { get getterA() {} private get getterB() {} }",
-      vec![10, 27],
-    );
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // other
+      "class b { get getterA() {} private get getterB() {} }": [
+        {
+          col: 10,
+          message: variant!(GetterReturnMessage, Expected, "getterA"),
+          hint: GetterReturnHint::Return,
+        },
+        {
+          col: 27,
+          message: variant!(GetterReturnMessage, Expected, "getterB"),
+          hint: GetterReturnHint::Return,
+        }
+      ]
+    };
   }
 }

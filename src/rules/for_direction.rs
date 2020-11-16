@@ -13,8 +13,8 @@ use swc_ecmascript::ast::UpdateExpr;
 use swc_ecmascript::ast::UpdateOp;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct ForDirection;
 
@@ -23,7 +23,7 @@ impl LintRule for ForDirection {
     Box::new(ForDirection)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -31,13 +31,13 @@ impl LintRule for ForDirection {
     "for-direction"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = ForDirectionVisitor::new(context);
-    visitor.visit_module(module, module);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -46,19 +46,24 @@ impl LintRule for ForDirection {
 Incrementing `for` loop control variables in the wrong direction leads to infinite
 loops.  This can occur through incorrect initialization, bad continuation step logic
 or wrong direction incrementing of the loop control variable.  
-    
-### Valid:
-```typescript
-for(let i = 0; i < 2; i++) {}
-```
 
 ### Invalid:
 ```typescript
 // Infinite loop
 for(let i = 0; i < 2; i--) {}
-```"#
+```
+
+### Valid:
+```typescript
+for(let i = 0; i < 2; i++) {}
+```
+"#
   }
 }
+
+const MESSAGE: &str = "Update clause moves variable in the wrong direction";
+const HINT: &str =
+  "Flip the update clause logic or change the continuation step condition";
 
 struct ForDirectionVisitor<'c> {
   context: &'c mut Context,
@@ -143,12 +148,10 @@ impl<'c> ForDirectionVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ForDirectionVisitor<'c> {
+impl<'c> VisitAll for ForDirectionVisitor<'c> {
   noop_visit_type!();
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
-    for_stmt.visit_children_with(self);
-
     if for_stmt.update.is_none() {
       return;
     }
@@ -181,8 +184,8 @@ impl<'c> Visit for ForDirectionVisitor<'c> {
           self.context.add_diagnostic_with_hint(
             for_stmt.span,
             "for-direction",
-            "Update clause moves variable in the wrong direction",
-            "Flip the update clause logic or change the continuation step condition"
+            MESSAGE,
+            HINT,
           );
         }
       }
@@ -193,12 +196,11 @@ impl<'c> Visit for ForDirectionVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn for_direction_valid() {
-    assert_lint_ok_n::<ForDirection>(vec![
-      // ++, --
+    assert_lint_ok! {
+      ForDirection,
       "for(let i = 0; i < 2; i++) {}",
       "for(let i = 0; i < 2; ++i) {}",
       "for(let i = 0; i <= 2; i++) {}",
@@ -207,7 +209,6 @@ mod tests {
       "for(let i = 2; i > 2; --i) {}",
       "for(let i = 2; i >= 0; i--) {}",
       "for(let i = 2; i >= 0; --i) {}",
-      // +=, -=
       "for(let i = 0; i < 2; i += 1) {}",
       "for(let i = 0; i <= 2; i += 1) {}",
       "for(let i = 0; i < 2; i -= -1) {}",
@@ -216,12 +217,10 @@ mod tests {
       "for(let i = 2; i >= 0; i -= 1) {}",
       "for(let i = 2; i > 2; i += -1) {}",
       "for(let i = 2; i >= 0; i += -1) {}",
-      // no update
       "for(let i = 0; i < 2;) {}",
       "for(let i = 0; i <= 2;) {}",
       "for(let i = 2; i > 2;) {}",
       "for(let i = 2; i >= 0;) {}",
-      // others
       "for(let i = 0; i < 2; i |= 2) {}",
       "for(let i = 0; i <= 2; i %= 2) {}",
       "for(let i = 0; i < 2; j++) {}",
@@ -232,40 +231,144 @@ mod tests {
       "for(let i = 0; i != 10; i++) {}",
       "for(let i = 0; i === 0; i++) {}",
       "for(let i = 0; i == 0; i++) {}",
-      // nested
       "for(let i = 0; i < 2; ++i) { for (let j = 0; j < 2; j++) {} }",
-    ]);
+    };
   }
 
   #[test]
   fn for_direction_invalid() {
-    // ++, --
-    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i--) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; --i) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i--) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; --i) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i++) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; ++i) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i++) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; ++i) {}", 0);
-    // +=, -=
-    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i -= 1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i -= 1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i -= -1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i -= -1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i > 2; i += 1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 2; i >= 0; i += 1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 0; i < 2; i += -1) {}", 0);
-    assert_lint_err::<ForDirection>("for(let i = 0; i <= 2; i += -1) {}", 0);
-    // nested
-    assert_lint_err_on_line::<ForDirection>(
+    assert_lint_err! {
+      ForDirection,
+
+      // ++, --
+      "for(let i = 0; i < 2; i--) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 0; i < 2; --i) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 0; i <= 2; i--) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 0; i <= 2; --i) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i > 2; i++) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i > 2; ++i) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i >= 0; i++) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i >= 0; ++i) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+
+      // +=, -=
+      "for(let i = 0; i < 2; i -= 1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 0; i <= 2; i -= 1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i > 2; i -= -1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i >= 0; i -= -1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i > 2; i += 1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 2; i >= 0; i += 1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 0; i < 2; i += -1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "for(let i = 0; i <= 2; i += -1) {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+
+      // nested
       r#"
 for (let i = 0; i < 2; i++) {
   for (let j = 0; j < 2; j--) {}
 }
-      "#,
-      3,
-      2,
-    );
+      "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ]
+    };
   }
 }

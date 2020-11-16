@@ -1,32 +1,32 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
+use crate::ast_parser::get_default_ts_config;
+use crate::ast_parser::AstParser;
+use crate::ast_parser::SwcDiagnosticBuffer;
+use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
-use crate::rules::LintRule;
-use crate::scopes::{analyze, Scope};
-use crate::swc_util::get_default_ts_config;
-use crate::swc_util::AstParser;
-use crate::{control_flow::ControlFlow, swc_util::SwcDiagnosticBuffer};
+use crate::ignore_directives::parse_ignore_comment;
+use crate::ignore_directives::parse_ignore_directives;
+use crate::ignore_directives::IgnoreDirective;
+use crate::rules::{get_all_rules, LintRule};
+use crate::scopes::Scope;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::sync::Arc;
 use std::time::Instant;
-use swc_common::comments::CommentKind;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
+use swc_common::Spanned;
 use swc_common::{comments::Comment, SyntaxContext};
 use swc_ecmascript::parser::Syntax;
 
-lazy_static! {
-  static ref IGNORE_COMMENT_CODE_RE: regex::Regex =
-    regex::Regex::new(r",\s*|\s").unwrap();
-}
+pub use swc_common::SourceFile;
 
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
-  pub source_map: Arc<SourceMap>,
+  pub source_map: Rc<SourceMap>,
   pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
   pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
@@ -39,31 +39,31 @@ impl Context {
   pub fn add_diagnostic(
     &mut self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
   ) {
-    let diagnostic = self.create_diagnostic(span, code, message, None);
+    let diagnostic =
+      self.create_diagnostic(span, code.to_string(), message.to_string(), None);
     self.diagnostics.push(diagnostic);
   }
 
-  #[allow(unused)]
   pub(crate) fn add_diagnostic_with_hint(
     &mut self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
-    hint: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
+    hint: impl ToString,
   ) {
     let diagnostic =
-      self.create_diagnostic(span, code, message, Some(hint.into()));
+      self.create_diagnostic(span, code, message, Some(hint.to_string()));
     self.diagnostics.push(diagnostic);
   }
 
   fn create_diagnostic(
     &self,
     span: Span,
-    code: impl Into<String>,
-    message: impl Into<String>,
+    code: impl ToString,
+    message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
@@ -79,8 +79,8 @@ impl Context {
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
       filename: self.file_name.clone(),
-      message: message.into(),
-      code: code.into(),
+      message: message.to_string(),
+      code: code.to_string(),
       hint: maybe_hint,
     };
 
@@ -93,46 +93,9 @@ impl Context {
   }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct IgnoreDirective {
-  pub position: Position,
-  pub span: Span,
-  pub codes: Vec<String>,
-  pub used_codes: HashMap<String, bool>,
-  pub is_global: bool,
-}
-
-impl IgnoreDirective {
-  /// Check if `IgnoreDirective` supresses given `diagnostic` and if so
-  /// mark the directive as used
-  pub fn maybe_ignore_diagnostic(
-    &mut self,
-    diagnostic: &LintDiagnostic,
-  ) -> bool {
-    // `is_global` means that diagnostic is ignored in whole file.
-    if self.is_global {
-      // pass
-    } else if self.position.line != diagnostic.range.start.line - 1 {
-      return false;
-    }
-
-    let mut should_ignore = false;
-    for code in self.codes.iter() {
-      // `ends_with` allows to skip `@typescript-eslint` prefix - not ideal
-      // but works for now
-      if code.ends_with(&diagnostic.code) {
-        should_ignore = true;
-        *self.used_codes.get_mut(code).unwrap() = true;
-      }
-    }
-
-    should_ignore
-  }
-}
-
 pub struct LinterBuilder {
-  ignore_file_directives: Vec<String>,
-  ignore_diagnostic_directives: Vec<String>,
+  ignore_file_directive: String,
+  ignore_diagnostic_directive: String,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
@@ -142,8 +105,8 @@ pub struct LinterBuilder {
 impl LinterBuilder {
   pub fn default() -> Self {
     Self {
-      ignore_file_directives: vec!["deno-lint-ignore-file".to_string()],
-      ignore_diagnostic_directives: vec!["deno-lint-ignore".to_string()],
+      ignore_file_directive: "deno-lint-ignore-file".to_string(),
+      ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
       lint_unused_ignore_directives: true,
       lint_unknown_rules: true,
       syntax: get_default_ts_config(),
@@ -153,8 +116,8 @@ impl LinterBuilder {
 
   pub fn build(self) -> Linter {
     Linter::new(
-      self.ignore_file_directives,
-      self.ignore_diagnostic_directives,
+      self.ignore_file_directive,
+      self.ignore_diagnostic_directive,
       self.lint_unused_ignore_directives,
       self.lint_unknown_rules,
       self.syntax,
@@ -162,15 +125,13 @@ impl LinterBuilder {
     )
   }
 
-  pub fn ignore_file_directives(mut self, directives: Vec<&str>) -> Self {
-    self.ignore_file_directives =
-      directives.iter().map(|s| s.to_string()).collect();
+  pub fn ignore_file_directive(mut self, directive: &str) -> Self {
+    self.ignore_file_directive = directive.to_owned();
     self
   }
 
-  pub fn ignore_diagnostic_directives(mut self, directives: Vec<&str>) -> Self {
-    self.ignore_diagnostic_directives =
-      directives.iter().map(|s| s.to_string()).collect();
+  pub fn ignore_diagnostic_directive(mut self, directive: &str) -> Self {
+    self.ignore_diagnostic_directive = directive.to_owned();
     self
   }
 
@@ -201,8 +162,8 @@ impl LinterBuilder {
 pub struct Linter {
   has_linted: bool,
   pub ast_parser: AstParser,
-  ignore_file_directives: Vec<String>,
-  ignore_diagnostic_directives: Vec<String>,
+  ignore_file_directive: String,
+  ignore_diagnostic_directive: String,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   pub syntax: Syntax,
@@ -211,8 +172,8 @@ pub struct Linter {
 
 impl Linter {
   fn new(
-    ignore_file_directives: Vec<String>,
-    ignore_diagnostic_directives: Vec<String>,
+    ignore_file_directive: String,
+    ignore_diagnostic_directive: String,
     lint_unused_ignore_directives: bool,
     lint_unknown_rules: bool,
     syntax: Syntax,
@@ -221,8 +182,8 @@ impl Linter {
     Linter {
       has_linted: false,
       ast_parser: AstParser::new(),
-      ignore_file_directives,
-      ignore_diagnostic_directives,
+      ignore_file_directive,
+      ignore_diagnostic_directive,
       lint_unused_ignore_directives,
       lint_unknown_rules,
       syntax,
@@ -234,32 +195,37 @@ impl Linter {
     &mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<Vec<LintDiagnostic>, SwcDiagnosticBuffer> {
+  ) -> Result<
+    (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
+    SwcDiagnosticBuffer,
+  > {
     assert!(
       !self.has_linted,
       "Linter can be used only on a single module."
     );
     self.has_linted = true;
     let start = Instant::now();
-    let diagnostics = if source_code.is_empty() {
-      vec![]
-    } else {
-      let (parse_result, comments) =
-        self
-          .ast_parser
-          .parse_module(&file_name, self.syntax, &source_code);
-      let end_parse_module = Instant::now();
-      debug!(
-        "ast_parser.parse_module took {:#?}",
-        end_parse_module - start
-      );
-      let module = parse_result?;
-      self.lint_module(file_name, module, comments)
-    };
 
+    let parse_result =
+      self
+        .ast_parser
+        .parse_program(&file_name, self.syntax, &source_code);
+    let end_parse_program = Instant::now();
+    debug!(
+      "ast_parser.parse_program took {:#?}",
+      end_parse_program - start
+    );
+    let (program, comments) = parse_result?;
+    let diagnostics = self.lint_program(file_name.clone(), program, comments);
+
+    let source_file = self
+      .ast_parser
+      .source_map
+      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .unwrap();
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    Ok(diagnostics)
+    Ok((source_file, diagnostics))
   }
 
   fn filter_diagnostics(
@@ -271,10 +237,14 @@ impl Linter {
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
-    let rule_codes = rules
+    let executed_rule_codes = rules
       .iter()
       .map(|r| r.code().to_string())
-      .collect::<Vec<String>>();
+      .collect::<HashSet<String>>();
+    let available_rule_codes = get_all_rules()
+      .iter()
+      .map(|r| r.code().to_string())
+      .collect::<HashSet<String>>();
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -295,7 +265,7 @@ impl Linter {
         for (code, used) in ignore_directive.used_codes.iter() {
           if self.lint_unused_ignore_directives
             && !used
-            && rule_codes.contains(code)
+            && executed_rule_codes.contains(code)
           {
             let diagnostic = context.create_diagnostic(
               ignore_directive.span,
@@ -306,7 +276,7 @@ impl Linter {
             filtered_diagnostics.push(diagnostic);
           }
 
-          if self.lint_unknown_rules && !rule_codes.contains(code) {
+          if self.lint_unknown_rules && !available_rule_codes.contains(code) {
             filtered_diagnostics.push(context.create_diagnostic(
               ignore_directive.span,
               "ban-unknown-rule-code",
@@ -327,32 +297,24 @@ impl Linter {
     filtered_diagnostics
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     file_name: String,
-    module: swc_ecmascript::ast::Module,
+    program: swc_ecmascript::ast::Program,
     comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let file_ignore_directive = comments.with_leading(module.span.lo(), |c| {
-      let directives = c
-        .iter()
-        .filter_map(|comment| {
+    let file_ignore_directive =
+      comments.with_leading(program.span().lo(), |c| {
+        c.iter().find_map(|comment| {
           parse_ignore_comment(
-            &self.ignore_file_directives,
+            &self.ignore_file_directive,
             &*self.ast_parser.source_map,
             comment,
             true,
           )
         })
-        .collect::<Vec<IgnoreDirective>>();
-
-      if directives.is_empty() {
-        None
-      } else {
-        Some(directives[0].clone())
-      }
-    });
+      });
 
     // If there's a file ignore directive that has no codes specified we must ignore
     // whole file and skip linting it.
@@ -373,7 +335,7 @@ impl Linter {
     let trailing = trailing_coms.into_iter().collect();
 
     let mut ignore_directives = parse_ignore_directives(
-      &self.ignore_diagnostic_directives,
+      &self.ignore_diagnostic_directive,
       &self.ast_parser.source_map,
       &leading,
       &trailing,
@@ -383,8 +345,12 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = analyze(&module);
-    let control_flow = ControlFlow::analyze(&module);
+    let scope = Scope::analyze(&program);
+    let control_flow = ControlFlow::analyze(&program);
+    let top_level_ctxt = swc_common::GLOBALS
+      .set(&self.ast_parser.globals, || {
+        SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
+      });
 
     let mut context = Context {
       file_name,
@@ -395,13 +361,11 @@ impl Linter {
       ignore_directives: RefCell::new(ignore_directives),
       scope,
       control_flow,
-      top_level_ctxt: swc_common::GLOBALS.set(&self.ast_parser.globals, || {
-        SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
-      }),
+      top_level_ctxt,
     };
 
     for rule in &self.rules {
-      rule.lint_module(&mut context, &module);
+      rule.lint_program(&mut context, &program);
     }
 
     let d = self.filter_diagnostics(&mut context, &self.rules);
@@ -409,182 +373,5 @@ impl Linter {
     debug!("Linter::lint_module took {:#?}", end - start);
 
     d
-  }
-}
-
-fn parse_ignore_directives(
-  ignore_diagnostic_directives: &[String],
-  source_map: &SourceMap,
-  leading_comments: &HashMap<BytePos, Vec<Comment>>,
-  trailing_comments: &HashMap<BytePos, Vec<Comment>>,
-) -> Vec<IgnoreDirective> {
-  let mut ignore_directives = vec![];
-
-  leading_comments.values().for_each(|comments| {
-    for comment in comments {
-      if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directives,
-        source_map,
-        comment,
-        false,
-      ) {
-        ignore_directives.push(ignore);
-      }
-    }
-  });
-
-  trailing_comments.values().for_each(|comments| {
-    for comment in comments {
-      if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directives,
-        source_map,
-        comment,
-        false,
-      ) {
-        ignore_directives.push(ignore);
-      }
-    }
-  });
-
-  ignore_directives
-    .sort_by(|a, b| a.position.line.partial_cmp(&b.position.line).unwrap());
-  ignore_directives
-}
-
-fn parse_ignore_comment(
-  ignore_diagnostic_directives: &[String],
-  source_map: &SourceMap,
-  comment: &Comment,
-  is_global: bool,
-) -> Option<IgnoreDirective> {
-  if comment.kind != CommentKind::Line {
-    return None;
-  }
-
-  let comment_text = comment.text.trim();
-
-  for ignore_dir in ignore_diagnostic_directives {
-    if let Some(prefix) = comment_text.split_whitespace().next() {
-      if prefix == ignore_dir {
-        let comment_text = comment_text.strip_prefix(ignore_dir).unwrap();
-        let comment_text =
-          IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
-        let codes = comment_text
-          .split(',')
-          .filter(|code| !code.is_empty())
-          .map(|code| String::from(code.trim()))
-          .collect::<Vec<String>>();
-
-        let location = source_map.lookup_char_pos(comment.span.lo());
-        let position = Position::new(comment.span.lo(), location);
-        let mut used_codes = HashMap::new();
-        codes.iter().for_each(|code| {
-          used_codes.insert(code.to_string(), false);
-        });
-
-        return Some(IgnoreDirective {
-          position,
-          span: comment.span,
-          codes,
-          used_codes,
-          is_global,
-        });
-      }
-    }
-  }
-
-  None
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::swc_util;
-
-  #[test]
-  fn test_parse_ignore_comments() {
-    let source_code = r#"
-// deno-lint-ignore no-explicit-any no-empty no-debugger
-function foo(): any {}
-
-// not-deno-lint-ignore no-explicit-any
-function foo(): any {}
-
-// deno-lint-ignore no-explicit-any, no-empty, no-debugger
-function foo(): any {}
-
-// deno-lint-ignore no-explicit-any,no-empty,no-debugger
-function foo(): any {}
-
-export function deepAssign(
-  target: Record<string, any>,
-  ...sources: any[]
-): // deno-lint-ignore ban-types
-object | undefined {}
-"#;
-    let ast_parser = AstParser::new();
-    let (parse_result, comments) = ast_parser.parse_module(
-      "test.ts",
-      swc_util::get_default_ts_config(),
-      &source_code,
-    );
-    parse_result.expect("Failed to parse");
-    let (leading, trailing) = comments.take_all();
-    let leading_coms = Rc::try_unwrap(leading)
-      .expect("Failed to get leading comments")
-      .into_inner();
-    let trailing_coms = Rc::try_unwrap(trailing)
-      .expect("Failed to get trailing comments")
-      .into_inner();
-    let leading = leading_coms.into_iter().collect();
-    let trailing = trailing_coms.into_iter().collect();
-    let directives = parse_ignore_directives(
-      &["deno-lint-ignore".to_string()],
-      &ast_parser.source_map,
-      &leading,
-      &trailing,
-    );
-
-    assert_eq!(directives.len(), 4);
-    let d = &directives[0];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 2,
-        col: 0,
-        byte_pos: 1
-      }
-    );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[1];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 8,
-        col: 0,
-        byte_pos: 146
-      }
-    );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[2];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 11,
-        col: 0,
-        byte_pos: 229
-      }
-    );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[3];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 17,
-        col: 3,
-        byte_pos: 392
-      }
-    );
-    assert_eq!(d.codes, vec!["ban-types"]);
   }
 }

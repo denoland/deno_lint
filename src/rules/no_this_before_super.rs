@@ -13,7 +13,7 @@ impl LintRule for NoThisBeforeSuper {
     Box::new(NoThisBeforeSuper)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -21,13 +21,13 @@ impl LintRule for NoThisBeforeSuper {
     "no-this-before-super"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -144,7 +144,8 @@ mod tests {
 
   #[test]
   fn no_this_before_super_valid() {
-    assert_lint_ok::<NoThisBeforeSuper>(
+    assert_lint_ok! {
+      NoThisBeforeSuper,
       r#"
 class A {
   constructor() {
@@ -152,9 +153,6 @@ class A {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoThisBeforeSuper>(
       r#"
 class A extends B {
   constructor() {
@@ -163,9 +161,6 @@ class A extends B {
   }
 }
       "#,
-    );
-
-    assert_lint_ok::<NoThisBeforeSuper>(
       r#"
 class A extends B {
   foo() {
@@ -173,7 +168,7 @@ class A extends B {
   }
 }
       "#,
-    );
+    };
   }
 
   #[test]
@@ -246,10 +241,8 @@ class C extends D {
       9,
       4,
     );
-  }
 
-  #[test]
-  fn no_this_before_super_inline_super_class() {
+    // inline super class
     assert_lint_ok::<NoThisBeforeSuper>(
       r#"
 class A extends class extends B {

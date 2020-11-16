@@ -15,7 +15,7 @@ impl LintRule for NoInferrableTypes {
     Box::new(NoInferrableTypes)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -23,13 +23,79 @@ impl LintRule for NoInferrableTypes {
     "no-inferrable-types"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows easily inferrable types
+
+Variable initializations to javascript primitives (and null) are obvious
+in their type.  Specifying their type can add additional verbosity to the code.
+For example, with `const x: number = 5`, specifying `number` is unnecessary as
+it is obvious that `5` is a number.
+    
+### Invalid:
+```typescript
+const a: bigint = 10n;
+const b: bigint = BigInt(10);
+const c: boolean = true;
+const d: boolean = !0;
+const e: number = 10;
+const f: number = Number('1');
+const g: number = Infinity;
+const h: number = NaN;
+const i: null = null;
+const j: RegExp = /a/;
+const k: RegExp = RegExp('a');
+const l: RegExp = new RegExp('a');
+const m: string = 'str';
+const n: string = `str`;
+const o: string = String(1);
+const p: symbol = Symbol('a');
+const q: undefined = undefined;
+const r: undefined = void someValue;
+
+class Foo {
+  prop: number = 5;
+}
+
+function fn(s: number = 5, t: boolean = true) {}
+```
+
+### Valid:
+```typescript
+const a = 10n;
+const b = BigInt(10);
+const c = true;
+const d = !0;
+const e = 10;
+const f = Number('1');
+const g = Infinity;
+const h = NaN;
+const i = null;
+const j = /a/;
+const k = RegExp('a');
+const l = new RegExp('a');
+const m = 'str';
+const n = `str`;
+const o = String(1);
+const p = Symbol('a');
+const q = undefined;
+const r = void someValue;
+
+class Foo {
+  prop = 5;
+}
+
+function fn(s = 5, t = true) {}
+```
+"#
   }
 }
 
@@ -43,10 +109,11 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 
   fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-inferrable-types",
       "inferrable types are not allowed",
+      "Remove the type, it is easily inferrable",
     )
   }
 
@@ -378,94 +445,70 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
 mod tests {
   use super::*;
   use crate::test_util::*;
+
   #[test]
   fn no_inferrable_types_valid() {
-    assert_lint_ok::<NoInferrableTypes>("const a = 10n");
-    assert_lint_ok::<NoInferrableTypes>("const a = -10n");
-    assert_lint_ok::<NoInferrableTypes>("const a = BigInt(10)");
-    assert_lint_ok::<NoInferrableTypes>("const a = -BigInt?.(10)");
-    assert_lint_ok::<NoInferrableTypes>("const a = +BigInt?.(10)");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = false");
-    assert_lint_ok::<NoInferrableTypes>("const a = true");
-    assert_lint_ok::<NoInferrableTypes>("const a = Boolean(true)");
-    assert_lint_ok::<NoInferrableTypes>("const a = Boolean(null)");
-    assert_lint_ok::<NoInferrableTypes>("const a = Boolean?.(null)");
-    assert_lint_ok::<NoInferrableTypes>("const a = !0");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = 10");
-    assert_lint_ok::<NoInferrableTypes>("const a = +10");
-    assert_lint_ok::<NoInferrableTypes>("const a = -10");
-    assert_lint_ok::<NoInferrableTypes>("const a = Number('1')");
-    assert_lint_ok::<NoInferrableTypes>("const a = +Number('1')");
-    assert_lint_ok::<NoInferrableTypes>("const a = -Number('1')");
-    assert_lint_ok::<NoInferrableTypes>("const a = Number?.('1')");
-    assert_lint_ok::<NoInferrableTypes>("const a = +Number?.('1')");
-    assert_lint_ok::<NoInferrableTypes>("const a = -Number?.('1')");
-    assert_lint_ok::<NoInferrableTypes>("const a = Infinity");
-    assert_lint_ok::<NoInferrableTypes>("const a = +Infinity");
-    assert_lint_ok::<NoInferrableTypes>("const a = -Infinity");
-    assert_lint_ok::<NoInferrableTypes>("const a = NaN");
-    assert_lint_ok::<NoInferrableTypes>("const a = +NaN");
-    assert_lint_ok::<NoInferrableTypes>("const a = -NaN");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = null");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = /a/");
-    assert_lint_ok::<NoInferrableTypes>("const a = RegExp('a')");
-    assert_lint_ok::<NoInferrableTypes>("const a = RegExp?.('a')");
-    assert_lint_ok::<NoInferrableTypes>("const a = new RegExp?.('a')");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = 'str'");
-    assert_lint_ok::<NoInferrableTypes>(r#"const a = "str""#);
-    assert_lint_ok::<NoInferrableTypes>("const a = `str`");
-    assert_lint_ok::<NoInferrableTypes>("const a = String(1)");
-    assert_lint_ok::<NoInferrableTypes>("const a = String?.(1)");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = Symbol('a')");
-    assert_lint_ok::<NoInferrableTypes>("const a = Symbol?.('a')");
-
-    assert_lint_ok::<NoInferrableTypes>("const a = undefined");
-    assert_lint_ok::<NoInferrableTypes>("const a = void someValue");
-
-    assert_lint_ok::<NoInferrableTypes>(
+    assert_lint_ok! {
+      NoInferrableTypes,
+      "const a = 10n",
+      "const a = -10n",
+      "const a = BigInt(10)",
+      "const a = -BigInt?.(10)",
+      "const a = +BigInt?.(10)",
+      "const a = false",
+      "const a = true",
+      "const a = Boolean(true)",
+      "const a = Boolean(null)",
+      "const a = Boolean?.(null)",
+      "const a = !0",
+      "const a = 10",
+      "const a = +10",
+      "const a = -10",
+      "const a = Number('1')",
+      "const a = +Number('1')",
+      "const a = -Number('1')",
+      "const a = Number?.('1')",
+      "const a = +Number?.('1')",
+      "const a = -Number?.('1')",
+      "const a = Infinity",
+      "const a = +Infinity",
+      "const a = -Infinity",
+      "const a = NaN",
+      "const a = +NaN",
+      "const a = -NaN",
+      "const a = null",
+      "const a = /a/",
+      "const a = RegExp('a')",
+      "const a = RegExp?.('a')",
+      "const a = new RegExp?.('a')",
+      "const a = 'str'",
+      r#"const a = "str""#,
+      "const a = `str`",
+      "const a = String(1)",
+      "const a = String?.(1)",
+      "const a = Symbol('a')",
+      "const a = Symbol?.('a')",
+      "const a = undefined",
+      "const a = void someValue",
       "const fn = (a = 5, b = true, c = 'foo') => {};",
-    );
-    assert_lint_ok::<NoInferrableTypes>(
       "const fn = function (a = 5, b = true, c = 'foo') {};",
-    );
-    assert_lint_ok::<NoInferrableTypes>(
       "function fn(a = 5, b = true, c = 'foo') {}",
-    );
-    assert_lint_ok::<NoInferrableTypes>(
       "function fn(a: number, b: boolean, c: string) {}",
-    );
-
-    assert_lint_ok::<NoInferrableTypes>(
       "class Foo {
       a = 5;
       b = true;
       c = 'foo';
     }",
-    );
-
-    assert_lint_ok::<NoInferrableTypes>(
       "class Foo {
       readonly a: number = 5;
       }",
-    );
-
-    assert_lint_ok::<NoInferrableTypes>(
       "class Foo {
         a?: number = 5;
         b?: boolean = true;
         c?: string = 'foo';
       }",
-    );
-
-    assert_lint_ok::<NoInferrableTypes>(
       "const fn = function (a: any = 5, b: any = true, c: any = 'foo') {};",
-    );
+    };
   }
 
   #[test]

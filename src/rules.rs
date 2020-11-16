@@ -1,11 +1,13 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
+use swc_ecmascript::ast::Program;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
 pub mod ban_types;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
+pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
@@ -77,6 +79,7 @@ pub mod no_with;
 pub mod prefer_as_const;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
+pub mod require_await;
 pub mod require_yield;
 pub mod single_var_declarator;
 pub mod triple_slash_reference;
@@ -87,13 +90,9 @@ pub trait LintRule {
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_module(
-    &self,
-    context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
-  );
+  fn lint_program(&self, context: &mut Context, program: &Program);
   fn code(&self) -> &'static str;
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &[]
   }
   fn docs(&self) -> &'static str {
@@ -108,6 +107,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     ban_types::BanTypes::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
+    camelcase::Camelcase::new(),
     constructor_super::ConstructorSuper::new(),
     default_param_last::DefaultParamLast::new(),
     eqeqeq::Eqeqeq::new(),
@@ -179,6 +179,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     prefer_as_const::PreferAsConst::new(),
     prefer_const::PreferConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
+    require_await::RequireAwait::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
     triple_slash_reference::TripleSlashReference::new(),

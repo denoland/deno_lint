@@ -11,26 +11,49 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoInvalidRegexp;
 
+const CODE: &str = "no-invalid-regexp";
+const MESSAGE: &str = "Invalid RegExp literal";
+const HINT: &str = "Rework regular expression to be a valid";
+
 impl LintRule for NoInvalidRegexp {
   fn new() -> Box<Self> {
     Box::new(NoInvalidRegexp)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-invalid-regexp"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoInvalidRegexpVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows specifying invalid regular expressions in RegExp constructors
+
+Specifying an invalid regular expression literal will result in a SyntaxError at
+compile time, however specifying an invalid regular expression string in the RegExp
+constructor will only be discovered at runtime.
+    
+### Invalid:
+```typescript
+const invalidRegExp = new RegExp(')');
+```
+
+### Valid:
+```typescript
+const goodRegExp = new RegExp('.');
+```
+"#
   }
 }
 
@@ -86,11 +109,9 @@ impl<'c> NoInvalidRegexpVisitor<'c> {
       || (self.check_for_invalid_pattern(pattern, true)
         && self.check_for_invalid_pattern(pattern, false))
     {
-      self.context.add_diagnostic(
-        span,
-        "no-invalid-regexp",
-        "Invalid RegExp literal",
-      );
+      self
+        .context
+        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 
@@ -142,11 +163,11 @@ impl<'c> Visit for NoInvalidRegexpVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_invalid_regexp_valid() {
-    assert_lint_ok::<NoInvalidRegexp>(
+    assert_lint_ok! {
+      NoInvalidRegexp,
       r#"RegExp('');
 RegExp();
 RegExp('.', 'g');
@@ -181,27 +202,21 @@ var foo = new RegExp('a', '');
 /(a)bc[de]/u;
 let x = new FooBar('\\');
 let re = new RegExp('foo', x);"#,
-    );
+    };
   }
 
   #[test]
   fn no_invalid_regexp_invalid() {
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"RegExp('[');"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"RegExp('.', 'z');"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"new RegExp(')');"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"new RegExp('\\');"#, 1, 0);
-
-    assert_lint_err_on_line::<NoInvalidRegexp>(
-      r#"var foo = new RegExp('(', '');"#,
-      1,
-      10,
-    );
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"/(?<a>a)\k</"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(r#"/(?<!a){1}/"#, 1, 0);
-    assert_lint_err_on_line::<NoInvalidRegexp>(
-      r#"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u"#,
-      1,
-      0,
-    );
+    assert_lint_err! {
+      NoInvalidRegexp,
+      r#"RegExp('[');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"RegExp('.', 'z');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"new RegExp(')');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"new RegExp('\\');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"var foo = new RegExp('(', '');"#: [{ col: 10, message: MESSAGE, hint: HINT }],
+      r#"/(?<a>a)\k</"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"/(?<!a){1}/"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+    }
   }
 }

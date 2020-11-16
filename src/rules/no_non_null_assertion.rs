@@ -15,13 +15,13 @@ impl LintRule for NoNonNullAssertion {
     "no-non-null-assertion"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoNonNullAssertionVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -55,19 +55,22 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn should_ok() {
-    assert_lint_ok::<NoNonNullAssertion>("instance.doWork();");
-    assert_lint_ok::<NoNonNullAssertion>("foo.bar?.includes('baz')");
-    assert_lint_ok::<NoNonNullAssertion>("x;");
-    assert_lint_ok::<NoNonNullAssertion>("x.y;");
-    assert_lint_ok::<NoNonNullAssertion>("x.y.z;");
-    assert_lint_ok::<NoNonNullAssertion>("x?.y.z;");
-    assert_lint_ok::<NoNonNullAssertion>("x?.y?.z;");
-    assert_lint_ok::<NoNonNullAssertion>("!x;");
+  fn no_non_null_assertion_valid() {
+    assert_lint_ok! {
+      NoNonNullAssertion,
+      "instance.doWork();",
+      "foo.bar?.includes('baz')",
+      "x;",
+      "x.y;",
+      "x.y.z;",
+      "x?.y.z;",
+      "x?.y?.z;",
+      "!x;",
+    };
   }
 
   #[test]
-  fn should_err() {
+  fn no_non_null_assertion_invalid() {
     assert_lint_err::<NoNonNullAssertion>("instance!.doWork()", 0);
     assert_lint_err::<NoNonNullAssertion>("foo.bar!.includes('baz');", 0);
     assert_lint_err::<NoNonNullAssertion>("x.y.z!?.();", 0);

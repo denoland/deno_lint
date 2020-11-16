@@ -1,10 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Span;
-use swc_ecmascript::ast::Module;
+use swc_ecmascript::ast::Program;
 use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
 use swc_ecmascript::ast::TryStmt;
-use swc_ecmascript::visit::{self, noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoUnsafeFinally;
 
@@ -13,7 +13,7 @@ impl LintRule for NoUnsafeFinally {
     Box::new(NoUnsafeFinally)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -21,9 +21,9 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoUnsafeFinallyVisitor::new(context);
-    visitor.visit_module(module, module);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -87,10 +87,10 @@ impl<'c> NoUnsafeFinallyVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoUnsafeFinallyVisitor<'c> {
+impl<'c> VisitAll for NoUnsafeFinallyVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, parent: &dyn Node) {
+  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
     if let Some(finally_block) = &try_stmt.finalizer {
       for stmt in &finally_block.stmts {
         match stmt {
@@ -102,7 +102,6 @@ impl<'c> Visit for NoUnsafeFinallyVisitor<'c> {
         }
       }
     }
-    visit::visit_try_stmt(self, try_stmt, parent);
   }
 }
 
@@ -112,8 +111,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn it_passes_when_there_are_no_disallowed_keywords_in_the_finally_block() {
-    assert_lint_ok::<NoUnsafeFinally>(
+  fn no_unsafe_finally_valid() {
+    assert_lint_ok! {
+      NoUnsafeFinally,
       r#"
 let foo = function() {
   try {
@@ -125,12 +125,6 @@ let foo = function() {
   }
 };
      "#,
-    );
-  }
-
-  #[test]
-  fn it_passes_for_a_return_within_a_function_in_a_finally_block() {
-    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function() {
   try {
@@ -144,12 +138,6 @@ let foo = function() {
   }
 };
      "#,
-    );
-  }
-
-  #[test]
-  fn it_passes_for_a_break_within_a_switch_in_a_finally_block() {
-    assert_lint_ok::<NoUnsafeFinally>(
       r#"
 let foo = function(a) {
   try {
@@ -166,11 +154,11 @@ let foo = function(a) {
   }
 };
       "#,
-    );
+    };
   }
 
   #[test]
-  fn it_fails_for_a_break_in_a_finally_block() {
+  fn no_unsafe_finally_invalid() {
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
@@ -186,10 +174,6 @@ let foo = function() {
       7,
       12,
     );
-  }
-
-  #[test]
-  fn it_fails_for_a_continue_in_a_finally_block() {
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
@@ -205,10 +189,6 @@ let foo = function() {
       7,
       12,
     );
-  }
-
-  #[test]
-  fn it_fails_for_a_return_in_a_finally_block() {
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
@@ -224,10 +204,6 @@ let foo = function() {
       7,
       12,
     );
-  }
-
-  #[test]
-  fn it_fails_for_a_throw_in_a_finally_block() {
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 let foo = function() {
@@ -243,10 +219,6 @@ let foo = function() {
       7,
       12,
     );
-  }
-
-  #[test]
-  fn it_fails_for_a_throw_in_a_nested_finally_block() {
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
 try {}

@@ -7,31 +7,87 @@ use swc_ecmascript::ast::SwitchCase;
 use swc_ecmascript::ast::VarDeclKind;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::VisitAllWith;
 
 pub struct NoCaseDeclarations;
+
+const CODE: &str = "no-case-declarations";
+const MESSAGE: &str = "Unexpected declaration in case";
+const HINT: &str = "Wrap switch case and default blocks in brackets";
 
 impl LintRule for NoCaseDeclarations {
   fn new() -> Box<Self> {
     Box::new(NoCaseDeclarations)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-case-declarations"
+    CODE
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoCaseDeclarationsVisitor::new(context);
-    visitor.visit_module(module, module);
+    program.visit_all_with(program, &mut visitor);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Requires lexical declarations (`let`, `const`, `function` and `class`) in
+switch `case` or `default` clauses to be scoped with brackets.
+
+Without brackets in the `case` or `default` block, the lexical declarations are
+visible to the entire switch block but only get initialized when they are assigned,
+which only happens if that case/default is reached.  This can lead to unexpected
+errors.  The solution is to ensure each `case` or `default` block is wrapped in
+brackets to scope limit the declarations.
+
+### Invalid:
+```typescript
+switch (choice) {
+  // `let`, `const`, `function` and `class` are scoped the entire switch statement here
+  case 1:
+      let a = "choice 1";
+      break;
+  case 2:
+      const b = "choice 2";
+      break;
+  case 3:
+      function f() { return "choice 3"; }
+      break;
+  default:
+      class C {}
+}
+```
+
+### Valid:
+```typescript
+switch (choice) {
+  // The following `case` and `default` clauses are wrapped into blocks using brackets
+  case 1: {
+      let a = "choice 1";
+      break;
+  }
+  case 2: {
+      const b = "choice 2";
+      break;
+  }
+  case 3: {
+      function f() { return "choice 3"; }
+      break;
+  }
+  default: {
+      class C {}
+  }
+}
+```
+"#
   }
 }
 
@@ -45,7 +101,7 @@ impl<'c> NoCaseDeclarationsVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
+impl<'c> VisitAll for NoCaseDeclarationsVisitor<'c> {
   noop_visit_type!();
 
   fn visit_switch_case(
@@ -53,8 +109,6 @@ impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
     switch_case: &SwitchCase,
     _parent: &dyn Node,
   ) {
-    switch_case.visit_children_with(self);
-
     for stmt in &switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {
@@ -67,10 +121,11 @@ impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
       };
 
       if is_lexical_decl {
-        self.context.add_diagnostic(
+        self.context.add_diagnostic_with_hint(
           switch_case.span,
-          "no-case-declarations",
-          "Unexpected declaration in case",
+          CODE,
+          MESSAGE,
+          HINT,
         );
       }
     }
@@ -80,11 +135,11 @@ impl<'c> Visit for NoCaseDeclarationsVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_case_declarations_valid() {
-    assert_lint_ok::<NoCaseDeclarations>(
+    assert_lint_ok! {
+      NoCaseDeclarations,
       r#"
 switch (foo) {
   case 1: {
@@ -113,56 +168,69 @@ switch (foo) {
   }
 }
       "#,
-    );
+    };
   }
 
   #[test]
   fn no_case_declarations_invalid() {
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    assert_lint_err! {
+      NoCaseDeclarations,
       r#"
 switch (foo) {
   case 1:
     let a = "a";
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (bar) {
   default:
     let a = "a";
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (fizz) {
   case 1:
     const a = "a";
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (buzz) {
   default:
     const a = "a";
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (fncase) {
   case 1:
@@ -171,11 +239,14 @@ switch (fncase) {
     }
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (fncase) {
   default:
@@ -184,11 +255,14 @@ switch (fncase) {
     }
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (classcase) {
   case 1:
@@ -197,11 +271,14 @@ switch (classcase) {
     }
     break;
 }
-    "#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (classcase) {
   default:
@@ -210,13 +287,16 @@ switch (classcase) {
     }
     break;
 }
-    "#,
-      3,
-      2,
-    );
+    "#: [
+        {
+          line: 3,
+          col: 2,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
 
-    // nested switch
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+      // nested switch
       r#"
 switch (foo) {
   case 1:
@@ -227,11 +307,14 @@ switch (foo) {
     }
     break;
 }
-    "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 5,
+          col: 6,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (foo) {
   default:
@@ -242,11 +325,14 @@ switch (foo) {
     }
     break;
 }
-    "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 5,
+          col: 6,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (foo) {
   case 1:
@@ -257,11 +343,14 @@ switch (foo) {
     }
     break;
 }
-    "#,
-      5,
-      6,
-    );
-    assert_lint_err_on_line::<NoCaseDeclarations>(
+    "#: [
+        {
+          line: 5,
+          col: 6,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 switch (foo) {
   default:
@@ -272,9 +361,14 @@ switch (foo) {
     }
     break;
 }
-    "#,
-      5,
-      6,
-    );
+    "#: [
+        {
+          line: 5,
+          col: 6,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ]
+    };
   }
 }

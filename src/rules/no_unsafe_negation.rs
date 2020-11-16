@@ -16,7 +16,7 @@ impl LintRule for NoUnsafeNegation {
     Box::new(NoUnsafeNegation)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -24,13 +24,13 @@ impl LintRule for NoUnsafeNegation {
     "no-unsafe-negation"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoUnsafeNegationVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -68,19 +68,20 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_unsafe_negation_ok() {
-    assert_lint_ok_n::<NoUnsafeNegation>(vec![
+  fn no_unsafe_negation_valid() {
+    assert_lint_ok! {
+      NoUnsafeNegation,
       "1 in [1, 2, 3]",
       "key in object",
       "foo instanceof Date",
       "!(1 in [1, 2, 3])",
       "!(key in object)",
       "!(foo instanceof Date)",
-    ]);
+    };
   }
 
   #[test]
-  fn no_unsafe_negation() {
+  fn no_unsafe_negation_invalid() {
     assert_lint_err::<NoUnsafeNegation>("!1 in [1, 2, 3]", 0);
     assert_lint_err::<NoUnsafeNegation>("!key in object", 0);
     assert_lint_err::<NoUnsafeNegation>("!foo instanceof Date", 0);

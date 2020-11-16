@@ -16,13 +16,13 @@ impl LintRule for NoSparseArrays {
     "no-sparse-arrays"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    module: &swc_ecmascript::ast::Module,
+    program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoSparseArraysVisitor::new(context);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
   }
 }
 
@@ -60,8 +60,15 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_sparse_arrays_test() {
-    assert_lint_ok::<NoSparseArrays>("const sparseArray1 = [1,null,3];");
+  fn no_sparse_arrays_valid() {
+    assert_lint_ok! {
+      NoSparseArrays,
+      "const sparseArray1 = [1,null,3];",
+    };
+  }
+
+  #[test]
+  fn no_sparse_arrays_invalid() {
     assert_lint_err::<NoSparseArrays>("const sparseArray = [1,,3];", 20);
   }
 }

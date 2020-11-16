@@ -1,6 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
 use swc_common::Span;
@@ -22,18 +24,14 @@ impl LintRule for TripleSlashReference {
     Box::new(TripleSlashReference)
   }
 
-  fn tags(&self) -> &[&'static str] {
-    &["recommended"]
-  }
-
   fn code(&self) -> &'static str {
     "triple-slash-reference"
   }
 
-  fn lint_module(
+  fn lint_program(
     &self,
     context: &mut Context,
-    _module: &swc_ecmascript::ast::Module,
+    _program: &swc_ecmascript::ast::Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 
@@ -66,12 +64,10 @@ fn check_comment(comment: &Comment) -> bool {
     return false;
   }
 
-  lazy_static! {
-    static ref TSR_REGEX: regex::Regex = regex::Regex::new(
-      r#"^/\s*<reference\s*(types|path|lib)\s*=\s*["|'](.*)["|']"#
-    )
-    .unwrap();
-  }
+  static TSR_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"^/\s*<reference\s*(types|path|lib)\s*=\s*["|'](.*)["|']"#)
+      .unwrap()
+  });
 
   TSR_REGEX.is_match(&comment.text)
 }
@@ -83,7 +79,8 @@ mod tests {
 
   #[test]
   fn triple_slash_reference_valid() {
-    assert_lint_ok::<TripleSlashReference>(
+    assert_lint_ok! {
+      TripleSlashReference,
       r#"
       // <reference path="foo" />
       // <reference types="bar" />
@@ -92,9 +89,6 @@ mod tests {
       import * as bar from 'bar';
       import * as baz from 'baz';
       "#,
-    );
-
-    assert_lint_ok::<TripleSlashReference>(
       r#"
         // <reference path="foo" />
         // <reference types="bar" />
@@ -102,16 +96,14 @@ mod tests {
         import foo = require('foo');
         import bar = require('bar');
         import baz = require('baz');"#,
-    );
-
-    assert_lint_ok::<TripleSlashReference>(
       r#"
         /*
         /// <reference types="foo" />
         */
         import * as foo from 'foo';"#,
-    );
+    };
   }
+
   #[test]
   fn triple_slash_reference_invalid() {
     assert_lint_err_on_line::<TripleSlashReference>(

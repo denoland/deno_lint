@@ -1,34 +1,49 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::swc_util::Key;
+use crate::swc_util::StringRepr;
+use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  GetterProp, KeyValueProp, MethodProp, Module, ObjectLit, Prop, PropOrSpread,
+  GetterProp, KeyValueProp, MethodProp, ObjectLit, Program, Prop, PropOrSpread,
   SetterProp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeKeys;
+
+const CODE: &str = "no-dupe-keys";
+
+#[derive(Display)]
+enum NoDupeKeysMessage {
+  #[display(fmt = "Duplicate key '{}'", _0)]
+  Duplicate(String),
+}
+
+#[derive(Display)]
+enum NoDupeKeysHint {
+  #[display(fmt = "Remove or rename the duplicate key")]
+  RemoveOrRename,
+}
 
 impl LintRule for NoDupeKeys {
   fn new() -> Box<Self> {
     Box::new(NoDupeKeys)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
   fn code(&self) -> &'static str {
-    "no-dupe-keys"
+    CODE
   }
 
-  fn lint_module(&self, context: &mut Context, module: &Module) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    visitor.visit_module(module, module);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -74,11 +89,12 @@ impl<'c> NoDupeKeysVisitor<'c> {
     Self { context }
   }
 
-  fn report(&mut self, span: Span, key: impl AsRef<str>) {
-    self.context.add_diagnostic(
+  fn report(&mut self, span: Span, key: impl Into<String>) {
+    self.context.add_diagnostic_with_hint(
       span,
-      "no-dupe-keys",
-      format!("Duplicate key '{}'", key.as_ref()),
+      CODE,
+      NoDupeKeysMessage::Duplicate(key.into()),
+      NoDupeKeysHint::RemoveOrRename,
     );
   }
 
@@ -173,7 +189,7 @@ impl PropertyInfo {
   }
 }
 
-impl<'c> Visit for NoDupeKeysVisitor<'c> {
+impl<'c> VisitAll for NoDupeKeysVisitor<'c> {
   noop_visit_type!();
 
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
@@ -187,30 +203,27 @@ impl<'c> Visit for NoDupeKeysVisitor<'c> {
             self.check_key(span, Some(ident.as_ref()), &mut keys);
           }
           Prop::KeyValue(KeyValueProp { key, .. }) => {
-            self.check_key(span, key.get_key(), &mut keys);
+            self.check_key(span, key.string_repr(), &mut keys);
           }
           Prop::Assign(_) => {}
           Prop::Getter(GetterProp { key, .. }) => {
-            self.check_getter(span, key.get_key(), &mut keys);
+            self.check_getter(span, key.string_repr(), &mut keys);
           }
           Prop::Setter(SetterProp { key, .. }) => {
-            self.check_setter(span, key.get_key(), &mut keys);
+            self.check_setter(span, key.string_repr(), &mut keys);
           }
           Prop::Method(MethodProp { key, .. }) => {
-            self.check_key(span, key.get_key(), &mut keys);
+            self.check_key(span, key.string_repr(), &mut keys);
           }
         }
       }
     }
-
-    obj_lit.visit_children_with(self);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.11.0/tests/lib/rules/no-dupe-keys.js
@@ -218,28 +231,25 @@ mod tests {
 
   #[test]
   fn no_dupe_keys_valid() {
-    assert_lint_ok::<NoDupeKeys>(r#"var foo = { bar: "baz", boo: "bang" }"#);
-    assert_lint_ok::<NoDupeKeys>(
+    assert_lint_ok! {
+      NoDupeKeys,
+      r#"var foo = { bar: "baz", boo: "bang" }"#,
       r#"var foo = { bar: "baz", boo: { bar: "bang", }, }"#,
-    );
-    assert_lint_ok::<NoDupeKeys>(r#"var foo = { __proto__: 1, two: 2};"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, bar: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, ' ': 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, [null]: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { '': 1, [a]: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { [a]: 1, [a]: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"+{ get a() { }, set a(b) { } };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { a: b, [a]: b };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { a: b, ...c }"#);
-    assert_lint_ok::<NoDupeKeys>(
+      r#"var foo = { __proto__: 1, two: 2};"#,
+      r#"var x = { '': 1, bar: 2 };"#,
+      r#"var x = { '': 1, ' ': 2 };"#,
+      r#"var x = { '': 1, [null]: 2 };"#,
+      r#"var x = { '': 1, [a]: 2 };"#,
+      r#"var x = { [a]: 1, [a]: 2 };"#,
+      r#"+{ get a() { }, set a(b) { } };"#,
+      r#"var x = { a: b, [a]: b };"#,
+      r#"var x = { a: b, ...c }"#,
       r#"var x = { get a() {}, set a (value) {} };"#,
-    );
-    assert_lint_ok::<NoDupeKeys>(r#"var x = ({ null: 1, [/(?<zero>0)/]: 2 })"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var {a, a} = obj"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { 012: 1, 12: 2 };"#);
-    assert_lint_ok::<NoDupeKeys>(r#"var x = { 1_0: 1, 1: 2 };"#);
-    // nested
-    assert_lint_ok::<NoDupeKeys>(
+      r#"var x = ({ null: 1, [/(?<zero>0)/]: 2 })"#,
+      r#"var {a, a} = obj"#,
+      r#"var x = { 012: 1, 12: 2 };"#,
+      r#"var x = { 1_0: 1, 1: 2 };"#,
+      // nested
       r#"
 let x = {
   y: {
@@ -248,65 +258,157 @@ let x = {
   },
 };
 "#,
-    );
+    };
   }
 
   #[test]
   fn no_dupe_keys_invalid() {
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", bar: "qux" };"#,
-      10,
-    );
-    assert_lint_err_n::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#,
-      vec![10, 10],
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", "bar": "qux" };"#,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(r#"var foo = { 1: "baz", 0x1: "qux" };"#, 10);
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", get bar() {} };"#,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var foo = { bar: "baz", set bar() {} };"#,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(r#"var x = { a: b, ['a']: b };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, '': 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { '': 1, [``]: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 012: 1, 10: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 0b1: 1, 1: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 0o1: 1, 1: 2 };"#, 8);
-    // TODO(magurotuna): this leads to panic due to swc error
-    // It seems like tsc v4.0.2 cannot handle this either
-    // playground: https://www.typescriptlang.org/play?target=99&ts=4.0.2#code/MYewdgzgLgBCBGArGBeGBvAUDGBGMAXDACwBMANJgL4DcQA
-    // assert_lint_err::<NoDupeKeys>(r#"var x = { 1n: 1, 1: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { 1_0: 1, 10: 2 };"#, 8);
-    assert_lint_err::<NoDupeKeys>(r#"var x = { "z": 1, z: 2 };"#, 8);
-    assert_lint_err_on_line::<NoDupeKeys>(
+    assert_lint_err! {
+      NoDupeKeys,
+      r#"var foo = { bar: "baz", bar: "qux" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", bar: "qux", quux: "boom", quux: "bang" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        },
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "quux"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", "bar": "qux" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { 1: "baz", 0x1: "qux" };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", get bar() {} };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var foo = { bar: "baz", set bar() {} };"#: [
+        {
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { a: b, ['a']: b };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "a"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { '': 1, '': 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, ""),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { '': 1, [``]: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, ""),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { 012: 1, 10: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "10"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { 0b1: 1, 1: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { 0o1: 1, 1: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+
+      // TODO(magurotuna): this leads to panic due to swc error
+      // It seems like tsc v4.0.2 cannot handle this either
+      // playground: https://www.typescriptlang.org/play?target=99&ts=4.0.2#code/MYewdgzgLgBCBGArGBeGBvAUDGBGMAXDACwBMANJgL4DcQA
+      // r#"var x = { 1n: 1, 1: 2 };"#: [
+      //   {
+      //     col: 8,
+      //     message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+      //     hint: NoDupeKeysHint::RemoveOrRename,
+      //   }
+      // ],
+
+      r#"var x = { 1_0: 1, 10: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "10"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { "z": 1, z: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "z"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
       r#"
 var foo = {
   bar: 1,
   bar: 1,
 }
-"#,
-      2,
-      10,
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var x = { a: 1, b: { a: 2 }, get b() {} };"#,
-      8,
-    );
-    assert_lint_err::<NoDupeKeys>(
-      r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#,
-      9,
-    );
+"#: [
+        {
+          line: 2,
+          col: 10,
+          message: variant!(NoDupeKeysMessage, Duplicate, "bar"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = { a: 1, b: { a: 2 }, get b() {} };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "b"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
+      r#"var x = ({ '/(?<zero>0)/': 1, [/(?<zero>0)/]: 2 })"#: [
+        {
+          col: 9,
+          message: variant!(NoDupeKeysMessage, Duplicate, "/(?<zero>0)/"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
 
-    // nested
-    assert_lint_err_on_line::<NoDupeKeys>(
+      // nested
       r#"
 let x = {
   key: {
@@ -314,9 +416,14 @@ let x = {
     dup: 1,
   },
 };
-"#,
-      3,
-      7,
-    );
+"#: [
+        {
+          line: 3,
+          col: 7,
+          message: variant!(NoDupeKeysMessage, Duplicate, "dup"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ]
+    };
   }
 }

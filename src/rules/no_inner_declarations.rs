@@ -14,7 +14,7 @@ impl LintRule for NoInnerDeclarations {
     Box::new(NoInnerDeclarations)
   }
 
-  fn tags(&self) -> &[&'static str] {
+  fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
 
@@ -22,13 +22,56 @@ impl LintRule for NoInnerDeclarations {
     "no-inner-declarations"
   }
 
-  fn lint_module(&self, context: &mut Context, module: &ast::Module) {
+  fn lint_program(&self, context: &mut Context, program: &ast::Program) {
     let mut valid_visitor = ValidDeclsVisitor::new();
-    valid_visitor.visit_module(module, module);
+    valid_visitor.visit_program(program, program);
     let mut valid_decls = valid_visitor.valid_decls;
     valid_decls.dedup();
     let mut visitor = NoInnerDeclarationsVisitor::new(context, valid_decls);
-    visitor.visit_module(module, module);
+    visitor.visit_program(program, program);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows variable or function definitions in nested blocks
+
+Function declarations in nested blocks can lead to less readable code and 
+potentially unexpected results due to compatibility issues in different javascript
+runtimes.  This does not apply to named or anonymous functions which are valid
+in a nested block context.
+
+Variables declared with `var` in nested blocks can also lead to less readable
+code.  Because these variables are hoisted to the module root, it is best to 
+declare them there for clarity.  Note that variables declared with `let` or
+`const` are block scoped and therefore this rule does not apply to them.
+    
+### Invalid:
+```typescript
+if (someBool) { 
+  function doSomething() {}
+}
+
+function someFunc(someVal:number): void {
+  if (someVal > 4) {
+    var a = 10;
+  }
+}
+```
+
+### Valid:
+```typescript
+function doSomething() {}
+if (someBool) {}
+
+var a = 10;
+function someFunc(someVal:number): void {
+  var foo = true;
+  if (someVal > 4) {
+    let b = 10;
+    const fn = function doSomethingElse() {}
+  }
+}
+```
+"#
   }
 }
 
@@ -62,6 +105,16 @@ impl ValidDeclsVisitor {
 
 impl Visit for ValidDeclsVisitor {
   noop_visit_type!();
+
+  fn visit_script(&mut self, item: &ast::Script, parent: &dyn Node) {
+    for stmt in &item.body {
+      if let ast::Stmt::Decl(decl) = stmt {
+        self.check_decl(decl)
+      }
+    }
+
+    swc_ecmascript::visit::visit_script(self, item, parent);
+  }
 
   fn visit_module_item(&mut self, item: &ast::ModuleItem, parent: &dyn Node) {
     match item {
@@ -159,10 +212,11 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
       "module"
     };
 
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
       "no-inner-declarations",
       format!("Move {} declaration to {} root", kind, root),
+      "Move the declaration up into the correct scope",
     );
   }
 }
@@ -211,8 +265,9 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_inner_declarations_ok() {
-    assert_lint_ok_n::<NoInnerDeclarations>(vec![
+  fn no_inner_declarations_valid() {
+    assert_lint_ok! {
+      NoInnerDeclarations,
       "function doSomething() { }",
       "function doSomething() { function somethingElse() { } }",
       "(function() { function doSomething() { } }());",
@@ -236,11 +291,11 @@ mod tests {
       "exports.foo = () => {}",
       "exports.foo = function(){}",
       "module.exports = function foo(){}",
-    ]);
+    };
   }
 
   #[test]
-  fn no_inner_declarations_err() {
+  fn no_inner_declarations_invalid() {
     // fn decls
     assert_lint_err::<NoInnerDeclarations>(
       "if (test) { function doSomething() { } }",
