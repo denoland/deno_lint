@@ -2,12 +2,29 @@
 use super::Context;
 use super::LintRule;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use derive_more::Display;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoFuncAssign;
+
+const CODE: &str = "no-func-assign";
+
+#[derive(Display)]
+enum NoFuncAssignMessage {
+  #[display(fmt = "Reassigning function declaration is not allowed")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoFuncAssignHint {
+  #[display(
+    fmt = "Remove or rework the reassignment of the existing function"
+  )]
+  RemoveOrRework,
+}
 
 impl LintRule for NoFuncAssign {
   fn new() -> Box<Self> {
@@ -19,7 +36,7 @@ impl LintRule for NoFuncAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-func-assign"
+    CODE
   }
 
   fn lint_program(
@@ -91,9 +108,9 @@ impl<'c> Visit for NoFuncAssignVisitor<'c> {
         if let BindingKind::Function = var.kind() {
           self.context.add_diagnostic_with_hint(
             assign_expr.span,
-            "no-func-assign",
-            "Reassigning function declaration is not allowed",
-            "Remove or rework the reassignment of the existing function",
+            CODE,
+            NoFuncAssignMessage::Unexpected,
+            NoFuncAssignHint::RemoveOrRework,
           );
         }
       }
@@ -104,11 +121,11 @@ impl<'c> Visit for NoFuncAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_err_on_line;
 
   #[test]
-  fn no_func_assign() {
-    assert_lint_err_on_line::<NoFuncAssign>(
+  fn no_func_assign_invalid() {
+    assert_lint_err! {
+      NoFuncAssign,
       r#"
 const a = "a";
 const unused = "unused";
@@ -120,9 +137,14 @@ function asdf(b: number, c: string): number {
 }
 
 asdf = "foobar";
-      "#,
-      11,
-      0,
-    );
+      "#: [
+        {
+          col: 0,
+          line: 11,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ]
+    };
   }
 }
