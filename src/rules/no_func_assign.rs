@@ -144,6 +144,62 @@ mod tests {
   fn no_func_assign_invalid() {
     assert_lint_err! {
       NoFuncAssign,
+      "function foo() {}; foo = bar;": [
+        {
+          col: 19,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "function foo() { foo = bar; }": [
+        {
+          col: 17,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "foo = bar; function foo() { };": [
+        {
+          col: 0,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "[foo] = bar; function foo() { }": [
+        {
+          col: 0,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "({x: foo = 0} = bar); function foo() { };": [
+        {
+          col: 1,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "function foo() { [foo] = bar; }": [
+        {
+          col: 17,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "(function() { ({x: foo = 0} = bar); function foo() { }; })();": [
+        {
+          col: 15,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "var a = function foo() { foo = 123; };": [
+        {
+          col: 25,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
       r#"
 const a = "a";
 const unused = "unused";
