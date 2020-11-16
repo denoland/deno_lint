@@ -1,5 +1,6 @@
 use super::LintRule;
 use crate::linter::Context;
+use derive_more::Display;
 use swc_common::{comments::Comment, Span, Spanned, DUMMY_SP};
 use swc_ecmascript::{
   ast::*,
@@ -7,6 +8,22 @@ use swc_ecmascript::{
 };
 
 pub struct NoFallthrough;
+
+const CODE: &str = "no-fallthrough";
+
+#[derive(Display)]
+enum NoFallthroughMessage {
+  #[display(fmt = "Fallthrough is not allowed")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoFallthroughHint {
+  #[display(
+    fmt = "Add `break` or comment `/* falls through */` to your case statement"
+  )]
+  BreakOrComment,
+}
 
 impl LintRule for NoFallthrough {
   fn new() -> Box<Self> {
@@ -18,7 +35,7 @@ impl LintRule for NoFallthrough {
   }
 
   fn code(&self) -> &'static str {
-    "no-fallthrough"
+    CODE
   }
 
   fn lint_program(
@@ -105,9 +122,9 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
         if emit {
           self.context.add_diagnostic_with_hint(
             prev_span,
-            "no-fallthrough",
-            "Fallthrough is not allowed",
-            "Add `break` or comment `/* falls through */` to your case statement"
+            CODE,
+            NoFallthroughMessage::Unexpected,
+            NoFallthroughHint::BreakOrComment,
           );
         }
       }
@@ -178,7 +195,6 @@ fn allow_fall_through(comments: &[Comment]) -> bool {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_fallthrough_valid() {
@@ -222,59 +238,93 @@ mod tests {
 
   #[test]
   fn no_fallthrough_invalid() {
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: a();\ncase 1: b() }",
-      14,
-    );
-
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: a();\ndefault: b() }",
-      14,
-    );
-
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: a(); default: b() }",
-      14,
-    );
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: if (a) { break; } default: b() }",
-      14,
-    );
-
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: try { throw 0; } catch (err) {} default: b() }",
-      14,
-    );
-
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: while (a) { break; } default: b() }",
-      14,
-    );
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0:\n\n default: b() }",
-      14,
-    );
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0:\n\n b()\n default: b() }",
-      14,
-    );
-
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0:\n // comment\n default: b() }",
-      14,
-    );
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: a(); /* falling through */ default: b() }",
-      14,
-    );
+    assert_lint_err! {
+      NoFallthrough,
+      "switch(foo) { case 0: a();\ncase 1: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0: a();\ndefault: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0: a(); default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0: if (a) { break; } default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0: try { throw 0; } catch (err) {} default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0: while (a) { break; } default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0:\n\n default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0:\n\n b()\n default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0:\n // comment\n default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ],
+      "switch(foo) { case 0: a(); /* falling through */ default: b() }": [
+        {
+          col: 14,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ]
+    };
   }
 
   #[test]
   #[ignore = "It ends with break statement"]
   fn no_fallthrough_invalid_2() {
-    assert_lint_err::<NoFallthrough>(
-      "switch(foo) { case 0: do { break; } while (a); default: b() }",
-      47,
-    );
+    assert_lint_err! {
+      NoFallthrough,
+      "switch(foo) { case 0: do { break; } while (a); default: b() }": [
+        {
+          col: 47,
+          message: NoFallthroughMessage::Unexpected,
+          hint: NoFallthroughHint::BreakOrComment,
+        }
+      ]
+    };
   }
 }
