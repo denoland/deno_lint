@@ -11,8 +11,7 @@ pub struct BanUntaggedTodo;
 
 const CODE: &str = "ban-untagged-todo";
 const MESSAGE: &str = "TODO should be tagged with (@username) or (#issue)";
-const HINT: &str = "Add a user tag, e.g. @djones, or issue reference, e.g. #123, to the TODO comment";
-
+const HINT: &str = "Add a user tag or issue reference to the TODO comment, e.g. TODO(@djones), TODO(djones), TODO(#123)";
 impl BanUntaggedTodo {
   fn report(&self, context: &mut Context, span: Span) {
     context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
