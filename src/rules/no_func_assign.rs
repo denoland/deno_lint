@@ -122,6 +122,24 @@ impl<'c> Visit for NoFuncAssignVisitor<'c> {
 mod tests {
   use super::*;
 
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.13.0/tests/lib/rules/no-func-assign.js
+  // MIT Licensed.
+
+  #[test]
+  fn no_func_assign_valid() {
+    assert_lint_ok! {
+      NoFuncAssign,
+      "function foo() { var foo = bar; }",
+      "function foo(foo) { foo = bar; }",
+      "function foo() { var foo; foo = bar; }",
+      "var foo = () => {}; foo = bar;",
+      "var foo = function() {}; foo = bar;",
+      "var foo = function() { foo = bar; };",
+      "import bar from 'bar'; function foo() { var foo = bar; }",
+    };
+  }
+
   #[test]
   fn no_func_assign_invalid() {
     assert_lint_err! {
