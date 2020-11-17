@@ -87,8 +87,8 @@ jobs:
 
       - name: Environment
         run: |
-          echo ::set-env name=GH_ACTIONS::1
-          echo ::set-env name=RUST_BACKTRACE::full
+          echo "GH_ACTIONS=1" >> ${GITHUB_ENV}
+          echo "RUST_BACKTRACE=full" >> ${GITHUB_ENV}
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
