@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
 
       - name: Install rust
-        uses: hecrj/setup-rust-action@v1.3.3
+        uses: hecrj/setup-rust-action@v1.3.4
         with:
           rust-version: "1.47.0"
 
