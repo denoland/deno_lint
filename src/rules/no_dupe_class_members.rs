@@ -163,6 +163,7 @@ fn normalize_prop_name(name: &PropName) -> Option<String> {
     PropName::Ident(Ident { ref sym, .. }) => sym.to_string(),
     PropName::Str(Str { ref value, .. }) => value.to_string(),
     PropName::Num(Number { ref value, .. }) => value.to_string(),
+    PropName::BigInt(BigInt { ref value, .. }) => value.to_string(),
     PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
       Expr::Lit(Lit::Str(Str { ref value, .. })) => value.to_string(),
       Expr::Lit(Lit::Bool(Bool { ref value, .. })) => value.to_string(),
