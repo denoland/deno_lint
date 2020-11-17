@@ -1,3 +1,5 @@
+#!/usr/bin/env -S deno run --allow-run
+// Copyright 2020 the Deno authors. All rights reserved. MIT license.
 const check = Deno.args.includes("--check");
 console.log("rustfmt");
 

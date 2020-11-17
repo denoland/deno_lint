@@ -2,12 +2,29 @@
 use super::Context;
 use super::LintRule;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use derive_more::Display;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoFuncAssign;
+
+const CODE: &str = "no-func-assign";
+
+#[derive(Display)]
+enum NoFuncAssignMessage {
+  #[display(fmt = "Reassigning function declaration is not allowed")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoFuncAssignHint {
+  #[display(
+    fmt = "Remove or rework the reassignment of the existing function"
+  )]
+  RemoveOrRework,
+}
 
 impl LintRule for NoFuncAssign {
   fn new() -> Box<Self> {
@@ -19,7 +36,7 @@ impl LintRule for NoFuncAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-func-assign"
+    CODE
   }
 
   fn lint_program(
@@ -28,7 +45,7 @@ impl LintRule for NoFuncAssign {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -79,7 +96,7 @@ impl<'c> NoFuncAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoFuncAssignVisitor<'c> {
+impl<'c> VisitAll for NoFuncAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
@@ -91,9 +108,9 @@ impl<'c> Visit for NoFuncAssignVisitor<'c> {
         if let BindingKind::Function = var.kind() {
           self.context.add_diagnostic_with_hint(
             assign_expr.span,
-            "no-func-assign",
-            "Reassigning function declaration is not allowed",
-            "Remove or rework the reassignment of the existing function",
+            CODE,
+            NoFuncAssignMessage::Unexpected,
+            NoFuncAssignHint::RemoveOrRework,
           );
         }
       }
@@ -104,11 +121,85 @@ impl<'c> Visit for NoFuncAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_err_on_line;
+
+  // Some tests are derived from
+  // https://github.com/eslint/eslint/blob/v7.13.0/tests/lib/rules/no-func-assign.js
+  // MIT Licensed.
 
   #[test]
-  fn no_func_assign() {
-    assert_lint_err_on_line::<NoFuncAssign>(
+  fn no_func_assign_valid() {
+    assert_lint_ok! {
+      NoFuncAssign,
+      "function foo() { var foo = bar; }",
+      "function foo(foo) { foo = bar; }",
+      "function foo() { var foo; foo = bar; }",
+      "var foo = () => {}; foo = bar;",
+      "var foo = function() {}; foo = bar;",
+      "var foo = function() { foo = bar; };",
+      "import bar from 'bar'; function foo() { var foo = bar; }",
+    };
+  }
+
+  #[test]
+  fn no_func_assign_invalid() {
+    assert_lint_err! {
+      NoFuncAssign,
+      "function foo() {}; foo = bar;": [
+        {
+          col: 19,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "function foo() { foo = bar; }": [
+        {
+          col: 17,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "foo = bar; function foo() { };": [
+        {
+          col: 0,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "[foo] = bar; function foo() { }": [
+        {
+          col: 0,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "({x: foo = 0} = bar); function foo() { };": [
+        {
+          col: 1,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "function foo() { [foo] = bar; }": [
+        {
+          col: 17,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "(function() { ({x: foo = 0} = bar); function foo() { }; })();": [
+        {
+          col: 15,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+      "var a = function foo() { foo = 123; };": [
+        {
+          col: 25,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
       r#"
 const a = "a";
 const unused = "unused";
@@ -120,9 +211,30 @@ function asdf(b: number, c: string): number {
 }
 
 asdf = "foobar";
-      "#,
-      11,
-      0,
-    );
+      "#: [
+        {
+          col: 0,
+          line: 11,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+
+      // nested
+      r#"
+function foo() {}
+let a;
+a = () => {
+  foo = 42;
+};
+      "#: [
+        {
+          line: 5,
+          col: 2,
+          message: NoFuncAssignMessage::Unexpected,
+          hint: NoFuncAssignHint::RemoveOrRework,
+        }
+      ],
+    };
   }
 }
