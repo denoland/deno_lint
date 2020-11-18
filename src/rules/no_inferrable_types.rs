@@ -407,7 +407,6 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_inferrable_types_valid() {
@@ -476,74 +475,305 @@ mod tests {
 
   #[test]
   fn no_inferrable_types_invalid() {
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = 10n", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = -10n", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = BigInt(10)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = -BigInt?.(10)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = -BigInt?.(10)", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = false", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = true", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = Boolean(true)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = Boolean(null)", 0);
-    assert_lint_err::<NoInferrableTypes>(
-      "const a: boolean = Boolean?.(null)",
-      0,
-    );
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = !0", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: number = 10", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +10", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -10", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = Number('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +Number('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -Number('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = Number?.('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +Number?.('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -Number?.('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = Infinity", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +Infinity", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -Infinity", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = NaN", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +NaN", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -NaN", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: null = null", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: RegExp = /a/", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: RegExp = RegExp('a')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: RegExp = RegExp?.('a')", 0);
-    assert_lint_err::<NoInferrableTypes>(
-      "const a: RegExp = new RegExp?.('a')",
-      0,
-    );
-
-    assert_lint_err::<NoInferrableTypes>("const a: string = 'str'", 0);
-    assert_lint_err::<NoInferrableTypes>(r#"const a: string = "str""#, 0);
-    assert_lint_err::<NoInferrableTypes>("const a: string = `str`", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: string = String(1)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: string = String?.(1)", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: symbol = Symbol('a')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: symbol = Symbol?.('a')", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: undefined = undefined", 0);
-    assert_lint_err::<NoInferrableTypes>(
-      "const a: undefined = void someValue",
-      0,
-    );
-    assert_lint_err_n::<NoInferrableTypes>(
-      "const fn = (a: number = 5, b: boolean = true, c: string = 'foo') => {};",
-      vec![12, 27, 46],
-    );
-
-    assert_lint_err_on_line_n::<NoInferrableTypes>(
-      "class Foo {
-a: number = 5;
-b: boolean = true;
-c: string = 'foo';
-}",
-      vec![(2, 0), (3, 0), (4, 0)],
-    )
+    assert_lint_err! {
+      NoInferrableTypes,
+      "const a: bigint = 10n": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = -10n": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = BigInt(10)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = -BigInt?.(10)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = -BigInt?.(10)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = false": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = true": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = Boolean(true)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = Boolean(null)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = Boolean?.(null)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = !0": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = 10": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +10": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -10": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = Number('1')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +Number('1')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -Number('1')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = Number?.('1')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +Number?.('1')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -Number?.('1')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = Infinity": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +Infinity": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -Infinity": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = NaN": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +NaN": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -NaN": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: null = null": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = /a/": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = RegExp('a')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = RegExp?.('a')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = new RegExp?.('a')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = 'str'": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      r#"const a: string = "str""#: [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = `str`": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = String(1)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = String?.(1)": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: symbol = Symbol('a')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: symbol = Symbol?.('a')": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: undefined = undefined": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: undefined = void someValue": [
+        {
+          col: 0,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const fn = (a: number = 5, b: boolean = true, c: string = 'foo') => {};": [
+        {
+          col: 12,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        },
+        {
+          col: 27,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        },
+        {
+          col: 46,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ]
+    };
   }
 }
