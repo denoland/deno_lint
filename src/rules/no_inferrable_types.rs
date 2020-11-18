@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 
+use derive_more::Display;
 use swc_ecmascript::ast::{
   Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
 };
@@ -9,6 +10,20 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoInferrableTypes;
+
+const CODE: &str = "no-inferrable-types";
+
+#[derive(Display)]
+enum NoInferrableTypesMessage {
+  #[display(fmt = "inferrable types are not allowed")]
+  NotAllowed,
+}
+
+#[derive(Display)]
+enum NoInferrableTypesHint {
+  #[display(fmt = "Remove the type, it is easily inferrable")]
+  Remove,
+}
 
 impl LintRule for NoInferrableTypes {
   fn new() -> Box<Self> {
@@ -20,7 +35,7 @@ impl LintRule for NoInferrableTypes {
   }
 
   fn code(&self) -> &'static str {
-    "no-inferrable-types"
+    CODE
   }
 
   fn lint_program(
@@ -111,9 +126,9 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-inferrable-types",
-      "inferrable types are not allowed",
-      "Remove the type, it is easily inferrable",
+      CODE,
+      NoInferrableTypesMessage::NotAllowed,
+      NoInferrableTypesHint::Remove,
     )
   }
 
