@@ -4,7 +4,9 @@ use super::LintRule;
 
 use derive_more::Display;
 use swc_ecmascript::ast::{
-  Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
+  ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
+  NewExpr, OptChainExpr, Pat, Program, TsEntityName, TsKeywordType,
+  TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -38,11 +40,7 @@ impl LintRule for NoInferrableTypes {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     visitor.visit_program(program, program);
   }
@@ -138,7 +136,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     span: swc_common::Span,
     expected_sym: &str,
   ) {
-    if let swc_ecmascript::ast::ExprOrSuper::Expr(unboxed) = &callee {
+    if let ExprOrSuper::Expr(unboxed) = &callee {
       if let Expr::Ident(value) = &**unboxed {
         if value.sym == *expected_sym {
           self.add_diagnostic_helper(span);
@@ -147,7 +145,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn is_nan_or_infinity(&self, ident: &swc_ecmascript::ast::Ident) -> bool {
+  fn is_nan_or_infinity(&self, ident: &Ident) -> bool {
     ident.sym == *"NaN" || ident.sym == *"Infinity"
   }
 
@@ -157,39 +155,31 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     ts_type: &TsKeywordType,
     span: swc_common::Span,
   ) {
-    use swc_ecmascript::ast::TsKeywordTypeKind::*;
+    use TsKeywordTypeKind::*;
     match ts_type.kind {
       TsBigIntKeyword => match &*value {
         Expr::Lit(Lit::BigInt(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "BigInt");
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
-        {
+        Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
           Expr::Lit(Lit::BigInt(_)) => {
             self.add_diagnostic_helper(span);
           }
-          Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+          Expr::Call(CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "BigInt");
           }
-          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-            expr, ..
-          }) => {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr {
-              callee, ..
-            }) = &**expr
-            {
+          Expr::OptChain(OptChainExpr { expr, .. }) => {
+            if let Expr::Call(CallExpr { callee, .. }) = &**expr {
               self.check_callee(callee, span, "BigInt");
             }
           }
           _ => {}
         },
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "BigInt");
           }
         }
@@ -199,18 +189,16 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Lit(Lit::Bool(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "Boolean");
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { op, .. }) => {
+        Expr::Unary(UnaryExpr { op, .. }) => {
           if op.to_string() == "!" {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "Boolean");
           }
         }
@@ -220,7 +208,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Lit(Lit::Num(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "Number");
         }
         Expr::Ident(ident) => {
@@ -228,12 +216,11 @@ impl<'c> NoInferrableTypesVisitor<'c> {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
-        {
+        Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
           Expr::Lit(Lit::Num(_)) => {
             self.add_diagnostic_helper(span);
           }
-          Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+          Expr::Call(CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "Number");
           }
           Expr::Ident(ident) => {
@@ -241,22 +228,15 @@ impl<'c> NoInferrableTypesVisitor<'c> {
               self.add_diagnostic_helper(span);
             }
           }
-          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-            expr, ..
-          }) => {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr {
-              callee, ..
-            }) = &**expr
-            {
+          Expr::OptChain(OptChainExpr { expr, .. }) => {
+            if let Expr::Call(CallExpr { callee, .. }) = &**expr {
               self.check_callee(callee, span, "Number");
             }
           }
           _ => {}
         },
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "Number");
           }
         }
@@ -274,31 +254,21 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Tpl(_) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "String");
         }
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "String");
           }
         }
         _ => {}
       },
       TsSymbolKeyword => {
-        if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-          &*value
-        {
+        if let Expr::Call(CallExpr { callee, .. }) = &*value {
           self.check_callee(callee, span, "Symbol");
-        } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-          expr,
-          ..
-        }) = &*value
-        {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        } else if let Expr::OptChain(OptChainExpr { expr, .. }) = &*value {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "Symbol");
           }
         }
@@ -309,7 +279,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { op, .. }) => {
+        Expr::Unary(UnaryExpr { op, .. }) => {
           if op.to_string() == "void" {
             self.add_diagnostic_helper(span);
           }
@@ -326,8 +296,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     ts_type: &TsTypeRef,
     span: swc_common::Span,
   ) {
-    if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type.type_name
-    {
+    if let TsEntityName::Ident(ident) = &ts_type.type_name {
       if ident.sym != *"RegExp" {
         return;
       }
@@ -335,31 +304,22 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Lit(Lit::Regex(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "RegExp");
         }
-        Expr::New(swc_ecmascript::ast::NewExpr { callee, .. }) => {
+        Expr::New(NewExpr { callee, .. }) => {
           if let Expr::Ident(ident) = &**callee {
             if ident.sym == *"RegExp" {
               self.add_diagnostic_helper(span);
             }
-          } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-            expr,
-            ..
-          }) = &**callee
-          {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr {
-              callee, ..
-            }) = &**expr
-            {
+          } else if let Expr::OptChain(OptChainExpr { expr, .. }) = &**callee {
+            if let Expr::Call(CallExpr { callee, .. }) = &**expr {
               self.check_callee(callee, span, "RegExp");
             }
           }
         }
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "RegExp");
           }
         }
@@ -371,7 +331,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   fn check_ts_type(
     &mut self,
     value: &Expr,
-    ts_type: &swc_ecmascript::ast::TsTypeAnn,
+    ts_type: &TsTypeAnn,
     span: swc_common::Span,
   ) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
@@ -383,14 +343,10 @@ impl<'c> NoInferrableTypesVisitor<'c> {
 }
 
 impl<'c> Visit for NoInferrableTypesVisitor<'c> {
-  fn visit_function(
-    &mut self,
-    function: &swc_ecmascript::ast::Function,
-    _parent: &dyn Node,
-  ) {
+  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
     for param in &function.params {
-      if let swc_ecmascript::ast::Pat::Assign(assign_pat) = &param.pat {
-        if let swc_ecmascript::ast::Pat::Ident(ident) = &*assign_pat.left {
+      if let Pat::Assign(assign_pat) = &param.pat {
+        if let Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
             self.check_ts_type(&assign_pat.right, ident_type_ann, param.span);
           }
@@ -399,14 +355,10 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn visit_arrow_expr(
-    &mut self,
-    arr_expr: &swc_ecmascript::ast::ArrowExpr,
-    _parent: &dyn Node,
-  ) {
+  fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr, _parent: &dyn Node) {
     for param in &arr_expr.params {
-      if let swc_ecmascript::ast::Pat::Assign(assign_pat) = &param {
-        if let swc_ecmascript::ast::Pat::Ident(ident) = &*assign_pat.left {
+      if let Pat::Assign(assign_pat) = &param {
+        if let Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
             self.check_ts_type(
               &assign_pat.right,
@@ -419,11 +371,7 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn visit_class_prop(
-    &mut self,
-    prop: &swc_ecmascript::ast::ClassProp,
-    _parent: &dyn Node,
-  ) {
+  fn visit_class_prop(&mut self, prop: &ClassProp, _parent: &dyn Node) {
     if prop.readonly || prop.is_optional {
       return;
     }
@@ -447,7 +395,7 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
           self.visit_arrow_expr(&arr_expr, _parent);
         }
       }
-      if let swc_ecmascript::ast::Pat::Ident(ident) = &var_decl.decls[0].name {
+      if let Pat::Ident(ident) = &var_decl.decls[0].name {
         if let Some(ident_type_ann) = &ident.type_ann {
           self.check_ts_type(init, ident_type_ann, var_decl.span);
         }
