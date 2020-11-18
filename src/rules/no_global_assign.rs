@@ -187,7 +187,6 @@ impl<'c> Visit for NoGlobalAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_global_assign_valid() {
@@ -203,14 +202,41 @@ mod tests {
 
   #[test]
   fn no_global_assign_invalid() {
-    assert_lint_err::<NoGlobalAssign>("String = 'hello world';", 0);
-
-    assert_lint_err::<NoGlobalAssign>("String++;", 0);
-
-    assert_lint_err_n::<NoGlobalAssign>(
-      "({Object = 0, String = 0} = {});",
-      vec![2, 14],
-    );
-    assert_lint_err::<NoGlobalAssign>("Array = 1;", 0);
+    assert_lint_err! {
+      NoGlobalAssign,
+      "String = 'hello world';": [
+        {
+          col: 0,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        }
+      ],
+      "String++;": [
+        {
+          col: 0,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        }
+      ],
+      "({Object = 0, String = 0} = {});": [
+        {
+          col: 2,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        },
+        {
+          col: 14,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        }
+      ],
+      "Array = 1;": [
+        {
+          col: 0,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        }
+      ],
+    };
   }
 }
