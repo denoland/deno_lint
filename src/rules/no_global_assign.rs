@@ -1,5 +1,6 @@
 use super::LintRule;
 use crate::{globals::GLOBALS, linter::Context, swc_util::find_lhs_ids};
+use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::Span;
 use swc_ecmascript::{
@@ -13,6 +14,20 @@ use swc_ecmascript::{
 
 pub struct NoGlobalAssign;
 
+const CODE: &str = "no-global-assign";
+
+#[derive(Display)]
+enum NoGlobalAssignMessage {
+  #[display(fmt = "Assignment to global is not allowed")]
+  NotAllowed,
+}
+
+#[derive(Display)]
+enum NoGlobalAssignHint {
+  #[display(fmt = "Remove the assignment to the global variable")]
+  Remove,
+}
+
 impl LintRule for NoGlobalAssign {
   fn new() -> Box<Self> {
     Box::new(NoGlobalAssign)
@@ -23,7 +38,7 @@ impl LintRule for NoGlobalAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-global-assign"
+    CODE
   }
 
   fn lint_program(
@@ -140,9 +155,9 @@ impl<'c> NoGlobalAssignVisitor<'c> {
       if !global.1 {
         self.context.add_diagnostic_with_hint(
           span,
-          "no-global-assign",
-          "Assignment to global is not allowed",
-          "Remove the assignment to the global variable",
+          CODE,
+          NoGlobalAssignMessage::NotAllowed,
+          NoGlobalAssignHint::Remove,
         );
       }
     }
