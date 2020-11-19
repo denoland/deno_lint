@@ -3,10 +3,8 @@ use super::Context;
 use super::LintRule;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::ast::{AssignExpr, Program};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoExAssign;
 
@@ -27,13 +25,9 @@ impl LintRule for NoExAssign {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoExAssignVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -74,10 +68,10 @@ impl<'c> NoExAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoExAssignVisitor<'c> {
+impl<'c> VisitAll for NoExAssignVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
     let ids = find_lhs_ids(&assign_expr.left);
 
     for id in ids {
