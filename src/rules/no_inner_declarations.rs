@@ -1,13 +1,32 @@
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
+use std::collections::HashSet;
 use swc_common::Span;
 use swc_common::Spanned;
-use swc_ecmascript::ast;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::ast::{
+  ArrowExpr, BlockStmtOrExpr, Decl, DefaultDecl, FnDecl, FnExpr, Function,
+  ModuleDecl, ModuleItem, Program, Script, Stmt, VarDecl, VarDeclKind,
+};
+use swc_ecmascript::visit::{
+  noop_visit_type, Node, Visit, VisitAll, VisitAllWith, VisitWith,
+};
 
 pub struct NoInnerDeclarations;
+
+const CODE: &str = "no-inner-declarations";
+
+#[derive(Display)]
+enum NoInnerDeclarationsMessage {
+  #[display(fmt = "Move {} declaration to {} root", _0, _1)]
+  Move(String, String),
+}
+
+#[derive(Display)]
+enum NoInnerDeclarationsHint {
+  #[display(fmt = "Move the declaration up into the correct scope")]
+  Move,
+}
 
 impl LintRule for NoInnerDeclarations {
   fn new() -> Box<Self> {
@@ -19,16 +38,16 @@ impl LintRule for NoInnerDeclarations {
   }
 
   fn code(&self) -> &'static str {
-    "no-inner-declarations"
+    CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &ast::Program) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut valid_visitor = ValidDeclsVisitor::new();
-    valid_visitor.visit_program(program, program);
-    let mut valid_decls = valid_visitor.valid_decls;
-    valid_decls.dedup();
-    let mut visitor = NoInnerDeclarationsVisitor::new(context, valid_decls);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut valid_visitor);
+
+    let mut visitor =
+      NoInnerDeclarationsVisitor::new(context, valid_visitor.valid_decls);
+    program.visit_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -76,26 +95,26 @@ function someFunc(someVal:number): void {
 }
 
 struct ValidDeclsVisitor {
-  pub valid_decls: Vec<Span>,
+  valid_decls: HashSet<Span>,
 }
 
 impl ValidDeclsVisitor {
   fn new() -> Self {
     Self {
-      valid_decls: vec![],
+      valid_decls: HashSet::new(),
     }
   }
 }
 
 impl ValidDeclsVisitor {
-  fn check_decl(&mut self, decl: &ast::Decl) {
+  fn check_decl(&mut self, decl: &Decl) {
     match decl {
-      ast::Decl::Fn(fn_decl) => {
-        self.valid_decls.push(fn_decl.span());
+      Decl::Fn(fn_decl) => {
+        self.valid_decls.insert(fn_decl.span());
       }
-      ast::Decl::Var(var_decl) => {
-        if var_decl.kind == ast::VarDeclKind::Var {
-          self.valid_decls.push(var_decl.span());
+      Decl::Var(var_decl) => {
+        if var_decl.kind == VarDeclKind::Var {
+          self.valid_decls.insert(var_decl.span());
         }
       }
       _ => {}
@@ -103,99 +122,87 @@ impl ValidDeclsVisitor {
   }
 }
 
-impl Visit for ValidDeclsVisitor {
+impl VisitAll for ValidDeclsVisitor {
   noop_visit_type!();
 
-  fn visit_script(&mut self, item: &ast::Script, parent: &dyn Node) {
+  fn visit_script(&mut self, item: &Script, _: &dyn Node) {
     for stmt in &item.body {
-      if let ast::Stmt::Decl(decl) = stmt {
+      if let Stmt::Decl(decl) = stmt {
         self.check_decl(decl)
       }
     }
-
-    swc_ecmascript::visit::visit_script(self, item, parent);
   }
 
-  fn visit_module_item(&mut self, item: &ast::ModuleItem, parent: &dyn Node) {
+  fn visit_module_item(&mut self, item: &ModuleItem, _: &dyn Node) {
     match item {
-      ast::ModuleItem::ModuleDecl(module_decl) => match module_decl {
-        ast::ModuleDecl::ExportDecl(decl_export) => {
+      ModuleItem::ModuleDecl(module_decl) => match module_decl {
+        ModuleDecl::ExportDecl(decl_export) => {
           self.check_decl(&decl_export.decl)
         }
-        ast::ModuleDecl::ExportDefaultDecl(default_export) => {
-          if let ast::DefaultDecl::Fn(fn_expr) = &default_export.decl {
-            self.valid_decls.push(fn_expr.span());
+        ModuleDecl::ExportDefaultDecl(default_export) => {
+          if let DefaultDecl::Fn(fn_expr) = &default_export.decl {
+            self.valid_decls.insert(fn_expr.span());
           }
         }
         _ => {}
       },
-      ast::ModuleItem::Stmt(module_stmt) => {
-        if let ast::Stmt::Decl(decl) = module_stmt {
+      ModuleItem::Stmt(module_stmt) => {
+        if let Stmt::Decl(decl) = module_stmt {
           self.check_decl(decl)
         }
       }
     }
-
-    swc_ecmascript::visit::visit_module_item(self, item, parent);
   }
 
-  fn visit_function(&mut self, function: &ast::Function, parent: &dyn Node) {
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     if let Some(block) = &function.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
-    swc_ecmascript::visit::visit_function(self, function, parent);
   }
 
-  fn visit_fn_decl(&mut self, fn_decl: &ast::FnDecl, parent: &dyn Node) {
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
     if let Some(block) = &fn_decl.function.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
-    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &ast::FnExpr, parent: &dyn Node) {
+  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
     if let Some(block) = &fn_expr.function.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
-    swc_ecmascript::visit::visit_fn_expr(self, fn_expr, parent);
   }
 
-  fn visit_arrow_expr(
-    &mut self,
-    arrow_expr: &ast::ArrowExpr,
-    parent: &dyn Node,
-  ) {
-    if let ast::BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    if let BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
-    swc_ecmascript::visit::visit_arrow_expr(self, arrow_expr, parent);
   }
 }
 
 struct NoInnerDeclarationsVisitor<'c> {
   context: &'c mut Context,
-  valid_decls: Vec<Span>,
+  valid_decls: HashSet<Span>,
   in_function: bool,
 }
 
 impl<'c> NoInnerDeclarationsVisitor<'c> {
-  fn new(context: &'c mut Context, valid_decls: Vec<Span>) -> Self {
+  fn new(context: &'c mut Context, valid_decls: HashSet<Span>) -> Self {
     Self {
       context,
       valid_decls,
@@ -214,9 +221,9 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
 
     self.context.add_diagnostic_with_hint(
       span,
-      "no-inner-declarations",
-      format!("Move {} declaration to {} root", kind, root),
-      "Move the declaration up into the correct scope",
+      CODE,
+      NoInnerDeclarationsMessage::Move(kind.to_string(), root.to_string()),
+      NoInnerDeclarationsHint::Move,
     );
   }
 }
@@ -224,45 +231,44 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
 impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_arrow_expr(&mut self, fn_: &ast::ArrowExpr, parent: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
-    swc_ecmascript::visit::visit_arrow_expr(self, fn_, parent);
+    arrow_expr.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_function(&mut self, fn_: &ast::Function, parent: &dyn Node) {
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
-    swc_ecmascript::visit::visit_function(self, fn_, parent);
+    function.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_fn_decl(&mut self, decl: &ast::FnDecl, parent: &dyn Node) {
+  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
     let span = decl.span();
 
     if !self.valid_decls.contains(&span) {
       self.add_diagnostic(span, "function");
     }
 
-    swc_ecmascript::visit::visit_fn_decl(self, decl, parent);
+    decl.visit_children_with(self);
   }
 
-  fn visit_var_decl(&mut self, decl: &ast::VarDecl, parent: &dyn Node) {
+  fn visit_var_decl(&mut self, decl: &VarDecl, _: &dyn Node) {
     let span = decl.span();
 
-    if decl.kind == ast::VarDeclKind::Var && !self.valid_decls.contains(&span) {
+    if decl.kind == VarDeclKind::Var && !self.valid_decls.contains(&span) {
       self.add_diagnostic(span, "variable");
     }
 
-    swc_ecmascript::visit::visit_var_decl(self, decl, parent);
+    decl.visit_children_with(self);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_inner_declarations_valid() {
@@ -296,55 +302,129 @@ mod tests {
 
   #[test]
   fn no_inner_declarations_invalid() {
-    // fn decls
-    assert_lint_err::<NoInnerDeclarations>(
-      "if (test) { function doSomething() { } }",
-      12,
-    );
-    assert_lint_err::<NoInnerDeclarations>("if (foo)  function f(){} ", 10);
-    assert_lint_err::<NoInnerDeclarations>(
-      "function bar() { if (foo) function f(){}; }",
-      26,
-    );
-    assert_lint_err::<NoInnerDeclarations>("function doSomething() { do { function somethingElse() { } } while (test); }", 30);
-    assert_lint_err::<NoInnerDeclarations>(
-      "(function() { if (test) { function doSomething() { } } }());",
-      26,
-    );
+    assert_lint_err! {
+      NoInnerDeclarations,
 
-    // var decls
-    assert_lint_err::<NoInnerDeclarations>("if (foo) var a; ", 9);
-    assert_lint_err::<NoInnerDeclarations>(
-      "if (foo) /* some comments */ var a; ",
-      29,
-    );
-    assert_lint_err::<NoInnerDeclarations>(
-      "function bar() { if (foo) var a; }",
-      26,
-    );
-    assert_lint_err::<NoInnerDeclarations>("if (foo){ var a; }", 10);
-    assert_lint_err::<NoInnerDeclarations>("while (test) { var foo; }", 15);
-    assert_lint_err::<NoInnerDeclarations>(
-      "function doSomething() { if (test) { var foo = 42; } }",
-      37,
-    );
-    assert_lint_err::<NoInnerDeclarations>(
-      "(function() { if (test) { var foo; } }());",
-      26,
-    );
-    assert_lint_err::<NoInnerDeclarations>(
-      "const doSomething = () => { if (test) { var foo = 42; } }",
-      40,
-    );
+      // fn decls
+      "if (test) { function doSomething() { } }": [
+        {
+          col: 12,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo)  function f(){} ": [
+        {
+          col: 10,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function bar() { if (foo) function f(){}; }": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function doSomething() { do { function somethingElse() { } } while (test); }": [
+        {
+          col: 30,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "(function() { if (test) { function doSomething() { } } }());": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
 
-    // both
-    assert_lint_err_n::<NoInnerDeclarations>(
-      "if (foo){ function f(){ if(bar){ var a; } } }",
-      vec![10, 33],
-    );
-    assert_lint_err_n::<NoInnerDeclarations>(
-      "if (foo) function f(){ if(bar) var a; } ",
-      vec![9, 31],
-    );
+      // var decls
+      "if (foo) var a; ": [
+        {
+          col: 9,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo) /* some comments */ var a; ": [
+        {
+          col: 29,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function bar() { if (foo) var a; }": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo){ var a; }": [
+        {
+          col: 10,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "while (test) { var foo; }": [
+        {
+          col: 15,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function doSomething() { if (test) { var foo = 42; } }": [
+        {
+          col: 37,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "(function() { if (test) { var foo; } }());": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "const doSomething = () => { if (test) { var foo = 42; } }": [
+        {
+          col: 40,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+
+      // both
+      "if (foo){ function f(){ if(bar){ var a; } } }": [
+        {
+          col: 10,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        },
+        {
+          col: 33,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo) function f(){ if(bar) var a; } ": [
+        {
+          col: 9,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        },
+        {
+          col: 31,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ]
+    };
   }
 }
