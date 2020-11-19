@@ -118,44 +118,41 @@ function foo() { try { } catch (e) { return false; } }
   fn no_ex_assign_invalid() {
     assert_lint_err! {
       NoExAssign,
-      r#"
-try {} catch (e) { e = 1; }
-try {} catch (ex) { ex = 1; }
-try {} catch (ex) { [ex] = []; }
-try {} catch (ex) { ({x: ex = 0} = {}); }
-try {} catch ({message}) { message = 1; }
-      "#: [
+      r#"try {} catch (e) { e = 1; }"#: [
         {
-          line: 2,
           col: 19,
           message: MESSAGE,
           hint: HINT,
         },
+      ],
+      r#"try {} catch (ex) { ex = 1; }"#: [
         {
-          line: 3,
           col: 20,
           message: MESSAGE,
           hint: HINT,
         },
+      ],
+      r#"try {} catch (ex) { [ex] = []; }"#: [
         {
-          line: 4,
           col: 20,
           message: MESSAGE,
           hint: HINT,
         },
+      ],
+      r#"try {} catch (ex) { ({x: ex = 0} = {}); }"#: [
         {
-          line: 5,
           col: 21,
           message: MESSAGE,
           hint: HINT,
         },
+      ],
+      r#"try {} catch ({message}) { message = 1; }"#: [
         {
-          line: 6,
           col: 27,
           message: MESSAGE,
           hint: HINT,
         },
-      ]
-    }
+      ],
+    };
   }
 }
