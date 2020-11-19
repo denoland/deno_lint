@@ -3,10 +3,13 @@ use super::LintRule;
 use derive_more::Display;
 use swc_common::Span;
 use swc_common::Spanned;
-use swc_ecmascript::ast;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{Visit, VisitAll, VisitAllWith, VisitWith};
+use swc_ecmascript::ast::{
+  ArrowExpr, BlockStmtOrExpr, Decl, DefaultDecl, FnDecl, FnExpr, Function,
+  ModuleDecl, ModuleItem, Program, Script, Stmt, VarDecl, VarDeclKind,
+};
+use swc_ecmascript::visit::{
+  noop_visit_type, Node, Visit, VisitAll, VisitAllWith, VisitWith,
+};
 
 pub struct NoInnerDeclarations;
 
@@ -37,7 +40,7 @@ impl LintRule for NoInnerDeclarations {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &ast::Program) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut valid_visitor = ValidDeclsVisitor::new();
     program.visit_all_with(program, &mut valid_visitor);
     let mut valid_decls = valid_visitor.valid_decls;
@@ -104,13 +107,13 @@ impl ValidDeclsVisitor {
 }
 
 impl ValidDeclsVisitor {
-  fn check_decl(&mut self, decl: &ast::Decl) {
+  fn check_decl(&mut self, decl: &Decl) {
     match decl {
-      ast::Decl::Fn(fn_decl) => {
+      Decl::Fn(fn_decl) => {
         self.valid_decls.push(fn_decl.span());
       }
-      ast::Decl::Var(var_decl) => {
-        if var_decl.kind == ast::VarDeclKind::Var {
+      Decl::Var(var_decl) => {
+        if var_decl.kind == VarDeclKind::Var {
           self.valid_decls.push(var_decl.span());
         }
       }
@@ -122,69 +125,69 @@ impl ValidDeclsVisitor {
 impl VisitAll for ValidDeclsVisitor {
   noop_visit_type!();
 
-  fn visit_script(&mut self, item: &ast::Script, _: &dyn Node) {
+  fn visit_script(&mut self, item: &Script, _: &dyn Node) {
     for stmt in &item.body {
-      if let ast::Stmt::Decl(decl) = stmt {
+      if let Stmt::Decl(decl) = stmt {
         self.check_decl(decl)
       }
     }
   }
 
-  fn visit_module_item(&mut self, item: &ast::ModuleItem, _: &dyn Node) {
+  fn visit_module_item(&mut self, item: &ModuleItem, _: &dyn Node) {
     match item {
-      ast::ModuleItem::ModuleDecl(module_decl) => match module_decl {
-        ast::ModuleDecl::ExportDecl(decl_export) => {
+      ModuleItem::ModuleDecl(module_decl) => match module_decl {
+        ModuleDecl::ExportDecl(decl_export) => {
           self.check_decl(&decl_export.decl)
         }
-        ast::ModuleDecl::ExportDefaultDecl(default_export) => {
-          if let ast::DefaultDecl::Fn(fn_expr) = &default_export.decl {
+        ModuleDecl::ExportDefaultDecl(default_export) => {
+          if let DefaultDecl::Fn(fn_expr) = &default_export.decl {
             self.valid_decls.push(fn_expr.span());
           }
         }
         _ => {}
       },
-      ast::ModuleItem::Stmt(module_stmt) => {
-        if let ast::Stmt::Decl(decl) = module_stmt {
+      ModuleItem::Stmt(module_stmt) => {
+        if let Stmt::Decl(decl) = module_stmt {
           self.check_decl(decl)
         }
       }
     }
   }
 
-  fn visit_function(&mut self, function: &ast::Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     if let Some(block) = &function.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
   }
 
-  fn visit_fn_decl(&mut self, fn_decl: &ast::FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
     if let Some(block) = &fn_decl.function.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &ast::FnExpr, _: &dyn Node) {
+  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
     if let Some(block) = &fn_expr.function.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
     }
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ast::ArrowExpr, _: &dyn Node) {
-    if let ast::BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    if let BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
       for stmt in &block.stmts {
-        if let ast::Stmt::Decl(decl) = stmt {
+        if let Stmt::Decl(decl) = stmt {
           self.check_decl(decl);
         }
       }
@@ -228,21 +231,21 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
 impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ast::ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
     arrow_expr.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_function(&mut self, function: &ast::Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
     function.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_fn_decl(&mut self, decl: &ast::FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
     let span = decl.span();
 
     if !self.valid_decls.contains(&span) {
@@ -252,10 +255,10 @@ impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
     decl.visit_children_with(self);
   }
 
-  fn visit_var_decl(&mut self, decl: &ast::VarDecl, _: &dyn Node) {
+  fn visit_var_decl(&mut self, decl: &VarDecl, _: &dyn Node) {
     let span = decl.span();
 
-    if decl.kind == ast::VarDeclKind::Var && !self.valid_decls.contains(&span) {
+    if decl.kind == VarDeclKind::Var && !self.valid_decls.contains(&span) {
       self.add_diagnostic(span, "variable");
     }
 
