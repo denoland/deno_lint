@@ -277,7 +277,6 @@ impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_inner_declarations_valid() {
@@ -311,55 +310,129 @@ mod tests {
 
   #[test]
   fn no_inner_declarations_invalid() {
-    // fn decls
-    assert_lint_err::<NoInnerDeclarations>(
-      "if (test) { function doSomething() { } }",
-      12,
-    );
-    assert_lint_err::<NoInnerDeclarations>("if (foo)  function f(){} ", 10);
-    assert_lint_err::<NoInnerDeclarations>(
-      "function bar() { if (foo) function f(){}; }",
-      26,
-    );
-    assert_lint_err::<NoInnerDeclarations>("function doSomething() { do { function somethingElse() { } } while (test); }", 30);
-    assert_lint_err::<NoInnerDeclarations>(
-      "(function() { if (test) { function doSomething() { } } }());",
-      26,
-    );
+    assert_lint_err! {
+      NoInnerDeclarations,
 
-    // var decls
-    assert_lint_err::<NoInnerDeclarations>("if (foo) var a; ", 9);
-    assert_lint_err::<NoInnerDeclarations>(
-      "if (foo) /* some comments */ var a; ",
-      29,
-    );
-    assert_lint_err::<NoInnerDeclarations>(
-      "function bar() { if (foo) var a; }",
-      26,
-    );
-    assert_lint_err::<NoInnerDeclarations>("if (foo){ var a; }", 10);
-    assert_lint_err::<NoInnerDeclarations>("while (test) { var foo; }", 15);
-    assert_lint_err::<NoInnerDeclarations>(
-      "function doSomething() { if (test) { var foo = 42; } }",
-      37,
-    );
-    assert_lint_err::<NoInnerDeclarations>(
-      "(function() { if (test) { var foo; } }());",
-      26,
-    );
-    assert_lint_err::<NoInnerDeclarations>(
-      "const doSomething = () => { if (test) { var foo = 42; } }",
-      40,
-    );
+      // fn decls
+      "if (test) { function doSomething() { } }": [
+        {
+          col: 12,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo)  function f(){} ": [
+        {
+          col: 10,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function bar() { if (foo) function f(){}; }": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function doSomething() { do { function somethingElse() { } } while (test); }": [
+        {
+          col: 30,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "(function() { if (test) { function doSomething() { } } }());": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
 
-    // both
-    assert_lint_err_n::<NoInnerDeclarations>(
-      "if (foo){ function f(){ if(bar){ var a; } } }",
-      vec![10, 33],
-    );
-    assert_lint_err_n::<NoInnerDeclarations>(
-      "if (foo) function f(){ if(bar) var a; } ",
-      vec![9, 31],
-    );
+      // var decls
+      "if (foo) var a; ": [
+        {
+          col: 9,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo) /* some comments */ var a; ": [
+        {
+          col: 29,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function bar() { if (foo) var a; }": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo){ var a; }": [
+        {
+          col: 10,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "while (test) { var foo; }": [
+        {
+          col: 15,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "function doSomething() { if (test) { var foo = 42; } }": [
+        {
+          col: 37,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "(function() { if (test) { var foo; } }());": [
+        {
+          col: 26,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "const doSomething = () => { if (test) { var foo = 42; } }": [
+        {
+          col: 40,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+
+      // both
+      "if (foo){ function f(){ if(bar){ var a; } } }": [
+        {
+          col: 10,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        },
+        {
+          col: 33,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ],
+      "if (foo) function f(){ if(bar) var a; } ": [
+        {
+          col: 9,
+          message: variant!(NoInnerDeclarationsMessage, Move, "function", "module"),
+          hint: NoInnerDeclarationsHint::Move,
+        },
+        {
+          col: 31,
+          message: variant!(NoInnerDeclarationsMessage, Move, "variable", "function"),
+          hint: NoInnerDeclarationsHint::Move,
+        }
+      ]
+    };
   }
 }
