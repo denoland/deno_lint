@@ -1,5 +1,6 @@
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast;
@@ -8,6 +9,20 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoInnerDeclarations;
+
+const CODE: &str = "no-inner-declarations";
+
+#[derive(Display)]
+enum NoInnerDeclarationsMessage {
+  #[display(fmt = "Move {} declaration to {} root", _0, _1)]
+  Move(String, String),
+}
+
+#[derive(Display)]
+enum NoInnerDeclarationsHint {
+  #[display(fmt = "Move the declaration up into the correct scope")]
+  Move,
+}
 
 impl LintRule for NoInnerDeclarations {
   fn new() -> Box<Self> {
@@ -19,7 +34,7 @@ impl LintRule for NoInnerDeclarations {
   }
 
   fn code(&self) -> &'static str {
-    "no-inner-declarations"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &ast::Program) {
@@ -214,9 +229,9 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
 
     self.context.add_diagnostic_with_hint(
       span,
-      "no-inner-declarations",
-      format!("Move {} declaration to {} root", kind, root),
-      "Move the declaration up into the correct scope",
+      CODE,
+      NoInnerDeclarationsMessage::Move(kind.to_string(), root.to_string()),
+      NoInnerDeclarationsHint::Move,
     );
   }
 }
