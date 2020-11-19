@@ -147,6 +147,15 @@ function foo() { try { } catch (e) { return false; } }
           hint: HINT,
         },
       ],
+
+      // nested
+      r#"a = () => { try {} catch (e) { e = 1; } };"#: [
+        {
+          col: 31,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
     };
   }
 }
