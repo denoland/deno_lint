@@ -6,7 +6,7 @@ use swc_common::Spanned;
 use swc_ecmascript::ast;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{Visit, VisitAll, VisitAllWith, VisitWith};
 
 pub struct NoInnerDeclarations;
 
@@ -39,11 +39,12 @@ impl LintRule for NoInnerDeclarations {
 
   fn lint_program(&self, context: &mut Context, program: &ast::Program) {
     let mut valid_visitor = ValidDeclsVisitor::new();
-    valid_visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut valid_visitor);
     let mut valid_decls = valid_visitor.valid_decls;
     valid_decls.dedup();
+
     let mut visitor = NoInnerDeclarationsVisitor::new(context, valid_decls);
-    visitor.visit_program(program, program);
+    program.visit_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -118,20 +119,18 @@ impl ValidDeclsVisitor {
   }
 }
 
-impl Visit for ValidDeclsVisitor {
+impl VisitAll for ValidDeclsVisitor {
   noop_visit_type!();
 
-  fn visit_script(&mut self, item: &ast::Script, parent: &dyn Node) {
+  fn visit_script(&mut self, item: &ast::Script, _: &dyn Node) {
     for stmt in &item.body {
       if let ast::Stmt::Decl(decl) = stmt {
         self.check_decl(decl)
       }
     }
-
-    swc_ecmascript::visit::visit_script(self, item, parent);
   }
 
-  fn visit_module_item(&mut self, item: &ast::ModuleItem, parent: &dyn Node) {
+  fn visit_module_item(&mut self, item: &ast::ModuleItem, _: &dyn Node) {
     match item {
       ast::ModuleItem::ModuleDecl(module_decl) => match module_decl {
         ast::ModuleDecl::ExportDecl(decl_export) => {
@@ -150,11 +149,9 @@ impl Visit for ValidDeclsVisitor {
         }
       }
     }
-
-    swc_ecmascript::visit::visit_module_item(self, item, parent);
   }
 
-  fn visit_function(&mut self, function: &ast::Function, parent: &dyn Node) {
+  fn visit_function(&mut self, function: &ast::Function, _: &dyn Node) {
     if let Some(block) = &function.body {
       for stmt in &block.stmts {
         if let ast::Stmt::Decl(decl) = stmt {
@@ -162,10 +159,9 @@ impl Visit for ValidDeclsVisitor {
         }
       }
     }
-    swc_ecmascript::visit::visit_function(self, function, parent);
   }
 
-  fn visit_fn_decl(&mut self, fn_decl: &ast::FnDecl, parent: &dyn Node) {
+  fn visit_fn_decl(&mut self, fn_decl: &ast::FnDecl, _: &dyn Node) {
     if let Some(block) = &fn_decl.function.body {
       for stmt in &block.stmts {
         if let ast::Stmt::Decl(decl) = stmt {
@@ -173,10 +169,9 @@ impl Visit for ValidDeclsVisitor {
         }
       }
     }
-    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &ast::FnExpr, parent: &dyn Node) {
+  fn visit_fn_expr(&mut self, fn_expr: &ast::FnExpr, _: &dyn Node) {
     if let Some(block) = &fn_expr.function.body {
       for stmt in &block.stmts {
         if let ast::Stmt::Decl(decl) = stmt {
@@ -184,14 +179,9 @@ impl Visit for ValidDeclsVisitor {
         }
       }
     }
-    swc_ecmascript::visit::visit_fn_expr(self, fn_expr, parent);
   }
 
-  fn visit_arrow_expr(
-    &mut self,
-    arrow_expr: &ast::ArrowExpr,
-    parent: &dyn Node,
-  ) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ast::ArrowExpr, _: &dyn Node) {
     if let ast::BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
       for stmt in &block.stmts {
         if let ast::Stmt::Decl(decl) = stmt {
@@ -199,7 +189,6 @@ impl Visit for ValidDeclsVisitor {
         }
       }
     }
-    swc_ecmascript::visit::visit_arrow_expr(self, arrow_expr, parent);
   }
 }
 
@@ -239,38 +228,38 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
 impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_arrow_expr(&mut self, fn_: &ast::ArrowExpr, parent: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ast::ArrowExpr, _: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
-    swc_ecmascript::visit::visit_arrow_expr(self, fn_, parent);
+    arrow_expr.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_function(&mut self, fn_: &ast::Function, parent: &dyn Node) {
+  fn visit_function(&mut self, function: &ast::Function, _: &dyn Node) {
     let old = self.in_function;
     self.in_function = true;
-    swc_ecmascript::visit::visit_function(self, fn_, parent);
+    function.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_fn_decl(&mut self, decl: &ast::FnDecl, parent: &dyn Node) {
+  fn visit_fn_decl(&mut self, decl: &ast::FnDecl, _: &dyn Node) {
     let span = decl.span();
 
     if !self.valid_decls.contains(&span) {
       self.add_diagnostic(span, "function");
     }
 
-    swc_ecmascript::visit::visit_fn_decl(self, decl, parent);
+    decl.visit_children_with(self);
   }
 
-  fn visit_var_decl(&mut self, decl: &ast::VarDecl, parent: &dyn Node) {
+  fn visit_var_decl(&mut self, decl: &ast::VarDecl, _: &dyn Node) {
     let span = decl.span();
 
     if decl.kind == ast::VarDeclKind::Var && !self.valid_decls.contains(&span) {
       self.add_diagnostic(span, "variable");
     }
 
-    swc_ecmascript::visit::visit_var_decl(self, decl, parent);
+    decl.visit_children_with(self);
   }
 }
 
