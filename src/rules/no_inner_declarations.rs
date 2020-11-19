@@ -1,6 +1,7 @@
 use super::Context;
 use super::LintRule;
 use derive_more::Display;
+use std::collections::HashSet;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
@@ -43,10 +44,9 @@ impl LintRule for NoInnerDeclarations {
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut valid_visitor = ValidDeclsVisitor::new();
     program.visit_all_with(program, &mut valid_visitor);
-    let mut valid_decls = valid_visitor.valid_decls;
-    valid_decls.dedup();
 
-    let mut visitor = NoInnerDeclarationsVisitor::new(context, valid_decls);
+    let mut visitor =
+      NoInnerDeclarationsVisitor::new(context, valid_visitor.valid_decls);
     program.visit_with(program, &mut visitor);
   }
 
@@ -95,13 +95,13 @@ function someFunc(someVal:number): void {
 }
 
 struct ValidDeclsVisitor {
-  pub valid_decls: Vec<Span>,
+  valid_decls: HashSet<Span>,
 }
 
 impl ValidDeclsVisitor {
   fn new() -> Self {
     Self {
-      valid_decls: vec![],
+      valid_decls: HashSet::new(),
     }
   }
 }
@@ -110,11 +110,11 @@ impl ValidDeclsVisitor {
   fn check_decl(&mut self, decl: &Decl) {
     match decl {
       Decl::Fn(fn_decl) => {
-        self.valid_decls.push(fn_decl.span());
+        self.valid_decls.insert(fn_decl.span());
       }
       Decl::Var(var_decl) => {
         if var_decl.kind == VarDeclKind::Var {
-          self.valid_decls.push(var_decl.span());
+          self.valid_decls.insert(var_decl.span());
         }
       }
       _ => {}
@@ -141,7 +141,7 @@ impl VisitAll for ValidDeclsVisitor {
         }
         ModuleDecl::ExportDefaultDecl(default_export) => {
           if let DefaultDecl::Fn(fn_expr) = &default_export.decl {
-            self.valid_decls.push(fn_expr.span());
+            self.valid_decls.insert(fn_expr.span());
           }
         }
         _ => {}
@@ -197,12 +197,12 @@ impl VisitAll for ValidDeclsVisitor {
 
 struct NoInnerDeclarationsVisitor<'c> {
   context: &'c mut Context,
-  valid_decls: Vec<Span>,
+  valid_decls: HashSet<Span>,
   in_function: bool,
 }
 
 impl<'c> NoInnerDeclarationsVisitor<'c> {
-  fn new(context: &'c mut Context, valid_decls: Vec<Span>) -> Self {
+  fn new(context: &'c mut Context, valid_decls: HashSet<Span>) -> Self {
     Self {
       context,
       valid_decls,
