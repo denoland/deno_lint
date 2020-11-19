@@ -2,6 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use derive_more::Display;
 
 use swc_ecmascript::ast::{AssignExpr, Program};
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
@@ -9,8 +10,18 @@ use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 pub struct NoExAssign;
 
 const CODE: &str = "no-ex-assign";
-const MESSAGE: &str = "Reassigning exception parameter is not allowed";
-const HINT: &str = "Use a different variable for the assignment";
+
+#[derive(Display)]
+enum NoExAssignMessage {
+  #[display(fmt = "Reassigning exception parameter is not allowed")]
+  NotAllowed,
+}
+
+#[derive(Display)]
+enum NoExAssignHint {
+  #[display(fmt = "Use a different variable for the assignment")]
+  UseDifferent,
+}
 
 impl LintRule for NoExAssign {
   fn new() -> Box<Self> {
@@ -82,8 +93,8 @@ impl<'c> VisitAll for NoExAssignVisitor<'c> {
           self.context.add_diagnostic_with_hint(
             assign_expr.span,
             CODE,
-            MESSAGE,
-            HINT,
+            NoExAssignMessage::NotAllowed,
+            NoExAssignHint::UseDifferent,
           );
         }
       }
@@ -115,36 +126,36 @@ function foo() { try { } catch (e) { return false; } }
       r#"try {} catch (e) { e = 1; }"#: [
         {
           col: 19,
-          message: MESSAGE,
-          hint: HINT,
+          message: NoExAssignMessage::NotAllowed,
+          hint: NoExAssignHint::UseDifferent,
         },
       ],
       r#"try {} catch (ex) { ex = 1; }"#: [
         {
           col: 20,
-          message: MESSAGE,
-          hint: HINT,
+          message: NoExAssignMessage::NotAllowed,
+          hint: NoExAssignHint::UseDifferent,
         },
       ],
       r#"try {} catch (ex) { [ex] = []; }"#: [
         {
           col: 20,
-          message: MESSAGE,
-          hint: HINT,
+          message: NoExAssignMessage::NotAllowed,
+          hint: NoExAssignHint::UseDifferent,
         },
       ],
       r#"try {} catch (ex) { ({x: ex = 0} = {}); }"#: [
         {
           col: 21,
-          message: MESSAGE,
-          hint: HINT,
+          message: NoExAssignMessage::NotAllowed,
+          hint: NoExAssignHint::UseDifferent,
         },
       ],
       r#"try {} catch ({message}) { message = 1; }"#: [
         {
           col: 27,
-          message: MESSAGE,
-          hint: HINT,
+          message: NoExAssignMessage::NotAllowed,
+          hint: NoExAssignHint::UseDifferent,
         },
       ],
 
@@ -152,8 +163,8 @@ function foo() { try { } catch (e) { return false; } }
       r#"a = () => { try {} catch (e) { e = 1; } };"#: [
         {
           col: 31,
-          message: MESSAGE,
-          hint: HINT,
+          message: NoExAssignMessage::NotAllowed,
+          hint: NoExAssignHint::UseDifferent,
         },
       ],
     };
