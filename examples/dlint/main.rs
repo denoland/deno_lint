@@ -298,11 +298,7 @@ fn main() -> Result<(), AnyError> {
 
         let c = match path.extension().and_then(|s| s.to_str()) {
           Some("json") => config::load_from_json(&path)?,
-          Some("toml") => config::load_from_toml(&path)?,
-          ext => bail!(
-            "Unknown extension: \"{:#?}\". Use .json or .toml instead.",
-            ext
-          ),
+          ext => bail!("Unknown extension: \"{:#?}\". Use .json instead.", ext),
         };
         Some(Arc::new(c))
       } else {
