@@ -189,10 +189,13 @@ fn run_linter(
 
     display_diagnostics(&file_diagnostics, source_file.clone());
 
-    // Run JavaScript rules
-    let mut rt = js::create_js_runtime();
-    let js_diagnostics = js::run_visitor(program, &mut rt);
-    display_diagnostics(&js_diagnostics, source_file);
+    // Run plugin rules
+    let mut runner = js::JsRuleRunner::new(
+      linter.ast_parser.get_source_map(),
+      file_path.to_string_lossy().to_string(),
+    );
+    runner.run_visitor(program);
+    display_diagnostics(&runner.output(), source_file);
   });
 
   let err_count = error_counts.load(Ordering::Relaxed);

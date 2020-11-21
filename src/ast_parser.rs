@@ -190,6 +190,10 @@ impl AstParser {
     parse_result.map(|program| (program, comments))
   }
 
+  pub fn get_source_map(&self) -> Rc<SourceMap> {
+    Rc::clone(&self.source_map)
+  }
+
   pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
     self.source_map.lookup_char_pos(span.lo())
   }
