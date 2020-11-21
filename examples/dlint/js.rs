@@ -29,10 +29,15 @@ pub struct JsRuleRunner {
   runtime: JsRuntime,
   source_map: Rc<SourceMap>,
   filename: String,
+  dummy_source: String,
 }
 
 impl JsRuleRunner {
-  pub fn new(source_map: Rc<SourceMap>, filename: String) -> Self {
+  pub fn new(
+    source_map: Rc<SourceMap>,
+    filename: String,
+    plugin_paths: &[&str],
+  ) -> Self {
     let mut runner = Self {
       runtime: JsRuntime::new(RuntimeOptions {
         module_loader: Some(Rc::new(FsModuleLoader)),
@@ -40,6 +45,7 @@ impl JsRuleRunner {
       }),
       source_map,
       filename,
+      dummy_source: create_dummy_source(plugin_paths),
     };
     runner.init();
     runner
@@ -93,7 +99,7 @@ impl JsRuleRunner {
     );
   }
 
-  pub async fn run_visitor(&mut self, program: Program, plugin_path: &str) {
+  pub async fn run_visitor(&mut self, program: Program) {
     self.runtime.register_op(
       "get_program",
       deno_core::json_op_sync(
@@ -106,20 +112,11 @@ impl JsRuleRunner {
       ),
     );
 
-    let mut src = String::new();
-    src += &format!("import Plugin from '{}';", plugin_path);
-    src += r#"
-Deno.core.ops();
-const programAst = Deno.core.jsonOpSync("get_program", {});
-const res = new Plugin().collectDiagnostics(programAst);
-Deno.core.jsonOpSync("add_diagnostics", res);
-      "#;
-
     let specifier =
       deno_core::ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap();
     let module_id = self
       .runtime
-      .load_module(&specifier, Some(src))
+      .load_module(&specifier, Some(self.dummy_source.clone()))
       .await
       .unwrap();
     self.runtime.mod_evaluate(module_id).await.unwrap();
@@ -135,7 +132,7 @@ Deno.core.jsonOpSync("add_diagnostics", res);
   }
 }
 
-// TODO(magurotuna): This is copied from:
+// TODO(magurotuna): FsModuleLoader is copied from:
 // https://github.com/denoland/deno/pull/8381/files#diff-f7e2ff9248fdb8e71463e0858bfa7070680a09d9704db54d678bf86e49fce3e4
 // This feature is going to be added to `deno_core`, then we should delegate  to it.
 struct FsModuleLoader;
@@ -170,5 +167,52 @@ impl ModuleLoader for FsModuleLoader {
       Ok(module)
     }
     .boxed_local()
+  }
+}
+
+fn create_dummy_source(plugin_paths: &[&str]) -> String {
+  let mut dummy_source = String::new();
+  for (i, p) in plugin_paths.iter().enumerate() {
+    dummy_source += &format!(
+      "import Plugin{number} from '{path}';\n",
+      number = i,
+      path = p
+    );
+  }
+  dummy_source += r#"Deno.core.ops();
+const programAst = Deno.core.jsonOpSync('get_program', {});
+let res;
+"#;
+  for plugin_number in 0..plugin_paths.len() {
+    dummy_source += &format!(
+      "res = new Plugin{number}().collectDiagnostics(programAst);\n",
+      number = plugin_number
+    );
+    dummy_source += "Deno.core.jsonOpSync('add_diagnostics', res);\n";
+  }
+
+  dummy_source
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_create_dummy_source() {
+    let input = ["./foo.ts", "../bar.js"];
+    assert_eq!(
+      create_dummy_source(&input),
+      r#"import Plugin0 from './foo.ts';
+import Plugin1 from '../bar.js';
+Deno.core.ops();
+const programAst = Deno.core.jsonOpSync('get_program', {});
+let res;
+res = new Plugin0().collectDiagnostics(programAst);
+Deno.core.jsonOpSync('add_diagnostics', res);
+res = new Plugin1().collectDiagnostics(programAst);
+Deno.core.jsonOpSync('add_diagnostics', res);
+"#
+    );
   }
 }

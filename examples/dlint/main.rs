@@ -40,19 +40,26 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
       SubCommand::with_name("run")
         .arg(
           Arg::with_name("FILES")
-            .help("Sets the input file to use")
+            .help("Set the input file to use")
             .multiple(true),
         )
         .arg(
           Arg::with_name("RULE_CODE")
             .long("rule")
-            .help("Runs a certain rule")
+            .help("Run a certain rule")
             .takes_value(true),
         )
         .arg(
           Arg::with_name("CONFIG")
             .long("config")
             .help("Load config from file")
+            .takes_value(true),
+        )
+        .arg(
+          Arg::with_name("PLUGIN")
+            .long("plugin")
+            .help("Specify plugin paths")
+            .multiple(true)
             .takes_value(true),
         ),
     )
@@ -141,6 +148,7 @@ fn run_linter(
   paths: Vec<String>,
   filter_rule_name: Option<&str>,
   maybe_config: Option<Arc<config::Config>>,
+  plugin_paths: Vec<&str>,
 ) -> Result<(), AnyError> {
   let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
 
@@ -190,14 +198,15 @@ fn run_linter(
     display_diagnostics(&file_diagnostics, source_file.clone());
 
     // Run plugin rules
-    let mut runner = js::JsRuleRunner::new(
-      linter.ast_parser.get_source_map(),
-      file_path.to_string_lossy().to_string(),
-    );
-    deno_core::futures::executor::block_on(
-      runner.run_visitor(program, "./examples/dlint/test_plugin.js"),
-    );
-    display_diagnostics(&runner.output(), source_file);
+    if !plugin_paths.is_empty() {
+      let mut runner = js::JsRuleRunner::new(
+        linter.ast_parser.get_source_map(),
+        file_path.to_string_lossy().to_string(),
+        &plugin_paths,
+      );
+      deno_core::futures::executor::block_on(runner.run_visitor(program));
+      display_diagnostics(&runner.output(), source_file);
+    }
   });
 
   let err_count = error_counts.load(Ordering::Relaxed);
@@ -326,12 +335,22 @@ fn main() -> Result<(), AnyError> {
 
       debug!("Config: {:#?}", maybe_config);
 
+      let plugins: Vec<&str> = run_matches
+        .values_of("PLUGIN")
+        .unwrap_or_default()
+        .collect();
+
       let paths: Vec<String> = run_matches
         .values_of("FILES")
         .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
-      run_linter(paths, run_matches.value_of("RULE_CODE"), maybe_config)?;
+      run_linter(
+        paths,
+        run_matches.value_of("RULE_CODE"),
+        maybe_config,
+        plugins,
+      )?;
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
