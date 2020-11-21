@@ -134,7 +134,7 @@ impl JsRuleRunner {
 
 // TODO(magurotuna): FsModuleLoader is copied from:
 // https://github.com/denoland/deno/pull/8381/files#diff-f7e2ff9248fdb8e71463e0858bfa7070680a09d9704db54d678bf86e49fce3e4
-// This feature is going to be added to `deno_core`, then we should delegate  to it.
+// This feature is going to be added to `deno_core`, then we should delegate to it.
 struct FsModuleLoader;
 
 impl ModuleLoader for FsModuleLoader {

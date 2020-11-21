@@ -204,6 +204,7 @@ fn run_linter(
         file_path.to_string_lossy().to_string(),
         &plugin_paths,
       );
+      // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal
       deno_core::futures::executor::block_on(runner.run_visitor(program));
       display_diagnostics(&runner.output(), source_file);
     }
