@@ -1,4 +1,4 @@
-class Plugin extends Visitor {
+export default class Plugin extends Visitor {
   visitImportDeclaration(e) {
     this.diagnostics.push({
       span: e.span,
@@ -8,8 +8,3 @@ class Plugin extends Visitor {
     return e;
   }
 }
-
-Deno.core.ops();
-let programAst = Deno.core.jsonOpSync("get_program", {});
-let res = new Plugin().collectDiagnostics(programAst);
-Deno.core.jsonOpSync("add_diagnostics", res);

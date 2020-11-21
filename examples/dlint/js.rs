@@ -1,10 +1,16 @@
 use deno_core::error::AnyError;
+use deno_core::futures::future::FutureExt;
 use deno_core::JsRuntime;
+use deno_core::ModuleLoader;
+use deno_core::ModuleSpecifier;
 use deno_core::OpState;
+use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
 use deno_lint::diagnostic::{LintDiagnostic, Position, Range};
 use serde::Deserialize;
 use serde_json::Value;
+use std::cell::RefCell;
+use std::pin::Pin;
 use std::rc::Rc;
 use swc_common::{SourceMap, Span};
 use swc_ecmascript::ast::Program;
@@ -28,7 +34,10 @@ pub struct JsRuleRunner {
 impl JsRuleRunner {
   pub fn new(source_map: Rc<SourceMap>, filename: String) -> Self {
     let mut runner = Self {
-      runtime: JsRuntime::new(Default::default()),
+      runtime: JsRuntime::new(RuntimeOptions {
+        module_loader: Some(Rc::new(FsModuleLoader)),
+        ..Default::default()
+      }),
       source_map,
       filename,
     };
@@ -84,7 +93,7 @@ impl JsRuleRunner {
     );
   }
 
-  pub fn run_visitor(&mut self, program: Program) {
+  pub async fn run_visitor(&mut self, program: Program, plugin_path: &str) {
     self.runtime.register_op(
       "get_program",
       deno_core::json_op_sync(
@@ -96,10 +105,24 @@ impl JsRuleRunner {
         },
       ),
     );
-    self
+
+    let mut src = String::new();
+    src += &format!("import Plugin from '{}';", plugin_path);
+    src += r#"
+Deno.core.ops();
+const programAst = Deno.core.jsonOpSync("get_program", {});
+const res = new Plugin().collectDiagnostics(programAst);
+Deno.core.jsonOpSync("add_diagnostics", res);
+      "#;
+
+    let specifier =
+      deno_core::ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap();
+    let module_id = self
       .runtime
-      .execute("test_plugin.js", include_str!("test_plugin.js"))
+      .load_module(&specifier, Some(src))
+      .await
       .unwrap();
+    self.runtime.mod_evaluate(module_id).await.unwrap();
   }
 
   pub fn output(mut self) -> Diagnostics {
@@ -109,5 +132,43 @@ impl JsRuleRunner {
       .borrow_mut()
       .try_take::<Diagnostics>()
       .unwrap_or_else(Vec::new)
+  }
+}
+
+// TODO(magurotuna): This is copied from:
+// https://github.com/denoland/deno/pull/8381/files#diff-f7e2ff9248fdb8e71463e0858bfa7070680a09d9704db54d678bf86e49fce3e4
+// This feature is going to be added to `deno_core`, then we should delegate  to it.
+struct FsModuleLoader;
+
+impl ModuleLoader for FsModuleLoader {
+  fn resolve(
+    &self,
+    _op_state: Rc<RefCell<OpState>>,
+    specifier: &str,
+    referrer: &str,
+    _is_main: bool,
+  ) -> Result<ModuleSpecifier, AnyError> {
+    Ok(ModuleSpecifier::resolve_import(specifier, referrer)?)
+  }
+
+  fn load(
+    &self,
+    _op_state: Rc<RefCell<OpState>>,
+    module_specifier: &ModuleSpecifier,
+    _maybe_referrer: Option<ModuleSpecifier>,
+    _is_dynamic: bool,
+  ) -> Pin<Box<deno_core::ModuleSourceFuture>> {
+    let module_specifier = module_specifier.clone();
+    async move {
+      let path = module_specifier.as_url().to_file_path().unwrap();
+      let content = std::fs::read_to_string(path)?;
+      let module = deno_core::ModuleSource {
+        code: content,
+        module_url_specified: module_specifier.to_string(),
+        module_url_found: module_specifier.to_string(),
+      };
+      Ok(module)
+    }
+    .boxed_local()
   }
 }

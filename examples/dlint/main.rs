@@ -194,7 +194,9 @@ fn run_linter(
       linter.ast_parser.get_source_map(),
       file_path.to_string_lossy().to_string(),
     );
-    runner.run_visitor(program);
+    deno_core::futures::executor::block_on(
+      runner.run_visitor(program, "./examples/dlint/test_plugin.js"),
+    );
     display_diagnostics(&runner.output(), source_file);
   });
 
