@@ -93,16 +93,17 @@ impl Context {
   }
 }
 
-pub struct LinterBuilder {
+pub struct LinterBuilder<P: Plugins> {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
+  plugins: Option<P>,
 }
 
-impl LinterBuilder {
+impl<P: Plugins> LinterBuilder<P> {
   pub fn default() -> Self {
     Self {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
@@ -111,10 +112,11 @@ impl LinterBuilder {
       lint_unknown_rules: true,
       syntax: get_default_ts_config(),
       rules: vec![],
+      plugins: None,
     }
   }
 
-  pub fn build(self) -> Linter {
+  pub fn build(self) -> Linter<P> {
     Linter::new(
       self.ignore_file_directive,
       self.ignore_diagnostic_directive,
@@ -122,6 +124,7 @@ impl LinterBuilder {
       self.lint_unknown_rules,
       self.syntax,
       self.rules,
+      self.plugins,
     )
   }
 
@@ -157,9 +160,14 @@ impl LinterBuilder {
     self.rules = rules;
     self
   }
+
+  pub fn plugins(mut self, plugins: P) -> Self {
+    self.plugins = Some(plugins);
+    self
+  }
 }
 
-pub struct Linter {
+pub struct Linter<P: Plugins> {
   has_linted: bool,
   pub ast_parser: AstParser,
   ignore_file_directive: String,
@@ -168,9 +176,10 @@ pub struct Linter {
   lint_unknown_rules: bool,
   pub syntax: Syntax,
   rules: Vec<Box<dyn LintRule>>,
+  plugins: Option<P>,
 }
 
-impl Linter {
+impl<P: Plugins> Linter<P> {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
@@ -178,6 +187,7 @@ impl Linter {
     lint_unknown_rules: bool,
     syntax: Syntax,
     rules: Vec<Box<dyn LintRule>>,
+    plugins: Option<P>,
   ) -> Self {
     Linter {
       has_linted: false,
@@ -188,6 +198,7 @@ impl Linter {
       lint_unknown_rules,
       syntax,
       rules,
+      plugins,
     }
   }
 
@@ -228,23 +239,28 @@ impl Linter {
     Ok((source_file, diagnostics))
   }
 
-  fn filter_diagnostics(
-    &self,
-    context: &mut Context,
-    rules: &[Box<dyn LintRule>],
-  ) -> Vec<LintDiagnostic> {
+  fn filter_diagnostics(&self, context: &mut Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
-    let executed_rule_codes = rules
-      .iter()
-      .map(|r| r.code().to_string())
-      .collect::<HashSet<String>>();
-    let available_rule_codes = get_all_rules()
-      .iter()
-      .map(|r| r.code().to_string())
-      .collect::<HashSet<String>>();
+    let (executed_rule_codes, available_rule_codes) = {
+      let plugin_codes: HashSet<String> = self
+        .plugins
+        .as_ref()
+        .map(|p| p.codes())
+        .unwrap_or_else(HashSet::new);
+
+      let mut executed = plugin_codes.clone();
+      // builtin executed rules
+      executed.extend(self.rules.iter().map(|r| r.code().to_string()));
+
+      let mut available = plugin_codes.clone();
+      // builtin all available rules
+      available.extend(get_all_rules().iter().map(|r| r.code().to_string()));
+
+      (executed, available)
+    };
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -298,7 +314,7 @@ impl Linter {
   }
 
   fn lint_program(
-    &self,
+    &mut self,
     file_name: String,
     program: swc_ecmascript::ast::Program,
     comments: SingleThreadedComments,
@@ -364,14 +380,30 @@ impl Linter {
       top_level_ctxt,
     };
 
+    // Run builtin rules
     for rule in &self.rules {
       rule.lint_program(&mut context, &program);
     }
 
-    let d = self.filter_diagnostics(&mut context, &self.rules);
+    // Run plugin rules
+    if let Some(plugins) = self.plugins.as_mut() {
+      plugins.run(&mut context, program);
+    }
+
+    let d = self.filter_diagnostics(&mut context);
     let end = Instant::now();
     debug!("Linter::lint_module took {:#?}", end - start);
 
     d
   }
+}
+
+pub trait Plugins {
+  fn run(
+    &mut self,
+    context: &mut Context,
+    program: swc_ecmascript::ast::Program,
+  );
+
+  fn codes(&self) -> HashSet<String>;
 }
