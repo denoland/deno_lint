@@ -5,7 +5,7 @@ export default class Plugin extends Visitor {
 
   visitIdentifier(n) {
     if (n.value === "forbiddenIdentifier") {
-      this.diagnostics.push({
+      this.addDiagnostic({
         span: n.span,
         message: "forbidden identifier name",
       });

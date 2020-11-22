@@ -4,7 +4,7 @@ export default class Plugin extends Visitor {
   }
 
   visitImportDeclaration(e) {
-    this.diagnostics.push({
+    this.addDiagnostic({
       span: e.span,
       message: "foo",
     });

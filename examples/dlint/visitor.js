@@ -7,7 +7,10 @@ class Visitor {
     return this.diagnostics;
   }
   addDiagnostic(d) {
-    this.diagnostics.push(d);
+    this.diagnostics.push({
+      ...d,
+      code: this.ruleCode(),
+    });
   }
   // must be overridden
   ruleCode() {
@@ -633,7 +636,7 @@ class Visitor {
     n.decorators = this.visitDecorators(n.decorators);
     n.superClass = this.visitOptionalExpression(n.superClass);
     n.superTypeParams = this.visitTsTypeParameterInstantiation(
-      n.superTypeParams,
+      n.superTypeParams
     );
     if (n.implements) {
       n.implements = this.visitTsExpressionsWithTypeArguments(n.implements);

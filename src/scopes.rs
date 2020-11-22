@@ -14,7 +14,7 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Scope {
   vars: HashMap<Id, Var>,
   symbols: HashMap<JsWord, Vec<Id>>,

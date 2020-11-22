@@ -23,9 +23,11 @@ use swc_ecmascript::parser::Syntax;
 
 pub use swc_common::SourceFile;
 
+#[derive(Default)]
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
+  plugin_codes: HashSet<String>,
   pub source_map: Rc<SourceMap>,
   pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
   pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
@@ -91,19 +93,23 @@ impl Context {
     );
     diagnostic
   }
+
+  pub fn set_plugin_codes(&mut self, codes: HashSet<String>) {
+    self.plugin_codes = codes;
+  }
 }
 
-pub struct LinterBuilder<P: Plugins> {
+pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   lint_unused_ignore_directives: bool,
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
-  plugins: Option<P>,
+  plugins: Option<Box<dyn Plugins>>,
 }
 
-impl<P: Plugins> LinterBuilder<P> {
+impl LinterBuilder {
   pub fn default() -> Self {
     Self {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
@@ -116,7 +122,7 @@ impl<P: Plugins> LinterBuilder<P> {
     }
   }
 
-  pub fn build(self) -> Linter<P> {
+  pub fn build(self) -> Linter {
     Linter::new(
       self.ignore_file_directive,
       self.ignore_diagnostic_directive,
@@ -161,13 +167,13 @@ impl<P: Plugins> LinterBuilder<P> {
     self
   }
 
-  pub fn plugins(mut self, plugins: P) -> Self {
-    self.plugins = Some(plugins);
+  pub fn plugins(mut self, plugins: Option<Box<dyn Plugins>>) -> Self {
+    self.plugins = plugins;
     self
   }
 }
 
-pub struct Linter<P: Plugins> {
+pub struct Linter {
   has_linted: bool,
   pub ast_parser: AstParser,
   ignore_file_directive: String,
@@ -176,10 +182,10 @@ pub struct Linter<P: Plugins> {
   lint_unknown_rules: bool,
   pub syntax: Syntax,
   rules: Vec<Box<dyn LintRule>>,
-  plugins: Option<P>,
+  plugins: Option<Box<dyn Plugins>>,
 }
 
-impl<P: Plugins> Linter<P> {
+impl Linter {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
@@ -187,7 +193,7 @@ impl<P: Plugins> Linter<P> {
     lint_unknown_rules: bool,
     syntax: Syntax,
     rules: Vec<Box<dyn LintRule>>,
-    plugins: Option<P>,
+    plugins: Option<Box<dyn Plugins>>,
   ) -> Self {
     Linter {
       has_linted: false,
@@ -245,17 +251,11 @@ impl<P: Plugins> Linter<P> {
     let diagnostics = &context.diagnostics;
 
     let (executed_rule_codes, available_rule_codes) = {
-      let plugin_codes: HashSet<String> = self
-        .plugins
-        .as_ref()
-        .map(|p| p.codes())
-        .unwrap_or_else(HashSet::new);
-
-      let mut executed = plugin_codes.clone();
+      let mut executed = context.plugin_codes.clone();
       // builtin executed rules
       executed.extend(self.rules.iter().map(|r| r.code().to_string()));
 
-      let mut available = plugin_codes.clone();
+      let mut available = context.plugin_codes.clone();
       // builtin all available rules
       available.extend(get_all_rules().iter().map(|r| r.code().to_string()));
 
@@ -370,7 +370,6 @@ impl<P: Plugins> Linter<P> {
 
     let mut context = Context {
       file_name,
-      diagnostics: vec![],
       source_map: self.ast_parser.source_map.clone(),
       leading_comments: leading,
       trailing_comments: trailing,
@@ -378,6 +377,7 @@ impl<P: Plugins> Linter<P> {
       scope,
       control_flow,
       top_level_ctxt,
+      ..Default::default()
     };
 
     // Run builtin rules
@@ -404,6 +404,4 @@ pub trait Plugins {
     context: &mut Context,
     program: swc_ecmascript::ast::Program,
   );
-
-  fn codes(&self) -> HashSet<String>;
 }

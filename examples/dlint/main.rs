@@ -11,6 +11,7 @@ use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
+use deno_lint::linter::Plugins;
 use deno_lint::linter::SourceFile;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use log::debug;
@@ -178,15 +179,15 @@ fn run_linter(
 
     debug!("Configured rules: {}", rules.len());
 
+    let maybe_js_runner = js::JsRuleRunner::new(&plugin_paths)
+      .map(|runner| runner as Box<dyn Plugins>);
+
     let mut linter = LinterBuilder::default()
       .rules(rules)
       .lint_unknown_rules(true)
       .lint_unused_ignore_directives(true)
+      .plugins(maybe_js_runner)
       .build();
-    let (program, _) = linter
-      .ast_parser
-      .parse_program(&file_path.to_string_lossy(), linter.syntax, &source_code)
-      .expect("Failed to parse ast");
 
     let (source_file, file_diagnostics) = linter
       .lint(file_path.to_string_lossy().to_string(), source_code)
@@ -196,18 +197,6 @@ fn run_linter(
     let _g = output_lock.lock().unwrap();
 
     display_diagnostics(&file_diagnostics, source_file.clone());
-
-    // Run plugin rules
-    if !plugin_paths.is_empty() {
-      let mut runner = js::JsRuleRunner::new(
-        linter.ast_parser.get_source_map(),
-        file_path.to_string_lossy().to_string(),
-        &plugin_paths,
-      );
-      // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal
-      deno_core::futures::executor::block_on(runner.run_visitor(program));
-      display_diagnostics(&runner.output(), source_file);
-    }
   });
 
   let err_count = error_counts.load(Ordering::Relaxed);
