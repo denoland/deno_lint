@@ -6,10 +6,12 @@ use deno_core::ModuleSpecifier;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
-use deno_lint::diagnostic::{LintDiagnostic, Position, Range};
+use deno_lint::linter::{Context, Plugins};
 use serde::Deserialize;
 use serde_json::Value;
 use std::cell::RefCell;
+use std::collections::HashSet;
+use std::path::Path;
 use std::pin::Pin;
 use std::rc::Rc;
 use swc_common::{SourceMap, Span};
@@ -18,16 +20,49 @@ use swc_ecmascript::ast::Program;
 #[derive(Deserialize)]
 struct DiagnosticsFromJS {
   span: Span,
-  code: String,
   message: String,
   hint: Option<String>,
 }
 
-type Diagnostics = Vec<LintDiagnostic>;
+struct PluginMeta {
+  path: String,
+  code: Option<String>,
+}
+
+impl PluginMeta {
+  fn new<T, U>(path: T, code: U) -> Self
+  where
+    T: Into<String>,
+    U: Into<Option<String>>,
+  {
+    Self {
+      path: path.into(),
+      code: code.into(),
+    }
+  }
+
+  fn get_code(&self) -> String {
+    let raw_code = if let Some(code) = self.code.as_deref() {
+      code
+    } else {
+      let p = Path::new(&self.path);
+      p.file_stem()
+        .and_then(|s| s.to_str())
+        .expect("Failed to get plugin's code")
+    };
+
+    // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
+    // This should be discussed further before it's stabilized.
+    format!("@deno-lint-plugin/{}", raw_code)
+  }
+}
+
+type Diagnostics = Vec<DiagnosticsFromJS>;
 
 pub struct JsRuleRunner {
   runtime: JsRuntime,
   source_map: Rc<SourceMap>,
+  plugins: Vec<PluginMeta>,
   filename: String,
   dummy_source: String,
 }
@@ -36,16 +71,17 @@ impl JsRuleRunner {
   pub fn new(
     source_map: Rc<SourceMap>,
     filename: String,
-    plugin_paths: &[&str],
+    plugins: Vec<PluginMeta>,
   ) -> Self {
     let mut runner = Self {
       runtime: JsRuntime::new(RuntimeOptions {
         module_loader: Some(Rc::new(FsModuleLoader)),
         ..Default::default()
       }),
+      dummy_source: create_dummy_source(&plugins),
+      plugins,
       source_map,
       filename,
-      dummy_source: create_dummy_source(plugin_paths),
     };
     runner.init();
     runner
@@ -69,28 +105,9 @@ impl JsRuleRunner {
               -> Result<Value, AnyError> {
           let diagnostics_from_js: Vec<DiagnosticsFromJS> =
             serde_json::from_value(args).unwrap();
-          let converted = diagnostics_from_js.into_iter().map(|d| {
-            let start = Position::new(
-              source_map.lookup_byte_offset(d.span.lo()).pos,
-              source_map.lookup_char_pos(d.span.lo()),
-            );
-            let end = Position::new(
-              source_map.lookup_byte_offset(d.span.hi()).pos,
-              source_map.lookup_char_pos(d.span.hi()),
-            );
-
-            LintDiagnostic {
-              range: Range { start, end },
-              filename: filename.clone(),
-              message: d.message,
-              code: d.code,
-              hint: d.hint,
-            }
-          });
-
           let mut stored =
             state.try_take::<Diagnostics>().unwrap_or_else(Vec::new);
-          stored.extend(converted);
+          stored.extend(diagnostics_from_js);
           state.put::<Diagnostics>(stored);
 
           Ok(serde_json::json!({}))
@@ -170,9 +187,9 @@ impl ModuleLoader for FsModuleLoader {
   }
 }
 
-fn create_dummy_source(plugin_paths: &[&str]) -> String {
+fn create_dummy_source(plugins: &[PluginMeta]) -> String {
   let mut dummy_source = String::new();
-  for (i, p) in plugin_paths.iter().enumerate() {
+  for (i, p) in plugins.iter().map(|p| &p.path).enumerate() {
     dummy_source += &format!(
       "import Plugin{number} from '{path}';\n",
       number = i,
@@ -183,7 +200,7 @@ fn create_dummy_source(plugin_paths: &[&str]) -> String {
 const programAst = Deno.core.jsonOpSync('get_program', {});
 let res;
 "#;
-  for plugin_number in 0..plugin_paths.len() {
+  for plugin_number in 0..plugins.len() {
     dummy_source += &format!(
       "res = new Plugin{number}().collectDiagnostics(programAst);\n",
       number = plugin_number
@@ -194,13 +211,48 @@ let res;
   dummy_source
 }
 
+impl Plugins for JsRuleRunner {
+  fn run(&mut self, context: &mut Context, program: Program) {
+    self.runtime.register_op(
+      "get_program",
+      deno_core::json_op_sync(
+        move |_state: &mut OpState,
+              _args: Value,
+              _bufs: &mut [ZeroCopyBuf]|
+              -> Result<Value, AnyError> {
+          Ok(serde_json::json!(program))
+        },
+      ),
+    );
+
+    let specifier = ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap();
+    let module_id = deno_core::futures::executor::block_on(
+      self
+        .runtime
+        .load_module(&specifier, Some(self.dummy_source.clone())),
+    )
+    .unwrap();
+    deno_core::futures::executor::block_on(
+      self.runtime.mod_evaluate(module_id),
+    )
+    .unwrap();
+  }
+
+  fn codes(&self) -> HashSet<String> {
+    self.plugins.iter().map(|p| p.get_code()).collect()
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
 
   #[test]
   fn test_create_dummy_source() {
-    let input = ["./foo.ts", "../bar.js"];
+    let input = [
+      PluginMeta::new("./foo.ts", None),
+      PluginMeta::new("../bar.js", None),
+    ];
     assert_eq!(
       create_dummy_source(&input),
       r#"import Plugin0 from './foo.ts';
