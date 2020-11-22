@@ -17,7 +17,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::Program;
 
 #[derive(Deserialize)]
-struct DiagnosticsFromJS {
+struct DiagnosticFromJS {
   span: Span,
   code: String,
   message: String,
@@ -29,7 +29,7 @@ struct Code {
   code: String,
 }
 
-type Diagnostics = Vec<DiagnosticsFromJS>;
+type Diagnostics = Vec<DiagnosticFromJS>;
 type Codes = HashSet<String>;
 
 pub struct JsRuleRunner {
@@ -69,7 +69,7 @@ impl JsRuleRunner {
               args: Value,
               _bufs: &mut [ZeroCopyBuf]|
               -> Result<Value, AnyError> {
-          let mut diagnostics_from_js: Vec<DiagnosticsFromJS> =
+          let mut diagnostics_from_js: Vec<DiagnosticFromJS> =
             serde_json::from_value(args).unwrap();
           // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
           // This should be discussed further before it's stabilized.
