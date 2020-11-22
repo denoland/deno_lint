@@ -212,9 +212,13 @@ impl Plugins for JsRuleRunner {
       .try_take::<Codes>()
       .unwrap_or_else(HashSet::new);
 
-    diagnostics
-      .into_iter()
-      .for_each(|d| context.add_diagnostic(d.span, d.code, d.message));
+    diagnostics.into_iter().for_each(|d| {
+      if let Some(hint) = d.hint {
+        context.add_diagnostic_with_hint(d.span, d.code, d.message, hint);
+      } else {
+        context.add_diagnostic(d.span, d.code, d.message);
+      }
+    });
     context.set_plugin_codes(codes);
   }
 }

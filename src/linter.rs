@@ -49,7 +49,7 @@ impl Context {
     self.diagnostics.push(diagnostic);
   }
 
-  pub(crate) fn add_diagnostic_with_hint(
+  pub fn add_diagnostic_with_hint(
     &mut self,
     span: Span,
     code: impl ToString,
