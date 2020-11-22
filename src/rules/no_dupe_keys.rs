@@ -354,18 +354,13 @@ let x = {
           hint: NoDupeKeysHint::RemoveOrRename,
         }
       ],
-
-      // TODO(magurotuna): this leads to panic due to swc error
-      // It seems like tsc v4.0.2 cannot handle this either
-      // playground: https://www.typescriptlang.org/play?target=99&ts=4.0.2#code/MYewdgzgLgBCBGArGBeGBvAUDGBGMAXDACwBMANJgL4DcQA
-      // r#"var x = { 1n: 1, 1: 2 };"#: [
-      //   {
-      //     col: 8,
-      //     message: variant!(NoDupeKeysMessage, Duplicate, "1"),
-      //     hint: NoDupeKeysHint::RemoveOrRename,
-      //   }
-      // ],
-
+      r#"var x = { 1n: 1, 1: 2 };"#: [
+        {
+          col: 8,
+          message: variant!(NoDupeKeysMessage, Duplicate, "1"),
+          hint: NoDupeKeysHint::RemoveOrRename,
+        }
+      ],
       r#"var x = { 1_0: 1, 10: 2 };"#: [
         {
           col: 8,

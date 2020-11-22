@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.2.10"
+version = "0.2.11"
 dependencies = [
  "annotate-snippets",
  "anyhow",
@@ -273,7 +273,6 @@ dependencies = [
  "swc_atoms",
  "swc_common",
  "swc_ecmascript",
- "toml",
 ]
 
 [[package]]
@@ -572,9 +571,9 @@ checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
 name = "jsdoc"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02dd0a45f2fca1d284537158260931c58496103224c3780e40508d0c1e6b9f4e"
+checksum = "18e220ced55f8e93f0a3fb6b6f7c5829235299d818dac283535760a4182b5f0a"
 dependencies = [
  "nom",
  "serde",
@@ -1132,9 +1131,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ba29ce355bdfb942c0fb29bd1409197fa1a25ba649f13089129484ad0c83282"
+checksum = "39d14f5b7769eb53a98276475ca72d188f5fa0fbf1819d3e9241b9e295ae0542"
 dependencies = [
  "enum_kind",
  "is-macro",
@@ -1147,9 +1146,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.42.0"
+version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "136f5fddde6d78b5ae532bb0d5a0ce2f1eb1d36caea3e9b9dfcfb70693a7e23d"
+checksum = "a3fed210fea4936fad012d9953d1134302f45c75c647d2734500eac8251ac39f"
 dependencies = [
  "either",
  "enum_kind",
@@ -1181,9 +1180,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.29.3"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0958bbaa69e01a45a2268c398a8814014a029c0b4eaecd42f2545fcd642314e8"
+checksum = "5b5641f852d0156388ae939cfc9dda3dd7b05787236d1e80b697750815721758"
 dependencies = [
  "Inflector",
  "arrayvec",
@@ -1193,6 +1192,7 @@ dependencies = [
  "is-macro",
  "jsdoc",
  "log",
+ "num-bigint",
  "once_cell",
  "ordered-float",
  "phf",
@@ -1227,9 +1227,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e09463bb646ed5f33608bd60153b604f3a894162d14dba481f1032e7d28e80d"
+checksum = "64fd3d84ee287900f37fd06a1856f57cd0d65b37bb0557abde2c91d8a9b28155"
 dependencies = [
  "once_cell",
  "scoped-tls",
@@ -1242,9 +1242,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0175b589eaeb5a8e6458592f82efce759c1fa0fb41dfe14f04b74c498f11f50d"
+checksum = "ee22eeb8c6987f9e740e1867292bd45785408f62ded95e1dc57b9c6c26e85a96"
 dependencies = [
  "num-bigint",
  "swc_atoms",
@@ -1255,9 +1255,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.13.3"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f11d30e16321db6eb94b38ec3dd701bc4e7bd5e146aa49451b049817a250b0f1"
+checksum = "616480cdcebbf6e2b91db9eca819281838f46a4c6a48190111f1ee1254aa781c"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",
@@ -1362,9 +1362,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b78a366903f506d2ad52ca8dc552102ffdd3e937ba8a227f024dc1d1eae28575"
+checksum = "ccf8dbc19eb42fba10e8feaaec282fb50e2c14b2726d6301dbfeed0f73306a6f"
 dependencies = [
  "tinyvec_macros",
 ]
@@ -1374,15 +1374,6 @@ name = "tinyvec_macros"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
-
-[[package]]
-name = "toml"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75cf45bb0bef80604d001caaec0d09da99611b3c0fd39d3080468875cdb65645"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "unicode-bidi"
@@ -1395,9 +1386,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.14"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7f98e67a4d84f730d343392f9bfff7d21e3fca562b9cb7a43b768350beeddc6"
+checksum = "a13e63ab62dbe32aeee58d1c5408d35c36c392bba5d9d3142287219721afe606"
 dependencies = [
  "tinyvec",
 ]
