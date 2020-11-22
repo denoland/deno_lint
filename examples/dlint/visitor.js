@@ -9,6 +9,10 @@ class Visitor {
   addDiagnostic(d) {
     this.diagnostics.push(d);
   }
+  // must be overridden
+  ruleCode() {
+    throw new Error("Rule code not provided!");
+  }
   visitProgram(n) {
     switch (n.type) {
       case "Module":
