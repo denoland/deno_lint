@@ -1,8 +1,8 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::convert::TryInto;
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {
   pub line: usize,
@@ -24,13 +24,13 @@ impl Position {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Range {
   pub start: Position,
   pub end: Position,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct LintDiagnostic {
   pub range: Range,
   pub filename: String,

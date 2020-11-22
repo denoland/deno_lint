@@ -196,7 +196,7 @@ fn run_linter(
     error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
     let _g = output_lock.lock().unwrap();
 
-    display_diagnostics(&file_diagnostics, source_file.clone());
+    display_diagnostics(&file_diagnostics, source_file);
   });
 
   let err_count = error_counts.load(Ordering::Relaxed);

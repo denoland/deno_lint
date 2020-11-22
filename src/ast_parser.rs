@@ -115,7 +115,7 @@ impl Emitter for SwcErrorBuffer {
 ///
 /// Allows to build more complicated parser by providing a callback
 /// to `parse_module`.
-pub struct AstParser {
+pub(crate) struct AstParser {
   pub(crate) buffered_error: SwcErrorBuffer,
   pub(crate) source_map: Rc<SourceMap>,
   pub(crate) handler: Handler,
@@ -152,7 +152,7 @@ impl AstParser {
     }
   }
 
-  pub fn parse_program(
+  pub(crate) fn parse_program(
     &self,
     file_name: &str,
     syntax: Syntax,
@@ -188,10 +188,6 @@ impl AstParser {
     });
 
     parse_result.map(|program| (program, comments))
-  }
-
-  pub fn get_source_map(&self) -> Rc<SourceMap> {
-    Rc::clone(&self.source_map)
   }
 
   pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
