@@ -61,7 +61,26 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 how `deno_lint` can be used as a crate.
 
 ```shell
-$ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
+# Build standalone binary
+$ cargo build --example dlint
+
+$ ./target/debug/examples/dlint --help
+
+dlint
+
+USAGE:
+    dlint <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+SUBCOMMANDS:
+    help     Prints this message or the help of the given subcommand(s)
+    rules
+    run
+
+$ ./target/debug/examples/dlint run ../deno/std/http/server.ts ../deno/std/http/file_server.ts
 (no-empty) Empty block statement
   --> ../deno/std/http/server.ts:93:14
    |
