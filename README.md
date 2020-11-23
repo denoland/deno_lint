@@ -24,32 +24,34 @@ Blazing fast, see comparison with ESLint:
 [
   {
     "name": "deno_lint",
-    "totalMs": 247.20262200000025,
+    "totalMs": 105.3750100000002,
     "runsCount": 5,
-    "measuredRunsAvgMs": 49.44052440000005,
+    "measuredRunsAvgMs": 21.07500200000004,
     "measuredRunsMs": [
-      49.016501999999946,
-      49.56810500000006,
-      49.68610600000011,
-      48.97360200000003,
-      49.958307000000104
+      24.79783199999997,
+      19.563640000000078,
+      20.759051999999883,
+      19.99068000000011,
+      20.26380600000016
     ]
   },
   {
     "name": "eslint",
-    "totalMs": 12214.295835,
+    "totalMs": 11845.073306000002,
     "runsCount": 5,
-    "measuredRunsAvgMs": 2442.859167,
+    "measuredRunsAvgMs": 2369.0146612000003,
     "measuredRunsMs": [
-      2703.5126729999997,
-      2380.431925,
-      2369.1452910000007,
-      2362.1451909999996,
-      2399.0607550000004
+      2686.1039550000005,
+      2281.501061,
+      2298.6185210000003,
+      2279.5962849999996,
+      2299.2534840000008
     ]
   }
 ]
 ```
+
+This result can be seen [here](https://github.com/denoland/deno_lint/runs/1436170818#step:15:7).
 
 _Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
 Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
