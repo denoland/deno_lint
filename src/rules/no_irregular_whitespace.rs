@@ -1,6 +1,7 @@
 use super::{Context, LintRule};
 use regex::{Matches, Regex};
 
+use derive_more::Display;
 use once_cell::sync::Lazy;
 use swc_common::{hygiene::SyntaxContext, BytePos, Span, Spanned};
 use swc_ecmascript::ast::Program;
@@ -9,6 +10,14 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoIrregularWhitespace;
+
+const CODE: &str = "no-irregular-whitespace";
+
+#[derive(Display)]
+enum NoIrregularWhitespaceMessage {
+  #[display(fmt = "Irregular whitespace not allowed.")]
+  NotAllowed,
+}
 
 static IRREGULAR_WHITESPACE: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap()
@@ -43,7 +52,7 @@ impl LintRule for NoIrregularWhitespace {
   }
 
   fn code(&self) -> &'static str {
-    "no-irregular-whitespace"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -74,8 +83,8 @@ impl LintRule for NoIrregularWhitespace {
             if !is_excluded {
               context.add_diagnostic(
                 span,
-                "no-irregular-whitespace",
-                "Irregular whitespace not allowed.",
+                CODE,
+                NoIrregularWhitespaceMessage::NotAllowed,
               );
             }
           }
