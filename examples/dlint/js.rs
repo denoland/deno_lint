@@ -32,6 +32,41 @@ struct Code {
 type Diagnostics = Vec<DiagnosticFromJS>;
 type Codes = HashSet<String>;
 
+fn op_add_diagnostics(
+  state: &mut OpState,
+  args: Value,
+  _bufs: &mut [ZeroCopyBuf],
+) -> Result<Value, AnyError> {
+  let mut diagnostics_from_js: Vec<DiagnosticFromJS> =
+    serde_json::from_value(args).unwrap();
+  // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
+  // This should be discussed further before it's stabilized.
+  diagnostics_from_js
+    .iter_mut()
+    .for_each(|d| d.code = format!("@deno-lint-plugin/{}", d.code));
+
+  let mut stored = state.try_take::<Diagnostics>().unwrap_or_else(Vec::new);
+  stored.extend(diagnostics_from_js);
+  state.put::<Diagnostics>(stored);
+
+  Ok(serde_json::json!({}))
+}
+
+fn op_add_code(
+  state: &mut OpState,
+  args: Value,
+  _bufs: &mut [ZeroCopyBuf],
+) -> Result<Value, AnyError> {
+  let code_from_js: Code = serde_json::from_value(args).unwrap();
+  let mut stored = state.try_take::<Codes>().unwrap_or_else(HashSet::new);
+  // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
+  // This should be discussed further before it's stabilized.
+  stored.insert(format!("@deno-lint-plugin/{}", code_from_js.code));
+  state.put::<Codes>(stored);
+
+  Ok(serde_json::json!({}))
+}
+
 pub struct JsRuleRunner {
   runtime: JsRuntime,
   dummy_source: String,
@@ -45,67 +80,24 @@ impl JsRuleRunner {
       return None;
     }
 
-    let mut runner = Self {
-      runtime: JsRuntime::new(RuntimeOptions {
-        module_loader: Some(Rc::new(FsModuleLoader)),
-        ..Default::default()
-      }),
-      dummy_source: create_dummy_source(plugin_paths),
-    };
-    runner.init();
-    Some(Box::new(runner))
-  }
+    let mut runtime = JsRuntime::new(RuntimeOptions {
+      module_loader: Some(Rc::new(FsModuleLoader)),
+      ..Default::default()
+    });
 
-  fn init(&mut self) {
-    self
-      .runtime
+    runtime
       .execute("visitor.js", include_str!("visitor.js"))
       .unwrap();
-
-    self.runtime.register_op(
+    runtime.register_op(
       "add_diagnostics",
-      deno_core::json_op_sync(
-        move |state: &mut OpState,
-              args: Value,
-              _bufs: &mut [ZeroCopyBuf]|
-              -> Result<Value, AnyError> {
-          let mut diagnostics_from_js: Vec<DiagnosticFromJS> =
-            serde_json::from_value(args).unwrap();
-          // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
-          // This should be discussed further before it's stabilized.
-          diagnostics_from_js
-            .iter_mut()
-            .for_each(|d| d.code = format!("@deno-lint-plugin/{}", d.code));
-
-          let mut stored =
-            state.try_take::<Diagnostics>().unwrap_or_else(Vec::new);
-          stored.extend(diagnostics_from_js);
-          state.put::<Diagnostics>(stored);
-
-          Ok(serde_json::json!({}))
-        },
-      ),
+      deno_core::json_op_sync(op_add_diagnostics),
     );
+    runtime.register_op("add_code", deno_core::json_op_sync(op_add_code));
 
-    self.runtime.register_op(
-      "add_code",
-      deno_core::json_op_sync(
-        move |state: &mut OpState,
-              args: Value,
-              _bufs: &mut [ZeroCopyBuf]|
-              -> Result<Value, AnyError> {
-          let code_from_js: Code = serde_json::from_value(args).unwrap();
-          let mut stored =
-            state.try_take::<Codes>().unwrap_or_else(HashSet::new);
-          // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
-          // This should be discussed further before it's stabilized.
-          stored.insert(format!("@deno-lint-plugin/{}", code_from_js.code));
-          state.put::<Codes>(stored);
-
-          Ok(serde_json::json!({}))
-        },
-      ),
-    );
+    Some(Box::new(Self {
+      runtime,
+      dummy_source: create_dummy_source(plugin_paths),
+    }))
   }
 }
 
