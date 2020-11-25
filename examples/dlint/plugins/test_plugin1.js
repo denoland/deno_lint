@@ -1,5 +1,5 @@
 export default class Plugin extends Visitor {
-  ruleCode() {
+  static ruleCode() {
     return "some-rule-code";
   }
 

@@ -7,13 +7,10 @@ class Visitor {
     return this.diagnostics;
   }
   addDiagnostic(d) {
-    this.diagnostics.push({
-      ...d,
-      code: this.ruleCode(),
-    });
+    this.diagnostics.push(d);
   }
   // must be overridden
-  ruleCode() {
+  static ruleCode() {
     throw new Error("Rule code not provided!");
   }
   visitProgram(n) {

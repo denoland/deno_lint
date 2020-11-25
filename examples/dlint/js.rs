@@ -10,16 +10,21 @@ use deno_lint::linter::{Context, Plugins};
 use serde::Deserialize;
 use serde_json::Value;
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
 use std::rc::Rc;
 use swc_common::Span;
 use swc_ecmascript::ast::Program;
 
 #[derive(Deserialize)]
-struct DiagnosticFromJS {
-  span: Span,
+struct DiagnosticsFromJS {
   code: String,
+  diagnostics: Vec<InnerDiagnostics>,
+}
+
+#[derive(Deserialize)]
+struct InnerDiagnostics {
+  span: Span,
   message: String,
   hint: Option<String>,
 }
@@ -29,7 +34,7 @@ struct Code {
   code: String,
 }
 
-type Diagnostics = Vec<DiagnosticFromJS>;
+type Diagnostics = HashMap<String, Vec<InnerDiagnostics>>;
 type Codes = HashSet<String>;
 
 fn op_add_diagnostics(
@@ -37,31 +42,27 @@ fn op_add_diagnostics(
   args: Value,
   _bufs: &mut [ZeroCopyBuf],
 ) -> Result<Value, AnyError> {
-  let mut diagnostics_from_js: Vec<DiagnosticFromJS> =
+  let DiagnosticsFromJS { code, diagnostics } =
     serde_json::from_value(args).unwrap();
-  // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
-  // This should be discussed further before it's stabilized.
-  diagnostics_from_js
-    .iter_mut()
-    .for_each(|d| d.code = format!("@deno-lint-plugin/{}", d.code));
 
-  let mut stored = state.try_take::<Diagnostics>().unwrap_or_else(Vec::new);
-  stored.extend(diagnostics_from_js);
+  let mut stored = state.try_take::<Diagnostics>().unwrap_or_else(HashMap::new);
+  // TODO(magurotuna): should add some prefix to `code` to prevent from conflicting with builtin
+  // rules
+  stored.insert(code, diagnostics);
   state.put::<Diagnostics>(stored);
 
   Ok(serde_json::json!({}))
 }
 
-fn op_add_code(
+fn op_add_rule_code(
   state: &mut OpState,
   args: Value,
   _bufs: &mut [ZeroCopyBuf],
 ) -> Result<Value, AnyError> {
   let code_from_js: Code = serde_json::from_value(args).unwrap();
+
   let mut stored = state.try_take::<Codes>().unwrap_or_else(HashSet::new);
-  // TODO(magurotuna): To differenciate builtin and plugin rules, adds prefix to plugins.
-  // This should be discussed further before it's stabilized.
-  stored.insert(format!("@deno-lint-plugin/{}", code_from_js.code));
+  stored.insert(code_from_js.code);
   state.put::<Codes>(stored);
 
   Ok(serde_json::json!({}))
@@ -69,7 +70,7 @@ fn op_add_code(
 
 pub struct JsRuleRunner {
   runtime: JsRuntime,
-  dummy_source: String,
+  module_id: i32,
 }
 
 impl JsRuleRunner {
@@ -92,12 +93,18 @@ impl JsRuleRunner {
       "add_diagnostics",
       deno_core::json_op_sync(op_add_diagnostics),
     );
-    runtime.register_op("add_code", deno_core::json_op_sync(op_add_code));
+    runtime
+      .register_op("add_rule_code", deno_core::json_op_sync(op_add_rule_code));
 
-    Some(Box::new(Self {
-      runtime,
-      dummy_source: create_dummy_source(plugin_paths),
-    }))
+    // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal, but works for now
+    let module_id =
+      deno_core::futures::executor::block_on(runtime.load_module(
+        &ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap(),
+        Some(create_dummy_source(plugin_paths)),
+      ))
+      .unwrap();
+
+    Some(Box::new(Self { runtime, module_id }))
   }
 }
 
@@ -139,6 +146,56 @@ impl ModuleLoader for FsModuleLoader {
   }
 }
 
+impl Plugins for JsRuleRunner {
+  // TODO(magurotuna): this method sometimes panics, so maybe should return `Result`?
+  fn run(&mut self, context: &mut Context, program: Program) {
+    // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal, but works for now
+    deno_core::futures::executor::block_on(
+      self.runtime.mod_evaluate(self.module_id),
+    )
+    .unwrap();
+
+    let codes = self
+      .runtime
+      .op_state()
+      .borrow_mut()
+      .try_take::<Codes>()
+      .unwrap_or_else(HashSet::new);
+
+    context.set_plugin_codes(codes.clone());
+
+    self
+      .runtime
+      .execute(
+        "runPlugins",
+        &format!(
+          "runPlugins({ast}, {rule_codes});",
+          ast = serde_json::to_string(&program).unwrap(),
+          rule_codes = serde_json::to_string(&codes).unwrap()
+        ),
+      )
+      .unwrap();
+
+    let diagnostic_map = self
+      .runtime
+      .op_state()
+      .borrow_mut()
+      .try_take::<Diagnostics>();
+
+    if let Some(diagnostic_map) = diagnostic_map {
+      for (code, diagnostics) in diagnostic_map {
+        for d in diagnostics {
+          if let Some(hint) = d.hint {
+            context.add_diagnostic_with_hint(d.span, &code, d.message, hint);
+          } else {
+            context.add_diagnostic(d.span, &code, d.message);
+          }
+        }
+      }
+    }
+  }
+}
+
 fn create_dummy_source(plugin_paths: &[&str]) -> String {
   let mut dummy_source = String::new();
   for (i, p) in plugin_paths.iter().enumerate() {
@@ -149,70 +206,29 @@ fn create_dummy_source(plugin_paths: &[&str]) -> String {
     );
   }
   dummy_source += r#"Deno.core.ops();
-const programAst = Deno.core.jsonOpSync('get_program', {});
-let plugin;
+const rules = new Map();
+function registerRule(ruleClass) {
+  const code = ruleClass.ruleCode();
+  rules.set(code, ruleClass);
+  Deno.core.jsonOpSync('add_rule_code', { code });
+}
+globalThis.runPlugins = function(programAst, ruleCodes) {
+  for (const code of ruleCodes) {
+    const rule = rules.get(code);
+    if (rule === undefined) {
+      continue;
+    }
+    const diagnostics = new rule().collectDiagnostics(programAst);
+    Deno.core.jsonOpSync('add_diagnostics', { code, diagnostics });
+  }
+};
 "#;
   for plugin_number in 0..plugin_paths.len() {
     dummy_source +=
-      &format!("plugin = new Plugin{number}();\n", number = plugin_number);
-    dummy_source += "Deno.core.jsonOpSync('add_diagnostics', plugin.collectDiagnostics(programAst));\n";
-    dummy_source +=
-      "Deno.core.jsonOpSync('add_code', { code: plugin.ruleCode() });\n";
+      &format!("registerRule(Plugin{number});\n", number = plugin_number);
   }
 
   dummy_source
-}
-
-impl Plugins for JsRuleRunner {
-  fn run(&mut self, context: &mut Context, program: Program) {
-    self.runtime.register_op(
-      "get_program",
-      deno_core::json_op_sync(
-        move |_state: &mut OpState,
-              _args: Value,
-              _bufs: &mut [ZeroCopyBuf]|
-              -> Result<Value, AnyError> {
-          Ok(serde_json::json!(program))
-        },
-      ),
-    );
-
-    let specifier = ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap();
-
-    // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal, but works for now
-    let module_id = deno_core::futures::executor::block_on(
-      self
-        .runtime
-        .load_module(&specifier, Some(self.dummy_source.clone())),
-    )
-    .unwrap();
-    deno_core::futures::executor::block_on(
-      self.runtime.mod_evaluate(module_id),
-    )
-    .unwrap();
-
-    let diagnostics = self
-      .runtime
-      .op_state()
-      .borrow_mut()
-      .try_take::<Diagnostics>()
-      .unwrap_or_else(Vec::new);
-    let codes = self
-      .runtime
-      .op_state()
-      .borrow_mut()
-      .try_take::<Codes>()
-      .unwrap_or_else(HashSet::new);
-
-    diagnostics.into_iter().for_each(|d| {
-      if let Some(hint) = d.hint {
-        context.add_diagnostic_with_hint(d.span, d.code, d.message, hint);
-      } else {
-        context.add_diagnostic(d.span, d.code, d.message);
-      }
-    });
-    context.set_plugin_codes(codes);
-  }
 }
 
 #[cfg(test)]
@@ -227,14 +243,24 @@ mod tests {
       r#"import Plugin0 from './foo.ts';
 import Plugin1 from '../bar.js';
 Deno.core.ops();
-const programAst = Deno.core.jsonOpSync('get_program', {});
-let plugin;
-plugin = new Plugin0();
-Deno.core.jsonOpSync('add_diagnostics', plugin.collectDiagnostics(programAst));
-Deno.core.jsonOpSync('add_code', { code: plugin.ruleCode() });
-plugin = new Plugin1();
-Deno.core.jsonOpSync('add_diagnostics', plugin.collectDiagnostics(programAst));
-Deno.core.jsonOpSync('add_code', { code: plugin.ruleCode() });
+const rules = new Map();
+function registerRule(ruleClass) {
+  const code = ruleClass.ruleCode();
+  rules.set(code, ruleClass);
+  Deno.core.jsonOpSync('add_rule_code', { code });
+}
+globalThis.runPlugins = function(programAst, ruleCodes) {
+  for (const code of ruleCodes) {
+    const rule = rules.get(code);
+    if (rule === undefined) {
+      continue;
+    }
+    const diagnostics = new rule().collectDiagnostics(programAst);
+    Deno.core.jsonOpSync('add_diagnostics', { code, diagnostics });
+  }
+};
+registerRule(Plugin0);
+registerRule(Plugin1);
 "#
     );
   }
