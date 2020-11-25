@@ -113,7 +113,6 @@ impl Visit for NoIrregularWhitespaceVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_irregular_whitespace_valid() {
@@ -170,33 +169,157 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_invalid() {
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{000B} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{000C} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{00A0} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{feff} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2000} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2001} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2002} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2003} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2004} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2005} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2006} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2007} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2008} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2009} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{200A} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2028} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2029} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{202F} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{205f} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{3000} = 'thing';", 8);
-    assert_lint_err_on_line_n::<NoIrregularWhitespace>(
-      "var a = 'b',\u{2028}c = 'd',\ne = 'f'\u{2028}",
-      vec![(1, 12), (2, 7)],
-    );
-    assert_lint_err_on_line_n::<NoIrregularWhitespace>(
-      "var any \u{3000} = 'thing', other \u{3000} = 'thing';\nvar third \u{3000} = 'thing';",
-      vec![(1, 8), (1, 27), (2, 10)],
-    );
+    assert_lint_err! {
+      NoIrregularWhitespace,
+      "var any \u{000B} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{000C} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{00A0} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{feff} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2000} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2001} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2002} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2003} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2004} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2005} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2006} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2007} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2008} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2009} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{200A} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2028} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2029} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{202F} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{205f} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{3000} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var a = 'b',\u{2028}c = 'd',\ne = 'f'\u{2028}": [
+        {
+          line: 1,
+          col: 12,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        },
+        {
+          line: 2,
+          col: 7,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{3000} = 'thing', other \u{3000} = 'thing';\nvar third \u{3000} = 'thing';": [
+        {
+          line: 1,
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        },
+        {
+          line: 1,
+          col: 27,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        },
+        {
+          line: 2,
+          col: 10,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ]
+    };
   }
 }
