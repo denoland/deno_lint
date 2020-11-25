@@ -9,7 +9,7 @@ use swc_ecmascript::{
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ControlFlow {
   meta: BTreeMap<BytePos, Metadata>,
 }

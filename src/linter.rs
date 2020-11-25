@@ -23,7 +23,6 @@ use swc_ecmascript::parser::Syntax;
 
 pub use swc_common::SourceFile;
 
-#[derive(Default)]
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
@@ -377,7 +376,8 @@ impl Linter {
       scope,
       control_flow,
       top_level_ctxt,
-      ..Default::default()
+      diagnostics: Vec::new(),
+      plugin_codes: HashSet::new(),
     };
 
     // Run builtin rules
