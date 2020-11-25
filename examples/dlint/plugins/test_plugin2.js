@@ -1,4 +1,4 @@
-export default class Plugin extends Visitor {
+export default class LintRule extends Visitor {
   static ruleCode() {
     return "forbidden-ident-name";
   }
