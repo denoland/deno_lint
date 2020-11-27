@@ -1,6 +1,7 @@
 use super::{Context, LintRule};
 use regex::{Matches, Regex};
 
+use derive_more::Display;
 use once_cell::sync::Lazy;
 use swc_common::{hygiene::SyntaxContext, BytePos, Span, Spanned};
 use swc_ecmascript::ast::Program;
@@ -9,6 +10,14 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoIrregularWhitespace;
+
+const CODE: &str = "no-irregular-whitespace";
+
+#[derive(Display)]
+enum NoIrregularWhitespaceMessage {
+  #[display(fmt = "Irregular whitespace not allowed.")]
+  NotAllowed,
+}
 
 static IRREGULAR_WHITESPACE: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r"[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+").unwrap()
@@ -43,7 +52,7 @@ impl LintRule for NoIrregularWhitespace {
   }
 
   fn code(&self) -> &'static str {
-    "no-irregular-whitespace"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -74,8 +83,8 @@ impl LintRule for NoIrregularWhitespace {
             if !is_excluded {
               context.add_diagnostic(
                 span,
-                "no-irregular-whitespace",
-                "Irregular whitespace not allowed.",
+                CODE,
+                NoIrregularWhitespaceMessage::NotAllowed,
               );
             }
           }
@@ -104,7 +113,6 @@ impl Visit for NoIrregularWhitespaceVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_irregular_whitespace_valid() {
@@ -161,33 +169,157 @@ mod tests {
 
   #[test]
   fn no_irregular_whitespace_invalid() {
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{000B} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{000C} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{00A0} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{feff} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2000} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2001} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2002} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2003} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2004} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2005} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2006} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2007} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2008} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2009} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{200A} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2028} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{2029} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{202F} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{205f} = 'thing';", 8);
-    assert_lint_err::<NoIrregularWhitespace>("var any \u{3000} = 'thing';", 8);
-    assert_lint_err_on_line_n::<NoIrregularWhitespace>(
-      "var a = 'b',\u{2028}c = 'd',\ne = 'f'\u{2028}",
-      vec![(1, 12), (2, 7)],
-    );
-    assert_lint_err_on_line_n::<NoIrregularWhitespace>(
-      "var any \u{3000} = 'thing', other \u{3000} = 'thing';\nvar third \u{3000} = 'thing';",
-      vec![(1, 8), (1, 27), (2, 10)],
-    );
+    assert_lint_err! {
+      NoIrregularWhitespace,
+      "var any \u{000B} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{000C} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{00A0} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{feff} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2000} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2001} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2002} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2003} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2004} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2005} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2006} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2007} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2008} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2009} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{200A} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2028} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{2029} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{202F} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{205f} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{3000} = 'thing';": [
+        {
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var a = 'b',\u{2028}c = 'd',\ne = 'f'\u{2028}": [
+        {
+          line: 1,
+          col: 12,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        },
+        {
+          line: 2,
+          col: 7,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ],
+      "var any \u{3000} = 'thing', other \u{3000} = 'thing';\nvar third \u{3000} = 'thing';": [
+        {
+          line: 1,
+          col: 8,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        },
+        {
+          line: 1,
+          col: 27,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        },
+        {
+          line: 2,
+          col: 10,
+          message: NoIrregularWhitespaceMessage::NotAllowed,
+        }
+      ]
+    };
   }
 }
