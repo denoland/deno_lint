@@ -141,12 +141,14 @@ impl ModuleLoader for FsModuleLoader {
 }
 
 impl Plugin for JsRuleRunner {
-  // TODO(magurotuna): this method sometimes panics, so maybe should return `Result`?
-  fn run(&mut self, context: &mut Context, program: Program) {
+  fn run(
+    &mut self,
+    context: &mut Context,
+    program: Program,
+  ) -> Result<(), AnyError> {
     deno_core::futures::executor::block_on(
       self.runtime.mod_evaluate(self.module_id),
-    )
-    .unwrap();
+    )?;
 
     let codes = self
       .runtime
@@ -157,17 +159,14 @@ impl Plugin for JsRuleRunner {
 
     context.set_plugin_codes(codes.clone());
 
-    self
-      .runtime
-      .execute(
-        "runPlugins",
-        &format!(
-          "runPlugins({ast}, {rule_codes});",
-          ast = serde_json::to_string(&program).unwrap(),
-          rule_codes = serde_json::to_string(&codes).unwrap()
-        ),
-      )
-      .unwrap();
+    self.runtime.execute(
+      "runPlugins",
+      &format!(
+        "runPlugins({ast}, {rule_codes});",
+        ast = serde_json::to_string(&program).unwrap(),
+        rule_codes = serde_json::to_string(&codes).unwrap()
+      ),
+    )?;
 
     let diagnostic_map = self
       .runtime
@@ -186,6 +185,8 @@ impl Plugin for JsRuleRunner {
         }
       }
     }
+
+    Ok(())
   }
 }
 

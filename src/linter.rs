@@ -9,6 +9,7 @@ use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
+use deno_core::error::AnyError;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -387,7 +388,8 @@ impl Linter {
 
     // Run plugin rules
     for plugin in self.plugins.iter_mut() {
-      plugin.run(&mut context, program.clone());
+      // Ignore any error
+      let _ = plugin.run(&mut context, program.clone());
     }
 
     let d = self.filter_diagnostics(&mut context);
@@ -403,5 +405,5 @@ pub trait Plugin {
     &mut self,
     context: &mut Context,
     program: swc_ecmascript::ast::Program,
-  );
+  ) -> Result<(), AnyError>;
 }
