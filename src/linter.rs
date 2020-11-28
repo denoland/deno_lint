@@ -105,7 +105,7 @@ pub struct LinterBuilder {
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
-  plugins: Option<Box<dyn Plugins>>,
+  plugins: Vec<Box<dyn Plugin>>,
 }
 
 impl LinterBuilder {
@@ -117,7 +117,7 @@ impl LinterBuilder {
       lint_unknown_rules: true,
       syntax: get_default_ts_config(),
       rules: vec![],
-      plugins: None,
+      plugins: vec![],
     }
   }
 
@@ -166,8 +166,8 @@ impl LinterBuilder {
     self
   }
 
-  pub fn plugins(mut self, plugins: Option<Box<dyn Plugins>>) -> Self {
-    self.plugins = plugins;
+  pub fn add_plugin(mut self, plugin: Box<dyn Plugin>) -> Self {
+    self.plugins.push(plugin);
     self
   }
 }
@@ -181,7 +181,7 @@ pub struct Linter {
   lint_unknown_rules: bool,
   syntax: Syntax,
   rules: Vec<Box<dyn LintRule>>,
-  plugins: Option<Box<dyn Plugins>>,
+  plugins: Vec<Box<dyn Plugin>>,
 }
 
 impl Linter {
@@ -192,7 +192,7 @@ impl Linter {
     lint_unknown_rules: bool,
     syntax: Syntax,
     rules: Vec<Box<dyn LintRule>>,
-    plugins: Option<Box<dyn Plugins>>,
+    plugins: Vec<Box<dyn Plugin>>,
   ) -> Self {
     Linter {
       has_linted: false,
@@ -386,8 +386,8 @@ impl Linter {
     }
 
     // Run plugin rules
-    if let Some(plugins) = self.plugins.as_mut() {
-      plugins.run(&mut context, program);
+    for plugin in self.plugins.iter_mut() {
+      plugin.run(&mut context, program.clone());
     }
 
     let d = self.filter_diagnostics(&mut context);
@@ -398,7 +398,7 @@ impl Linter {
   }
 }
 
-pub trait Plugins {
+pub trait Plugin {
   fn run(
     &mut self,
     context: &mut Context,

@@ -11,7 +11,6 @@ use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::linter::Plugins;
 use deno_lint::linter::SourceFile;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use log::debug;
@@ -179,15 +178,17 @@ fn run_linter(
 
     debug!("Configured rules: {}", rules.len());
 
-    let maybe_js_runner = js::JsRuleRunner::new(&plugin_paths)
-      .map(|runner| runner as Box<dyn Plugins>);
-
-    let mut linter = LinterBuilder::default()
+    let mut linter_builder = LinterBuilder::default()
       .rules(rules)
       .lint_unknown_rules(true)
-      .lint_unused_ignore_directives(true)
-      .plugins(maybe_js_runner)
-      .build();
+      .lint_unused_ignore_directives(true);
+
+    for plugin_path in &plugin_paths {
+      let js_runner = js::JsRuleRunner::new(plugin_path);
+      linter_builder = linter_builder.add_plugin(js_runner);
+    }
+
+    let mut linter = linter_builder.build();
 
     let (source_file, file_diagnostics) = linter
       .lint(file_path.to_string_lossy().to_string(), source_code)

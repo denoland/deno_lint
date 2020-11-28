@@ -6,7 +6,7 @@ use deno_core::ModuleSpecifier;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
-use deno_lint::linter::{Context, Plugins};
+use deno_lint::linter::{Context, Plugin};
 use serde::Deserialize;
 use serde_json::Value;
 use std::cell::RefCell;
@@ -75,12 +75,7 @@ pub struct JsRuleRunner {
 
 impl JsRuleRunner {
   /// Create new JsRuntime for running plugin rules.
-  /// If `plugin_paths` is empty, this returns `None`.
-  pub fn new(plugin_paths: &[&str]) -> Option<Box<Self>> {
-    if plugin_paths.is_empty() {
-      return None;
-    }
-
+  pub fn new(plugin_path: &str) -> Box<Self> {
     let mut runtime = JsRuntime::new(RuntimeOptions {
       module_loader: Some(Rc::new(FsModuleLoader)),
       ..Default::default()
@@ -100,11 +95,11 @@ impl JsRuleRunner {
     let module_id =
       deno_core::futures::executor::block_on(runtime.load_module(
         &ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap(),
-        Some(create_dummy_source(plugin_paths)),
+        Some(create_dummy_source(plugin_path)),
       ))
       .unwrap();
 
-    Some(Box::new(Self { runtime, module_id }))
+    Box::new(Self { runtime, module_id })
   }
 }
 
@@ -146,7 +141,7 @@ impl ModuleLoader for FsModuleLoader {
   }
 }
 
-impl Plugins for JsRuleRunner {
+impl Plugin for JsRuleRunner {
   // TODO(magurotuna): this method sometimes panics, so maybe should return `Result`?
   fn run(&mut self, context: &mut Context, program: Program) {
     // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal, but works for now
@@ -196,15 +191,9 @@ impl Plugins for JsRuleRunner {
   }
 }
 
-fn create_dummy_source(plugin_paths: &[&str]) -> String {
+fn create_dummy_source(plugin_path: &str) -> String {
   let mut dummy_source = String::new();
-  for (i, p) in plugin_paths.iter().enumerate() {
-    dummy_source += &format!(
-      "import Plugin{number} from '{path}';\n",
-      number = i,
-      path = p
-    );
-  }
+  dummy_source += &format!("import Plugin from '{}';\n", plugin_path);
   dummy_source += r#"Deno.core.ops();
 const rules = new Map();
 function registerRule(ruleClass) {
@@ -222,11 +211,8 @@ globalThis.runPlugins = function(programAst, ruleCodes) {
     Deno.core.jsonOpSync('add_diagnostics', { code, diagnostics });
   }
 };
+registerRule(Plugin);
 "#;
-  for plugin_number in 0..plugin_paths.len() {
-    dummy_source +=
-      &format!("registerRule(Plugin{number});\n", number = plugin_number);
-  }
 
   dummy_source
 }
@@ -237,11 +223,9 @@ mod tests {
 
   #[test]
   fn test_create_dummy_source() {
-    let input = ["./foo.ts", "../bar.js"];
     assert_eq!(
-      create_dummy_source(&input),
-      r#"import Plugin0 from './foo.ts';
-import Plugin1 from '../bar.js';
+      create_dummy_source("./foo.ts"),
+      r#"import Plugin from './foo.ts';
 Deno.core.ops();
 const rules = new Map();
 function registerRule(ruleClass) {
@@ -259,8 +243,7 @@ globalThis.runPlugins = function(programAst, ruleCodes) {
     Deno.core.jsonOpSync('add_diagnostics', { code, diagnostics });
   }
 };
-registerRule(Plugin0);
-registerRule(Plugin1);
+registerRule(Plugin);
 "#
     );
   }
