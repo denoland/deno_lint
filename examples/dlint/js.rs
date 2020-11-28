@@ -91,7 +91,6 @@ impl JsRuleRunner {
     runtime
       .register_op("add_rule_code", deno_core::json_op_sync(op_add_rule_code));
 
-    // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal, but works for now
     let module_id =
       deno_core::futures::executor::block_on(runtime.load_module(
         &ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap(),
@@ -144,7 +143,6 @@ impl ModuleLoader for FsModuleLoader {
 impl Plugin for JsRuleRunner {
   // TODO(magurotuna): this method sometimes panics, so maybe should return `Result`?
   fn run(&mut self, context: &mut Context, program: Program) {
-    // TODO(magurotuna): `futures::executor::block_on` doesn't seem ideal, but works for now
     deno_core::futures::executor::block_on(
       self.runtime.mod_evaluate(self.module_id),
     )
