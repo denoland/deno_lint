@@ -41,7 +41,7 @@ fn op_add_diagnostics(
   state: &mut OpState,
   args: Value,
   _bufs: &mut [ZeroCopyBuf],
-) -> Result<Value, AnyError> {
+) -> anyhow::Result<Value> {
   let DiagnosticsFromJS { code, diagnostics } =
     serde_json::from_value(args).unwrap();
 

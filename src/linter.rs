@@ -9,7 +9,6 @@ use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use deno_core::error::AnyError;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -405,5 +404,5 @@ pub trait Plugin {
     &mut self,
     context: &mut Context,
     program: swc_ecmascript::ast::Program,
-  ) -> Result<(), AnyError>;
+  ) -> anyhow::Result<()>;
 }
