@@ -22,6 +22,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 mod config;
+mod js;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
@@ -39,19 +40,26 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
       SubCommand::with_name("run")
         .arg(
           Arg::with_name("FILES")
-            .help("Sets the input file to use")
+            .help("Set the input file to use")
             .multiple(true),
         )
         .arg(
           Arg::with_name("RULE_CODE")
             .long("rule")
-            .help("Runs a certain rule")
+            .help("Run a certain rule")
             .takes_value(true),
         )
         .arg(
           Arg::with_name("CONFIG")
             .long("config")
             .help("Load config from file")
+            .takes_value(true),
+        )
+        .arg(
+          Arg::with_name("PLUGIN")
+            .long("plugin")
+            .help("Specify plugin paths")
+            .multiple(true)
             .takes_value(true),
         ),
     )
@@ -140,6 +148,7 @@ fn run_linter(
   paths: Vec<String>,
   filter_rule_name: Option<&str>,
   maybe_config: Option<Arc<config::Config>>,
+  plugin_paths: Vec<&str>,
 ) -> Result<(), AnyError> {
   let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
 
@@ -169,11 +178,17 @@ fn run_linter(
 
     debug!("Configured rules: {}", rules.len());
 
-    let mut linter = LinterBuilder::default()
+    let mut linter_builder = LinterBuilder::default()
       .rules(rules)
       .lint_unknown_rules(true)
-      .lint_unused_ignore_directives(true)
-      .build();
+      .lint_unused_ignore_directives(true);
+
+    for plugin_path in &plugin_paths {
+      let js_runner = js::JsRuleRunner::new(plugin_path);
+      linter_builder = linter_builder.add_plugin(js_runner);
+    }
+
+    let mut linter = linter_builder.build();
 
     let (source_file, file_diagnostics) = linter
       .lint(file_path.to_string_lossy().to_string(), source_code)
@@ -307,12 +322,22 @@ fn main() -> Result<(), AnyError> {
 
       debug!("Config: {:#?}", maybe_config);
 
+      let plugins: Vec<&str> = run_matches
+        .values_of("PLUGIN")
+        .unwrap_or_default()
+        .collect();
+
       let paths: Vec<String> = run_matches
         .values_of("FILES")
         .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
-      run_linter(paths, run_matches.value_of("RULE_CODE"), maybe_config)?;
+      run_linter(
+        paths,
+        run_matches.value_of("RULE_CODE"),
+        maybe_config,
+        plugins,
+      )?;
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");

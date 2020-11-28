@@ -26,6 +26,7 @@ pub use swc_common::SourceFile;
 pub struct Context {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
+  plugin_codes: HashSet<String>,
   pub source_map: Rc<SourceMap>,
   pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
   pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
@@ -36,7 +37,7 @@ pub struct Context {
 }
 
 impl Context {
-  pub(crate) fn add_diagnostic(
+  pub fn add_diagnostic(
     &mut self,
     span: Span,
     code: impl ToString,
@@ -47,7 +48,7 @@ impl Context {
     self.diagnostics.push(diagnostic);
   }
 
-  pub(crate) fn add_diagnostic_with_hint(
+  pub fn add_diagnostic_with_hint(
     &mut self,
     span: Span,
     code: impl ToString,
@@ -91,6 +92,10 @@ impl Context {
     );
     diagnostic
   }
+
+  pub fn set_plugin_codes(&mut self, codes: HashSet<String>) {
+    self.plugin_codes = codes;
+  }
 }
 
 pub struct LinterBuilder {
@@ -100,6 +105,7 @@ pub struct LinterBuilder {
   lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
+  plugins: Vec<Box<dyn Plugin>>,
 }
 
 impl LinterBuilder {
@@ -111,6 +117,7 @@ impl LinterBuilder {
       lint_unknown_rules: true,
       syntax: get_default_ts_config(),
       rules: vec![],
+      plugins: vec![],
     }
   }
 
@@ -122,6 +129,7 @@ impl LinterBuilder {
       self.lint_unknown_rules,
       self.syntax,
       self.rules,
+      self.plugins,
     )
   }
 
@@ -157,6 +165,11 @@ impl LinterBuilder {
     self.rules = rules;
     self
   }
+
+  pub fn add_plugin(mut self, plugin: Box<dyn Plugin>) -> Self {
+    self.plugins.push(plugin);
+    self
+  }
 }
 
 pub struct Linter {
@@ -168,6 +181,7 @@ pub struct Linter {
   lint_unknown_rules: bool,
   syntax: Syntax,
   rules: Vec<Box<dyn LintRule>>,
+  plugins: Vec<Box<dyn Plugin>>,
 }
 
 impl Linter {
@@ -178,6 +192,7 @@ impl Linter {
     lint_unknown_rules: bool,
     syntax: Syntax,
     rules: Vec<Box<dyn LintRule>>,
+    plugins: Vec<Box<dyn Plugin>>,
   ) -> Self {
     Linter {
       has_linted: false,
@@ -188,6 +203,7 @@ impl Linter {
       lint_unknown_rules,
       syntax,
       rules,
+      plugins,
     }
   }
 
@@ -228,23 +244,22 @@ impl Linter {
     Ok((source_file, diagnostics))
   }
 
-  fn filter_diagnostics(
-    &self,
-    context: &mut Context,
-    rules: &[Box<dyn LintRule>],
-  ) -> Vec<LintDiagnostic> {
+  fn filter_diagnostics(&self, context: &mut Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let ignore_directives = context.ignore_directives.clone();
     let diagnostics = &context.diagnostics;
 
-    let executed_rule_codes = rules
-      .iter()
-      .map(|r| r.code().to_string())
-      .collect::<HashSet<String>>();
-    let available_rule_codes = get_all_rules()
-      .iter()
-      .map(|r| r.code().to_string())
-      .collect::<HashSet<String>>();
+    let (executed_rule_codes, available_rule_codes) = {
+      let mut executed = context.plugin_codes.clone();
+      // builtin executed rules
+      executed.extend(self.rules.iter().map(|r| r.code().to_string()));
+
+      let mut available = context.plugin_codes.clone();
+      // builtin all available rules
+      available.extend(get_all_rules().iter().map(|r| r.code().to_string()));
+
+      (executed, available)
+    };
 
     let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
       .as_slice()
@@ -298,7 +313,7 @@ impl Linter {
   }
 
   fn lint_program(
-    &self,
+    &mut self,
     file_name: String,
     program: swc_ecmascript::ast::Program,
     comments: SingleThreadedComments,
@@ -354,7 +369,6 @@ impl Linter {
 
     let mut context = Context {
       file_name,
-      diagnostics: vec![],
       source_map: self.ast_parser.source_map.clone(),
       leading_comments: leading,
       trailing_comments: trailing,
@@ -362,16 +376,33 @@ impl Linter {
       scope,
       control_flow,
       top_level_ctxt,
+      diagnostics: Vec::new(),
+      plugin_codes: HashSet::new(),
     };
 
+    // Run builtin rules
     for rule in &self.rules {
       rule.lint_program(&mut context, &program);
     }
 
-    let d = self.filter_diagnostics(&mut context, &self.rules);
+    // Run plugin rules
+    for plugin in self.plugins.iter_mut() {
+      // Ignore any error
+      let _ = plugin.run(&mut context, program.clone());
+    }
+
+    let d = self.filter_diagnostics(&mut context);
     let end = Instant::now();
     debug!("Linter::lint_module took {:#?}", end - start);
 
     d
   }
+}
+
+pub trait Plugin {
+  fn run(
+    &mut self,
+    context: &mut Context,
+    program: swc_ecmascript::ast::Program,
+  ) -> anyhow::Result<()>;
 }
