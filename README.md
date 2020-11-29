@@ -51,8 +51,6 @@ Blazing fast, see comparison with ESLint:
 ]
 ```
 
-This result can be seen [here](https://github.com/denoland/deno_lint/runs/1436170818#step:15:7).
-
 _Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
 Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
 See [`./benchmarks/`](./benchmarks/) directory for more info._
