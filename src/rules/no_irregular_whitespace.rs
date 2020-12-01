@@ -86,7 +86,7 @@ impl LintRule for NoIrregularWhitespace {
                 span,
                 CODE,
                 NoIrregularWhitespaceMessage::NotAllowed,
-                HINT
+                HINT,
               );
             }
           }

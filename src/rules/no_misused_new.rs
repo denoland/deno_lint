@@ -98,7 +98,7 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
                 ident.span,
                 "no-misused-new",
                 "Type aliases cannot be constructed, only classes",
-                "Consider using a class, not a type"
+                "Consider using a class, not a type",
               );
             }
           }
@@ -122,7 +122,7 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
                 signature.span,
                 "no-misused-new",
                 "Interfaces cannot be constructed, only classes",
-                "Consider using a class, not an interface"
+                "Consider using a class, not an interface",
               );
             }
           }
@@ -136,7 +136,7 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
               signature.span,
               "no-misused-new",
               "Interfaces cannot be constructed, only classes",
-              "Consider using a class, not an interface"
+              "Consider using a class, not an interface",
             );
           }
         }
@@ -171,7 +171,7 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
             method.span,
             "no-misused-new",
             "Class cannot have method named `new`.",
-            "Rename the method"
+            "Rename the method",
           );
         }
       }
