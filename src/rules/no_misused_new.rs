@@ -28,6 +28,35 @@ impl LintRule for NoMisusedNew {
   fn code(&self) -> &'static str {
     "no-misused-new"
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows defining constructors for interfaces or new for classes
+
+Specifying a constructor for an interface or defining a `new` method for a class
+is incorrect and should be avoided.
+    
+### Invalid:
+```typescript
+class C {
+  new(): C;
+}
+
+interface I {
+  constructor(): void;
+}
+```
+
+### Valid:
+```typescript
+class C {
+  constructor() {}
+}
+interface I {
+  new (): C;
+}
+```
+"#
+  }
 }
 
 struct NoMisusedNewVisitor<'c> {
@@ -65,10 +94,11 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
         if let TsMethodSignature(signature) = &member {
           if let Expr::Ident(ident) = &*signature.key {
             if self.is_constructor_keyword(&ident) {
-              self.context.add_diagnostic(
+              self.context.add_diagnostic_with_hint(
                 ident.span,
                 "no-misused-new",
                 "Type aliases cannot be constructed, only classes",
+                "Consider using a class, not a type"
               );
             }
           }
@@ -88,10 +118,11 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
           if let Expr::Ident(ident) = &*signature.key {
             if self.is_constructor_keyword(&ident) {
               // constructor
-              self.context.add_diagnostic(
+              self.context.add_diagnostic_with_hint(
                 signature.span,
                 "no-misused-new",
                 "Interfaces cannot be constructed, only classes",
+                "Consider using a class, not an interface"
               );
             }
           }
@@ -101,10 +132,11 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
             && self
               .match_parent_type(&n.id, &signature.type_ann.as_ref().unwrap())
           {
-            self.context.add_diagnostic(
+            self.context.add_diagnostic_with_hint(
               signature.span,
               "no-misused-new",
               "Interfaces cannot be constructed, only classes",
+              "Consider using a class, not an interface"
             );
           }
         }
@@ -135,10 +167,11 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
           )
         {
           // new
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             method.span,
             "no-misused-new",
             "Class cannot have method named `new`.",
+            "Rename the method"
           );
         }
       }
