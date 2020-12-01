@@ -3,9 +3,10 @@ use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
-  DoWhileStmt, Expr, FnDecl, ForInStmt, ForOfStmt, ForStmt, Function, Ident,
-  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier, Invalid,
-  Param, Pat, Program, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
+  DoWhileStmt, Expr, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt, Function,
+  Ident, ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
+  Invalid, Param, Pat, Program, SwitchStmt, VarDecl, VarDeclKind, WhileStmt,
+  WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -200,6 +201,14 @@ impl Visit for Analyzer<'_> {
 
   fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
     self.declare(BindingKind::Function, &n.ident);
+
+    self.visit_with_path(ScopeKind::Function, &n.function);
+  }
+
+  fn visit_fn_expr(&mut self, n: &FnExpr, _: &dyn Node) {
+    if let Some(ident) = &n.ident {
+      self.declare(BindingKind::Function, ident);
+    }
 
     self.visit_with_path(ScopeKind::Function, &n.function);
   }

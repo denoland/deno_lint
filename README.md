@@ -24,28 +24,28 @@ Blazing fast, see comparison with ESLint:
 [
   {
     "name": "deno_lint",
-    "totalMs": 247.20262200000025,
+    "totalMs": 105.3750100000002,
     "runsCount": 5,
-    "measuredRunsAvgMs": 49.44052440000005,
+    "measuredRunsAvgMs": 21.07500200000004,
     "measuredRunsMs": [
-      49.016501999999946,
-      49.56810500000006,
-      49.68610600000011,
-      48.97360200000003,
-      49.958307000000104
+      24.79783199999997,
+      19.563640000000078,
+      20.759051999999883,
+      19.99068000000011,
+      20.26380600000016
     ]
   },
   {
     "name": "eslint",
-    "totalMs": 12214.295835,
+    "totalMs": 11845.073306000002,
     "runsCount": 5,
-    "measuredRunsAvgMs": 2442.859167,
+    "measuredRunsAvgMs": 2369.0146612000003,
     "measuredRunsMs": [
-      2703.5126729999997,
-      2380.431925,
-      2369.1452910000007,
-      2362.1451909999996,
-      2399.0607550000004
+      2686.1039550000005,
+      2281.501061,
+      2298.6185210000003,
+      2279.5962849999996,
+      2299.2534840000008
     ]
   }
 ]
@@ -61,7 +61,26 @@ See [`./benchmarks/`](./benchmarks/) directory for more info._
 how `deno_lint` can be used as a crate.
 
 ```shell
-$ ▶ target/debug/examples/dlint ../deno/std/http/server.ts ../deno/std/http/file_server.ts
+# Build standalone binary
+$ cargo build --example dlint
+
+$ ./target/debug/examples/dlint --help
+
+dlint
+
+USAGE:
+    dlint <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+SUBCOMMANDS:
+    help     Prints this message or the help of the given subcommand(s)
+    rules
+    run
+
+$ ./target/debug/examples/dlint run ../deno/std/http/server.ts ../deno/std/http/file_server.ts
 (no-empty) Empty block statement
   --> ../deno/std/http/server.ts:93:14
    |
@@ -111,12 +130,12 @@ For more concrete implementation visit [`deno`](https://github.com/denoland/deno
 
 ## Developing
 
-Make sure to have latest stable version of Rust installed (1.47.0).
+Make sure to have latest stable version of Rust installed (1.48.0).
 
 ```shell
 // check version
 $ rustc --version
-rustc 1.47.0 (18bf6b4f0 2020-10-07)
+rustc 1.48.0 (7eac88abb 2020-11-16)
 
 // build all targets
 $ cargo build --all-targets
@@ -129,7 +148,7 @@ $ cargo test
 
 Prerequisites:
 
-- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), (`stackcollapse-perf`)[https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl], [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), [`stackcollapse-perf`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl), [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
 
 ```shell
 $ RUSTFLAGS='-g' cargo build --release --all-targets # build target

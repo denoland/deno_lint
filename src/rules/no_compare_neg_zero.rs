@@ -1,5 +1,6 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use derive_more::Display;
 use swc_ecmascript::ast::BinaryOp::*;
 use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Num;
@@ -9,6 +10,22 @@ use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Program};
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCompareNegZero;
+
+const CODE: &str = "no-compare-neg-zero";
+
+#[derive(Display)]
+enum NoCompareNegZeroMessage {
+  #[display(fmt = NoCompareNegZeroMessage::Unexpected)]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoCompareNegZeroHint {
+  #[display(
+    fmt = NoCompareNegZeroHint::ObjectIs
+  )]
+  ObjectIs,
+}
 
 impl LintRule for NoCompareNegZero {
   fn new() -> Box<Self> {
@@ -20,7 +37,7 @@ impl LintRule for NoCompareNegZero {
   }
 
   fn code(&self) -> &'static str {
-    "no-compare-neg-zero"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -68,9 +85,9 @@ impl<'c> VisitAll for NoCompareNegZeroVisitor<'c> {
     if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
       self.context.add_diagnostic_with_hint(
         bin_expr.span,
-        "no-compare-neg-zero",
-        "Do not compare against -0",
-        "Use `Object.is(x, -0)` for comparing against negative 0 (`-0`)",
+        CODE,
+        NoCompareNegZeroMessage::Unexpected,
+        NoCompareNegZeroHint::ObjectIs,
       );
     }
   }
@@ -114,7 +131,6 @@ impl NegZero for UnaryExpr {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.10.0/tests/lib/rules/no-compare-neg-zero.js
@@ -158,27 +174,157 @@ mod tests {
 
   #[test]
   fn no_compare_neg_zero_invalid() {
-    assert_lint_err::<NoCompareNegZero>("if (x == -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 == x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x != -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 != x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x === -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 === x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x !== -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 !== x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x < -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 < x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x <= -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 <= x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x > -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 > x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x >= -0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0 >= x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x == -0.0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0.0 == x) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (x === -0.0) { }", 4);
-    assert_lint_err::<NoCompareNegZero>("if (-0.0 === x) { }", 4);
-    // nested
-    assert_lint_err::<NoCompareNegZero>("{} == { foo: x === -0 }", 13);
+    assert_lint_err! {
+      NoCompareNegZero,
+      "if (x == -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 == x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x != -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 != x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x === -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 === x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x !== -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 !== x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x < -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 < x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x <= -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 <= x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x > -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 > x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x >= -0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0 >= x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x == -0.0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0.0 == x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (x === -0.0) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+      "if (-0.0 === x) { }": [
+        {
+          col: 4,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ],
+
+      // nested
+      "{} == { foo: x === -0 }": [
+        {
+          col: 13,
+          message: NoCompareNegZeroMessage::Unexpected,
+          hint: NoCompareNegZeroHint::ObjectIs,
+        }
+      ]
+    };
   }
 }

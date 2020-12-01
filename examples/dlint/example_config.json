@@ -1,0 +1,17 @@
+{
+    "rules": {
+        "tags": ["recommended"],
+        "include": [
+            "ban-untagged-todo"
+        ],
+        "exclude": [
+            "no-explicit-any"
+        ]
+    },
+    "files": {
+        "include": [
+            "benchmarks/oak/**/*.ts"
+        ],
+        "exclude": []
+    }
+}

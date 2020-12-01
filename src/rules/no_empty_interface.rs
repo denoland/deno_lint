@@ -1,11 +1,34 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::TsInterfaceDecl;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoEmptyInterface;
+
+const CODE: &str = "no-empty-interface";
+
+#[derive(Display)]
+enum NoEmptyInterfaceMessage {
+  #[display(fmt = "An empty interface is equivalent to `{{}}`.")]
+  EmptyObject,
+  #[display(
+    fmt = "An interface declaring no members is equivalent to its supertype."
+  )]
+  Supertype,
+}
+
+#[derive(Display)]
+enum NoEmptyInterfaceHint {
+  #[display(fmt = "Remove this interface or add members to this interface.")]
+  RemoveOrAddMember,
+  #[display(
+    fmt = "Use the supertype instead, or add members to this interface."
+  )]
+  UseSuperTypeOrAddMember,
+}
 
 impl LintRule for NoEmptyInterface {
   fn new() -> Box<Self> {
@@ -17,7 +40,7 @@ impl LintRule for NoEmptyInterface {
   }
 
   fn code(&self) -> &'static str {
-    "no-empty-interface"
+    CODE
   }
 
   fn lint_program(
@@ -81,16 +104,16 @@ impl<'c> Visit for NoEmptyInterfaceVisitor<'c> {
     {
       self.context.add_diagnostic_with_hint(
         interface_decl.span,
-        "no-empty-interface",
+        CODE,
         if interface_decl.extends.is_empty() {
-          "An empty interface is equivalent to `{}`."
+          NoEmptyInterfaceMessage::EmptyObject
         } else {
-          "An interface declaring no members is equivalent to its supertype."
+          NoEmptyInterfaceMessage::Supertype
         },
         if interface_decl.extends.is_empty() {
-          "Remove this interface or add members to this interface."
+          NoEmptyInterfaceHint::RemoveOrAddMember
         } else {
-          "Use the supertype instead, or add members to this interface."
+          NoEmptyInterfaceHint::UseSuperTypeOrAddMember
         },
       );
     }
@@ -100,7 +123,6 @@ impl<'c> Visit for NoEmptyInterfaceVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_empty_interface_valid() {
@@ -117,59 +139,95 @@ mod tests {
 
   #[test]
   fn no_empty_interface_invalid() {
-    assert_lint_err::<NoEmptyInterface>("interface Foo {}", 0);
-    assert_lint_err::<NoEmptyInterface>("interface Foo extends {}", 0);
-    assert_lint_err_on_line::<NoEmptyInterface>(
+    assert_lint_err! {
+      NoEmptyInterface,
+      "interface Foo {}": [
+        {
+          col: 0,
+          message: NoEmptyInterfaceMessage::EmptyObject,
+          hint: NoEmptyInterfaceHint::RemoveOrAddMember,
+        }
+      ],
+      "interface Foo extends {}": [
+        {
+          col: 0,
+          message: NoEmptyInterfaceMessage::EmptyObject,
+          hint: NoEmptyInterfaceHint::RemoveOrAddMember,
+        }
+      ],
       r#"
 interface Foo {
   a: string;
 }
 
 interface Bar extends Foo {}
-"#,
-      6,
-      0,
-    );
-    assert_lint_err::<NoEmptyInterface>(
-      "interface Foo extends Array<number> {}",
-      0,
-    );
-    assert_lint_err::<NoEmptyInterface>(
-      "interface Foo extends Array<number | {}> {}",
-      0,
-    );
-    assert_lint_err_on_line::<NoEmptyInterface>(
+"#: [
+        {
+          line: 6,
+          col: 0,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ],
+      "interface Foo extends Array<number> {}": [
+        {
+          col: 0,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ],
+      "interface Foo extends Array<number | {}> {}": [
+        {
+          col: 0,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ],
       r#"
 interface Foo {
   a: string;
 }
 
 interface Bar extends Array<Foo> {}
-"#,
-      6,
-      0,
-    );
-    assert_lint_err_on_line::<NoEmptyInterface>(
+"#: [
+        {
+          line: 6,
+          col: 0,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ],
       r#"
 type R = Record<string, unknown>;
 interface Foo extends R {}
-"#,
-      3,
-      0,
-    );
-    assert_lint_err::<NoEmptyInterface>(
-      "interface Foo<T> extends Bar<T> {}",
-      0,
-    );
-    assert_lint_err_on_line::<NoEmptyInterface>(
+"#: [
+        {
+          line: 3,
+          col: 0,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ],
+      "interface Foo<T> extends Bar<T> {}": [
+        {
+          col: 0,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ],
       r#"
 declare module FooBar {
   type Baz = typeof baz;
   export interface Bar extends Baz {}
 }
-"#,
-      4,
-      9,
-    );
+"#: [
+        {
+          line: 4,
+          col: 9,
+          message: NoEmptyInterfaceMessage::Supertype,
+          hint: NoEmptyInterfaceHint::UseSuperTypeOrAddMember,
+        }
+      ]
+    };
   }
 }

@@ -1,12 +1,27 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::DebuggerStmt;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoDebugger;
+
+const CODE: &str = "no-debugger";
+
+#[derive(Display)]
+enum NoDebuggerMessage {
+  #[display(fmt = "`debugger` statement is not allowed")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoDebuggerHint {
+  #[display(fmt = "Remove the `debugger` statement")]
+  Remove,
+}
 
 impl LintRule for NoDebugger {
   fn new() -> Box<Self> {
@@ -18,7 +33,7 @@ impl LintRule for NoDebugger {
   }
 
   fn code(&self) -> &'static str {
-    "no-debugger"
+    CODE
   }
 
   fn lint_program(
@@ -75,9 +90,9 @@ impl<'c> Visit for NoDebuggerVisitor<'c> {
   ) {
     self.context.add_diagnostic_with_hint(
       debugger_stmt.span,
-      "no-debugger",
-      "`debugger` statement is not allowed",
-      "Remove the `debugger` statement",
+      CODE,
+      NoDebuggerMessage::Unexpected,
+      NoDebuggerHint::Remove,
     );
   }
 }
@@ -85,13 +100,18 @@ impl<'c> Visit for NoDebuggerVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
-  fn no_debugger_test() {
-    assert_lint_err::<NoDebugger>(
-      r#"function asdf(): number { console.log("asdf"); debugger; return 1; }"#,
-      47,
-    )
+  fn no_debugger_invalid() {
+    assert_lint_err! {
+      NoDebugger,
+      r#"function asdf(): number { console.log("asdf"); debugger; return 1; }"#: [
+        {
+          col: 47,
+          message: NoDebuggerMessage::Unexpected,
+          hint: NoDebuggerHint::Remove,
+        }
+      ]
+    };
   }
 }

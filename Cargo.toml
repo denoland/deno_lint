@@ -1,6 +1,6 @@
 [package]
 name = "deno_lint"
-version = "0.2.8"
+version = "0.2.12"
 edition = "2018"
 description = "lint for deno"
 authors = ["the Deno authors"]
@@ -17,17 +17,20 @@ name = "dlint"
 
 [dependencies]
 log = "0.4.11"
-serde = { version = "1.0.88", features = ["derive"] }
-serde_json = { version = "1.0" }
+serde = { version = "1.0.117", features = ["derive"] }
+serde_json = "1.0.59"
 swc_atoms = "0.2.5"
-swc_common = "=0.10.5"
-swc_ecmascript = { version = "=0.13.2", features = ["parser", "transforms", "utils", "visit"] }
-regex = "1.3.9"
-once_cell = "1.4.1"
+swc_common = "0.10.6"
+swc_ecmascript = { version = "0.14.4", features = ["parser", "transforms", "utils", "visit"] }
+regex = "1.4.1"
+once_cell = "1.5.2"
 derive_more = { version = "0.99.11", features = ["display"] }
+anyhow = "1.0.34"
 
 [dev-dependencies]
 annotate-snippets = { version = "0.9.0", features = ["color"] }
 clap = "2.33.1"
-env_logger = "0.7.1"
-rayon = "1.4.0"
+deno_core = "0.67.0"
+env_logger = "0.8.1"
+globwalk = "0.8.0"
+rayon = "1.5.0"
