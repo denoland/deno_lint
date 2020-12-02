@@ -312,7 +312,7 @@ mod tests {
           message: NoIrregularWhitespaceMessage::NotAllowed,
           hint: HINT,
         }
-        ],
+      ],
       "var any \u{200A} = 'thing';": [
         {
           col: 8,
