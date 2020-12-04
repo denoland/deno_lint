@@ -4,8 +4,8 @@ use super::LintRule;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use swc_ecmascript::ast::{
-  TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
-  TsTypeParamInstantiation, TsTypeRef,
+  TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeParamInstantiation,
+  TsTypeRef,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
