@@ -60,7 +60,6 @@ let d: Symbol;
 let e: Function;
 let f: Object;
 let g: object;
-let h: {};
 ```
 
 ### Valid:
@@ -118,20 +117,6 @@ impl<'c> Visit for BanTypesVisitor<'c> {
     if let Some(type_param) = &ts_type_ref.type_params {
       self.visit_ts_type_param_instantiation(type_param, ts_type_ref);
     }
-  }
-
-  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
-    if !ts_type_lit.members.is_empty() {
-      for element in ts_type_lit.members.iter() {
-        self.visit_ts_type_element(element, ts_type_lit);
-      }
-      return;
-    }
-    self.context.add_diagnostic(
-      ts_type_lit.span,
-      "ban-types",
-      get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
-    );
   }
 
   fn visit_ts_keyword_type(
@@ -212,12 +197,6 @@ mod tests {
         {
           col: 7,
           message: message("object"),
-        }
-      ],
-      "let a: {};": [
-        {
-          col: 7,
-          message: message("Object"),
         }
       ],
       "let a: { b: String };": [
