@@ -5,8 +5,9 @@ use super::LintRule;
 use derive_more::Display;
 use swc_ecmascript::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
-  NewExpr, OptChainExpr, Pat, Program, TsEntityName, TsKeywordType,
-  TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
+  NewExpr, OptChainExpr, Pat, PrivateProp, Program, TsEntityName,
+  TsKeywordType, TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr,
+  VarDecl,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -380,6 +381,17 @@ impl<'c> VisitAll for NoInferrableTypesVisitor<'c> {
         if let Some(ident_type_ann) = &prop.type_ann {
           self.check_ts_type(init, ident_type_ann, prop.span);
         }
+      }
+    }
+  }
+
+  fn visit_private_prop(&mut self, prop: &PrivateProp, _: &dyn Node) {
+    if prop.readonly || prop.is_optional {
+      return;
+    }
+    if let Some(init) = &prop.value {
+      if let Some(ident_type_ann) = &prop.type_ann {
+        self.check_ts_type(init, ident_type_ann, prop.span);
       }
     }
   }
@@ -796,6 +808,36 @@ mod tests {
       "class A { a(x: number = 42) {} }": [
         {
           col: 12,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+
+      // https://github.com/denoland/deno_lint/issues/558
+      "class A { #foo: string = '' }": [
+        {
+          col: 10,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { static #foo: string = '' }": [
+        {
+          col: 10,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { #foo(x: number = 42) {} }": [
+        {
+          col: 15,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { static #foo(x: number = 42) {} }": [
+        {
+          col: 22,
           message: NoInferrableTypesMessage::NotAllowed,
           hint: NoInferrableTypesHint::Remove,
         }
