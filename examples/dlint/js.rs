@@ -1,3 +1,4 @@
+use anyhow::Context as _;
 use deno_core::error::AnyError;
 use deno_core::futures::future::FutureExt;
 use deno_core::JsRuntime;
@@ -6,8 +7,9 @@ use deno_core::ModuleSpecifier;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
+use deno_lint::control_flow::ControlFlow;
 use deno_lint::linter::{Context, Plugin};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -68,6 +70,38 @@ fn op_add_rule_code(
   Ok(serde_json::json!({}))
 }
 
+fn op_query_control_flow_by_span(
+  state: &mut OpState,
+  args: Value,
+  _bufs: &mut [ZeroCopyBuf],
+) -> Result<Value, AnyError> {
+  let control_flow = state
+    .try_borrow::<ControlFlow>()
+    .context("ControlFlow is not set")?;
+
+  #[derive(Deserialize)]
+  struct SpanFromJS {
+    span: Span,
+  }
+  let span_from_js: SpanFromJS = serde_json::from_value(args).unwrap();
+  let meta = control_flow.meta(span_from_js.span.lo());
+
+  let is_reachable = meta.map(|m| !m.unreachable);
+  let stops_execution = meta.map(|m| m.stops_execution());
+
+  #[derive(Serialize)]
+  #[serde(rename_all = "camelCase")]
+  struct ReturnValue {
+    is_reachable: Option<bool>,
+    stops_execution: Option<bool>,
+  }
+  serde_json::to_value(ReturnValue {
+    is_reachable,
+    stops_execution,
+  })
+  .map_err(Into::into)
+}
+
 pub struct JsRuleRunner {
   runtime: JsRuntime,
   module_id: i32,
@@ -84,12 +118,19 @@ impl JsRuleRunner {
     runtime
       .execute("visitor.js", include_str!("visitor.js"))
       .unwrap();
+    runtime
+      .execute("control-flow.js", include_str!("control-flow.js"))
+      .unwrap();
     runtime.register_op(
       "add_diagnostics",
       deno_core::json_op_sync(op_add_diagnostics),
     );
     runtime
       .register_op("add_rule_code", deno_core::json_op_sync(op_add_rule_code));
+    runtime.register_op(
+      "query_control_flow_by_span",
+      deno_core::json_op_sync(op_query_control_flow_by_span),
+    );
 
     let module_id =
       deno_core::futures::executor::block_on(runtime.load_module(
@@ -146,6 +187,12 @@ impl Plugin for JsRuleRunner {
     context: &mut Context,
     program: Program,
   ) -> Result<(), AnyError> {
+    self
+      .runtime
+      .op_state()
+      .borrow_mut()
+      .put(context.control_flow.clone());
+
     deno_core::futures::executor::block_on(
       self.runtime.mod_evaluate(self.module_id),
     )?;
