@@ -122,13 +122,15 @@ impl JsRuleRunner {
       .execute("control-flow.js", include_str!("control-flow.js"))
       .unwrap();
     runtime.register_op(
-      "add_diagnostics",
+      "op_add_diagnostics",
       deno_core::json_op_sync(op_add_diagnostics),
     );
-    runtime
-      .register_op("add_rule_code", deno_core::json_op_sync(op_add_rule_code));
     runtime.register_op(
-      "query_control_flow_by_span",
+      "op_add_rule_code",
+      deno_core::json_op_sync(op_add_rule_code),
+    );
+    runtime.register_op(
+      "op_query_control_flow_by_span",
       deno_core::json_op_sync(op_query_control_flow_by_span),
     );
 
@@ -245,7 +247,7 @@ const rules = new Map();
 function registerRule(ruleClass) {
   const code = ruleClass.ruleCode();
   rules.set(code, ruleClass);
-  Deno.core.jsonOpSync('add_rule_code', { code });
+  Deno.core.jsonOpSync('op_add_rule_code', { code });
 }
 globalThis.runPlugins = function(programAst, ruleCodes) {
   for (const code of ruleCodes) {
@@ -254,7 +256,7 @@ globalThis.runPlugins = function(programAst, ruleCodes) {
       continue;
     }
     const diagnostics = new rule().collectDiagnostics(programAst);
-    Deno.core.jsonOpSync('add_diagnostics', { code, diagnostics });
+    Deno.core.jsonOpSync('op_add_diagnostics', { code, diagnostics });
   }
 };
 registerRule(Plugin);
@@ -277,7 +279,7 @@ const rules = new Map();
 function registerRule(ruleClass) {
   const code = ruleClass.ruleCode();
   rules.set(code, ruleClass);
-  Deno.core.jsonOpSync('add_rule_code', { code });
+  Deno.core.jsonOpSync('op_add_rule_code', { code });
 }
 globalThis.runPlugins = function(programAst, ruleCodes) {
   for (const code of ruleCodes) {
@@ -286,7 +288,7 @@ globalThis.runPlugins = function(programAst, ruleCodes) {
       continue;
     }
     const diagnostics = new rule().collectDiagnostics(programAst);
-    Deno.core.jsonOpSync('add_diagnostics', { code, diagnostics });
+    Deno.core.jsonOpSync('op_add_diagnostics', { code, diagnostics });
   }
 };
 registerRule(Plugin);
