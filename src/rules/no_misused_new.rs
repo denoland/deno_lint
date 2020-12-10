@@ -208,7 +208,6 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_misused_new_valid() {
@@ -239,27 +238,39 @@ mod tests {
 
   #[test]
   fn no_misused_new_invalid() {
-    assert_lint_err_on_line_n::<NoMisusedNew>(
+    assert_lint_err! {
+      NoMisusedNew,
       r#"
 interface I {
     new(): I;
     constructor(): void;
 }
-      "#,
-      vec![(3, 4), (4, 4)],
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        },
+        {
+          line: 4,
+          col: 4,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        }
+      ],
       r#"
 interface G {
     new<T>(): G<T>;
 }
-      "#,
-      3,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        }
+      ],
       r#"
 class B {
     method() {
@@ -268,32 +279,38 @@ class B {
         }
     }
 }
-      "#,
-      5,
-      12,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 5,
+          col: 12,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        }
+      ],
       r#"
 type T = {
     constructor(): void;
 }
-      "#,
-      3,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::TypeAlias,
+          hint: NoMisusedNewHint::NotType,
+        }
+      ],
       r#"
 class C {
     new(): C;
 }
-      "#,
-      3,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::NewMethod,
+          hint: NoMisusedNewHint::RenameMethod,
+        }
+      ],
       r#"
 class A {
   foo() {
@@ -302,19 +319,14 @@ class A {
     }
   }
 }
-      "#,
-      5,
-      6,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
-      r#"
-declare abstract class C {
-    new(): C;
-}
-      "#,
-      3,
-      4,
-    )
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: NoMisusedNewMessage::NewMethod,
+          hint: NoMisusedNewHint::RenameMethod,
+        }
+      ]
+    };
   }
 }
