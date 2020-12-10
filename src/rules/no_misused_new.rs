@@ -1,6 +1,7 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, Program, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
@@ -10,6 +11,28 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoMisusedNew;
+
+const CODE: &str = "no-misused-new";
+
+#[derive(Display)]
+enum NoMisusedNewMessage {
+  #[display(fmt = "Type aliases cannot be constructed, only classes")]
+  TypeAlias,
+  #[display(fmt = "Interfaces cannot be constructed, only classes")]
+  Interface,
+  #[display(fmt = "Class cannot have method named `new`.")]
+  NewMethod,
+}
+
+#[derive(Display)]
+enum NoMisusedNewHint {
+  #[display(fmt = "Consider using a class, not a type")]
+  NotType,
+  #[display(fmt = "Consider using a class, not an interface")]
+  NotInterface,
+  #[display(fmt = "Rename the method")]
+  RenameMethod,
+}
 
 impl LintRule for NoMisusedNew {
   fn new() -> Box<Self> {
@@ -26,7 +49,7 @@ impl LintRule for NoMisusedNew {
   }
 
   fn code(&self) -> &'static str {
-    "no-misused-new"
+    CODE
   }
 
   fn docs(&self) -> &'static str {
@@ -97,9 +120,9 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
             if self.is_constructor_keyword(&ident) {
               self.context.add_diagnostic_with_hint(
                 ident.span,
-                "no-misused-new",
-                "Type aliases cannot be constructed, only classes",
-                "Consider using a class, not a type",
+                CODE,
+                NoMisusedNewMessage::TypeAlias,
+                NoMisusedNewHint::NotType,
               );
             }
           }
@@ -121,9 +144,9 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
               // constructor
               self.context.add_diagnostic_with_hint(
                 signature.span,
-                "no-misused-new",
-                "Interfaces cannot be constructed, only classes",
-                "Consider using a class, not an interface",
+                CODE,
+                NoMisusedNewMessage::Interface,
+                NoMisusedNewHint::NotInterface,
               );
             }
           }
@@ -135,9 +158,9 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
           {
             self.context.add_diagnostic_with_hint(
               signature.span,
-              "no-misused-new",
-              "Interfaces cannot be constructed, only classes",
-              "Consider using a class, not an interface",
+              CODE,
+              NoMisusedNewMessage::Interface,
+              NoMisusedNewHint::NotInterface,
             );
           }
         }
@@ -170,9 +193,9 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
           // new
           self.context.add_diagnostic_with_hint(
             method.span,
-            "no-misused-new",
-            "Class cannot have method named `new`.",
-            "Rename the method",
+            CODE,
+            NoMisusedNewMessage::NewMethod,
+            NoMisusedNewHint::RenameMethod,
           );
         }
       }
