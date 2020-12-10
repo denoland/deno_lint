@@ -32,7 +32,9 @@ pub struct Context {
   pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
   pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
   pub(crate) scope: Scope,
-  pub(crate) control_flow: ControlFlow,
+  // TODO(magurotuna): Making control_flow public is just needed for implementing plugin prototype.
+  // It will be likely possible to revert it to `pub(crate)` later.
+  pub control_flow: ControlFlow,
   pub(crate) top_level_ctxt: SyntaxContext,
 }
 
