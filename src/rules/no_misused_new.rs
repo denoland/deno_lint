@@ -8,7 +8,7 @@ use swc_ecmascript::ast::{
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoMisusedNew;
 
@@ -41,7 +41,7 @@ impl LintRule for NoMisusedNew {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoMisusedNewVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn tags(&self) -> &'static [&'static str] {
@@ -107,12 +107,8 @@ impl<'c> NoMisusedNewVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoMisusedNewVisitor<'c> {
-  fn visit_ts_type_alias_decl(
-    &mut self,
-    t: &TsTypeAliasDecl,
-    _parent: &dyn Node,
-  ) {
+impl<'c> VisitAll for NoMisusedNewVisitor<'c> {
+  fn visit_ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, _: &dyn Node) {
     if let TsType::TsTypeLit(lit) = &*t.type_ann {
       for member in &lit.members {
         if let TsMethodSignature(signature) = &member {
@@ -131,11 +127,7 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
     }
   }
 
-  fn visit_ts_interface_decl(
-    &mut self,
-    n: &TsInterfaceDecl,
-    parent: &dyn Node,
-  ) {
+  fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl, _: &dyn Node) {
     for member in &n.body.body {
       match &member {
         TsMethodSignature(signature) => {
@@ -167,11 +159,9 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
         _ => {}
       }
     }
-
-    swc_ecmascript::visit::visit_ts_interface_decl(self, n, parent);
   }
 
-  fn visit_class_decl(&mut self, expr: &ClassDecl, parent: &dyn Node) {
+  fn visit_class_decl(&mut self, expr: &ClassDecl, _: &dyn Node) {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
@@ -200,8 +190,6 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
         }
       }
     }
-
-    swc_ecmascript::visit::visit_class_decl(self, expr, parent);
   }
 }
 
