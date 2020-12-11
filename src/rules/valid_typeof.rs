@@ -159,11 +159,34 @@ mod tests {
   fn valid_typeof_valid() {
     assert_lint_ok! {
       ValidTypeof,
-      r#"
-typeof foo === "string"
-typeof bar == "undefined"
-      "#,
-      r#"typeof bar === typeof qux"#,
+        "typeof foo === 'string'",
+        "typeof foo === 'object'",
+        "typeof foo === 'function'",
+        "typeof foo === 'undefined'",
+        "typeof foo === 'boolean'",
+        "typeof foo === 'number'",
+        "typeof foo === 'bigint'",
+        "'string' === typeof foo",
+        "'object' === typeof foo",
+        "'function' === typeof foo",
+        "'undefined' === typeof foo",
+        "'boolean' === typeof foo",
+        "'number' === typeof foo",
+        "typeof foo === typeof bar",
+        "typeof foo === baz",
+        "typeof foo === Object",
+        "typeof foo === undefined",
+        "typeof foo !== someType",
+        "typeof bar != someType",
+        "someType === typeof bar",
+        "someType == typeof bar",
+        "typeof foo == 'string'",
+        "typeof(foo) === 'string'",
+        "typeof(foo) !== 'string'",
+        "typeof(foo) == 'string'",
+        "typeof(foo) != 'string'",
+        "var oddUse = typeof foo + 'thing'",
+        "typeof foo === `str${somethingElse}`",
     };
   }
 
@@ -171,31 +194,71 @@ typeof bar == "undefined"
   fn valid_typeof_invalid() {
     assert_lint_err! {
       ValidTypeof,
-      r#"typeof foo === "strnig""#: [{
+      "typeof foo === 'strnig'": [{
         col: 15,
         message: MESSAGE
       }],
-      r#"typeof foo == "undefimed""#: [{
-        col: 14,
+      "'strnig' === typeof foo": [{
+        col: 0,
         message: MESSAGE
       }],
-      r#"typeof bar != "nunber""#: [{
-        col: 14,
-        message: MESSAGE
-      }],
-      r#"typeof bar !== "fucntion""#: [{
+      "typeof foo !== 'strnig'": [{
         col: 15,
         message: MESSAGE
       }],
-      r#"typeof foo === undefined"#: [{
-        col: 15,
+      "'strnig' !== typeof foo": [{
+        col: 0,
         message: MESSAGE
       }],
-      r#"typeof bar == Object"#: [{
+      "typeof foo == 'undefimed'": [{
         col: 14,
         message: MESSAGE
       }],
-      r#"typeof baz === anotherVariable"#: [{
+      "typeof foo != 'undefimed'": [{
+        col: 14,
+        message: MESSAGE
+      }],
+      "if (typeof foo === 'undefimed') {}": [{
+        col: 19,
+        message: MESSAGE
+      }],
+      "if (typeof foo !== 'undefimed') {}": [{
+        col: 19,
+        message: MESSAGE
+      }],
+      "if ('undefimed' === typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "if ('undefimed' !== typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "if (typeof foo == 'undefimed') {}": [{
+        col: 18,
+        message: MESSAGE
+      }],
+      "if (typeof foo != 'undefimed') {}": [{
+        col: 18,
+        message: MESSAGE
+      }],
+      "if ('undefimed' == typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "if ('undefimed' != typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "typeof foo != 'nunber'": [{
+        col: 14,
+        message: MESSAGE
+      }],
+      "typeof foo !== 'fucntion'": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo !== `bigitn`": [{
         col: 15,
         message: MESSAGE
       }],
