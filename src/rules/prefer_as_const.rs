@@ -2,12 +2,29 @@
 use super::Context;
 use super::LintRule;
 
+use derive_more::Display;
 use swc_ecmascript::ast::{
   ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAssertion, VarDecl,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
+
+const CODE: &str = "prefer-as-const";
+
+#[derive(Display)]
+enum PreferAsConstMessage {
+  #[display(
+    fmt = "Expected a `const` assertion instead of a literal type annotation"
+  )]
+  ExpectedConstAssertion,
+}
+
+#[derive(Display)]
+enum PreferAsConstHint {
+  #[display(fmt = "Remove a literal type annotation and add `as const`")]
+  AddAsConst,
+}
 
 pub struct PreferAsConst;
 
@@ -21,7 +38,7 @@ impl LintRule for PreferAsConst {
   }
 
   fn code(&self) -> &'static str {
-    "prefer-as-const"
+    CODE
   }
 
   fn lint_program(
@@ -44,10 +61,11 @@ impl<'c> PreferAsConstVisitor<'c> {
   }
 
   fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
-    self.context.add_diagnostic(
+    self.context.add_diagnostic_with_hint(
       span,
-      "prefer-as-const",
-      "strict equality between type and value is not allowed",
+      CODE,
+      PreferAsConstMessage::ExpectedConstAssertion,
+      PreferAsConstHint::AddAsConst,
     );
   }
 
@@ -138,34 +156,27 @@ mod tests {
   fn prefer_as_const_valid() {
     assert_lint_ok! {
       PreferAsConst,
-      r#"
-      let foo = "baz" as const;
-      let foo = 1 as const;
-      let foo = { bar: "baz" as const };
-      let foo = { bar: 1 as const };
-      let foo = { bar: "baz" };
-      let foo = { bar: 2 };
-      let foo = <bar>"bar";
-      let foo = <string>"bar";
-      let foo = "bar" as string;
-      let foo = `bar` as `bar`;
-      let foo = `bar` as `foo`;
-      let foo = `bar` as "bar";
-      let foo: string = "bar";
-      let foo: number = 1;
-      let foo: "bar" = baz;
-      let foo = "bar";
-
-      class foo {
-        bar: "baz" = "baz";
-      }
-      class foo {
-        bar = "baz";
-      }
-      let foo: "bar";
-      let foo = { bar };
-      let foo: "baz" = "baz" as const;
-      "#,
+      "let foo = 'baz' as const;",
+      "let foo = 1 as const;",
+      "let foo = { bar: 'baz' as const };",
+      "let foo = { bar: 1 as const };",
+      "let foo = { bar: 'baz' };",
+      "let foo = { bar: 2 };",
+      "let foo = <bar>'bar';",
+      "let foo = <string>'bar';",
+      "let foo = 'bar' as string;",
+      "let foo = `bar` as `bar`;",
+      "let foo = `bar` as `foo`;",
+      "let foo = `bar` as 'bar';",
+      "let foo: string = 'bar';",
+      "let foo: number = 1;",
+      "let foo: 'bar' = baz;",
+      "let foo = 'bar';",
+      "class foo { bar: 'baz' = 'baz'; }",
+      "class foo { bar = 'baz'; }",
+      "let foo: 'bar';",
+      "let foo = { bar };",
+      "let foo: 'baz' = 'baz' as const;",
 
       // https://github.com/denoland/deno_lint/issues/567
       "const",
