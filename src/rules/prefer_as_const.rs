@@ -76,8 +76,7 @@ impl<'c> PreferAsConstVisitor<'c> {
             }
           }
           (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
-            // `value` of swc_ecma_ast::lit::Number is *never* NaN, according to the doc.
-            if value_literal.value == type_literal.value {
+            if (value_literal.value - type_literal.value).abs() < f64::EPSILON {
               self.add_diagnostic_helper(span)
             }
           }
