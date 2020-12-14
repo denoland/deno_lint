@@ -5,8 +5,8 @@ use super::LintRule;
 use derive_more::Display;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
-  TsTypeAssertion, VarDecl,
+  ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, Program, TsAsExpr, TsLit, TsType,
+  TsTypeAnn, TsTypeAssertion, VarDecl,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -42,11 +42,7 @@ impl LintRule for PreferAsConst {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = PreferAsConstVisitor::new(context);
     program.visit_all_with(program, &mut visitor);
   }
@@ -61,7 +57,7 @@ impl<'c> PreferAsConstVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
+  fn add_diagnostic_helper(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
       CODE,
@@ -116,9 +112,7 @@ impl<'c> VisitAll for PreferAsConstVisitor<'c> {
         | Pat::Object(ObjectPat { type_ann, .. })
         | Pat::Ident(Ident { type_ann, .. }) = &decl.name
         {
-          if let Some(swc_ecmascript::ast::TsTypeAnn { type_ann, .. }) =
-            &type_ann
-          {
+          if let Some(TsTypeAnn { type_ann, .. }) = &type_ann {
             self.compare(type_ann, &init, type_ann.span());
           }
         }
