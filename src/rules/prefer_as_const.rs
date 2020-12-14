@@ -3,12 +3,13 @@ use super::Context;
 use super::LintRule;
 
 use derive_more::Display;
+use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAssertion, VarDecl,
 };
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 const CODE: &str = "prefer-as-const";
 
@@ -47,7 +48,7 @@ impl LintRule for PreferAsConst {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = PreferAsConstVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -69,12 +70,7 @@ impl<'c> PreferAsConstVisitor<'c> {
     );
   }
 
-  fn compare(
-    &mut self,
-    type_ann: &TsType,
-    expr: &Expr,
-    span: swc_common::Span,
-  ) {
+  fn compare(&mut self, type_ann: &TsType, expr: &Expr, span: Span) {
     if let TsType::TsLitType(lit_type) = &*type_ann {
       if let Expr::Lit(expr_lit) = &*expr {
         match (expr_lit, &lit_type.lit) {
@@ -96,42 +92,26 @@ impl<'c> PreferAsConstVisitor<'c> {
   }
 }
 
-impl<'c> Visit for PreferAsConstVisitor<'c> {
-  fn visit_ts_as_expr(&mut self, as_expr: &TsAsExpr, _parent: &dyn Node) {
-    self.compare(&as_expr.type_ann, &as_expr.expr, as_expr.span);
+impl<'c> VisitAll for PreferAsConstVisitor<'c> {
+  fn visit_ts_as_expr(&mut self, as_expr: &TsAsExpr, _: &dyn Node) {
+    self.compare(&as_expr.type_ann, &as_expr.expr, as_expr.type_ann.span());
   }
 
   fn visit_ts_type_assertion(
     &mut self,
     type_assertion: &TsTypeAssertion,
-    _parent: &dyn Node,
+    _: &dyn Node,
   ) {
     self.compare(
       &type_assertion.type_ann,
       &type_assertion.expr,
-      type_assertion.span,
+      type_assertion.type_ann.span(),
     );
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
+  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
     for decl in &var_decl.decls {
       if let Some(init) = &decl.init {
-        match &**init {
-          Expr::TsAs(as_expr) => {
-            self.visit_ts_as_expr(&as_expr, _parent);
-            return;
-          }
-          Expr::Object(object) => {
-            self.visit_object_lit(&object, _parent);
-            return;
-          }
-          Expr::TsTypeAssertion(type_assert) => {
-            self.visit_ts_type_assertion(&type_assert, _parent);
-            return;
-          }
-          _ => {}
-        }
-
         if let Pat::Array(ArrayPat { type_ann, .. })
         | Pat::Object(ObjectPat { type_ann, .. })
         | Pat::Ident(Ident { type_ann, .. }) = &decl.name
@@ -139,7 +119,7 @@ impl<'c> Visit for PreferAsConstVisitor<'c> {
           if let Some(swc_ecmascript::ast::TsTypeAnn { type_ann, .. }) =
             &type_ann
           {
-            self.compare(type_ann, &init, var_decl.span);
+            self.compare(type_ann, &init, type_ann.span());
           }
         }
       }
@@ -190,77 +170,98 @@ mod tests {
       PreferAsConst,
       "let foo = { bar: 'baz' as 'baz' };": [
         {
-          col: 17,
+          col: 26,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo = { bar: 1 as 1 };": [
         {
-          col: 17,
+          col: 22,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let [x]: 'bar' = 'bar';": [
         {
-          col: 0,
+          col: 9,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let {x}: 'bar' = 'bar';": [
         {
-          col: 0,
+          col: 9,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo: 'bar' = 'bar';": [
         {
-          col: 0,
+          col: 9,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo: 2 = 2;": [
         {
-          col: 0,
+          col: 9,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo: 'bar' = 'bar' as 'bar';": [
         {
-          col: 17,
+          col: 26,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo = <'bar'>'bar';": [
         {
-          col: 10,
+          col: 11,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo = <4>4;": [
         {
-          col: 10,
+          col: 11,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo = 'bar' as 'bar';": [
         {
-          col: 10,
+          col: 19,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
       ],
       "let foo = 5 as 5;": [
         {
-          col: 10,
+          col: 15,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo: 2 = 2, bar: 3 = 3;": [
+        {
+          col: 9,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        },
+        {
+          col: 21,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+
+      // nested
+      "let foo = () => { let x: 'x' = 'x'; };": [
+        {
+          col: 25,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
