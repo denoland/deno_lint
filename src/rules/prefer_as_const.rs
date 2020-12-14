@@ -80,8 +80,8 @@ impl<'c> PreferAsConstVisitor<'c> {
             }
           }
           (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
-            let error = 0.01f64;
-            if (value_literal.value - type_literal.value).abs() < error {
+            // `value` of swc_ecma_ast::lit::Number is *never* NaN, according to the doc.
+            if value_literal.value == type_literal.value {
               self.add_diagnostic_helper(span)
             }
           }
@@ -241,6 +241,13 @@ mod tests {
       "let foo = 5 as 5;": [
         {
           col: 15,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo: 1.23456 = 1.23456;": [
+        {
+          col: 9,
           message: PreferAsConstMessage::ExpectedConstAssertion,
           hint: PreferAsConstHint::AddAsConst,
         }
