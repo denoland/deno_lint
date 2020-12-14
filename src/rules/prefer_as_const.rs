@@ -150,7 +150,6 @@ impl<'c> Visit for PreferAsConstVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn prefer_as_const_valid() {
@@ -187,19 +186,85 @@ mod tests {
 
   #[test]
   fn prefer_as_const_invalid() {
-    assert_lint_err::<PreferAsConst>(
-      r#"let foo = { bar: "baz" as "baz" };"#,
-      17,
-    );
-    assert_lint_err::<PreferAsConst>(r#"let foo = { bar: 1 as 1 };"#, 17);
-    assert_lint_err::<PreferAsConst>(r#"let [x]: "bar" = "bar";"#, 0);
-    assert_lint_err::<PreferAsConst>(r#"let {x}: "bar" = "bar";"#, 0);
-    assert_lint_err::<PreferAsConst>(r#"let foo: "bar" = "bar";"#, 0);
-    assert_lint_err::<PreferAsConst>(r#"let foo: 2 = 2;"#, 0);
-    assert_lint_err::<PreferAsConst>(r#"let foo: "bar" = "bar" as "bar";"#, 17);
-    assert_lint_err::<PreferAsConst>(r#"let foo = <"bar">"bar";"#, 10);
-    assert_lint_err::<PreferAsConst>(r#"let foo = <4>4;"#, 10);
-    assert_lint_err::<PreferAsConst>(r#"let foo = "bar" as "bar";"#, 10);
-    assert_lint_err::<PreferAsConst>(r#"let foo = 5 as 5;"#, 10);
+    assert_lint_err! {
+      PreferAsConst,
+      "let foo = { bar: 'baz' as 'baz' };": [
+        {
+          col: 17,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo = { bar: 1 as 1 };": [
+        {
+          col: 17,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let [x]: 'bar' = 'bar';": [
+        {
+          col: 0,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let {x}: 'bar' = 'bar';": [
+        {
+          col: 0,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo: 'bar' = 'bar';": [
+        {
+          col: 0,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo: 2 = 2;": [
+        {
+          col: 0,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo: 'bar' = 'bar' as 'bar';": [
+        {
+          col: 17,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo = <'bar'>'bar';": [
+        {
+          col: 10,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo = <4>4;": [
+        {
+          col: 10,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo = 'bar' as 'bar';": [
+        {
+          col: 10,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+      "let foo = 5 as 5;": [
+        {
+          col: 10,
+          message: PreferAsConstMessage::ExpectedConstAssertion,
+          hint: PreferAsConstHint::AddAsConst,
+        }
+      ],
+    };
   }
 }
