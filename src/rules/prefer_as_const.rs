@@ -96,30 +96,33 @@ impl<'c> Visit for PreferAsConstVisitor<'c> {
   }
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
-    if let Some(init) = &var_decl.decls[0].init {
-      match &**init {
-        Expr::TsAs(as_expr) => {
-          self.visit_ts_as_expr(&as_expr, _parent);
-          return;
+    for decl in &var_decl.decls {
+      if let Some(init) = &decl.init {
+        match &**init {
+          Expr::TsAs(as_expr) => {
+            self.visit_ts_as_expr(&as_expr, _parent);
+            return;
+          }
+          Expr::Object(object) => {
+            self.visit_object_lit(&object, _parent);
+            return;
+          }
+          Expr::TsTypeAssertion(type_assert) => {
+            self.visit_ts_type_assertion(&type_assert, _parent);
+            return;
+          }
+          _ => {}
         }
-        Expr::Object(object) => {
-          self.visit_object_lit(&object, _parent);
-          return;
-        }
-        Expr::TsTypeAssertion(type_assert) => {
-          self.visit_ts_type_assertion(&type_assert, _parent);
-          return;
-        }
-        _ => {}
-      }
 
-      if let Pat::Array(ArrayPat { type_ann, .. })
-      | Pat::Object(ObjectPat { type_ann, .. })
-      | Pat::Ident(Ident { type_ann, .. }) = &var_decl.decls[0].name
-      {
-        if let Some(swc_ecmascript::ast::TsTypeAnn { type_ann, .. }) = &type_ann
+        if let Pat::Array(ArrayPat { type_ann, .. })
+        | Pat::Object(ObjectPat { type_ann, .. })
+        | Pat::Ident(Ident { type_ann, .. }) = &decl.name
         {
-          self.compare(type_ann, &init, var_decl.span);
+          if let Some(swc_ecmascript::ast::TsTypeAnn { type_ann, .. }) =
+            &type_ann
+          {
+            self.compare(type_ann, &init, var_decl.span);
+          }
         }
       }
     }
@@ -163,6 +166,11 @@ mod tests {
       let foo = { bar };
       let foo: "baz" = "baz" as const;
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/567
+      "const",
+      "let",
+      "var",
     };
   }
 
