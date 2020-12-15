@@ -4,7 +4,7 @@ use swc_common::Spanned;
 use swc_ecmascript::ast::{
   BinExpr, BinaryOp, Expr, Ident, Lit, Program, UnaryOp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct ValidTypeof;
 
@@ -26,7 +26,7 @@ impl LintRule for ValidTypeof {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = ValidTypeofVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -106,7 +106,7 @@ impl<'c> ValidTypeofVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ValidTypeofVisitor<'c> {
+impl<'c> VisitAll for ValidTypeofVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
@@ -285,6 +285,12 @@ mod tests {
       }],
       "typeof foo === null": [{
         col: 15,
+        message: MESSAGE
+      }],
+
+      // nested
+      "foo === { bar: typeof baz === 'obejct' };": [{
+        col: 30,
         message: MESSAGE
       }],
     }
