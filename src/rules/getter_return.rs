@@ -4,7 +4,6 @@ use super::LintRule;
 use crate::swc_util::StringRepr;
 use derive_more::Display;
 use std::collections::BTreeMap;
-use std::mem;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmtOrExpr, CallExpr, ClassMethod, Expr, ExprOrSuper, FnDecl,
@@ -179,7 +178,7 @@ impl<'c> GetterReturnVisitor<'c> {
   where
     F: FnOnce(&mut Self),
   {
-    let prev_name = mem::take(&mut self.getter_name);
+    let prev_name = self.getter_name.take();
     let prev_has_return = self.has_return;
     op(self);
     self.getter_name = prev_name;
