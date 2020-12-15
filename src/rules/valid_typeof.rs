@@ -1,11 +1,9 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Spanned;
-use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecmascript::ast::Expr::{Lit, Unary};
-use swc_ecmascript::ast::Lit::Str;
-use swc_ecmascript::ast::UnaryOp::TypeOf;
-use swc_ecmascript::ast::{BinExpr, Program};
+use swc_ecmascript::ast::{
+  BinExpr, BinaryOp, Expr, Ident, Lit, Program, UnaryOp,
+};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct ValidTypeof;
@@ -107,12 +105,14 @@ impl<'c> Visit for ValidTypeofVisitor<'c> {
     }
 
     match (&*bin_expr.left, &*bin_expr.right) {
-      (Unary(unary), operand) | (operand, Unary(unary))
-        if unary.op == TypeOf =>
+      (Expr::Unary(unary), operand) | (operand, Expr::Unary(unary))
+        if unary.op == UnaryOp::TypeOf =>
       {
         match operand {
-          Unary(unary) if unary.op == TypeOf => {}
-          Lit(Str(str)) => {
+          Expr::Unary(unary) if unary.op == UnaryOp::TypeOf => {}
+          Expr::Ident(ident) if is_valid_ident(ident) => {}
+          Expr::Tpl(tpl) if !tpl.exprs.is_empty() => {}
+          Expr::Lit(Lit::Str(str)) => {
             if !is_valid_typeof_string(&str.value) {
               self.context.add_diagnostic(str.span, CODE, MESSAGE);
             }
@@ -141,12 +141,17 @@ fn is_valid_typeof_string(str: &str) -> bool {
   )
 }
 
+fn is_valid_ident(ident: &Ident) -> bool {
+  !matches!(ident.as_ref(), "Object" | "undefined" | "null")
+}
+
 trait EqExpr {
   fn is_eq_expr(&self) -> bool;
 }
 
 impl EqExpr for BinExpr {
   fn is_eq_expr(&self) -> bool {
+    use BinaryOp::*;
     matches!(self.op, EqEq | NotEq | EqEqEq | NotEqEq)
   }
 }
@@ -174,8 +179,6 @@ mod tests {
         "'number' === typeof foo",
         "typeof foo === typeof bar",
         "typeof foo === baz",
-        "typeof foo === Object",
-        "typeof foo === undefined",
         "typeof foo !== someType",
         "typeof bar != someType",
         "someType === typeof bar",
@@ -259,6 +262,18 @@ mod tests {
         message: MESSAGE
       }],
       "typeof foo !== `bigitn`": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo === Object": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo === undefined": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo === null": [{
         col: 15,
         message: MESSAGE
       }],
