@@ -7,7 +7,7 @@ use derive_more::Display;
 use once_cell::sync::Lazy;
 use swc_common::{BytePos, Span, Spanned, SyntaxContext};
 use swc_ecmascript::ast::{Lit, Program, Tpl};
-use swc_ecmascript::visit::{Node, Visit};
+use swc_ecmascript::visit::{Node, VisitAll, VisitAllWith};
 
 static RE: Lazy<Regex> =
   Lazy::new(|| Regex::new("^([\t ]*(\t | \t))").unwrap());
@@ -37,7 +37,7 @@ impl LintRule for NoMixedSpacesAndTabs {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
 
     let file_and_lines =
       context.source_map.span_to_lines(program.span()).unwrap();
@@ -103,12 +103,12 @@ struct NoMixedSpacesAndTabsVisitor {
   ranges: Vec<Span>,
 }
 
-impl Visit for NoMixedSpacesAndTabsVisitor {
-  fn visit_lit(&mut self, lit: &Lit, _parent: &dyn Node) {
+impl VisitAll for NoMixedSpacesAndTabsVisitor {
+  fn visit_lit(&mut self, lit: &Lit, _: &dyn Node) {
     self.ranges.push(lit.span());
   }
 
-  fn visit_tpl(&mut self, tpl: &Tpl, _parent: &dyn Node) {
+  fn visit_tpl(&mut self, tpl: &Tpl, _: &dyn Node) {
     self.ranges.push(tpl.span);
   }
 }
