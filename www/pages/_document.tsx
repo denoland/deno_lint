@@ -16,7 +16,10 @@ function Document(props: DocumentProps) {
           property="og:description"
           content="deno_lint documentation for every lint rule"
         />
-        <meta property="og:image" content="https://deno.land/images/hashrock_simple.png" />
+        <meta
+          property="og:image"
+          content="https://deno.land/images/hashrock_simple.png"
+        />
         <meta name="twitter:card" content="summary" />
         <link rel="stylesheet" href="/style/main.css" />
         <link
