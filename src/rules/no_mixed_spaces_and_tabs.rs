@@ -5,14 +5,9 @@ use regex::Regex;
 
 use derive_more::Display;
 use once_cell::sync::Lazy;
-use swc_common::BytePos;
-use swc_common::Span;
-use swc_common::Spanned;
-use swc_common::SyntaxContext;
-use swc_ecmascript::ast::Lit;
-use swc_ecmascript::ast::Tpl;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_common::{BytePos, Span, Spanned, SyntaxContext};
+use swc_ecmascript::ast::{Lit, Program, Tpl};
+use swc_ecmascript::visit::{Node, Visit};
 
 static RE: Lazy<Regex> =
   Lazy::new(|| Regex::new("^([\t ]*(\t | \t))").unwrap());
@@ -40,11 +35,7 @@ impl LintRule for NoMixedSpacesAndTabs {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
     visitor.visit_program(program, program);
 
@@ -107,14 +98,9 @@ impl LintRule for NoMixedSpacesAndTabs {
   }
 }
 
+#[derive(Default)]
 struct NoMixedSpacesAndTabsVisitor {
   ranges: Vec<Span>,
-}
-
-impl NoMixedSpacesAndTabsVisitor {
-  fn default() -> Self {
-    Self { ranges: vec![] }
-  }
 }
 
 impl Visit for NoMixedSpacesAndTabsVisitor {
