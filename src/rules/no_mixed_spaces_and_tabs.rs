@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use regex::Regex;
 
+use derive_more::Display;
 use once_cell::sync::Lazy;
 use swc_common::BytePos;
 use swc_common::Span;
@@ -16,6 +17,14 @@ use swc_ecmascript::visit::Visit;
 static RE: Lazy<Regex> =
   Lazy::new(|| Regex::new("^([\t ]*(\t | \t))").unwrap());
 
+const CODE: &str = "no-mixed-spaces-and-tabs";
+
+#[derive(Display)]
+enum NoMixedSpacesAndTabsMessage {
+  #[display(fmt = "Mixed spaces and tabs are not allowed.")]
+  NotAllowed,
+}
+
 pub struct NoMixedSpacesAndTabs;
 
 impl LintRule for NoMixedSpacesAndTabs {
@@ -28,7 +37,7 @@ impl LintRule for NoMixedSpacesAndTabs {
   }
 
   fn code(&self) -> &'static str {
-    "no-mixed-spaces-and-tabs"
+    CODE
   }
 
   fn lint_program(
@@ -89,8 +98,8 @@ impl LintRule for NoMixedSpacesAndTabs {
         if !is_excluded {
           context.add_diagnostic(
             span,
-            "no-mixed-spaces-and-tabs",
-            "Mixed spaces and tabs are not allowed.",
+            CODE,
+            NoMixedSpacesAndTabsMessage::NotAllowed,
           );
         }
       }
