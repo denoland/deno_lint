@@ -116,7 +116,6 @@ impl Visit for NoMixedSpacesAndTabsVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_mixed_spaces_and_tabs_valid() {
@@ -150,34 +149,83 @@ mod tests {
 
   #[test]
   fn no_mixed_spaces_and_tabs_invalid() {
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      "function add(x, y) {\n\t return x + y;\n}",
-      2,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      "\t ;\n/*\n\t * Hello\n\t */",
-      1,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(" \t/* comment */", 1, 0);
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("\t // comment", 1, 0);
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      "\t var a /* comment */ = 1;",
-      1,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      " \tvar b = 1; // comment",
-      1,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("/**/\n \t/*\n \t*/", 2, 0);
-    assert_lint_err_on_line_n::<NoMixedSpacesAndTabs>(
-      "\t var x = 5, y = 2, z = 5;\n\n\t \tvar j =\t x + y;\nz *= j;",
-      vec![(1, 0), (3, 0)],
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("  \t'';", 1, 0);
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("''\n\t ", 2, 0);
+    assert_lint_err! {
+      NoMixedSpacesAndTabs,
+      "function add(x, y) {\n\t return x + y;\n}": [
+        {
+          line: 2,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t ;\n/*\n\t * Hello\n\t */": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      " \t/* comment */": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t // comment": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t var a /* comment */ = 1;": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      " \tvar b = 1; // comment": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "/**/\n \t/*\n \t*/": [
+        {
+          line: 2,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t var x = 5, y = 2, z = 5;\n\n\t \tvar j =\t x + y;\nz *= j;": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        },
+        {
+          line: 3,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "  \t'';": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "''\n\t ": [
+        {
+          line: 2,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ]
+    };
   }
 }
