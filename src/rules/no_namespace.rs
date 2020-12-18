@@ -7,6 +7,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoNamespace;
 
+const CODE: &str = "no-namespace";
+const MESSAGE: &str = "custom typescript modules are outdated";
+
 impl LintRule for NoNamespace {
   fn new() -> Box<Self> {
     Box::new(NoNamespace)
@@ -17,7 +20,7 @@ impl LintRule for NoNamespace {
   }
 
   fn code(&self) -> &'static str {
-    "no-namespace"
+    CODE
   }
 
   fn lint_program(
@@ -48,11 +51,7 @@ impl<'c> Visit for NoNamespaceVisitor<'c> {
   ) {
     if !mod_decl.global && !mod_decl.declare {
       if let TsModuleName::Ident(_) = mod_decl.id {
-        self.context.add_diagnostic(
-          mod_decl.span,
-          "no-namespace",
-          "custom typescript modules are outdated",
-        );
+        self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE);
       }
     }
     for stmt in &mod_decl.body {
@@ -64,7 +63,6 @@ impl<'c> Visit for NoNamespaceVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_namespace_valid() {
@@ -79,11 +77,20 @@ mod tests {
 
   #[test]
   fn no_namespace_invalid() {
-    assert_lint_err::<NoNamespace>("module foo {}", 0);
-    assert_lint_err::<NoNamespace>("namespace foo {}", 0);
-    assert_lint_err_n::<NoNamespace>(
-      "namespace Foo.Bar { namespace Baz.Bas {} }",
-      vec![0, 20],
-    );
+    assert_lint_err! {
+      NoNamespace,
+      "module foo {}": [{col: 0, message: MESSAGE }],
+      "namespace foo {}": [{col: 0, message: MESSAGE }],
+      "namespace Foo.Bar { namespace Baz.Bas {} }": [
+        {
+          col: 0,
+          message: MESSAGE
+        },
+        {
+          col: 20,
+          message: MESSAGE
+        },
+      ],
+    };
   }
 }
