@@ -3,7 +3,7 @@ use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoNamespace;
 
@@ -29,7 +29,7 @@ impl LintRule for NoNamespace {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoNamespaceVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -43,19 +43,12 @@ impl<'c> NoNamespaceVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoNamespaceVisitor<'c> {
-  fn visit_ts_module_decl(
-    &mut self,
-    mod_decl: &TsModuleDecl,
-    parent: &dyn Node,
-  ) {
+impl<'c> VisitAll for NoNamespaceVisitor<'c> {
+  fn visit_ts_module_decl(&mut self, mod_decl: &TsModuleDecl, _: &dyn Node) {
     if !mod_decl.global && !mod_decl.declare {
       if let TsModuleName::Ident(_) = mod_decl.id {
         self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE);
       }
-    }
-    for stmt in &mod_decl.body {
-      self.visit_ts_namespace_body(stmt, parent);
     }
   }
 }
