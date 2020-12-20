@@ -3,18 +3,22 @@ use super::Context;
 use super::LintRule;
 use regex::Regex;
 
+use derive_more::Display;
 use once_cell::sync::Lazy;
-use swc_common::BytePos;
-use swc_common::Span;
-use swc_common::Spanned;
-use swc_common::SyntaxContext;
-use swc_ecmascript::ast::Lit;
-use swc_ecmascript::ast::Tpl;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_common::{BytePos, Span, Spanned, SyntaxContext};
+use swc_ecmascript::ast::{Lit, Program, Tpl};
+use swc_ecmascript::visit::{Node, VisitAll, VisitAllWith};
 
 static RE: Lazy<Regex> =
   Lazy::new(|| Regex::new("^([\t ]*(\t | \t))").unwrap());
+
+const CODE: &str = "no-mixed-spaces-and-tabs";
+
+#[derive(Display)]
+enum NoMixedSpacesAndTabsMessage {
+  #[display(fmt = "Mixed spaces and tabs are not allowed.")]
+  NotAllowed,
+}
 
 pub struct NoMixedSpacesAndTabs;
 
@@ -28,16 +32,12 @@ impl LintRule for NoMixedSpacesAndTabs {
   }
 
   fn code(&self) -> &'static str {
-    "no-mixed-spaces-and-tabs"
+    CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
 
     let file_and_lines =
       context.source_map.span_to_lines(program.span()).unwrap();
@@ -89,8 +89,8 @@ impl LintRule for NoMixedSpacesAndTabs {
         if !is_excluded {
           context.add_diagnostic(
             span,
-            "no-mixed-spaces-and-tabs",
-            "Mixed spaces and tabs are not allowed.",
+            CODE,
+            NoMixedSpacesAndTabsMessage::NotAllowed,
           );
         }
       }
@@ -98,22 +98,17 @@ impl LintRule for NoMixedSpacesAndTabs {
   }
 }
 
+#[derive(Default)]
 struct NoMixedSpacesAndTabsVisitor {
   ranges: Vec<Span>,
 }
 
-impl NoMixedSpacesAndTabsVisitor {
-  fn default() -> Self {
-    Self { ranges: vec![] }
-  }
-}
-
-impl Visit for NoMixedSpacesAndTabsVisitor {
-  fn visit_lit(&mut self, lit: &Lit, _parent: &dyn Node) {
+impl VisitAll for NoMixedSpacesAndTabsVisitor {
+  fn visit_lit(&mut self, lit: &Lit, _: &dyn Node) {
     self.ranges.push(lit.span());
   }
 
-  fn visit_tpl(&mut self, tpl: &Tpl, _parent: &dyn Node) {
+  fn visit_tpl(&mut self, tpl: &Tpl, _: &dyn Node) {
     self.ranges.push(tpl.span);
   }
 }
@@ -121,7 +116,6 @@ impl Visit for NoMixedSpacesAndTabsVisitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_mixed_spaces_and_tabs_valid() {
@@ -155,34 +149,83 @@ mod tests {
 
   #[test]
   fn no_mixed_spaces_and_tabs_invalid() {
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      "function add(x, y) {\n\t return x + y;\n}",
-      2,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      "\t ;\n/*\n\t * Hello\n\t */",
-      1,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(" \t/* comment */", 1, 0);
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("\t // comment", 1, 0);
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      "\t var a /* comment */ = 1;",
-      1,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>(
-      " \tvar b = 1; // comment",
-      1,
-      0,
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("/**/\n \t/*\n \t*/", 2, 0);
-    assert_lint_err_on_line_n::<NoMixedSpacesAndTabs>(
-      "\t var x = 5, y = 2, z = 5;\n\n\t \tvar j =\t x + y;\nz *= j;",
-      vec![(1, 0), (3, 0)],
-    );
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("  \t'';", 1, 0);
-    assert_lint_err_on_line::<NoMixedSpacesAndTabs>("''\n\t ", 2, 0);
+    assert_lint_err! {
+      NoMixedSpacesAndTabs,
+      "function add(x, y) {\n\t return x + y;\n}": [
+        {
+          line: 2,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t ;\n/*\n\t * Hello\n\t */": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      " \t/* comment */": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t // comment": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t var a /* comment */ = 1;": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      " \tvar b = 1; // comment": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "/**/\n \t/*\n \t*/": [
+        {
+          line: 2,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "\t var x = 5, y = 2, z = 5;\n\n\t \tvar j =\t x + y;\nz *= j;": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        },
+        {
+          line: 3,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "  \t'';": [
+        {
+          line: 1,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ],
+      "''\n\t ": [
+        {
+          line: 2,
+          col: 0,
+          message: NoMixedSpacesAndTabsMessage::NotAllowed,
+        }
+      ]
+    };
   }
 }

@@ -1,15 +1,38 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, Program, PropName, TsEntityName,
   TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoMisusedNew;
+
+const CODE: &str = "no-misused-new";
+
+#[derive(Display)]
+enum NoMisusedNewMessage {
+  #[display(fmt = "Type aliases cannot be constructed, only classes")]
+  TypeAlias,
+  #[display(fmt = "Interfaces cannot be constructed, only classes")]
+  Interface,
+  #[display(fmt = "Class cannot have method named `new`.")]
+  NewMethod,
+}
+
+#[derive(Display)]
+enum NoMisusedNewHint {
+  #[display(fmt = "Consider using a class, not a type")]
+  NotType,
+  #[display(fmt = "Consider using a class, not an interface")]
+  NotInterface,
+  #[display(fmt = "Rename the method")]
+  RenameMethod,
+}
 
 impl LintRule for NoMisusedNew {
   fn new() -> Box<Self> {
@@ -18,7 +41,7 @@ impl LintRule for NoMisusedNew {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoMisusedNewVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn tags(&self) -> &'static [&'static str] {
@@ -26,7 +49,37 @@ impl LintRule for NoMisusedNew {
   }
 
   fn code(&self) -> &'static str {
-    "no-misused-new"
+    CODE
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows defining constructors for interfaces or new for classes
+
+Specifying a constructor for an interface or defining a `new` method for a class
+is incorrect and should be avoided.
+    
+### Invalid:
+```typescript
+class C {
+  new(): C;
+}
+
+interface I {
+  constructor(): void;
+}
+```
+
+### Valid:
+```typescript
+class C {
+  constructor() {}
+}
+
+interface I {
+  new (): C;
+}
+```
+"#
   }
 }
 
@@ -54,21 +107,18 @@ impl<'c> NoMisusedNewVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoMisusedNewVisitor<'c> {
-  fn visit_ts_type_alias_decl(
-    &mut self,
-    t: &TsTypeAliasDecl,
-    _parent: &dyn Node,
-  ) {
+impl<'c> VisitAll for NoMisusedNewVisitor<'c> {
+  fn visit_ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, _: &dyn Node) {
     if let TsType::TsTypeLit(lit) = &*t.type_ann {
       for member in &lit.members {
         if let TsMethodSignature(signature) = &member {
           if let Expr::Ident(ident) = &*signature.key {
             if self.is_constructor_keyword(&ident) {
-              self.context.add_diagnostic(
+              self.context.add_diagnostic_with_hint(
                 ident.span,
-                "no-misused-new",
-                "Type aliases cannot be constructed, only classes",
+                CODE,
+                NoMisusedNewMessage::TypeAlias,
+                NoMisusedNewHint::NotType,
               );
             }
           }
@@ -77,21 +127,18 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
     }
   }
 
-  fn visit_ts_interface_decl(
-    &mut self,
-    n: &TsInterfaceDecl,
-    parent: &dyn Node,
-  ) {
+  fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl, _: &dyn Node) {
     for member in &n.body.body {
       match &member {
         TsMethodSignature(signature) => {
           if let Expr::Ident(ident) = &*signature.key {
             if self.is_constructor_keyword(&ident) {
               // constructor
-              self.context.add_diagnostic(
+              self.context.add_diagnostic_with_hint(
                 signature.span,
-                "no-misused-new",
-                "Interfaces cannot be constructed, only classes",
+                CODE,
+                NoMisusedNewMessage::Interface,
+                NoMisusedNewHint::NotInterface,
               );
             }
           }
@@ -101,21 +148,20 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
             && self
               .match_parent_type(&n.id, &signature.type_ann.as_ref().unwrap())
           {
-            self.context.add_diagnostic(
+            self.context.add_diagnostic_with_hint(
               signature.span,
-              "no-misused-new",
-              "Interfaces cannot be constructed, only classes",
+              CODE,
+              NoMisusedNewMessage::Interface,
+              NoMisusedNewHint::NotInterface,
             );
           }
         }
         _ => {}
       }
     }
-
-    swc_ecmascript::visit::visit_ts_interface_decl(self, n, parent);
   }
 
-  fn visit_class_decl(&mut self, expr: &ClassDecl, parent: &dyn Node) {
+  fn visit_class_decl(&mut self, expr: &ClassDecl, _: &dyn Node) {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
@@ -135,23 +181,21 @@ impl<'c> Visit for NoMisusedNewVisitor<'c> {
           )
         {
           // new
-          self.context.add_diagnostic(
+          self.context.add_diagnostic_with_hint(
             method.span,
-            "no-misused-new",
-            "Class cannot have method named `new`.",
+            CODE,
+            NoMisusedNewMessage::NewMethod,
+            NoMisusedNewHint::RenameMethod,
           );
         }
       }
     }
-
-    swc_ecmascript::visit::visit_class_decl(self, expr, parent);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_misused_new_valid() {
@@ -182,27 +226,39 @@ mod tests {
 
   #[test]
   fn no_misused_new_invalid() {
-    assert_lint_err_on_line_n::<NoMisusedNew>(
+    assert_lint_err! {
+      NoMisusedNew,
       r#"
 interface I {
     new(): I;
     constructor(): void;
 }
-      "#,
-      vec![(3, 4), (4, 4)],
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        },
+        {
+          line: 4,
+          col: 4,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        }
+      ],
       r#"
 interface G {
     new<T>(): G<T>;
 }
-      "#,
-      3,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        }
+      ],
       r#"
 class B {
     method() {
@@ -211,32 +267,38 @@ class B {
         }
     }
 }
-      "#,
-      5,
-      12,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 5,
+          col: 12,
+          message: NoMisusedNewMessage::Interface,
+          hint: NoMisusedNewHint::NotInterface,
+        }
+      ],
       r#"
 type T = {
     constructor(): void;
 }
-      "#,
-      3,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::TypeAlias,
+          hint: NoMisusedNewHint::NotType,
+        }
+      ],
       r#"
 class C {
     new(): C;
 }
-      "#,
-      3,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: NoMisusedNewMessage::NewMethod,
+          hint: NoMisusedNewHint::RenameMethod,
+        }
+      ],
       r#"
 class A {
   foo() {
@@ -245,19 +307,14 @@ class A {
     }
   }
 }
-      "#,
-      5,
-      6,
-    );
-
-    assert_lint_err_on_line::<NoMisusedNew>(
-      r#"
-declare abstract class C {
-    new(): C;
-}
-      "#,
-      3,
-      4,
-    )
+      "#: [
+        {
+          line: 5,
+          col: 6,
+          message: NoMisusedNewMessage::NewMethod,
+          hint: NoMisusedNewHint::RenameMethod,
+        }
+      ]
+    };
   }
 }

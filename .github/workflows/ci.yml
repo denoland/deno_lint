@@ -22,9 +22,9 @@ jobs:
           persist-credentials: false
 
       - name: Install rust
-        uses: hecrj/setup-rust-action@v1.3.3
+        uses: hecrj/setup-rust-action@v1.3.4
         with:
-          rust-version: "1.47.0"
+          rust-version: 1.48.0
 
       - name: Install clippy and rustfmt
         run: |
@@ -54,8 +54,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: ${{ runner.os }}-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-
+          key: a-${{ runner.os }}-${{ github.sha }}
+          restore-keys: a-${{ runner.os }}-
 
         # It seems that the 'target' directory does not always get restored
         # from cache correctly on MacOS. In the build log we see the following:
@@ -87,8 +87,8 @@ jobs:
 
       - name: Environment
         run: |
-          echo ::set-env name=GH_ACTIONS::1
-          echo ::set-env name=RUST_BACKTRACE::full
+          echo "GH_ACTIONS=1" >> ${GITHUB_ENV}
+          echo "RUST_BACKTRACE=full" >> ${GITHUB_ENV}
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
@@ -116,7 +116,7 @@ jobs:
         run: |
           yarn
           yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.8.1/cli.ts build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.9.5/cli.ts build
         working-directory: ./www
 
       - name: Upload website to Github Actions Artifacts

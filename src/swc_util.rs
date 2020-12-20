@@ -114,6 +114,7 @@ impl StringRepr for PropName {
       PropName::Ident(identifier) => Some(identifier.sym.to_string()),
       PropName::Str(str) => Some(str.value.to_string()),
       PropName::Num(num) => Some(num.to_string()),
+      PropName::BigInt(bigint) => Some(bigint.value.to_string()),
       PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
         Expr::Lit(lit) => lit.string_repr(),
         Expr::Tpl(tpl) => tpl.string_repr(),

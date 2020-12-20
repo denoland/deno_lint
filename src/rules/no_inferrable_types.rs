@@ -2,13 +2,31 @@
 use super::Context;
 use super::LintRule;
 
+use derive_more::Display;
 use swc_ecmascript::ast::{
-  Expr, ExprOrSuper, Lit, TsKeywordType, TsType, TsTypeRef, VarDecl,
+  ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
+  NewExpr, OptChainExpr, Pat, PrivateProp, Program, TsEntityName,
+  TsKeywordType, TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr,
+  VarDecl,
 };
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoInferrableTypes;
+
+const CODE: &str = "no-inferrable-types";
+
+#[derive(Display)]
+enum NoInferrableTypesMessage {
+  #[display(fmt = "inferrable types are not allowed")]
+  NotAllowed,
+}
+
+#[derive(Display)]
+enum NoInferrableTypesHint {
+  #[display(fmt = "Remove the type, it is easily inferrable")]
+  Remove,
+}
 
 impl LintRule for NoInferrableTypes {
   fn new() -> Box<Self> {
@@ -20,16 +38,12 @@ impl LintRule for NoInferrableTypes {
   }
 
   fn code(&self) -> &'static str {
-    "no-inferrable-types"
+    CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -111,9 +125,9 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "no-inferrable-types",
-      "inferrable types are not allowed",
-      "Remove the type, it is easily inferrable",
+      CODE,
+      NoInferrableTypesMessage::NotAllowed,
+      NoInferrableTypesHint::Remove,
     )
   }
 
@@ -123,7 +137,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     span: swc_common::Span,
     expected_sym: &str,
   ) {
-    if let swc_ecmascript::ast::ExprOrSuper::Expr(unboxed) = &callee {
+    if let ExprOrSuper::Expr(unboxed) = &callee {
       if let Expr::Ident(value) = &**unboxed {
         if value.sym == *expected_sym {
           self.add_diagnostic_helper(span);
@@ -132,7 +146,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn is_nan_or_infinity(&self, ident: &swc_ecmascript::ast::Ident) -> bool {
+  fn is_nan_or_infinity(&self, ident: &Ident) -> bool {
     ident.sym == *"NaN" || ident.sym == *"Infinity"
   }
 
@@ -142,39 +156,31 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     ts_type: &TsKeywordType,
     span: swc_common::Span,
   ) {
-    use swc_ecmascript::ast::TsKeywordTypeKind::*;
+    use TsKeywordTypeKind::*;
     match ts_type.kind {
       TsBigIntKeyword => match &*value {
         Expr::Lit(Lit::BigInt(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "BigInt");
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
-        {
+        Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
           Expr::Lit(Lit::BigInt(_)) => {
             self.add_diagnostic_helper(span);
           }
-          Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+          Expr::Call(CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "BigInt");
           }
-          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-            expr, ..
-          }) => {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr {
-              callee, ..
-            }) = &**expr
-            {
+          Expr::OptChain(OptChainExpr { expr, .. }) => {
+            if let Expr::Call(CallExpr { callee, .. }) = &**expr {
               self.check_callee(callee, span, "BigInt");
             }
           }
           _ => {}
         },
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "BigInt");
           }
         }
@@ -184,18 +190,16 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Lit(Lit::Bool(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "Boolean");
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { op, .. }) => {
+        Expr::Unary(UnaryExpr { op, .. }) => {
           if op.to_string() == "!" {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "Boolean");
           }
         }
@@ -205,7 +209,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Lit(Lit::Num(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "Number");
         }
         Expr::Ident(ident) => {
@@ -213,12 +217,11 @@ impl<'c> NoInferrableTypesVisitor<'c> {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { arg, .. }) => match &**arg
-        {
+        Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
           Expr::Lit(Lit::Num(_)) => {
             self.add_diagnostic_helper(span);
           }
-          Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+          Expr::Call(CallExpr { callee, .. }) => {
             self.check_callee(callee, span, "Number");
           }
           Expr::Ident(ident) => {
@@ -226,22 +229,15 @@ impl<'c> NoInferrableTypesVisitor<'c> {
               self.add_diagnostic_helper(span);
             }
           }
-          Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-            expr, ..
-          }) => {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr {
-              callee, ..
-            }) = &**expr
-            {
+          Expr::OptChain(OptChainExpr { expr, .. }) => {
+            if let Expr::Call(CallExpr { callee, .. }) = &**expr {
               self.check_callee(callee, span, "Number");
             }
           }
           _ => {}
         },
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "Number");
           }
         }
@@ -259,31 +255,21 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Tpl(_) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "String");
         }
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "String");
           }
         }
         _ => {}
       },
       TsSymbolKeyword => {
-        if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-          &*value
-        {
+        if let Expr::Call(CallExpr { callee, .. }) = &*value {
           self.check_callee(callee, span, "Symbol");
-        } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-          expr,
-          ..
-        }) = &*value
-        {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        } else if let Expr::OptChain(OptChainExpr { expr, .. }) = &*value {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "Symbol");
           }
         }
@@ -294,7 +280,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
             self.add_diagnostic_helper(span);
           }
         }
-        Expr::Unary(swc_ecmascript::ast::UnaryExpr { op, .. }) => {
+        Expr::Unary(UnaryExpr { op, .. }) => {
           if op.to_string() == "void" {
             self.add_diagnostic_helper(span);
           }
@@ -311,8 +297,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
     ts_type: &TsTypeRef,
     span: swc_common::Span,
   ) {
-    if let swc_ecmascript::ast::TsEntityName::Ident(ident) = &ts_type.type_name
-    {
+    if let TsEntityName::Ident(ident) = &ts_type.type_name {
       if ident.sym != *"RegExp" {
         return;
       }
@@ -320,31 +305,22 @@ impl<'c> NoInferrableTypesVisitor<'c> {
         Expr::Lit(Lit::Regex(_)) => {
           self.add_diagnostic_helper(span);
         }
-        Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) => {
+        Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, span, "RegExp");
         }
-        Expr::New(swc_ecmascript::ast::NewExpr { callee, .. }) => {
+        Expr::New(NewExpr { callee, .. }) => {
           if let Expr::Ident(ident) = &**callee {
             if ident.sym == *"RegExp" {
               self.add_diagnostic_helper(span);
             }
-          } else if let Expr::OptChain(swc_ecmascript::ast::OptChainExpr {
-            expr,
-            ..
-          }) = &**callee
-          {
-            if let Expr::Call(swc_ecmascript::ast::CallExpr {
-              callee, ..
-            }) = &**expr
-            {
+          } else if let Expr::OptChain(OptChainExpr { expr, .. }) = &**callee {
+            if let Expr::Call(CallExpr { callee, .. }) = &**expr {
               self.check_callee(callee, span, "RegExp");
             }
           }
         }
-        Expr::OptChain(swc_ecmascript::ast::OptChainExpr { expr, .. }) => {
-          if let Expr::Call(swc_ecmascript::ast::CallExpr { callee, .. }) =
-            &**expr
-          {
+        Expr::OptChain(OptChainExpr { expr, .. }) => {
+          if let Expr::Call(CallExpr { callee, .. }) = &**expr {
             self.check_callee(callee, span, "RegExp");
           }
         }
@@ -356,7 +332,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   fn check_ts_type(
     &mut self,
     value: &Expr,
-    ts_type: &swc_ecmascript::ast::TsTypeAnn,
+    ts_type: &TsTypeAnn,
     span: swc_common::Span,
   ) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
@@ -367,15 +343,11 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoInferrableTypesVisitor<'c> {
-  fn visit_function(
-    &mut self,
-    function: &swc_ecmascript::ast::Function,
-    _parent: &dyn Node,
-  ) {
+impl<'c> VisitAll for NoInferrableTypesVisitor<'c> {
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     for param in &function.params {
-      if let swc_ecmascript::ast::Pat::Assign(assign_pat) = &param.pat {
-        if let swc_ecmascript::ast::Pat::Ident(ident) = &*assign_pat.left {
+      if let Pat::Assign(assign_pat) = &param.pat {
+        if let Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
             self.check_ts_type(&assign_pat.right, ident_type_ann, param.span);
           }
@@ -384,14 +356,10 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn visit_arrow_expr(
-    &mut self,
-    arr_expr: &swc_ecmascript::ast::ArrowExpr,
-    _parent: &dyn Node,
-  ) {
+  fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr, _: &dyn Node) {
     for param in &arr_expr.params {
-      if let swc_ecmascript::ast::Pat::Assign(assign_pat) = &param {
-        if let swc_ecmascript::ast::Pat::Ident(ident) = &*assign_pat.left {
+      if let Pat::Assign(assign_pat) = &param {
+        if let Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
             self.check_ts_type(
               &assign_pat.right,
@@ -404,11 +372,7 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn visit_class_prop(
-    &mut self,
-    prop: &swc_ecmascript::ast::ClassProp,
-    _parent: &dyn Node,
-  ) {
+  fn visit_class_prop(&mut self, prop: &ClassProp, _: &dyn Node) {
     if prop.readonly || prop.is_optional {
       return;
     }
@@ -421,20 +385,24 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
     }
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
-    if let Some(init) = &var_decl.decls[0].init {
-      if let Expr::Fn(fn_expr) = &**init {
-        if !fn_expr.function.params.is_empty() {
-          self.visit_function(&fn_expr.function, _parent);
-        }
-      } else if let Expr::Arrow(arr_expr) = &**init {
-        if !arr_expr.params.is_empty() {
-          self.visit_arrow_expr(&arr_expr, _parent);
-        }
+  fn visit_private_prop(&mut self, prop: &PrivateProp, _: &dyn Node) {
+    if prop.readonly || prop.is_optional {
+      return;
+    }
+    if let Some(init) = &prop.value {
+      if let Some(ident_type_ann) = &prop.type_ann {
+        self.check_ts_type(init, ident_type_ann, prop.span);
       }
-      if let swc_ecmascript::ast::Pat::Ident(ident) = &var_decl.decls[0].name {
-        if let Some(ident_type_ann) = &ident.type_ann {
-          self.check_ts_type(init, ident_type_ann, var_decl.span);
+    }
+  }
+
+  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+    for decl in &var_decl.decls {
+      if let Some(init) = &decl.init {
+        if let Pat::Ident(ident) = &decl.name {
+          if let Some(ident_type_ann) = &ident.type_ann {
+            self.check_ts_type(init, ident_type_ann, decl.span);
+          }
         }
       }
     }
@@ -444,7 +412,6 @@ impl<'c> Visit for NoInferrableTypesVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_inferrable_types_valid() {
@@ -513,74 +480,398 @@ mod tests {
 
   #[test]
   fn no_inferrable_types_invalid() {
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = 10n", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = -10n", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = BigInt(10)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = -BigInt?.(10)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: bigint = -BigInt?.(10)", 0);
+    assert_lint_err! {
+      NoInferrableTypes,
+      "const a: bigint = 10n": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = -10n": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = BigInt(10)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = -BigInt?.(10)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: bigint = -BigInt?.(10)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = false": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = true": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = Boolean(true)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = Boolean(null)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = Boolean?.(null)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: boolean = !0": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = 10": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +10": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -10": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = Number('1')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +Number('1')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -Number('1')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = Number?.('1')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +Number?.('1')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -Number?.('1')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = Infinity": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +Infinity": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -Infinity": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = NaN": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = +NaN": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = -NaN": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: null = null": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = /a/": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = RegExp('a')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = RegExp?.('a')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: RegExp = new RegExp?.('a')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = 'str'": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      r#"const a: string = "str""#: [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = `str`": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = String(1)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: string = String?.(1)": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: symbol = Symbol('a')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: symbol = Symbol?.('a')": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: undefined = undefined": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: undefined = void someValue": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a: number = 0, b: string = 'foo';": [
+        {
+          col: 6,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        },
+        {
+          col: 21,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "function f(a: number = 5) {};": [
+        {
+          col: 11,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const fn = (a: number = 5, b: boolean = true, c: string = 'foo') => {};": [
+        {
+          col: 12,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        },
+        {
+          col: 27,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        },
+        {
+          col: 46,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { a: number = 42; }": [
+        {
+          col: 10,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { a(x: number = 42) {} }": [
+        {
+          col: 12,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
 
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = false", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = true", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = Boolean(true)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = Boolean(null)", 0);
-    assert_lint_err::<NoInferrableTypes>(
-      "const a: boolean = Boolean?.(null)",
-      0,
-    );
-    assert_lint_err::<NoInferrableTypes>("const a: boolean = !0", 0);
+      // https://github.com/denoland/deno_lint/issues/558
+      "class A { #foo: string = '' }": [
+        {
+          col: 10,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { static #foo: string = '' }": [
+        {
+          col: 10,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { #foo(x: number = 42) {} }": [
+        {
+          col: 15,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { static #foo(x: number = 42) {} }": [
+        {
+          col: 22,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
 
-    assert_lint_err::<NoInferrableTypes>("const a: number = 10", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +10", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -10", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = Number('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +Number('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -Number('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = Number?.('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +Number?.('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -Number?.('1')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = Infinity", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +Infinity", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -Infinity", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = NaN", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = +NaN", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: number = -NaN", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: null = null", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: RegExp = /a/", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: RegExp = RegExp('a')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: RegExp = RegExp?.('a')", 0);
-    assert_lint_err::<NoInferrableTypes>(
-      "const a: RegExp = new RegExp?.('a')",
-      0,
-    );
-
-    assert_lint_err::<NoInferrableTypes>("const a: string = 'str'", 0);
-    assert_lint_err::<NoInferrableTypes>(r#"const a: string = "str""#, 0);
-    assert_lint_err::<NoInferrableTypes>("const a: string = `str`", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: string = String(1)", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: string = String?.(1)", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: symbol = Symbol('a')", 0);
-    assert_lint_err::<NoInferrableTypes>("const a: symbol = Symbol?.('a')", 0);
-
-    assert_lint_err::<NoInferrableTypes>("const a: undefined = undefined", 0);
-    assert_lint_err::<NoInferrableTypes>(
-      "const a: undefined = void someValue",
-      0,
-    );
-    assert_lint_err_n::<NoInferrableTypes>(
-      "const fn = (a: number = 5, b: boolean = true, c: string = 'foo') => {};",
-      vec![12, 27, 46],
-    );
-
-    assert_lint_err_on_line_n::<NoInferrableTypes>(
-      "class Foo {
-a: number = 5;
-b: boolean = true;
-c: string = 'foo';
-}",
-      vec![(2, 0), (3, 0), (4, 0)],
-    )
+      // nested
+      "function a() { const x: number = 5; }": [
+        {
+          col: 21,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a = () => { const b = (x: number = 42) => {}; };": [
+        {
+          col: 29,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "class A { a = class { b: number = 42; }; }": [
+        {
+          col: 22,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+      "const a = function () { let x: number = 42; };": [
+        {
+          col: 28,
+          message: NoInferrableTypesMessage::NotAllowed,
+          hint: NoInferrableTypesHint::Remove,
+        }
+      ],
+    };
   }
 }

@@ -3,9 +3,12 @@ use super::Context;
 use super::LintRule;
 use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoNamespace;
+
+const CODE: &str = "no-namespace";
+const MESSAGE: &str = "custom typescript modules are outdated";
 
 impl LintRule for NoNamespace {
   fn new() -> Box<Self> {
@@ -17,7 +20,7 @@ impl LintRule for NoNamespace {
   }
 
   fn code(&self) -> &'static str {
-    "no-namespace"
+    CODE
   }
 
   fn lint_program(
@@ -26,7 +29,7 @@ impl LintRule for NoNamespace {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoNamespaceVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -40,23 +43,12 @@ impl<'c> NoNamespaceVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoNamespaceVisitor<'c> {
-  fn visit_ts_module_decl(
-    &mut self,
-    mod_decl: &TsModuleDecl,
-    parent: &dyn Node,
-  ) {
+impl<'c> VisitAll for NoNamespaceVisitor<'c> {
+  fn visit_ts_module_decl(&mut self, mod_decl: &TsModuleDecl, _: &dyn Node) {
     if !mod_decl.global && !mod_decl.declare {
       if let TsModuleName::Ident(_) = mod_decl.id {
-        self.context.add_diagnostic(
-          mod_decl.span,
-          "no-namespace",
-          "custom typescript modules are outdated",
-        );
+        self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE);
       }
-    }
-    for stmt in &mod_decl.body {
-      self.visit_ts_namespace_body(stmt, parent);
     }
   }
 }
@@ -64,7 +56,6 @@ impl<'c> Visit for NoNamespaceVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_namespace_valid() {
@@ -79,11 +70,20 @@ mod tests {
 
   #[test]
   fn no_namespace_invalid() {
-    assert_lint_err::<NoNamespace>("module foo {}", 0);
-    assert_lint_err::<NoNamespace>("namespace foo {}", 0);
-    assert_lint_err_n::<NoNamespace>(
-      "namespace Foo.Bar { namespace Baz.Bas {} }",
-      vec![0, 20],
-    );
+    assert_lint_err! {
+      NoNamespace,
+      "module foo {}": [{col: 0, message: MESSAGE }],
+      "namespace foo {}": [{col: 0, message: MESSAGE }],
+      "namespace Foo.Bar { namespace Baz.Bas {} }": [
+        {
+          col: 0,
+          message: MESSAGE
+        },
+        {
+          col: 20,
+          message: MESSAGE
+        },
+      ],
+    };
   }
 }

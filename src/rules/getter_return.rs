@@ -4,11 +4,11 @@ use super::LintRule;
 use crate::swc_util::StringRepr;
 use derive_more::Display;
 use std::collections::BTreeMap;
-use std::mem;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  BlockStmtOrExpr, CallExpr, ClassMethod, Expr, ExprOrSuper, GetterProp,
-  MethodKind, PrivateMethod, Prop, PropName, PropOrSpread, ReturnStmt,
+  ArrowExpr, BlockStmtOrExpr, CallExpr, ClassMethod, Expr, ExprOrSuper, FnDecl,
+  FnExpr, GetterProp, MethodKind, PrivateMethod, Prop, PropName, PropOrSpread,
+  ReturnStmt,
 };
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -174,11 +174,11 @@ impl<'c> GetterReturnVisitor<'c> {
     self.getter_name = Some("get".to_string());
   }
 
-  fn visit_getter<F>(&mut self, op: F)
+  fn visit_getter_or_function<F>(&mut self, op: F)
   where
     F: FnOnce(&mut Self),
   {
-    let prev_name = mem::take(&mut self.getter_name);
+    let prev_name = self.getter_name.take();
     let prev_has_return = self.has_return;
     op(self);
     self.getter_name = prev_name;
@@ -189,8 +189,32 @@ impl<'c> GetterReturnVisitor<'c> {
 impl<'c> Visit for GetterReturnVisitor<'c> {
   noop_visit_type!();
 
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+    // `self.has_return` should be reset because return statements inside the `fn_decl` don't have
+    // effect on outside of it
+    self.visit_getter_or_function(|a| {
+      fn_decl.visit_children_with(a);
+    });
+  }
+
+  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
+    // `self.has_return` should be reset because return statements inside the `fn_expr` don't have
+    // effect on outside of it
+    self.visit_getter_or_function(|a| {
+      fn_expr.visit_children_with(a);
+    });
+  }
+
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+    // `self.has_return` should be reset because return statements inside the `arrow_expr` don't
+    // have effect on outside of it
+    self.visit_getter_or_function(|a| {
+      arrow_expr.visit_children_with(a);
+    });
+  }
+
   fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
-    self.visit_getter(|a| {
+    self.visit_getter_or_function(|a| {
       if class_method.kind == MethodKind::Getter {
         a.set_getter_name(&class_method.key);
       }
@@ -207,7 +231,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
     private_method: &PrivateMethod,
     _: &dyn Node,
   ) {
-    self.visit_getter(|a| {
+    self.visit_getter_or_function(|a| {
       if private_method.kind == MethodKind::Getter {
         a.set_getter_name(&private_method.key);
       }
@@ -220,7 +244,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
   }
 
   fn visit_getter_prop(&mut self, getter_prop: &GetterProp, _: &dyn Node) {
-    self.visit_getter(|a| {
+    self.visit_getter_or_function(|a| {
       a.set_getter_name(&getter_prop.key);
       getter_prop.visit_children_with(a);
 
@@ -262,7 +286,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
                 return;
               }
 
-              self.visit_getter(|a| {
+              self.visit_getter_or_function(|a| {
                 if let Expr::Fn(fn_expr) = &*kv_prop.value {
                   a.set_getter_name(&fn_expr.ident);
                   if let Some(body) = &fn_expr.function.body {
@@ -287,7 +311,7 @@ impl<'c> Visit for GetterReturnVisitor<'c> {
                 return;
               }
 
-              self.visit_getter(|a| {
+              self.visit_getter_or_function(|a| {
                 a.set_getter_name(&method_prop.key);
 
                 if let Some(body) = &method_prop.function.body {
@@ -461,8 +485,21 @@ const obj = {
       "const foo = { get bar() { ~function() { return true; } } };": [
         {
           col: 14,
-          // TODO(magurotuna): thie message should be `Expected`
-          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "const foo = { get bar() { function f() { return true; } } };": [
+        {
+          col: 14,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "const foo = { get bar() { const f = () => { return true; }; } };": [
+        {
+          col: 14,
+          message: variant!(GetterReturnMessage, Expected, "bar"),
           hint: GetterReturnHint::Return,
         }
       ],
@@ -506,8 +543,7 @@ const obj = {
       "class Foo { get bar(){ ~function () { return true; }() } }": [
         {
           col: 12,
-          // TODO(magurotuna): thie message should be `Expected`
-          message: variant!(GetterReturnMessage, ExpectedAlways, "bar"),
+          message: variant!(GetterReturnMessage, Expected, "bar"),
           hint: GetterReturnHint::Return,
         }
       ],
@@ -551,8 +587,7 @@ const obj = {
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
         {
           col: 36,
-          // TODO(magurotuna): thie message should be `Expected`
-          message: variant!(GetterReturnMessage, ExpectedAlways, "get"),
+          message: variant!(GetterReturnMessage, Expected, "get"),
           hint: GetterReturnHint::Return,
         }
       ],
