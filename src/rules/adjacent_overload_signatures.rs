@@ -652,7 +652,7 @@ declare function foo(sn: string | number);
       "#: [
             {
               line: 6,
-              col: 8,
+              col: 0,
               message: "All 'foo' signatures should be adjacent",
               hint: "Make sure all overloaded signatures are grouped together"
             }
@@ -666,7 +666,7 @@ declare function foo(sn: string | number);
       "#: [
             {
               line: 6,
-              col: 8,
+              col: 0,
               message: "All 'foo' signatures should be adjacent",
               hint: "Make sure all overloaded signatures are grouped together"
             }
