@@ -5,7 +5,7 @@ use super::Context;
 use super::LintRule;
 use derive_more::Display;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::mem;
 use std::rc::Rc;
 use swc_atoms::JsWord;
@@ -64,54 +64,12 @@ impl LintRule for PreferConst {
   }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Variable {
-  span: Span,
-  initialized: bool,
-  reassigned: bool,
-  special_case: SpecialCase,
-  is_param: bool,
-}
-
-impl Variable {
-  fn update(&mut self, initialized: bool, reassigned: bool) {
-    self.initialized = initialized;
-    self.reassigned = reassigned;
-  }
-
-  fn should_report(&self) -> bool {
-    if self.is_param {
-      return false;
-    }
-
-    // (initialized, reassigned): [return value]
-    //
-    // - (false, false): false
-    // - (true, false): true
-    // - (false, true): true
-    // - (true, true): false
-    self.initialized != self.reassigned
-  }
-}
-
-/// Stores span if a variable is declared in places that we have to treat as "special".
-/// Here "special" means that how we decide whether the variable is erronous or not is differenct
-/// from other kind of variables.
-/// For example, in "ForInit" case, we should report diagnostics only if *all* variables in the
-/// same "ForInit" need to be reported. This requires special handling.
-#[derive(Debug, Clone, Copy)]
-enum SpecialCase {
-  NotSpecial,
-  ForInit(Span),
-  Destructuring(Span),
-}
-
 type Scope = Rc<RefCell<RawScope>>;
 
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<JsWord, Variable>,
+  variables: BTreeMap<JsWord, Span>,
 }
 
 impl RawScope {
@@ -123,25 +81,104 @@ impl RawScope {
   }
 }
 
-/// Looks for the variable status of the given ident by traversing from the current scope to the parent,
-/// and updates its status.
-fn update_variable_status(scope: Scope, ident: &Ident, force_reassigned: bool) {
+/// Looks for the span of the given variable by traversing from the given scope to the parents.
+/// Returns `None` if no matching span is found. Most likely it means the variable is not declared
+/// with `let`.
+fn get_span_by_ident(scope: Scope, ident: &Ident) -> Option<Span> {
   let mut cur_scope = Some(scope);
   while let Some(cur) = cur_scope {
-    let mut lock = cur.borrow_mut();
-    if let Some(var) = lock.variables.get_mut(&ident.sym) {
-      let (initialized, mut reassigned) = if var.initialized {
-        (true, true)
-      } else {
-        (true, false)
-      };
+    if let Some(span) = cur.borrow().variables.get(&ident.sym) {
+      return Some(*span);
+    }
+    cur_scope = cur.borrow().parent.as_ref().map(Rc::clone);
+  }
+  None
+}
 
-      reassigned |= force_reassigned;
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum VarStatus {
+  Declared,
+  Initialized,
+  Mutated,
+}
 
-      var.update(initialized, reassigned);
+impl VarStatus {
+  fn next(self) -> Self {
+    use VarStatus::*;
+    match self {
+      Declared => Initialized,
+      Initialized => Mutated,
+      Mutated => Mutated,
+    }
+  }
+}
+
+#[derive(Default)]
+struct DisjointSet {
+  /// Key: span of ident, Value: span of parent node
+  /// This map is supposed to contain all spans of variable declarations.
+  parents: HashMap<Span, Span>,
+
+  /// Key: span of ident (representative of the group)
+  /// Value: pair of the following values:
+  ///        - status of variables in this tree
+  ///        - the maximum height of this tree, which is used for optimization
+  roots: HashMap<Span, (VarStatus, usize)>,
+}
+
+impl DisjointSet {
+  fn add_root(&mut self, span: Span, status: VarStatus) {
+    if self.parents.contains_key(&span) {
       return;
     }
-    cur_scope = lock.parent.as_ref().map(Rc::clone);
+    self.parents.insert(span, span);
+    self.roots.insert(span, (status, 1));
+  }
+
+  fn get_root(&mut self, span: Span) -> Option<Span> {
+    match self.parents.get(&span) {
+      None => None,
+      Some(&par_span) if span == par_span => Some(span),
+      Some(&par_span) => {
+        let root = self.get_root(par_span);
+        match (root, self.parents.get_mut(&span)) {
+          (Some(root_span), Some(par)) => {
+            *par = root_span;
+          }
+          _ => {}
+        }
+        root
+      }
+    }
+  }
+
+  fn unite(&mut self, span1: Span, span2: Span) -> Option<()> {
+    let rs1 = self.get_root(span1)?;
+    let rs2 = self.get_root(span2)?;
+    if rs1 == rs2 {
+      return None;
+    }
+
+    let &(status1, rank1) = self.roots.get(&rs1)?;
+    let &(status2, rank2) = self.roots.get(&rs2)?;
+
+    let next_status = std::cmp::max(status1, status2);
+
+    if rank1 <= rank2 {
+      let p = self.parents.get_mut(&rs1)?;
+      *p = rs2;
+      let r = self.roots.get_mut(&rs2)?;
+      *r = (next_status, std::cmp::max(rank1 + 1, rank2));
+      self.roots.remove(&rs1);
+    } else {
+      let p = self.parents.get_mut(&rs2)?;
+      *p = rs1;
+      let r = self.roots.get_mut(&rs1)?;
+      *r = (next_status, rank1);
+      self.roots.remove(&rs2);
+    }
+
+    Some(())
   }
 }
 
@@ -155,6 +192,7 @@ enum ScopeRange {
 struct VariableCollector {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
+  var_groups: DisjointSet,
 }
 
 impl VariableCollector {
@@ -169,7 +207,7 @@ impl VariableCollector {
     &mut self,
     ident: &Ident,
     has_init: bool,
-    special_case: SpecialCase,
+    special_case: Handling,
     is_param: bool,
   ) {
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
@@ -179,7 +217,7 @@ impl VariableCollector {
         span: ident.span,
         initialized: has_init,
         reassigned: false,
-        special_case,
+        handling: special_case,
         is_param,
       },
     );
@@ -189,7 +227,7 @@ impl VariableCollector {
     &mut self,
     pat: &Pat,
     has_init: bool,
-    special_case: SpecialCase,
+    special_case: Handling,
   ) {
     match pat {
       Pat::Ident(ident) => {
@@ -268,7 +306,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
         for ident in idents {
-          a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
+          a.insert_var(&ident, true, Handling::Normal, true);
         }
       }
       if let Some(body) = &function.body {
@@ -283,7 +321,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
+          a.insert_var(&ident, true, Handling::Normal, true);
         }
       }
       match &arrow_expr.body {
@@ -313,7 +351,7 @@ impl Visit for VariableCollector {
               a.extract_decl_idents(
                 &decl.name,
                 decl.init.is_some(),
-                SpecialCase::ForInit(for_stmt.span),
+                Handling::ForInit(for_stmt.span),
               );
             }
           }
@@ -344,7 +382,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, SpecialCase::NotSpecial);
+            a.extract_decl_idents(&decl.name, true, Handling::Normal);
           }
         }
       }
@@ -364,7 +402,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, SpecialCase::NotSpecial);
+            a.extract_decl_idents(&decl.name, true, Handling::Normal);
           }
         }
       }
@@ -438,7 +476,7 @@ impl Visit for VariableCollector {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
+          a.insert_var(&ident, true, Handling::Normal, true);
         }
       }
       catch_clause.body.visit_children_with(a);
@@ -469,13 +507,13 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, true, SpecialCase::NotSpecial, true);
+                a.insert_var(ident, true, Handling::Normal, true);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
                 let idents: Vec<Ident> = find_ids(&assign_pat.left);
                 for ident in idents {
-                  a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
+                  a.insert_var(&ident, true, Handling::Normal, true);
                 }
               }
             }
@@ -484,7 +522,7 @@ impl Visit for VariableCollector {
             param.visit_children_with(a);
             let idents: Vec<Ident> = find_ids(&param.pat);
             for ident in idents {
-              a.insert_var(&ident, true, SpecialCase::NotSpecial, true);
+              a.insert_var(&ident, true, Handling::Normal, true);
             }
           }
         }
@@ -502,9 +540,9 @@ impl Visit for VariableCollector {
       for decl in &var_decl.decls {
         let special_case = match decl.name {
           Pat::Array(_) | Pat::Object(_) | Pat::Rest(_) => {
-            SpecialCase::Destructuring(decl.name.span())
+            Handling::Destructuring(decl.name.span())
           }
-          _ => SpecialCase::NotSpecial,
+          _ => Handling::Normal,
         };
         self.extract_decl_idents(&decl.name, decl.init.is_some(), special_case);
       }
@@ -652,19 +690,19 @@ impl<'c> PreferConstVisitor<'c> {
     let scopes = self.scopes.clone();
     for scope in scopes.values() {
       for (sym, status) in scope.borrow().variables.iter() {
-        match status.special_case {
-          SpecialCase::NotSpecial => {
+        match status.handling {
+          Handling::Normal => {
             if status.should_report() {
               self.report(sym, status.span);
             }
           }
-          SpecialCase::ForInit(for_span) => {
+          Handling::ForInit(for_span) => {
             for_init_vars
               .entry(for_span)
               .or_insert_with(Vec::new)
               .push((sym.clone(), *status));
           }
-          SpecialCase::Destructuring(dest_span) => {
+          Handling::Destructuring(dest_span) => {
             destructuring_vars
               .entry(dest_span)
               .or_insert_with(Vec::new)
