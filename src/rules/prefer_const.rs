@@ -95,7 +95,7 @@ fn get_span_by_ident(scope: Scope, ident: &Ident) -> Option<Span> {
   None
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum VarStatus {
   Declared,
   Initialized,
@@ -113,7 +113,7 @@ impl VarStatus {
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct DisjointSet {
   /// Key: span of ident, Value: span of parent node
   /// This map is supposed to contain all spans of variable declarations.
@@ -127,6 +127,10 @@ struct DisjointSet {
 }
 
 impl DisjointSet {
+  fn new() -> Self {
+    Self::default()
+  }
+
   fn add_root(&mut self, span: Span, status: VarStatus) {
     if self.parents.contains_key(&span) {
       return;
@@ -180,6 +184,22 @@ impl DisjointSet {
 
     Some(())
   }
+
+  fn dump(mut self) -> Vec<Span> {
+    self
+      .parents
+      .clone()
+      .keys()
+      .filter_map(|&cur| {
+        let root = self.get_root(cur)?;
+        if matches!(self.roots.get(&root), Some((VarStatus::Initialized, _))) {
+          Some(cur)
+        } else {
+          None
+        }
+      })
+      .collect()
+  }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
@@ -200,72 +220,54 @@ impl VariableCollector {
     Self {
       scopes: BTreeMap::new(),
       cur_scope: ScopeRange::Global,
+      var_groups: DisjointSet::new(),
     }
   }
 
-  fn insert_var(
-    &mut self,
-    ident: &Ident,
-    has_init: bool,
-    special_case: Handling,
-    is_param: bool,
-  ) {
+  fn insert_var(&mut self, ident: &Ident, status: VarStatus) {
+    self.var_groups.add_root(ident.span, status);
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
-    scope.variables.insert(
-      ident.sym.clone(),
-      Variable {
-        span: ident.span,
-        initialized: has_init,
-        reassigned: false,
-        handling: special_case,
-        is_param,
-      },
-    );
+    scope.variables.insert(ident.sym.clone(), ident.span);
   }
 
-  fn extract_decl_idents(
-    &mut self,
-    pat: &Pat,
-    has_init: bool,
-    special_case: Handling,
-  ) {
+  fn extract_decl_idents(&mut self, pat: &Pat, has_init: bool) {
+    let status = if has_init {
+      VarStatus::Initialized
+    } else {
+      VarStatus::Declared
+    };
+
     match pat {
-      Pat::Ident(ident) => {
-        self.insert_var(ident, has_init, special_case, false)
-      }
+      Pat::Ident(ident) => self.insert_var(ident, status),
       Pat::Array(array_pat) => {
         for elem in &array_pat.elems {
           if let Some(elem_pat) = elem {
-            self.extract_decl_idents(elem_pat, has_init, special_case);
+            self.extract_decl_idents(elem_pat, has_init);
           }
         }
       }
-      Pat::Rest(rest_pat) => {
-        self.extract_decl_idents(&*rest_pat.arg, has_init, special_case)
-      }
+      Pat::Rest(rest_pat) => self.extract_decl_idents(&*rest_pat.arg, has_init),
       Pat::Object(object_pat) => {
         for prop in &object_pat.props {
           match prop {
-            ObjectPatProp::KeyValue(key_value) => self.extract_decl_idents(
-              &*key_value.value,
-              has_init,
-              special_case,
-            ),
+            ObjectPatProp::KeyValue(key_value) => {
+              self.extract_decl_idents(&*key_value.value, has_init)
+            }
             ObjectPatProp::Assign(assign) => {
               if assign.value.is_some() {
-                self.insert_var(&assign.key, true, special_case, false);
+                self.insert_var(&assign.key, VarStatus::Initialized);
               } else {
-                self.insert_var(&assign.key, has_init, special_case, false);
+                self.insert_var(&assign.key, status);
               }
             }
             ObjectPatProp::Rest(rest) => {
-              self.extract_decl_idents(&*rest.arg, has_init, special_case)
+              self.extract_decl_idents(&*rest.arg, has_init)
             }
           }
         }
       }
       Pat::Assign(assign_pat) => {
-        self.extract_decl_idents(&*assign_pat.left, true, special_case)
+        self.extract_decl_idents(&*assign_pat.left, true)
       }
       _ => {}
     }
@@ -306,7 +308,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
         for ident in idents {
-          a.insert_var(&ident, true, Handling::Normal, true);
+          a.insert_var(&ident, VarStatus::Mutated);
         }
       }
       if let Some(body) = &function.body {
@@ -321,7 +323,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, Handling::Normal, true);
+          a.insert_var(&ident, VarStatus::Mutated);
         }
       }
       match &arrow_expr.body {
@@ -348,11 +350,7 @@ impl Visit for VariableCollector {
           var_decl.visit_children_with(a);
           if var_decl.kind == VarDeclKind::Let {
             for decl in &var_decl.decls {
-              a.extract_decl_idents(
-                &decl.name,
-                decl.init.is_some(),
-                Handling::ForInit(for_stmt.span),
-              );
+              a.extract_decl_idents(&decl.name, decl.init.is_some());
             }
           }
         }
@@ -382,7 +380,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, Handling::Normal);
+            a.extract_decl_idents(&decl.name, true);
           }
         }
       }
@@ -402,7 +400,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, Handling::Normal);
+            a.extract_decl_idents(&decl.name, true);
           }
         }
       }
@@ -476,7 +474,7 @@ impl Visit for VariableCollector {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, Handling::Normal, true);
+          a.insert_var(&ident, VarStatus::Mutated);
         }
       }
       catch_clause.body.visit_children_with(a);
@@ -507,13 +505,13 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, true, Handling::Normal, true);
+                a.insert_var(ident, VarStatus::Mutated);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
                 let idents: Vec<Ident> = find_ids(&assign_pat.left);
                 for ident in idents {
-                  a.insert_var(&ident, true, Handling::Normal, true);
+                  a.insert_var(&ident, VarStatus::Mutated);
                 }
               }
             }
@@ -522,7 +520,7 @@ impl Visit for VariableCollector {
             param.visit_children_with(a);
             let idents: Vec<Ident> = find_ids(&param.pat);
             for ident in idents {
-              a.insert_var(&ident, true, Handling::Normal, true);
+              a.insert_var(&ident, VarStatus::Mutated);
             }
           }
         }
@@ -538,13 +536,7 @@ impl Visit for VariableCollector {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
       for decl in &var_decl.decls {
-        let special_case = match decl.name {
-          Pat::Array(_) | Pat::Object(_) | Pat::Rest(_) => {
-            Handling::Destructuring(decl.name.span())
-          }
-          _ => Handling::Normal,
-        };
-        self.extract_decl_idents(&decl.name, decl.init.is_some(), special_case);
+        self.extract_decl_idents(&decl.name, decl.init.is_some());
       }
     }
   }
@@ -589,8 +581,10 @@ impl<'c> PreferConstVisitor<'c> {
   }
 
   fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
-    let scope = self.scopes.get(&self.cur_scope).unwrap();
-    update_variable_status(Rc::clone(scope), ident, force_reassigned);
+    let _scope = self.scopes.get(&self.cur_scope).unwrap();
+    return;
+    // TODO(magurotuna)
+    //update_variable_status(Rc::clone(scope), ident, force_reassigned);
   }
 
   fn extract_assign_idents(&mut self, pat: &Pat) {
@@ -672,7 +666,8 @@ impl<'c> PreferConstVisitor<'c> {
       let lock = cur.borrow();
       if let Some(var) = lock.variables.get(&ident.sym) {
         if is_first_loop {
-          return var.is_param;
+          //return var.is_param;
+          return true; // TODO(magurotuna) wip
         } else {
           return true;
         }
@@ -685,54 +680,57 @@ impl<'c> PreferConstVisitor<'c> {
   }
 
   fn exit_program(&mut self) {
-    let mut for_init_vars = BTreeMap::new();
-    let mut destructuring_vars = BTreeMap::new();
-    let scopes = self.scopes.clone();
-    for scope in scopes.values() {
-      for (sym, status) in scope.borrow().variables.iter() {
-        match status.handling {
-          Handling::Normal => {
-            if status.should_report() {
-              self.report(sym, status.span);
-            }
-          }
-          Handling::ForInit(for_span) => {
-            for_init_vars
-              .entry(for_span)
-              .or_insert_with(Vec::new)
-              .push((sym.clone(), *status));
-          }
-          Handling::Destructuring(dest_span) => {
-            destructuring_vars
-              .entry(dest_span)
-              .or_insert_with(Vec::new)
-              .push((sym.clone(), *status));
-          }
-        }
-      }
-    }
+    // TODO(magurotuna) wip
+    return;
+    //let mut for_init_vars = BTreeMap::new();
+    //let mut destructuring_vars = BTreeMap::new();
+    //let scopes = self.scopes.clone();
+    //for scope in scopes.values() {
+    //for (sym, status) in scope.borrow().variables.iter() {
+    //return;
+    //match status.handling {
+    //Handling::Normal => {
+    //if status.should_report() {
+    //self.report(sym, status.span);
+    //}
+    //}
+    //Handling::ForInit(for_span) => {
+    //for_init_vars
+    //.entry(for_span)
+    //.or_insert_with(Vec::new)
+    //.push((sym.clone(), *status));
+    //}
+    //Handling::Destructuring(dest_span) => {
+    //destructuring_vars
+    //.entry(dest_span)
+    //.or_insert_with(Vec::new)
+    //.push((sym.clone(), *status));
+    //}
+    //}
+    //}
+    //}
 
     // For special cases, we should report diagnostics only if *all* variables there need to be
     // reported.
-    let mut check_special_case =
-      |vars: BTreeMap<Span, Vec<(JsWord, Variable)>>| {
-        for (sym, var) in vars
-          .iter()
-          .filter_map(|(_, vars)| {
-            if vars.iter().all(|(_, status)| status.should_report()) {
-              Some(vars)
-            } else {
-              None
-            }
-          })
-          .flatten()
-        {
-          self.report(sym, var.span);
-        }
-      };
+    //let mut check_special_case =
+    //|vars: BTreeMap<Span, Vec<(JsWord, Variable)>>| {
+    //for (sym, var) in vars
+    //.iter()
+    //.filter_map(|(_, vars)| {
+    //if vars.iter().all(|(_, status)| status.should_report()) {
+    //Some(vars)
+    //} else {
+    //None
+    //}
+    //})
+    //.flatten()
+    //{
+    //self.report(sym, var.span);
+    //}
+    //};
 
-    check_special_case(for_init_vars);
-    check_special_case(destructuring_vars);
+    //check_special_case(for_init_vars);
+    //check_special_case(destructuring_vars);
   }
 }
 
@@ -1573,6 +1571,27 @@ let global2 = 42;
     assert!(if_vars.is_empty());
 
     assert!(scope_iter.next().is_none());
+  }
+
+  fn belongs_to_same_group(
+    ds: &mut DisjointSet,
+    span1: Span,
+    span2: Span,
+  ) -> bool {
+    let r1 = ds.get_root(span1);
+    let r2 = ds.get_root(span2);
+    matches!((r1, r2), (Some(x), Some(y)) if x == y)
+  }
+
+  #[test]
+  fn var_groups_1() {
+    let src = r#"
+let { foo, bar } = obj;
+let baz = 42;
+    "#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 2);
+    assert_eq!(v.var_groups.dump().len(), 3);
   }
 }
 
