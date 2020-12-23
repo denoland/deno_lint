@@ -166,6 +166,9 @@ impl DisjointSet {
     let &(status1, rank1) = self.roots.get(&rs1)?;
     let &(status2, rank2) = self.roots.get(&rs2)?;
 
+    // Take the status that has higher precedence.
+    // For example, if (status1, status2) = (Declared, Initialized) then `next_status` is
+    // `Initialized`.
     let next_status = std::cmp::max(status1, status2);
 
     if rank1 <= rank2 {
@@ -237,39 +240,56 @@ impl VariableCollector {
       VarStatus::Declared
     };
 
-    match pat {
-      Pat::Ident(ident) => self.insert_var(ident, status),
-      Pat::Array(array_pat) => {
-        for elem in &array_pat.elems {
-          if let Some(elem_pat) = elem {
-            self.extract_decl_idents(elem_pat, has_init);
+    let mut idents = Vec::new();
+    // Extracts Idents from the Pat recursively
+    fn rec<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
+      match pat {
+        Pat::Ident(ident) => idents.push(ident),
+        Pat::Array(array_pat) => {
+          for elem in &array_pat.elems {
+            if let Some(elem_pat) = elem {
+              rec(idents, elem_pat);
+            }
           }
         }
-      }
-      Pat::Rest(rest_pat) => self.extract_decl_idents(&*rest_pat.arg, has_init),
-      Pat::Object(object_pat) => {
-        for prop in &object_pat.props {
-          match prop {
-            ObjectPatProp::KeyValue(key_value) => {
-              self.extract_decl_idents(&*key_value.value, has_init)
-            }
-            ObjectPatProp::Assign(assign) => {
-              if assign.value.is_some() {
-                self.insert_var(&assign.key, VarStatus::Initialized);
-              } else {
-                self.insert_var(&assign.key, status);
+        Pat::Rest(rest_pat) => rec(idents, &*rest_pat.arg),
+        Pat::Object(object_pat) => {
+          for prop in &object_pat.props {
+            match prop {
+              ObjectPatProp::KeyValue(key_value) => {
+                rec(idents, &*key_value.value);
+              }
+              ObjectPatProp::Assign(assign) => {
+                idents.push(&assign.key);
+              }
+              ObjectPatProp::Rest(rest) => {
+                rec(idents, &*rest.arg);
               }
             }
-            ObjectPatProp::Rest(rest) => {
-              self.extract_decl_idents(&*rest.arg, has_init)
-            }
           }
         }
+        Pat::Assign(assign_pat) => {
+          rec(idents, &*assign_pat.left);
+        }
+        _ => {}
       }
-      Pat::Assign(assign_pat) => {
-        self.extract_decl_idents(&*assign_pat.left, true)
+    }
+    rec(&mut idents, pat);
+
+    match idents.as_slice() {
+      [] => {}
+      [ident] => {
+        self.insert_var(ident, status);
       }
-      _ => {}
+      [first, others @ ..] => {
+        self.insert_var(first, status);
+
+        // If there are more than one idents, they need to be grouped
+        for i in others {
+          self.insert_var(i, status);
+          self.var_groups.unite(first.span, i.span);
+        }
+      }
     }
   }
 
@@ -1591,6 +1611,20 @@ let baz = 42;
     "#;
     let mut v = collect(src);
     assert_eq!(v.var_groups.roots.len(), 2);
+    assert_eq!(v.var_groups.dump().len(), 3);
+  }
+
+  #[test]
+  fn var_groups_2() {
+    let src = r#"
+let { foo, bar: { bar, baz: x = 42 } } = obj;
+    "#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 1);
+    assert_eq!(
+      v.var_groups.roots.values().next().unwrap().0,
+      VarStatus::Initialized
+    );
     assert_eq!(v.var_groups.dump().len(), 3);
   }
 }
