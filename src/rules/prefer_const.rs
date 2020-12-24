@@ -241,40 +241,7 @@ impl VariableCollector {
     };
 
     let mut idents = Vec::new();
-    // Extracts Idents from the Pat recursively
-    fn rec<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
-      match pat {
-        Pat::Ident(ident) => idents.push(ident),
-        Pat::Array(array_pat) => {
-          for elem in &array_pat.elems {
-            if let Some(elem_pat) = elem {
-              rec(idents, elem_pat);
-            }
-          }
-        }
-        Pat::Rest(rest_pat) => rec(idents, &*rest_pat.arg),
-        Pat::Object(object_pat) => {
-          for prop in &object_pat.props {
-            match prop {
-              ObjectPatProp::KeyValue(key_value) => {
-                rec(idents, &*key_value.value);
-              }
-              ObjectPatProp::Assign(assign) => {
-                idents.push(&assign.key);
-              }
-              ObjectPatProp::Rest(rest) => {
-                rec(idents, &*rest.arg);
-              }
-            }
-          }
-        }
-        Pat::Assign(assign_pat) => {
-          rec(idents, &*assign_pat.left);
-        }
-        _ => {}
-      }
-    }
-    rec(&mut idents, pat);
+    extract_idents_from_pat(&mut idents, pat);
 
     match idents.as_slice() {
       [] => {}
@@ -566,6 +533,45 @@ struct PreferConstVisitor<'c> {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
   context: &'c mut Context,
+}
+
+/// Extracts Idents from the Pat recursively
+fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
+  match pat {
+    Pat::Ident(ident) => {
+      idents.push(ident);
+    }
+    Pat::Array(array_pat) => {
+      for elem in &array_pat.elems {
+        if let Some(elem_pat) = elem {
+          extract_idents_from_pat(idents, elem_pat);
+        }
+      }
+    }
+    Pat::Rest(rest_pat) => extract_idents_from_pat(idents, &*rest_pat.arg),
+    Pat::Object(object_pat) => {
+      for prop in &object_pat.props {
+        match prop {
+          ObjectPatProp::KeyValue(key_value) => {
+            extract_idents_from_pat(idents, &*key_value.value);
+          }
+          ObjectPatProp::Assign(assign) => {
+            idents.push(&assign.key);
+          }
+          ObjectPatProp::Rest(rest) => {
+            extract_idents_from_pat(idents, &*rest.arg)
+          }
+        }
+      }
+    }
+    Pat::Assign(assign_pat) => {
+      extract_idents_from_pat(idents, &*assign_pat.left)
+    }
+    Pat::Expr(expr) => {
+      // TODO(magurotuna): In which case does the execution come here?
+    }
+    _ => {}
+  }
 }
 
 impl<'c> PreferConstVisitor<'c> {
