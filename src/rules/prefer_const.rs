@@ -1,11 +1,10 @@
 // Copyright 2020 the Deno authors. All rights reserved. MIT license.
-// TODO(magurotuna): delete this directive
-#![allow(unused)]
 use super::Context;
 use super::LintRule;
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
+use std::iter;
 use std::mem;
 use std::rc::Rc;
 use swc_atoms::JsWord;
@@ -58,8 +57,11 @@ impl LintRule for PreferConst {
     let mut collector = VariableCollector::new();
     collector.visit_program(program, program);
 
-    let mut visitor =
-      PreferConstVisitor::new(context, mem::take(&mut collector.scopes));
+    let mut visitor = PreferConstVisitor::new(
+      context,
+      mem::take(&mut collector.scopes),
+      mem::take(&mut collector.var_groups),
+    );
     visitor.visit_program(program, program);
   }
 }
@@ -99,17 +101,21 @@ fn get_span_by_ident(scope: Scope, ident: &Ident) -> Option<Span> {
 enum VarStatus {
   Declared,
   Initialized,
-  Mutated,
+  Reassigned,
 }
 
 impl VarStatus {
-  fn next(self) -> Self {
+  fn next(&mut self) {
     use VarStatus::*;
-    match self {
+    *self = match *self {
       Declared => Initialized,
-      Initialized => Mutated,
-      Mutated => Mutated,
+      Initialized => Reassigned,
+      Reassigned => Reassigned,
     }
+  }
+
+  fn force_reassigned(&mut self) {
+    *self = VarStatus::Reassigned;
   }
 }
 
@@ -129,6 +135,18 @@ struct DisjointSet {
 impl DisjointSet {
   fn new() -> Self {
     Self::default()
+  }
+
+  fn proceed_status(&mut self, span: Span, force_reassigned: bool) {
+    // This unwrap is safe if VariableCollector works fine.
+    // If it panics, it means a bug in implementation.
+    let root = self.get_root(span).unwrap();
+    let (ref mut st, _) = self.roots.get_mut(&root).unwrap();
+    if force_reassigned {
+      st.force_reassigned();
+    } else {
+      st.next();
+    }
   }
 
   fn add_root(&mut self, span: Span, status: VarStatus) {
@@ -188,7 +206,7 @@ impl DisjointSet {
     Some(())
   }
 
-  fn dump(mut self) -> Vec<Span> {
+  fn dump(&mut self) -> Vec<Span> {
     self
       .parents
       .clone()
@@ -295,7 +313,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
         for ident in idents {
-          a.insert_var(&ident, VarStatus::Mutated);
+          a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
       if let Some(body) = &function.body {
@@ -310,7 +328,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, VarStatus::Mutated);
+          a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
       match &arrow_expr.body {
@@ -461,7 +479,7 @@ impl Visit for VariableCollector {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, VarStatus::Mutated);
+          a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
       catch_clause.body.visit_children_with(a);
@@ -492,13 +510,13 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, VarStatus::Mutated);
+                a.insert_var(ident, VarStatus::Reassigned);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
                 let idents: Vec<Ident> = find_ids(&assign_pat.left);
                 for ident in idents {
-                  a.insert_var(&ident, VarStatus::Mutated);
+                  a.insert_var(&ident, VarStatus::Reassigned);
                 }
               }
             }
@@ -507,7 +525,7 @@ impl Visit for VariableCollector {
             param.visit_children_with(a);
             let idents: Vec<Ident> = find_ids(&param.pat);
             for ident in idents {
-              a.insert_var(&ident, VarStatus::Mutated);
+              a.insert_var(&ident, VarStatus::Reassigned);
             }
           }
         }
@@ -532,10 +550,11 @@ impl Visit for VariableCollector {
 struct PreferConstVisitor<'c> {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
+  var_groups: DisjointSet,
   context: &'c mut Context,
 }
 
-/// Extracts Idents from the Pat recursively
+/// Extracts Idents from the Pat recursively.
 fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
   match pat {
     Pat::Ident(ident) => {
@@ -567,7 +586,7 @@ fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
     Pat::Assign(assign_pat) => {
       extract_idents_from_pat(idents, &*assign_pat.left)
     }
-    Pat::Expr(expr) => {
+    Pat::Expr(_expr) => {
       // TODO(magurotuna): In which case does the execution come here?
     }
     _ => {}
@@ -578,21 +597,25 @@ impl<'c> PreferConstVisitor<'c> {
   fn new(
     context: &'c mut Context,
     scopes: BTreeMap<ScopeRange, Scope>,
+    var_groups: DisjointSet,
   ) -> Self {
     Self {
       context,
       scopes,
+      var_groups,
       cur_scope: ScopeRange::Global,
     }
   }
 
-  fn report(&mut self, sym: &JsWord, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      PreferConstMessage::NeverReassigned(sym.to_string()),
-      PreferConstHint::UseConst,
-    );
+  fn report(&mut self, span: Span) {
+    if let Ok(s) = self.context.source_map.span_to_snippet(span) {
+      self.context.add_diagnostic_with_hint(
+        span,
+        CODE,
+        PreferConstMessage::NeverReassigned(s),
+        PreferConstHint::UseConst,
+      );
+    }
   }
 
   fn with_child_scope<F, S>(&mut self, node: &S, op: F)
@@ -606,157 +629,46 @@ impl<'c> PreferConstVisitor<'c> {
     self.cur_scope = parent_scope_range;
   }
 
-  fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
-    let _scope = self.scopes.get(&self.cur_scope).unwrap();
-    return;
-    // TODO(magurotuna)
-    //update_variable_status(Rc::clone(scope), ident, force_reassigned);
+  fn get_scope(&self) -> Scope {
+    Rc::clone(self.scopes.get(&self.cur_scope).unwrap())
   }
+
+  //fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
+  //let _scope = self.scopes.get(&self.cur_scope).unwrap();
+  //return;
+  //// TODO(magurotuna)
+  ////update_variable_status(Rc::clone(scope), ident, force_reassigned);
+  //}
 
   fn extract_assign_idents(&mut self, pat: &Pat) {
-    fn extract_idents_rec<'a, 'b>(
-      pat: &'a Pat,
-      idents: &'b mut Vec<&'a Ident>,
-      has_member_expr: &'b mut bool,
-    ) {
-      match pat {
-        Pat::Ident(ident) => {
-          idents.push(ident);
-        }
-        Pat::Array(array_pat) => {
-          for elem in &array_pat.elems {
-            if let Some(elem_pat) = elem {
-              extract_idents_rec(elem_pat, idents, has_member_expr);
-            }
-          }
-        }
-        Pat::Rest(rest_pat) => {
-          extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
-        }
-        Pat::Object(object_pat) => {
-          for prop in &object_pat.props {
-            match prop {
-              ObjectPatProp::KeyValue(key_value) => {
-                extract_idents_rec(&*key_value.value, idents, has_member_expr);
-              }
-              ObjectPatProp::Assign(assign) => {
-                idents.push(&assign.key);
-              }
-              ObjectPatProp::Rest(rest) => {
-                extract_idents_rec(&*rest.arg, idents, has_member_expr)
-              }
-            }
-          }
-        }
-        Pat::Assign(assign_pat) => {
-          extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
-        }
-        Pat::Expr(expr) => {
-          if let Expr::Member(_) = &**expr {
-            *has_member_expr = true;
-          }
-        }
-        _ => {}
-      }
-    }
-
     let mut idents = Vec::new();
-    let mut has_member_expr = false;
-    extract_idents_rec(pat, &mut idents, &mut has_member_expr);
-
-    let has_outer_scope_or_param_var = idents
-      .iter()
-      .any(|i| self.declared_outer_scope_or_param_var(i));
-
-    for ident in idents {
-      // If the pat contains either of the following:
-      //
-      // - MemberExpresion
-      // - variable declared in outer scope
-      // - variable that is a function parameter
-      //
-      // then all the idents should be marked as "reassigned" so that we will not report them as errors,
-      // bacause in this case they couldn't be separately declared as `const`.
-      self.mark_reassigned(
-        ident,
-        has_member_expr || has_outer_scope_or_param_var,
-      );
-    }
+    extract_idents_from_pat(&mut idents, pat);
+    self.process_var_status(idents.into_iter(), false);
   }
 
-  /// Checks if this ident has its declaration in outer scope or in function parameter.
-  fn declared_outer_scope_or_param_var(&self, ident: &Ident) -> bool {
-    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Rc::clone);
-    let mut is_first_loop = true;
-    while let Some(cur) = cur_scope {
-      let lock = cur.borrow();
-      if let Some(var) = lock.variables.get(&ident.sym) {
-        if is_first_loop {
-          //return var.is_param;
-          return true; // TODO(magurotuna) wip
-        } else {
-          return true;
+  fn process_var_status<'a>(
+    &mut self,
+    idents: impl Iterator<Item = &'a Ident>,
+    force_reassigned: bool,
+  ) {
+    let scope = self.get_scope();
+    let spans: Vec<Span> = idents
+      .filter_map(|i| get_span_by_ident(Rc::clone(&scope), &i))
+      .collect();
+
+    match spans.as_slice() {
+      [] => {}
+      [span] => {
+        self.var_groups.proceed_status(*span, force_reassigned);
+      }
+      [first, others @ ..] => {
+        self.var_groups.proceed_status(*first, force_reassigned);
+        for s in others {
+          self.var_groups.proceed_status(*s, force_reassigned);
+          self.var_groups.unite(*first, *s);
         }
       }
-      is_first_loop = false;
-      cur_scope = lock.parent.as_ref().map(Rc::clone);
     }
-    // If the declaration isn't found, most likely it means the ident is declared with `var`
-    false
-  }
-
-  fn exit_program(&mut self) {
-    // TODO(magurotuna) wip
-    return;
-    //let mut for_init_vars = BTreeMap::new();
-    //let mut destructuring_vars = BTreeMap::new();
-    //let scopes = self.scopes.clone();
-    //for scope in scopes.values() {
-    //for (sym, status) in scope.borrow().variables.iter() {
-    //return;
-    //match status.handling {
-    //Handling::Normal => {
-    //if status.should_report() {
-    //self.report(sym, status.span);
-    //}
-    //}
-    //Handling::ForInit(for_span) => {
-    //for_init_vars
-    //.entry(for_span)
-    //.or_insert_with(Vec::new)
-    //.push((sym.clone(), *status));
-    //}
-    //Handling::Destructuring(dest_span) => {
-    //destructuring_vars
-    //.entry(dest_span)
-    //.or_insert_with(Vec::new)
-    //.push((sym.clone(), *status));
-    //}
-    //}
-    //}
-    //}
-
-    // For special cases, we should report diagnostics only if *all* variables there need to be
-    // reported.
-    //let mut check_special_case =
-    //|vars: BTreeMap<Span, Vec<(JsWord, Variable)>>| {
-    //for (sym, var) in vars
-    //.iter()
-    //.filter_map(|(_, vars)| {
-    //if vars.iter().all(|(_, status)| status.should_report()) {
-    //Some(vars)
-    //} else {
-    //None
-    //}
-    //})
-    //.flatten()
-    //{
-    //self.report(sym, var.span);
-    //}
-    //};
-
-    //check_special_case(for_init_vars);
-    //check_special_case(destructuring_vars);
   }
 }
 
@@ -765,7 +677,10 @@ impl<'c> Visit for PreferConstVisitor<'c> {
 
   fn visit_program(&mut self, program: &Program, _: &dyn Node) {
     program.visit_children_with(self);
-    self.exit_program();
+    // After visiting all nodes, reports errors.
+    for span in self.var_groups.dump() {
+      self.report(span);
+    }
   }
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
@@ -785,9 +700,7 @@ impl<'c> Visit for PreferConstVisitor<'c> {
       _ => vec![],
     };
 
-    for ident in idents {
-      self.mark_reassigned(&ident, true);
-    }
+    self.process_var_status(idents.iter(), true);
   }
 
   fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _: &dyn Node) {
@@ -804,7 +717,7 @@ impl<'c> Visit for PreferConstVisitor<'c> {
           PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
           PatOrExpr::Expr(expr) => match &**expr {
             Expr::Ident(ident) => {
-              self.mark_reassigned(ident, false);
+              self.process_var_status(iter::once(ident), false);
             }
             otherwise => {
               otherwise.visit_children_with(self);
@@ -820,10 +733,12 @@ impl<'c> Visit for PreferConstVisitor<'c> {
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _: &dyn Node) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
-        self.mark_reassigned(
-          ident,
-          self.declared_outer_scope_or_param_var(ident),
-        );
+        self.process_var_status(iter::once(ident), false);
+        // TODO(magurotuna): outer scope checking isn't necessary?
+        //self.mark_reassigned(
+        //ident,
+        //self.declared_outer_scope_or_param_var(ident),
+        //);
       }
       otherwise => otherwise.visit_children_with(self),
     }
@@ -1599,16 +1514,6 @@ let global2 = 42;
     assert!(scope_iter.next().is_none());
   }
 
-  fn belongs_to_same_group(
-    ds: &mut DisjointSet,
-    span1: Span,
-    span2: Span,
-  ) -> bool {
-    let r1 = ds.get_root(span1);
-    let r2 = ds.get_root(span2);
-    matches!((r1, r2), (Some(x), Some(y)) if x == y)
-  }
-
   #[test]
   fn var_groups_1() {
     let src = r#"
@@ -1642,7 +1547,7 @@ function f(x: number, y: string = 42) {}
     let mut v = collect(src);
     assert_eq!(v.var_groups.roots.len(), 2);
     for &(s, _) in v.var_groups.roots.values() {
-      assert_eq!(s, VarStatus::Mutated);
+      assert_eq!(s, VarStatus::Reassigned);
     }
     assert_eq!(v.var_groups.dump().len(), 0);
   }
@@ -1656,7 +1561,7 @@ try {} catch (e) {}
     assert_eq!(v.var_groups.roots.len(), 1);
     assert_eq!(
       v.var_groups.roots.values().next().unwrap().0,
-      VarStatus::Mutated
+      VarStatus::Reassigned
     );
     assert_eq!(v.var_groups.dump().len(), 0);
   }
