@@ -81,7 +81,7 @@ impl RawScope {
   }
 }
 
-/// Looks for the span of the given variable by traversing from the given scope to the parents.
+/// Looks for the declaration span of the given variable by traversing from the given scope to the parents.
 /// Returns `None` if no matching span is found. Most likely it means the variable is not declared
 /// with `let`.
 fn get_span_by_ident(scope: Scope, ident: &Ident) -> Option<Span> {
@@ -1626,6 +1626,47 @@ let { foo, bar: { bar, baz: x = 42 } } = obj;
       VarStatus::Initialized
     );
     assert_eq!(v.var_groups.dump().len(), 3);
+  }
+
+  #[test]
+  fn var_groups_3() {
+    let src = r#"
+function f(x: number, y: string = 42) {}
+"#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 2);
+    for &(s, _) in v.var_groups.roots.values() {
+      assert_eq!(s, VarStatus::Mutated);
+    }
+    assert_eq!(v.var_groups.dump().len(), 0);
+  }
+
+  #[test]
+  fn var_groups_4() {
+    let src = r#"
+try {} catch (e) {}
+"#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 1);
+    assert_eq!(
+      v.var_groups.roots.values().next().unwrap().0,
+      VarStatus::Mutated
+    );
+    assert_eq!(v.var_groups.dump().len(), 0);
+  }
+
+  #[test]
+  fn var_groups_5() {
+    let src = r#"
+for (let {a, b} of obj) {}
+"#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 1);
+    assert_eq!(
+      v.var_groups.roots.values().next().unwrap().0,
+      VarStatus::Initialized
+    );
+    assert_eq!(v.var_groups.dump().len(), 2);
   }
 }
 
