@@ -369,9 +369,18 @@ impl Visit for VariableCollector {
         Some(VarDeclOrExpr::VarDecl(var_decl)) => {
           var_decl.visit_children_with(a);
           if var_decl.kind == VarDeclKind::Let {
+            let mut idents = Vec::new();
+            let mut has_init = false;
             for decl in &var_decl.decls {
-              a.extract_decl_idents(&decl.name, decl.init.is_some());
+              extract_idents_from_pat(&mut idents, &decl.name);
+              has_init |= decl.init.is_some();
             }
+            let status = if has_init {
+              VarStatus::Initialized
+            } else {
+              VarStatus::Declared
+            };
+            a.insert_vars(&idents, status);
           }
         }
         Some(VarDeclOrExpr::Expr(expr)) => {
