@@ -83,16 +83,28 @@ impl RawScope {
   }
 }
 
+struct DeclInfo {
+  /// the span of its declaration
+  span: Span,
+  /// `true` if this is declared in the other scope
+  in_other_scope: bool,
+}
+
 /// Looks for the declaration span of the given variable by traversing from the given scope to the parents.
 /// Returns `None` if no matching span is found. Most likely it means the variable is not declared
 /// with `let`.
-fn get_span_by_ident(scope: Scope, ident: &Ident) -> Option<Span> {
+fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
+  let mut is_current_scope = true;
   while let Some(cur) = cur_scope {
-    if let Some(span) = cur.borrow().variables.get(&ident.sym) {
-      return Some(*span);
+    if let Some(&span) = cur.borrow().variables.get(&ident.sym) {
+      return Some(DeclInfo {
+        span,
+        in_other_scope: !is_current_scope,
+      });
     }
     cur_scope = cur.borrow().parent.as_ref().map(Rc::clone);
+    is_current_scope = false;
   }
   None
 }
@@ -652,20 +664,26 @@ impl<'c> PreferConstVisitor<'c> {
     force_reassigned: bool,
   ) {
     let scope = self.get_scope();
-    let spans: Vec<Span> = idents
-      .filter_map(|i| get_span_by_ident(Rc::clone(&scope), &i))
+    let decls: Vec<DeclInfo> = idents
+      .filter_map(|i| get_decl_by_ident(Rc::clone(&scope), &i))
       .collect();
 
-    match spans.as_slice() {
+    match decls.as_slice() {
       [] => {}
-      [span] => {
-        self.var_groups.proceed_status(*span, force_reassigned);
+      [decl] => {
+        self
+          .var_groups
+          .proceed_status(decl.span, force_reassigned || decl.in_other_scope);
       }
       [first, others @ ..] => {
-        self.var_groups.proceed_status(*first, force_reassigned);
+        self
+          .var_groups
+          .proceed_status(first.span, force_reassigned || first.in_other_scope);
         for s in others {
-          self.var_groups.proceed_status(*s, force_reassigned);
-          self.var_groups.unite(*first, *s);
+          self
+            .var_groups
+            .proceed_status(s.span, force_reassigned || s.in_other_scope);
+          self.var_groups.unite(first.span, s.span);
         }
       }
     }
