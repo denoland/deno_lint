@@ -263,17 +263,8 @@ impl VariableCollector {
     scope.variables.insert(ident.sym.clone(), ident.span);
   }
 
-  fn extract_decl_idents(&mut self, pat: &Pat, has_init: bool) {
-    let status = if has_init {
-      VarStatus::Initialized
-    } else {
-      VarStatus::Declared
-    };
-
-    let mut idents = Vec::new();
-    extract_idents_from_pat(&mut idents, pat);
-
-    match idents.as_slice() {
+  fn insert_vars(&mut self, idents: &[&Ident], status: VarStatus) {
+    match idents {
       [] => {}
       [ident] => {
         self.insert_var(ident, status);
@@ -288,6 +279,18 @@ impl VariableCollector {
         }
       }
     }
+  }
+
+  fn extract_decl_idents(&mut self, pat: &Pat, has_init: bool) {
+    let status = if has_init {
+      VarStatus::Initialized
+    } else {
+      VarStatus::Declared
+    };
+
+    let mut idents = Vec::new();
+    extract_idents_from_pat(&mut idents, pat);
+    self.insert_vars(&idents, status);
   }
 
   fn with_child_scope<F, S>(&mut self, node: S, op: F)
