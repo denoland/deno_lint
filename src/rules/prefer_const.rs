@@ -578,9 +578,20 @@ struct PreferConstVisitor<'c> {
   context: &'c mut Context,
 }
 
+//struct ExtractIdentsArgs<'a> {
+//ident: &'a Ident,
+//contains_member_expr: bool,
+//}
+
+enum ExtractIdentsArgs<'a> {
+  Ident(&'a Ident),
+  MemberExpr,
+}
+
 fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
-  let mut op = |i: &'a Ident| {
-    idents.push(i);
+  let mut op = |args: ExtractIdentsArgs<'a>| match args {
+    ExtractIdentsArgs::Ident(i) => idents.push(i),
+    _ => {}
   };
   extract_idents_from_pat_with(pat, &mut op);
 }
@@ -588,12 +599,10 @@ fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
 /// Extracts idents from the Pat recursively and apply the operation to each ident.
 fn extract_idents_from_pat_with<'a, F>(pat: &'a Pat, op: &mut F)
 where
-  F: FnMut(&'a Ident),
+  F: FnMut(ExtractIdentsArgs<'a>),
 {
   match pat {
-    Pat::Ident(ident) => {
-      op(ident);
-    }
+    Pat::Ident(ident) => op(ExtractIdentsArgs::Ident(ident)),
     Pat::Array(array_pat) => {
       for elem in &array_pat.elems {
         if let Some(elem_pat) = elem {
@@ -609,7 +618,7 @@ where
             extract_idents_from_pat_with(&*key_value.value, op);
           }
           ObjectPatProp::Assign(assign) => {
-            op(&assign.key);
+            op(ExtractIdentsArgs::Ident(&assign.key));
           }
           ObjectPatProp::Rest(rest) => {
             extract_idents_from_pat_with(&*rest.arg, op)
@@ -620,8 +629,8 @@ where
     Pat::Assign(assign_pat) => {
       extract_idents_from_pat_with(&*assign_pat.left, op)
     }
-    Pat::Expr(_expr) => {
-      // TODO(magurotuna): In which case does the execution come here?
+    Pat::Expr(_) => {
+      op(ExtractIdentsArgs::MemberExpr);
     }
     _ => {}
   }
@@ -674,10 +683,19 @@ impl<'c> PreferConstVisitor<'c> {
   ////update_variable_status(Rc::clone(scope), ident, force_reassigned);
   //}
 
-  fn extract_assign_idents(&mut self, pat: &Pat) {
+  fn extract_assign_idents<'a>(&mut self, pat: &'a Pat) {
     let mut idents = Vec::new();
-    extract_idents_from_pat(&mut idents, pat);
-    self.process_var_status(idents.into_iter(), false);
+    // if `pat` contains member access, variables should be treated as "reassigned"
+    let mut contains_member_access = false;
+    let mut op = |args: ExtractIdentsArgs<'a>| {
+      use ExtractIdentsArgs::*;
+      match args {
+        Ident(i) => idents.push(i),
+        MemberExpr => contains_member_access = true,
+      }
+    };
+    extract_idents_from_pat_with(pat, &mut op);
+    self.process_var_status(idents.into_iter(), contains_member_access);
   }
 
   fn process_var_status<'a>(
@@ -1758,7 +1776,7 @@ mod prefer_const_tests {
       // imitates `{ "destructuring": "all" }` in ESLint
       r#"let {a, b} = obj; b = 0;"#,
       r#"let a, b; ({a, b} = obj); b++;"#,
-      r#"let a, b, c; ({a, b} = obj1); ({b, c} = obj2) b++;"#,
+      r#"let a, b, c; ({a, b} = obj1); ({b, c} = obj2); b++;"#,
       r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#,
       r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#,
       r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
