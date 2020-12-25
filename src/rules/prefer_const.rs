@@ -175,11 +175,10 @@ impl DisjointSet {
       Some(&par_span) if span == par_span => Some(span),
       Some(&par_span) => {
         let root = self.get_root(par_span);
-        match (root, self.parents.get_mut(&span)) {
-          (Some(root_span), Some(par)) => {
-            *par = root_span;
-          }
-          _ => {}
+        if let (Some(root_span), Some(par)) =
+          (root, self.parents.get_mut(&span))
+        {
+          *par = root_span;
         }
         root
       }
@@ -578,20 +577,16 @@ struct PreferConstVisitor<'c> {
   context: &'c mut Context,
 }
 
-//struct ExtractIdentsArgs<'a> {
-//ident: &'a Ident,
-//contains_member_expr: bool,
-//}
-
 enum ExtractIdentsArgs<'a> {
   Ident(&'a Ident),
   MemberExpr,
 }
 
 fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
-  let mut op = |args: ExtractIdentsArgs<'a>| match args {
-    ExtractIdentsArgs::Ident(i) => idents.push(i),
-    _ => {}
+  let mut op = |args: ExtractIdentsArgs<'a>| {
+    if let ExtractIdentsArgs::Ident(i) = args {
+      idents.push(i);
+    }
   };
   extract_idents_from_pat_with(pat, &mut op);
 }
@@ -675,13 +670,6 @@ impl<'c> PreferConstVisitor<'c> {
   fn get_scope(&self) -> Scope {
     Rc::clone(self.scopes.get(&self.cur_scope).unwrap())
   }
-
-  //fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
-  //let _scope = self.scopes.get(&self.cur_scope).unwrap();
-  //return;
-  //// TODO(magurotuna)
-  ////update_variable_status(Rc::clone(scope), ident, force_reassigned);
-  //}
 
   fn extract_assign_idents<'a>(&mut self, pat: &'a Pat) {
     let mut idents = Vec::new();
@@ -792,11 +780,6 @@ impl<'c> Visit for PreferConstVisitor<'c> {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
         self.process_var_status(iter::once(ident), false);
-        // TODO(magurotuna): outer scope checking isn't necessary?
-        //self.mark_reassigned(
-        //ident,
-        //self.declared_outer_scope_or_param_var(ident),
-        //);
       }
       otherwise => otherwise.visit_children_with(self),
     }
