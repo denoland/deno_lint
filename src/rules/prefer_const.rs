@@ -135,7 +135,7 @@ impl VarStatus {
 struct DisjointSet {
   /// Key: span of ident, Value: span of parent node
   /// This map is supposed to contain all spans of variable declarations.
-  parents: HashMap<Span, Span>,
+  parents: BTreeMap<Span, Span>,
 
   /// Key: span of ident (representative of the group)
   /// Value: pair of the following values:
@@ -1938,13 +1938,13 @@ var foo = function() {
       ],
       r#"let { foo, bar } = baz;"#: [
         {
-          col: 11,
-          message: variant!(PreferConstMessage, NeverReassigned, "bar"),
+          col: 6,
+          message: variant!(PreferConstMessage, NeverReassigned, "foo"),
           hint: PreferConstHint::UseConst,
         },
         {
-          col: 6,
-          message: variant!(PreferConstMessage, NeverReassigned, "foo"),
+          col: 11,
+          message: variant!(PreferConstMessage, NeverReassigned, "bar"),
           hint: PreferConstHint::UseConst,
         }
       ],
