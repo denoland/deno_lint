@@ -1692,6 +1692,9 @@ mod prefer_const_tests {
       r#"let x; for (const a of [1,2,3]) { x = foo(); bar(x); }"#,
       r#"(function() { let x; for (const a of [1,2,3]) { x = foo(); bar(x); } })();"#,
       r#"let x; for (x of array) { x; }"#,
+
+      // if destructuring assignment pattern contains member access (e.g. `typeNode.returnType` in
+      // the above cases) then `predicate` should be treated as "reassigned".
       r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
       r#"let predicate; [typeNode.returnType, ...predicate] = foo();"#,
       r#"let predicate; [typeNode.returnType,, predicate] = foo();"#,
