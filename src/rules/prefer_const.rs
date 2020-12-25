@@ -578,37 +578,47 @@ struct PreferConstVisitor<'c> {
   context: &'c mut Context,
 }
 
-/// Extracts Idents from the Pat recursively.
 fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
+  let mut op = |i: &'a Ident| {
+    idents.push(i);
+  };
+  extract_idents_from_pat_with(pat, &mut op);
+}
+
+/// Extracts idents from the Pat recursively and apply the operation to each ident.
+fn extract_idents_from_pat_with<'a, F>(pat: &'a Pat, op: &mut F)
+where
+  F: FnMut(&'a Ident),
+{
   match pat {
     Pat::Ident(ident) => {
-      idents.push(ident);
+      op(ident);
     }
     Pat::Array(array_pat) => {
       for elem in &array_pat.elems {
         if let Some(elem_pat) = elem {
-          extract_idents_from_pat(idents, elem_pat);
+          extract_idents_from_pat_with(elem_pat, op);
         }
       }
     }
-    Pat::Rest(rest_pat) => extract_idents_from_pat(idents, &*rest_pat.arg),
+    Pat::Rest(rest_pat) => extract_idents_from_pat_with(&*rest_pat.arg, op),
     Pat::Object(object_pat) => {
       for prop in &object_pat.props {
         match prop {
           ObjectPatProp::KeyValue(key_value) => {
-            extract_idents_from_pat(idents, &*key_value.value);
+            extract_idents_from_pat_with(&*key_value.value, op);
           }
           ObjectPatProp::Assign(assign) => {
-            idents.push(&assign.key);
+            op(&assign.key);
           }
           ObjectPatProp::Rest(rest) => {
-            extract_idents_from_pat(idents, &*rest.arg)
+            extract_idents_from_pat_with(&*rest.arg, op)
           }
         }
       }
     }
     Pat::Assign(assign_pat) => {
-      extract_idents_from_pat(idents, &*assign_pat.left)
+      extract_idents_from_pat_with(&*assign_pat.left, op)
     }
     Pat::Expr(_expr) => {
       // TODO(magurotuna): In which case does the execution come here?
