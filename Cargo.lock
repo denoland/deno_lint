@@ -224,9 +224,9 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.70.0"
+version = "0.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd80f07bbc840ec72b96def0a4085a280d48bd20635eb0cc480bc6092d78827"
+checksum = "42ff980f1784abde4c6f0bb383c7bcb443ac8d4d518ea5c64916f8b024af2cdb"
 dependencies = [
  "anyhow",
  "futures",
@@ -234,6 +234,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "pin-project",
  "rusty_v8",
  "serde",
  "serde_json",
