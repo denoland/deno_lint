@@ -1,11 +1,11 @@
 use anyhow::Context as _;
 use deno_core::error::AnyError;
+use deno_core::FsModuleLoader;
 use deno_core::JsRuntime;
 use deno_core::ModuleSpecifier;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
-use deno_core::FsModuleLoader;
 use deno_lint::control_flow::ControlFlow;
 use deno_lint::linter::{Context, Plugin};
 use serde::{Deserialize, Serialize};
