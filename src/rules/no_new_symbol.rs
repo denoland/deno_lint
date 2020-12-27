@@ -4,9 +4,12 @@ use super::LintRule;
 use swc_ecmascript::ast::{Expr, NewExpr};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoNewSymbol;
+
+const CODE: &str = "no-new-symbol";
+const MESSAGE: &str = "`Symbol` cannot be called as a constructor.";
 
 impl LintRule for NoNewSymbol {
   fn new() -> Box<Self> {
@@ -18,7 +21,7 @@ impl LintRule for NoNewSymbol {
   }
 
   fn code(&self) -> &'static str {
-    "no-new-symbol"
+    CODE
   }
 
   fn lint_program(
@@ -27,7 +30,7 @@ impl LintRule for NoNewSymbol {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoNewSymbolVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -41,17 +44,13 @@ impl<'c> NoNewSymbolVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoNewSymbolVisitor<'c> {
+impl<'c> VisitAll for NoNewSymbolVisitor<'c> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if ident.sym == *"Symbol" {
-        self.context.add_diagnostic(
-          new_expr.span,
-          "no-new-symbol",
-          "`Symbol` cannot be called as a constructor.",
-        );
+        self.context.add_diagnostic(new_expr.span, CODE, MESSAGE);
       }
     }
   }
@@ -60,7 +59,6 @@ impl<'c> Visit for NoNewSymbolVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_new_symbol_valid() {
@@ -73,6 +71,11 @@ mod tests {
 
   #[test]
   fn no_new_symbol_invalid() {
-    assert_lint_err::<NoNewSymbol>("new Symbol()", 0);
+    assert_lint_err! {
+      NoNewSymbol,
+      "new Symbol()": [{ col: 0, message: MESSAGE }],
+      // nested
+      "new class { foo() { new Symbol(); } }": [{ col: 20, message: MESSAGE }],
+    };
   }
 }
