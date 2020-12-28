@@ -4,10 +4,12 @@ use super::LintRule;
 use crate::swc_util::extract_regex;
 use once_cell::sync::Lazy;
 use swc_common::Span;
-use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::ast::{
+  CallExpr, Expr, ExprOrSuper, NewExpr, Program, Regex,
+};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoRegexSpaces;
 
@@ -28,13 +30,9 @@ impl LintRule for NoRegexSpaces {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -77,15 +75,14 @@ impl<'c> NoRegexSpacesVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoRegexSpacesVisitor<'c> {
+impl<'c> VisitAll for NoRegexSpacesVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
+  fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
-    swc_ecmascript::visit::visit_regex(self, regex, parent);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) = extract_regex(&self.context.scope, ident, args) {
@@ -93,10 +90,9 @@ impl<'c> Visit for NoRegexSpacesVisitor<'c> {
         }
       }
     }
-    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) =
@@ -106,7 +102,6 @@ impl<'c> Visit for NoRegexSpacesVisitor<'c> {
         }
       }
     }
-    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 }
 
