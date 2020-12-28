@@ -113,7 +113,6 @@ impl<'c> Visit for NoRegexSpacesVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_regex_spaces_valid() {
@@ -171,37 +170,164 @@ mod tests {
 
   #[test]
   fn no_regex_spaces_invalid() {
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar  baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar    baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = / a b  c d /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp(' a b c d  ');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar    baz');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    baz');", 10);
-    assert_lint_err::<NoRegexSpaces>(
-      "{ let RegExp = function() {}; } var foo = RegExp('bar    baz');",
-      42,
-    );
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar   {3}baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar    ?baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar   +baz')", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    ');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar\\  baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /[   ]  /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /  [   ] /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('[   ]  ');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('  [ ]');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  \\]/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /(?:  )/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('^foo(?=   )');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\  /", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = / \\  /", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /  foo   /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\d  ')", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('\\u0041   ')", 10);
-    assert_lint_err::<NoRegexSpaces>(
-      "let foo = new RegExp('\\\\[  \\\\]');",
-      10,
-    );
+    assert_lint_err! {
+      NoRegexSpaces,
+      "let foo = /bar  baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar    baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = / a b  c d /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp(' a b c d  ');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('bar    baz');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('bar    baz');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "{ let RegExp = function() {}; } var foo = RegExp('bar    baz');": [
+        {
+          col: 42,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar   {3}baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar    ?baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('bar   +baz')": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('bar    ');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar\\  baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /[   ]  /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /  [   ] /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('[   ]  ');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('  [ ]');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /\\[  /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /\\[  \\]/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /(?:  )/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('^foo(?=   )');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /\\  /": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = / \\  /": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /  foo   /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('\\\\d  ')": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('\\u0041   ')": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('\\\\[  \\\\]');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ]
+    };
   }
 }
