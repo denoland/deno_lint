@@ -11,6 +11,10 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoRegexSpaces;
 
+const CODE: &str = "no-regex-spaces";
+const MESSAGE: &str =
+  "more than one consecutive spaces in RegExp is not allowed";
+
 impl LintRule for NoRegexSpaces {
   fn new() -> Box<Self> {
     Box::new(NoRegexSpaces)
@@ -21,7 +25,7 @@ impl LintRule for NoRegexSpaces {
   }
 
   fn code(&self) -> &'static str {
-    "no-regex-spaces"
+    CODE
   }
 
   fn lint_program(
@@ -66,11 +70,7 @@ impl<'c> NoRegexSpacesVisitor<'c> {
         .iter()
         .all(|ref v| mtch.start() < v.0 || v.1 <= mtch.start());
       if *not_in_classes {
-        self.context.add_diagnostic(
-          span,
-          "no-regex-spaces",
-          "more than one consecutive spaces in RegExp is not allowed",
-        );
+        self.context.add_diagnostic(span, CODE, MESSAGE);
         return;
       }
     }
