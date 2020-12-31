@@ -80,11 +80,11 @@ fn is_valid_unicode(cp: i64) -> bool {
 }
 
 fn is_lead_surrogate(cp: i64) -> bool {
-  cp >= 0xd800 && cp <= 0xdbff
+  (0xd800..=0xdbff).contains(&cp)
 }
 
 fn is_trail_surrogate(cp: i64) -> bool {
-  cp >= 0xdc00 && cp <= 0xdfff
+  (0xdc00..=0xdfff).contains(&cp)
 }
 
 fn combine_surrogate_pair(lead: i64, trail: i64) -> i64 {
@@ -1369,7 +1369,7 @@ impl EcmaRegexValidator {
       self.last_str_value.push(cp);
       self.advance();
     }
-    self.last_str_value != ""
+    !self.last_str_value.is_empty()
   }
 
   /// Eat the next characters as a RegExp `UnicodePropertyValue` production if possible.
@@ -1388,7 +1388,7 @@ impl EcmaRegexValidator {
       self.last_str_value.push(cp);
       self.advance();
     }
-    self.last_str_value != ""
+    !self.last_str_value.is_empty()
   }
 
   /// Eat the next characters as a RegExp `UnicodePropertyValue` production if possible.
