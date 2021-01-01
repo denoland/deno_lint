@@ -665,10 +665,10 @@ impl Visit for Analyzer<'_> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
+  use crate::test_util;
 
   fn analyze_flow(src: &str) -> ControlFlow {
-    let program = parse(src);
+    let program = test_util::parse(src);
     ControlFlow::analyze(&program)
   }
 
@@ -1163,6 +1163,32 @@ try {
     assert_flow!(flow, 5, false, Some(End::Break)); // BlockStmt of try
     assert_flow!(flow, 9, false, Some(End::Break)); // break stmt
     assert_flow!(flow, 26, false, Some(End::Continue)); // finally
+  }
+
+  #[test]
+  fn try_9() {
+    let src = r#"
+try {
+  try {
+    throw 1;
+  } catch {
+    throw 2;
+  }
+} catch {
+  foo();
+}
+"#;
+    let flow = analyze_flow(src);
+    dbg!(&flow);
+    assert_flow!(flow, 1, false, Some(End::Continue)); // 1st try stmt
+    assert_flow!(flow, 5, false, Some(End::Forced)); // BlockStmt of 1st try
+    assert_flow!(flow, 9, false, Some(End::Forced)); // 2nd try stmt
+    assert_flow!(flow, 13, false, Some(End::Forced)); // BlockStmt of 2nd try
+    assert_flow!(flow, 19, false, Some(End::Forced)); // throw 1;
+    assert_flow!(flow, 32, false, Some(End::Forced)); // 1st catch
+    assert_flow!(flow, 44, false, Some(End::Forced)); // throw 2;
+    assert_flow!(flow, 59, false, Some(End::Continue)); // 2nd catch
+    assert_flow!(flow, 69, false, Some(End::Continue)); // `foo();`
   }
 
   #[test]
