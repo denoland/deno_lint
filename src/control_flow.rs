@@ -64,7 +64,7 @@ impl Metadata {
   pub fn stops_execution(&self) -> bool {
     self
       .end
-      .map_or(false, |d| matches!(d, End::Forced | End::Break))
+      .map_or(false, |d| matches!(d, End::Forced { .. } | End::Break))
   }
 
   /// Returns true if a node doesn't prevent further execution.
@@ -104,14 +104,92 @@ struct Scope<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum End {
-  /// Return, Throw, or infinite loop
-  Forced,
+  /// Contains something that stops execution at that point.
+  /// This is represented as product of three elements (ret, throw, infinite_loop)
+  /// because sometimes these conditions are satisfied _simultaneously_.
+  /// See the example below:
+  ///
+  /// ```typescript
+  /// switch (foo) {
+  ///   case 1:
+  ///     return 1;
+  ///   case 2:
+  ///     throw 2;
+  ///   default:
+  ///     return 0;
+  /// }
+  /// ```
+  ///
+  /// In this case, the control flow can enter any one branch, which can be interpreted as
+  /// `End::Forced { ret: true, throw: true, infinite_loop: false }`.
+  Forced {
+    /// Unconditionally return
+    ret: bool,
+    /// Unconditionally throw
+    throw: bool,
+    /// Unconditionally entering infinite loop
+    infinite_loop: bool,
+  },
+
   /// Break or continue
   Break,
+
   /// Pass through a block, like a function's block statement which ends without returning a value
   /// or throwing an exception. Note that a node marked as `End::Continue` won't prevent further execution, which is
   /// different from `End::Forced` or `End::Break`.
   Continue,
+}
+
+impl End {
+  fn forced_return() -> Self {
+    End::Forced {
+      ret: true,
+      throw: false,
+      infinite_loop: false,
+    }
+  }
+
+  fn forced_throw() -> Self {
+    End::Forced {
+      ret: false,
+      throw: true,
+      infinite_loop: false,
+    }
+  }
+
+  fn forced_infinite_loop() -> Self {
+    End::Forced {
+      ret: false,
+      throw: false,
+      infinite_loop: true,
+    }
+  }
+
+  fn merge_forced(self, other: Self) -> Option<Self> {
+    match (self, other) {
+      (
+        End::Forced {
+          ret: r1,
+          throw: t1,
+          infinite_loop: i1,
+        },
+        End::Forced {
+          ret: r2,
+          throw: t2,
+          infinite_loop: i2,
+        },
+      ) => Some(End::Forced {
+        ret: r1 || r2,
+        throw: t1 || t2,
+        infinite_loop: i1 || i2,
+      }),
+      _ => None,
+    }
+  }
+
+  fn is_forced(&self) -> bool {
+    matches!(self, End::Forced { .. })
+  }
 }
 
 impl<'a> Scope<'a> {
@@ -146,11 +224,12 @@ impl Analyzer<'_> {
       };
       match kind {
         BlockKind::Function => {}
-        _ => {
-          if let Some(End::Forced) = prev_end {
-            child.scope.end = Some(End::Forced);
+        _ => match prev_end {
+          Some(e) if matches!(e, End::Forced { .. }) => {
+            child.scope.end = Some(e)
           }
-        }
+          _ => {}
+        },
       }
 
       op(&mut child);
@@ -180,7 +259,7 @@ impl Analyzer<'_> {
         BlockKind::Program => {}
         BlockKind::Function => {
           match end {
-            End::Forced | End::Continue => self.mark_as_end(lo, end),
+            End::Forced { .. } | End::Continue => self.mark_as_end(lo, end),
             _ => unreachable!(),
           }
           self.scope.end = prev_end;
@@ -188,13 +267,13 @@ impl Analyzer<'_> {
         BlockKind::Case => {}
         BlockKind::If => {}
         BlockKind::Loop => match end {
-          End::Forced => {
-            self.mark_as_end(lo, End::Forced);
-            self.scope.end = Some(End::Forced);
-          }
           End::Break | End::Continue => {
             self.mark_as_end(lo, end);
             self.scope.end = prev_end;
+          }
+          e => {
+            self.mark_as_end(lo, e);
+            self.scope.end = Some(e);
           }
         },
         BlockKind::Label(label) => {
@@ -210,18 +289,22 @@ impl Analyzer<'_> {
         }
         BlockKind::Finally => {
           self.mark_as_end(lo, end);
-          if end == End::Forced {
-            self.scope.end = Some(End::Forced);
-          } else {
-            self.scope.end = prev_end;
+          match end {
+            e if matches!(e, End::Forced { .. }) => {
+              self.scope.end = Some(e);
+            }
+            _ => {
+              self.scope.end = prev_end;
+            }
           }
         }
       }
     }
   }
 
+  #[allow(unused)]
   fn is_forced_end(&self, lo: BytePos) -> bool {
-    matches!(self.get_end_reason(lo), Some(End::Forced))
+    matches!(self.get_end_reason(lo), Some(End::Forced { .. }))
   }
 
   fn get_end_reason(&self, lo: BytePos) -> Option<End> {
@@ -230,14 +313,39 @@ impl Analyzer<'_> {
 
   /// Mark a statement as finisher - finishes execution - and expose it.
   fn mark_as_end(&mut self, lo: BytePos, end: End) {
-    // `End::Continue` doesn't mean much about execution status, just indicating that execution has
-    // not yet stopped so far. So if `End::Forced` or `End::Break` comes and the current
-    // `self.scope.end` is `Some(End::Continue)`, then `self.scope.end` should be replaced with the
-    // coming value.
-    if matches!(self.scope.end, None | Some(End::Continue)) {
-      self.scope.end = Some(end);
-    }
-    self.info.entry(lo).or_default().end = Some(end);
+    let new_end = match self.scope.end {
+      // `End::Continue` doesn't mean much about execution status, just indicating that execution has
+      // not yet stopped so far. So if `End::Forced` or `End::Break` comes and the current
+      // `self.scope.end` is `Some(End::Continue)`, then `self.scope.end` should be replaced with the
+      // coming value.
+      None | Some(End::Continue) => {
+        self.scope.end = Some(end);
+        Some(end)
+      }
+      Some(End::Break) => Some(end),
+      Some(End::Forced {
+        ret: ret1,
+        throw: throw1,
+        infinite_loop: infinite_loop1,
+      }) => {
+        if let End::Forced {
+          ret: ret2,
+          throw: throw2,
+          infinite_loop: infinite_loop2,
+        } = end
+        {
+          Some(End::Forced {
+            ret: ret1 || ret2,
+            throw: throw1 || throw2,
+            infinite_loop: infinite_loop1 || infinite_loop2,
+          })
+        } else {
+          self.scope.end
+        }
+      }
+    };
+
+    self.info.entry(lo).or_default().end = new_end;
   }
 
   /// Visits statement or block. This method handles break and continue.
@@ -257,21 +365,18 @@ impl Analyzer<'_> {
   }
 }
 
-macro_rules! mark_as_end {
-  ($name:ident, $T:ty) => {
-    fn $name(&mut self, s: &$T, _: &dyn Node) {
-      s.visit_children_with(self);
-
-      self.mark_as_end(s.span().lo, End::Forced);
-    }
-  };
-}
-
 impl Visit for Analyzer<'_> {
   noop_visit_type!();
 
-  mark_as_end!(visit_return_stmt, ReturnStmt);
-  mark_as_end!(visit_throw_stmt, ThrowStmt);
+  fn visit_return_stmt(&mut self, n: &ReturnStmt, _: &dyn Node) {
+    n.visit_children_with(self);
+    self.mark_as_end(n.span().lo, End::forced_return());
+  }
+
+  fn visit_throw_stmt(&mut self, n: &ThrowStmt, _: &dyn Node) {
+    n.visit_children_with(self);
+    self.mark_as_end(n.span().lo, End::forced_throw());
+  }
 
   fn visit_break_stmt(&mut self, n: &BreakStmt, _: &dyn Node) {
     if let Some(label) = &n.label {
@@ -365,21 +470,36 @@ impl Visit for Analyzer<'_> {
     let prev_end = self.scope.end;
     n.visit_children_with(self);
 
-    let has_default = n.cases.iter().any(|case| case.test.is_none());
-
-    // SwitchStmt finishes execution if all cases finishes execution
-    let is_end = has_default
-      && n
+    let end = {
+      let has_default = n.cases.iter().any(|case| case.test.is_none());
+      let forced_end = n
         .cases
         .iter()
-        .map(|case| case.span.lo)
-        .all(|lo| self.is_forced_end(lo));
+        .filter_map(|case| self.get_end_reason(case.span.lo))
+        .fold(
+          Some(End::Forced {
+            ret: false,
+            throw: false,
+            infinite_loop: false,
+          }),
+          |acc, cur| {
+            if let Some(acc) = acc {
+              acc.merge_forced(cur)
+            } else {
+              None
+            }
+          },
+        );
 
-    // A switch statement is finisher or not.
-    if is_end {
-      self.mark_as_end(n.span.lo, End::Forced);
-    } else {
-      self.mark_as_end(n.span.lo, End::Continue);
+      match forced_end {
+        Some(e) if has_default => e,
+        _ => End::Continue,
+      }
+    };
+
+    self.mark_as_end(n.span.lo, end);
+
+    if !matches!(end, End::Forced {..}) {
       self.scope.end = prev_end;
     }
   }
@@ -393,8 +513,8 @@ impl Visit for Analyzer<'_> {
 
       if a.scope.found_break.is_some() {
         case_end = Some(End::Break);
-      } else if a.scope.end == Some(End::Forced) {
-        case_end = Some(End::Forced);
+      } else if matches!(a.scope.end, Some(End::Forced { .. })) {
+        case_end = a.scope.end;
       }
     });
 
@@ -426,12 +546,14 @@ impl Visit for Analyzer<'_> {
         let alt_reason = self.get_end_reason(alt.span().lo);
 
         match (cons_reason, alt_reason) {
-          (Some(End::Forced), Some(End::Forced)) => {
-            self.mark_as_end(n.span.lo, End::Forced);
+          (Some(x), Some(y)) if x.is_forced() && y.is_forced() => {
+            // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
+            let end = x.merge_forced(y).unwrap();
+            self.mark_as_end(n.span.lo, end);
           }
           (Some(End::Break), Some(End::Break))
-          | (Some(End::Forced), Some(End::Break))
-          | (Some(End::Break), Some(End::Forced)) => {
+          | (Some(End::Forced { .. }), Some(End::Break))
+          | (Some(End::Break), Some(End::Forced { .. })) => {
             self.mark_as_end(n.span.lo, End::Break);
           }
           // TODO: Check for continue
@@ -451,7 +573,7 @@ impl Visit for Analyzer<'_> {
     let scope_end = self
       .scope
       .end
-      .map_or(false, |d| matches!(d, End::Forced | End::Break));
+      .map_or(false, |d| matches!(d, End::Forced { .. } | End::Break));
 
     let unreachable = if scope_end {
       // Although execution is ended, we should handle hoisting.
@@ -490,36 +612,38 @@ impl Visit for Analyzer<'_> {
     n.update.visit_with(n, self);
     n.test.visit_with(n, self);
 
-    let mut is_infinite_loop = false;
+    let mut forced_end = None;
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       n.body.visit_with(n, a);
 
       if a.scope.found_break.is_none() {
+        let end = match a.get_end_reason(n.body.span().lo) {
+          Some(e) if e.is_forced() => e,
+          _ => End::forced_infinite_loop(),
+        };
         match &n.test {
           None => {
-            // Infinite loop
-            a.mark_as_end(n.span.lo, End::Forced);
-            is_infinite_loop = true;
+            a.mark_as_end(n.span.lo, end);
+            forced_end = Some(end);
           }
           Some(test) => {
             if matches!(test.as_bool(), (_, Value::Known(true))) {
-              // Infinite loop
-              a.mark_as_end(n.span.lo, End::Forced);
-              is_infinite_loop = true;
+              a.mark_as_end(n.span.lo, end);
+              forced_end = Some(end);
             }
           }
         }
       }
 
-      if !is_infinite_loop {
+      if forced_end.is_none() {
         a.mark_as_end(n.span.lo, End::Continue);
         a.scope.end = Some(End::Continue);
       }
     });
 
-    if is_infinite_loop {
-      self.scope.end = Some(End::Forced);
+    if let Some(e) = forced_end {
+      self.scope.end = Some(e);
     }
   }
 
@@ -561,12 +685,19 @@ impl Visit for Analyzer<'_> {
 
       let unconditionally_enter =
         matches!(n.test.as_bool(), (_, Value::Known(true)));
-      let return_or_throw = a.get_end_reason(body_lo) == Some(End::Forced);
+      let end_reason = a.get_end_reason(body_lo);
+      let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
       let infinite_loop = a.scope.found_break.is_none();
 
-      if unconditionally_enter && (return_or_throw || infinite_loop) {
-        a.mark_as_end(body_lo, End::Forced);
-        a.scope.end = Some(End::Forced);
+      if unconditionally_enter && return_or_throw {
+        // This `unwrap` is safe;
+        // if `return_or_throw` is true, `end_reason` is surely wrapped in `Some`.
+        a.mark_as_end(body_lo, end_reason.unwrap());
+        a.scope.end = end_reason;
+      } else if unconditionally_enter && infinite_loop {
+        let end = End::forced_infinite_loop();
+        a.mark_as_end(body_lo, end);
+        a.scope.end = Some(end);
       } else {
         a.mark_as_end(body_lo, End::Continue);
         a.scope.end = Some(End::Continue);
@@ -582,18 +713,28 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(n, a);
 
-      let return_or_throw = a.get_end_reason(body_lo) == Some(End::Forced);
+      let end_reason = a.get_end_reason(body_lo);
+      let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
       let infinite_loop = matches!(n.test.as_bool(), (_, Value::Known(true)))
         && a.scope.found_break.is_none();
 
-      if return_or_throw || infinite_loop {
-        a.mark_as_end(body_lo, End::Forced);
-        a.scope.end = Some(End::Forced);
+      if return_or_throw {
+        // This `unwrap` is safe;
+        // if `return_or_throw` is true, `end_reason` is surely wrapped in `Some`.
+        a.mark_as_end(body_lo, end_reason.unwrap());
+        a.scope.end = end_reason;
+      } else if infinite_loop {
+        let end = End::forced_infinite_loop();
+        a.mark_as_end(body_lo, end);
+        a.scope.end = Some(end);
       }
     });
 
-    if self.get_end_reason(body_lo) == Some(End::Forced) {
-      self.mark_as_end(n.span.lo, End::Forced);
+    match self.get_end_reason(body_lo) {
+      Some(e) if e.is_forced() => {
+        self.mark_as_end(n.span.lo, e);
+      }
+      _ => {}
     }
 
     n.test.visit_with(n, self);
@@ -625,12 +766,15 @@ impl Visit for Analyzer<'_> {
     }
 
     if let Some(handler) = &n.handler {
+      self.scope.may_throw = false;
       handler.visit_with(n, self);
+
       match (try_block_end, self.scope.end) {
-        (Some(End::Forced), Some(End::Forced)) => {
-          self.mark_as_end(n.span.lo, End::Forced);
+        (Some(x), Some(y)) if x.is_forced() && y.is_forced() => {
+          // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
+          self.mark_as_end(n.span.lo, x.merge_forced(y).unwrap());
         }
-        (Some(End::Forced), Some(End::Break)) => {
+        (Some(x), Some(End::Break)) if x.is_forced() => {
           self.mark_as_end(n.span.lo, End::Break);
         }
         _ => {
@@ -638,7 +782,9 @@ impl Visit for Analyzer<'_> {
           self.scope.end = prev_end;
         }
       }
-    } else if matches!(try_block_end, Some(End::Forced) | Some(End::Break)) {
+    } else if matches!(try_block_end, Some(End::Forced { .. }) | Some(End::Break))
+    {
+      // This `unwrap` is safe; `try_block_end` is surely wrapped in `Some`
       self.mark_as_end(n.span.lo, try_block_end.unwrap());
     } else if let Some(finalizer) = &n.finalizer {
       self.mark_as_end(
@@ -648,11 +794,10 @@ impl Visit for Analyzer<'_> {
           .unwrap_or(End::Continue),
       );
       self.scope.end = prev_end;
+      self.scope.may_throw = old_throw;
     } else {
       self.scope.end = prev_end;
     }
-
-    self.scope.may_throw = old_throw;
   }
 
   fn visit_labeled_stmt(&mut self, n: &LabeledStmt, _: &dyn Node) {
@@ -695,9 +840,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 30, false, Some(End::Continue)); // BlockStmt of while
-    assert_flow!(flow, 49, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 49, false, Some(End::forced_return())); // return stmt
   }
 
   #[test]
@@ -751,7 +896,7 @@ function foo() {
     // of `a`, so we treat it as `End::Continue`.
     assert_flow!(flow, 30, false, Some(End::Continue));
 
-    assert_flow!(flow, 36, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 36, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 52, false, None); // `baz();`
   }
 
@@ -766,13 +911,13 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
 
     // BlockStmt of while
     // This block contains `return 1;` and it returns `1` _unconditionally_.
-    assert_flow!(flow, 33, false, Some(End::Forced));
+    assert_flow!(flow, 33, false, Some(End::forced_return()));
 
-    assert_flow!(flow, 39, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 39, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 55, true, None); // `baz();`
   }
 
@@ -787,9 +932,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::Break)); // BlockStmt of do-while
-    assert_flow!(flow, 53, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 53, false, Some(End::forced_return())); // return stmt
   }
 
   #[test]
@@ -836,9 +981,18 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 23, false, Some(End::Forced)); // BlockStmt of do-while
-    assert_flow!(flow, 56, true, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_infinite_loop())); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(End::forced_infinite_loop())); // BlockStmt of do-while
+    assert_flow!(
+      flow,
+      56,
+      true,
+      Some(End::Forced {
+        ret: true,
+        throw: false,
+        infinite_loop: true
+      })
+    ); // return stmt
   }
 
   #[test]
@@ -852,9 +1006,9 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 23, false, Some(End::Forced)); // BlockStmt of do-while
-    assert_flow!(flow, 56, true, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(End::forced_return())); // BlockStmt of do-while
+    assert_flow!(flow, 56, true, Some(End::forced_return())); // return stmt
   }
 
   #[test]
@@ -868,9 +1022,18 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 23, false, Some(End::Forced)); // BlockStmt of do-while
-    assert_flow!(flow, 59, true, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_throw())); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(End::forced_throw())); // BlockStmt of do-while
+    assert_flow!(
+      flow,
+      59,
+      true,
+      Some(End::Forced {
+        ret: true,
+        throw: true,
+        infinite_loop: false
+      })
+    ); // return stmt
   }
 
   #[test]
@@ -884,10 +1047,19 @@ function foo() {
 }
       "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 23, false, Some(End::Forced)); // BlockStmt of do-while
-    assert_flow!(flow, 29, false, Some(End::Forced)); // throw stmt
-    assert_flow!(flow, 55, true, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_throw())); // BlockStmt of `foo`
+    assert_flow!(flow, 23, false, Some(End::forced_throw())); // BlockStmt of do-while
+    assert_flow!(flow, 29, false, Some(End::forced_throw())); // throw stmt
+    assert_flow!(
+      flow,
+      55,
+      true,
+      Some(End::Forced {
+        ret: true,
+        throw: true,
+        infinite_loop: false
+      })
+    ); // return stmt
   }
 
   #[test]
@@ -908,7 +1080,7 @@ function foo() {
     // the program enters the block or not.
     assert_flow!(flow, 46, false, Some(End::Continue));
 
-    assert_flow!(flow, 52, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 52, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 68, false, None); // `bar();`
   }
 
@@ -924,9 +1096,9 @@ function foo() {
 }
     "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 47, false, Some(End::Forced)); // BlockStmt of for statement
-    assert_flow!(flow, 53, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 47, false, Some(End::forced_return())); // BlockStmt of for statement
+    assert_flow!(flow, 53, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 69, true, None); // `bar();`
   }
 
@@ -942,9 +1114,9 @@ function foo() {
 }
     "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 42, false, Some(End::Forced)); // BlockStmt of for statement
-    assert_flow!(flow, 48, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 42, false, Some(End::forced_return())); // BlockStmt of for statement
+    assert_flow!(flow, 48, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 64, true, None); // `bar();`
   }
 
@@ -962,7 +1134,7 @@ function foo() {
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 48, false, Some(End::Continue)); // BlockStmt of for statement
-    assert_flow!(flow, 54, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 54, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 70, false, None); // `bar();`
   }
 
@@ -979,7 +1151,7 @@ function foo() {
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-in
-    assert_flow!(flow, 44, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 44, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 60, false, None); // `bar();`
   }
 
@@ -996,7 +1168,7 @@ function foo() {
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-of
-    assert_flow!(flow, 44, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 44, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 60, false, None); // `bar();`
   }
 
@@ -1012,10 +1184,10 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 20, false, Some(End::Forced)); // TryStmt
-    assert_flow!(flow, 24, false, Some(End::Forced)); // BlockStmt of try
-    assert_flow!(flow, 30, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 20, false, Some(End::forced_return())); // TryStmt
+    assert_flow!(flow, 24, false, Some(End::forced_return())); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 52, false, Some(End::Continue)); // BlockStmt of finally
     assert_flow!(flow, 58, false, None); // `bar();`
   }
@@ -1033,13 +1205,22 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 20, false, Some(End::Forced)); // TryStmt
-    assert_flow!(flow, 24, false, Some(End::Forced)); // BlockStmt of try
-    assert_flow!(flow, 30, false, Some(End::Forced)); // throw stmt
-    assert_flow!(flow, 43, false, Some(End::Forced)); // catch
-    assert_flow!(flow, 53, false, Some(End::Forced)); // BlockStmt of catch
-    assert_flow!(flow, 59, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(
+      flow,
+      20,
+      false,
+      Some(End::Forced {
+        ret: true,
+        throw: true,
+        infinite_loop: false
+      })
+    ); // TryStmt
+    assert_flow!(flow, 24, false, Some(End::forced_throw())); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(End::forced_throw())); // throw stmt
+    assert_flow!(flow, 43, false, Some(End::forced_return())); // catch
+    assert_flow!(flow, 53, false, Some(End::forced_return())); // BlockStmt of catch
+    assert_flow!(flow, 59, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 75, true, None); // `bar();`
   }
 
@@ -1058,8 +1239,8 @@ function foo() {
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // TryStmt
-    assert_flow!(flow, 24, false, Some(End::Forced)); // BlockStmt of try
-    assert_flow!(flow, 30, false, Some(End::Forced)); // throw stmt
+    assert_flow!(flow, 24, false, Some(End::forced_throw())); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(End::forced_throw())); // throw stmt
     assert_flow!(flow, 43, false, Some(End::Continue)); // catch
     assert_flow!(flow, 53, false, Some(End::Continue)); // BlockStmt of catch
     assert_flow!(flow, 59, false, None); // `bar();`
@@ -1082,8 +1263,8 @@ function foo() {
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // TryStmt
-    assert_flow!(flow, 24, false, Some(End::Forced)); // BlockStmt of try
-    assert_flow!(flow, 30, false, Some(End::Forced)); // throw stmt
+    assert_flow!(flow, 24, false, Some(End::forced_throw())); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(End::forced_throw())); // throw stmt
     assert_flow!(flow, 43, false, Some(End::Continue)); // catch
     assert_flow!(flow, 53, false, Some(End::Continue)); // BlockStmt of catch
     assert_flow!(flow, 59, false, None); // `bar();`
@@ -1106,13 +1287,22 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
-    assert_flow!(flow, 20, false, Some(End::Forced)); // TryStmt
-    assert_flow!(flow, 24, false, Some(End::Forced)); // BlockStmt of try
-    assert_flow!(flow, 30, false, Some(End::Forced)); // throw stmt
-    assert_flow!(flow, 43, false, Some(End::Forced)); // catch
-    assert_flow!(flow, 53, false, Some(End::Forced)); // BlockStmt of catch
-    assert_flow!(flow, 59, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(
+      flow,
+      20,
+      false,
+      Some(End::Forced {
+        ret: true,
+        throw: true,
+        infinite_loop: false
+      })
+    ); // TryStmt
+    assert_flow!(flow, 24, false, Some(End::forced_throw())); // BlockStmt of try
+    assert_flow!(flow, 30, false, Some(End::forced_throw())); // throw stmt
+    assert_flow!(flow, 43, false, Some(End::forced_return())); // catch
+    assert_flow!(flow, 53, false, Some(End::forced_return())); // BlockStmt of catch
+    assert_flow!(flow, 59, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 81, false, Some(End::Continue)); // BlockStmt of finally
     assert_flow!(flow, 87, false, None); // `bar();`
     assert_flow!(flow, 100, true, None); // `baz();`
@@ -1144,8 +1334,8 @@ try {
 "#;
     let flow = analyze_flow(src);
     assert_flow!(flow, 1, false, Some(End::Break)); // try stmt
-    assert_flow!(flow, 5, false, Some(End::Forced)); // BlockStmt of try
-    assert_flow!(flow, 9, false, Some(End::Forced)); // throw stmt
+    assert_flow!(flow, 5, false, Some(End::forced_throw())); // BlockStmt of try
+    assert_flow!(flow, 9, false, Some(End::forced_throw())); // throw stmt
     assert_flow!(flow, 20, false, Some(End::Break)); // catch
     assert_flow!(flow, 30, false, Some(End::Break)); // BloskStmt of catch
     assert_flow!(flow, 34, false, Some(End::Break)); // break stmt
@@ -1177,18 +1367,46 @@ try {
 } catch {
   foo();
 }
+bar();
 "#;
     let flow = analyze_flow(src);
-    dbg!(&flow);
     assert_flow!(flow, 1, false, Some(End::Continue)); // 1st try stmt
-    assert_flow!(flow, 5, false, Some(End::Forced)); // BlockStmt of 1st try
-    assert_flow!(flow, 9, false, Some(End::Forced)); // 2nd try stmt
-    assert_flow!(flow, 13, false, Some(End::Forced)); // BlockStmt of 2nd try
-    assert_flow!(flow, 19, false, Some(End::Forced)); // throw 1;
-    assert_flow!(flow, 32, false, Some(End::Forced)); // 1st catch
-    assert_flow!(flow, 44, false, Some(End::Forced)); // throw 2;
+    assert_flow!(flow, 5, false, Some(End::forced_throw())); // BlockStmt of 1st try
+    assert_flow!(flow, 9, false, Some(End::forced_throw())); // 2nd try stmt
+    assert_flow!(flow, 13, false, Some(End::forced_throw())); // BlockStmt of 2nd try
+    assert_flow!(flow, 19, false, Some(End::forced_throw())); // throw 1;
+    assert_flow!(flow, 32, false, Some(End::forced_throw())); // 1st catch
+    assert_flow!(flow, 44, false, Some(End::forced_throw())); // throw 2;
     assert_flow!(flow, 59, false, Some(End::Continue)); // 2nd catch
-    assert_flow!(flow, 69, false, Some(End::Continue)); // `foo();`
+    assert_flow!(flow, 69, false, None); // `foo();`
+    assert_flow!(flow, 78, false, None); // `bar();`
+  }
+
+  #[test]
+  fn try_10() {
+    let src = r#"
+try {
+  try {
+    throw 1;
+  } catch {
+    f();
+  }
+} catch {
+  foo();
+}
+bar();
+"#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 1, false, Some(End::Continue)); // 1st try stmt
+    assert_flow!(flow, 5, false, Some(End::Continue)); // BlockStmt of 1st try
+    assert_flow!(flow, 9, false, Some(End::Continue)); // 2nd try stmt
+    assert_flow!(flow, 13, false, Some(End::forced_throw())); // BlockStmt of 2nd try
+    assert_flow!(flow, 19, false, Some(End::forced_throw())); // throw 1;
+    assert_flow!(flow, 32, false, Some(End::Continue)); // 1st catch
+    assert_flow!(flow, 44, false, None); // `someF();`;
+    assert_flow!(flow, 55, false, Some(End::Continue)); // 2nd catch
+    assert_flow!(flow, 65, false, None); // `foo();`
+    assert_flow!(flow, 74, false, None); // `bar();`
   }
 
   #[test]
@@ -1204,8 +1422,8 @@ function foo() {
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
-    assert_flow!(flow, 27, false, Some(End::Forced)); // BloskStmt of if
-    assert_flow!(flow, 33, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 27, false, Some(End::forced_return())); // BloskStmt of if
+    assert_flow!(flow, 33, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 49, false, None); // `bar();`
   }
 
@@ -1226,8 +1444,8 @@ function foo() {
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
     assert_flow!(flow, 27, false, Some(End::Continue)); // BloskStmt of if
     assert_flow!(flow, 33, false, None); // `bar();`
-    assert_flow!(flow, 49, false, Some(End::Forced)); // else
-    assert_flow!(flow, 55, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 49, false, Some(End::forced_return())); // else
+    assert_flow!(flow, 55, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 71, false, None); // `baz();`
   }
 
@@ -1244,13 +1462,13 @@ function foo() {
 }
 "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 16, false, Some(End::Forced)); // BlockStmt of `foo`
+    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
-    assert_flow!(flow, 27, false, Some(End::Forced)); // BloskStmt of if
-    assert_flow!(flow, 33, false, Some(End::Forced)); // `return 1;`
+    assert_flow!(flow, 27, false, Some(End::forced_return())); // BloskStmt of if
+    assert_flow!(flow, 33, false, Some(End::forced_return())); // `return 1;`
     assert_flow!(flow, 52, false, Some(End::Continue)); // else
     assert_flow!(flow, 58, false, None); // `bar();`
-    assert_flow!(flow, 71, false, Some(End::Forced)); // `return 0;`
+    assert_flow!(flow, 71, false, Some(End::forced_return())); // `return 0;`
   }
 
   #[test]
@@ -1270,15 +1488,15 @@ throw err;
 "#;
     let flow = analyze_flow(src);
     assert_flow!(flow, 1, false, Some(End::Continue)); // switch stmt
-    assert_flow!(flow, 18, false, Some(End::Forced)); // `case 1`
-    assert_flow!(flow, 30, false, Some(End::Forced)); // return stmt
+    assert_flow!(flow, 18, false, Some(End::forced_return())); // `case 1`
+    assert_flow!(flow, 30, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 42, false, Some(End::Break)); // `default`
-    assert_flow!(flow, 51, false, Some(End::Forced)); // BlockStmt of `default`
+    assert_flow!(flow, 51, false, Some(End::forced_return())); // BlockStmt of `default`
     assert_flow!(flow, 57, false, Some(End::Continue)); // if
     assert_flow!(flow, 66, false, Some(End::Break)); // BlockStmt of if
     assert_flow!(flow, 74, false, Some(End::Break)); // break stmt
-    assert_flow!(flow, 91, false, Some(End::Forced)); // return stmt
-    assert_flow!(flow, 107, false, Some(End::Forced)); // throw stmt
+    assert_flow!(flow, 91, false, Some(End::forced_return())); // return stmt
+    assert_flow!(flow, 107, false, Some(End::forced_throw())); // throw stmt
   }
 
   #[test]
@@ -1294,13 +1512,22 @@ switch (foo) {
 throw err;
 "#;
     let flow = analyze_flow(src);
-    assert_flow!(flow, 1, false, Some(End::Forced)); // switch stmt
-    assert_flow!(flow, 18, false, Some(End::Forced)); // `case 1`
-    assert_flow!(flow, 30, false, Some(End::Forced)); // return stmt
-    assert_flow!(flow, 42, false, Some(End::Forced)); // `default`
-    assert_flow!(flow, 51, false, Some(End::Forced)); // BlockStmt of `default`
-    assert_flow!(flow, 57, false, Some(End::Forced)); // return stmt
-    assert_flow!(flow, 73, true, Some(End::Forced)); // throw stmt
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // switch stmt
+    assert_flow!(flow, 18, false, Some(End::forced_return())); // `case 1`
+    assert_flow!(flow, 30, false, Some(End::forced_return())); // return stmt
+    assert_flow!(flow, 42, false, Some(End::forced_return())); // `default`
+    assert_flow!(flow, 51, false, Some(End::forced_return())); // BlockStmt of `default`
+    assert_flow!(flow, 57, false, Some(End::forced_return())); // return stmt
+    assert_flow!(
+      flow,
+      73,
+      true,
+      Some(End::Forced {
+        ret: true,
+        throw: true,
+        infinite_loop: false
+      })
+    ); // throw stmt
   }
 
   #[test]
@@ -1319,9 +1546,9 @@ throw err;
     assert_flow!(flow, 1, false, Some(End::Continue)); // switch stmt
     assert_flow!(flow, 18, false, Some(End::Break)); // `case 1`
     assert_flow!(flow, 30, false, Some(End::Break)); // break stmt
-    assert_flow!(flow, 39, false, Some(End::Forced)); // `default`
-    assert_flow!(flow, 48, false, Some(End::Forced)); // BlockStmt of `default`
-    assert_flow!(flow, 54, false, Some(End::Forced)); // return stmt
-    assert_flow!(flow, 70, false, Some(End::Forced)); // throw stmt
+    assert_flow!(flow, 39, false, Some(End::forced_return())); // `default`
+    assert_flow!(flow, 48, false, Some(End::forced_return())); // BlockStmt of `default`
+    assert_flow!(flow, 54, false, Some(End::forced_return())); // return stmt
+    assert_flow!(flow, 70, false, Some(End::forced_throw())); // throw stmt
   }
 }
