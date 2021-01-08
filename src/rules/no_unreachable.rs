@@ -358,6 +358,17 @@ try {
   console.log("Statement reached!");
 }
       "#,
+      r#"
+try {
+  try {
+    throw new Error();
+  } catch {
+    foo();
+  }
+} catch {
+  console.log("Statement reached!");
+}
+      "#,
     };
   }
 
