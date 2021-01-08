@@ -302,11 +302,6 @@ impl Analyzer<'_> {
     }
   }
 
-  #[allow(unused)]
-  fn is_forced_end(&self, lo: BytePos) -> bool {
-    matches!(self.get_end_reason(lo), Some(End::Forced { .. }))
-  }
-
   fn get_end_reason(&self, lo: BytePos) -> Option<End> {
     self.info.get(&lo).map(|md| md.end).flatten()
   }
@@ -323,26 +318,7 @@ impl Analyzer<'_> {
         Some(end)
       }
       Some(End::Break) => Some(end),
-      Some(End::Forced {
-        ret: ret1,
-        throw: throw1,
-        infinite_loop: infinite_loop1,
-      }) => {
-        if let End::Forced {
-          ret: ret2,
-          throw: throw2,
-          infinite_loop: infinite_loop2,
-        } = end
-        {
-          Some(End::Forced {
-            ret: ret1 || ret2,
-            throw: throw1 || throw2,
-            infinite_loop: infinite_loop1 || infinite_loop2,
-          })
-        } else {
-          self.scope.end
-        }
-      }
+      Some(e) => e.merge_forced(end).or(self.scope.end),
     };
 
     self.info.entry(lo).or_default().end = new_end;
