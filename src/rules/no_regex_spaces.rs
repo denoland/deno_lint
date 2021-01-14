@@ -4,12 +4,18 @@ use super::LintRule;
 use crate::swc_util::extract_regex;
 use once_cell::sync::Lazy;
 use swc_common::Span;
-use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use swc_ecmascript::ast::{
+  CallExpr, Expr, ExprOrSuper, NewExpr, Program, Regex,
+};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoRegexSpaces;
+
+const CODE: &str = "no-regex-spaces";
+const MESSAGE: &str =
+  "more than one consecutive spaces in RegExp is not allowed";
 
 impl LintRule for NoRegexSpaces {
   fn new() -> Box<Self> {
@@ -21,16 +27,12 @@ impl LintRule for NoRegexSpaces {
   }
 
   fn code(&self) -> &'static str {
-    "no-regex-spaces"
+    CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -66,26 +68,21 @@ impl<'c> NoRegexSpacesVisitor<'c> {
         .iter()
         .all(|ref v| mtch.start() < v.0 || v.1 <= mtch.start());
       if *not_in_classes {
-        self.context.add_diagnostic(
-          span,
-          "no-regex-spaces",
-          "more than one consecutive spaces in RegExp is not allowed",
-        );
+        self.context.add_diagnostic(span, CODE, MESSAGE);
         return;
       }
     }
   }
 }
 
-impl<'c> Visit for NoRegexSpacesVisitor<'c> {
+impl<'c> VisitAll for NoRegexSpacesVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_regex(&mut self, regex: &Regex, parent: &dyn Node) {
+  fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
-    swc_ecmascript::visit::visit_regex(self, regex, parent);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, parent: &dyn Node) {
+  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) = extract_regex(&self.context.scope, ident, args) {
@@ -93,10 +90,9 @@ impl<'c> Visit for NoRegexSpacesVisitor<'c> {
         }
       }
     }
-    swc_ecmascript::visit::visit_new_expr(self, new_expr, parent);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) =
@@ -106,14 +102,12 @@ impl<'c> Visit for NoRegexSpacesVisitor<'c> {
         }
       }
     }
-    swc_ecmascript::visit::visit_call_expr(self, call_expr, parent);
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_regex_spaces_valid() {
@@ -171,37 +165,164 @@ mod tests {
 
   #[test]
   fn no_regex_spaces_invalid() {
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar  baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar    baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = / a b  c d /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp(' a b c d  ');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar    baz');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    baz');", 10);
-    assert_lint_err::<NoRegexSpaces>(
-      "{ let RegExp = function() {}; } var foo = RegExp('bar    baz');",
-      42,
-    );
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar   {3}baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar    ?baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('bar   +baz')", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('bar    ');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /bar\\  baz/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /[   ]  /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /  [   ] /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('[   ]  ');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('  [ ]');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\[  \\]/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /(?:  )/;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('^foo(?=   )');", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /\\  /", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = / \\  /", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = /  foo   /;", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = new RegExp('\\\\d  ')", 10);
-    assert_lint_err::<NoRegexSpaces>("let foo = RegExp('\\u0041   ')", 10);
-    assert_lint_err::<NoRegexSpaces>(
-      "let foo = new RegExp('\\\\[  \\\\]');",
-      10,
-    );
+    assert_lint_err! {
+      NoRegexSpaces,
+      "let foo = /bar  baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar    baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = / a b  c d /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp(' a b c d  ');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('bar    baz');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('bar    baz');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "{ let RegExp = function() {}; } var foo = RegExp('bar    baz');": [
+        {
+          col: 42,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar   {3}baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar    ?baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('bar   +baz')": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('bar    ');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /bar\\  baz/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /[   ]  /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /  [   ] /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('[   ]  ');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('  [ ]');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /\\[  /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /\\[  \\]/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /(?:  )/;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('^foo(?=   )');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /\\  /": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = / \\  /": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = /  foo   /;": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('\\\\d  ')": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = RegExp('\\u0041   ')": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ],
+      "let foo = new RegExp('\\\\[  \\\\]');": [
+        {
+          col: 10,
+          message: MESSAGE,
+        }
+      ]
+    };
   }
 }

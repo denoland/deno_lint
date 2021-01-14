@@ -27,25 +27,29 @@ use swc_ecmascript::visit::FoldWith;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
-  let mut config = EsConfig::default();
-  config.num_sep = true;
-  config.class_private_props = false;
-  config.class_private_methods = false;
-  config.class_props = false;
-  config.export_default_from = true;
-  config.export_namespace_from = true;
-  config.dynamic_import = true;
-  config.nullish_coalescing = true;
-  config.optional_chaining = true;
-  config.import_meta = true;
-  config.top_level_await = true;
+  let config = EsConfig {
+    num_sep: true,
+    class_private_props: false,
+    class_private_methods: false,
+    class_props: false,
+    export_default_from: true,
+    export_namespace_from: true,
+    dynamic_import: true,
+    nullish_coalescing: true,
+    optional_chaining: true,
+    import_meta: true,
+    top_level_await: true,
+    ..Default::default()
+  };
   Syntax::Es(config)
 }
 
 pub fn get_default_ts_config() -> Syntax {
-  let mut ts_config = TsConfig::default();
-  ts_config.dynamic_import = true;
-  ts_config.decorators = true;
+  let ts_config = TsConfig {
+    dynamic_import: true,
+    decorators: true,
+    ..Default::default()
+  };
   Syntax::Typescript(ts_config)
 }
 
