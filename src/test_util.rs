@@ -168,7 +168,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
 
   let (_, diagnostics) = linter
     .lint("deno_lint_test.tsx".to_string(), source.to_string())
-    .expect("Failed to lint");
+    .unwrap_or_else(|_| panic!("Failed to lint.\n[source code]\n{}", source));
   diagnostics
 }
 

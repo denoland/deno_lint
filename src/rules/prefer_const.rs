@@ -3,7 +3,8 @@ use super::Context;
 use super::LintRule;
 use derive_more::Display;
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::iter;
 use std::mem;
 use std::rc::Rc;
 use swc_atoms::JsWord;
@@ -56,40 +57,12 @@ impl LintRule for PreferConst {
     let mut collector = VariableCollector::new();
     collector.visit_program(program, program);
 
-    let mut visitor =
-      PreferConstVisitor::new(context, mem::take(&mut collector.scopes));
+    let mut visitor = PreferConstVisitor::new(
+      context,
+      mem::take(&mut collector.scopes),
+      mem::take(&mut collector.var_groups),
+    );
     visitor.visit_program(program, program);
-  }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Variable {
-  span: Span,
-  initialized: bool,
-  reassigned: bool,
-  /// If this variable is declared in "init" section of a for statement, it stores `Some(span)` where
-  /// `span` is the span of the for statement. Otherwise, it stores `None`.
-  in_for_init: Option<Span>,
-  is_param: bool,
-}
-
-impl Variable {
-  fn update(&mut self, initialized: bool, reassigned: bool) {
-    self.initialized = initialized;
-    self.reassigned = reassigned;
-  }
-  fn should_report(&self) -> bool {
-    if self.is_param {
-      return false;
-    }
-
-    // (initialized, reassigned): [return value]
-    //
-    // - (false, false): false
-    // - (true, false): true
-    // - (false, true): true
-    // - (true, true): false
-    self.initialized != self.reassigned
   }
 }
 
@@ -98,7 +71,7 @@ type Scope = Rc<RefCell<RawScope>>;
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<JsWord, Variable>,
+  variables: BTreeMap<JsWord, Span>,
 }
 
 impl RawScope {
@@ -110,25 +83,154 @@ impl RawScope {
   }
 }
 
-/// Looks for the variable status of the given ident by traversing from the current scope to the parent,
-/// and updates its status.
-fn update_variable_status(scope: Scope, ident: &Ident, force_reassigned: bool) {
+struct DeclInfo {
+  /// the span of its declaration
+  span: Span,
+  /// `true` if this is declared in the other scope
+  in_other_scope: bool,
+}
+
+/// Looks for the declaration span of the given variable by traversing from the given scope to the parents.
+/// Returns `None` if no matching span is found. Most likely it means the variable is not declared
+/// with `let`.
+fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
+  let mut is_current_scope = true;
   while let Some(cur) = cur_scope {
-    let mut lock = cur.borrow_mut();
-    if let Some(var) = lock.variables.get_mut(&ident.sym) {
-      let (initialized, mut reassigned) = if var.initialized {
-        (true, true)
-      } else {
-        (true, false)
-      };
+    if let Some(&span) = cur.borrow().variables.get(&ident.sym) {
+      return Some(DeclInfo {
+        span,
+        in_other_scope: !is_current_scope,
+      });
+    }
+    cur_scope = cur.borrow().parent.as_ref().map(Rc::clone);
+    is_current_scope = false;
+  }
+  None
+}
 
-      reassigned |= force_reassigned;
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum VarStatus {
+  Declared,
+  Initialized,
+  Reassigned,
+}
 
-      var.update(initialized, reassigned);
+impl VarStatus {
+  fn next(&mut self) {
+    use VarStatus::*;
+    *self = match *self {
+      Declared => Initialized,
+      Initialized => Reassigned,
+      Reassigned => Reassigned,
+    }
+  }
+
+  fn force_reassigned(&mut self) {
+    *self = VarStatus::Reassigned;
+  }
+}
+
+#[derive(Default, Debug)]
+struct DisjointSet {
+  /// Key: span of ident, Value: span of parent node
+  /// This map is supposed to contain all spans of variable declarations.
+  parents: BTreeMap<Span, Span>,
+
+  /// Key: span of ident (representative of the group)
+  /// Value: pair of the following values:
+  ///        - status of variables in this tree
+  ///        - the maximum height of this tree, which is used for optimization
+  roots: HashMap<Span, (VarStatus, usize)>,
+}
+
+impl DisjointSet {
+  fn new() -> Self {
+    Self::default()
+  }
+
+  fn proceed_status(&mut self, span: Span, force_reassigned: bool) {
+    // This unwrap is safe if VariableCollector works fine.
+    // If it panics, it means a bug in implementation.
+    let root = self.get_root(span).unwrap();
+    let (ref mut st, _) = self.roots.get_mut(&root).unwrap();
+    if force_reassigned {
+      st.force_reassigned();
+    } else {
+      st.next();
+    }
+  }
+
+  fn add_root(&mut self, span: Span, status: VarStatus) {
+    if self.parents.contains_key(&span) {
       return;
     }
-    cur_scope = lock.parent.as_ref().map(Rc::clone);
+    self.parents.insert(span, span);
+    self.roots.insert(span, (status, 1));
+  }
+
+  fn get_root(&mut self, span: Span) -> Option<Span> {
+    match self.parents.get(&span) {
+      None => None,
+      Some(&par_span) if span == par_span => Some(span),
+      Some(&par_span) => {
+        let root = self.get_root(par_span);
+        if let (Some(root_span), Some(par)) =
+          (root, self.parents.get_mut(&span))
+        {
+          *par = root_span;
+        }
+        root
+      }
+    }
+  }
+
+  fn unite(&mut self, span1: Span, span2: Span) -> Option<()> {
+    let rs1 = self.get_root(span1)?;
+    let rs2 = self.get_root(span2)?;
+    if rs1 == rs2 {
+      return None;
+    }
+
+    let &(status1, rank1) = self.roots.get(&rs1)?;
+    let &(status2, rank2) = self.roots.get(&rs2)?;
+
+    // Take the status that has higher precedence.
+    // For example, if (status1, status2) = (Declared, Initialized) then `next_status` is
+    // `Initialized`.
+    let next_status = std::cmp::max(status1, status2);
+
+    if rank1 <= rank2 {
+      let p = self.parents.get_mut(&rs1)?;
+      *p = rs2;
+      let r = self.roots.get_mut(&rs2)?;
+      *r = (next_status, std::cmp::max(rank1 + 1, rank2));
+      self.roots.remove(&rs1);
+    } else {
+      let p = self.parents.get_mut(&rs2)?;
+      *p = rs1;
+      let r = self.roots.get_mut(&rs1)?;
+      *r = (next_status, rank1);
+      self.roots.remove(&rs2);
+    }
+
+    Some(())
+  }
+
+  fn dump(&mut self) -> Vec<Span> {
+    self
+      .parents
+      .clone()
+      .keys()
+      .filter_map(|&cur| {
+        let root = self.get_root(cur)?;
+        if matches!(self.roots.get(&root), Some((VarStatus::Initialized, _))) {
+          Some(cur)
+        } else {
+          None
+        }
+      })
+      .collect()
   }
 }
 
@@ -142,6 +244,7 @@ enum ScopeRange {
 struct VariableCollector {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
+  var_groups: DisjointSet,
 }
 
 impl VariableCollector {
@@ -149,71 +252,44 @@ impl VariableCollector {
     Self {
       scopes: BTreeMap::new(),
       cur_scope: ScopeRange::Global,
+      var_groups: DisjointSet::new(),
     }
   }
 
-  fn insert_var(
-    &mut self,
-    ident: &Ident,
-    has_init: bool,
-    in_for_init: Option<Span>,
-    is_param: bool,
-  ) {
+  fn insert_var(&mut self, ident: &Ident, status: VarStatus) {
+    self.var_groups.add_root(ident.span, status);
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
-    scope.variables.insert(
-      ident.sym.clone(),
-      Variable {
-        span: ident.span,
-        initialized: has_init,
-        reassigned: false,
-        in_for_init,
-        is_param,
-      },
-    );
+    scope.variables.insert(ident.sym.clone(), ident.span);
   }
 
-  fn extract_decl_idents(
-    &mut self,
-    pat: &Pat,
-    has_init: bool,
-    in_for_init: Option<Span>,
-  ) {
-    match pat {
-      Pat::Ident(ident) => self.insert_var(ident, has_init, in_for_init, false),
-      Pat::Array(array_pat) => {
-        for elem in &array_pat.elems {
-          if let Some(elem_pat) = elem {
-            self.extract_decl_idents(elem_pat, has_init, in_for_init);
-          }
+  fn insert_vars(&mut self, idents: &[&Ident], status: VarStatus) {
+    match idents {
+      [] => {}
+      [ident] => {
+        self.insert_var(ident, status);
+      }
+      [first, others @ ..] => {
+        self.insert_var(first, status);
+
+        // If there are more than one idents, they need to be grouped
+        for i in others {
+          self.insert_var(i, status);
+          self.var_groups.unite(first.span, i.span);
         }
       }
-      Pat::Rest(rest_pat) => {
-        self.extract_decl_idents(&*rest_pat.arg, has_init, in_for_init)
-      }
-      Pat::Object(object_pat) => {
-        for prop in &object_pat.props {
-          match prop {
-            ObjectPatProp::KeyValue(key_value) => {
-              self.extract_decl_idents(&*key_value.value, has_init, in_for_init)
-            }
-            ObjectPatProp::Assign(assign) => {
-              if assign.value.is_some() {
-                self.insert_var(&assign.key, true, in_for_init, false);
-              } else {
-                self.insert_var(&assign.key, has_init, in_for_init, false);
-              }
-            }
-            ObjectPatProp::Rest(rest) => {
-              self.extract_decl_idents(&*rest.arg, has_init, in_for_init)
-            }
-          }
-        }
-      }
-      Pat::Assign(assign_pat) => {
-        self.extract_decl_idents(&*assign_pat.left, true, in_for_init)
-      }
-      _ => {}
     }
+  }
+
+  fn extract_decl_idents(&mut self, pat: &Pat, has_init: bool) {
+    let status = if has_init {
+      VarStatus::Initialized
+    } else {
+      VarStatus::Declared
+    };
+
+    let mut idents = Vec::new();
+    extract_idents_from_pat(&mut idents, pat);
+    self.insert_vars(&idents, status);
   }
 
   fn with_child_scope<F, S>(&mut self, node: S, op: F)
@@ -251,7 +327,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(&param.pat);
         for ident in idents {
-          a.insert_var(&ident, true, None, true);
+          a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
       if let Some(body) = &function.body {
@@ -266,7 +342,7 @@ impl Visit for VariableCollector {
         param.visit_children_with(a);
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, None, true);
+          a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
       match &arrow_expr.body {
@@ -292,13 +368,18 @@ impl Visit for VariableCollector {
         Some(VarDeclOrExpr::VarDecl(var_decl)) => {
           var_decl.visit_children_with(a);
           if var_decl.kind == VarDeclKind::Let {
+            let mut idents = Vec::new();
+            let mut has_init = false;
             for decl in &var_decl.decls {
-              a.extract_decl_idents(
-                &decl.name,
-                decl.init.is_some(),
-                Some(for_stmt.span),
-              );
+              extract_idents_from_pat(&mut idents, &decl.name);
+              has_init |= decl.init.is_some();
             }
+            let status = if has_init {
+              VarStatus::Initialized
+            } else {
+              VarStatus::Declared
+            };
+            a.insert_vars(&idents, status);
           }
         }
         Some(VarDeclOrExpr::Expr(expr)) => {
@@ -327,7 +408,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, None);
+            a.extract_decl_idents(&decl.name, true);
           }
         }
       }
@@ -347,7 +428,7 @@ impl Visit for VariableCollector {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true, None);
+            a.extract_decl_idents(&decl.name, true);
           }
         }
       }
@@ -421,7 +502,7 @@ impl Visit for VariableCollector {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
         for ident in idents {
-          a.insert_var(&ident, true, None, true);
+          a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
       catch_clause.body.visit_children_with(a);
@@ -452,13 +533,13 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, true, None, true);
+                a.insert_var(ident, VarStatus::Reassigned);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
                 let idents: Vec<Ident> = find_ids(&assign_pat.left);
                 for ident in idents {
-                  a.insert_var(&ident, true, None, true);
+                  a.insert_var(&ident, VarStatus::Reassigned);
                 }
               }
             }
@@ -467,7 +548,7 @@ impl Visit for VariableCollector {
             param.visit_children_with(a);
             let idents: Vec<Ident> = find_ids(&param.pat);
             for ident in idents {
-              a.insert_var(&ident, true, None, true);
+              a.insert_var(&ident, VarStatus::Reassigned);
             }
           }
         }
@@ -483,7 +564,7 @@ impl Visit for VariableCollector {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
       for decl in &var_decl.decls {
-        self.extract_decl_idents(&decl.name, decl.init.is_some(), None);
+        self.extract_decl_idents(&decl.name, decl.init.is_some());
       }
     }
   }
@@ -492,28 +573,87 @@ impl Visit for VariableCollector {
 struct PreferConstVisitor<'c> {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
+  var_groups: DisjointSet,
   context: &'c mut Context,
+}
+
+enum ExtractIdentsArgs<'a> {
+  Ident(&'a Ident),
+  MemberExpr,
+}
+
+fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
+  let mut op = |args: ExtractIdentsArgs<'a>| {
+    if let ExtractIdentsArgs::Ident(i) = args {
+      idents.push(i);
+    }
+  };
+  extract_idents_from_pat_with(pat, &mut op);
+}
+
+/// Extracts idents from the Pat recursively and apply the operation to each ident.
+fn extract_idents_from_pat_with<'a, F>(pat: &'a Pat, op: &mut F)
+where
+  F: FnMut(ExtractIdentsArgs<'a>),
+{
+  match pat {
+    Pat::Ident(ident) => op(ExtractIdentsArgs::Ident(ident)),
+    Pat::Array(array_pat) => {
+      for elem in &array_pat.elems {
+        if let Some(elem_pat) = elem {
+          extract_idents_from_pat_with(elem_pat, op);
+        }
+      }
+    }
+    Pat::Rest(rest_pat) => extract_idents_from_pat_with(&*rest_pat.arg, op),
+    Pat::Object(object_pat) => {
+      for prop in &object_pat.props {
+        match prop {
+          ObjectPatProp::KeyValue(key_value) => {
+            extract_idents_from_pat_with(&*key_value.value, op);
+          }
+          ObjectPatProp::Assign(assign) => {
+            op(ExtractIdentsArgs::Ident(&assign.key));
+          }
+          ObjectPatProp::Rest(rest) => {
+            extract_idents_from_pat_with(&*rest.arg, op)
+          }
+        }
+      }
+    }
+    Pat::Assign(assign_pat) => {
+      extract_idents_from_pat_with(&*assign_pat.left, op)
+    }
+    Pat::Expr(_) => {
+      op(ExtractIdentsArgs::MemberExpr);
+    }
+    _ => {}
+  }
 }
 
 impl<'c> PreferConstVisitor<'c> {
   fn new(
     context: &'c mut Context,
     scopes: BTreeMap<ScopeRange, Scope>,
+    var_groups: DisjointSet,
   ) -> Self {
     Self {
       context,
       scopes,
+      var_groups,
       cur_scope: ScopeRange::Global,
     }
   }
 
-  fn report(&mut self, sym: &JsWord, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      PreferConstMessage::NeverReassigned(sym.to_string()),
-      PreferConstHint::UseConst,
-    );
+  fn report(&mut self, span: Span) {
+    if let Ok(s) = self.context.source_map.span_to_snippet(span) {
+      self.context.add_diagnostic_with_hint(
+        span,
+        CODE,
+        PreferConstMessage::NeverReassigned(s),
+        PreferConstHint::UseConst,
+      );
+    }
   }
 
   fn with_child_scope<F, S>(&mut self, node: &S, op: F)
@@ -527,132 +667,53 @@ impl<'c> PreferConstVisitor<'c> {
     self.cur_scope = parent_scope_range;
   }
 
-  fn mark_reassigned(&mut self, ident: &Ident, force_reassigned: bool) {
-    let scope = self.scopes.get(&self.cur_scope).unwrap();
-    update_variable_status(Rc::clone(scope), ident, force_reassigned);
+  fn get_scope(&self) -> Scope {
+    Rc::clone(self.scopes.get(&self.cur_scope).unwrap())
   }
 
-  fn extract_assign_idents(&mut self, pat: &Pat) {
-    fn extract_idents_rec<'a, 'b>(
-      pat: &'a Pat,
-      idents: &'b mut Vec<&'a Ident>,
-      has_member_expr: &'b mut bool,
-    ) {
-      match pat {
-        Pat::Ident(ident) => {
-          idents.push(ident);
-        }
-        Pat::Array(array_pat) => {
-          for elem in &array_pat.elems {
-            if let Some(elem_pat) = elem {
-              extract_idents_rec(elem_pat, idents, has_member_expr);
-            }
-          }
-        }
-        Pat::Rest(rest_pat) => {
-          extract_idents_rec(&*rest_pat.arg, idents, has_member_expr)
-        }
-        Pat::Object(object_pat) => {
-          for prop in &object_pat.props {
-            match prop {
-              ObjectPatProp::KeyValue(key_value) => {
-                extract_idents_rec(&*key_value.value, idents, has_member_expr);
-              }
-              ObjectPatProp::Assign(assign) => {
-                idents.push(&assign.key);
-              }
-              ObjectPatProp::Rest(rest) => {
-                extract_idents_rec(&*rest.arg, idents, has_member_expr)
-              }
-            }
-          }
-        }
-        Pat::Assign(assign_pat) => {
-          extract_idents_rec(&*assign_pat.left, idents, has_member_expr)
-        }
-        Pat::Expr(expr) => {
-          if let Expr::Member(_) = &**expr {
-            *has_member_expr = true;
-          }
-        }
-        _ => {}
-      }
-    }
-
+  fn extract_assign_idents<'a>(&mut self, pat: &'a Pat) {
     let mut idents = Vec::new();
-    let mut has_member_expr = false;
-    extract_idents_rec(pat, &mut idents, &mut has_member_expr);
-
-    let has_outer_scope_or_param_var = idents
-      .iter()
-      .any(|i| self.declared_outer_scope_or_param_var(i));
-
-    for ident in idents {
-      // If the pat contains either of the following:
-      //
-      // - MemberExpresion
-      // - variable declared in outer scope
-      // - variable that is a function parameter
-      //
-      // then all the idents should be marked as "reassigned" so that we will not report them as errors,
-      // bacause in this case they couldn't be separately declared as `const`.
-      self.mark_reassigned(
-        ident,
-        has_member_expr || has_outer_scope_or_param_var,
-      );
-    }
+    // if `pat` contains member access, variables should be treated as "reassigned"
+    let mut contains_member_access = false;
+    let mut op = |args: ExtractIdentsArgs<'a>| {
+      use ExtractIdentsArgs::*;
+      match args {
+        Ident(i) => idents.push(i),
+        MemberExpr => contains_member_access = true,
+      }
+    };
+    extract_idents_from_pat_with(pat, &mut op);
+    self.process_var_status(idents.into_iter(), contains_member_access);
   }
 
-  /// Checks if this ident has its declaration in outer scope or in function parameter.
-  fn declared_outer_scope_or_param_var(&self, ident: &Ident) -> bool {
-    let mut cur_scope = self.scopes.get(&self.cur_scope).map(Rc::clone);
-    let mut is_first_loop = true;
-    while let Some(cur) = cur_scope {
-      let lock = cur.borrow();
-      if let Some(var) = lock.variables.get(&ident.sym) {
-        if is_first_loop {
-          return var.is_param;
-        } else {
-          return true;
+  fn process_var_status<'a>(
+    &mut self,
+    idents: impl Iterator<Item = &'a Ident>,
+    force_reassigned: bool,
+  ) {
+    let scope = self.get_scope();
+    let decls: Vec<DeclInfo> = idents
+      .filter_map(|i| get_decl_by_ident(Rc::clone(&scope), &i))
+      .collect();
+
+    match decls.as_slice() {
+      [] => {}
+      [decl] => {
+        self
+          .var_groups
+          .proceed_status(decl.span, force_reassigned || decl.in_other_scope);
+      }
+      [first, others @ ..] => {
+        self
+          .var_groups
+          .proceed_status(first.span, force_reassigned || first.in_other_scope);
+        for s in others {
+          self
+            .var_groups
+            .proceed_status(s.span, force_reassigned || s.in_other_scope);
+          self.var_groups.unite(first.span, s.span);
         }
       }
-      is_first_loop = false;
-      cur_scope = lock.parent.as_ref().map(Rc::clone);
-    }
-    // If the declaration isn't found, most likely it means the ident is declared with `var`
-    false
-  }
-
-  fn exit_program(&mut self) {
-    let mut for_init_vars = BTreeMap::new();
-    let scopes = self.scopes.clone();
-    for scope in scopes.values() {
-      for (sym, status) in scope.borrow().variables.iter() {
-        if let Some(for_span) = status.in_for_init {
-          for_init_vars
-            .entry(for_span)
-            .or_insert_with(Vec::new)
-            .push((sym.clone(), *status));
-        } else if status.should_report() {
-          self.report(sym, status.span);
-        }
-      }
-    }
-
-    // With regard to init sections of for statements, we should report diagnostics only if *all*
-    // variables there need to be reported.
-    for (sym, var) in for_init_vars
-      .iter()
-      .filter_map(|(_, vars)| {
-        if vars.iter().all(|(_, status)| status.should_report()) {
-          Some(vars)
-        } else {
-          None
-        }
-      })
-      .flatten()
-    {
-      self.report(sym, var.span);
     }
   }
 }
@@ -662,7 +723,10 @@ impl<'c> Visit for PreferConstVisitor<'c> {
 
   fn visit_program(&mut self, program: &Program, _: &dyn Node) {
     program.visit_children_with(self);
-    self.exit_program();
+    // After visiting all nodes, reports errors.
+    for span in self.var_groups.dump() {
+      self.report(span);
+    }
   }
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
@@ -682,9 +746,7 @@ impl<'c> Visit for PreferConstVisitor<'c> {
       _ => vec![],
     };
 
-    for ident in idents {
-      self.mark_reassigned(&ident, true);
-    }
+    self.process_var_status(idents.iter(), true);
   }
 
   fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _: &dyn Node) {
@@ -701,7 +763,7 @@ impl<'c> Visit for PreferConstVisitor<'c> {
           PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
           PatOrExpr::Expr(expr) => match &**expr {
             Expr::Ident(ident) => {
-              self.mark_reassigned(ident, false);
+              self.process_var_status(iter::once(ident), false);
             }
             otherwise => {
               otherwise.visit_children_with(self);
@@ -717,10 +779,7 @@ impl<'c> Visit for PreferConstVisitor<'c> {
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _: &dyn Node) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
-        self.mark_reassigned(
-          ident,
-          self.declared_outer_scope_or_param_var(ident),
-        );
+        self.process_var_status(iter::once(ident), false);
       }
       otherwise => otherwise.visit_children_with(self),
     }
@@ -1495,6 +1554,72 @@ let global2 = 42;
 
     assert!(scope_iter.next().is_none());
   }
+
+  #[test]
+  fn var_groups_1() {
+    let src = r#"
+let { foo, bar } = obj;
+let baz = 42;
+    "#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 2);
+    assert_eq!(v.var_groups.dump().len(), 3);
+  }
+
+  #[test]
+  fn var_groups_2() {
+    let src = r#"
+let { foo, bar: { bar, baz: x = 42 } } = obj;
+    "#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 1);
+    assert_eq!(
+      v.var_groups.roots.values().next().unwrap().0,
+      VarStatus::Initialized
+    );
+    assert_eq!(v.var_groups.dump().len(), 3);
+  }
+
+  #[test]
+  fn var_groups_3() {
+    let src = r#"
+function f(x: number, y: string = 42) {}
+"#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 2);
+    for &(s, _) in v.var_groups.roots.values() {
+      assert_eq!(s, VarStatus::Reassigned);
+    }
+    assert_eq!(v.var_groups.dump().len(), 0);
+  }
+
+  #[test]
+  fn var_groups_4() {
+    let src = r#"
+try {} catch (e) {}
+"#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 1);
+    assert_eq!(
+      v.var_groups.roots.values().next().unwrap().0,
+      VarStatus::Reassigned
+    );
+    assert_eq!(v.var_groups.dump().len(), 0);
+  }
+
+  #[test]
+  fn var_groups_5() {
+    let src = r#"
+for (let {a, b} of obj) {}
+"#;
+    let mut v = collect(src);
+    assert_eq!(v.var_groups.roots.len(), 1);
+    assert_eq!(
+      v.var_groups.roots.values().next().unwrap().0,
+      VarStatus::Initialized
+    );
+    assert_eq!(v.var_groups.dump().len(), 2);
+  }
 }
 
 #[cfg(test)]
@@ -1578,6 +1703,9 @@ mod prefer_const_tests {
       r#"let x; for (const a of [1,2,3]) { x = foo(); bar(x); }"#,
       r#"(function() { let x; for (const a of [1,2,3]) { x = foo(); bar(x); } })();"#,
       r#"let x; for (x of array) { x; }"#,
+
+      // if destructuring assignment pattern contains member access (e.g. `typeNode.returnType` in
+      // the above cases) then `predicate` should be treated as "reassigned".
       r#"let predicate; [typeNode.returnType, predicate] = foo();"#,
       r#"let predicate; [typeNode.returnType, ...predicate] = foo();"#,
       r#"let predicate; [typeNode.returnType,, predicate] = foo();"#,
@@ -1626,6 +1754,20 @@ mod prefer_const_tests {
       r#"let a = 0; for (a in [1, 2, 3]) foo(a);"#,
       r#"let a = 0; for (a of [1, 2, 3]) foo(a);"#,
       r#"let a = 0; for (a = 0; a < 10; a++) foo(a);"#,
+
+      // https://github.com/denoland/deno_lint/issues/522
+      // imitates `{ "destructuring": "all" }` in ESLint
+      r#"let {a, b} = obj; b = 0;"#,
+      r#"let a, b; ({a, b} = obj); b++;"#,
+      r#"let a, b, c; ({a, b} = obj1); ({b, c} = obj2); b++;"#,
+      r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#,
+      r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#,
+      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#,
+      r#"let { name, ...otherStuff } = obj; otherStuff = {};"#,
+      r#"(function() { let {a: x = -1, b: y} = {a:1,b:2}; y = 0; })();"#,
+      r#"(function() { let [x = -1, y] = [1,2]; y = 0; })();"#,
+      r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#,
+      r#"let [x = -1, y] = [1,2]; y = 0;"#,
     };
   }
 
@@ -1661,20 +1803,6 @@ mod prefer_const_tests {
           hint: PreferConstHint::UseConst,
         }
       ],
-      r#"let [x = -1, y] = [1,2]; y = 0;"#: [
-        {
-          col: 5,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#: [
-        {
-          col: 8,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
       r#"(function() { let x = 1; foo(x); })();"#: [
         {
           col: 18,
@@ -1696,24 +1824,10 @@ mod prefer_const_tests {
           hint: PreferConstHint::UseConst,
         }
       ],
-      r#"(function() { let [x = -1, y] = [1,2]; y = 0; })();"#: [
-        {
-          col: 19,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
       r#"let f = (function() { let g = x; })(); f = 1;"#: [
         {
           col: 26,
           message: variant!(PreferConstMessage, NeverReassigned, "g"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"(function() { let {a: x = -1, b: y} = {a:1,b:2}; y = 0; })();"#: [
-        {
-          col: 22,
-          message: variant!(PreferConstMessage, NeverReassigned, "x"),
           hint: PreferConstHint::UseConst,
         }
       ],
@@ -1794,27 +1908,6 @@ var foo = function() {
           hint: PreferConstHint::UseConst,
         }
       ],
-      r#"let {a = 0, b} = obj; b = 0; foo(a, b);"#: [
-        {
-          col: 5,
-          message: variant!(PreferConstMessage, NeverReassigned, "a"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let {a: {b, c}} = {a: {b: 1, c: 2}}; b = 3;"#: [
-        {
-          col: 12,
-          message: variant!(PreferConstMessage, NeverReassigned, "c"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let a, b; ({a = 0, b} = obj); b = 0; foo(a, b);"#: [
-        {
-          col: 4,
-          message: variant!(PreferConstMessage, NeverReassigned, "a"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
       r#"let [a] = [1]"#: [
         {
           col: 5,
@@ -1831,20 +1924,8 @@ var foo = function() {
       ],
       r#"let {a = 0, b} = obj, c = a; b = a;"#: [
         {
-          col: 5,
-          message: variant!(PreferConstMessage, NeverReassigned, "a"),
-          hint: PreferConstHint::UseConst,
-        },
-        {
           col: 22,
           message: variant!(PreferConstMessage, NeverReassigned, "c"),
-          hint: PreferConstHint::UseConst,
-        }
-      ],
-      r#"let { name, ...otherStuff } = obj; otherStuff = {};"#: [
-        {
-          col: 6,
-          message: variant!(PreferConstMessage, NeverReassigned, "name"),
           hint: PreferConstHint::UseConst,
         }
       ],
@@ -1871,13 +1952,13 @@ var foo = function() {
       ],
       r#"let { foo, bar } = baz;"#: [
         {
-          col: 11,
-          message: variant!(PreferConstMessage, NeverReassigned, "bar"),
+          col: 6,
+          message: variant!(PreferConstMessage, NeverReassigned, "foo"),
           hint: PreferConstHint::UseConst,
         },
         {
-          col: 6,
-          message: variant!(PreferConstMessage, NeverReassigned, "foo"),
+          col: 11,
+          message: variant!(PreferConstMessage, NeverReassigned, "bar"),
           hint: PreferConstHint::UseConst,
         }
       ],
@@ -1973,16 +2054,6 @@ var foo = function() {
           message: variant!(PreferConstMessage, NeverReassigned, "c"),
           hint: PreferConstHint::UseConst,
         },
-        {
-          col: 32,
-          message: variant!(PreferConstMessage, NeverReassigned, "y"),
-          hint: PreferConstHint::UseConst,
-        },
-        {
-          col: 35,
-          message: variant!(PreferConstMessage, NeverReassigned, "z"),
-          hint: PreferConstHint::UseConst,
-        }
       ],
       r#"let x = 'x', y = 'y'; function someFunc() { let a = 1, b = 2; foo(a, b) }"#: [
         {
