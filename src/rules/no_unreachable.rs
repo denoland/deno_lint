@@ -345,6 +345,30 @@ class Class {
 
 console.log("unreachable???");
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/582
+      r#"
+try {
+  try {
+    throw new Error();
+  } catch {
+    throw new Error();
+  }
+} catch {
+  console.log("Statement reached!");
+}
+      "#,
+      r#"
+try {
+  try {
+    throw new Error();
+  } catch {
+    foo();
+  }
+} catch {
+  console.log("Statement reached!");
+}
+      "#,
     };
   }
 
