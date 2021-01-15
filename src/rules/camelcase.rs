@@ -1042,7 +1042,7 @@ mod tests {
             {
               col: 13,
               message: "Identifier 'snake_case' is not in camel case.",
-              hint: "Consider renaming `snake_case` to `snakeCase`",
+              hint: r#"Consider renaming `snake_case` to `snakeCase`, or wrapping it in quotation mark like `"snake_case"`"#,
             }
           ],
     r#"interface foo_bar { ok: string; };"#: [
@@ -1056,7 +1056,7 @@ mod tests {
             {
               col: 16,
               message: "Identifier 'snake_case' is not in camel case.",
-              hint: "Consider renaming `snake_case` to `snakeCase`",
+              hint: r#"Consider renaming `snake_case` to `snakeCase`, or wrapping it in quotation mark like `"snake_case"`"#,
             }
           ],
     r#"namespace foo_bar {}"#: [
