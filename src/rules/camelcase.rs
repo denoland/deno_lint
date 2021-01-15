@@ -12,7 +12,9 @@ use swc_ecmascript::ast::{
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
   ObjectPatProp, Param, Pat, Program, Prop, PropName, PropOrSpread, RestPat,
-  SetterProp, VarDecl,
+  SetterProp, TsEnumDecl, TsEnumMemberId, TsInterfaceDecl, TsModuleDecl,
+  TsModuleName, TsNamespaceDecl, TsType, TsTypeAliasDecl, TsTypeElement,
+  VarDecl,
 };
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
@@ -146,6 +148,18 @@ enum IdentToCheck {
   Function(String),
   /// Class name e.g. `Foo` in `class Foo {}`
   Class(String),
+  /// Type alias e.g. `Foo` in `type Foo = string;`
+  TypeAlias(String),
+  /// Interface name e.g. `Foo` in `interface Foo {}`
+  Interface(String),
+  /// Enum name e.g. `Foo` in `enum Foo {}`
+  EnumName(String),
+  /// Enum variant e.g. `Bar` in `enum Foo { Bar }`
+  EnumVariant(String),
+  /// Namespace e.g. `Foo` in `namespace Foo {}`
+  Namespace(String),
+  /// Module e.g. `Foo` in `module Foo {}`
+  Module(String),
   /// Key and value name in object pattern, for example:
   ///
   /// ```typescript
@@ -199,6 +213,30 @@ impl IdentToCheck {
     Self::Class(name.as_ref().to_string())
   }
 
+  fn type_alias(name: impl AsRef<str>) -> Self {
+    Self::TypeAlias(name.as_ref().to_string())
+  }
+
+  fn interface(name: impl AsRef<str>) -> Self {
+    Self::Interface(name.as_ref().to_string())
+  }
+
+  fn enum_name(name: impl AsRef<str>) -> Self {
+    Self::EnumName(name.as_ref().to_string())
+  }
+
+  fn enum_variant(name: impl AsRef<str>) -> Self {
+    Self::EnumVariant(name.as_ref().to_string())
+  }
+
+  fn namespace(name: impl AsRef<str>) -> Self {
+    Self::Namespace(name.as_ref().to_string())
+  }
+
+  fn module(name: impl AsRef<str>) -> Self {
+    Self::Module(name.as_ref().to_string())
+  }
+
   fn object_pat<K, V>(
     key_name: &K,
     value_name: Option<&V>,
@@ -230,7 +268,13 @@ impl IdentToCheck {
     match self {
       IdentToCheck::Variable(name)
       | IdentToCheck::Function(name)
-      | IdentToCheck::Class(name) => name,
+      | IdentToCheck::Class(name)
+      | IdentToCheck::TypeAlias(name)
+      | IdentToCheck::Interface(name)
+      | IdentToCheck::EnumName(name)
+      | IdentToCheck::EnumVariant(name)
+      | IdentToCheck::Namespace(name)
+      | IdentToCheck::Module(name) => name,
       IdentToCheck::ObjectKey { ref key_name, .. } => key_name,
       IdentToCheck::ObjectPat {
         key_name,
@@ -277,12 +321,25 @@ impl IdentToCheck {
           )
         }
       }
-      IdentToCheck::Class(name) => {
+      IdentToCheck::Class(name)
+      | IdentToCheck::TypeAlias(name)
+      | IdentToCheck::Interface(name)
+      | IdentToCheck::EnumName(name)
+      | IdentToCheck::EnumVariant(name)
+      | IdentToCheck::Namespace(name)
+      | IdentToCheck::Module(name) => {
         let camel_cased = to_camelcase(name);
         static FIRST_CHAR_LOWERCASE: Lazy<Regex> =
           Lazy::new(|| Regex::new(r"^[a-z]").unwrap());
 
-        // Class name should be in pascal case
+        // The following names should be in pascal case
+        // - class
+        // - type alias
+        // - interface
+        // - enum
+        // - enum variant
+        // - namespace
+        // - module
         let pascal_cased = FIRST_CHAR_LOWERCASE
           .replace(&camel_cased, |caps: &Captures| {
             caps[0].to_ascii_uppercase()
@@ -364,6 +421,39 @@ impl<'c> CamelcaseVisitor<'c> {
     let span = span.span();
     if self.visited.insert(span) && is_underscored(ident.get_ident_name()) {
       self.errors.insert(span, ident);
+    }
+  }
+
+  fn check_ts_type(&mut self, ty: &TsType) {
+    if let TsType::TsTypeLit(type_lit) = ty {
+      for member in &type_lit.members {
+        self.check_ts_type_element(member);
+      }
+    }
+  }
+
+  fn check_ts_type_element(&mut self, ty_el: &TsTypeElement) {
+    use swc_ecmascript::ast::TsTypeElement::*;
+    match ty_el {
+      TsPropertySignature(prop_sig) => {
+        if let Expr::Ident(ident) = &*prop_sig.key {
+          self.check_ident(ident, IdentToCheck::object_key(ident, false));
+        }
+        if let Some(type_ann) = &prop_sig.type_ann {
+          self.check_ts_type(&*type_ann.type_ann);
+        }
+      }
+      TsMethodSignature(method_sig) => {
+        if let Expr::Ident(ident) = &*method_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident));
+        }
+        if let Some(type_ann) = &method_sig.type_ann {
+          self.check_ts_type(&*type_ann.type_ann);
+        }
+      }
+      TsIndexSignature(_)
+      | TsCallSignatureDecl(_)
+      | TsConstructSignatureDecl(_) => {}
     }
   }
 
@@ -564,6 +654,78 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     let ExportNamespaceSpecifier { name, .. } = export_namespace_specifier;
     self.check_ident(name, IdentToCheck::variable(name));
     export_namespace_specifier.visit_children_with(self);
+  }
+
+  fn visit_ts_type_alias_decl(
+    &mut self,
+    type_alias: &TsTypeAliasDecl,
+    _: &dyn Node,
+  ) {
+    if type_alias.declare {
+      return;
+    }
+    self.check_ident(&type_alias.id, IdentToCheck::type_alias(&type_alias.id));
+    self.check_ts_type(&*type_alias.type_ann);
+  }
+
+  fn visit_ts_interface_decl(
+    &mut self,
+    interface_decl: &TsInterfaceDecl,
+    _: &dyn Node,
+  ) {
+    if interface_decl.declare {
+      return;
+    }
+    self.check_ident(
+      &interface_decl.id,
+      IdentToCheck::interface(&interface_decl.id),
+    );
+
+    for ty_el in &interface_decl.body.body {
+      self.check_ts_type_element(ty_el);
+    }
+  }
+
+  fn visit_ts_namespace_decl(
+    &mut self,
+    namespace_decl: &TsNamespaceDecl,
+    _: &dyn Node,
+  ) {
+    if namespace_decl.declare {
+      return;
+    }
+
+    self.check_ident(
+      &namespace_decl.id,
+      IdentToCheck::namespace(&namespace_decl.id),
+    );
+
+    namespace_decl.visit_children_with(self);
+  }
+
+  fn visit_ts_module_decl(&mut self, module_decl: &TsModuleDecl, _: &dyn Node) {
+    if module_decl.declare {
+      return;
+    }
+
+    if let TsModuleName::Ident(id) = &module_decl.id {
+      self.check_ident(id, IdentToCheck::module(id));
+    }
+
+    module_decl.visit_children_with(self);
+  }
+
+  fn visit_ts_enum_decl(&mut self, enum_decl: &TsEnumDecl, _: &dyn Node) {
+    if enum_decl.declare {
+      return;
+    }
+
+    self.check_ident(&enum_decl.id, IdentToCheck::enum_name(&enum_decl.id));
+    for variant in &enum_decl.members {
+      if let TsEnumMemberId::Ident(id) = &variant.id {
+        self.check_ident(id, IdentToCheck::enum_variant(id));
+      }
+    }
   }
 }
 
