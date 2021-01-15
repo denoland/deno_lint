@@ -12,9 +12,9 @@ use swc_ecmascript::ast::{
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
   ObjectPatProp, Param, Pat, Program, Prop, PropName, PropOrSpread, RestPat,
-  SetterProp, VarDeclarator,
+  SetterProp, VarDecl,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
 pub struct Camelcase;
 
@@ -439,65 +439,71 @@ impl<'c> CamelcaseVisitor<'c> {
 }
 
 impl<'c> Visit for CamelcaseVisitor<'c> {
-  noop_visit_type!();
-
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+    if fn_decl.declare {
+      return;
+    }
+
     self.check_ident(&fn_decl.ident, IdentToCheck::function(&fn_decl.ident));
     fn_decl.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
+    if class_decl.declare {
+      return;
+    }
     self.check_ident(&class_decl.ident, IdentToCheck::class(&class_decl.ident));
     class_decl.visit_children_with(self);
   }
 
-  fn visit_var_declarator(
-    &mut self,
-    var_declarator: &VarDeclarator,
-    _: &dyn Node,
-  ) {
-    self.check_pat(&var_declarator.name);
+  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+    if var_decl.declare {
+      return;
+    }
 
-    if let Some(expr) = &var_declarator.init {
-      match &**expr {
-        Expr::Object(ObjectLit { ref props, .. }) => {
-          for prop in props {
-            if let PropOrSpread::Prop(prop) = prop {
-              match &**prop {
-                Prop::Shorthand(ident) => {
-                  self.check_ident(ident, IdentToCheck::object_key(ident, true))
-                }
-                Prop::KeyValue(KeyValueProp { ref key, .. })
-                | Prop::Getter(GetterProp { ref key, .. })
-                | Prop::Setter(SetterProp { ref key, .. })
-                | Prop::Method(MethodProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(
-                      ident,
-                      IdentToCheck::object_key(ident, false),
-                    );
+    for decl in &var_decl.decls {
+      self.check_pat(&decl.name);
+
+      if let Some(expr) = &decl.init {
+        match &**expr {
+          Expr::Object(ObjectLit { ref props, .. }) => {
+            for prop in props {
+              if let PropOrSpread::Prop(prop) = prop {
+                match &**prop {
+                  Prop::Shorthand(ident) => self
+                    .check_ident(ident, IdentToCheck::object_key(ident, true)),
+                  Prop::KeyValue(KeyValueProp { ref key, .. })
+                  | Prop::Getter(GetterProp { ref key, .. })
+                  | Prop::Setter(SetterProp { ref key, .. })
+                  | Prop::Method(MethodProp { ref key, .. }) => {
+                    if let PropName::Ident(ident) = key {
+                      self.check_ident(
+                        ident,
+                        IdentToCheck::object_key(ident, false),
+                      );
+                    }
                   }
+                  Prop::Assign(_) => {}
                 }
-                Prop::Assign(_) => {}
               }
             }
           }
-        }
-        Expr::Fn(FnExpr { ref ident, .. }) => {
-          if let Some(ident) = ident {
-            self.check_ident(ident, IdentToCheck::function(ident));
+          Expr::Fn(FnExpr { ref ident, .. }) => {
+            if let Some(ident) = ident {
+              self.check_ident(ident, IdentToCheck::function(ident));
+            }
           }
-        }
-        Expr::Class(ClassExpr { ref ident, .. }) => {
-          if let Some(ident) = ident {
-            self.check_ident(ident, IdentToCheck::class(ident));
+          Expr::Class(ClassExpr { ref ident, .. }) => {
+            if let Some(ident) = ident {
+              self.check_ident(ident, IdentToCheck::class(ident));
+            }
           }
+          _ => {}
         }
-        _ => {}
       }
     }
 
-    var_declarator.visit_children_with(self);
+    var_decl.visit_children_with(self);
   }
 
   fn visit_param(&mut self, param: &Param, _: &dyn Node) {
