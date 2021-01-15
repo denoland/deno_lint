@@ -762,6 +762,21 @@ mod tests {
       // keys in quotation marks.
       r#"const obj = { "created_at": "2020-10-30T13:16:45+09:00" }"#,
       r#"const obj = { "created_at": created_at }"#,
+
+      // https://github.com/denoland/deno_lint/issues/587
+      // The rule shouldn't be applied to ambient declarations since the user who writes them is
+      // unable to fix their names.
+      r#"declare function foo_bar(a_b: number): void;"#,
+      r#"declare const foo_bar: number;"#,
+      r#"declare const foo_bar: number, snake_case: string;"#,
+      r#"declare let foo_bar: { some_property: string; };"#,
+      r#"declare var foo_bar: number;"#,
+      r#"declare class foo_bar { some_method(some_param: boolean): string; };"#,
+      r#"export declare const foo_bar: number;"#,
+      r#"declare type foo_bar = { some_var: string; };"#,
+      r#"declare interface foo_bar { some_var: string; }"#,
+      r#"declare namespace foo_bar {}"#,
+      r#"declare enum foo_bar { variant_one, variant_two }"#,
     };
   }
 
