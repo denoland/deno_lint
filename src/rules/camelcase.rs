@@ -1018,7 +1018,63 @@ mod tests {
               message: "Identifier 'no_camelcased' is not in camel case.",
               hint: "Consider renaming `no_camelcased` to `NoCamelcased`",
             }
-          ]
+          ],
+    r#"type foo_bar = string;"#: [
+            {
+              col: 5,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"type Foo = { snake_case: number; };"#: [
+            {
+              col: 13,
+              message: "Identifier 'snake_case' is not in camel case.",
+              hint: "Consider renaming `snake_case` to `snakeCase`",
+            }
+          ],
+    r#"interface foo_bar { ok: string; };"#: [
+            {
+              col: 10,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"interface Foo { snake_case: number; };"#: [
+            {
+              col: 16,
+              message: "Identifier 'snake_case' is not in camel case.",
+              hint: "Consider renaming `snake_case` to `snakeCase`",
+            }
+          ],
+    r#"namespace foo_bar {}"#: [
+            {
+              col: 10,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"namespace FooBar { const snake_case = 42; }"#: [
+            {
+              col: 25,
+              message: "Identifier 'snake_case' is not in camel case.",
+              hint: "Consider renaming `snake_case` to `snakeCase`",
+            }
+          ],
+    r#"enum foo_bar { VariantOne }"#: [
+            {
+              col: 5,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"enum FooBar { variant_one }"#: [
+            {
+              col: 14,
+              message: "Identifier 'variant_one' is not in camel case.",
+              hint: "Consider renaming `variant_one` to `VariantOne`",
+            }
+          ],
     };
   }
 }
