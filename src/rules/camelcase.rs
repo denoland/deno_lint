@@ -63,6 +63,12 @@ class Also_Not_Valid_Class {}
 
 import { not_camelCased } from "external-module.js";
 export * as not_camelCased from "mod.ts";
+
+enum snake_case_enum { snake_case_variant }
+
+type snake_case_type = { some_property: number; };
+
+interface snake_case_interface { some_property: number; }
 ```
 
 ### Valid:
@@ -83,6 +89,12 @@ class PascalCaseClass {}
 
 import { not_camelCased as camelCased } from "external-module.js";
 export * as camelCased from "mod.ts";
+
+enum PascalCaseEnum { PascalCaseVariant }
+
+type PascalCaseType = { someProperty: number; };
+
+interface PascalCaseInterface { someProperty: number; }
 ```
 "#
   }
