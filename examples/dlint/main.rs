@@ -11,15 +11,15 @@ use clap::SubCommand;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::linter::SourceFile;
 use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
 use log::debug;
 use rayon::prelude::*;
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use swc_common::BytePos;
 
 mod config;
 mod js;
@@ -89,11 +89,10 @@ fn get_slice_source_and_range<'a>(
 
 fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
-  source_file: Rc<SourceFile>,
+  source_code: &str,
+  lines: &[BytePos],
 ) {
-  let source_code = &source_file.src;
-  let line_start_indexes = source_file
-    .lines
+  let line_start_indexes = lines
     .iter()
     .map(|pos| pos.0 as usize)
     .enumerate()
@@ -157,8 +156,14 @@ fn run_linter(
   }
 
   let error_counts = Arc::new(AtomicUsize::new(0));
-  let output_lock = Arc::new(Mutex::new(())); // prevent threads outputting at the same time
 
+  struct FileDiagnostics {
+    source_code: String,
+    lines: Vec<BytePos>,
+    diagnostics: Vec<LintDiagnostic>,
+  }
+
+  let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
   paths.par_iter().for_each(|file_path| {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to load file");
@@ -190,15 +195,27 @@ fn run_linter(
 
     let mut linter = linter_builder.build();
 
-    let (source_file, file_diagnostics) = linter
+    let (source_file, diagnostics) = linter
       .lint(file_path.to_string_lossy().to_string(), source_code)
       .expect("Failed to lint");
 
-    error_counts.fetch_add(file_diagnostics.len(), Ordering::Relaxed);
-    let _g = output_lock.lock().unwrap();
+    error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
-    display_diagnostics(&file_diagnostics, source_file);
+    let mut lock = file_diagnostics.lock().unwrap();
+
+    lock.insert(
+      file_path,
+      FileDiagnostics {
+        diagnostics,
+        lines: source_file.lines.clone(),
+        source_code: source_file.src.to_string(),
+      },
+    );
   });
+
+  for d in file_diagnostics.lock().unwrap().values() {
+    display_diagnostics(&d.diagnostics, &d.source_code, &d.lines);
+  }
 
   let err_count = error_counts.load(Ordering::Relaxed);
   if err_count > 0 {
