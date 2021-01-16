@@ -12,9 +12,11 @@ use swc_ecmascript::ast::{
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
   ObjectPatProp, Param, Pat, Program, Prop, PropName, PropOrSpread, RestPat,
-  SetterProp, VarDeclarator,
+  SetterProp, TsEnumDecl, TsEnumMemberId, TsInterfaceDecl, TsModuleDecl,
+  TsModuleName, TsNamespaceDecl, TsType, TsTypeAliasDecl, TsTypeElement,
+  VarDecl,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
 pub struct Camelcase;
 
@@ -63,6 +65,12 @@ class Also_Not_Valid_Class {}
 
 import { not_camelCased } from "external-module.js";
 export * as not_camelCased from "mod.ts";
+
+enum snake_case_enum { snake_case_variant }
+
+type snake_case_type = { some_property: number; };
+
+interface snake_case_interface { some_property: number; }
 ```
 
 ### Valid:
@@ -83,6 +91,12 @@ class PascalCaseClass {}
 
 import { not_camelCased as camelCased } from "external-module.js";
 export * as camelCased from "mod.ts";
+
+enum PascalCaseEnum { PascalCaseVariant }
+
+type PascalCaseType = { someProperty: number; };
+
+interface PascalCaseInterface { someProperty: number; }
 ```
 "#
   }
@@ -134,6 +148,18 @@ enum IdentToCheck {
   Function(String),
   /// Class name e.g. `Foo` in `class Foo {}`
   Class(String),
+  /// Type alias e.g. `Foo` in `type Foo = string;`
+  TypeAlias(String),
+  /// Interface name e.g. `Foo` in `interface Foo {}`
+  Interface(String),
+  /// Enum name e.g. `Foo` in `enum Foo {}`
+  EnumName(String),
+  /// Enum variant e.g. `Bar` in `enum Foo { Bar }`
+  EnumVariant(String),
+  /// Namespace e.g. `Foo` in `namespace Foo {}`
+  Namespace(String),
+  /// Module e.g. `Foo` in `module Foo {}`
+  Module(String),
   /// Key and value name in object pattern, for example:
   ///
   /// ```typescript
@@ -187,6 +213,30 @@ impl IdentToCheck {
     Self::Class(name.as_ref().to_string())
   }
 
+  fn type_alias(name: impl AsRef<str>) -> Self {
+    Self::TypeAlias(name.as_ref().to_string())
+  }
+
+  fn interface(name: impl AsRef<str>) -> Self {
+    Self::Interface(name.as_ref().to_string())
+  }
+
+  fn enum_name(name: impl AsRef<str>) -> Self {
+    Self::EnumName(name.as_ref().to_string())
+  }
+
+  fn enum_variant(name: impl AsRef<str>) -> Self {
+    Self::EnumVariant(name.as_ref().to_string())
+  }
+
+  fn namespace(name: impl AsRef<str>) -> Self {
+    Self::Namespace(name.as_ref().to_string())
+  }
+
+  fn module(name: impl AsRef<str>) -> Self {
+    Self::Module(name.as_ref().to_string())
+  }
+
   fn object_pat<K, V>(
     key_name: &K,
     value_name: Option<&V>,
@@ -218,7 +268,13 @@ impl IdentToCheck {
     match self {
       IdentToCheck::Variable(name)
       | IdentToCheck::Function(name)
-      | IdentToCheck::Class(name) => name,
+      | IdentToCheck::Class(name)
+      | IdentToCheck::TypeAlias(name)
+      | IdentToCheck::Interface(name)
+      | IdentToCheck::EnumName(name)
+      | IdentToCheck::EnumVariant(name)
+      | IdentToCheck::Namespace(name)
+      | IdentToCheck::Module(name) => name,
       IdentToCheck::ObjectKey { ref key_name, .. } => key_name,
       IdentToCheck::ObjectPat {
         key_name,
@@ -265,12 +321,25 @@ impl IdentToCheck {
           )
         }
       }
-      IdentToCheck::Class(name) => {
+      IdentToCheck::Class(name)
+      | IdentToCheck::TypeAlias(name)
+      | IdentToCheck::Interface(name)
+      | IdentToCheck::EnumName(name)
+      | IdentToCheck::EnumVariant(name)
+      | IdentToCheck::Namespace(name)
+      | IdentToCheck::Module(name) => {
         let camel_cased = to_camelcase(name);
         static FIRST_CHAR_LOWERCASE: Lazy<Regex> =
           Lazy::new(|| Regex::new(r"^[a-z]").unwrap());
 
-        // Class name should be in pascal case
+        // The following names should be in pascal case
+        // - class
+        // - type alias
+        // - interface
+        // - enum
+        // - enum variant
+        // - namespace
+        // - module
         let pascal_cased = FIRST_CHAR_LOWERCASE
           .replace(&camel_cased, |caps: &Captures| {
             caps[0].to_ascii_uppercase()
@@ -352,6 +421,39 @@ impl<'c> CamelcaseVisitor<'c> {
     let span = span.span();
     if self.visited.insert(span) && is_underscored(ident.get_ident_name()) {
       self.errors.insert(span, ident);
+    }
+  }
+
+  fn check_ts_type(&mut self, ty: &TsType) {
+    if let TsType::TsTypeLit(type_lit) = ty {
+      for member in &type_lit.members {
+        self.check_ts_type_element(member);
+      }
+    }
+  }
+
+  fn check_ts_type_element(&mut self, ty_el: &TsTypeElement) {
+    use swc_ecmascript::ast::TsTypeElement::*;
+    match ty_el {
+      TsPropertySignature(prop_sig) => {
+        if let Expr::Ident(ident) = &*prop_sig.key {
+          self.check_ident(ident, IdentToCheck::object_key(ident, false));
+        }
+        if let Some(type_ann) = &prop_sig.type_ann {
+          self.check_ts_type(&*type_ann.type_ann);
+        }
+      }
+      TsMethodSignature(method_sig) => {
+        if let Expr::Ident(ident) = &*method_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident));
+        }
+        if let Some(type_ann) = &method_sig.type_ann {
+          self.check_ts_type(&*type_ann.type_ann);
+        }
+      }
+      TsIndexSignature(_)
+      | TsCallSignatureDecl(_)
+      | TsConstructSignatureDecl(_) => {}
     }
   }
 
@@ -439,65 +541,71 @@ impl<'c> CamelcaseVisitor<'c> {
 }
 
 impl<'c> Visit for CamelcaseVisitor<'c> {
-  noop_visit_type!();
-
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+    if fn_decl.declare {
+      return;
+    }
+
     self.check_ident(&fn_decl.ident, IdentToCheck::function(&fn_decl.ident));
     fn_decl.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
+    if class_decl.declare {
+      return;
+    }
     self.check_ident(&class_decl.ident, IdentToCheck::class(&class_decl.ident));
     class_decl.visit_children_with(self);
   }
 
-  fn visit_var_declarator(
-    &mut self,
-    var_declarator: &VarDeclarator,
-    _: &dyn Node,
-  ) {
-    self.check_pat(&var_declarator.name);
+  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+    if var_decl.declare {
+      return;
+    }
 
-    if let Some(expr) = &var_declarator.init {
-      match &**expr {
-        Expr::Object(ObjectLit { ref props, .. }) => {
-          for prop in props {
-            if let PropOrSpread::Prop(prop) = prop {
-              match &**prop {
-                Prop::Shorthand(ident) => {
-                  self.check_ident(ident, IdentToCheck::object_key(ident, true))
-                }
-                Prop::KeyValue(KeyValueProp { ref key, .. })
-                | Prop::Getter(GetterProp { ref key, .. })
-                | Prop::Setter(SetterProp { ref key, .. })
-                | Prop::Method(MethodProp { ref key, .. }) => {
-                  if let PropName::Ident(ident) = key {
-                    self.check_ident(
-                      ident,
-                      IdentToCheck::object_key(ident, false),
-                    );
+    for decl in &var_decl.decls {
+      self.check_pat(&decl.name);
+
+      if let Some(expr) = &decl.init {
+        match &**expr {
+          Expr::Object(ObjectLit { ref props, .. }) => {
+            for prop in props {
+              if let PropOrSpread::Prop(prop) = prop {
+                match &**prop {
+                  Prop::Shorthand(ident) => self
+                    .check_ident(ident, IdentToCheck::object_key(ident, true)),
+                  Prop::KeyValue(KeyValueProp { ref key, .. })
+                  | Prop::Getter(GetterProp { ref key, .. })
+                  | Prop::Setter(SetterProp { ref key, .. })
+                  | Prop::Method(MethodProp { ref key, .. }) => {
+                    if let PropName::Ident(ident) = key {
+                      self.check_ident(
+                        ident,
+                        IdentToCheck::object_key(ident, false),
+                      );
+                    }
                   }
+                  Prop::Assign(_) => {}
                 }
-                Prop::Assign(_) => {}
               }
             }
           }
-        }
-        Expr::Fn(FnExpr { ref ident, .. }) => {
-          if let Some(ident) = ident {
-            self.check_ident(ident, IdentToCheck::function(ident));
+          Expr::Fn(FnExpr { ref ident, .. }) => {
+            if let Some(ident) = ident {
+              self.check_ident(ident, IdentToCheck::function(ident));
+            }
           }
-        }
-        Expr::Class(ClassExpr { ref ident, .. }) => {
-          if let Some(ident) = ident {
-            self.check_ident(ident, IdentToCheck::class(ident));
+          Expr::Class(ClassExpr { ref ident, .. }) => {
+            if let Some(ident) = ident {
+              self.check_ident(ident, IdentToCheck::class(ident));
+            }
           }
+          _ => {}
         }
-        _ => {}
       }
     }
 
-    var_declarator.visit_children_with(self);
+    var_decl.visit_children_with(self);
   }
 
   fn visit_param(&mut self, param: &Param, _: &dyn Node) {
@@ -546,6 +654,78 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
     let ExportNamespaceSpecifier { name, .. } = export_namespace_specifier;
     self.check_ident(name, IdentToCheck::variable(name));
     export_namespace_specifier.visit_children_with(self);
+  }
+
+  fn visit_ts_type_alias_decl(
+    &mut self,
+    type_alias: &TsTypeAliasDecl,
+    _: &dyn Node,
+  ) {
+    if type_alias.declare {
+      return;
+    }
+    self.check_ident(&type_alias.id, IdentToCheck::type_alias(&type_alias.id));
+    self.check_ts_type(&*type_alias.type_ann);
+  }
+
+  fn visit_ts_interface_decl(
+    &mut self,
+    interface_decl: &TsInterfaceDecl,
+    _: &dyn Node,
+  ) {
+    if interface_decl.declare {
+      return;
+    }
+    self.check_ident(
+      &interface_decl.id,
+      IdentToCheck::interface(&interface_decl.id),
+    );
+
+    for ty_el in &interface_decl.body.body {
+      self.check_ts_type_element(ty_el);
+    }
+  }
+
+  fn visit_ts_namespace_decl(
+    &mut self,
+    namespace_decl: &TsNamespaceDecl,
+    _: &dyn Node,
+  ) {
+    if namespace_decl.declare {
+      return;
+    }
+
+    self.check_ident(
+      &namespace_decl.id,
+      IdentToCheck::namespace(&namespace_decl.id),
+    );
+
+    namespace_decl.visit_children_with(self);
+  }
+
+  fn visit_ts_module_decl(&mut self, module_decl: &TsModuleDecl, _: &dyn Node) {
+    if module_decl.declare {
+      return;
+    }
+
+    if let TsModuleName::Ident(id) = &module_decl.id {
+      self.check_ident(id, IdentToCheck::module(id));
+    }
+
+    module_decl.visit_children_with(self);
+  }
+
+  fn visit_ts_enum_decl(&mut self, enum_decl: &TsEnumDecl, _: &dyn Node) {
+    if enum_decl.declare {
+      return;
+    }
+
+    self.check_ident(&enum_decl.id, IdentToCheck::enum_name(&enum_decl.id));
+    for variant in &enum_decl.members {
+      if let TsEnumMemberId::Ident(id) = &variant.id {
+        self.check_ident(id, IdentToCheck::enum_variant(id));
+      }
+    }
   }
 }
 
@@ -762,6 +942,21 @@ mod tests {
       // keys in quotation marks.
       r#"const obj = { "created_at": "2020-10-30T13:16:45+09:00" }"#,
       r#"const obj = { "created_at": created_at }"#,
+
+      // https://github.com/denoland/deno_lint/issues/587
+      // The rule shouldn't be applied to ambient declarations since the user who writes them is
+      // unable to fix their names.
+      r#"declare function foo_bar(a_b: number): void;"#,
+      r#"declare const foo_bar: number;"#,
+      r#"declare const foo_bar: number, snake_case: string;"#,
+      r#"declare let foo_bar: { some_property: string; };"#,
+      r#"declare var foo_bar: number;"#,
+      r#"declare class foo_bar { some_method(some_param: boolean): string; };"#,
+      r#"export declare const foo_bar: number;"#,
+      r#"declare type foo_bar = { some_var: string; };"#,
+      r#"declare interface foo_bar { some_var: string; }"#,
+      r#"declare namespace foo_bar {}"#,
+      r#"declare enum foo_bar { variant_one, variant_two }"#,
     };
   }
 
@@ -997,7 +1192,63 @@ mod tests {
               message: "Identifier 'no_camelcased' is not in camel case.",
               hint: "Consider renaming `no_camelcased` to `NoCamelcased`",
             }
-          ]
+          ],
+    r#"type foo_bar = string;"#: [
+            {
+              col: 5,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"type Foo = { snake_case: number; };"#: [
+            {
+              col: 13,
+              message: "Identifier 'snake_case' is not in camel case.",
+              hint: r#"Consider renaming `snake_case` to `snakeCase`, or wrapping it in quotation mark like `"snake_case"`"#,
+            }
+          ],
+    r#"interface foo_bar { ok: string; };"#: [
+            {
+              col: 10,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"interface Foo { snake_case: number; };"#: [
+            {
+              col: 16,
+              message: "Identifier 'snake_case' is not in camel case.",
+              hint: r#"Consider renaming `snake_case` to `snakeCase`, or wrapping it in quotation mark like `"snake_case"`"#,
+            }
+          ],
+    r#"namespace foo_bar {}"#: [
+            {
+              col: 10,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"namespace FooBar { const snake_case = 42; }"#: [
+            {
+              col: 25,
+              message: "Identifier 'snake_case' is not in camel case.",
+              hint: "Consider renaming `snake_case` to `snakeCase`",
+            }
+          ],
+    r#"enum foo_bar { VariantOne }"#: [
+            {
+              col: 5,
+              message: "Identifier 'foo_bar' is not in camel case.",
+              hint: "Consider renaming `foo_bar` to `FooBar`",
+            }
+          ],
+    r#"enum FooBar { variant_one }"#: [
+            {
+              col: 14,
+              message: "Identifier 'variant_one' is not in camel case.",
+              hint: "Consider renaming `variant_one` to `VariantOne`",
+            }
+          ],
     };
   }
 }
