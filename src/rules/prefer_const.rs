@@ -960,7 +960,7 @@ mod variable_collector_tests {
   use crate::test_util;
 
   fn collect(src: &str) -> VariableCollector {
-    let program = test_util::parse(src);
+    let (program, _) = test_util::parse(src);
     let mut v = VariableCollector::new();
     v.visit_program(&program, &program);
     v

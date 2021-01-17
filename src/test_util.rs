@@ -5,6 +5,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use std::marker::PhantomData;
+use swc_common::comments::SingleThreadedComments;
 use swc_ecmascript::ast::Program;
 
 #[macro_export]
@@ -301,11 +302,11 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   }
 }
 
-pub fn parse(source_code: &str) -> Program {
+pub fn parse(source_code: &str) -> (Program, SingleThreadedComments) {
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();
-  let (program, _comments) = ast_parser
+  let (program, comments) = ast_parser
     .parse_program("file_name.ts", syntax, source_code)
     .unwrap();
-  program
+  (program, comments)
 }
