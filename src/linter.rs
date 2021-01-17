@@ -246,6 +246,33 @@ impl Linter {
     Ok((source_file, diagnostics))
   }
 
+  pub fn lint_with_ast(
+    &mut self,
+    file_name: String,
+    ast: swc_ecmascript::ast::Program,
+    comments: swc_common::comments::SingleThreadedComments,
+  ) -> Result<
+    (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
+    SwcDiagnosticBuffer,
+  > {
+    assert!(
+      !self.has_linted,
+      "Linter can be used only on a single module."
+    );
+    self.has_linted = true;
+    let start = Instant::now();
+    let diagnostics = self.lint_program(file_name.clone(), ast, comments);
+
+    let source_file = self
+      .ast_parser
+      .source_map
+      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .unwrap();
+    let end = Instant::now();
+    debug!("Linter::lint_with_ast took {:#?}", end - start);
+    Ok((source_file, diagnostics))
+  }
+
   fn filter_diagnostics(&self, context: &mut Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let ignore_directives = context.ignore_directives.clone();
