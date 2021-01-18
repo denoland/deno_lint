@@ -85,9 +85,6 @@ mod tests {
 
   #[test]
   fn no_var_valid() {
-    assert_lint_ok::<NoVar>(
-      r#"let foo = 0; const bar = "bar""#,
-      0
-    );
+    assert_lint_ok::<NoVar>(r#"let foo = 0; const bar = "bar""#);
   }
 }
