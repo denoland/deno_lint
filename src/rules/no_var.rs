@@ -9,6 +9,8 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoVar;
 
+const MESSAGE: &str = "`var` keyword is not allowed.";
+
 impl LintRule for NoVar {
   fn new() -> Box<Self> {
     Box::new(NoVar)
@@ -61,11 +63,9 @@ impl<'c> Visit for NoVarVisitor<'c> {
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.kind == VarDeclKind::Var {
-      self.context.add_diagnostic(
-        var_decl.span,
-        "no-var",
-        "`var` keyword is not allowed",
-      );
+      self
+        .context
+        .add_diagnostic(var_decl.span, "no-var", MESSAGE);
     }
   }
 }
@@ -80,6 +80,28 @@ mod tests {
     assert_lint_err::<NoVar>(
       r#"var someVar = "someString"; const c = "c"; let a = "a";"#,
       0,
+    );
+
+    assert_lint_err!(
+      NoVar,
+      "var foo = 'bar';": [{
+        col: 0,
+        message: MESSAGE,
+      }],
+      "let foo = 'bar'; var i = 0;": [{
+        col: 17,
+        message: MESSAGE,
+      }],
+      "let foo = 'bar'; var i = 0; var x = 1;": [
+        {
+          col: 17,
+          message: MESSAGE,
+        },
+        {
+          col: 28,
+          message: MESSAGE,
+        }
+      ]
     );
   }
 
