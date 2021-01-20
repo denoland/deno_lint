@@ -10,6 +10,7 @@ use swc_ecmascript::visit::Visit;
 pub struct NoVar;
 
 const MESSAGE: &str = "`var` keyword is not allowed.";
+const CODE: &str = "no-var";
 
 impl LintRule for NoVar {
   fn new() -> Box<Self> {
@@ -17,7 +18,7 @@ impl LintRule for NoVar {
   }
 
   fn code(&self) -> &'static str {
-    "no-var"
+    CODE
   }
 
   fn lint_program(
@@ -36,7 +37,7 @@ impl LintRule for NoVar {
 
 ### Invalid:
 ```typescript
-var foo = 'bar';
+var foo = "bar";
 ```
 
 ### Valid:
@@ -63,9 +64,7 @@ impl<'c> Visit for NoVarVisitor<'c> {
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     if var_decl.kind == VarDeclKind::Var {
-      self
-        .context
-        .add_diagnostic(var_decl.span, "no-var", MESSAGE);
+      self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
     }
   }
 }
@@ -76,37 +75,32 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
-  fn no_var_invalid() {
-    assert_lint_err::<NoVar>(
-      r#"var someVar = "someString"; const c = "c"; let a = "a";"#,
-      0,
-    );
+  fn no_var_valid() {
+    assert_lint_ok::<NoVar>(r#"let foo = 0; const bar = "bar""#);
+  }
 
+  #[test]
+  fn no_var_invalid() {
     assert_lint_err!(
       NoVar,
-      "var foo = 'bar';": [{
+      "var foo = 0;": [{
         col: 0,
         message: MESSAGE,
       }],
-      "let foo = 'bar'; var i = 0;": [{
-        col: 17,
+      "let foo = 0; var bar = 1;": [{
+        col: 13,
         message: MESSAGE,
       }],
-      "let foo = 'bar'; var i = 0; var x = 1;": [
+      "let foo = 0; var bar = 1; var x = 2;": [
         {
-          col: 17,
+          col: 13,
           message: MESSAGE,
         },
         {
-          col: 28,
+          col: 26,
           message: MESSAGE,
         }
       ]
     );
-  }
-
-  #[test]
-  fn no_var_valid() {
-    assert_lint_ok::<NoVar>(r#"let foo = 0; const bar = "bar""#);
   }
 }
