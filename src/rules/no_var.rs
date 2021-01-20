@@ -72,11 +72,10 @@ impl<'c> Visit for NoVarVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_var_valid() {
-    assert_lint_ok::<NoVar>(r#"let foo = 0; const bar = "bar""#);
+    assert_lint_ok!(NoVar, r#"let foo = 0; const bar = 1"#,);
   }
 
   #[test]
