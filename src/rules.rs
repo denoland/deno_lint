@@ -87,14 +87,34 @@ pub mod use_isnan;
 pub mod valid_typeof;
 
 pub trait LintRule {
+  /// Creates a instance of this rule.
   fn new() -> Box<Self>
   where
     Self: Sized;
+
+  /// Executes lint on the given `Program`.
   fn lint_program(&self, context: &mut Context, program: &Program);
+
+  /// Executes lint using `dprint-swc-ecma-ast-view`.
+  /// Falls back to the `lint_program` method if not implemented.
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: &Program,
+  ) {
+    self.lint_program(context, program);
+  }
+
+  /// Returns the unique code that identifies the rule
   fn code(&self) -> &'static str;
+
+  /// Returns the tags this rule belongs to, e.g. `recommended`
   fn tags(&self) -> &'static [&'static str] {
     &[]
   }
+
+  /// Returns the documentation string for this rule, describing what this rule is for with several
+  /// examples.
   fn docs(&self) -> &'static str {
     ""
   }
