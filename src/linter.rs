@@ -1,4 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::get_default_ts_config;
 use crate::ast_parser::AstParser;
 use crate::ast_parser::SwcDiagnosticBuffer;

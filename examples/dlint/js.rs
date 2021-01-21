@@ -1,3 +1,4 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::Context as _;
 use deno_core::error::AnyError;
 use deno_core::FsModuleLoader;
