@@ -1,3 +1,4 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 export default class LintRule extends Visitor {
   static ruleCode() {
     return "forbidden-ident-name";
