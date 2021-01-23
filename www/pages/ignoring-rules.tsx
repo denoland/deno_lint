@@ -39,6 +39,7 @@ function IgnoringRulesPage(props: PageProps<Data>) {
 export const getStaticData = async (): Promise<GetStaticData<Data>> => {
   const raw = await Deno.readTextFile("./public/ignoring-rules.md");
 
+  // @ts-expect-error doesn't have types
   const md = new MarkdownIt();
 
   const html = md.render(raw);
