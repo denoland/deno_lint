@@ -1,5 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
-
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use annotate_snippets::display_list;
 use annotate_snippets::snippet;
 use anyhow::bail;

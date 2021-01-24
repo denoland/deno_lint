@@ -1,4 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::diagnostic::{LintDiagnostic, Position};
 use once_cell::sync::Lazy;
 use regex::Regex;

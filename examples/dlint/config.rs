@@ -1,5 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
-
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::bail;
 use anyhow::Error as AnyError;
 use deno_lint::rules::{get_all_rules, LintRule};

@@ -1,4 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 //
 // This file was generated with ECMAScript specifications.
 // Originally from: https://github.com/mysticatea/regexpp
