@@ -17,9 +17,8 @@ use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::thread;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use swc_common::BytePos;
 
 mod config;
@@ -156,31 +155,16 @@ fn run_linter(
     paths.extend(config.get_files()?);
   }
 
+  let error_counts = Arc::new(AtomicUsize::new(0));
+
   struct FileDiagnostics {
     source_code: String,
     lines: Vec<BytePos>,
     diagnostics: Vec<LintDiagnostic>,
   }
 
-  let (sender, receiver) = mpsc::channel::<(PathBuf, FileDiagnostics)>();
-
-  let handle = thread::spawn(move || {
-    let mut file_diagnostics = BTreeMap::new();
-    let mut err_count = 0;
-    for (file_name, diagnostic) in receiver.iter() {
-      err_count += diagnostic.diagnostics.len();
-      file_diagnostics.insert(file_name, diagnostic);
-    }
-    for d in file_diagnostics.values() {
-      display_diagnostics(&d.diagnostics, &d.source_code, &d.lines);
-    }
-    if err_count > 0 {
-      eprintln!("Found {} problems", err_count);
-      std::process::exit(1);
-    }
-  });
-
-  paths.into_par_iter().for_each_with(sender, |s, file_path| {
+  let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
+  paths.par_iter().for_each(|file_path| {
     let source_code =
       std::fs::read_to_string(&file_path).expect("Failed to load file");
 
@@ -215,18 +199,30 @@ fn run_linter(
       .lint(file_path.to_string_lossy().to_string(), source_code)
       .expect("Failed to lint");
 
-    s.send((
+    error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
+
+    let mut lock = file_diagnostics.lock().unwrap();
+
+    lock.insert(
       file_path,
       FileDiagnostics {
         diagnostics,
         lines: source_file.lines.clone(),
         source_code: source_file.src.to_string(),
       },
-    ))
-    .unwrap();
+    );
   });
 
-  handle.join().unwrap();
+  for d in file_diagnostics.lock().unwrap().values() {
+    display_diagnostics(&d.diagnostics, &d.source_code, &d.lines);
+  }
+
+  let err_count = error_counts.load(Ordering::Relaxed);
+  if err_count > 0 {
+    eprintln!("Found {} problems", err_count);
+    std::process::exit(1);
+  }
+
   Ok(())
 }
 
