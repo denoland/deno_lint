@@ -234,7 +234,7 @@ impl Linter {
       end_parse_program - start
     );
     let (program, comments) = parse_result?;
-    let diagnostics = self.lint_program(file_name.clone(), program, comments);
+    let diagnostics = self.lint_program(file_name.clone(), &program, comments);
 
     let source_file = self
       .ast_parser
@@ -243,6 +243,39 @@ impl Linter {
       .unwrap();
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
+    Ok((source_file, diagnostics))
+  }
+
+  pub fn lint_with_ast(
+    &mut self,
+    file_name: String,
+    ast: &swc_ecmascript::ast::Program,
+    comments: swc_common::comments::SingleThreadedComments,
+    source_map: Rc<SourceMap>,
+  ) -> Result<
+    (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
+    SwcDiagnosticBuffer,
+  > {
+    assert!(
+      !self.has_linted,
+      "Linter can be used only on a single module."
+    );
+    self.has_linted = true;
+
+    self.ast_parser.source_map = source_map;
+
+    let start = Instant::now();
+
+    let diagnostics = self.lint_program(file_name.clone(), ast, comments);
+    let source_file = self
+      .ast_parser
+      .source_map
+      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .unwrap();
+
+    let end = Instant::now();
+    debug!("Linter::lint_with_ast took {:#?}", end - start);
+
     Ok((source_file, diagnostics))
   }
 
@@ -317,7 +350,7 @@ impl Linter {
   fn lint_program(
     &mut self,
     file_name: String,
-    program: swc_ecmascript::ast::Program,
+    program: &swc_ecmascript::ast::Program,
     comments: SingleThreadedComments,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
@@ -362,8 +395,8 @@ impl Linter {
       ignore_directives.insert(0, ignore_directive);
     }
 
-    let scope = Scope::analyze(&program);
-    let control_flow = ControlFlow::analyze(&program);
+    let scope = Scope::analyze(program);
+    let control_flow = ControlFlow::analyze(program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
@@ -384,7 +417,7 @@ impl Linter {
 
     // Run builtin rules
     for rule in &self.rules {
-      rule.lint_program(&mut context, &program);
+      rule.lint_program(&mut context, program);
     }
 
     // Run plugin rules
