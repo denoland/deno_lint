@@ -76,13 +76,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cargo clean --locked --release \
-                      -p ast_node \
-                      -p is-macro \
-                      -p serde_derive \
-                      -p swc_ecma_parser \
-                      -p swc_visit \
-                      -p swc_visit_macros \
-                      -p derive_more
+                      -p ast_node
 
       - name: Environment
         run: |
