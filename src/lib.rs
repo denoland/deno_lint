@@ -27,7 +27,11 @@ mod lint_tests {
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
   use crate::rules::{get_recommended_rules, LintRule};
-  use crate::test_util::assert_diagnostic;
+  use crate::test_util::{assert_diagnostic, parse};
+  use std::rc::Rc;
+  use swc_common::comments::SingleThreadedComments;
+  use swc_common::SourceMap;
+  use swc_ecmascript::ast::Program;
 
   fn lint(
     source: &str,
@@ -47,12 +51,49 @@ mod lint_tests {
     diagnostics
   }
 
+  fn lint_with_ast(
+    ast: Program,
+    comments: SingleThreadedComments,
+    source_map: Rc<SourceMap>,
+    unknown_rules: bool,
+    unused_dir: bool,
+    rules: Vec<Box<dyn LintRule>>,
+  ) -> Vec<LintDiagnostic> {
+    let mut linter = LinterBuilder::default()
+      .lint_unknown_rules(unknown_rules)
+      .lint_unused_ignore_directives(unused_dir)
+      .rules(rules)
+      .build();
+
+    let (_, diagnostics) = linter
+      .lint_with_ast("lint_test.ts".to_string(), &ast, comments, source_map)
+      .expect("Failed to lint");
+    diagnostics
+  }
+
   fn lint_recommended_rules(
     source: &str,
     unknown_rules: bool,
     unused_dir: bool,
   ) -> Vec<LintDiagnostic> {
     lint(source, unknown_rules, unused_dir, get_recommended_rules())
+  }
+
+  fn lint_recommended_rules_with_ast(
+    ast: Program,
+    comments: SingleThreadedComments,
+    source_map: Rc<SourceMap>,
+    unknown_rules: bool,
+    unused_dir: bool,
+  ) -> Vec<LintDiagnostic> {
+    lint_with_ast(
+      ast,
+      comments,
+      source_map,
+      unknown_rules,
+      unused_dir,
+      get_recommended_rules(),
+    )
   }
 
   fn lint_specified_rule<T: LintRule + 'static>(
@@ -208,5 +249,13 @@ const fooBar = 42;
 
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1, src);
+  }
+
+  #[test]
+  fn empty_file_with_ast() {
+    let (ast, comments, source_map) = parse("");
+    let diagnostics =
+      lint_recommended_rules_with_ast(ast, comments, source_map, true, false);
+    assert!(diagnostics.is_empty());
   }
 }
