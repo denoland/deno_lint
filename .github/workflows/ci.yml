@@ -80,7 +80,6 @@ jobs:
                       -p is-macro \
                       -p serde_derive \
                       -p swc_ecma_parser \
-                      -p swc_ecma_parser_macros \
                       -p swc_visit \
                       -p swc_visit_macros \
                       -p derive_more
