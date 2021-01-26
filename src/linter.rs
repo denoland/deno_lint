@@ -417,7 +417,7 @@ impl Linter {
 
     // Run builtin rules
     for rule in &self.rules {
-      rule.lint_program(&mut context, program);
+      rule.lint_program_with_ast_view(&mut context, program);
     }
 
     // Run plugin rules
