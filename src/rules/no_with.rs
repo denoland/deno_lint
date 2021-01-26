@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::handler::{handle_node, Handler};
+use crate::handler::{Handler, Traverse};
 use dprint_swc_ecma_ast_view::{with_ast_view, SourceFileInfo};
 use swc_ecmascript::ast::{Program, WithStmt};
 use swc_ecmascript::visit::noop_visit_type;
@@ -46,7 +46,7 @@ impl LintRule for NoWith {
 
       with_ast_view(info, |module| {
         let mut handler = NoWithVisitor::new(context);
-        handle_node(module, &mut handler);
+        handler.traverse(module);
       });
     } else {
       self.lint_program(context, program);
