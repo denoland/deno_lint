@@ -1,10 +1,13 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 
 use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use std::marker::PhantomData;
+use std::rc::Rc;
+use swc_common::comments::SingleThreadedComments;
+use swc_common::SourceMap;
 use swc_ecmascript::ast::Program;
 
 #[macro_export]
@@ -301,11 +304,14 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   }
 }
 
-pub fn parse(source_code: &str) -> Program {
+pub fn parse(
+  source_code: &str,
+) -> (Program, SingleThreadedComments, Rc<SourceMap>) {
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();
-  let (program, _comments) = ast_parser
-    .parse_program("file_name.ts", syntax, source_code)
+  let (program, comments) = ast_parser
+    .parse_program("lint_test.ts", syntax, source_code)
     .unwrap();
-  program
+  let source_map = Rc::clone(&ast_parser.source_map);
+  (program, comments, source_map)
 }

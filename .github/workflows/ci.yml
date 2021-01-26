@@ -34,7 +34,7 @@ jobs:
       - name: Install Deno
         uses: denolib/setup-deno@master
         with:
-          deno-version: v1.4.4
+          deno-version: v1.6.3
 
       - name: Install Node.js
         if: contains(matrix.os, 'ubuntu')
@@ -54,24 +54,24 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: a-${{ runner.os }}-${{ github.sha }}
-          restore-keys: a-${{ runner.os }}-
+          key: b-${{ runner.os }}-${{ github.sha }}
+          restore-keys: b-${{ runner.os }}-
 
-        # It seems that the 'target' directory does not always get restored
-        # from cache correctly on MacOS. In the build log we see the following:
-        #
-        #   Fresh serde_derive v1.0.115
-        #
-        # But a little while after that Cargo aborts because 'serde_derive' is
-        # now nowhere to be found. We're not the only ones experiencing this,
-        # see https://github.com/actions-rs/cargo/issues/111.
-        #
-        #   error[E0463]: can't find crate for `serde_derive`
-        #   ##[error]   --> /Users/runner/.cargo/registry/src/github.com-
-        #       |           1ecc6299db9ec823/serde-1.0.115/src/lib.rs:285:1
-        #       |
-        #   285 | extern crate serde_derive;
-        #       | ^^^^^^^^^^^^^^^^^^^^^^^^^^ can't find crate
+      # It seems that the 'target' directory does not always get restored
+      # from cache correctly on MacOS. In the build log we see the following:
+      #
+      #   Fresh serde_derive v1.0.115
+      #
+      # But a little while after that Cargo aborts because 'serde_derive' is
+      # now nowhere to be found. We're not the only ones experiencing this,
+      # see https://github.com/actions-rs/cargo/issues/111.
+      #
+      #   error[E0463]: can't find crate for `serde_derive`
+      #   ##[error]   --> /Users/runner/.cargo/registry/src/github.com-
+      #       |           1ecc6299db9ec823/serde-1.0.115/src/lib.rs:285:1
+      #       |
+      #   285 | extern crate serde_derive;
+      #       | ^^^^^^^^^^^^^^^^^^^^^^^^^^ can't find crate
       - name: Work around MacOS + Cargo + Github Actions cache bug
         if: runner.os == 'macOS'
         run: |
@@ -80,7 +80,6 @@ jobs:
                       -p is-macro \
                       -p serde_derive \
                       -p swc_ecma_parser \
-                      -p swc_ecma_parser_macros \
                       -p swc_visit \
                       -p swc_visit_macros \
                       -p derive_more
@@ -116,7 +115,7 @@ jobs:
         run: |
           yarn
           yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.9.5/cli.ts build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.10.1/cli.ts build
         working-directory: ./www
 
       - name: Upload website to Github Actions Artifacts

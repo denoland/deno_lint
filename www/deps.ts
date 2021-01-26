@@ -12,6 +12,6 @@ export type {
   GetStaticDataContext,
   GetStaticPaths,
   PageProps,
-} from "https://deno.land/x/dext@0.9.5/mod.ts";
-import MarkdownIt from "https://dev.jspm.io/markdown-it@11.0.0";
+} from "https://deno.land/x/dext@0.10.1/mod.ts";
+import MarkdownIt from "https://dev.jspm.io/markdown-it@12.0.4";
 export { MarkdownIt };

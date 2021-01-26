@@ -1,4 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
@@ -162,6 +162,8 @@ impl AstParser {
     syntax: Syntax,
     source_code: &str,
   ) -> Result<(ast::Program, SingleThreadedComments), SwcDiagnosticBuffer> {
+    // NOTE: calling `self.source_map.new_source_file` mutates `source_map`
+    // even though it's of type `Rc`.
     let swc_source_file = self.source_map.new_source_file(
       FileName::Custom(file_name.to_string()),
       source_code.to_string(),

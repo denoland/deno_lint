@@ -1,3 +1,4 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 class ControlFlow {
   static isReachable(stmt) {
     const { isReachable } = Deno.core.jsonOpSync(

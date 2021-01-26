@@ -166,6 +166,7 @@ function Rule(props: { rule: RuleData }) {
 export const getStaticData = async (): Promise<GetStaticData<Data>> => {
   const json = JSON.parse(await Deno.readTextFile("../docs.json"));
 
+  // @ts-expect-error doesn't have types
   const md = new MarkdownIt();
 
   const rules = json.map((rule: any) => ({

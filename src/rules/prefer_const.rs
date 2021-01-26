@@ -1,4 +1,4 @@
-// Copyright 2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
 use derive_more::Display;
@@ -960,7 +960,7 @@ mod variable_collector_tests {
   use crate::test_util;
 
   fn collect(src: &str) -> VariableCollector {
-    let program = test_util::parse(src);
+    let (program, _, _) = test_util::parse(src);
     let mut v = VariableCollector::new();
     v.visit_program(&program, &program);
     v
