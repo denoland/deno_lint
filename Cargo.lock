@@ -278,9 +278,9 @@ dependencies = [
 
 [[package]]
 name = "dprint-swc-ecma-ast-view"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dae6460a55b93d2ddd27c8e1862bf97f18543cbb0d33c69987b481be24aae9b0"
+checksum = "0e2b1f8fc2fea9d3a739e5e7865ab122dc5a1ad4daa1735408166b526c2f7f1d"
 dependencies = [
  "bumpalo",
  "fnv",
