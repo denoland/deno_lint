@@ -364,6 +364,251 @@ impl<'a, 'b> Visit for FunctionVisitor<'a, 'b> {
 mod tests {
   use super::*;
 
+  // TODO(@magurotuna): remove it when ast-view gets to accept swc's Program
+  #[test]
+  fn magurotuna() {
+    assert_lint_ok! {
+      NoAwaitInLoop,
+      r#"
+export async function foo(things) {
+  const results = [];
+  for (const thing of things) {
+    results.push(bar(thing));
+  }
+  return baz(await Promise.all(results));
+}
+      "#,
+      r#"
+export async function foo(things) {
+  for (const thing of things) {
+    const a = async () => await bar(thing);
+  }
+}
+      "#,
+      r#"
+export async function foo(things) {
+  for (const thing of things) {
+    async function a() {
+      return await bar(42);
+    }
+  }
+}
+      "#,
+      r#"
+export async function foo(things) {
+  for (const thing of things) {
+    const a = async function() {
+      return await bar(42);
+    }
+  }
+}
+      "#,
+      r#"
+export async function foo(things) {
+  for await (const thing of things) {
+    console.log(await bar(thing));
+  }
+}
+      "#,
+      r#"
+export async function foo(things) {
+  for await (const thing of await things) {
+    console.log(await bar(thing));
+  }
+}
+      "#,
+      r#"
+export async function foo() {
+  for (let i = await bar(); i < n; i++) {
+    baz(i);
+  }
+}
+      "#,
+      r#"
+export async function foo() {
+  for (const thing of await things) {
+    bar(thing);
+  }
+}
+      "#,
+      r#"
+export async function foo() {
+  for (let thing in await things) {
+    bar(thing);
+  }
+}
+      "#,
+      r#"
+export function foo() {
+  async function bar() {
+    for (const thing of await things) {}
+  }
+}
+      "#,
+
+      // toplevel await
+      r#"
+export const foo = 42;
+for (const thing of things) {
+  const a = async () => await bar(thing);
+}
+      "#,
+      r#"
+export const foo = 42;
+for (const thing of things) {
+  async function a() {
+    return await bar(42);
+  }
+}
+      "#,
+      r#"
+export const foo = 42;
+for (const thing of things) {
+  const a = async function() {
+    return await bar(42);
+  }
+}
+      "#,
+      r#"
+export const foo = 42;
+for await (const thing of things) {
+  console.log(await bar(thing));
+}
+      "#,
+      r#"
+export const foo = 42;
+for await (const thing of await things) {
+  console.log(await bar(thing));
+}
+      "#,
+      r#"
+export const foo = 42;
+for (let i = await bar(); i < n; i++) {
+  baz(i);
+}
+      "#,
+      r#"
+export const foo = 42;
+for (const thing of await things) {
+  bar(thing);
+}
+      "#,
+      r#"
+export const foo = 42;
+for (let thing in await things) {
+  bar(thing);
+}
+      "#,
+    };
+
+    assert_lint_err! {
+      NoAwaitInLoop,
+      r#"
+async function foo(things) {
+  const results = [];
+  for (const thing of things) {
+    results.push(await bar(thing));
+  }
+  return baz(results);
+}
+export const foo = 42;
+      "#: [{ line: 5, col: 17, message: MESSAGE, hint: HINT }],
+      r#"
+for (const thing of things) {
+  results.push(await foo(thing));
+}
+export const foo = 42;
+      "#: [{ line: 3, col: 15, message: MESSAGE, hint: HINT }],
+      r#"
+for (let i = 0; i < await foo(); i++) {
+  bar();
+}
+export const foo = 42;
+      "#: [{ line: 2, col: 20, message: MESSAGE, hint: HINT }],
+      r#"
+for (let i = 0; i < 42; await foo(i)) {
+  bar();
+}
+export const foo = 42;
+      "#: [{ line: 2, col: 24, message: MESSAGE, hint: HINT }],
+      r#"
+for (let i = 0; i < 42; i++) {
+  await bar();
+}
+export const foo = 42;
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      r#"
+for (const thing in things) {
+  await foo(thing);
+}
+export const foo = 42;
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      r#"
+while (await foo()) {
+  bar();
+}
+export const foo = 42;
+      "#: [{ line: 2, col: 7, message: MESSAGE, hint: HINT }],
+      r#"
+while (true) {
+  await foo();
+}
+export const foo = 42;
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      r#"
+while (true) {
+  await foo();
+}
+export const foo = 42;
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      r#"
+do {
+  foo();
+} while (await bar());
+export const foo = 42;
+      "#: [{ line: 4, col: 9, message: MESSAGE, hint: HINT }],
+      r#"
+do {
+  await foo();
+} while (true);
+export const foo = 42;
+      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      r#"
+for await (const thing of things) {
+  async function foo() {
+    for (const one of them) {
+      await bar(one);
+    }
+  }
+  await baz();
+}
+export const foo = 42;
+      "#: [{ line: 5, col: 6, message: MESSAGE, hint: HINT }],
+
+      r#"
+function foo() {
+  async function bar() {
+    for (const thing of things) {
+      await baz(thing);
+    }
+  }
+}
+export const foo = 42;
+      "#: [{ line: 5, col: 6, message: MESSAGE, hint: HINT }],
+      r#"
+async function foo() {
+  for (const thing of things) {
+    const xs = bar(thing);
+    for (const x in xs) {
+      await baz(x);
+    }
+  }
+}
+export const foo = 42;
+      "#: [{ line: 6, col: 6, message: MESSAGE, hint: HINT }],
+    }
+  }
+
   #[test]
   fn no_await_in_loop_valid() {
     assert_lint_ok! {
