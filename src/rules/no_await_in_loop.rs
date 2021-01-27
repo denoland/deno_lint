@@ -137,6 +137,7 @@ impl<'c> Handler for NoAwaitInLoopVisitor<'c> {
           // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
           // except for the case where the given `await_expr` is contained in the `right` part.
           // e.g. for (const x of await xs) { ... }
+          //                      ^^^^^^^^ <-------- `right` part
           let right = match node.kind() {
             ForInStmt => &*node.expect::<AstView::ForInStmt>().inner.right,
             ForOfStmt => &*node.expect::<AstView::ForOfStmt>().inner.right,
@@ -148,6 +149,7 @@ impl<'c> Handler for NoAwaitInLoopVisitor<'c> {
           // When it encounters `ForStmt`, we should treat it as `inside_loop = true`
           // except for the case where the given `await_expr` is contained in the `init` part.
           // e.g. for (let i = await foo(); i < n; i++) { ... }
+          //           ^^^^^^^^^^^^^^^^^^^ <---------- `init` part
           node
             .expect::<AstView::ForStmt>()
             .inner
