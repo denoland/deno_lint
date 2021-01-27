@@ -1,10 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_common::Span;
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{
+  self as AstView, with_ast_view, NodeKind, NodeTrait, SourceFileInfo,
+};
+use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrowExpr, AwaitExpr, DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Function,
-  WhileStmt,
+  Program, WhileStmt,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
@@ -30,6 +34,28 @@ impl LintRule for NoAwaitInLoop {
   ) {
     let mut visitor = NoAwaitInLoopVisitor::new(context);
     visitor.visit_program(program, program);
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: &Program,
+  ) {
+    if let Program::Module(module) = program {
+      let info = SourceFileInfo {
+        module,
+        source_file: None,
+        tokens: None,
+        comments: None,
+      };
+
+      with_ast_view(info, |module| {
+        let mut handler = NoAwaitInLoopVisitor::new(context);
+        handler.traverse(module);
+      });
+    } else {
+      self.lint_program(context, program);
+    }
   }
 
   fn docs(&self) -> &'static str {
@@ -85,6 +111,64 @@ impl<'c> NoAwaitInLoopVisitor<'c> {
     self
       .context
       .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+  }
+}
+
+impl<'c> Handler for NoAwaitInLoopVisitor<'c> {
+  fn await_expr(&mut self, await_expr: &AstView::AwaitExpr) {
+    fn inside_loop(
+      await_expr: &AstView::AwaitExpr,
+      node: AstView::Node,
+    ) -> bool {
+      use NodeKind::*;
+      match node.kind() {
+        FnDecl | FnExpr | ArrowExpr => false,
+        ForOfStmt
+          if node
+            .expect::<AstView::ForOfStmt>()
+            .inner
+            .await_token
+            .is_some() =>
+        {
+          // `await` is allowed to use within the body of `for await (const x of y) { ... }`
+          false
+        }
+        ForInStmt | ForOfStmt => {
+          // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
+          // except for the case where the given `await_expr` is contained in the `right` part.
+          // e.g. for (const x of await xs) { ... }
+          let right = match node.kind() {
+            ForInStmt => &*node.expect::<AstView::ForInStmt>().inner.right,
+            ForOfStmt => &*node.expect::<AstView::ForOfStmt>().inner.right,
+            _ => unreachable!(),
+          };
+          !right.span().contains(await_expr.span())
+        }
+        ForStmt => {
+          // When it encounters `ForStmt`, we should treat it as `inside_loop = true`
+          // except for the case where the given `await_expr` is contained in the `init` part.
+          // e.g. for (let i = await foo(); i < n; i++) { ... }
+          node
+            .expect::<AstView::ForStmt>()
+            .inner
+            .init
+            .as_ref()
+            .map_or(true, |init| !init.span().contains(await_expr.span()))
+        }
+        WhileStmt | DoWhileStmt => true,
+        _ => {
+          let parent = match node.parent() {
+            Some(p) => p,
+            None => return false,
+          };
+          inside_loop(await_expr, parent)
+        }
+      }
+    }
+
+    if inside_loop(await_expr, await_expr.into_node()) {
+      self.add_diagnostic(await_expr.inner.span);
+    }
   }
 }
 
