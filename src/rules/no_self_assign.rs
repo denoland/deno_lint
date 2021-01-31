@@ -19,7 +19,7 @@ use swc_ecmascript::ast::Prop;
 use swc_ecmascript::ast::PropOrSpread;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoSelfAssign;
 
@@ -56,7 +56,7 @@ impl LintRule for NoSelfAssign {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -288,7 +288,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoSelfAssignVisitor<'c> {
+impl<'c> VisitAll for NoSelfAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(
