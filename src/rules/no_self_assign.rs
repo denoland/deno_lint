@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use crate::swc_util::StringRepr;
 
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::ast::AssignOp;
@@ -22,6 +23,20 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoSelfAssign;
 
+const CODE: &str = "no-self-assign";
+
+#[derive(Display)]
+enum NoSelfAssignMessage {
+  #[display("`{}` is assigned to itself", _0)]
+  Invalid(String),
+}
+
+#[derive(Display)]
+enum NoSelfAssignHint {
+  #[display("Self assignments have no effect. Perhaps you make a mistake?")]
+  Mistake,
+}
+
 impl LintRule for NoSelfAssign {
   fn new() -> Box<Self> {
     Box::new(NoSelfAssign)
@@ -32,7 +47,7 @@ impl LintRule for NoSelfAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-self-assign"
+    CODE
   }
 
   fn lint_program(
@@ -54,11 +69,12 @@ impl<'c> NoSelfAssignVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&mut self, span: Span, name: impl AsRef<str>) {
-    self.context.add_diagnostic(
+  fn add_diagnostic(&mut self, span: Span, name: impl ToString) {
+    self.context.add_diagnostic_with_hint(
       span,
-      "no-self-assign",
-      format!("\"{}\" is assigned to itself", name.as_ref()),
+      CODE,
+      NoSelfAssignMessage::Invalid(name.to_string()),
+      NoSelfAssignHint::Mistake,
     );
   }
 
