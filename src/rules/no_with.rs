@@ -2,7 +2,7 @@
 use super::Context;
 use super::LintRule;
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{with_ast_view, ProgramInfo};
+use dprint_swc_ecma_ast_view::with_ast_view;
 
 pub struct NoWith;
 
@@ -27,43 +27,29 @@ impl LintRule for NoWith {
     _context: &mut Context,
     _program: &swc_ecmascript::ast::Program,
   ) {
-    unimplemented!();
+    unreachable!();
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program_info: dprint_swc_ecma_ast_view::ProgramInfo<'a>,
   ) {
-    let info = ProgramInfo {
-      program,
-      source_file: None,
-      tokens: None,
-      comments: None,
-    };
-
-    with_ast_view(info, |module| {
-      let mut handler = NoWithVisitor::new(context);
-      handler.traverse(module);
+    with_ast_view(program_info, |pg| {
+      NoWithHandler.traverse(pg, context);
     });
   }
 }
 
-struct NoWithVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoWithHandler;
 
-impl<'c> NoWithVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c> Handler for NoWithVisitor<'c> {
-  fn with_stmt(&mut self, with_stmt: &dprint_swc_ecma_ast_view::WithStmt) {
-    self
-      .context
-      .add_diagnostic(with_stmt.inner.span, CODE, MESSAGE);
+impl Handler for NoWithHandler {
+  fn with_stmt(
+    &self,
+    with_stmt: &dprint_swc_ecma_ast_view::WithStmt,
+    ctx: &mut Context,
+  ) {
+    ctx.add_diagnostic(with_stmt.inner.span, CODE, MESSAGE);
   }
 }
 

@@ -9,6 +9,7 @@ use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
+use dprint_swc_ecma_ast_view::ProgramInfo;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -415,9 +416,24 @@ impl Linter {
       plugin_codes: HashSet::new(),
     };
 
+    let program_info = ProgramInfo {
+      program,
+      source_file: None,
+      tokens: None,
+      // TODO(@magurotuna): let it have SingleThreadedComments
+      comments: None,
+    };
+
     // Run builtin rules
     for rule in &self.rules {
-      rule.lint_program_with_ast_view(&mut context, program);
+      // TODO(@magurotuna): remove it when ProgramInfo implements Copy.
+      let pi = ProgramInfo {
+        program: &program_info.program,
+        source_file: None,
+        tokens: None,
+        comments: None,
+      };
+      rule.lint_program_with_ast_view(&mut context, pi);
     }
 
     // Run plugin rules

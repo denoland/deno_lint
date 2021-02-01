@@ -2,10 +2,8 @@
 use super::Context;
 use super::LintRule;
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{
-  self as AstView, with_ast_view, NodeKind, NodeTrait, ProgramInfo,
-};
-use swc_common::{Span, Spanned};
+use dprint_swc_ecma_ast_view::{self as AstView, with_ast_view, NodeTrait};
+use swc_common::Spanned;
 
 pub struct NoAwaitInLoop;
 
@@ -27,24 +25,16 @@ impl LintRule for NoAwaitInLoop {
     _context: &mut Context,
     _program: &swc_ecmascript::ast::Program,
   ) {
-    unimplemented!();
+    unreachable!();
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program_info: dprint_swc_ecma_ast_view::ProgramInfo<'a>,
   ) {
-    let info = ProgramInfo {
-      program,
-      source_file: None,
-      tokens: None,
-      comments: None,
-    };
-
-    with_ast_view(info, |module| {
-      let mut handler = NoAwaitInLoopVisitor::new(context);
-      handler.traverse(module);
+    with_ast_view(program_info, |pg| {
+      NoAwaitInLoopHandler.traverse(pg, context);
     });
   }
 
@@ -88,66 +78,40 @@ async function doSomething(items) {
   }
 }
 
-struct NoAwaitInLoopVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoAwaitInLoopHandler;
 
-impl<'c> NoAwaitInLoopVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, span: Span) {
-    self
-      .context
-      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
-  }
-}
-
-impl<'c> Handler for NoAwaitInLoopVisitor<'c> {
-  fn await_expr(&mut self, await_expr: &AstView::AwaitExpr) {
+impl Handler for NoAwaitInLoopHandler {
+  fn await_expr(&self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
     fn inside_loop(
       await_expr: &AstView::AwaitExpr,
       node: AstView::Node,
     ) -> bool {
-      use NodeKind::*;
-      match node.kind() {
-        FnDecl | FnExpr | ArrowExpr => false,
-        ForOfStmt
-          if node
-            .expect::<AstView::ForOfStmt>()
-            .inner
-            .await_token
-            .is_some() =>
-        {
+      use AstView::Node::*;
+      match node {
+        FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
+        ForOfStmt(stmt) if stmt.await_token().is_some() => {
           // `await` is allowed to use within the body of `for await (const x of y) { ... }`
           false
         }
-        ForInStmt | ForOfStmt => {
+        ForInStmt(AstView::ForInStmt { right, .. })
+        | ForOfStmt(AstView::ForOfStmt { right, .. }) => {
           // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
           // except for the case where the given `await_expr` is contained in the `right` part.
           // e.g. for (const x of await xs) { ... }
           //                      ^^^^^^^^ <-------- `right` part
-          let right = match node.kind() {
-            ForInStmt => &*node.expect::<AstView::ForInStmt>().inner.right,
-            ForOfStmt => &*node.expect::<AstView::ForOfStmt>().inner.right,
-            _ => unreachable!(),
-          };
           !right.span().contains(await_expr.span())
         }
-        ForStmt => {
+        ForStmt(stmt) => {
           // When it encounters `ForStmt`, we should treat it as `inside_loop = true`
           // except for the case where the given `await_expr` is contained in the `init` part.
           // e.g. for (let i = await foo(); i < n; i++) { ... }
           //           ^^^^^^^^^^^^^^^^^^^ <---------- `init` part
-          node
-            .expect::<AstView::ForStmt>()
-            .inner
+          stmt
             .init
             .as_ref()
             .map_or(true, |init| !init.span().contains(await_expr.span()))
         }
-        WhileStmt | DoWhileStmt => true,
+        WhileStmt(_) | DoWhileStmt(_) => true,
         _ => {
           let parent = match node.parent() {
             Some(p) => p,
@@ -159,7 +123,7 @@ impl<'c> Handler for NoAwaitInLoopVisitor<'c> {
     }
 
     if inside_loop(await_expr, await_expr.into_node()) {
-      self.add_diagnostic(await_expr.inner.span);
+      ctx.add_diagnostic_with_hint(await_expr.span(), CODE, MESSAGE, HINT);
     }
   }
 }
