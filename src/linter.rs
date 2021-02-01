@@ -426,14 +426,7 @@ impl Linter {
 
     // Run builtin rules
     for rule in &self.rules {
-      // TODO(@magurotuna): remove it when ProgramInfo implements Copy.
-      let pi = ProgramInfo {
-        program: &program_info.program,
-        source_file: None,
-        tokens: None,
-        comments: None,
-      };
-      rule.lint_program_with_ast_view(&mut context, pi);
+      rule.lint_program_with_ast_view(&mut context, program_info);
     }
 
     // Run plugin rules
