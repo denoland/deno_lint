@@ -1,4 +1,4 @@
-use dprint_swc_ecma_ast_view::{self as AstView, NodeKind, NodeTrait};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 
 pub trait Handler {
   fn array_lit(&mut self, _n: &AstView::ArrayLit) {}
@@ -93,6 +93,7 @@ pub trait Handler {
   fn regex(&mut self, _n: &AstView::Regex) {}
   fn rest_pat(&mut self, _n: &AstView::RestPat) {}
   fn return_stmt(&mut self, _n: &AstView::ReturnStmt) {}
+  fn script(&mut self, _n: &AstView::Script) {}
   fn seq_expr(&mut self, _n: &AstView::SeqExpr) {}
   fn setter_prop(&mut self, _n: &AstView::SetterProp) {}
   fn spread_element(&mut self, _n: &AstView::SpreadElement) {}
@@ -182,643 +183,486 @@ pub trait Traverse: Handler {
   where
     N: NodeTrait<'a>,
   {
-    let current_node = node.into_node();
-
-    match node.kind() {
-      NodeKind::ArrayLit => {
-        let n = current_node.expect::<AstView::ArrayLit<'a>>();
+    use AstView::Node::*;
+    match node.into_node() {
+      ArrayLit(n) => {
         self.array_lit(n);
       }
-      NodeKind::ArrayPat => {
-        let n = current_node.expect::<AstView::ArrayPat<'a>>();
+      ArrayPat(n) => {
         self.array_pat(n);
       }
-      NodeKind::ArrowExpr => {
-        let n = current_node.expect::<AstView::ArrowExpr<'a>>();
+      ArrowExpr(n) => {
         self.arrow_expr(n);
       }
-      NodeKind::AssignExpr => {
-        let n = current_node.expect::<AstView::AssignExpr<'a>>();
+      AssignExpr(n) => {
         self.assign_expr(n);
       }
-      NodeKind::AssignPat => {
-        let n = current_node.expect::<AstView::AssignPat<'a>>();
+      AssignPat(n) => {
         self.assign_pat(n);
       }
-      NodeKind::AssignPatProp => {
-        let n = current_node.expect::<AstView::AssignPatProp<'a>>();
+      AssignPatProp(n) => {
         self.assign_pat_prop(n);
       }
-      NodeKind::AssignProp => {
-        let n = current_node.expect::<AstView::AssignProp<'a>>();
+      AssignProp(n) => {
         self.assign_prop(n);
       }
-      NodeKind::AwaitExpr => {
-        let n = current_node.expect::<AstView::AwaitExpr<'a>>();
+      AwaitExpr(n) => {
         self.await_expr(n);
       }
-      NodeKind::BigInt => {
-        let n = current_node.expect::<AstView::BigInt<'a>>();
+      BigInt(n) => {
         self.big_int(n);
       }
-      NodeKind::BinExpr => {
-        let n = current_node.expect::<AstView::BinExpr<'a>>();
+      BinExpr(n) => {
         self.bin_expr(n);
       }
-      NodeKind::BlockStmt => {
-        let n = current_node.expect::<AstView::BlockStmt<'a>>();
+      BlockStmt(n) => {
         self.block_stmt(n);
       }
-      NodeKind::Bool => {
-        let n = current_node.expect::<AstView::Bool<'a>>();
+      Bool(n) => {
         self.bool(n);
       }
-      NodeKind::BreakStmt => {
-        let n = current_node.expect::<AstView::BreakStmt<'a>>();
+      BreakStmt(n) => {
         self.break_stmt(n);
       }
-      NodeKind::CallExpr => {
-        let n = current_node.expect::<AstView::CallExpr<'a>>();
+      CallExpr(n) => {
         self.call_expr(n);
       }
-      NodeKind::CatchClause => {
-        let n = current_node.expect::<AstView::CatchClause<'a>>();
+      CatchClause(n) => {
         self.catch_clause(n);
       }
-      NodeKind::Class => {
-        let n = current_node.expect::<AstView::Class<'a>>();
+      Class(n) => {
         self.class(n);
       }
-      NodeKind::ClassDecl => {
-        let n = current_node.expect::<AstView::ClassDecl<'a>>();
+      ClassDecl(n) => {
         self.class_decl(n);
       }
-      NodeKind::ClassExpr => {
-        let n = current_node.expect::<AstView::ClassExpr<'a>>();
+      ClassExpr(n) => {
         self.class_expr(n);
       }
-      NodeKind::ClassMethod => {
-        let n = current_node.expect::<AstView::ClassMethod<'a>>();
+      ClassMethod(n) => {
         self.class_method(n);
       }
-      NodeKind::ClassProp => {
-        let n = current_node.expect::<AstView::ClassProp<'a>>();
+      ClassProp(n) => {
         self.class_prop(n);
       }
-      NodeKind::ComputedPropName => {
-        let n = current_node.expect::<AstView::ComputedPropName<'a>>();
+      ComputedPropName(n) => {
         self.computed_prop_name(n);
       }
-      NodeKind::CondExpr => {
-        let n = current_node.expect::<AstView::CondExpr<'a>>();
+      CondExpr(n) => {
         self.cond_expr(n);
       }
-      NodeKind::Constructor => {
-        let n = current_node.expect::<AstView::Constructor<'a>>();
+      Constructor(n) => {
         self.constructor(n);
       }
-      NodeKind::ContinueStmt => {
-        let n = current_node.expect::<AstView::ContinueStmt<'a>>();
+      ContinueStmt(n) => {
         self.continue_stmt(n);
       }
-      NodeKind::DebuggerStmt => {
-        let n = current_node.expect::<AstView::DebuggerStmt<'a>>();
+      DebuggerStmt(n) => {
         self.debugger_stmt(n);
       }
-      NodeKind::Decorator => {
-        let n = current_node.expect::<AstView::Decorator<'a>>();
+      Decorator(n) => {
         self.decorator(n);
       }
-      NodeKind::DoWhileStmt => {
-        let n = current_node.expect::<AstView::DoWhileStmt<'a>>();
+      DoWhileStmt(n) => {
         self.do_while_stmt(n);
       }
-      NodeKind::EmptyStmt => {
-        let n = current_node.expect::<AstView::EmptyStmt<'a>>();
+      EmptyStmt(n) => {
         self.empty_stmt(n);
       }
-      NodeKind::ExportAll => {
-        let n = current_node.expect::<AstView::ExportAll<'a>>();
+      ExportAll(n) => {
         self.export_all(n);
       }
-      NodeKind::ExportDecl => {
-        let n = current_node.expect::<AstView::ExportDecl<'a>>();
+      ExportDecl(n) => {
         self.export_decl(n);
       }
-      NodeKind::ExportDefaultDecl => {
-        let n = current_node.expect::<AstView::ExportDefaultDecl<'a>>();
+      ExportDefaultDecl(n) => {
         self.export_default_decl(n);
       }
-      NodeKind::ExportDefaultExpr => {
-        let n = current_node.expect::<AstView::ExportDefaultExpr<'a>>();
+      ExportDefaultExpr(n) => {
         self.export_default_expr(n);
       }
-      NodeKind::ExportDefaultSpecifier => {
-        let n = current_node.expect::<AstView::ExportDefaultSpecifier<'a>>();
+      ExportDefaultSpecifier(n) => {
         self.export_default_specifier(n);
       }
-      NodeKind::ExportNamedSpecifier => {
-        let n = current_node.expect::<AstView::ExportNamedSpecifier<'a>>();
+      ExportNamedSpecifier(n) => {
         self.export_named_specifier(n);
       }
-      NodeKind::ExportNamespaceSpecifier => {
-        let n = current_node.expect::<AstView::ExportNamespaceSpecifier<'a>>();
+      ExportNamespaceSpecifier(n) => {
         self.export_namespace_specifier(n);
       }
-      NodeKind::ExprOrSpread => {
-        let n = current_node.expect::<AstView::ExprOrSpread<'a>>();
+      ExprOrSpread(n) => {
         self.expr_or_spread(n);
       }
-      NodeKind::ExprStmt => {
-        let n = current_node.expect::<AstView::ExprStmt<'a>>();
+      ExprStmt(n) => {
         self.expr_stmt(n);
       }
-      NodeKind::FnDecl => {
-        let n = current_node.expect::<AstView::FnDecl<'a>>();
+      FnDecl(n) => {
         self.fn_decl(n);
       }
-      NodeKind::FnExpr => {
-        let n = current_node.expect::<AstView::FnExpr<'a>>();
+      FnExpr(n) => {
         self.fn_expr(n);
       }
-      NodeKind::ForInStmt => {
-        let n = current_node.expect::<AstView::ForInStmt<'a>>();
+      ForInStmt(n) => {
         self.for_in_stmt(n);
       }
-      NodeKind::ForOfStmt => {
-        let n = current_node.expect::<AstView::ForOfStmt<'a>>();
+      ForOfStmt(n) => {
         self.for_of_stmt(n);
       }
-      NodeKind::ForStmt => {
-        let n = current_node.expect::<AstView::ForStmt<'a>>();
+      ForStmt(n) => {
         self.for_stmt(n);
       }
-      NodeKind::Function => {
-        let n = current_node.expect::<AstView::Function<'a>>();
+      Function(n) => {
         self.function(n);
       }
-      NodeKind::GetterProp => {
-        let n = current_node.expect::<AstView::GetterProp<'a>>();
+      GetterProp(n) => {
         self.getter_prop(n);
       }
-      NodeKind::Ident => {
-        let n = current_node.expect::<AstView::Ident<'a>>();
+      Ident(n) => {
         self.ident(n);
       }
-      NodeKind::IfStmt => {
-        let n = current_node.expect::<AstView::IfStmt<'a>>();
+      IfStmt(n) => {
         self.if_stmt(n);
       }
-      NodeKind::ImportDecl => {
-        let n = current_node.expect::<AstView::ImportDecl<'a>>();
+      ImportDecl(n) => {
         self.import_decl(n);
       }
-      NodeKind::ImportDefaultSpecifier => {
-        let n = current_node.expect::<AstView::ImportDefaultSpecifier<'a>>();
+      ImportDefaultSpecifier(n) => {
         self.import_default_specifier(n);
       }
-      NodeKind::ImportNamedSpecifier => {
-        let n = current_node.expect::<AstView::ImportNamedSpecifier<'a>>();
+      ImportNamedSpecifier(n) => {
         self.import_named_specifier(n);
       }
-      NodeKind::ImportStarAsSpecifier => {
-        let n = current_node.expect::<AstView::ImportStarAsSpecifier<'a>>();
+      ImportStarAsSpecifier(n) => {
         self.import_star_as_specifier(n);
       }
-      NodeKind::Invalid => {
-        let n = current_node.expect::<AstView::Invalid<'a>>();
+      Invalid(n) => {
         self.invalid(n);
       }
-      NodeKind::JSXAttr => {
-        let n = current_node.expect::<AstView::JSXAttr<'a>>();
+      JSXAttr(n) => {
         self.jsx_attr(n);
       }
-      NodeKind::JSXClosingElement => {
-        let n = current_node.expect::<AstView::JSXClosingElement<'a>>();
+      JSXClosingElement(n) => {
         self.jsx_closing_element(n);
       }
-      NodeKind::JSXClosingFragment => {
-        let n = current_node.expect::<AstView::JSXClosingFragment<'a>>();
+      JSXClosingFragment(n) => {
         self.jsx_closing_fragment(n);
       }
-      NodeKind::JSXElement => {
-        let n = current_node.expect::<AstView::JSXElement<'a>>();
+      JSXElement(n) => {
         self.jsx_element(n);
       }
-      NodeKind::JSXEmptyExpr => {
-        let n = current_node.expect::<AstView::JSXEmptyExpr<'a>>();
+      JSXEmptyExpr(n) => {
         self.jsx_empty_expr(n);
       }
-      NodeKind::JSXExprContainer => {
-        let n = current_node.expect::<AstView::JSXExprContainer<'a>>();
+      JSXExprContainer(n) => {
         self.jsx_expr_container(n);
       }
-      NodeKind::JSXFragment => {
-        let n = current_node.expect::<AstView::JSXFragment<'a>>();
+      JSXFragment(n) => {
         self.jsx_fragment(n);
       }
-      NodeKind::JSXMemberExpr => {
-        let n = current_node.expect::<AstView::JSXMemberExpr<'a>>();
+      JSXMemberExpr(n) => {
         self.jsx_member_expr(n);
       }
-      NodeKind::JSXNamespacedName => {
-        let n = current_node.expect::<AstView::JSXNamespacedName<'a>>();
+      JSXNamespacedName(n) => {
         self.jsx_namespaced_name(n);
       }
-      NodeKind::JSXOpeningElement => {
-        let n = current_node.expect::<AstView::JSXOpeningElement<'a>>();
+      JSXOpeningElement(n) => {
         self.jsx_opening_element(n);
       }
-      NodeKind::JSXOpeningFragment => {
-        let n = current_node.expect::<AstView::JSXOpeningFragment<'a>>();
+      JSXOpeningFragment(n) => {
         self.jsx_opening_fragment(n);
       }
-      NodeKind::JSXSpreadChild => {
-        let n = current_node.expect::<AstView::JSXSpreadChild<'a>>();
+      JSXSpreadChild(n) => {
         self.jsx_spread_child(n);
       }
-      NodeKind::JSXText => {
-        let n = current_node.expect::<AstView::JSXText<'a>>();
+      JSXText(n) => {
         self.jsx_text(n);
       }
-      NodeKind::KeyValuePatProp => {
-        let n = current_node.expect::<AstView::KeyValuePatProp<'a>>();
+      KeyValuePatProp(n) => {
         self.key_value_pat_prop(n);
       }
-      NodeKind::KeyValueProp => {
-        let n = current_node.expect::<AstView::KeyValueProp<'a>>();
+      KeyValueProp(n) => {
         self.key_value_prop(n);
       }
-      NodeKind::LabeledStmt => {
-        let n = current_node.expect::<AstView::LabeledStmt<'a>>();
+      LabeledStmt(n) => {
         self.labeled_stmt(n);
       }
-      NodeKind::MemberExpr => {
-        let n = current_node.expect::<AstView::MemberExpr<'a>>();
+      MemberExpr(n) => {
         self.member_expr(n);
       }
-      NodeKind::MetaPropExpr => {
-        let n = current_node.expect::<AstView::MetaPropExpr<'a>>();
+      MetaPropExpr(n) => {
         self.meta_prop_expr(n);
       }
-      NodeKind::MethodProp => {
-        let n = current_node.expect::<AstView::MethodProp<'a>>();
+      MethodProp(n) => {
         self.method_prop(n);
       }
-      NodeKind::Module => {
-        let n = current_node.expect::<AstView::Module<'a>>();
+      Module(n) => {
         self.module(n);
       }
-      NodeKind::NamedExport => {
-        let n = current_node.expect::<AstView::NamedExport<'a>>();
+      NamedExport(n) => {
         self.named_export(n);
       }
-      NodeKind::NewExpr => {
-        let n = current_node.expect::<AstView::NewExpr<'a>>();
+      NewExpr(n) => {
         self.new_expr(n);
       }
-      NodeKind::Null => {
-        let n = current_node.expect::<AstView::Null<'a>>();
+      Null(n) => {
         self.null(n);
       }
-      NodeKind::Number => {
-        let n = current_node.expect::<AstView::Number<'a>>();
+      Number(n) => {
         self.number(n);
       }
-      NodeKind::ObjectLit => {
-        let n = current_node.expect::<AstView::ObjectLit<'a>>();
+      ObjectLit(n) => {
         self.object_lit(n);
       }
-      NodeKind::ObjectPat => {
-        let n = current_node.expect::<AstView::ObjectPat<'a>>();
+      ObjectPat(n) => {
         self.object_pat(n);
       }
-      NodeKind::OptChainExpr => {
-        let n = current_node.expect::<AstView::OptChainExpr<'a>>();
+      OptChainExpr(n) => {
         self.opt_chain_expr(n);
       }
-      NodeKind::Param => {
-        let n = current_node.expect::<AstView::Param<'a>>();
+      Param(n) => {
         self.param(n);
       }
-      NodeKind::ParenExpr => {
-        let n = current_node.expect::<AstView::ParenExpr<'a>>();
+      ParenExpr(n) => {
         self.paren_expr(n);
       }
-      NodeKind::PrivateMethod => {
-        let n = current_node.expect::<AstView::PrivateMethod<'a>>();
+      PrivateMethod(n) => {
         self.private_method(n);
       }
-      NodeKind::PrivateName => {
-        let n = current_node.expect::<AstView::PrivateName<'a>>();
+      PrivateName(n) => {
         self.private_name(n);
       }
-      NodeKind::PrivateProp => {
-        let n = current_node.expect::<AstView::PrivateProp<'a>>();
+      PrivateProp(n) => {
         self.private_prop(n);
       }
-      NodeKind::Regex => {
-        let n = current_node.expect::<AstView::Regex<'a>>();
+      Regex(n) => {
         self.regex(n);
       }
-      NodeKind::RestPat => {
-        let n = current_node.expect::<AstView::RestPat<'a>>();
+      RestPat(n) => {
         self.rest_pat(n);
       }
-      NodeKind::ReturnStmt => {
-        let n = current_node.expect::<AstView::ReturnStmt<'a>>();
+      ReturnStmt(n) => {
         self.return_stmt(n);
       }
-      NodeKind::SeqExpr => {
-        let n = current_node.expect::<AstView::SeqExpr<'a>>();
+      Script(n) => {
+        self.script(n);
+      }
+      SeqExpr(n) => {
         self.seq_expr(n);
       }
-      NodeKind::SetterProp => {
-        let n = current_node.expect::<AstView::SetterProp<'a>>();
+      SetterProp(n) => {
         self.setter_prop(n);
       }
-      NodeKind::SpreadElement => {
-        let n = current_node.expect::<AstView::SpreadElement<'a>>();
+      SpreadElement(n) => {
         self.spread_element(n);
       }
-      NodeKind::Str => {
-        let n = current_node.expect::<AstView::Str<'a>>();
+      Str(n) => {
         self.str(n);
       }
-      NodeKind::Super => {
-        let n = current_node.expect::<AstView::Super<'a>>();
+      Super(n) => {
         self.super_(n);
       }
-      NodeKind::SwitchCase => {
-        let n = current_node.expect::<AstView::SwitchCase<'a>>();
+      SwitchCase(n) => {
         self.switch_case(n);
       }
-      NodeKind::SwitchStmt => {
-        let n = current_node.expect::<AstView::SwitchStmt<'a>>();
+      SwitchStmt(n) => {
         self.switch_stmt(n);
       }
-      NodeKind::TaggedTpl => {
-        let n = current_node.expect::<AstView::TaggedTpl<'a>>();
+      TaggedTpl(n) => {
         self.tagged_tpl(n);
       }
-      NodeKind::ThisExpr => {
-        let n = current_node.expect::<AstView::ThisExpr<'a>>();
+      ThisExpr(n) => {
         self.this_expr(n);
       }
-      NodeKind::ThrowStmt => {
-        let n = current_node.expect::<AstView::ThrowStmt<'a>>();
+      ThrowStmt(n) => {
         self.throw_stmt(n);
       }
-      NodeKind::Tpl => {
-        let n = current_node.expect::<AstView::Tpl<'a>>();
+      Tpl(n) => {
         self.tpl(n);
       }
-      NodeKind::TplElement => {
-        let n = current_node.expect::<AstView::TplElement<'a>>();
+      TplElement(n) => {
         self.tpl_element(n);
       }
-      NodeKind::TryStmt => {
-        let n = current_node.expect::<AstView::TryStmt<'a>>();
+      TryStmt(n) => {
         self.try_stmt(n);
       }
-      NodeKind::TsArrayType => {
-        let n = current_node.expect::<AstView::TsArrayType<'a>>();
+      TsArrayType(n) => {
         self.ts_array_type(n);
       }
-      NodeKind::TsAsExpr => {
-        let n = current_node.expect::<AstView::TsAsExpr<'a>>();
+      TsAsExpr(n) => {
         self.ts_as_expr(n);
       }
-      NodeKind::TsCallSignatureDecl => {
-        let n = current_node.expect::<AstView::TsCallSignatureDecl<'a>>();
+      TsCallSignatureDecl(n) => {
         self.ts_call_signature_decl(n);
       }
-      NodeKind::TsConditionalType => {
-        let n = current_node.expect::<AstView::TsConditionalType<'a>>();
+      TsConditionalType(n) => {
         self.ts_conditional_type(n);
       }
-      NodeKind::TsConstAssertion => {
-        let n = current_node.expect::<AstView::TsConstAssertion<'a>>();
+      TsConstAssertion(n) => {
         self.ts_const_assertion(n);
       }
-      NodeKind::TsConstructSignatureDecl => {
-        let n = current_node.expect::<AstView::TsConstructSignatureDecl<'a>>();
+      TsConstructSignatureDecl(n) => {
         self.ts_construct_signature_decl(n);
       }
-      NodeKind::TsConstructorType => {
-        let n = current_node.expect::<AstView::TsConstructorType<'a>>();
+      TsConstructorType(n) => {
         self.ts_constructor_type(n);
       }
-      NodeKind::TsEnumDecl => {
-        let n = current_node.expect::<AstView::TsEnumDecl<'a>>();
+      TsEnumDecl(n) => {
         self.ts_enum_decl(n);
       }
-      NodeKind::TsEnumMember => {
-        let n = current_node.expect::<AstView::TsEnumMember<'a>>();
+      TsEnumMember(n) => {
         self.ts_enum_member(n);
       }
-      NodeKind::TsExportAssignment => {
-        let n = current_node.expect::<AstView::TsExportAssignment<'a>>();
+      TsExportAssignment(n) => {
         self.ts_export_assignment(n);
       }
-      NodeKind::TsExprWithTypeArgs => {
-        let n = current_node.expect::<AstView::TsExprWithTypeArgs<'a>>();
+      TsExprWithTypeArgs(n) => {
         self.ts_expr_with_type_args(n);
       }
-      NodeKind::TsExternalModuleRef => {
-        let n = current_node.expect::<AstView::TsExternalModuleRef<'a>>();
+      TsExternalModuleRef(n) => {
         self.ts_external_module_ref(n);
       }
-      NodeKind::TsFnType => {
-        let n = current_node.expect::<AstView::TsFnType<'a>>();
+      TsFnType(n) => {
         self.ts_fn_type(n);
       }
-      NodeKind::TsImportEqualsDecl => {
-        let n = current_node.expect::<AstView::TsImportEqualsDecl<'a>>();
+      TsImportEqualsDecl(n) => {
         self.ts_import_equal_decl(n);
       }
-      NodeKind::TsImportType => {
-        let n = current_node.expect::<AstView::TsImportType<'a>>();
+      TsImportType(n) => {
         self.ts_import_type(n);
       }
-      NodeKind::TsIndexSignature => {
-        let n = current_node.expect::<AstView::TsIndexSignature<'a>>();
+      TsIndexSignature(n) => {
         self.ts_index_signature(n);
       }
-      NodeKind::TsIndexedAccessType => {
-        let n = current_node.expect::<AstView::TsIndexedAccessType<'a>>();
+      TsIndexedAccessType(n) => {
         self.ts_indexed_access_type(n);
       }
-      NodeKind::TsInferType => {
-        let n = current_node.expect::<AstView::TsInferType<'a>>();
+      TsInferType(n) => {
         self.ts_infer_type(n);
       }
-      NodeKind::TsInterfaceBody => {
-        let n = current_node.expect::<AstView::TsInterfaceBody<'a>>();
+      TsInterfaceBody(n) => {
         self.ts_interface_body(n);
       }
-      NodeKind::TsInterfaceDecl => {
-        let n = current_node.expect::<AstView::TsInterfaceDecl<'a>>();
+      TsInterfaceDecl(n) => {
         self.ts_interface_decl(n);
       }
-      NodeKind::TsIntersectionType => {
-        let n = current_node.expect::<AstView::TsIntersectionType<'a>>();
+      TsIntersectionType(n) => {
         self.ts_intersection_type(n);
       }
-      NodeKind::TsKeywordType => {
-        let n = current_node.expect::<AstView::TsKeywordType<'a>>();
+      TsKeywordType(n) => {
         self.ts_keyword_type(n);
       }
-      NodeKind::TsLitType => {
-        let n = current_node.expect::<AstView::TsLitType<'a>>();
+      TsLitType(n) => {
         self.ts_lit_type(n);
       }
-      NodeKind::TsMappedType => {
-        let n = current_node.expect::<AstView::TsMappedType<'a>>();
+      TsMappedType(n) => {
         self.ts_mapped_type(n);
       }
-      NodeKind::TsMethodSignature => {
-        let n = current_node.expect::<AstView::TsMethodSignature<'a>>();
+      TsMethodSignature(n) => {
         self.ts_method_signature(n);
       }
-      NodeKind::TsModuleBlock => {
-        let n = current_node.expect::<AstView::TsModuleBlock<'a>>();
+      TsModuleBlock(n) => {
         self.ts_module_block(n);
       }
-      NodeKind::TsModuleDecl => {
-        let n = current_node.expect::<AstView::TsModuleDecl<'a>>();
+      TsModuleDecl(n) => {
         self.ts_module_decl(n);
       }
-      NodeKind::TsNamespaceDecl => {
-        let n = current_node.expect::<AstView::TsNamespaceDecl<'a>>();
+      TsNamespaceDecl(n) => {
         self.ts_namespace_decl(n);
       }
-      NodeKind::TsNamespaceExportDecl => {
-        let n = current_node.expect::<AstView::TsNamespaceExportDecl<'a>>();
+      TsNamespaceExportDecl(n) => {
         self.ts_namespace_export_decl(n);
       }
-      NodeKind::TsNonNullExpr => {
-        let n = current_node.expect::<AstView::TsNonNullExpr<'a>>();
+      TsNonNullExpr(n) => {
         self.ts_non_null_expr(n);
       }
-      NodeKind::TsOptionalType => {
-        let n = current_node.expect::<AstView::TsOptionalType<'a>>();
+      TsOptionalType(n) => {
         self.ts_optional_type(n);
       }
-      NodeKind::TsParamProp => {
-        let n = current_node.expect::<AstView::TsParamProp<'a>>();
+      TsParamProp(n) => {
         self.ts_param_prop(n);
       }
-      NodeKind::TsParenthesizedType => {
-        let n = current_node.expect::<AstView::TsParenthesizedType<'a>>();
+      TsParenthesizedType(n) => {
         self.ts_parenthesized_type(n);
       }
-      NodeKind::TsPropertySignature => {
-        let n = current_node.expect::<AstView::TsPropertySignature<'a>>();
+      TsPropertySignature(n) => {
         self.ts_property_signature(n);
       }
-      NodeKind::TsQualifiedName => {
-        let n = current_node.expect::<AstView::TsQualifiedName<'a>>();
+      TsQualifiedName(n) => {
         self.ts_qualified_name(n);
       }
-      NodeKind::TsRestType => {
-        let n = current_node.expect::<AstView::TsRestType<'a>>();
+      TsRestType(n) => {
         self.ts_rest_type(n);
       }
-      NodeKind::TsThisType => {
-        let n = current_node.expect::<AstView::TsThisType<'a>>();
+      TsThisType(n) => {
         self.ts_this_type(n);
       }
-      NodeKind::TsTplLitType => {
-        let n = current_node.expect::<AstView::TsTplLitType<'a>>();
+      TsTplLitType(n) => {
         self.ts_tpl_lit_type(n);
       }
-      NodeKind::TsTupleElement => {
-        let n = current_node.expect::<AstView::TsTupleElement<'a>>();
+      TsTupleElement(n) => {
         self.ts_tuple_element(n);
       }
-      NodeKind::TsTupleType => {
-        let n = current_node.expect::<AstView::TsTupleType<'a>>();
+      TsTupleType(n) => {
         self.ts_tuple_type(n);
       }
-      NodeKind::TsTypeAliasDecl => {
-        let n = current_node.expect::<AstView::TsTypeAliasDecl<'a>>();
+      TsTypeAliasDecl(n) => {
         self.ts_type_alias_decl(n);
       }
-      NodeKind::TsTypeAnn => {
-        let n = current_node.expect::<AstView::TsTypeAnn<'a>>();
+      TsTypeAnn(n) => {
         self.ts_type_ann(n);
       }
-      NodeKind::TsTypeAssertion => {
-        let n = current_node.expect::<AstView::TsTypeAssertion<'a>>();
+      TsTypeAssertion(n) => {
         self.ts_type_assertion(n);
       }
-      NodeKind::TsTypeCastExpr => {
-        let n = current_node.expect::<AstView::TsTypeCastExpr<'a>>();
+      TsTypeCastExpr(n) => {
         self.ts_type_cast_expr(n);
       }
-      NodeKind::TsTypeLit => {
-        let n = current_node.expect::<AstView::TsTypeLit<'a>>();
+      TsTypeLit(n) => {
         self.ts_type_lit(n);
       }
-      NodeKind::TsTypeOperator => {
-        let n = current_node.expect::<AstView::TsTypeOperator<'a>>();
+      TsTypeOperator(n) => {
         self.ts_type_operator(n);
       }
-      NodeKind::TsTypeParam => {
-        let n = current_node.expect::<AstView::TsTypeParam<'a>>();
+      TsTypeParam(n) => {
         self.ts_type_param(n);
       }
-      NodeKind::TsTypeParamDecl => {
-        let n = current_node.expect::<AstView::TsTypeParamDecl<'a>>();
+      TsTypeParamDecl(n) => {
         self.ts_type_param_decl(n);
       }
-      NodeKind::TsTypeParamInstantiation => {
-        let n = current_node.expect::<AstView::TsTypeParamInstantiation<'a>>();
+      TsTypeParamInstantiation(n) => {
         self.ts_type_param_instantiation(n);
       }
-      NodeKind::TsTypePredicate => {
-        let n = current_node.expect::<AstView::TsTypePredicate<'a>>();
+      TsTypePredicate(n) => {
         self.ts_type_predicate(n);
       }
-      NodeKind::TsTypeQuery => {
-        let n = current_node.expect::<AstView::TsTypeQuery<'a>>();
+      TsTypeQuery(n) => {
         self.ts_type_query(n);
       }
-      NodeKind::TsTypeRef => {
-        let n = current_node.expect::<AstView::TsTypeRef<'a>>();
+      TsTypeRef(n) => {
         self.ts_type_ref(n);
       }
-      NodeKind::TsUnionType => {
-        let n = current_node.expect::<AstView::TsUnionType<'a>>();
+      TsUnionType(n) => {
         self.ts_union_type(n);
       }
-      NodeKind::UnaryExpr => {
-        let n = current_node.expect::<AstView::UnaryExpr<'a>>();
+      UnaryExpr(n) => {
         self.unary_expr(n);
       }
-      NodeKind::UpdateExpr => {
-        let n = current_node.expect::<AstView::UpdateExpr<'a>>();
+      UpdateExpr(n) => {
         self.update_expr(n);
       }
-      NodeKind::VarDecl => {
-        let n = current_node.expect::<AstView::VarDecl<'a>>();
+      VarDecl(n) => {
         self.var_decl(n);
       }
-      NodeKind::VarDeclarator => {
-        let n = current_node.expect::<AstView::VarDeclarator<'a>>();
+      VarDeclarator(n) => {
         self.var_declarator(n);
       }
-      NodeKind::WhileStmt => {
-        let n = current_node.expect::<AstView::WhileStmt<'a>>();
+      WhileStmt(n) => {
         self.while_stmt(n);
       }
-      NodeKind::WithStmt => {
-        let n = current_node.expect::<AstView::WithStmt<'a>>();
+      WithStmt(n) => {
         self.with_stmt(n);
       }
-      NodeKind::YieldExpr => {
-        let n = current_node.expect::<AstView::YieldExpr<'a>>();
+      YieldExpr(n) => {
         self.yield_expr(n);
       }
     }
