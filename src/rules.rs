@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
-use swc_ecmascript::ast::Program;
+use dprint_swc_ecma_ast_view::Program as ProgramView;
+use swc_ecmascript::ast::Program as SwcProgram;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -93,16 +94,21 @@ pub trait LintRule {
     Self: Sized;
 
   /// Executes lint on the given `Program`.
-  fn lint_program(&self, context: &mut Context, program: &Program);
+  fn lint_program(&self, context: &mut Context, program: &SwcProgram);
 
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.
   fn lint_program_with_ast_view<'a>(
     &self,
     context: &mut Context,
-    program_info: dprint_swc_ecma_ast_view::ProgramInfo<'a>,
+    program: ProgramView,
   ) {
-    self.lint_program(context, &program_info.program);
+    use ProgramView::*;
+    let swc_program = match program {
+      Module(m) => SwcProgram::Module(m.inner.clone()),
+      Script(s) => SwcProgram::Script(s.inner.clone()),
+    };
+    self.lint_program(context, &swc_program);
   }
 
   /// Returns the unique code that identifies the rule

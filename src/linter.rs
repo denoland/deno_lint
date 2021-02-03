@@ -424,10 +424,12 @@ impl Linter {
       comments: None,
     };
 
-    // Run builtin rules
-    for rule in &self.rules {
-      rule.lint_program_with_ast_view(&mut context, program_info);
-    }
+    dprint_swc_ecma_ast_view::with_ast_view(program_info, |pg| {
+      // Run builtin rules
+      for rule in &self.rules {
+        rule.lint_program_with_ast_view(&mut context, pg);
+      }
+    });
 
     // Run plugin rules
     for plugin in self.plugins.iter_mut() {
