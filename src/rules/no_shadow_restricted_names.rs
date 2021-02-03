@@ -183,7 +183,6 @@ impl<'c> Visit for NoShadowRestrictedNamesVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_shadow_restricted_names_valid() {
@@ -206,107 +205,241 @@ mod tests {
 
   #[test]
   fn no_shadow_restricted_names_invalid() {
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "function NaN(NaN) { var NaN; !function NaN(NaN) { try {} catch(NaN) {} }; }",
-      vec![
-        (1, 9),
-        (1, 13),
-        (1, 24),
-        (1, 39),
-        (1, 43),
-        (1, 63),
+    assert_lint_err! {
+      NoShadowRestrictedNames,
+      "function NaN(NaN) { var NaN; !function NaN(NaN) { try {} catch(NaN) {} }; }": [
+        {
+          line: 1,
+          col: 9,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        },
+        {
+          line: 1,
+          col: 13,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        },
+        {
+          line: 1,
+          col: 24,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        },
+        {
+          line: 1,
+          col: 39,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        },
+        {
+          line: 1,
+          col: 43,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        },
+        {
+          line: 1,
+          col: 63,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        }
+      ],
+      "function undefined(undefined) { !function undefined(undefined) { try {} catch(undefined) {} }; }": [
+        {
+          line: 1,
+          col: 9,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 19,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 42,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 52,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 78,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        }
+      ],
+      "function Infinity(Infinity) { var Infinity; !function Infinity(Infinity) { try {} catch(Infinity) {} }; }": [
+        {
+          line: 1,
+          col: 9,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "Infinity"),
+        },
+        {
+          line: 1,
+          col: 18,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "Infinity"),
+        },
+        {
+          line: 1,
+          col: 34,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "Infinity"),
+        },
+        {
+          line: 1,
+          col: 54,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "Infinity"),
+        },
+        {
+          line: 1,
+          col: 63,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "Infinity"),
+        },
+        {
+          line: 1,
+          col: 88,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "Infinity"),
+        }
+      ],
+      "function arguments(arguments) { var arguments; !function arguments(arguments) { try {} catch(arguments) {} }; }": [
+        {
+          line: 1,
+          col: 9,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "arguments"),
+        },
+        {
+          line: 1,
+          col: 19,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "arguments"),
+        },
+        {
+          line: 1,
+          col: 36,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "arguments"),
+        },
+        {
+          line: 1,
+          col: 57,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "arguments"),
+        },
+        {
+          line: 1,
+          col: 67,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "arguments"),
+        },
+        {
+          line: 1,
+          col: 93,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "arguments"),
+        }
+      ],
+      "function eval(eval) { var eval; !function eval(eval) { try {} catch(eval) {} }; }": [
+        {
+          line: 1,
+          col: 9,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 14,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 26,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 42,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 47,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 68,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        }
+      ],
+      "var eval = (eval) => { var eval; !function eval(eval) { try {} catch(eval) {} }; }": [
+        {
+          line: 1,
+          col: 4,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 12,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 27,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 43,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 48,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        },
+        {
+          line: 1,
+          col: 69,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "eval"),
+        }
+      ],
+      "var {undefined} = obj; var {a: undefined} = obj; var {a: {b: {undefined}}} = obj; var {a, ...undefined} = obj;": [
+        {
+          line: 1,
+          col: 5,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 31,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 62,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        },
+        {
+          line: 1,
+          col: 93,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        }
+      ],
+      "var [undefined] = [1]": [
+        {
+          col: 5,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        }
+      ],
+      "var undefined; undefined = 5;": [
+        {
+          col: 15,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        }
+      ],
+      "var [...undefined] = []": [
+        {
+          col: 8,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "undefined"),
+        }
+      ],
+      "try {} catch { try{} catch(NaN) {} }": [
+        {
+          col: 27,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        }
       ]
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "function undefined(undefined) { !function undefined(undefined) { try {} catch(undefined) {} }; }",
-      vec![
-        (1, 9),
-        (1, 19),
-        (1, 42),
-        (1, 52),
-        (1, 78),
-      ]
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "function Infinity(Infinity) { var Infinity; !function Infinity(Infinity) { try {} catch(Infinity) {} }; }",
-      vec![
-        (1, 9),
-        (1, 18),
-        (1, 34),
-        (1, 54),
-        (1, 63),
-        (1, 88),
-      ]
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "function arguments(arguments) { var arguments; !function arguments(arguments) { try {} catch(arguments) {} }; }",
-      vec![
-        (1, 9),
-        (1, 19),
-        (1, 36),
-        (1, 57),
-        (1, 67),
-        (1, 93),
-      ]
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "function eval(eval) { var eval; !function eval(eval) { try {} catch(eval) {} }; }",
-      vec![
-        (1, 9),
-        (1, 14),
-        (1, 26),
-        (1, 42),
-        (1, 47),
-        (1, 68),
-      ]
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "var eval = (eval) => { var eval; !function eval(eval) { try {} catch(eval) {} }; }",
-      vec![
-        (1, 4),
-        (1, 12),
-        (1, 27),
-        (1, 43),
-        (1, 48),
-        (1, 69),
-      ]
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      "var {undefined} = obj; var {a: undefined} = obj; var {a: {b: {undefined}}} = obj; var {a, ...undefined} = obj;",
-      vec![
-        (1, 5),
-        (1, 31),
-        (1, 62),
-        (1, 93),
-      ]
-    );
-
-    assert_lint_err::<NoShadowRestrictedNames>("var [undefined] = [1]", 5);
-    assert_lint_err::<NoShadowRestrictedNames>(
-      "var undefined; undefined = 5;",
-      15,
-    );
-    assert_lint_err::<NoShadowRestrictedNames>("var [...undefined] = []", 8);
-    assert_lint_err::<NoShadowRestrictedNames>(
-      "try {} catch { try{} catch(NaN) {} }",
-      27,
-    );
-
-    assert_lint_err_on_line_n::<NoShadowRestrictedNames>(
-      r#"
-function foo1(...undefined) {}
-function foo2(...NaN) {}
-function foo3(...arguments) {}
-function foo4(...Infinity) {}
-function foo5(...eval) {}
-      "#,
-      vec![(2, 17), (3, 17), (4, 17), (5, 17), (6, 17)],
-    )
+    };
   }
 }
