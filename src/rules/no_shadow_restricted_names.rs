@@ -8,7 +8,7 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::{
   utils::ident::IdentLike,
-  visit::{noop_visit_type, Node, Visit},
+  visit::{noop_visit_type, Node, VisitAll, VisitAllWith},
 };
 
 pub struct NoShadowRestrictedNames;
@@ -28,7 +28,7 @@ impl LintRule for NoShadowRestrictedNames {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn tags(&self) -> &'static [&'static str] {
@@ -117,10 +117,10 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoShadowRestrictedNamesVisitor<'c> {
+impl<'c> VisitAll for NoShadowRestrictedNamesVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_var_decl(&mut self, node: &VarDecl, parent: &dyn Node) {
+  fn visit_var_decl(&mut self, node: &VarDecl, _: &dyn Node) {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {
         // `undefined` variable declaration without init is have same meaning
@@ -131,21 +131,17 @@ impl<'c> Visit for NoShadowRestrictedNamesVisitor<'c> {
 
       self.check_pat(&decl.name, false);
     }
-
-    swc_ecmascript::visit::visit_var_decl(self, node, parent);
   }
 
-  fn visit_fn_decl(&mut self, node: &FnDecl, parent: &dyn Node) {
+  fn visit_fn_decl(&mut self, node: &FnDecl, _: &dyn Node) {
     self.check_shadowing(&node.ident);
 
     for param in &node.function.params {
       self.check_pat(&param.pat, false);
     }
-
-    swc_ecmascript::visit::visit_fn_decl(self, node, parent);
   }
 
-  fn visit_fn_expr(&mut self, node: &FnExpr, parent: &dyn Node) {
+  fn visit_fn_expr(&mut self, node: &FnExpr, _: &dyn Node) {
     if node.ident.is_some() {
       self.check_shadowing(node.ident.as_ref().unwrap())
     }
@@ -153,27 +149,21 @@ impl<'c> Visit for NoShadowRestrictedNamesVisitor<'c> {
     for param in &node.function.params {
       self.check_pat(&param.pat, false);
     }
-
-    swc_ecmascript::visit::visit_fn_expr(self, node, parent);
   }
 
-  fn visit_arrow_expr(&mut self, node: &ArrowExpr, parent: &dyn Node) {
+  fn visit_arrow_expr(&mut self, node: &ArrowExpr, _: &dyn Node) {
     for param in &node.params {
       self.check_pat(&param, false);
     }
-
-    swc_ecmascript::visit::visit_arrow_expr(self, node, parent);
   }
 
-  fn visit_catch_clause(&mut self, node: &CatchClause, parent: &dyn Node) {
+  fn visit_catch_clause(&mut self, node: &CatchClause, _: &dyn Node) {
     if node.param.is_some() {
       self.check_pat(node.param.as_ref().unwrap(), false);
     }
-
-    swc_ecmascript::visit::visit_catch_clause(self, node, parent);
   }
 
-  fn visit_assign_expr(&mut self, node: &AssignExpr, _parent: &dyn Node) {
+  fn visit_assign_expr(&mut self, node: &AssignExpr, _: &dyn Node) {
     if let PatOrExpr::Pat(pat) = &node.left {
       self.check_pat(pat, true);
     }
