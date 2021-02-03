@@ -439,7 +439,15 @@ mod tests {
           col: 27,
           message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
         }
-      ]
+      ],
+
+      // nested assignment
+      "f = () => { NaN = 42; };": [
+        {
+          col: 12,
+          message: variant!(NoShadowRestrictedNamesMessage, Shadowing, "NaN"),
+        }
+      ],
     };
   }
 }
