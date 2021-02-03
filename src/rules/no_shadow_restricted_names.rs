@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use derive_more::Display;
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
   ObjectPatProp, Pat, PatOrExpr, Program, VarDecl,
@@ -11,6 +12,14 @@ use swc_ecmascript::{
 };
 
 pub struct NoShadowRestrictedNames;
+
+const CODE: &str = "no-shadow-restricted-names";
+
+#[derive(Display)]
+enum NoShadowRestrictedNamesMessage {
+  #[display(fmt = "Shadowing of global property {}", _0)]
+  Shadowing(String),
+}
 
 impl LintRule for NoShadowRestrictedNames {
   fn new() -> Box<Self> {
@@ -27,7 +36,7 @@ impl LintRule for NoShadowRestrictedNames {
   }
 
   fn code(&self) -> &'static str {
-    "no-shadow-restricted-names"
+    CODE
   }
 }
 
@@ -102,8 +111,8 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
   fn report_shadowing(&mut self, ident: &Ident) {
     self.context.add_diagnostic(
       ident.span,
-      "no-shadow-restricted-names",
-      format!("Shadowing of global property {}", &ident.sym),
+      CODE,
+      NoShadowRestrictedNamesMessage::Shadowing(ident.sym.to_string()),
     );
   }
 }
