@@ -96,6 +96,10 @@ impl VisitAll for BindingCollector {
     }
   }
 
+  fn visit_ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, _: &dyn Node) {
+    self.declare(t.id.to_id());
+  }
+
   fn visit_ts_enum_decl(&mut self, e: &TsEnumDecl, _: &dyn Node) {
     self.declare(e.id.to_id());
   }
@@ -120,6 +124,7 @@ impl VisitAll for BindingCollector {
       self.declare(id);
     }
   }
+
   fn visit_catch_clause(&mut self, c: &CatchClause, _: &dyn Node) {
     if let Some(pat) = &c.param {
       let ids: Vec<Id> = find_ids(pat);
@@ -362,6 +367,13 @@ mod tests {
       }
     }
     "#,
+
+      // https://github.com/denoland/deno_lint/issues/607
+      r#"type Foo = ""; export default Foo;"#,
+      r#"type Foo = Array<string>; export default Foo;"#,
+      r#"type Foo = string | number; export default Foo;"#,
+      r#"type Foo<T> = { bar: T }; export default Foo;"#,
+      r#"type Foo = string | undefined; export type { Foo };"#,
     };
   }
 
@@ -443,6 +455,12 @@ mod tests {
         {
           col: 0,
           message: "foo is not defined",
+        },
+      ],
+      "type Foo = string; export default Bar;": [
+        {
+          col: 34,
+          message: "Bar is not defined",
         },
       ],
     };
