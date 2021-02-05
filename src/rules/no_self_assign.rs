@@ -3,6 +3,7 @@ use super::Context;
 use super::LintRule;
 use crate::swc_util::StringRepr;
 
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::AssignExpr;
 use swc_ecmascript::ast::AssignOp;
@@ -18,9 +19,23 @@ use swc_ecmascript::ast::Prop;
 use swc_ecmascript::ast::PropOrSpread;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoSelfAssign;
+
+const CODE: &str = "no-self-assign";
+
+#[derive(Display)]
+enum NoSelfAssignMessage {
+  #[display("`{}` is assigned to itself", _0)]
+  Invalid(String),
+}
+
+#[derive(Display)]
+enum NoSelfAssignHint {
+  #[display("Self assignments have no effect. Perhaps you make a mistake?")]
+  Mistake,
+}
 
 impl LintRule for NoSelfAssign {
   fn new() -> Box<Self> {
@@ -32,7 +47,7 @@ impl LintRule for NoSelfAssign {
   }
 
   fn code(&self) -> &'static str {
-    "no-self-assign"
+    CODE
   }
 
   fn lint_program(
@@ -41,7 +56,7 @@ impl LintRule for NoSelfAssign {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -54,11 +69,12 @@ impl<'c> NoSelfAssignVisitor<'c> {
     Self { context }
   }
 
-  fn add_diagnostic(&mut self, span: Span, name: impl AsRef<str>) {
-    self.context.add_diagnostic(
+  fn add_diagnostic(&mut self, span: Span, name: impl ToString) {
+    self.context.add_diagnostic_with_hint(
       span,
-      "no-self-assign",
-      format!("\"{}\" is assigned to itself", name.as_ref()),
+      CODE,
+      NoSelfAssignMessage::Invalid(name.to_string()),
+      NoSelfAssignHint::Mistake,
     );
   }
 
@@ -272,7 +288,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoSelfAssignVisitor<'c> {
+impl<'c> VisitAll for NoSelfAssignVisitor<'c> {
   noop_visit_type!();
 
   fn visit_assign_expr(
@@ -296,7 +312,6 @@ impl<'c> Visit for NoSelfAssignVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_self_assign_valid() {
@@ -341,42 +356,258 @@ mod tests {
 
   #[test]
   fn no_self_assign_invalid() {
-    assert_lint_err::<NoSelfAssign>("a = a", 4);
-    assert_lint_err::<NoSelfAssign>("[a] = [a]", 7);
-    assert_lint_err_n::<NoSelfAssign>("[a, b] = [a, b]", vec![10, 13]);
-    assert_lint_err::<NoSelfAssign>("[a, b] = [a, c]", 10);
-    assert_lint_err::<NoSelfAssign>("[a, b] = [, b]", 12);
-    assert_lint_err_n::<NoSelfAssign>("[a, ...b] = [a, ...b]", vec![13, 19]);
-    assert_lint_err_n::<NoSelfAssign>("[[a], {b}] = [[a], {b}]", vec![15, 20]);
-    assert_lint_err::<NoSelfAssign>("({a} = {a})", 8);
-    assert_lint_err::<NoSelfAssign>("({a: b} = {a: b})", 14);
-    assert_lint_err::<NoSelfAssign>("({'a': b} = {'a': b})", 18);
-    assert_lint_err::<NoSelfAssign>("({a: b} = {'a': b})", 16);
-    assert_lint_err::<NoSelfAssign>("({'a': b} = {a: b})", 16);
-    assert_lint_err::<NoSelfAssign>("({1: b} = {1: b})", 14);
-    assert_lint_err::<NoSelfAssign>("({1: b} = {'1': b})", 16);
-    assert_lint_err::<NoSelfAssign>("({'1': b} = {1: b})", 16);
-    assert_lint_err::<NoSelfAssign>("({['a']: b} = {a: b})", 18);
-    assert_lint_err::<NoSelfAssign>("({'a': b} = {[`a`]: b})", 20);
-    assert_lint_err::<NoSelfAssign>("({1: b} = {[1]: b})", 16);
-    assert_lint_err_n::<NoSelfAssign>("({a, b} = {a, b})", vec![11, 14]);
-    assert_lint_err_n::<NoSelfAssign>("({a, b} = {b, a})", vec![14, 11]);
-    assert_lint_err::<NoSelfAssign>("({a, b} = {c, a})", 14);
-    assert_lint_err_n::<NoSelfAssign>(
-      "({a: {b}, c: [d]} = {a: {b}, c: [d]})",
-      vec![25, 33],
-    );
-    assert_lint_err::<NoSelfAssign>("({a, b} = {a, ...x, b})", 20);
-    assert_lint_err::<NoSelfAssign>("a.b = a.b", 6);
-    assert_lint_err::<NoSelfAssign>("a.b.c = a.b.c", 8);
-    assert_lint_err::<NoSelfAssign>("a[b] = a[b]", 7);
-    assert_lint_err::<NoSelfAssign>("a['b'] = a['b']", 9);
-    assert_lint_err_on_line::<NoSelfAssign>(
-      "a[\n    'b'] = a[\n    'b']",
-      2,
-      11,
-    );
-    assert_lint_err::<NoSelfAssign>("this.x = this.x", 9);
-    assert_lint_err::<NoSelfAssign>("a['/(?<zero>0)/'] = a[/(?<zero>0)/]", 20);
+    assert_lint_err! {
+      NoSelfAssign,
+      "a = a": [
+        {
+          col: 4,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "[a] = [a]": [
+        {
+          col: 7,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "[a, b] = [a, b]": [
+        {
+          col: 10,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        },
+        {
+          col: 13,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "[a, b] = [a, c]": [
+        {
+          col: 10,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "[a, b] = [, b]": [
+        {
+          col: 12,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "[a, ...b] = [a, ...b]": [
+        {
+          col: 13,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        },
+        {
+          col: 19,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "[[a], {b}] = [[a], {b}]": [
+        {
+          col: 15,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        },
+        {
+          col: 20,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a} = {a})": [
+        {
+          col: 8,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a: b} = {a: b})": [
+        {
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({'a': b} = {'a': b})": [
+        {
+          col: 18,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a: b} = {'a': b})": [
+        {
+          col: 16,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({'a': b} = {a: b})": [
+        {
+          col: 16,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({1: b} = {1: b})": [
+        {
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({1: b} = {'1': b})": [
+        {
+          col: 16,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({'1': b} = {1: b})": [
+        {
+          col: 16,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({['a']: b} = {a: b})": [
+        {
+          col: 18,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({'a': b} = {[`a`]: b})": [
+        {
+          col: 20,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({1: b} = {[1]: b})": [
+        {
+          col: 16,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a, b} = {a, b})": [
+        {
+          col: 11,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        },
+        {
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a, b} = {b, a})": [
+        {
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        },
+        {
+          col: 11,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a, b} = {c, a})": [
+        {
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a: {b}, c: [d]} = {a: {b}, c: [d]})": [
+        {
+          col: 25,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        },
+        {
+          col: 33,
+          message: variant!(NoSelfAssignMessage, Invalid, "d"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "({a, b} = {a, ...x, b})": [
+        {
+          col: 20,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "a.b = a.b": [
+        {
+          col: 6,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "a.b.c = a.b.c": [
+        {
+          col: 8,
+          message: variant!(NoSelfAssignMessage, Invalid, "c"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "a[b] = a[b]": [
+        {
+          col: 7,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "a['b'] = a['b']": [
+        {
+          col: 9,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "a[\n    'b'] = a[\n    'b']": [
+        {
+          line: 2,
+          col: 11,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "this.x = this.x": [
+        {
+          col: 9,
+          message: variant!(NoSelfAssignMessage, Invalid, "x"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+      "a['/(?<zero>0)/'] = a[/(?<zero>0)/]": [
+        {
+          col: 20,
+          message: variant!(NoSelfAssignMessage, Invalid, "/(?<zero>0)/"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+
+      // check if it works for nested assignments
+      "foo = () => { a = a; };": [
+        {
+          col: 18,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+    };
   }
 }
