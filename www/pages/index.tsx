@@ -74,8 +74,7 @@ function IndexPage(props: PageProps<Data>) {
           </label>
         </div>
         <div class="mt-6 text-gray-600">
-          Showing {searchResults.length} out of {props.data.rules.length}
-          {" "}rules
+          Showing {searchResults.length} out of {props.data.rules.length} rules
         </div>
         <div>
           {searchResults
@@ -89,7 +88,7 @@ function IndexPage(props: PageProps<Data>) {
 function Rule(props: { rule: RuleData }) {
   const [extended, setExtended] = useState(false);
 
-  const ref = useRef<HTMLDivElement | undefined>();
+  const ref = useRef<HTMLDivElement>();
   const { rule } = props;
 
   useEffect(() => {
