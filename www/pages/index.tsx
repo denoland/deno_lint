@@ -88,7 +88,7 @@ function IndexPage(props: PageProps<Data>) {
 function Rule(props: { rule: RuleData }) {
   const [extended, setExtended] = useState(false);
 
-  const ref = useRef<HTMLDivElement | undefined>();
+  const ref = useRef<HTMLDivElement>();
   const { rule } = props;
 
   useEffect(() => {
