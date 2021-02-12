@@ -89,13 +89,11 @@ impl<'c> NoConstantConditionVisitor<'c> {
 
   fn check_short_circuit(&self, expr: &Expr, operator: BinaryOp) -> bool {
     match expr {
-      Expr::Lit(lit) => match lit {
-        Lit::Bool(boolean) => {
-          (operator == BinaryOp::LogicalOr && boolean.value)
-            || (operator == BinaryOp::LogicalAnd && !boolean.value)
-        }
-        _ => false,
-      },
+      Expr::Lit(Lit::Bool(boolean)) => {
+        (operator == BinaryOp::LogicalOr && boolean.value)
+          || (operator == BinaryOp::LogicalAnd && !boolean.value)
+      }
+      Expr::Lit(_) => false,
       Expr::Unary(unary) => {
         operator == BinaryOp::LogicalAnd && unary.op == UnaryOp::Void
       }

@@ -240,11 +240,9 @@ impl<'c> NoSelfAssignVisitor<'c> {
           let left_elem = &l_array_pat.elems[i];
           let right_elem = &r_array_lit.elems[i];
           // Avoid cases such as [...a] = [...a, 1]
-          if let Some(elem) = left_elem {
-            if let Pat::Rest(_) = elem {
-              if i < r_array_lit.elems.len() - 1 {
-                break;
-              }
+          if let Some(Pat::Rest(_)) = left_elem {
+            if i < r_array_lit.elems.len() - 1 {
+              break;
             }
           }
 
