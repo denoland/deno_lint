@@ -475,7 +475,7 @@ impl Visit for Analyzer<'_> {
 
     self.mark_as_end(n.span.lo, end);
 
-    if !matches!(end, End::Forced {..}) {
+    if !matches!(end, End::Forced { .. }) {
       self.scope.end = prev_end;
     }
   }
@@ -758,8 +758,10 @@ impl Visit for Analyzer<'_> {
           self.scope.end = prev_end;
         }
       }
-    } else if matches!(try_block_end, Some(End::Forced { .. }) | Some(End::Break))
-    {
+    } else if matches!(
+      try_block_end,
+      Some(End::Forced { .. }) | Some(End::Break)
+    ) {
       // This `unwrap` is safe; `try_block_end` is surely wrapped in `Some`
       self.mark_as_end(n.span.lo, try_block_end.unwrap());
     } else if let Some(finalizer) = &n.finalizer {

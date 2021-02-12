@@ -58,11 +58,9 @@ const goodRegExp = new RegExp('.');
 }
 
 fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {
-  if let Expr::Lit(lit_expr) = expr {
-    if let swc_ecmascript::ast::Lit::Str(pattern_string) = lit_expr {
-      let s: &str = &pattern_string.value;
-      return Some(s.to_owned());
-    }
+  if let Expr::Lit(swc_ecmascript::ast::Lit::Str(pattern_string)) = expr {
+    let s: &str = &pattern_string.value;
+    return Some(s.to_owned());
   }
   None
 }
