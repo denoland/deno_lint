@@ -24,7 +24,7 @@ jobs:
       - name: Install rust
         uses: hecrj/setup-rust-action@v1.3.4
         with:
-          rust-version: 1.49.0
+          rust-version: 1.50.0
 
       - name: Install clippy and rustfmt
         run: |
@@ -34,13 +34,13 @@ jobs:
       - name: Install Deno
         uses: denolib/setup-deno@master
         with:
-          deno-version: v1.6.3
+          deno-version: v1.7.0
 
       - name: Install Node.js
         if: contains(matrix.os, 'ubuntu')
         uses: actions/setup-node@v2-beta
         with:
-          node-version: "12"
+          node-version: "14"
 
       - name: Install npm packages
         if: contains(matrix.os, 'ubuntu')
@@ -115,7 +115,7 @@ jobs:
         run: |
           yarn
           yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.10.1/cli.ts build
+          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.10.3/cli.ts build
         working-directory: ./www
 
       - name: Upload website to Github Actions Artifacts
@@ -129,7 +129,7 @@ jobs:
         if: |
           contains(matrix.os, 'ubuntu') &&
           github.repository == 'denoland/deno_lint' &&
-          github.ref == 'refs/heads/master'
+          github.ref == 'refs/heads/main'
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |

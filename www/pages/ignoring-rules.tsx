@@ -13,7 +13,7 @@ interface Data {
 }
 
 function IgnoringRulesPage(props: PageProps<Data>) {
-  const ref = useRef<HTMLDivElement | undefined>();
+  const ref = useRef<HTMLDivElement>();
 
   useEffect(() => {
     if (ref.current) {

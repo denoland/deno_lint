@@ -590,15 +590,15 @@ impl<'c> Visit for CamelcaseVisitor<'c> {
               }
             }
           }
-          Expr::Fn(FnExpr { ref ident, .. }) => {
-            if let Some(ident) = ident {
-              self.check_ident(ident, IdentToCheck::function(ident));
-            }
+          Expr::Fn(FnExpr {
+            ident: Some(ident), ..
+          }) => {
+            self.check_ident(ident, IdentToCheck::function(ident));
           }
-          Expr::Class(ClassExpr { ref ident, .. }) => {
-            if let Some(ident) = ident {
-              self.check_ident(ident, IdentToCheck::class(ident));
-            }
+          Expr::Class(ClassExpr {
+            ident: Some(ident), ..
+          }) => {
+            self.check_ident(ident, IdentToCheck::class(ident));
           }
           _ => {}
         }

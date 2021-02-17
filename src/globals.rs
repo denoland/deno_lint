@@ -75,6 +75,7 @@ pub static GLOBALS: &[(&str, bool)] = &[
   ("Math", false),
   ("MessageEvent", false),
   ("NaN", false),
+  ("navigator", false),
   ("Number", false),
   ("Object", false),
   ("onerror", true),

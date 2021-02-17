@@ -37,6 +37,7 @@ struct Code {
 type Diagnostics = HashMap<String, Vec<InnerDiagnostics>>;
 type Codes = HashSet<String>;
 
+#[allow(clippy::unnecessary_wraps)]
 fn op_add_diagnostics(
   state: &mut OpState,
   args: Value,
@@ -54,6 +55,7 @@ fn op_add_diagnostics(
   Ok(serde_json::json!({}))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn op_add_rule_code(
   state: &mut OpState,
   args: Value,
