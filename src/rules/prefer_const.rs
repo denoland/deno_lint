@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -52,17 +51,23 @@ impl LintRule for PreferConst {
   fn lint_program(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program: ProgramRef<'_>,
   ) {
     let mut collector = VariableCollector::new();
-    collector.visit_program(program, program);
+    match program {
+        ProgramRef::Module(ref m) => collector.visit_module(m, &DUMMY_NODE),
+        ProgramRef::Script(ref s) => collector.visit_script(s, &DUMMY_NODE),
+    }
 
     let mut visitor = PreferConstVisitor::new(
       context,
       mem::take(&mut collector.scopes),
       mem::take(&mut collector.var_groups),
     );
-    visitor.visit_program(program, program);
+    match program {
+        ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+        ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 }
 

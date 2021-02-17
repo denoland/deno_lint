@@ -1,8 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{ProgramRef, LintRule, Context};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, with_ast_view, NodeTrait};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 use swc_common::Spanned;
 
 pub struct NoAwaitInLoop;
@@ -23,19 +22,17 @@ impl LintRule for NoAwaitInLoop {
   fn lint_program(
     &self,
     _context: &mut Context,
-    _program: &swc_ecmascript::ast::Program,
+    _program: ProgramRef<'_>,
   ) {
     unreachable!();
   }
 
-  fn lint_program_with_ast_view<'a>(
+  fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program_info: dprint_swc_ecma_ast_view::ProgramInfo<'a>,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
   ) {
-    with_ast_view(program_info, |pg| {
-      NoAwaitInLoopHandler.traverse(pg, context);
-    });
+    NoAwaitInLoopHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {

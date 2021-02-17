@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_ecmascript::ast::BlockStmt;
 use swc_ecmascript::ast::Class;
 use swc_ecmascript::ast::ClassMember;
@@ -29,10 +28,13 @@ impl LintRule for NoSetterReturn {
   fn lint_program(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program: ProgramRef<'_>,
   ) {
     let mut visitor = NoSetterReturnVisitor::new(context);
-    visitor.visit_program(program, program);
+    match program {
+        ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+        ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 }
 

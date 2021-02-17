@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
@@ -32,20 +31,26 @@ impl LintRule for NoUnusedVars {
     "no-unused-vars"
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut collector = Collector {
       used_vars: Default::default(),
       cur_defining: Default::default(),
       used_types: Default::default(),
     };
-    program.visit_with(program, &mut collector);
+    match program {
+        ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
+        ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+    }
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
       collector.used_vars,
       collector.used_types,
     );
-    program.visit_with(program, &mut visitor);
+    match program {
+        ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+        ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 }
 

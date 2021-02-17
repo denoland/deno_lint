@@ -1,7 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
 use dprint_swc_ecma_ast_view::Program as ProgramView;
-use swc_ecmascript::ast::Program as SwcProgram;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -87,6 +86,13 @@ pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
 
+const DUMMY_NODE: () = ();
+
+enum ProgramRef<'a> {
+  Module(&'a swc_ecmascript::ast::Module),
+  Script(&'a swc_ecmascript::ast::Script),
+}
+
 pub trait LintRule {
   /// Creates a instance of this rule.
   fn new() -> Box<Self>
@@ -94,21 +100,21 @@ pub trait LintRule {
     Self: Sized;
 
   /// Executes lint on the given `Program`.
-  fn lint_program(&self, context: &mut Context, program: &SwcProgram);
+  fn lint_program<'a>(&self, context: &mut Context, program: ProgramRef<'a>);
 
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.
   fn lint_program_with_ast_view<'a>(
     &self,
     context: &mut Context,
-    program: ProgramView,
+    program: dprint_swc_ecma_ast_view::Program,
   ) {
     use ProgramView::*;
-    let swc_program = match program {
-      Module(m) => SwcProgram::Module(m.inner.clone()),
-      Script(s) => SwcProgram::Script(s.inner.clone()),
+    let program_ref = match program {
+      Module(m) => ProgramRef::Module(m.inner),
+      Script(s) => ProgramRef::Script(s.inner),
     };
-    self.lint_program(context, &swc_program);
+    self.lint_program(context, program_ref);
   }
 
   /// Returns the unique code that identifies the rule

@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use derive_more::Display;
 use swc_common::Spanned;
@@ -52,10 +51,13 @@ impl LintRule for RequireAwait {
   fn lint_program(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program: ProgramRef<'_>,
   ) {
     let mut visitor = RequireAwaitVisitor::new(context);
-    program.visit_with(program, &mut visitor);
+    match program {
+        ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+        ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 
   fn docs(&self) -> &'static str {

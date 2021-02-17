@@ -1,7 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
-
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
@@ -42,9 +40,13 @@ impl LintRule for PreferAsConst {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = PreferAsConstVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+
+    match program {
+        ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+        ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 }
 

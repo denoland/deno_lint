@@ -1,8 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::with_ast_view;
 
 pub struct NoWith;
 
@@ -25,19 +23,17 @@ impl LintRule for NoWith {
   fn lint_program(
     &self,
     _context: &mut Context,
-    _program: &swc_ecmascript::ast::Program,
+    _program: ProgramRef<'_>,
   ) {
     unreachable!();
   }
 
-  fn lint_program_with_ast_view<'a>(
+  fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program_info: dprint_swc_ecma_ast_view::ProgramInfo<'a>,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
   ) {
-    with_ast_view(program_info, |pg| {
-      NoWithHandler.traverse(pg, context);
-    });
+    NoWithHandler.traverse(program, context);
   }
 }
 

@@ -1,10 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
-  ObjectPatProp, Pat, PatOrExpr, Program, VarDecl,
+  ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
 use swc_ecmascript::{
   utils::ident::IdentLike,
@@ -26,9 +25,12 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+        ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+        ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn tags(&self) -> &'static [&'static str] {

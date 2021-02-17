@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 
 use derive_more::Display;
@@ -53,10 +52,13 @@ impl LintRule for NoSelfAssign {
   fn lint_program(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program: ProgramRef<'_>,
   ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+        ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+        ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 }
 
