@@ -299,7 +299,7 @@ impl<'c> Visit for NoImportAssignVisitor<'c> {
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {
     match n {
       Pat::Ident(i) => {
-        self.check(i.span, &i, false);
+        self.check(i.id.span, &i.id, false);
       }
       Pat::Expr(e) => {
         self.check_expr(n.span(), e);
