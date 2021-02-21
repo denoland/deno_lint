@@ -107,7 +107,7 @@ impl<'c> NoDupeArgsVisitor<'c> {
     for pat in pats {
       match &pat {
         Pat::Ident(ident) => {
-          if !seen.insert(ident.as_ref()) {
+          if !seen.insert(ident.id.as_ref()) {
             self.error_spans.insert(span);
           }
         }

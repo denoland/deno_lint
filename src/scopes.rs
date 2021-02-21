@@ -169,7 +169,7 @@ impl Visit for Analyzer<'_> {
         }) = &**expr
         {
           if let Pat::Ident(var_name) = &v.name {
-            if var_name.sym == class_name.sym {
+            if var_name.id.sym == class_name.sym {
               self.declare(BindingKind::Class, class_name);
               return;
             }

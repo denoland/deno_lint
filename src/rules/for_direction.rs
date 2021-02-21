@@ -110,7 +110,7 @@ impl<'c> ForDirectionVisitor<'c> {
         _ => return update_direction,
       },
       PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => ident.sym.as_ref(),
+        Pat::Ident(ident) => ident.id.sym.as_ref(),
         _ => return update_direction,
       },
     };

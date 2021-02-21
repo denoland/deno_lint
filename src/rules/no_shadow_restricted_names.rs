@@ -61,14 +61,14 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
       Pat::Ident(ident) => {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
-        if &ident.sym == "undefined" && check_scope {
+        if &ident.id.sym == "undefined" && check_scope {
           if let Some(_binding) = self.context.scope.var(&ident.to_id()) {
-            self.report_shadowing(&ident);
+            self.report_shadowing(&ident.id);
           }
           return;
         }
 
-        self.check_shadowing(ident);
+        self.check_shadowing(&ident.id);
       }
       Pat::Expr(expr) => {
         if let Expr::Ident(ident) = expr.as_ref() {
@@ -124,7 +124,7 @@ impl<'c> VisitAll for NoShadowRestrictedNamesVisitor<'c> {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {
         // `undefined` variable declaration without init is have same meaning
-        if decl.init.is_none() && &ident.sym == "undefined" {
+        if decl.init.is_none() && &ident.id.sym == "undefined" {
           continue;
         }
       }

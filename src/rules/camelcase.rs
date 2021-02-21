@@ -460,7 +460,7 @@ impl<'c> CamelcaseVisitor<'c> {
   fn check_pat(&mut self, pat: &Pat) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_ident(ident, IdentToCheck::variable(ident));
+        self.check_ident(ident, IdentToCheck::variable(&ident.id));
       }
       Pat::Array(ArrayPat { ref elems, .. }) => {
         for elem in elems {
@@ -482,7 +482,7 @@ impl<'c> CamelcaseVisitor<'c> {
                     value_ident,
                     IdentToCheck::object_pat(
                       &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
-                      Some(value_ident),
+                      Some(&value_ident.id),
                       false,
                     ),
                   );
@@ -495,7 +495,7 @@ impl<'c> CamelcaseVisitor<'c> {
                         &key
                           .string_repr()
                           .unwrap_or_else(|| "[KEY]".to_string()),
-                        Some(value_ident),
+                        Some(&value_ident.id),
                         true,
                       ),
                     );
