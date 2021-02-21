@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use regex::Regex;
 
 use derive_more::Display;
@@ -35,12 +34,18 @@ impl LintRule for NoMixedSpacesAndTabs {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
 
-    let file_and_lines =
-      context.source_map.span_to_lines(program.span()).unwrap();
+    let span = match program {
+      ProgramRef::Module(ref m) => m.span,
+      ProgramRef::Script(ref s) => s.span,
+    };
+    let file_and_lines = context.source_map.span_to_lines(span).unwrap();
     let file = file_and_lines.file;
 
     let mut excluded_ranges = visitor.ranges;
