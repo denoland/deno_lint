@@ -73,7 +73,6 @@ struct Collector {
 
 impl Collector {
   fn mark_as_usage(&mut self, i: &Ident) {
-    i.type_ann.visit_with(i, self);
     let id = i.to_id();
 
     // Recursive calls are not usage
@@ -417,7 +416,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     match params.first() {
       Some(Param {
         pat: Pat::Ident(i), ..
-      }) if i.sym == *"this" => params
+      }) if i.id.sym == *"this" => params
         .iter()
         .skip(1)
         .for_each(|param| param.visit_with(parent, self)),

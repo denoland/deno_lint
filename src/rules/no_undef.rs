@@ -223,7 +223,7 @@ impl<'c> Visit for NoUndefVisitor<'c> {
 
   fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
     if let Pat::Ident(i) = p {
-      self.check(i);
+      self.check(&i.id);
     } else {
       p.visit_children_with(self);
     }

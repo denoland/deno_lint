@@ -538,7 +538,7 @@ impl Visit for VariableCollector {
             }
             match &ts_param_prop.param {
               TsParamPropParam::Ident(ident) => {
-                a.insert_var(ident, VarStatus::Reassigned);
+                a.insert_var(&ident.id, VarStatus::Reassigned);
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
@@ -602,7 +602,7 @@ where
   F: FnMut(ExtractIdentsArgs<'a>),
 {
   match pat {
-    Pat::Ident(ident) => op(ExtractIdentsArgs::Ident(ident)),
+    Pat::Ident(ident) => op(ExtractIdentsArgs::Ident(&ident.id)),
     Pat::Array(array_pat) => {
       for elem in &array_pat.elems {
         if let Some(elem_pat) = elem {

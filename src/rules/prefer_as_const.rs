@@ -3,8 +3,8 @@ use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
-  ArrayPat, Expr, Ident, Lit, ObjectPat, Pat, Program, TsAsExpr, TsLit, TsType,
-  TsTypeAnn, TsTypeAssertion, VarDecl,
+  ArrayPat, BindingIdent, Expr, Lit, ObjectPat, Pat, Program, TsAsExpr, TsLit,
+  TsType, TsTypeAnn, TsTypeAssertion, VarDecl,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -111,7 +111,7 @@ impl<'c> VisitAll for PreferAsConstVisitor<'c> {
       if let Some(init) = &decl.init {
         if let Pat::Array(ArrayPat { type_ann, .. })
         | Pat::Object(ObjectPat { type_ann, .. })
-        | Pat::Ident(Ident { type_ann, .. }) = &decl.name
+        | Pat::Ident(BindingIdent { type_ann, .. }) = &decl.name
         {
           if let Some(TsTypeAnn { type_ann, .. }) = &type_ann {
             self.compare(type_ann, &init, type_ann.span());

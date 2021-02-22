@@ -70,7 +70,7 @@ impl<'c> NoConstAssignVisitor<'c> {
   fn check_pat(&mut self, pat: &Pat, span: Span) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_scope_for_const(span, ident);
+        self.check_scope_for_const(span, &ident.id);
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, span);

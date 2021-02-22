@@ -109,6 +109,9 @@ mod tests {
       class D {
         constructor(a: string) {}
       }",
+
+      // https://github.com/denoland/deno_lint/issues/615
+      "class T { #foo(x) {} #bar(x) {} }",
     };
   }
 

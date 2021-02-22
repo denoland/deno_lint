@@ -1,3 +1,4 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::LintRule;
 use crate::linter::Context;
 use derive_more::Display;

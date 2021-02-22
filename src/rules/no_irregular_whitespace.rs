@@ -1,6 +1,8 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use once_cell::sync::Lazy;
+use regex::{Matches, Regex};
 use regex::{Matches, Regex};
 use swc_common::{hygiene::SyntaxContext, BytePos, Span, Spanned};
 use swc_ecmascript::ast::Str;

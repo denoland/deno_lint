@@ -233,7 +233,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
         self.check_expr_and_expr(&**l_expr, right);
       }
       (Pat::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.check_same_ident(l_ident, r_ident);
+        self.check_same_ident(&l_ident.id, r_ident);
       }
       (Pat::Array(l_array_pat), Expr::Array(r_array_lit)) => {
         let end =

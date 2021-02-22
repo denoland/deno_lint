@@ -136,7 +136,7 @@ impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
 
   fn check_pat(&mut self, pat: &Pat) {
     match pat {
-      Pat::Ident(ident) => self.check_ann(&ident.type_ann, ident.span),
+      Pat::Ident(ident) => self.check_ann(&ident.type_ann, ident.id.span),
       Pat::Array(array) => self.check_ann(&array.type_ann, array.span),
       Pat::Rest(rest) => self.check_ann(&rest.type_ann, rest.span),
       Pat::Object(object) => self.check_ann(&object.type_ann, object.span),
