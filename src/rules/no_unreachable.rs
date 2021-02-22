@@ -373,6 +373,17 @@ try {
   console.log("Statement reached!");
 }
       "#,
+      r#"
+throw 'oops';
+interface I<V> {
+  k: V; 
+};
+      "#,
+      r#"
+throw new Error();
+type S = string;
+type X<T> = T;
+      "#,
     };
   }
 
