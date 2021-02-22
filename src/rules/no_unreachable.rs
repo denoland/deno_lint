@@ -376,8 +376,8 @@ try {
       r#"
 throw 'oops';
 interface I<V> {
-  k: V; 
-};
+  k: V;
+}
       "#,
       r#"
 throw new Error();
