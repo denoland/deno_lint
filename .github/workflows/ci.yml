@@ -93,10 +93,6 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: deno run --allow-run ./tools/format.ts --check
 
-      - name: Check Copyright
-        if: contains(matrix.os, 'ubuntu')
-        run: deno run --allow-read ./tools/check_copyright.ts
-
       - name: Build
         run: cargo build --locked --release --all-targets
 
