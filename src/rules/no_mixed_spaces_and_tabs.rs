@@ -1,11 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use regex::Regex;
-
 use derive_more::Display;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_common::{BytePos, Span, Spanned, SyntaxContext};
-use swc_ecmascript::ast::{Lit, Program, Tpl};
+use swc_ecmascript::ast::{Lit, Tpl};
 use swc_ecmascript::visit::{Node, VisitAll, VisitAllWith};
 
 static RE: Lazy<Regex> =

@@ -1,13 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmtOrExpr, Decl, DefaultDecl, FnDecl, FnExpr, Function,
-  ModuleDecl, ModuleItem, Program, Script, Stmt, VarDecl, VarDeclKind,
+  ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
 use swc_ecmascript::visit::{
   noop_visit_type, Node, Visit, VisitAll, VisitAllWith, VisitWith,
@@ -42,13 +41,23 @@ impl LintRule for NoInnerDeclarations {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut valid_visitor = ValidDeclsVisitor::new();
-    program.visit_all_with(program, &mut valid_visitor);
+    match program {
+      ProgramRef::Module(ref m) => {
+        m.visit_all_with(&DUMMY_NODE, &mut valid_visitor)
+      }
+      ProgramRef::Script(ref s) => {
+        s.visit_all_with(&DUMMY_NODE, &mut valid_visitor)
+      }
+    }
 
     let mut visitor =
       NoInnerDeclarationsVisitor::new(context, valid_visitor.valid_decls);
-    program.visit_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

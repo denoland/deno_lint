@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{ProgramRef, LintRule, Context};
+use super::{Context, LintRule, ProgramRef};
 use crate::handler::{Handler, Traverse};
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 use swc_common::Spanned;
@@ -19,11 +19,7 @@ impl LintRule for NoAwaitInLoop {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    _context: &mut Context,
-    _program: ProgramRef<'_>,
-  ) {
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
     unreachable!();
   }
 

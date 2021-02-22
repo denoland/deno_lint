@@ -10,10 +10,10 @@ use swc_ecmascript::{
     ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor,
     Decl, ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
     ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-    KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Program,
-    Prop, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
-    TsModuleDecl, TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl,
-    VarDeclOrPat, VarDeclarator,
+    KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
+    SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsModuleDecl,
+    TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl, VarDeclOrPat,
+    VarDeclarator,
   },
   visit::VisitWith,
 };
@@ -38,8 +38,8 @@ impl LintRule for NoUnusedVars {
       used_types: Default::default(),
     };
     match program {
-        ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
-        ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
     }
 
     let mut visitor = NoUnusedVarVisitor::new(
@@ -48,8 +48,8 @@ impl LintRule for NoUnusedVars {
       collector.used_types,
     );
     match program {
-        ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-        ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }

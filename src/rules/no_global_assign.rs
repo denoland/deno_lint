@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::LintRule;
-use crate::{globals::GLOBALS, linter::Context, swc_util::find_lhs_ids};
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
 use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::Span;
@@ -42,18 +42,20 @@ impl LintRule for NoGlobalAssign {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut collector = Collector {
       bindings: Default::default(),
     };
-    program.visit_with(program, &mut collector);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+    }
 
     let mut visitor = NoGlobalAssignVisitor::new(context, collector.bindings);
-    program.visit_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

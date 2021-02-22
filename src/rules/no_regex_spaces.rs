@@ -6,7 +6,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
+use swc_ecmascript::visit::VisitAll;
 
 pub struct NoRegexSpaces;
 

@@ -12,6 +12,7 @@ pub trait Handler {
   fn await_expr(&self, _n: &AstView::AwaitExpr, _ctx: &mut Context) {}
   fn big_int(&self, _n: &AstView::BigInt, _ctx: &mut Context) {}
   fn bin_expr(&self, _n: &AstView::BinExpr, _ctx: &mut Context) {}
+  fn binding_ident(&self, _n: &AstView::BindingIdent, _ctx: &mut Context) {}
   fn block_stmt(&self, _n: &AstView::BlockStmt, _ctx: &mut Context) {}
   fn bool(&self, _n: &AstView::Bool, _ctx: &mut Context) {}
   fn break_stmt(&self, _n: &AstView::BreakStmt, _ctx: &mut Context) {}
@@ -415,6 +416,9 @@ pub trait Traverse: Handler {
       }
       BinExpr(n) => {
         self.bin_expr(n, ctx);
+      }
+      BindingIdent(n) => {
+        self.binding_ident(n, ctx);
       }
       BlockStmt(n) => {
         self.block_stmt(n, ctx);

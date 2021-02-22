@@ -1,13 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
-
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use swc_ecmascript::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
-  NewExpr, OptChainExpr, Pat, PrivateProp, Program, TsEntityName,
-  TsKeywordType, TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr,
-  VarDecl,
+  NewExpr, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
+  TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -41,9 +38,12 @@ impl LintRule for NoInferrableTypes {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

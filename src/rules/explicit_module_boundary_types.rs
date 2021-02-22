@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_common::Span;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -8,7 +7,7 @@ use swc_ecmascript::visit::Visit;
 
 use swc_ecmascript::ast::{
   ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, ModuleDecl,
-  Pat, Program, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
+  Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
 
 pub struct ExplicitModuleBoundaryTypes;
@@ -22,9 +21,12 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     "explicit-module-boundary-types"
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
-    visitor.visit_program(program, program);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 
   fn docs(&self) -> &'static str {
