@@ -57,7 +57,7 @@ impl<'c> Visit for NoUnreachableVisitor<'c> {
       // Ignore type declarations.
       Stmt::Decl(Decl::TsInterface(..)) => return,
       Stmt::Decl(Decl::TsTypeAlias(..)) => return,
-      Stmt::Decl(Decl::TsEnum(..)) => return,
+      Stmt::Decl(Decl::TsModule(..)) => return,
       Stmt::Decl(Decl::Var(VarDecl {
         kind: VarDeclKind::Var,
         decls,
@@ -383,6 +383,12 @@ interface I<V> {
 throw new Error();
 type S = string;
 type X<T> = T;
+      "#,
+      r#"
+throw new Error();
+declare module "SomeModule" {
+  export function fn(): void;
+}
       "#,
     };
   }
