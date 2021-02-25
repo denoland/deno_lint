@@ -56,6 +56,10 @@ impl<'c> Visit for NoUnreachableVisitor<'c> {
       Stmt::Block(_) => return,
       // Hoisted, so reachable.
       Stmt::Decl(Decl::Fn(..)) => return,
+      // Ignore type declarations.
+      Stmt::Decl(Decl::TsInterface(..)) => return,
+      Stmt::Decl(Decl::TsTypeAlias(..)) => return,
+      Stmt::Decl(Decl::TsModule(..)) => return,
       Stmt::Decl(Decl::Var(VarDecl {
         kind: VarDeclKind::Var,
         decls,
@@ -369,6 +373,23 @@ try {
   }
 } catch {
   console.log("Statement reached!");
+}
+      "#,
+      r#"
+throw 'oops';
+interface I<V> {
+  k: V;
+}
+      "#,
+      r#"
+throw new Error();
+type S = string;
+type X<T> = T;
+      "#,
+      r#"
+throw new Error();
+declare module "SomeModule" {
+  export function fn(): void;
 }
       "#,
     };
