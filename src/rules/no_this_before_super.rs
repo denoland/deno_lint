@@ -20,15 +20,11 @@ impl LintRule for NoThisBeforeSuper {
     "no-this-before-super"
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: ProgramRef<'_>,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoThisBeforeSuperVisitor::new(context);
     match program {
-        ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-        ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 }

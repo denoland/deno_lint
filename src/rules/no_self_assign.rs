@@ -49,15 +49,11 @@ impl LintRule for NoSelfAssign {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: ProgramRef<'_>,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoSelfAssignVisitor::new(context);
     match program {
-        ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-        ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }

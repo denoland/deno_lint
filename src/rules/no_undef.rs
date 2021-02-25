@@ -32,14 +32,18 @@ impl LintRule for NoUndef {
       declared: Default::default(),
     };
     match program {
-        ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut collector),
-        ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Module(ref m) => {
+        m.visit_all_with(&DUMMY_NODE, &mut collector)
+      }
+      ProgramRef::Script(ref s) => {
+        s.visit_all_with(&DUMMY_NODE, &mut collector)
+      }
     }
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
     match program {
-        ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-        ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }

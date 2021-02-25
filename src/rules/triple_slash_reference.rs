@@ -27,11 +27,7 @@ impl LintRule for TripleSlashReference {
     "triple-slash-reference"
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    _program: ProgramRef<'_>,
-  ) {
+  fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
     let mut violated_comment_spans = Vec::new();
 
     violated_comment_spans.extend(

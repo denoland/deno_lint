@@ -48,15 +48,11 @@ impl LintRule for PreferConst {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: ProgramRef<'_>,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut collector = VariableCollector::new();
     match program {
-        ProgramRef::Module(ref m) => collector.visit_module(m, &DUMMY_NODE),
-        ProgramRef::Script(ref s) => collector.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(ref m) => collector.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => collector.visit_script(s, &DUMMY_NODE),
     }
 
     let mut visitor = PreferConstVisitor::new(
@@ -65,8 +61,8 @@ impl LintRule for PreferConst {
       mem::take(&mut collector.var_groups),
     );
     match program {
-        ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-        ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 }

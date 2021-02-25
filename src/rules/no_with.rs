@@ -20,11 +20,7 @@ impl LintRule for NoWith {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    _context: &mut Context,
-    _program: ProgramRef<'_>,
-  ) {
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
     unreachable!();
   }
 

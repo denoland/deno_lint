@@ -28,8 +28,8 @@ impl LintRule for NoShadowRestrictedNames {
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     match program {
-        ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-        ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 

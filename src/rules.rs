@@ -105,7 +105,7 @@ pub trait LintRule {
 
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.
-  fn lint_program_with_ast_view<'a>(
+  fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
     program: dprint_swc_ecma_ast_view::Program,
