@@ -88,7 +88,7 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
-enum ProgramRef<'a> {
+pub enum ProgramRef<'a> {
   Module(&'a swc_ecmascript::ast::Module),
   Script(&'a swc_ecmascript::ast::Script),
 }
