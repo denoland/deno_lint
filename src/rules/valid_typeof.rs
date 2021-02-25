@@ -1,12 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use swc_common::Spanned;
-use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecmascript::ast::Expr::{Lit, Unary};
-use swc_ecmascript::ast::Lit::Str;
-use swc_ecmascript::ast::UnaryOp::TypeOf;
-use swc_ecmascript::ast::{BinExpr, Program};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use swc_ecmascript::ast::{
+  BinExpr, BinaryOp, Expr, Ident, Lit, Program, UnaryOp,
+};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct ValidTypeof;
 
@@ -28,7 +26,7 @@ impl LintRule for ValidTypeof {
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
     let mut visitor = ValidTypeofVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 
   fn docs(&self) -> &'static str {
@@ -44,7 +42,7 @@ When used with a value the `typeof` operator returns one of the following string
 - `"symbol"`
 - `"bigint"`
 
-This rule disallows comparison with anything other than one of these string literals when using the `typeof` operator, as this likely represents a typing mistake in the string. The rule also disallows comparing the result of a `typeof` operation with any non-string literal value, such as `undefined`, which can represent an inadvertent use of a keyword instead of a string. This includes comparing against string variables even if they contain one of the above values as this cannot be guaranteed. An exception to this is comparing the results of two `typeof` operations as these are both guaranteed to return on of the above strings.
+This rule disallows comparison with anything other than one of these string literals when using the `typeof` operator, as this likely represents a typing mistake in the string. The rule also disallows comparing the result of a `typeof` operation with any non-string literal value i.e. `Object`, `undefined` or `null`, which can represent an inadvertent use of a keyword instead of a string.
 
 ### Invalid:
 ```typescript
@@ -54,19 +52,19 @@ typeof foo === "strnig"
 typeof foo == "undefimed"
 ```
 ```typescript
-typeof bar != "nunber"
+typeof foo != "nunber"
 ```
 ```typescript
-typeof bar !== "fucntion"
+typeof foo !== `fucntion`
+```
+```typescript
+typeof foo == Object
 ```
 ```typescript
 typeof foo === undefined
 ```
 ```typescript
-typeof bar == Object
-```
-```typescript
-typeof baz === anotherVariable
+typeof foo === null
 ```
 ```typescript
 typeof foo == 5
@@ -77,14 +75,24 @@ typeof foo == 5
 typeof foo === "undefined"
 ```
 ```typescript
-typeof bar == "object"
+typeof foo == "object"
 ```
 ```typescript
-typeof baz === "string"
+typeof foo !== "string"
 ```
 ```typescript
-typeof bar === typeof qux
-```"#
+typeof foo != typeof qux
+```
+```typescript
+typeof foo === anotherVariable
+```
+```typescript
+typeof foo === `bigint`
+```
+```typescript
+typeof foo === `object${bar}`
+```
+"#
   }
 }
 
@@ -98,7 +106,7 @@ impl<'c> ValidTypeofVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ValidTypeofVisitor<'c> {
+impl<'c> VisitAll for ValidTypeofVisitor<'c> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
@@ -107,12 +115,14 @@ impl<'c> Visit for ValidTypeofVisitor<'c> {
     }
 
     match (&*bin_expr.left, &*bin_expr.right) {
-      (Unary(unary), operand) | (operand, Unary(unary))
-        if unary.op == TypeOf =>
+      (Expr::Unary(unary), operand) | (operand, Expr::Unary(unary))
+        if unary.op == UnaryOp::TypeOf =>
       {
         match operand {
-          Unary(unary) if unary.op == TypeOf => {}
-          Lit(Str(str)) => {
+          Expr::Unary(unary) if unary.op == UnaryOp::TypeOf => {}
+          Expr::Ident(ident) if is_valid_ident(ident) => {}
+          Expr::Tpl(tpl) if !tpl.exprs.is_empty() => {}
+          Expr::Lit(Lit::Str(str)) => {
             if !is_valid_typeof_string(&str.value) {
               self.context.add_diagnostic(str.span, CODE, MESSAGE);
             }
@@ -141,12 +151,17 @@ fn is_valid_typeof_string(str: &str) -> bool {
   )
 }
 
+fn is_valid_ident(ident: &Ident) -> bool {
+  !matches!(ident.as_ref(), "Object" | "undefined" | "null")
+}
+
 trait EqExpr {
   fn is_eq_expr(&self) -> bool;
 }
 
 impl EqExpr for BinExpr {
   fn is_eq_expr(&self) -> bool {
+    use BinaryOp::*;
     matches!(self.op, EqEq | NotEq | EqEqEq | NotEqEq)
   }
 }
@@ -159,11 +174,32 @@ mod tests {
   fn valid_typeof_valid() {
     assert_lint_ok! {
       ValidTypeof,
-      r#"
-typeof foo === "string"
-typeof bar == "undefined"
-      "#,
-      r#"typeof bar === typeof qux"#,
+        "typeof foo === 'string'",
+        "typeof foo === 'object'",
+        "typeof foo === 'function'",
+        "typeof foo === 'undefined'",
+        "typeof foo === 'boolean'",
+        "typeof foo === 'number'",
+        "typeof foo === 'bigint'",
+        "'string' === typeof foo",
+        "'object' === typeof foo",
+        "'function' === typeof foo",
+        "'undefined' === typeof foo",
+        "'boolean' === typeof foo",
+        "'number' === typeof foo",
+        "typeof foo === typeof bar",
+        "typeof foo === baz",
+        "typeof foo !== someType",
+        "typeof bar != someType",
+        "someType === typeof bar",
+        "someType == typeof bar",
+        "typeof foo == 'string'",
+        "typeof(foo) === 'string'",
+        "typeof(foo) !== 'string'",
+        "typeof(foo) == 'string'",
+        "typeof(foo) != 'string'",
+        "var oddUse = typeof foo + 'thing'",
+        "typeof foo === `str${somethingElse}`",
     };
   }
 
@@ -171,32 +207,90 @@ typeof bar == "undefined"
   fn valid_typeof_invalid() {
     assert_lint_err! {
       ValidTypeof,
-      r#"typeof foo === "strnig""#: [{
+      "typeof foo === 'strnig'": [{
         col: 15,
         message: MESSAGE
       }],
-      r#"typeof foo == "undefimed""#: [{
+      "'strnig' === typeof foo": [{
+        col: 0,
+        message: MESSAGE
+      }],
+      "typeof foo !== 'strnig'": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "'strnig' !== typeof foo": [{
+        col: 0,
+        message: MESSAGE
+      }],
+      "typeof foo == 'undefimed'": [{
         col: 14,
         message: MESSAGE
       }],
-      r#"typeof bar != "nunber""#: [{
+      "typeof foo != 'undefimed'": [{
         col: 14,
         message: MESSAGE
       }],
-      r#"typeof bar !== "fucntion""#: [{
-        col: 15,
+      "if (typeof foo === 'undefimed') {}": [{
+        col: 19,
         message: MESSAGE
       }],
-      r#"typeof foo === undefined"#: [{
-        col: 15,
+      "if (typeof foo !== 'undefimed') {}": [{
+        col: 19,
         message: MESSAGE
       }],
-      r#"typeof bar == Object"#: [{
+      "if ('undefimed' === typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "if ('undefimed' !== typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "if (typeof foo == 'undefimed') {}": [{
+        col: 18,
+        message: MESSAGE
+      }],
+      "if (typeof foo != 'undefimed') {}": [{
+        col: 18,
+        message: MESSAGE
+      }],
+      "if ('undefimed' == typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "if ('undefimed' != typeof foo) {}": [{
+        col: 4,
+        message: MESSAGE
+      }],
+      "typeof foo != 'nunber'": [{
         col: 14,
         message: MESSAGE
       }],
-      r#"typeof baz === anotherVariable"#: [{
+      "typeof foo !== 'fucntion'": [{
         col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo !== `bigitn`": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo === Object": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo === undefined": [{
+        col: 15,
+        message: MESSAGE
+      }],
+      "typeof foo === null": [{
+        col: 15,
+        message: MESSAGE
+      }],
+
+      // nested
+      "foo === { bar: typeof baz === 'obejct' };": [{
+        col: 30,
         message: MESSAGE
       }],
     }
