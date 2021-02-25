@@ -100,6 +100,7 @@ pub trait LintRule {
     Self: Sized;
 
   /// Executes lint on the given `Program`.
+  /// TODO(@magurotuna): remove this after all rules get to use ast_view
   fn lint_program<'a>(&self, context: &mut Context, program: ProgramRef<'a>);
 
   /// Executes lint using `dprint-swc-ecma-ast-view`.
