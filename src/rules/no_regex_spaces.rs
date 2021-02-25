@@ -6,7 +6,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::VisitAll;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoRegexSpaces;
 
@@ -30,8 +30,8 @@ impl LintRule for NoRegexSpaces {
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }

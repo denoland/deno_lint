@@ -11,8 +11,8 @@ use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
   Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
-  Function, Ident, IfStmt, ObjectPatProp, ParamOrTsParamProp, Pat, PatOrExpr,
-  Program, Stmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
+  Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp, Pat,
+  PatOrExpr, Script, Stmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
   VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
@@ -314,12 +314,20 @@ impl VariableCollector {
 impl Visit for VariableCollector {
   noop_visit_type!();
 
-  fn visit_program(&mut self, program: &Program, _: &dyn Node) {
+  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
     let scope = RawScope::new(None);
     self
       .scopes
       .insert(ScopeRange::Global, Rc::new(RefCell::new(scope)));
-    program.visit_children_with(self);
+    module.visit_children_with(self);
+  }
+
+  fn visit_script(&mut self, script: &Script, _: &dyn Node) {
+    let scope = RawScope::new(None);
+    self
+      .scopes
+      .insert(ScopeRange::Global, Rc::new(RefCell::new(scope)));
+    script.visit_children_with(self);
   }
 
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
@@ -722,8 +730,16 @@ impl<'c> PreferConstVisitor<'c> {
 impl<'c> Visit for PreferConstVisitor<'c> {
   noop_visit_type!();
 
-  fn visit_program(&mut self, program: &Program, _: &dyn Node) {
-    program.visit_children_with(self);
+  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
+    module.visit_children_with(self);
+    // After visiting all nodes, reports errors.
+    for span in self.var_groups.dump() {
+      self.report(span);
+    }
+  }
+
+  fn visit_script(&mut self, script: &Script, _: &dyn Node) {
+    script.visit_children_with(self);
     // After visiting all nodes, reports errors.
     for span in self.var_groups.dump() {
       self.report(span);
