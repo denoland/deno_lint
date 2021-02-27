@@ -26,6 +26,7 @@ regex = "1.4.3"
 once_cell = "1.5.2"
 derive_more = { version = "0.99.11", features = ["display"] }
 anyhow = "1.0.38"
+if_chain = "1.0.1"
 
 [dev-dependencies]
 annotate-snippets = { version = "0.9.0", features = ["color"] }

@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use if_chain::if_chain;
 use swc_ecmascript::ast::{Expr, Pat, VarDecl};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -49,11 +50,12 @@ impl<'c> VisitAll for NoThisAliasVisitor<'c> {
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     for decl in &var_decl.decls {
-      if let Some(init) = &decl.init {
-        if matches!(&**init, Expr::This(_)) {
-          if matches!(&decl.name, Pat::Ident(_)) {
-            self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
-          }
+      if_chain! {
+        if let Some(init) = &decl.init;
+        if matches!(&**init, Expr::This(_));
+        if matches!(&decl.name, Pat::Ident(_));
+        then {
+          self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
         }
       }
     }
