@@ -8,6 +8,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoThisAlias;
 
+const CODE: &str = "no-this-alias";
+const MESSAGE: &str = "assign `this` to declare a value is not allowed";
+
 impl LintRule for NoThisAlias {
   fn new() -> Box<Self> {
     Box::new(NoThisAlias)
@@ -18,7 +21,7 @@ impl LintRule for NoThisAlias {
   }
 
   fn code(&self) -> &'static str {
-    "no-this-alias"
+    CODE
   }
 
   fn lint_program(
@@ -51,11 +54,7 @@ impl<'c> Visit for NoThisAliasVisitor<'c> {
           self.visit_arrow_expr(&arrow, _parent);
         } else if let Expr::This(_) = &**init {
           if let Pat::Ident(_ident) = &decl.name {
-            self.context.add_diagnostic(
-              var_decl.span,
-              "no-this-alias",
-              "assign `this` to declare a value is not allowed",
-            );
+            self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
           }
         }
       }
@@ -86,7 +85,6 @@ impl<'c> Visit for NoThisAliasVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_this_alias_valid() {
@@ -101,8 +99,14 @@ mod tests {
 
   #[test]
   fn no_this_alias_invalid() {
-    assert_lint_err::<NoThisAlias>("const self = this;", 0);
-    assert_lint_err_on_line_n::<NoThisAlias>(
+    assert_lint_err! {
+      NoThisAlias,
+      "const self = this;": [
+        {
+          col: 0,
+          message: MESSAGE,
+        }
+      ],
       "
 var unscoped = this;
 
@@ -112,26 +116,54 @@ function testFunction() {
 
 const testLambda = () => {
   const inLambda = this;
-};",
-      vec![(2, 0), (5, 2), (9, 2)],
-    );
-    assert_lint_err_on_line_n::<NoThisAlias>(
+};": [
+        {
+          line: 2,
+          col: 0,
+          message: MESSAGE,
+        },
+        {
+          line: 5,
+          col: 2,
+          message: MESSAGE,
+        },
+        {
+          line: 9,
+          col: 2,
+          message: MESSAGE,
+        }
+      ],
       "
 class TestClass {
   constructor() {
     const inConstructor = this;
     const asThis: this = this;
-      
+
     const asString = 'this';
     const asArray = [this];
     const asArrayString = ['this'];
   }
-      
+
   public act(scope: this = this) {
     const inMemberFunction = this;
   }
-}",
-      vec![(4, 4), (5, 4), (13, 4)],
-    );
+}": [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+        },
+        {
+          line: 5,
+          col: 4,
+          message: MESSAGE,
+        },
+        {
+          line: 13,
+          col: 4,
+          message: MESSAGE,
+        }
+      ]
+    };
   }
 }
