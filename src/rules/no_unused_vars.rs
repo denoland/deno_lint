@@ -27,6 +27,15 @@ enum NoUnusedVarsMessage {
   NeverUsed(String),
 }
 
+#[derive(Display)]
+enum NoUnusedVarsHint {
+  #[display(
+    fmt = "If this is intentional, prefix it with an underscore like `_{}`",
+    _0
+  )]
+  AddPrefix(String),
+}
+
 impl LintRule for NoUnusedVars {
   fn new() -> Box<Self> {
     Box::new(NoUnusedVars)
@@ -315,10 +324,11 @@ impl<'c> NoUnusedVarVisitor<'c> {
 
     if !self.used_vars.contains(&ident.to_id()) {
       // The variable is not used.
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         ident.span,
         CODE,
         NoUnusedVarsMessage::NeverUsed(ident.sym.to_string()),
+        NoUnusedVarsHint::AddPrefix(ident.sym.to_string()),
       );
     }
   }
@@ -396,7 +406,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     // If method body is not present, it's an overload definition
     if matches!(method.kind, MethodKind::Method if method.function.body.is_some())
     {
-      method.function.params.visit_children_with(self)
+      method.function.params.visit_children_with(self);
     }
 
     method.function.body.visit_with(method, self);
@@ -408,7 +418,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     for ident in declared_idents {
       self.handle_id(&ident);
     }
-    param.visit_children_with(self)
+    param.visit_children_with(self);
   }
 
   fn visit_import_named_specifier(
@@ -1175,6 +1185,7 @@ export default class Foo {
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       // variable shadowing
@@ -1182,36 +1193,42 @@ export default class Foo {
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "function foox() { return foox(); }": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foox"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foox"),
         }
       ],
       "class Foo {}": [
         {
           col: 6,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Foo"),
         }
       ],
       "(function() { function foox() { if (true) { return foox(); } } }())": [
         {
           col: 23,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foox"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foox"),
         }
       ],
       "function f() { var a = 1; return function(){ f(a *= 2); }; }": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
         }
       ],
       "function f() { var a = 1; return function(){ f(++a); }; }": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
         }
       ],
       "function foo(first, second) {\ndoStuff(function()\
@@ -1219,34 +1236,40 @@ export default class Foo {
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
         },
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "first"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "first"),
         }
       ],
       "var a=10; a=20;": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a=10; (function() { var a = 1; alert(a); })();": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a=10, b=0, c=null; alert(a+b)": [
         {
           col: 15,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
         }
       ],
       "var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);": [
         {
           col: 10,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         }
       ],
       "var a=10, b=0, c=null; setTimeout(function() \
@@ -1254,154 +1277,182 @@ export default class Foo {
         {
           col: 10,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         },
         {
           col: 15,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
         }
       ],
       "function f(){var a=[];return a.map(function(){});}": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
         }
       ],
       "function f(){var a=[];return a.map(function g(){});}": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
         }
       ],
       "function f(){var x;function a(){x=42;}function b(){alert(x);}}": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
         },
         {
           col: 28,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         },
         {
           col: 47,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         }
       ],
       "function f(a) {}; f();": [
         {
           col: 11,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "function a(x, y, z){ return y; }; a();": [
         {
           col: 11,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
         },
         {
           col: 17,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "z"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "z"),
         }
       ],
       "var min = Math.min": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "min"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
         }
       ],
       "var min = {min: 1}": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "min"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
         }
       ],
       "Foo.bar = function(baz) { return 1; };": [
         {
           col: 19,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "baz"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "baz"),
         }
       ],
       "var min = {min: 1}": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "min"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
         }
       ],
       "function gg(baz, bar) { return baz; }; gg();": [
         {
           col: 17,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "bar"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "bar"),
         }
       ],
       "(function(foo, baz, bar) { return baz; })();": [
         {
           col: 10,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
         },
         {
           col: 20,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "bar"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "bar"),
         }
       ],
       "(function z(foo) { var bar = 33; })();": [
         {
           col: 12,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
         },
         {
           col: 23,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "bar"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "bar"),
         }
       ],
       "(function z(foo) { z(); })();": [
         {
           col: 12,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
         }
       ],
       "function f() { var a = 1; return function(){ f(a = 2); }; }": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
         },
         {
           col: 19,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "import x from \"y\";": [
         {
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
         }
       ],
       "export function fn2({ x, y }) {\n console.log(x); \n};": [
         {
           col: 25,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "y"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "y"),
         }
       ],
       "export function fn2( x, y ) {\n console.log(x); \n};": [
         {
           col: 24,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "y"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "y"),
         }
       ],
       "var _a; var b;": [
         {
           col: 12,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         }
       ],
       "function foo(a, _b) { } foo()": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "function foo(a, _b, c) { return a; } foo();": [
         {
           col: 20,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
         }
       ],
       "const data = { type: 'coords', x: 1, y: 2 };\
@@ -1409,6 +1460,7 @@ export default class Foo {
         {
           col: 52,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "type"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "type"),
         }
       ],
       "const data = { type: 'coords', x: 3, y: 2 };\
@@ -1416,6 +1468,7 @@ export default class Foo {
         {
           col: 61,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "coords"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "coords"),
         }
       ],
       "const data = { vars: \
@@ -1424,134 +1477,157 @@ export default class Foo {
         {
           col: 61,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
         }
       ],
       "const data = { defaults: { x: 0 }, x: 1, y: 2 }; const { defaults: { x }, ...coords } = data;\n console.log(coords)": [
         {
           col: 69,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
         }
       ],
       "export default function(a) {}": [
         {
           col: 24,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "export default function(a, b) { console.log(a); }": [
         {
           col: 27,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         }
       ],
       "export default (function(a) {});": [
         {
           col: 25,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "export default (function(a, b) { console.log(a); });": [
         {
           col: 28,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         }
       ],
       "export default (a) => {};": [
         {
           col: 16,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "export default (a, b) => { console.log(a); };": [
         {
           col: 19,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
         }
       ],
       "try{}catch(err){};": [
         {
           col: 11,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "err"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "err"),
         }
       ],
       "(function ({ a }, b ) { return b; })();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "(function ({ a }, { b, c } ) { return b; })();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         },
         {
           col: 23,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
         }
       ],
       "(function ([ a ], b ) { return b; })();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "(function ([ a ], [ b, c ] ) { return b; })();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         },
         {
           col: 23,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
         }
       ],
       "var a = function() { a(); };": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = function(){ return function() { a(); } };": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "const a = () => { a(); };": [
         {
           col: 6,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "const a = () => () => { a(); };": [
         {
           col: 6,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = function() { a(); };": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = function(){ return function() { a(); } };": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "const a = () => { a(); };": [
         {
           col: 6,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "const a = () => () => { a(); };": [
         {
           col: 6,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "let a = 'a';
@@ -1566,11 +1642,13 @@ export default class Foo {
           line: 1,
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         },
         {
           line: 3,
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
         }
       ],
       "let c = 'c'
@@ -1586,6 +1664,7 @@ export default class Foo {
           line: 1,
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
         }
       ],
       "
@@ -1596,6 +1675,7 @@ export class Foo {}
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "ClassDecoratorFactory"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "ClassDecoratorFactory"),
         }
       ],
       "
@@ -1607,6 +1687,7 @@ baz<Bar>();
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Foo"),
         }
       ],
       "
@@ -1618,6 +1699,7 @@ console.log(a);
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
         }
       ],
       "
@@ -1630,6 +1712,7 @@ console.log(a);
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
         }
       ],
       "
@@ -1646,6 +1729,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
         }
       ],
       "
@@ -1662,6 +1746,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
         }
       ],
       "
@@ -1678,6 +1763,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
         }
       ],
       "
@@ -1691,6 +1777,7 @@ interface A {
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
         }
       ],
       "
@@ -1704,6 +1791,7 @@ interface A {
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
         }
       ],
       "
@@ -1717,6 +1805,7 @@ foo();
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
         }
       ],
       "
@@ -1730,6 +1819,7 @@ foo();
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
         }
       ],
       "
@@ -1745,6 +1835,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
         }
       ],
       "
@@ -1760,6 +1851,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
         }
       ],
       "
@@ -1772,6 +1864,7 @@ enum FormFieldIds {
           line: 2,
           col: 5,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "FormFieldIds"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "FormFieldIds"),
         }
       ],
       "
@@ -1783,6 +1876,7 @@ export interface Bar extends baz.test {}
           line: 2,
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
       ]
     };
@@ -1798,18 +1892,21 @@ export interface Bar extends baz.test {}
         {
           col: 21,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
         }
       ],
       "(function(obj) { var name; for ( name in obj ) { } })({});": [
         {
           col: 21,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
         }
       ],
       "(function(obj) { for ( var name in obj ) { } })({});": [
         {
           col: 37,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
         }
       ]
     };
@@ -1825,60 +1922,70 @@ export interface Bar extends baz.test {}
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = 0; a = a + a;": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = 0; a += a + 1": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = 0; a++;": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "function foo(a) { a = a + 1 } foo();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "function foo(a) { a += a + 1 } foo();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "function foo(a) { a++ } foo();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = 3; a = a * 5 + 6;": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = 2, b = 4; a = a * 2 + b;": [
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "const a = 1; a += 1;": [
         {
           col: 6,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ]
     };
@@ -1894,24 +2001,28 @@ export interface Bar extends baz.test {}
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
         }
       ],
       "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
         }
       ],
       "function foo(cb) { cb = (function(a) { cb(1 + a); }, cb); } foo();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
         }
       ],
       "function foo(cb) { cb = (0, function(a) { cb(1 + a); }); } foo();": [
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
         }
       ]
     };
@@ -1926,6 +2037,7 @@ export interface Bar extends baz.test {}
         {
           col: 4,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "myArray"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "myArray"),
         }
       ]
     };
@@ -1945,6 +2057,7 @@ export interface Bar extends baz().test {}
           line: 2,
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
       ],
       "
@@ -1956,6 +2069,7 @@ export class Bar implements baz.test {}
           line: 2,
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
       ],
       "
@@ -1967,6 +2081,7 @@ export class Bar implements baz().test {}
           line: 2,
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
       ]
     };
