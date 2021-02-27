@@ -214,6 +214,13 @@ impl Visit for Collector {
     }
   }
 
+  fn visit_class_decl(&mut self, decl: &ClassDecl, _: &dyn Node) {
+    let id = decl.ident.to_id();
+    self.cur_defining.push(id);
+    decl.class.visit_with(decl, self);
+    self.cur_defining.pop();
+  }
+
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
     let prev_len = self.cur_defining.len();
     let declaring_ids: Vec<Id> = find_ids(&declarator.name);
@@ -326,6 +333,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
       return;
     }
 
+    self.handle_id(&n.ident);
     n.visit_children_with(self);
   }
 
@@ -1116,16 +1124,16 @@ export default class Foo {
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foox"),
         }
       ],
+      "class Foo {}": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Foo"),
+        }
+      ],
       "(function() { function foox() { if (true) { return foox(); } } }())": [
         {
           col: 23,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "foox"),
-        }
-      ],
-      "var a=10": [
-        {
-          col: 4,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
         }
       ],
       "function f() { var a = 1; return function(){ f(a *= 2); }; }": [
@@ -1149,12 +1157,6 @@ export default class Foo {
         {
           col: 13,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "first"),
-        }
-      ],
-      "var a=10;": [
-        {
-          col: 4,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
         }
       ],
       "var a=10; a=20;": [
