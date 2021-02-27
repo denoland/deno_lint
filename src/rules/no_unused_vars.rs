@@ -348,10 +348,10 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     method.function.decorators.visit_with(method, self);
     method.key.visit_with(method, self);
 
-    match method.kind {
-      MethodKind::Method => method.function.params.visit_children_with(self),
-      MethodKind::Getter => {}
-      MethodKind::Setter => {}
+    // If method body is not present, it's an overload definition
+    if matches!(method.kind, MethodKind::Method if method.function.body.is_some())
+    {
+      method.function.params.visit_children_with(self)
     }
 
     method.function.body.visit_with(method, self);
@@ -1089,6 +1089,7 @@ export default class Foo {
       "export function foo(msg: string): void",
       "function _foo(msg?: string): void",
       "const key = 0; export const obj = { [key]: true };",
+      "export class Foo { bar(msg: string): void; }",
     };
   }
 
