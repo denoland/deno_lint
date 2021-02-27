@@ -7,7 +7,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
   ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Program, Prop,
+  MemberExpr, MethodKind, NamedExport, Param, Pat, Program, Prop, PropName,
   SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsModuleDecl,
   TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl, VarDeclOrPat,
   VarDeclarator,
@@ -128,16 +128,18 @@ impl Visit for Collector {
     n.type_args.visit_with(n, self);
   }
 
-  /// Ignore key
-  fn visit_key_value_prop(&mut self, n: &KeyValueProp, _: &dyn Node) {
-    n.value.visit_with(n, self);
-  }
-
   fn visit_prop(&mut self, n: &Prop, _: &dyn Node) {
     match n {
       Prop::Shorthand(i) => self.mark_as_usage(i),
       _ => n.visit_children_with(self),
     }
+  }
+
+  fn visit_prop_name(&mut self, n: &PropName, _: &dyn Node) {
+    if let PropName::Computed(computed) = n {
+      computed.visit_children_with(self);
+    }
+    // Don't check Ident, Str, Num and BigInt
   }
 
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
@@ -1086,6 +1088,7 @@ export default class Foo {
       ",
       "export function foo(msg: string): void",
       "function _foo(msg?: string): void",
+      "const key = 0; export const obj = { [key]: true };",
     };
   }
 
