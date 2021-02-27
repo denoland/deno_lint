@@ -114,9 +114,9 @@ mod lint_tests {
   fn warn_unknown_rules() {
     let src = r#"
  // deno-lint-ignore some-rule
- function foo() {
+ function _foo() {
    // deno-lint-ignore some-rule-2 some-rule-3
-   let bar_foo = true
+   let _bar_foo = true
  }
       "#;
     let diagnostics = lint_recommended_rules(src, true, false);
@@ -130,7 +130,7 @@ mod lint_tests {
     let diagnostics = lint_recommended_rules(
       r#"
  // deno-lint-ignore some-rule
- function foo() {
+ function _foo() {
    // pass
  }
       "#,
@@ -160,9 +160,9 @@ const fooBar: any = 42;
   fn warn_unused_dir() {
     let src = r#"
  // deno-lint-ignore no-explicit-any
- function bar(p: boolean) {
+ function _bar(_p: boolean) {
    // deno-lint-ignore no-misused-new eqeqeq
-   const foo = false
+   const _foo = false
  }
       "#;
     let diagnostics = lint_recommended_rules(src, false, true);
@@ -177,7 +177,7 @@ const fooBar: any = 42;
     let diagnostics = lint_recommended_rules(
       r#"
  // deno-lint-ignore no-explicit-any
- function bar(p: boolean) {
+ function _bar(_p: boolean) {
    // pass
  }
       "#,
@@ -194,7 +194,7 @@ const fooBar: any = 42;
     let diagnostics = lint_specified_rule::<Camelcase>(
       r#"
 // deno-lint-ignore no-explicit-any
-const fooBar = 42;
+const _fooBar = 42;
       "#,
       false,
       true,
@@ -209,7 +209,7 @@ const fooBar = 42;
       r#"
  // deno-lint-ignore-file no-explicit-any
 
- function bar(p: any) {
+ function _bar(_p: any) {
    // pass
  }
       "#,
@@ -225,7 +225,7 @@ const fooBar = 42;
     let src = r#"
  // deno-lint-ignore-file no-explicit-any no-empty
 
- function bar(p: any) {
+ function _bar(_p: any) {
    // pass
  }
       "#;
@@ -241,12 +241,13 @@ const fooBar = 42;
  // deno-lint-ignore-file no-explicit-any
 
  // deno-lint-ignore no-explicit-any
- function bar(p: any) {
+ function _bar(_p: any) {
    // pass
  }
       "#;
     let diagnostics = lint_recommended_rules(src, false, true);
 
+    dbg!(&diagnostics);
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1, src);
   }
