@@ -455,7 +455,6 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_unused_vars_valid() {
@@ -1707,103 +1706,191 @@ export interface Bar extends baz.test {}
   #[test]
   #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_for_loop_control_flow() {
-    assert_lint_err::<NoUnusedVars>(
-      "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "(function(obj) { var name; for ( name in obj ) { } })({});",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "(function(obj) { for ( var name in obj ) { } })({});",
-      0,
-    );
+    assert_lint_err! {
+      NoUnusedVars,
+      "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});": [
+        {
+          col: 21,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+        }
+      ],
+      "(function(obj) { var name; for ( name in obj ) { } })({});": [
+        {
+          col: 21,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+        }
+      ],
+      "(function(obj) { for ( var name in obj ) { } })({});": [
+        {
+          col: 37,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+        }
+      ]
+    };
   }
 
   // TODO(magurotuna): deals with this using ControlFlow
   #[test]
   #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_assign_expr() {
-    assert_lint_err::<NoUnusedVars>("var a = 0; a = a + 1;", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 0; a = a + a;", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 0; a += a + 1", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 0; a++;", 0);
-    assert_lint_err::<NoUnusedVars>("function foo(a) { a = a + 1 } foo();", 0);
-    assert_lint_err::<NoUnusedVars>("function foo(a) { a += a + 1 } foo();", 0);
-    assert_lint_err::<NoUnusedVars>("function foo(a) { a++ } foo();", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 3; a = a * 5 + 6;", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 2, b = 4; a = a * 2 + b;", 0);
-
-    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 6);
+    assert_lint_err! {
+      NoUnusedVars,
+      "var a = 0; a = a + 1;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "var a = 0; a = a + a;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "var a = 0; a += a + 1": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "var a = 0; a++;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "function foo(a) { a = a + 1 } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "function foo(a) { a += a + 1 } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "function foo(a) { a++ } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "var a = 3; a = a * 5 + 6;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "var a = 2, b = 4; a = a * 2 + b;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ],
+      "const a = 1; a += 1;": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+        }
+      ]
+    };
   }
 
   // TODO(magurotuna): deals with this using ControlFlow
   #[test]
   #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_assign_to_self() {
-    assert_lint_err::<NoUnusedVars>("function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();", 0);
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(cb) { cb = (function(a) { cb(1 + a); }, cb); } foo();",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(cb) { cb = (0, function(a) { cb(1 + a); }); } foo();",
-      0,
-    );
+    assert_lint_err! {
+      NoUnusedVars,
+      "function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+        }
+      ],
+      "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+        }
+      ],
+      "function foo(cb) { cb = (function(a) { cb(1 + a); }, cb); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+        }
+      ],
+      "function foo(cb) { cb = (0, function(a) { cb(1 + a); }); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+        }
+      ]
+    };
   }
 
   #[test]
   #[ignore = "pure method analysis is not implemented yet"]
   fn no_unused_vars_err_array_methods() {
-    assert_lint_err::<NoUnusedVars>(
-      "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);",
-      4,
-    );
+    assert_lint_err! {
+      NoUnusedVars,
+      "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "myArray"),
+        }
+      ]
+    };
   }
 
   #[test]
   #[ignore = "swc cannot parse this at the moment"]
   fn no_unused_vars_ts_err_06() {
-    assert_lint_err_on_line::<NoUnusedVars>(
+    assert_lint_err! {
+      NoUnusedVars,
       "
 import test from 'test';
 import baz from 'baz';
 export interface Bar extends baz().test {}
-      ",
-      0,
-      0,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+        }
+      ],
       "
 import test from 'test';
 import baz from 'baz';
 export class Bar implements baz.test {}
-      ",
-      0,
-      0,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+        }
+      ],
       "
 import test from 'test';
 import baz from 'baz';
 export class Bar implements baz().test {}
-      ",
-      0,
-      0,
-    );
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+        }
+      ]
+    };
   }
 
   #[test]
   #[ignore = "typescript property analysis is not implemented yet"]
   fn no_unused_vars_ts_ok_12() {
-    assert_lint_ok::<NoUnusedVars>(
+    assert_lint_ok! {
+      NoUnusedVars,
       "
 export class App {
   constructor(private logger: Logger) {
@@ -1811,9 +1898,6 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
       "
 export class App {
   constructor(bar: string);
@@ -1822,9 +1906,6 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
       "
 export class App {
   constructor(baz: string, private logger: Logger) {
@@ -1833,9 +1914,6 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
       "
 export class App {
   constructor(baz: string, private logger: Logger, private bar: () => void) {
@@ -1844,9 +1922,6 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
       "
 export class App {
   constructor(private logger: Logger) {}
@@ -1855,6 +1930,6 @@ export class App {
   }
 }
       ",
-    );
+    };
   }
 }
