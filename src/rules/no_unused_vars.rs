@@ -1,27 +1,23 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::utils::find_ids;
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::Id;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::{
-  ast::{
-    ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor,
-    Decl, ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
-    ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-    KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Program,
-    Prop, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
-    TsModuleDecl, TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl,
-    VarDeclOrPat, VarDeclarator,
-  },
-  visit::VisitWith,
-};
-
 use std::collections::HashSet;
+use swc_ecmascript::ast::{
+  ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
+  ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
+  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
+  KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Program, Prop,
+  SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsModuleDecl,
+  TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl, VarDeclOrPat,
+  VarDeclarator,
+};
+use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::utils::{find_ids, Id};
+use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
 pub struct NoUnusedVars;
+
+const CODE: &str = "no-unused-vars";
 
 impl LintRule for NoUnusedVars {
   fn new() -> Box<Self> {
@@ -29,7 +25,7 @@ impl LintRule for NoUnusedVars {
   }
 
   fn code(&self) -> &'static str {
-    "no-unused-vars"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: &Program) {
@@ -267,7 +263,7 @@ impl<'c> NoUnusedVarVisitor<'c> {
       // The variable is not used.
       self.context.add_diagnostic(
         ident.span,
-        "no-unused-vars",
+        CODE,
         format!("\"{}\" is never used", ident.sym),
       );
     }
