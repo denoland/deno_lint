@@ -1342,13 +1342,6 @@ export default class Foo {
           hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
         }
       ],
-      "var min = {min: 1}": [
-        {
-          col: 4,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "min"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
-        }
-      ],
       "Foo.bar = function(baz) { return 1; };": [
         {
           col: 19,
@@ -1553,53 +1546,6 @@ export default class Foo {
           col: 23,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
-        }
-      ],
-      "(function ([ a ], b ) { return b; })();": [
-        {
-          col: 13,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
-        }
-      ],
-      "(function ([ a ], [ b, c ] ) { return b; })();": [
-        {
-          col: 13,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
-        },
-        {
-          col: 23,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
-        }
-      ],
-      "var a = function() { a(); };": [
-        {
-          col: 4,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
-        }
-      ],
-      "var a = function(){ return function() { a(); } };": [
-        {
-          col: 4,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
-        }
-      ],
-      "const a = () => { a(); };": [
-        {
-          col: 6,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
-        }
-      ],
-      "const a = () => () => { a(); };": [
-        {
-          col: 6,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
         }
       ],
       "var a = function() { a(); };": [
