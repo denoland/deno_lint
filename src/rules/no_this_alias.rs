@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{ArrowExpr, Expr, Function, Pat, VarDecl};
+use swc_ecmascript::ast::{Expr, Pat, VarDecl};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoThisAlias;
 
@@ -30,7 +30,7 @@ impl LintRule for NoThisAlias {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoThisAliasVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -44,40 +44,18 @@ impl<'c> NoThisAliasVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoThisAliasVisitor<'c> {
+impl<'c> VisitAll for NoThisAliasVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     for decl in &var_decl.decls {
       if let Some(init) = &decl.init {
-        if let Expr::Arrow(arrow) = &**init {
-          self.visit_arrow_expr(&arrow, _parent);
-        } else if let Expr::This(_) = &**init {
-          if let Pat::Ident(_ident) = &decl.name {
+        if matches!(&**init, Expr::This(_)) {
+          if matches!(&decl.name, Pat::Ident(_)) {
             self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
           }
         }
       }
-    }
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.visit_block_stmt_or_expr(&arrow_expr.body, _parent);
-  }
-
-  fn visit_expr_stmt(
-    &mut self,
-    expr: &swc_ecmascript::ast::ExprStmt,
-    _parent: &dyn Node,
-  ) {
-    if let Expr::Arrow(arrow) = &*expr.expr {
-      self.visit_arrow_expr(arrow, _parent);
-    }
-  }
-
-  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    if let Some(stmt) = &function.body {
-      self.visit_block_stmt(stmt, _parent);
     }
   }
 }
@@ -161,6 +139,12 @@ class TestClass {
         {
           line: 13,
           col: 4,
+          message: MESSAGE,
+        }
+      ],
+      "const foo = function() { const self = this; };": [
+        {
+          col: 25,
           message: MESSAGE,
         }
       ]
