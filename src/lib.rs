@@ -247,7 +247,6 @@ const _fooBar = 42;
       "#;
     let diagnostics = lint_recommended_rules(src, false, true);
 
-    dbg!(&diagnostics);
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1, src);
   }
