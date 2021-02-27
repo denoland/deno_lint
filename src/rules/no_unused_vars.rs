@@ -5,12 +5,13 @@ use derive_more::Display;
 use std::collections::HashSet;
 use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
-  ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
-  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  MemberExpr, MethodKind, NamedExport, Param, Pat, Program, Prop, PropName,
-  SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsModuleDecl,
-  TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl, VarDeclOrPat,
-  VarDeclarator,
+  DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
+  FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat,
+  Program, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
+  TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl,
+  TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
+  VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -128,6 +129,14 @@ impl Visit for Collector {
     n.type_args.visit_with(n, self);
   }
 
+  fn visit_ts_type_query_expr(&mut self, n: &TsTypeQueryExpr, _: &dyn Node) {
+    if let TsTypeQueryExpr::TsEntityName(e) = n {
+      let id = get_id(e);
+      self.used_vars.insert(id);
+    }
+    n.visit_children_with(self);
+  }
+
   fn visit_prop(&mut self, n: &Prop, _: &dyn Node) {
     match n {
       Prop::Shorthand(i) => self.mark_as_usage(i),
@@ -218,6 +227,34 @@ impl Visit for Collector {
     let id = decl.ident.to_id();
     self.cur_defining.push(id);
     decl.class.visit_with(decl, self);
+    self.cur_defining.pop();
+  }
+
+  fn visit_ts_interface_decl(&mut self, decl: &TsInterfaceDecl, _: &dyn Node) {
+    let id = decl.id.to_id();
+    self.cur_defining.push(id);
+    decl.extends.visit_with(decl, self);
+    decl.body.visit_with(decl, self);
+    if let Some(type_params) = &decl.type_params {
+      type_params.visit_with(decl, self);
+    }
+    self.cur_defining.pop();
+  }
+
+  fn visit_ts_type_alias_decl(&mut self, decl: &TsTypeAliasDecl, _: &dyn Node) {
+    let id = decl.id.to_id();
+    self.cur_defining.push(id);
+    decl.type_ann.visit_with(decl, self);
+    if let Some(type_params) = &decl.type_params {
+      type_params.visit_with(decl, self);
+    }
+    self.cur_defining.pop();
+  }
+
+  fn visit_ts_enum_decl(&mut self, decl: &TsEnumDecl, _: &dyn Node) {
+    let id = decl.id.to_id();
+    self.cur_defining.push(id);
+    decl.members.visit_with(decl, self);
     self.cur_defining.pop();
   }
 
@@ -426,6 +463,27 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
         }
       }
       _ => {}
+    }
+  }
+
+  fn visit_export_default_decl(
+    &mut self,
+    export: &ExportDefaultDecl,
+    _: &dyn Node,
+  ) {
+    match &export.decl {
+      DefaultDecl::Class(c) => {
+        c.class.visit_with(c, self);
+      }
+      DefaultDecl::Fn(f) => {
+        // If function body is not present, it's an overload definition
+        if f.function.body.is_some() {
+          f.function.visit_with(f, self);
+        }
+      }
+      DefaultDecl::TsInterfaceDecl(i) => {
+        i.visit_children_with(self);
+      }
     }
   }
 
@@ -1095,9 +1153,17 @@ export default class Foo {
 }
       ",
       "export function foo(msg: string): void",
+      "export default function foo(msg: string): void",
       "function _foo(msg?: string): void",
       "const key = 0; export const obj = { [key]: true };",
       "export class Foo { bar(msg: string): void; }",
+      "import { foo } from './foo.ts'; type Bar = typeof foo;",
+      "interface Foo {} export interface Bar extends Foo {}",
+      "import type Foo from './foo.ts'; export interface Bar extends Foo {}",
+      "import type Foo from './foo.ts'; export class Bar implements Foo {}",
+      "import type Foo from './foo.ts'; interface _Bar<T extends Foo> {}",
+      "import type Foo from './foo.ts'; type _Bar<T extends Foo> = T;",
+      "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
     };
   }
 
