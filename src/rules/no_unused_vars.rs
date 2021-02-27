@@ -292,8 +292,13 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     if decl.declare {
       return;
     }
+
     self.handle_id(&decl.ident);
-    decl.function.visit_with(decl, self);
+
+    // If function body is not present, it's an overload definition
+    if decl.function.body.is_some() {
+      decl.function.visit_with(decl, self);
+    }
   }
 
   fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
@@ -399,7 +404,10 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
         c.class.visit_with(c, self);
       }
       Decl::Fn(f) => {
-        f.function.visit_with(f, self);
+        // If function body is not present, it's an overload definition
+        if f.function.body.is_some() {
+          f.function.visit_with(f, self);
+        }
       }
       Decl::Var(v) => {
         for decl in &v.decls {
@@ -1076,6 +1084,8 @@ export default class Foo {
   }
 }
       ",
+      "export function foo(msg: string): void",
+      "function _foo(msg?: string): void",
     };
   }
 
