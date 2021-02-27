@@ -31,6 +31,10 @@ impl LintRule for NoUnusedVars {
     Box::new(NoUnusedVars)
   }
 
+  fn tags(&self) -> &'static [&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     CODE
   }
