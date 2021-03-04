@@ -374,6 +374,13 @@ mod tests {
       r#"type Foo = string | number; export default Foo;"#,
       r#"type Foo<T> = { bar: T }; export default Foo;"#,
       r#"type Foo = string | undefined; export type { Foo };"#,
+      // https://github.com/denoland/deno_lint/issues/596
+      r#"
+      const f = (
+        { a }: Foo,
+        b: boolean,
+      ) => {};
+      "#,
     };
   }
 
