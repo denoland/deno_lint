@@ -133,6 +133,14 @@ impl VisitAll for BindingCollector {
       }
     }
   }
+
+  /// See https://github.com/denoland/deno_lint/issues/596
+  fn visit_arrow_expr(&mut self, e: &ArrowExpr, _: &dyn Node) {
+    let ids: Vec<Id> = find_ids(&e.params);
+    for id in ids {
+      self.declare(id);
+    }
+  }
 }
 
 struct NoUndefVisitor<'c> {
