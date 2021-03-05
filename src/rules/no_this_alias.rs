@@ -1,12 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use swc_ecmascript::ast::{ArrowExpr, Expr, Function, Pat, VarDecl};
+use if_chain::if_chain;
+use swc_ecmascript::ast::{Expr, Pat, VarDecl};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoThisAlias;
+
+const CODE: &str = "no-this-alias";
+const MESSAGE: &str = "assign `this` to declare a value is not allowed";
 
 impl LintRule for NoThisAlias {
   fn new() -> Box<Self> {
@@ -18,7 +22,7 @@ impl LintRule for NoThisAlias {
   }
 
   fn code(&self) -> &'static str {
-    "no-this-alias"
+    CODE
   }
 
   fn lint_program(
@@ -27,7 +31,7 @@ impl LintRule for NoThisAlias {
     program: &swc_ecmascript::ast::Program,
   ) {
     let mut visitor = NoThisAliasVisitor::new(context);
-    visitor.visit_program(program, program);
+    program.visit_all_with(program, &mut visitor);
   }
 }
 
@@ -41,44 +45,19 @@ impl<'c> NoThisAliasVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoThisAliasVisitor<'c> {
+impl<'c> VisitAll for NoThisAliasVisitor<'c> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
     for decl in &var_decl.decls {
-      if let Some(init) = &decl.init {
-        if let Expr::Arrow(arrow) = &**init {
-          self.visit_arrow_expr(&arrow, _parent);
-        } else if let Expr::This(_) = &**init {
-          if let Pat::Ident(_ident) = &decl.name {
-            self.context.add_diagnostic(
-              var_decl.span,
-              "no-this-alias",
-              "assign `this` to declare a value is not allowed",
-            );
-          }
+      if_chain! {
+        if let Some(init) = &decl.init;
+        if matches!(&**init, Expr::This(_));
+        if matches!(&decl.name, Pat::Ident(_));
+        then {
+          self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
         }
       }
-    }
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.visit_block_stmt_or_expr(&arrow_expr.body, _parent);
-  }
-
-  fn visit_expr_stmt(
-    &mut self,
-    expr: &swc_ecmascript::ast::ExprStmt,
-    _parent: &dyn Node,
-  ) {
-    if let Expr::Arrow(arrow) = &*expr.expr {
-      self.visit_arrow_expr(arrow, _parent);
-    }
-  }
-
-  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    if let Some(stmt) = &function.body {
-      self.visit_block_stmt(stmt, _parent);
     }
   }
 }
@@ -86,7 +65,6 @@ impl<'c> Visit for NoThisAliasVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_this_alias_valid() {
@@ -101,8 +79,14 @@ mod tests {
 
   #[test]
   fn no_this_alias_invalid() {
-    assert_lint_err::<NoThisAlias>("const self = this;", 0);
-    assert_lint_err_on_line_n::<NoThisAlias>(
+    assert_lint_err! {
+      NoThisAlias,
+      "const self = this;": [
+        {
+          col: 0,
+          message: MESSAGE,
+        }
+      ],
       "
 var unscoped = this;
 
@@ -112,26 +96,60 @@ function testFunction() {
 
 const testLambda = () => {
   const inLambda = this;
-};",
-      vec![(2, 0), (5, 2), (9, 2)],
-    );
-    assert_lint_err_on_line_n::<NoThisAlias>(
+};": [
+        {
+          line: 2,
+          col: 0,
+          message: MESSAGE,
+        },
+        {
+          line: 5,
+          col: 2,
+          message: MESSAGE,
+        },
+        {
+          line: 9,
+          col: 2,
+          message: MESSAGE,
+        }
+      ],
       "
 class TestClass {
   constructor() {
     const inConstructor = this;
     const asThis: this = this;
-      
+
     const asString = 'this';
     const asArray = [this];
     const asArrayString = ['this'];
   }
-      
+
   public act(scope: this = this) {
     const inMemberFunction = this;
   }
-}",
-      vec![(4, 4), (5, 4), (13, 4)],
-    );
+}": [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+        },
+        {
+          line: 5,
+          col: 4,
+          message: MESSAGE,
+        },
+        {
+          line: 13,
+          col: 4,
+          message: MESSAGE,
+        }
+      ],
+      "const foo = function() { const self = this; };": [
+        {
+          col: 25,
+          message: MESSAGE,
+        }
+      ]
+    };
   }
 }
