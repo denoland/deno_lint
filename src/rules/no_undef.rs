@@ -133,6 +133,14 @@ impl VisitAll for BindingCollector {
       }
     }
   }
+
+  /// See https://github.com/denoland/deno_lint/issues/596
+  fn visit_arrow_expr(&mut self, e: &ArrowExpr, _: &dyn Node) {
+    let ids: Vec<Id> = find_ids(&e.params);
+    for id in ids {
+      self.declare(id);
+    }
+  }
 }
 
 struct NoUndefVisitor<'c> {
@@ -374,6 +382,13 @@ mod tests {
       r#"type Foo = string | number; export default Foo;"#,
       r#"type Foo<T> = { bar: T }; export default Foo;"#,
       r#"type Foo = string | undefined; export type { Foo };"#,
+      // https://github.com/denoland/deno_lint/issues/596
+      r#"
+      const f = (
+        { a }: Foo,
+        b: boolean,
+      ) => {};
+      "#,
     };
   }
 
