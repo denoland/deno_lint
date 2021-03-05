@@ -340,12 +340,6 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn ts_type_cast_expr(
-    &self,
-    _n: &AstView::TsTypeCastExpr,
-    _ctx: &mut Context,
-  ) {
-  }
   fn ts_type_lit(&self, _n: &AstView::TsTypeLit, _ctx: &mut Context) {}
   fn ts_type_operator(&self, _n: &AstView::TsTypeOperator, _ctx: &mut Context) {
   }
@@ -818,9 +812,6 @@ pub trait Traverse: Handler {
       }
       TsTypeAssertion(n) => {
         self.ts_type_assertion(n, ctx);
-      }
-      TsTypeCastExpr(n) => {
-        self.ts_type_cast_expr(n, ctx);
       }
       TsTypeLit(n) => {
         self.ts_type_lit(n, ctx);

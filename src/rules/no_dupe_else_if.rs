@@ -255,7 +255,6 @@ fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
     | (TsTypeAssertion(_), TsTypeAssertion(_))
     | (TsConstAssertion(_), TsConstAssertion(_))
     | (TsNonNull(_), TsNonNull(_))
-    | (TsTypeCast(_), TsTypeCast(_))
     | (TsAs(_), TsAs(_))
     | (PrivateName(_), PrivateName(_))
     | (OptChain(_), OptChain(_))
