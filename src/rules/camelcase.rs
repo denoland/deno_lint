@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
@@ -11,10 +10,9 @@ use swc_ecmascript::ast::{
   ExportNamespaceSpecifier, Expr, FnDecl, FnExpr, GetterProp, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
-  ObjectPatProp, Param, Pat, Program, Prop, PropName, PropOrSpread, RestPat,
-  SetterProp, TsEnumDecl, TsEnumMemberId, TsInterfaceDecl, TsModuleDecl,
-  TsModuleName, TsNamespaceDecl, TsType, TsTypeAliasDecl, TsTypeElement,
-  VarDecl,
+  ObjectPatProp, Param, Pat, Prop, PropName, PropOrSpread, RestPat, SetterProp,
+  TsEnumDecl, TsEnumMemberId, TsInterfaceDecl, TsModuleDecl, TsModuleName,
+  TsNamespaceDecl, TsType, TsTypeAliasDecl, TsTypeElement, VarDecl,
 };
 use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
@@ -33,9 +31,12 @@ impl LintRule for Camelcase {
     "camelcase"
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = CamelcaseVisitor::new(context);
-    visitor.visit_program(program, program);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
     visitor.report_errors();
   }
 

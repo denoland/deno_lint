@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::{
   ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
@@ -27,12 +26,15 @@ impl LintRule for NoRedeclare {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoRedeclareVisitor {
       context,
       bindings: Default::default(),
     };
-    program.visit_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 }
 

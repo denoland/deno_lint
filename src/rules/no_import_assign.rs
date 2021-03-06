@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::LintRule;
-use crate::linter::Context;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use std::collections::HashSet;
 use swc_atoms::js_word;
 use swc_common::Span;
@@ -33,17 +32,16 @@ impl LintRule for NoImportAssign {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut collector = Collector {
       imports: Default::default(),
       ns_imports: Default::default(),
       other_bindings: Default::default(),
     };
-    program.visit_with(program, &mut collector);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+    }
 
     let mut visitor = NoImportAssignVisitor::new(
       context,
@@ -51,7 +49,10 @@ impl LintRule for NoImportAssign {
       collector.ns_imports,
       collector.other_bindings,
     );
-    program.visit_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

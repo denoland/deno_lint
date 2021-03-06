@@ -1,12 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
-use regex::Regex;
-
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_common::{BytePos, Span, Spanned, SyntaxContext};
-use swc_ecmascript::ast::{Lit, Program, Tpl};
+use swc_ecmascript::ast::{Lit, Tpl};
 use swc_ecmascript::visit::{Node, VisitAll, VisitAllWith};
 
 static RE: Lazy<Regex> =
@@ -35,12 +33,18 @@ impl LintRule for NoMixedSpacesAndTabs {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
 
-    let file_and_lines =
-      context.source_map.span_to_lines(program.span()).unwrap();
+    let span = match program {
+      ProgramRef::Module(ref m) => m.span,
+      ProgramRef::Script(ref s) => s.span,
+    };
+    let file_and_lines = context.source_map.span_to_lines(span).unwrap();
     let file = file_and_lines.file;
 
     let mut excluded_ranges = visitor.ranges;

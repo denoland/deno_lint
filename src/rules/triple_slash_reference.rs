@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
@@ -28,11 +27,7 @@ impl LintRule for TripleSlashReference {
     "triple-slash-reference"
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    _program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
     let mut violated_comment_spans = Vec::new();
 
     violated_comment_spans.extend(
