@@ -1,11 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
-use swc_ecmascript::ast::{
-  BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Program, Stmt,
-};
+use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
 use swc_ecmascript::utils::drop_span;
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
@@ -42,9 +40,12 @@ impl LintRule for NoDupeElseIf {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {
@@ -254,7 +255,6 @@ fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
     | (TsTypeAssertion(_), TsTypeAssertion(_))
     | (TsConstAssertion(_), TsConstAssertion(_))
     | (TsNonNull(_), TsNonNull(_))
-    | (TsTypeCast(_), TsTypeCast(_))
     | (TsAs(_), TsAs(_))
     | (PrivateName(_), PrivateName(_))
     | (OptChain(_), OptChain(_))

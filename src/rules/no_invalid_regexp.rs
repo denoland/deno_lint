@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::js_regex::*;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
@@ -28,13 +27,12 @@ impl LintRule for NoInvalidRegexp {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoInvalidRegexpVisitor::new(context);
-    visitor.visit_program(program, program);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 
   fn docs(&self) -> &'static str {

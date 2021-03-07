@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_common::Span;
 use swc_ecmascript::ast::{ArrowExpr, Function, Pat};
 use swc_ecmascript::visit::noop_visit_type;
@@ -19,13 +18,12 @@ impl LintRule for DefaultParamLast {
     "default-param-last"
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = DefaultParamLastVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

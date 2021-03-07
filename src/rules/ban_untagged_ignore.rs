@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef};
 use swc_common::Span;
 
 pub struct BanUntaggedIgnore;
@@ -18,11 +17,7 @@ impl LintRule for BanUntaggedIgnore {
     "ban-untagged-ignore"
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    _program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
     let violated_spans: Vec<Span> = context
       .ignore_directives
       .borrow()

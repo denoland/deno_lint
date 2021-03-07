@@ -1,17 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use std::collections::HashSet;
 use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
   DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
   FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat,
-  Program, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
-  TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl,
-  TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
-  VarDeclOrPat, VarDeclarator,
+  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
+  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
+  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
+  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclOrPat,
+  VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -49,16 +48,22 @@ impl LintRule for NoUnusedVars {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut collector = Collector::default();
-    program.visit_with(program, &mut collector);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+    }
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
       collector.used_vars,
       collector.used_types,
     );
-    program.visit_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 }
 

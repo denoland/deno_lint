@@ -1,13 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use swc_common::Span;
 use swc_ecmascript::ast::{
-  GetterProp, KeyValueProp, MethodProp, ObjectLit, Program, Prop, PropOrSpread,
+  GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
   SetterProp,
 };
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
@@ -41,9 +40,12 @@ impl LintRule for NoDupeKeys {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoDupeKeysVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

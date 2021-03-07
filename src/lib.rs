@@ -15,6 +15,7 @@ pub mod ast_parser;
 pub mod control_flow;
 pub mod diagnostic;
 mod globals;
+mod handler;
 mod ignore_directives;
 mod js_regex;
 pub mod linter;

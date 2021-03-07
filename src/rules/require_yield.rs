@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_ecmascript::ast::ClassMethod;
 use swc_ecmascript::ast::FnDecl;
 use swc_ecmascript::ast::FnExpr;
@@ -30,13 +29,12 @@ impl LintRule for RequireYield {
     CODE
   }
 
-  fn lint_program(
-    &self,
-    context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = RequireYieldVisitor::new(context);
-    visitor.visit_program(program, program);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 }
 

@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use swc_common::Spanned;
+use swc_ecmascript::ast::BinExpr;
 use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
-use swc_ecmascript::ast::{BinExpr, Program};
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct ValidTypeof;
@@ -26,9 +26,12 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = ValidTypeofVisitor::new(context);
-    visitor.visit_program(program, program);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
   }
 
   fn docs(&self) -> &'static str {

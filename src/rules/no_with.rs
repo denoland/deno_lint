@@ -1,10 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
-use swc_ecmascript::ast::WithStmt;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
 
 pub struct NoWith;
 
@@ -24,31 +20,28 @@ impl LintRule for NoWith {
     CODE
   }
 
-  fn lint_program(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
   ) {
-    let mut visitor = NoWithVisitor::new(context);
-    visitor.visit_program(program, program);
+    NoWithHandler.traverse(program, context);
   }
 }
 
-struct NoWithVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoWithHandler;
 
-impl<'c> NoWithVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c> Visit for NoWithVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _parent: &dyn Node) {
-    self.context.add_diagnostic(with_stmt.span, CODE, MESSAGE);
+impl Handler for NoWithHandler {
+  fn with_stmt(
+    &self,
+    with_stmt: &dprint_swc_ecma_ast_view::WithStmt,
+    ctx: &mut Context,
+  ) {
+    ctx.add_diagnostic(with_stmt.inner.span, CODE, MESSAGE);
   }
 }
 

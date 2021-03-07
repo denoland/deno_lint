@@ -1,10 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use swc_ecmascript::ast::{
-  ClassDecl, ClassMember, Expr, Ident, Program, PropName, TsEntityName,
-  TsInterfaceDecl, TsType, TsTypeAliasDecl, TsTypeAnn,
+  ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
+  TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
 use swc_ecmascript::visit::Node;
@@ -39,9 +38,12 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoMisusedNewVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn tags(&self) -> &'static [&'static str] {

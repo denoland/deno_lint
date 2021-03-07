@@ -1,12 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
-use swc_common::Span;
-use swc_ecmascript::ast::{
-  ArrowExpr, AwaitExpr, DoWhileStmt, ForInStmt, ForOfStmt, ForStmt, Function,
-  WhileStmt,
-};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use swc_common::Spanned;
 
 pub struct NoAwaitInLoop;
 
@@ -23,13 +19,16 @@ impl LintRule for NoAwaitInLoop {
     CODE
   }
 
-  fn lint_program(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: &swc_ecmascript::ast::Program,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
   ) {
-    let mut visitor = NoAwaitInLoopVisitor::new(context);
-    visitor.visit_program(program, program);
+    NoAwaitInLoopHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {
@@ -72,206 +71,52 @@ async function doSomething(items) {
   }
 }
 
-struct NoAwaitInLoopVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoAwaitInLoopHandler;
 
-impl<'c> NoAwaitInLoopVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, span: Span) {
-    self
-      .context
-      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
-  }
-}
-
-impl<'c> Visit for NoAwaitInLoopVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_function(&mut self, func: &Function, parent: &dyn Node) {
-    let mut func_visitor = FunctionVisitor::new(self, func.is_async);
-    func_visitor.visit_function(func, parent);
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
-    let mut func_visitor = FunctionVisitor::new(self, arrow_expr.is_async);
-    func_visitor.visit_arrow_expr(arrow_expr, parent);
-  }
-
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
-    let mut loop_visitor = LoopVisitor::new(self);
-    loop_visitor.visit_for_stmt(for_stmt, parent);
-  }
-
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, parent: &dyn Node) {
-    if for_of_stmt.await_token.is_some() {
-      let mut func_visitor = FunctionVisitor::new(self, true);
-      func_visitor.visit_for_of_stmt(for_of_stmt, parent);
-    } else {
-      let mut loop_visitor = LoopVisitor::new(self);
-      loop_visitor.visit_for_of_stmt(for_of_stmt, parent);
+impl Handler for NoAwaitInLoopHandler {
+  fn await_expr(&self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
+    fn inside_loop(
+      await_expr: &AstView::AwaitExpr,
+      node: AstView::Node,
+    ) -> bool {
+      use AstView::Node::*;
+      match node {
+        FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
+        ForOfStmt(stmt) if stmt.await_token().is_some() => {
+          // `await` is allowed to use within the body of `for await (const x of y) { ... }`
+          false
+        }
+        ForInStmt(AstView::ForInStmt { right, .. })
+        | ForOfStmt(AstView::ForOfStmt { right, .. }) => {
+          // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
+          // except for the case where the given `await_expr` is contained in the `right` part.
+          // e.g. for (const x of await xs) { ... }
+          //                      ^^^^^^^^ <-------- `right` part
+          !right.span().contains(await_expr.span())
+        }
+        ForStmt(stmt) => {
+          // When it encounters `ForStmt`, we should treat it as `inside_loop = true`
+          // except for the case where the given `await_expr` is contained in the `init` part.
+          // e.g. for (let i = await foo(); i < n; i++) { ... }
+          //           ^^^^^^^^^^^^^^^^^^^ <---------- `init` part
+          stmt
+            .init
+            .as_ref()
+            .map_or(true, |init| !init.span().contains(await_expr.span()))
+        }
+        WhileStmt(_) | DoWhileStmt(_) => true,
+        _ => {
+          let parent = match node.parent() {
+            Some(p) => p,
+            None => return false,
+          };
+          inside_loop(await_expr, parent)
+        }
+      }
     }
-  }
 
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, parent: &dyn Node) {
-    let mut loop_visitor = LoopVisitor::new(self);
-    loop_visitor.visit_for_in_stmt(for_in_stmt, parent);
-  }
-
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, parent: &dyn Node) {
-    let mut loop_visitor = LoopVisitor::new(self);
-    loop_visitor.visit_while_stmt(while_stmt, parent);
-  }
-
-  fn visit_do_while_stmt(
-    &mut self,
-    do_while_stmt: &DoWhileStmt,
-    parent: &dyn Node,
-  ) {
-    let mut loop_visitor = LoopVisitor::new(self);
-    loop_visitor.visit_do_while_stmt(do_while_stmt, parent);
-  }
-}
-
-struct LoopVisitor<'a, 'b> {
-  root_visitor: &'b mut NoAwaitInLoopVisitor<'a>,
-}
-
-impl<'a, 'b> LoopVisitor<'a, 'b> {
-  fn new(root_visitor: &'b mut NoAwaitInLoopVisitor<'a>) -> Self {
-    Self { root_visitor }
-  }
-}
-
-impl<'a, 'b> Visit for LoopVisitor<'a, 'b> {
-  fn visit_function(&mut self, func: &Function, parent: &dyn Node) {
-    let mut func_visitor = if func.is_async {
-      FunctionVisitor::new(self.root_visitor, true)
-    } else {
-      FunctionVisitor::new(self.root_visitor, false)
-    };
-    func_visitor.visit_function(func, parent);
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
-    let mut func_visitor = if arrow_expr.is_async {
-      FunctionVisitor::new(self.root_visitor, true)
-    } else {
-      FunctionVisitor::new(self.root_visitor, false)
-    };
-    func_visitor.visit_arrow_expr(arrow_expr, parent);
-  }
-
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
-    if let Some(test) = for_stmt.test.as_ref() {
-      self.visit_expr(&**test, parent);
-    }
-    if let Some(update) = for_stmt.update.as_ref() {
-      self.visit_expr(&**update, parent);
-    }
-    let body = &*for_stmt.body;
-    self.visit_stmt(body, parent);
-  }
-
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, parent: &dyn Node) {
-    let body = &*for_of_stmt.body;
-    self.visit_stmt(body, parent);
-  }
-
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, parent: &dyn Node) {
-    let body = &*for_in_stmt.body;
-    self.visit_stmt(body, parent);
-  }
-
-  fn visit_await_expr(&mut self, await_expr: &AwaitExpr, parent: &dyn Node) {
-    self.root_visitor.add_diagnostic(await_expr.span);
-    swc_ecmascript::visit::visit_await_expr(self, await_expr, parent);
-  }
-}
-
-struct FunctionVisitor<'a, 'b> {
-  root_visitor: &'b mut NoAwaitInLoopVisitor<'a>,
-  is_async: bool,
-}
-
-impl<'a, 'b> FunctionVisitor<'a, 'b> {
-  fn new(
-    root_visitor: &'b mut NoAwaitInLoopVisitor<'a>,
-    is_async: bool,
-  ) -> Self {
-    Self {
-      root_visitor,
-      is_async,
-    }
-  }
-}
-
-impl<'a, 'b> Visit for FunctionVisitor<'a, 'b> {
-  fn visit_function(&mut self, func: &Function, parent: &dyn Node) {
-    let mut func_visitor =
-      FunctionVisitor::new(self.root_visitor, func.is_async);
-    swc_ecmascript::visit::visit_function(&mut func_visitor, func, parent);
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, parent: &dyn Node) {
-    let mut func_visitor =
-      FunctionVisitor::new(self.root_visitor, arrow_expr.is_async);
-    swc_ecmascript::visit::visit_arrow_expr(
-      &mut func_visitor,
-      arrow_expr,
-      parent,
-    );
-  }
-
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, parent: &dyn Node) {
-    if self.is_async {
-      let mut loop_visitor = LoopVisitor::new(self.root_visitor);
-      loop_visitor.visit_for_stmt(for_stmt, parent);
-    } else {
-      swc_ecmascript::visit::visit_for_stmt(self, for_stmt, parent);
-    }
-  }
-
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, parent: &dyn Node) {
-    if self.is_async && for_of_stmt.await_token.is_none() {
-      let mut loop_visitor = LoopVisitor::new(self.root_visitor);
-      loop_visitor.visit_for_of_stmt(for_of_stmt, parent);
-    } else {
-      swc_ecmascript::visit::visit_for_of_stmt(self, for_of_stmt, parent);
-    }
-  }
-
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, parent: &dyn Node) {
-    if self.is_async {
-      let mut loop_visitor = LoopVisitor::new(self.root_visitor);
-      loop_visitor.visit_for_in_stmt(for_in_stmt, parent);
-    } else {
-      swc_ecmascript::visit::visit_for_in_stmt(self, for_in_stmt, parent);
-    }
-  }
-
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, parent: &dyn Node) {
-    if self.is_async {
-      let mut loop_visitor = LoopVisitor::new(self.root_visitor);
-      loop_visitor.visit_while_stmt(while_stmt, parent);
-    } else {
-      swc_ecmascript::visit::visit_while_stmt(self, while_stmt, parent);
-    }
-  }
-
-  fn visit_do_while_stmt(
-    &mut self,
-    do_while_stmt: &DoWhileStmt,
-    parent: &dyn Node,
-  ) {
-    if self.is_async {
-      let mut loop_visitor = LoopVisitor::new(self.root_visitor);
-      loop_visitor.visit_do_while_stmt(do_while_stmt, parent);
-    } else {
-      swc_ecmascript::visit::visit_do_while_stmt(self, do_while_stmt, parent);
+    if inside_loop(await_expr, await_expr.into_node()) {
+      ctx.add_diagnostic_with_hint(await_expr.span(), CODE, MESSAGE, HINT);
     }
   }
 }

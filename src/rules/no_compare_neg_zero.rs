@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use swc_ecmascript::ast::BinaryOp::*;
 use swc_ecmascript::ast::Expr::{Lit, Unary};
 use swc_ecmascript::ast::Lit::Num;
 use swc_ecmascript::ast::UnaryExpr;
 use swc_ecmascript::ast::UnaryOp::Minus;
-use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, Program};
+use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr};
 use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCompareNegZero;
@@ -40,9 +40,12 @@ impl LintRule for NoCompareNegZero {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 
   fn docs(&self) -> &'static str {

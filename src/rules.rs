@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::linter::Context;
-use swc_ecmascript::ast::Program;
+use dprint_swc_ecma_ast_view::Program as ProgramView;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -86,15 +86,48 @@ pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
 
+const DUMMY_NODE: () = ();
+
+pub enum ProgramRef<'a> {
+  Module(&'a swc_ecmascript::ast::Module),
+  Script(&'a swc_ecmascript::ast::Script),
+}
+
 pub trait LintRule {
+  /// Creates a instance of this rule.
   fn new() -> Box<Self>
   where
     Self: Sized;
-  fn lint_program(&self, context: &mut Context, program: &Program);
+
+  /// Executes lint on the given `Program`.
+  /// TODO(@magurotuna): remove this after all rules get to use ast_view
+  fn lint_program<'a>(&self, context: &mut Context, program: ProgramRef<'a>);
+
+  /// Executes lint using `dprint-swc-ecma-ast-view`.
+  /// Falls back to the `lint_program` method if not implemented.
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program,
+  ) {
+    use ProgramView::*;
+    let program_ref = match program {
+      Module(m) => ProgramRef::Module(m.inner),
+      Script(s) => ProgramRef::Script(s.inner),
+    };
+    self.lint_program(context, program_ref);
+  }
+
+  /// Returns the unique code that identifies the rule
   fn code(&self) -> &'static str;
+
+  /// Returns the tags this rule belongs to, e.g. `recommended`
   fn tags(&self) -> &'static [&'static str] {
     &[]
   }
+
+  /// Returns the documentation string for this rule, describing what this rule is for with several
+  /// examples.
   fn docs(&self) -> &'static str {
     ""
   }

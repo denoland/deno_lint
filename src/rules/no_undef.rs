@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::globals::GLOBALS;
 use swc_atoms::js_word;
 use swc_ecmascript::{
@@ -28,14 +27,24 @@ impl LintRule for NoUndef {
     "no-undef"
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut collector = BindingCollector {
       declared: Default::default(),
     };
-    program.visit_all_with(program, &mut collector);
+    match program {
+      ProgramRef::Module(ref m) => {
+        m.visit_all_with(&DUMMY_NODE, &mut collector)
+      }
+      ProgramRef::Script(ref s) => {
+        s.visit_all_with(&DUMMY_NODE, &mut collector)
+      }
+    }
 
     let mut visitor = NoUndefVisitor::new(context, collector.declared);
-    program.visit_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 }
 
@@ -131,6 +140,14 @@ impl VisitAll for BindingCollector {
       for id in ids {
         self.declare(id);
       }
+    }
+  }
+
+  /// See https://github.com/denoland/deno_lint/issues/596
+  fn visit_arrow_expr(&mut self, e: &ArrowExpr, _: &dyn Node) {
+    let ids: Vec<Id> = find_ids(&e.params);
+    for id in ids {
+      self.declare(id);
     }
   }
 }
@@ -374,6 +391,13 @@ mod tests {
       r#"type Foo = string | number; export default Foo;"#,
       r#"type Foo<T> = { bar: T }; export default Foo;"#,
       r#"type Foo = string | undefined; export type { Foo };"#,
+      // https://github.com/denoland/deno_lint/issues/596
+      r#"
+      const f = (
+        { a }: Foo,
+        b: boolean,
+      ) => {};
+      "#,
     };
   }
 

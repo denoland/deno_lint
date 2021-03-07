@@ -1,11 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
-use regex::{Matches, Regex};
-
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use once_cell::sync::Lazy;
-use swc_common::{hygiene::SyntaxContext, BytePos, Span, Spanned};
-use swc_ecmascript::ast::Program;
+use regex::{Matches, Regex};
+use swc_common::{hygiene::SyntaxContext, BytePos, Span};
 use swc_ecmascript::ast::Str;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -57,14 +55,20 @@ impl LintRule for NoIrregularWhitespace {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoIrregularWhitespaceVisitor::default();
-    visitor.visit_program(program, program);
+    match program {
+      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+    }
 
     let excluded_ranges = visitor.ranges.iter();
 
-    let file_and_lines =
-      context.source_map.span_to_lines(program.span()).unwrap();
+    let span = match program {
+      ProgramRef::Module(ref m) => m.span,
+      ProgramRef::Script(ref s) => s.span,
+    };
+    let file_and_lines = context.source_map.span_to_lines(span).unwrap();
     let file = file_and_lines.file;
 
     for line_index in 0..file.count_lines() {

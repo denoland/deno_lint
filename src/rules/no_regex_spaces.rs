@@ -1,12 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::Context;
-use super::LintRule;
+use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use crate::swc_util::extract_regex;
 use once_cell::sync::Lazy;
 use swc_common::Span;
-use swc_ecmascript::ast::{
-  CallExpr, Expr, ExprOrSuper, NewExpr, Program, Regex,
-};
+use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -30,9 +27,12 @@ impl LintRule for NoRegexSpaces {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: &Program) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
-    program.visit_all_with(program, &mut visitor);
+    match program {
+      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+    }
   }
 }
 
