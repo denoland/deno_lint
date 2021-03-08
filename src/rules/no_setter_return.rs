@@ -75,7 +75,6 @@ impl Handler for NoSetterReturnHandler {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.21.0/tests/lib/rules/no-setter-return.js
@@ -187,11 +186,14 @@ mod tests {
 
   #[test]
   fn no_setter_return_invalid() {
-    assert_lint_err::<NoSetterReturn>(
-      r#"const a = { set setter(a) { return "something"; } };"#,
-      28,
-    );
-    assert_lint_err_on_line_n::<NoSetterReturn>(
+    assert_lint_err! {
+      NoSetterReturn,
+      r#"const a = { set setter(a) { return "something"; } };"#: [
+        {
+          col: 28,
+          message: "Setter cannot return a value",
+        }
+      ],
       r#"
 class b {
   set setterA(a) {
@@ -201,8 +203,18 @@ class b {
     return "something";
   }
 }
-      "#,
-      vec![(4, 4), (7, 4)],
-    );
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: "Setter cannot return a value",
+        },
+        {
+          line: 7,
+          col: 4,
+          message: "Setter cannot return a value",
+        }
+      ]
+    };
   }
 }
