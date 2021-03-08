@@ -1,14 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::ast::BlockStmt;
-use swc_ecmascript::ast::Class;
-use swc_ecmascript::ast::ClassMember;
-use swc_ecmascript::ast::MethodKind;
-use swc_ecmascript::ast::SetterProp;
-use swc_ecmascript::ast::Stmt;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Spanned};
 
 pub struct NoSetterReturn;
 
@@ -25,71 +18,48 @@ impl LintRule for NoSetterReturn {
     "no-setter-return"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoSetterReturnVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
-  }
-}
-
-struct NoSetterReturnVisitor<'c> {
-  context: &'c mut Context,
-}
-
-impl<'c> NoSetterReturnVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!()
   }
 
-  fn check_block_stmt(&mut self, block_stmt: &BlockStmt) {
-    for stmt in &block_stmt.stmts {
-      if let Stmt::Return(return_stmt) = stmt {
-        if return_stmt.arg.is_some() {
-          self.context.add_diagnostic(
-            return_stmt.span,
-            "no-setter-return",
-            "Setter cannot return a value",
-          );
-        }
-      }
-    }
-  }
-}
-
-impl<'c> Visit for NoSetterReturnVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
-    for member in &class.body {
-      match member {
-        ClassMember::Method(class_method) => {
-          if class_method.kind == MethodKind::Setter {
-            if let Some(block_stmt) = &class_method.function.body {
-              self.check_block_stmt(block_stmt);
-            }
-          }
-        }
-        ClassMember::PrivateMethod(private_method) => {
-          if private_method.kind == MethodKind::Setter {
-            if let Some(block_stmt) = &private_method.function.body {
-              self.check_block_stmt(block_stmt);
-            }
-          }
-        }
-        _ => {}
-      }
-    }
-  }
-
-  fn visit_setter_prop(
-    &mut self,
-    setter_prop: &SetterProp,
-    _parent: &dyn Node,
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
   ) {
-    if let Some(block_stmt) = &setter_prop.body {
-      self.check_block_stmt(block_stmt);
+    NoSetterReturnHandler.traverse(program, context);
+  }
+}
+
+struct NoSetterReturnHandler;
+
+impl Handler for NoSetterReturnHandler {
+  fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
+    fn inside_setter(node: AstView::Node) -> bool {
+      use AstView::Node::*;
+      match node {
+        SetterProp(_) => true,
+        ClassMethod(ref method)
+          if method.kind() == AstView::MethodKind::Setter =>
+        {
+          true
+        }
+        _ => {
+          if let Some(parent) = node.parent() {
+            inside_setter(parent)
+          } else {
+            false
+          }
+        }
+      }
+    }
+
+    if inside_setter(return_stmt.into_node()) {
+      ctx.add_diagnostic(
+        return_stmt.span(),
+        "no-setter-return",
+        "Setter cannot return a value",
+      );
     }
   }
 }
