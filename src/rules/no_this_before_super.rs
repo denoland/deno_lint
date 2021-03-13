@@ -144,7 +144,6 @@ impl<'a> Visit for ConstructorVisitor<'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_this_before_super_valid() {
@@ -172,12 +171,46 @@ class A extends B {
   }
 }
       "#,
+
+      // inline super class
+      r#"
+class A extends class extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+} {
+    constructor() {
+      super();
+      this.a = 0;
+    }
+}
+      "#,
+
+      // nested class
+      r#"
+class A extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+  foo() {
+    class C extends D {
+      constructor() {
+        super();
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
     };
   }
 
   #[test]
   fn no_this_before_super_invalid() {
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    assert_lint_err! {
+      NoThisBeforeSuper,
       r#"
 class A extends B {
   constructor() {
@@ -185,12 +218,14 @@ class A extends B {
     super();
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -198,12 +233,14 @@ class A extends B {
     super();
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -211,24 +248,28 @@ class A extends B {
     super();
   }
 }
-    "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
     super(this.foo());
   }
 }
-    "#,
-      4,
-      10,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    "#: [
+        {
+          line: 4,
+          col: 10,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -241,29 +282,14 @@ class C extends D {
     super();
   }
 }
-    "#,
-      9,
-      4,
-    );
-
-    // inline super class
-    assert_lint_ok::<NoThisBeforeSuper>(
-      r#"
-class A extends class extends B {
-  constructor() {
-    super();
-    this.a = 0;
-  }
-} {
-    constructor() {
-      super();
-      this.a = 0;
-    }
-}
-      "#,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    "#: [
+        {
+          line: 9,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends class extends B {
   constructor() {
@@ -276,12 +302,14 @@ class A extends class extends B {
       this.a = 0;
     }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends class extends B {
   constructor() {
@@ -294,34 +322,14 @@ class A extends class extends B {
       super();
     }
 }
-      "#,
-      9,
-      6,
-    );
-  }
-
-  #[test]
-  fn no_this_before_super_nested_class() {
-    assert_lint_ok::<NoThisBeforeSuper>(
-      r#"
-class A extends B {
-  constructor() {
-    super();
-    this.a = 0;
-  }
-  foo() {
-    class C extends D {
-      constructor() {
-        super();
-        this.c = 1;
-      }
-    }
-  }
-}
-      "#,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 9,
+          col: 6,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -336,12 +344,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      10,
-      8,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 10,
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -357,12 +367,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A {
   constructor() {
@@ -376,12 +388,14 @@ class A {
     }
   }
 }
-      "#,
-      9,
-      8,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 9,
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -395,12 +409,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -413,9 +429,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      8,
-      8,
-    );
+      "#: [
+        {
+          line: 8,
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ]
+    };
   }
 }
