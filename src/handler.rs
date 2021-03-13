@@ -2,6 +2,9 @@ use crate::linter::Context;
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 
 pub trait Handler {
+  fn on_enter_node(&mut self, _n: AstView::Node, _ctx: &mut Context) {}
+  fn on_exit_node(&mut self, _n: AstView::Node, _ctx: &mut Context) {}
+
   fn array_lit(&mut self, _n: &AstView::ArrayLit, _ctx: &mut Context) {}
   fn array_pat(&mut self, _n: &AstView::ArrayPat, _ctx: &mut Context) {}
   fn arrow_expr(&mut self, _n: &AstView::ArrowExpr, _ctx: &mut Context) {}
@@ -379,8 +382,14 @@ pub trait Traverse: Handler {
   where
     N: NodeTrait<'a>,
   {
+    let node = node.into_node();
+
+    // First, invoke a handler that does anything we want when _entering_ a node.
+    self.on_enter_node(node, ctx);
+
+    // Next, invoke a handler that is specific to the type of node.
     use AstView::Node::*;
-    match node.into_node() {
+    match node {
       ArrayLit(n) => {
         self.array_lit(n, ctx);
       }
@@ -863,9 +872,13 @@ pub trait Traverse: Handler {
       }
     }
 
+    // Walk the child nodes recursively.
     for child in node.children() {
       self.traverse(child, ctx);
     }
+
+    // Finally, invoke a handler that does anything we want when _leaving_ a node.
+    self.on_exit_node(node, ctx);
   }
 }
 
