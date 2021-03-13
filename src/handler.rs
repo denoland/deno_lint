@@ -10,7 +10,12 @@ pub trait Handler {
   fn arrow_expr(&mut self, _n: &AstView::ArrowExpr, _ctx: &mut Context) {}
   fn assign_expr(&mut self, _n: &AstView::AssignExpr, _ctx: &mut Context) {}
   fn assign_pat(&mut self, _n: &AstView::AssignPat, _ctx: &mut Context) {}
-  fn assign_pat_prop(&mut self, _n: &AstView::AssignPatProp, _ctx: &mut Context) {}
+  fn assign_pat_prop(
+    &mut self,
+    _n: &AstView::AssignPatProp,
+    _ctx: &mut Context,
+  ) {
+  }
   fn assign_prop(&mut self, _n: &AstView::AssignProp, _ctx: &mut Context) {}
   fn await_expr(&mut self, _n: &AstView::AwaitExpr, _ctx: &mut Context) {}
   fn big_int(&mut self, _n: &AstView::BigInt, _ctx: &mut Context) {}
@@ -71,7 +76,8 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn expr_or_spread(&mut self, _n: &AstView::ExprOrSpread, _ctx: &mut Context) {}
+  fn expr_or_spread(&mut self, _n: &AstView::ExprOrSpread, _ctx: &mut Context) {
+  }
   fn expr_stmt(&mut self, _n: &AstView::ExprStmt, _ctx: &mut Context) {}
   fn fn_decl(&mut self, _n: &AstView::FnDecl, _ctx: &mut Context) {}
   fn fn_expr(&mut self, _n: &AstView::FnExpr, _ctx: &mut Context) {}
@@ -116,7 +122,8 @@ pub trait Handler {
   ) {
   }
   fn jsx_element(&mut self, _n: &AstView::JSXElement, _ctx: &mut Context) {}
-  fn jsx_empty_expr(&mut self, _n: &AstView::JSXEmptyExpr, _ctx: &mut Context) {}
+  fn jsx_empty_expr(&mut self, _n: &AstView::JSXEmptyExpr, _ctx: &mut Context) {
+  }
   fn jsx_expr_container(
     &mut self,
     _n: &AstView::JSXExprContainer,
@@ -124,7 +131,12 @@ pub trait Handler {
   ) {
   }
   fn jsx_fragment(&mut self, _n: &AstView::JSXFragment, _ctx: &mut Context) {}
-  fn jsx_member_expr(&mut self, _n: &AstView::JSXMemberExpr, _ctx: &mut Context) {}
+  fn jsx_member_expr(
+    &mut self,
+    _n: &AstView::JSXMemberExpr,
+    _ctx: &mut Context,
+  ) {
+  }
   fn jsx_namespaced_name(
     &mut self,
     _n: &AstView::JSXNamespacedName,
@@ -143,7 +155,11 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn jsx_spread_child(&mut self, _n: &AstView::JSXSpreadChild, _ctx: &mut Context) {
+  fn jsx_spread_child(
+    &mut self,
+    _n: &AstView::JSXSpreadChild,
+    _ctx: &mut Context,
+  ) {
   }
   fn jsx_text(&mut self, _n: &AstView::JSXText, _ctx: &mut Context) {}
   fn key_value_pat_prop(
@@ -152,10 +168,12 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn key_value_prop(&mut self, _n: &AstView::KeyValueProp, _ctx: &mut Context) {}
+  fn key_value_prop(&mut self, _n: &AstView::KeyValueProp, _ctx: &mut Context) {
+  }
   fn labeled_stmt(&mut self, _n: &AstView::LabeledStmt, _ctx: &mut Context) {}
   fn member_expr(&mut self, _n: &AstView::MemberExpr, _ctx: &mut Context) {}
-  fn meta_prop_expr(&mut self, _n: &AstView::MetaPropExpr, _ctx: &mut Context) {}
+  fn meta_prop_expr(&mut self, _n: &AstView::MetaPropExpr, _ctx: &mut Context) {
+  }
   fn method_prop(&mut self, _n: &AstView::MethodProp, _ctx: &mut Context) {}
   fn module(&mut self, _n: &AstView::Module, _ctx: &mut Context) {}
   fn named_export(&mut self, _n: &AstView::NamedExport, _ctx: &mut Context) {}
@@ -164,10 +182,16 @@ pub trait Handler {
   fn number(&mut self, _n: &AstView::Number, _ctx: &mut Context) {}
   fn object_lit(&mut self, _n: &AstView::ObjectLit, _ctx: &mut Context) {}
   fn object_pat(&mut self, _n: &AstView::ObjectPat, _ctx: &mut Context) {}
-  fn opt_chain_expr(&mut self, _n: &AstView::OptChainExpr, _ctx: &mut Context) {}
+  fn opt_chain_expr(&mut self, _n: &AstView::OptChainExpr, _ctx: &mut Context) {
+  }
   fn param(&mut self, _n: &AstView::Param, _ctx: &mut Context) {}
   fn paren_expr(&mut self, _n: &AstView::ParenExpr, _ctx: &mut Context) {}
-  fn private_method(&mut self, _n: &AstView::PrivateMethod, _ctx: &mut Context) {}
+  fn private_method(
+    &mut self,
+    _n: &AstView::PrivateMethod,
+    _ctx: &mut Context,
+  ) {
+  }
   fn private_name(&mut self, _n: &AstView::PrivateName, _ctx: &mut Context) {}
   fn private_prop(&mut self, _n: &AstView::PrivateProp, _ctx: &mut Context) {}
   fn regex(&mut self, _n: &AstView::Regex, _ctx: &mut Context) {}
@@ -176,7 +200,12 @@ pub trait Handler {
   fn script(&mut self, _n: &AstView::Script, _ctx: &mut Context) {}
   fn seq_expr(&mut self, _n: &AstView::SeqExpr, _ctx: &mut Context) {}
   fn setter_prop(&mut self, _n: &AstView::SetterProp, _ctx: &mut Context) {}
-  fn spread_element(&mut self, _n: &AstView::SpreadElement, _ctx: &mut Context) {}
+  fn spread_element(
+    &mut self,
+    _n: &AstView::SpreadElement,
+    _ctx: &mut Context,
+  ) {
+  }
   fn str(&mut self, _n: &AstView::Str, _ctx: &mut Context) {}
   // Neither `super` or `r#super` can be used here, so we use `super_` reluctantly
   fn super_(&mut self, _n: &AstView::Super, _ctx: &mut Context) {}
@@ -221,7 +250,8 @@ pub trait Handler {
   ) {
   }
   fn ts_enum_decl(&mut self, _n: &AstView::TsEnumDecl, _ctx: &mut Context) {}
-  fn ts_enum_member(&mut self, _n: &AstView::TsEnumMember, _ctx: &mut Context) {}
+  fn ts_enum_member(&mut self, _n: &AstView::TsEnumMember, _ctx: &mut Context) {
+  }
   fn ts_export_assignment(
     &mut self,
     _n: &AstView::TsExportAssignment,
@@ -247,7 +277,8 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn ts_import_type(&mut self, _n: &AstView::TsImportType, _ctx: &mut Context) {}
+  fn ts_import_type(&mut self, _n: &AstView::TsImportType, _ctx: &mut Context) {
+  }
   fn ts_index_signature(
     &mut self,
     _n: &AstView::TsIndexSignature,
@@ -279,17 +310,29 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn ts_keyword_type(&mut self, _n: &AstView::TsKeywordType, _ctx: &mut Context) {}
+  fn ts_keyword_type(
+    &mut self,
+    _n: &AstView::TsKeywordType,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_lit_type(&mut self, _n: &AstView::TsLitType, _ctx: &mut Context) {}
-  fn ts_mapped_type(&mut self, _n: &AstView::TsMappedType, _ctx: &mut Context) {}
+  fn ts_mapped_type(&mut self, _n: &AstView::TsMappedType, _ctx: &mut Context) {
+  }
   fn ts_method_signature(
     &mut self,
     _n: &AstView::TsMethodSignature,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_module_block(&mut self, _n: &AstView::TsModuleBlock, _ctx: &mut Context) {}
-  fn ts_module_decl(&mut self, _n: &AstView::TsModuleDecl, _ctx: &mut Context) {}
+  fn ts_module_block(
+    &mut self,
+    _n: &AstView::TsModuleBlock,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_module_decl(&mut self, _n: &AstView::TsModuleDecl, _ctx: &mut Context) {
+  }
   fn ts_namespace_decl(
     &mut self,
     _n: &AstView::TsNamespaceDecl,
@@ -302,8 +345,17 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn ts_non_null_expr(&mut self, _n: &AstView::TsNonNullExpr, _ctx: &mut Context) {}
-  fn ts_optional_type(&mut self, _n: &AstView::TsOptionalType, _ctx: &mut Context) {
+  fn ts_non_null_expr(
+    &mut self,
+    _n: &AstView::TsNonNullExpr,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_optional_type(
+    &mut self,
+    _n: &AstView::TsOptionalType,
+    _ctx: &mut Context,
+  ) {
   }
   fn ts_param_prop(&mut self, _n: &AstView::TsParamProp, _ctx: &mut Context) {}
   fn ts_parenthesized_type(
@@ -326,8 +378,17 @@ pub trait Handler {
   }
   fn ts_rest_type(&mut self, _n: &AstView::TsRestType, _ctx: &mut Context) {}
   fn ts_this_type(&mut self, _n: &AstView::TsThisType, _ctx: &mut Context) {}
-  fn ts_tpl_lit_type(&mut self, _n: &AstView::TsTplLitType, _ctx: &mut Context) {}
-  fn ts_tuple_element(&mut self, _n: &AstView::TsTupleElement, _ctx: &mut Context) {
+  fn ts_tpl_lit_type(
+    &mut self,
+    _n: &AstView::TsTplLitType,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_tuple_element(
+    &mut self,
+    _n: &AstView::TsTupleElement,
+    _ctx: &mut Context,
+  ) {
   }
   fn ts_tuple_type(&mut self, _n: &AstView::TsTupleType, _ctx: &mut Context) {}
   fn ts_type_alias_decl(
@@ -344,7 +405,11 @@ pub trait Handler {
   ) {
   }
   fn ts_type_lit(&mut self, _n: &AstView::TsTypeLit, _ctx: &mut Context) {}
-  fn ts_type_operator(&mut self, _n: &AstView::TsTypeOperator, _ctx: &mut Context) {
+  fn ts_type_operator(
+    &mut self,
+    _n: &AstView::TsTypeOperator,
+    _ctx: &mut Context,
+  ) {
   }
   fn ts_type_param(&mut self, _n: &AstView::TsTypeParam, _ctx: &mut Context) {}
   fn ts_type_param_decl(
@@ -371,7 +436,12 @@ pub trait Handler {
   fn unary_expr(&mut self, _n: &AstView::UnaryExpr, _ctx: &mut Context) {}
   fn update_expr(&mut self, _n: &AstView::UpdateExpr, _ctx: &mut Context) {}
   fn var_decl(&mut self, _n: &AstView::VarDecl, _ctx: &mut Context) {}
-  fn var_declarator(&mut self, _n: &AstView::VarDeclarator, _ctx: &mut Context) {}
+  fn var_declarator(
+    &mut self,
+    _n: &AstView::VarDeclarator,
+    _ctx: &mut Context,
+  ) {
+  }
   fn while_stmt(&mut self, _n: &AstView::WhileStmt, _ctx: &mut Context) {}
   fn with_stmt(&mut self, _n: &AstView::WithStmt, _ctx: &mut Context) {}
   fn yield_expr(&mut self, _n: &AstView::YieldExpr, _ctx: &mut Context) {}

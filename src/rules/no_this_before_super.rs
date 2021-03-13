@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, Spanned, Span, NodeTrait};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Span, Spanned};
 
 pub struct NoThisBeforeSuper;
 
@@ -19,14 +19,18 @@ impl LintRule for NoThisBeforeSuper {
   }
 
   fn code(&self) -> &'static str {
-      CODE
+    CODE
   }
 
   fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
     unreachable!();
   }
 
-  fn lint_program_with_ast_view(&self, context: &mut Context, program: dprint_swc_ecma_ast_view::Program<'_>) {
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
+  ) {
     let mut handler = NoThisBeforeSuperHandler::new();
     handler.traverse(program, context);
   }
@@ -42,7 +46,9 @@ struct NoThisBeforeSuperHandler {
 
 impl NoThisBeforeSuperHandler {
   fn new() -> Self {
-    Self { is_derived_class: Vec::new() }
+    Self {
+      is_derived_class: Vec::new(),
+    }
   }
 
   fn enter_class(&mut self, is_derived: bool) {
@@ -89,7 +95,8 @@ impl Handler for NoThisBeforeSuperHandler {
         match checker.result() {
           None => (),
           Some(FirstAppeared::SuperCalled) => break,
-          Some(FirstAppeared::ThisAccessed(span)) | Some(FirstAppeared::SuperAccessed(span)) => {
+          Some(FirstAppeared::ThisAccessed(span))
+          | Some(FirstAppeared::SuperAccessed(span)) => {
             ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
           }
         }
@@ -132,7 +139,10 @@ impl SuperCallChecker {
         return false;
       }
 
-      if matches!(cur_node, AstView::Node::Function(_) | AstView::Node::ArrowExpr(_)) {
+      if matches!(
+        cur_node,
+        AstView::Node::Function(_) | AstView::Node::ArrowExpr(_)
+      ) {
         return true;
       }
 
@@ -174,7 +184,9 @@ impl Handler for SuperCallChecker {
       self.traverse(arg.into_node(), ctx);
     }
 
-    if self.yet_appeared() && matches!(call_expr.callee, AstView::ExprOrSuper::Super(_)) {
+    if self.yet_appeared()
+      && matches!(call_expr.callee, AstView::ExprOrSuper::Super(_))
+    {
       self.first_appeared = Some(FirstAppeared::SuperCalled);
     }
   }
