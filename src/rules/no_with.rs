@@ -37,7 +37,7 @@ struct NoWithHandler;
 
 impl Handler for NoWithHandler {
   fn with_stmt(
-    &self,
+    &mut self,
     with_stmt: &dprint_swc_ecma_ast_view::WithStmt,
     ctx: &mut Context,
   ) {

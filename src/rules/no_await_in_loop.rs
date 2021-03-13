@@ -74,7 +74,7 @@ async function doSomething(items) {
 struct NoAwaitInLoopHandler;
 
 impl Handler for NoAwaitInLoopHandler {
-  fn await_expr(&self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
+  fn await_expr(&mut self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
     fn inside_loop(
       await_expr: &AstView::AwaitExpr,
       node: AstView::Node,
