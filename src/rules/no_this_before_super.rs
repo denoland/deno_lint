@@ -7,6 +7,10 @@ use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
 
 pub struct NoThisBeforeSuper;
 
+const CODE: &str = "no-this-before-super";
+const MESSAGE: &str = "In the constructor of derived classes, `this` / `super` are not allowed before calling to `super()`.";
+const HINT: &str = "Call `super()` before using `this` or `super` keyword.";
+
 impl LintRule for NoThisBeforeSuper {
   fn new() -> Box<Self> {
     Box::new(NoThisBeforeSuper)
@@ -17,7 +21,7 @@ impl LintRule for NoThisBeforeSuper {
   }
 
   fn code(&self) -> &'static str {
-    "no-this-before-super"
+      CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
@@ -116,20 +120,22 @@ impl<'a> Visit for ConstructorVisitor<'a> {
 
   fn visit_this_expr(&mut self, this_expr: &ThisExpr, _parent: &dyn Node) {
     if !self.super_called {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         this_expr.span,
-        "no-this-before-super",
-        "'this' / 'super' are not allowed before 'super()'.",
+        CODE,
+        MESSAGE,
+        HINT,
       );
     }
   }
 
   fn visit_super(&mut self, sup: &Super, _parent: &dyn Node) {
     if !self.super_called {
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         sup.span,
-        "no-this-before-super",
-        "'this' / 'super' are not allowed before 'super()'.",
+        CODE,
+        MESSAGE,
+        HINT,
       );
     }
   }
