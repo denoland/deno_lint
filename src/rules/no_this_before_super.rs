@@ -1,9 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::ast::{
-  CallExpr, Class, Constructor, ExprOrSuper, Super, ThisExpr,
-};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as AstView, Spanned, Span, NodeTrait};
 
 pub struct NoThisBeforeSuper;
 
@@ -24,119 +22,160 @@ impl LintRule for NoThisBeforeSuper {
       CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoThisBeforeSuperVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(&self, context: &mut Context, program: dprint_swc_ecma_ast_view::Program<'_>) {
+    let mut handler = NoThisBeforeSuperHandler::new();
+    handler.traverse(program, context);
+  }
+}
+
+struct NoThisBeforeSuperHandler {
+  /// Stores bools that represent whether classes are derived one or not.
+  /// When it enters a class, a bool value is pushed into this vector. And when it leaves the
+  /// class, pop the last value of vector.
+  /// The last value of the vector indicates whether we are now in a derived class or not.
+  is_derived_class: Vec<bool>,
+}
+
+impl NoThisBeforeSuperHandler {
+  fn new() -> Self {
+    Self { is_derived_class: Vec::new() }
+  }
+
+  fn enter_class(&mut self, is_derived: bool) {
+    self.is_derived_class.push(is_derived);
+  }
+
+  fn leave_class(&mut self) {
+    assert!(!self.is_derived_class.is_empty());
+    self.is_derived_class.pop();
+  }
+
+  fn inside_derived_class(&self) -> bool {
+    match self.is_derived_class.as_slice() {
+      [] => false,
+      [x] => *x,
+      [.., x] => *x,
     }
   }
 }
 
-struct NoThisBeforeSuperVisitor<'c> {
-  context: &'c mut Context,
-}
+impl Handler for NoThisBeforeSuperHandler {
+  fn on_enter_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
+    if let AstView::Node::Class(ref class) = node {
+      let is_derived = class.super_class.is_some();
+      self.enter_class(is_derived);
+    }
+  }
 
-impl<'c> NoThisBeforeSuperVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
+  fn on_exit_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
+    if matches!(node, AstView::Node::Class(_)) {
+      self.leave_class();
+    }
+  }
+
+  fn constructor(&mut self, cons: &AstView::Constructor, ctx: &mut Context) {
+    if !self.inside_derived_class() {
+      return;
+    }
+
+    if let Some(body) = cons.body {
+      for stmt in &body.stmts {
+        let mut checker = SuperCallChecker::new(stmt.span());
+        checker.traverse(*stmt, ctx);
+        match checker.result() {
+          None => (),
+          Some(FirstAppeared::SuperCalled) => break,
+          Some(FirstAppeared::ThisAccessed(span)) | Some(FirstAppeared::SuperAccessed(span)) => {
+            ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+          }
+        }
+      }
+    }
   }
 }
 
-impl<'c> Visit for NoThisBeforeSuperVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut class_visitor =
-      ClassVisitor::new(self.context, class.super_class.is_some());
-    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
-  }
+enum FirstAppeared {
+  SuperCalled,
+  SuperAccessed(Span),
+  ThisAccessed(Span),
 }
 
-struct ClassVisitor<'a> {
-  context: &'a mut Context,
-  has_super_class: bool,
+struct SuperCallChecker {
+  first_appeared: Option<FirstAppeared>,
+  root_span: Span,
 }
 
-impl<'a> ClassVisitor<'a> {
-  fn new(context: &'a mut Context, has_super_class: bool) -> Self {
+impl SuperCallChecker {
+  fn new(root_span: Span) -> Self {
     Self {
-      context,
-      has_super_class,
+      first_appeared: None,
+      root_span,
     }
   }
-}
 
-impl<'a> Visit for ClassVisitor<'a> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut class_visitor =
-      ClassVisitor::new(self.context, class.super_class.is_some());
-    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
+  fn yet_appeared(&self) -> bool {
+    self.first_appeared.is_none()
   }
 
-  fn visit_constructor(&mut self, cons: &Constructor, parent: &dyn Node) {
-    if self.has_super_class {
-      let mut cons_visitor = ConstructorVisitor::new(self.context);
-      cons_visitor.visit_constructor(cons, parent);
-    } else {
-      swc_ecmascript::visit::visit_constructor(self, cons, parent);
+  fn result(self) -> Option<FirstAppeared> {
+    self.first_appeared
+  }
+
+  fn node_is_inside_function(&self, node: AstView::Node) -> bool {
+    fn inside_function(root_span: Span, cur_node: AstView::Node) -> bool {
+      // Stop recursion if the current node gets out of root_node.
+      if !root_span.contains(cur_node.span()) {
+        return false;
+      }
+
+      if matches!(cur_node, AstView::Node::Function(_) | AstView::Node::ArrowExpr(_)) {
+        return true;
+      }
+
+      inside_function(root_span, cur_node.parent().unwrap())
+    }
+
+    inside_function(self.root_span, node)
+  }
+}
+
+impl Handler for SuperCallChecker {
+  fn this_expr(&mut self, this_expr: &AstView::ThisExpr, _ctx: &mut Context) {
+    if self.node_is_inside_function(this_expr.into_node()) {
+      return;
+    }
+
+    if self.yet_appeared() {
+      self.first_appeared = Some(FirstAppeared::ThisAccessed(this_expr.span()));
     }
   }
-}
 
-struct ConstructorVisitor<'a> {
-  context: &'a mut Context,
-  super_called: bool,
-}
+  fn super_(&mut self, super_: &AstView::Super, _ctx: &mut Context) {
+    if self.node_is_inside_function(super_.into_node()) {
+      return;
+    }
 
-impl<'a> ConstructorVisitor<'a> {
-  fn new(context: &'a mut Context) -> Self {
-    Self {
-      context,
-      super_called: false,
+    if self.yet_appeared() {
+      self.first_appeared = Some(FirstAppeared::SuperAccessed(super_.span()));
     }
   }
-}
 
-impl<'a> Visit for ConstructorVisitor<'a> {
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut class_visitor =
-      ClassVisitor::new(self.context, class.super_class.is_some());
-    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
-  }
+  fn call_expr(&mut self, call_expr: &AstView::CallExpr, ctx: &mut Context) {
+    if self.node_is_inside_function(call_expr.into_node()) {
+      return;
+    }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+    // arguments are evaluated before the callee
     for arg in &call_expr.args {
-      self.visit_expr(&*arg.expr, call_expr);
+      self.traverse(arg.into_node(), ctx);
     }
 
-    match call_expr.callee {
-      ExprOrSuper::Super(_) => self.super_called = true,
-      ExprOrSuper::Expr(ref expr) => self.visit_expr(&**expr, call_expr),
-    }
-  }
-
-  fn visit_this_expr(&mut self, this_expr: &ThisExpr, _parent: &dyn Node) {
-    if !self.super_called {
-      self.context.add_diagnostic_with_hint(
-        this_expr.span,
-        CODE,
-        MESSAGE,
-        HINT,
-      );
-    }
-  }
-
-  fn visit_super(&mut self, sup: &Super, _parent: &dyn Node) {
-    if !self.super_called {
-      self.context.add_diagnostic_with_hint(
-        sup.span,
-        CODE,
-        MESSAGE,
-        HINT,
-      );
+    if self.yet_appeared() && matches!(call_expr.callee, AstView::ExprOrSuper::Super(_)) {
+      self.first_appeared = Some(FirstAppeared::SuperCalled);
     }
   }
 }
@@ -168,6 +207,35 @@ class A extends B {
 class A extends B {
   foo() {
     this.a = 0;
+  }
+}
+      "#,
+      r#"
+class A extends B {
+  constructor() {
+    function foo() {
+      this.bar();
+    }
+  }
+}
+      "#,
+      r#"
+class A extends B {
+  constructor() {
+    const foo = () => {
+      this.bar();
+    };
+  }
+}
+      "#,
+      r#"
+class A extends B {
+  constructor() {
+    super({
+      foo() {
+        this.bar();
+      }
+    });
   }
 }
       "#,
