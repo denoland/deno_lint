@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use swc_common::Spanned;
 
 pub struct NoNamespace;
 
@@ -22,31 +22,44 @@ impl LintRule for NoNamespace {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoNamespaceVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
+  ) {
+    if context.file_name.ends_with(".d.ts") {
+      return;
     }
+
+    NoNamespaceHandler.traverse(program, context);
   }
 }
 
-struct NoNamespaceVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoNamespaceHandler;
 
-impl<'c> NoNamespaceVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c> VisitAll for NoNamespaceVisitor<'c> {
-  fn visit_ts_module_decl(&mut self, mod_decl: &TsModuleDecl, _: &dyn Node) {
-    if !mod_decl.global && !mod_decl.declare {
-      if let TsModuleName::Ident(_) = mod_decl.id {
-        self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE);
+impl Handler for NoNamespaceHandler {
+  fn ts_module_decl(
+    &self,
+    module_decl: &AstView::TsModuleDecl,
+    ctx: &mut Context,
+  ) {
+    fn inside_ambient_context(current_node: AstView::Node) -> bool {
+      use AstView::Node::*;
+      match current_node {
+        TsModuleDecl(module_decl) if module_decl.declare() => true,
+        _ => match current_node.parent() {
+          Some(p) => inside_ambient_context(p),
+          None => false,
+        },
       }
+    }
+
+    if !inside_ambient_context(module_decl.into_node()) {
+      ctx.add_diagnostic(module_decl.span(), CODE, MESSAGE);
     }
   }
 }
