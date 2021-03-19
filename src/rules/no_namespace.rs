@@ -63,6 +63,59 @@ mod tests {
       r#"declare module 'foo' {}"#,
       r#"declare module foo {}"#,
       r#"declare namespace foo {}"#,
+      r#"
+declare global {
+  namespace foo {}
+}
+      "#,
+      r#"
+declare module foo {
+  namespace bar {}
+}
+      "#,
+      r#"
+declare global {
+  namespace foo {
+    namespace bar {}
+  }
+}
+      "#,
+      r#"
+declare namespace foo {
+  namespace bar {
+    namespace baz {}
+  }
+}
+      "#,
+      {
+        src: r#"namespace foo {}"#,
+        filename: "test.d.ts",
+      },
+      {
+        src: r#"module foo {}"#,
+        filename: "test.d.ts",
+      },
+      {
+        // https://github.com/denoland/deno_lint/issues/633
+        src: r#"
+export declare namespace Utility {
+  export namespace Matcher {
+    export type CharSchema<
+      T extends string,
+      Schema extends string,
+      _Rest extends string = T
+    > = _Rest extends `${infer $First}${infer $Rest}`
+      ? $First extends Schema
+        ? CharSchema<T, Schema, $Rest>
+        : never
+      : "" extends _Rest
+      ? T
+      : never;
+  }
+}
+        "#,
+        filename: "test.d.ts",
+      },
     };
   }
 
@@ -70,8 +123,9 @@ mod tests {
   fn no_namespace_invalid() {
     assert_lint_err! {
       NoNamespace,
-      "module foo {}": [{col: 0, message: MESSAGE }],
-      "namespace foo {}": [{col: 0, message: MESSAGE }],
+      "module foo {}": [{ col: 0, message: MESSAGE }],
+      "namespace foo {}": [{ col: 0, message: MESSAGE }],
+      "namespace Foo.Bar {}": [{ col: 0, message: MESSAGE }],
       "namespace Foo.Bar { namespace Baz.Bas {} }": [
         {
           col: 0,
