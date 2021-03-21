@@ -88,7 +88,11 @@ struct NoUnsafeFinallyHandler;
 
 impl Handler for NoUnsafeFinallyHandler {
   fn break_stmt(&self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
-    if stmt_inside_finally(break_stmt.span(), true, break_stmt.into_node()) {
+    if stmt_inside_finally(
+      break_stmt.span(),
+      StmtKind::Break(break_stmt.label),
+      break_stmt.into_node(),
+    ) {
       add_diagnostic_with_hint(ctx, break_stmt.span(), "break");
     }
   }
@@ -100,7 +104,7 @@ impl Handler for NoUnsafeFinallyHandler {
   ) {
     if stmt_inside_finally(
       continue_stmt.span(),
-      false,
+      StmtKind::Continue(continue_stmt.label),
       continue_stmt.into_node(),
     ) {
       add_diagnostic_with_hint(ctx, continue_stmt.span(), "continue");
@@ -108,14 +112,48 @@ impl Handler for NoUnsafeFinallyHandler {
   }
 
   fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
-    if stmt_inside_finally(return_stmt.span(), false, return_stmt.into_node()) {
+    if stmt_inside_finally(
+      return_stmt.span(),
+      StmtKind::Return,
+      return_stmt.into_node(),
+    ) {
       add_diagnostic_with_hint(ctx, return_stmt.span(), "return");
     }
   }
 
   fn throw_stmt(&self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
-    if stmt_inside_finally(throw_stmt.span(), false, throw_stmt.into_node()) {
+    if stmt_inside_finally(
+      throw_stmt.span(),
+      StmtKind::Throw,
+      throw_stmt.into_node(),
+    ) {
       add_diagnostic_with_hint(ctx, throw_stmt.span(), "throw");
+    }
+  }
+}
+
+#[derive(Clone, Copy)]
+enum StmtKind<'a> {
+  Break(Option<&'a AstView::Ident<'a>>),
+  Continue(Option<&'a AstView::Ident<'a>>),
+  Return,
+  Throw,
+}
+
+impl<'a> StmtKind<'a> {
+  fn is_break(&self) -> bool {
+    matches!(self, StmtKind::Break(_))
+  }
+
+  fn is_continue(&self) -> bool {
+    matches!(self, StmtKind::Continue(_))
+  }
+
+  fn label(&self) -> Option<&'a AstView::Ident<'a>> {
+    if let StmtKind::Break(label) | StmtKind::Continue(label) = self {
+      *label
+    } else {
+      None
     }
   }
 }
@@ -123,20 +161,37 @@ impl Handler for NoUnsafeFinallyHandler {
 /// Checks if the given span is contained in a `finally` block
 fn stmt_inside_finally(
   stmt_span: Span,
-  is_break_stmt: bool,
+  stmt_kind: StmtKind,
   cur_node: AstView::Node,
 ) -> bool {
   use AstView::Node::*;
-  match cur_node {
-    FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
-    SwitchStmt(_) if is_break_stmt => false,
-    TryStmt(AstView::TryStmt {
-      finalizer: Some(ref f),
-      ..
-    }) if f.span().contains(stmt_span) => true,
+  match (cur_node, stmt_kind.label()) {
+    (Function(_), _) | (ArrowExpr(_), _) => false,
+    (LabeledStmt(labeled_stmt), Some(label))
+      if labeled_stmt.label.sym() == label.sym() =>
+    {
+      false
+    }
+    (SwitchStmt(_), None) if stmt_kind.is_break() => false,
+    (ForStmt(_), None)
+    | (ForOfStmt(_), None)
+    | (ForInStmt(_), None)
+    | (WhileStmt(_), None)
+    | (DoWhileStmt(_), None)
+      if (stmt_kind.is_break() || stmt_kind.is_continue()) =>
+    {
+      false
+    }
+    (
+      TryStmt(AstView::TryStmt {
+        finalizer: Some(ref f),
+        ..
+      }),
+      _,
+    ) if f.span().contains(stmt_span) => true,
     _ => {
       if let Some(parent) = cur_node.parent() {
-        stmt_inside_finally(stmt_span, is_break_stmt, parent)
+        stmt_inside_finally(stmt_span, stmt_kind, parent)
       } else {
         false
       }
@@ -186,6 +241,47 @@ let foo = function() {
 };
      "#,
       r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    function bar() {
+      return "hola!";
+    }
+  }
+};
+     "#,
+      r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    const f = (x) => {
+      return x + 1;
+    };
+  }
+};
+     "#,
+      r#"
+let foo = function() {
+  try {
+    return 1;
+  } catch(err) {
+    return 2;
+  } finally {
+    class Foo {
+      method(x: number): number {
+        return x * 2;
+      }
+    }
+  }
+};
+     "#,
+      r#"
 let foo = function(a) {
   try {
     return 1;
@@ -200,6 +296,128 @@ let foo = function(a) {
     }
   }
 };
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  while (true) break;
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  while (true) continue;
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  do {
+    break;
+  } while (true)
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  do {
+    continue;
+  } while (true)
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  label: while (true) {
+    if (x) break label;
+    else continue;
+  }
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  for (let i = 0; i < 100; i++) {
+    break;
+  }
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  for (let i = 0; i < 100; i++) {
+    continue;
+  }
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  for (const x of xs) {
+    continue;
+  }
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  for (const x of xs) {
+    break;
+  }
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  for (const x in xs) {
+    continue;
+  }
+}
+      "#,
+      r#"
+try {
+  throw 42;
+} catch (err) {
+  console.log('hi');
+} finally {
+  for (const x in xs) {
+    break;
+  }
+}
+      "#,
+      r#"
+      "#,
+      r#"
       "#,
     };
   }
