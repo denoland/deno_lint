@@ -1,9 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_common::Span;
-use swc_ecmascript::ast::Stmt::{Break, Continue, Return, Throw};
-use swc_ecmascript::ast::TryStmt;
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use swc_common::{Span, Spanned};
 
 pub struct NoUnsafeFinally;
 
@@ -20,12 +19,16 @@ impl LintRule for NoUnsafeFinally {
     "no-unsafe-finally"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoUnsafeFinallyVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
+  ) {
+    NoUnsafeFinallyHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {
@@ -71,40 +74,72 @@ let foo = function() {
   }
 }
 
-struct NoUnsafeFinallyVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoUnsafeFinallyHandler;
 
-impl<'c> NoUnsafeFinallyVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
+impl Handler for NoUnsafeFinallyHandler {
+  fn break_stmt(&self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
+    if stmt_inside_finally(break_stmt.span(), true, break_stmt.into_node()) {
+      add_diagnostic(ctx, break_stmt.span(), "break");
+    }
   }
 
-  fn add_diagnostic(&mut self, span: Span, stmt_type: &str) {
-    self.context.add_diagnostic(
-      span,
-      "no-unsafe-finally",
-      format!("Unsafe usage of {}Statement", stmt_type),
-    );
+  fn continue_stmt(
+    &self,
+    continue_stmt: &AstView::ContinueStmt,
+    ctx: &mut Context,
+  ) {
+    if stmt_inside_finally(
+      continue_stmt.span(),
+      false,
+      continue_stmt.into_node(),
+    ) {
+      add_diagnostic(ctx, continue_stmt.span(), "continue");
+    }
+  }
+
+  fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
+    if stmt_inside_finally(return_stmt.span(), false, return_stmt.into_node()) {
+      add_diagnostic(ctx, return_stmt.span(), "return");
+    }
+  }
+
+  fn throw_stmt(&self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
+    if stmt_inside_finally(throw_stmt.span(), false, throw_stmt.into_node()) {
+      add_diagnostic(ctx, throw_stmt.span(), "throw");
+    }
   }
 }
 
-impl<'c> VisitAll for NoUnsafeFinallyVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_try_stmt(&mut self, try_stmt: &TryStmt, _parent: &dyn Node) {
-    if let Some(finally_block) = &try_stmt.finalizer {
-      for stmt in &finally_block.stmts {
-        match stmt {
-          Break(_) => self.add_diagnostic(finally_block.span, "Break"),
-          Continue(_) => self.add_diagnostic(finally_block.span, "Continue"),
-          Return(_) => self.add_diagnostic(finally_block.span, "Return"),
-          Throw(_) => self.add_diagnostic(finally_block.span, "Throw"),
-          _ => {}
-        }
+/// Checks if the given span is contained in a `finally` block
+fn stmt_inside_finally(
+  stmt_span: Span,
+  is_break_stmt: bool,
+  cur_node: AstView::Node,
+) -> bool {
+  use AstView::Node::*;
+  match cur_node {
+    FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
+    SwitchStmt(_) if is_break_stmt => false,
+    TryStmt(AstView::TryStmt {
+      finalizer: Some(ref f),
+      ..
+    }) if f.span().contains(stmt_span) => true,
+    _ => {
+      if let Some(parent) = cur_node.parent() {
+        stmt_inside_finally(stmt_span, is_break_stmt, parent)
+      } else {
+        false
       }
     }
   }
+}
+
+fn add_diagnostic(ctx: &mut Context, span: Span, stmt_type: &str) {
+  ctx.add_diagnostic(
+    span,
+    "no-unsafe-finally",
+    format!("Unsafe usage of {} statement", stmt_type),
+  );
 }
 
 #[cfg(test)]
@@ -173,8 +208,8 @@ let foo = function() {
   }
 };
      "#,
-      7,
-      12,
+      8,
+      4,
     );
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
@@ -188,8 +223,8 @@ let foo = function() {
   }
 };
      "#,
-      7,
-      12,
+      8,
+      4,
     );
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
@@ -203,8 +238,8 @@ let foo = function() {
   }
 };
           "#,
-      7,
-      12,
+      8,
+      4,
     );
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
@@ -218,8 +253,8 @@ let foo = function() {
   }
 };
      "#,
-      7,
-      12,
+      8,
+      4,
     );
     assert_lint_err_on_line::<NoUnsafeFinally>(
       r#"
@@ -231,8 +266,8 @@ finally {
   }
 }
      "#,
-      5,
-      10,
+      6,
+      4,
     );
   }
 }
