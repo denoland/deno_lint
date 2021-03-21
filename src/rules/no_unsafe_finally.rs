@@ -156,7 +156,6 @@ fn add_diagnostic_with_hint(ctx: &mut Context, span: Span, stmt_type: &str) {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_unsafe_finally_valid() {
@@ -207,7 +206,8 @@ let foo = function(a) {
 
   #[test]
   fn no_unsafe_finally_invalid() {
-    assert_lint_err_on_line::<NoUnsafeFinally>(
+    assert_lint_err! {
+      NoUnsafeFinally,
       r#"
 let foo = function() {
   try {
@@ -218,11 +218,14 @@ let foo = function() {
     break;
   }
 };
-     "#,
-      8,
-      4,
-    );
-    assert_lint_err_on_line::<NoUnsafeFinally>(
+     "#: [
+        {
+          line: 8,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          hint: HINT,
+        }
+      ],
       r#"
 let foo = function() {
   try {
@@ -233,11 +236,14 @@ let foo = function() {
     continue;
   }
 };
-     "#,
-      8,
-      4,
-    );
-    assert_lint_err_on_line::<NoUnsafeFinally>(
+     "#: [
+        {
+          line: 8,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "continue"),
+          hint: HINT,
+        }
+      ],
       r#"
 let foo = function() {
   try {
@@ -248,11 +254,14 @@ let foo = function() {
     return 3;
   }
 };
-          "#,
-      8,
-      4,
-    );
-    assert_lint_err_on_line::<NoUnsafeFinally>(
+          "#: [
+        {
+          line: 8,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          hint: HINT,
+        }
+      ],
       r#"
 let foo = function() {
   try {
@@ -263,11 +272,14 @@ let foo = function() {
     throw new Error;
   }
 };
-     "#,
-      8,
-      4,
-    );
-    assert_lint_err_on_line::<NoUnsafeFinally>(
+     "#: [
+        {
+          line: 8,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "throw"),
+          hint: HINT,
+        }
+      ],
       r#"
 try {}
 finally {
@@ -276,9 +288,14 @@ finally {
     throw new Error;
   }
 }
-     "#,
-      6,
-      4,
-    );
+     "#: [
+        {
+          line: 6,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "throw"),
+          hint: HINT,
+        }
+      ]
+    };
   }
 }
