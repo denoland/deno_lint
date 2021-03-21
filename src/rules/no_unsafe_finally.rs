@@ -12,8 +12,25 @@ const HINT: &str = "Use of the control flow statements (`return`, `throw`, `brea
 
 #[derive(Display)]
 enum NoUnsafeFinallyMessage {
-  #[display(fmt = "Unsafe usage of {} statement", _0)]
-  UnsafeUsage(String),
+  #[display(fmt = "Unsafe usage of break statement")]
+  Break,
+  #[display(fmt = "Unsafe usage of continue statement")]
+  Continue,
+  #[display(fmt = "Unsafe usage of return statement")]
+  Return,
+  #[display(fmt = "Unsafe usage of throw statement")]
+  Throw,
+}
+
+impl From<StmtKind<'_>> for NoUnsafeFinallyMessage {
+  fn from(kind: StmtKind) -> Self {
+    match kind {
+      StmtKind::Break(_) => Self::Break,
+      StmtKind::Continue(_) => Self::Continue,
+      StmtKind::Return => Self::Return,
+      StmtKind::Throw => Self::Throw,
+    }
+  }
 }
 
 impl LintRule for NoUnsafeFinally {
@@ -88,12 +105,9 @@ struct NoUnsafeFinallyHandler;
 
 impl Handler for NoUnsafeFinallyHandler {
   fn break_stmt(&self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
-    if stmt_inside_finally(
-      break_stmt.span(),
-      StmtKind::Break(break_stmt.label),
-      break_stmt.into_node(),
-    ) {
-      add_diagnostic_with_hint(ctx, break_stmt.span(), "break");
+    let kind = StmtKind::Break(break_stmt.label);
+    if stmt_inside_finally(break_stmt.span(), kind, break_stmt.into_node()) {
+      add_diagnostic_with_hint(ctx, break_stmt.span(), kind);
     }
   }
 
@@ -102,32 +116,27 @@ impl Handler for NoUnsafeFinallyHandler {
     continue_stmt: &AstView::ContinueStmt,
     ctx: &mut Context,
   ) {
+    let kind = StmtKind::Continue(continue_stmt.label);
     if stmt_inside_finally(
       continue_stmt.span(),
-      StmtKind::Continue(continue_stmt.label),
+      kind,
       continue_stmt.into_node(),
     ) {
-      add_diagnostic_with_hint(ctx, continue_stmt.span(), "continue");
+      add_diagnostic_with_hint(ctx, continue_stmt.span(), kind);
     }
   }
 
   fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
-    if stmt_inside_finally(
-      return_stmt.span(),
-      StmtKind::Return,
-      return_stmt.into_node(),
-    ) {
-      add_diagnostic_with_hint(ctx, return_stmt.span(), "return");
+    let kind = StmtKind::Return;
+    if stmt_inside_finally(return_stmt.span(), kind, return_stmt.into_node()) {
+      add_diagnostic_with_hint(ctx, return_stmt.span(), kind);
     }
   }
 
   fn throw_stmt(&self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
-    if stmt_inside_finally(
-      throw_stmt.span(),
-      StmtKind::Throw,
-      throw_stmt.into_node(),
-    ) {
-      add_diagnostic_with_hint(ctx, throw_stmt.span(), "throw");
+    let kind = StmtKind::Throw;
+    if stmt_inside_finally(throw_stmt.span(), kind, throw_stmt.into_node()) {
+      add_diagnostic_with_hint(ctx, throw_stmt.span(), kind);
     }
   }
 }
@@ -199,11 +208,15 @@ fn stmt_inside_finally(
   }
 }
 
-fn add_diagnostic_with_hint(ctx: &mut Context, span: Span, stmt_type: &str) {
+fn add_diagnostic_with_hint(
+  ctx: &mut Context,
+  span: Span,
+  stmt_kind: StmtKind,
+) {
   ctx.add_diagnostic_with_hint(
     span,
     CODE,
-    NoUnsafeFinallyMessage::UnsafeUsage(stmt_type.to_string()),
+    NoUnsafeFinallyMessage::from(stmt_kind),
     HINT,
   );
 }
@@ -440,7 +453,7 @@ let foo = function() {
         {
           line: 8,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          message: NoUnsafeFinallyMessage::Break,
           hint: HINT,
         }
       ],
@@ -458,7 +471,7 @@ let foo = function() {
         {
           line: 8,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "continue"),
+          message: NoUnsafeFinallyMessage::Continue,
           hint: HINT,
         }
       ],
@@ -476,7 +489,7 @@ let foo = function() {
         {
           line: 8,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          message: NoUnsafeFinallyMessage::Return,
           hint: HINT,
         }
       ],
@@ -494,7 +507,7 @@ let foo = function() {
         {
           line: 8,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "throw"),
+          message: NoUnsafeFinallyMessage::Throw,
           hint: HINT,
         }
       ],
@@ -510,7 +523,7 @@ finally {
         {
           line: 6,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "throw"),
+          message: NoUnsafeFinallyMessage::Throw,
           hint: HINT,
         }
       ],
@@ -529,13 +542,13 @@ function foo() {
         {
           line: 6,
           col: 6,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          message: NoUnsafeFinallyMessage::Return,
           hint: HINT,
         },
         {
           line: 8,
           col: 6,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          message: NoUnsafeFinallyMessage::Return,
           hint: HINT,
         },
       ],
@@ -552,7 +565,7 @@ function foo() {
         {
           line: 5,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          message: NoUnsafeFinallyMessage::Return,
           hint: HINT,
         }
       ],
@@ -568,7 +581,7 @@ function foo() {
         {
           line: 6,
           col: 4,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          message: NoUnsafeFinallyMessage::Break,
           hint: HINT,
         }
       ],
@@ -585,7 +598,7 @@ function foo() {
         {
           line: 6,
           col: 6,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          message: NoUnsafeFinallyMessage::Break,
           hint: HINT,
         }
       ],
@@ -602,7 +615,7 @@ function foo() {
         {
           line: 6,
           col: 6,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "continue"),
+          message: NoUnsafeFinallyMessage::Continue,
           hint: HINT,
         }
       ],
@@ -620,7 +633,7 @@ function foo() {
         {
           line: 7,
           col: 8,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          message: NoUnsafeFinallyMessage::Break,
           hint: HINT,
         }
       ],
@@ -640,7 +653,7 @@ function foo() {
         {
           line: 8,
           col: 10,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          message: NoUnsafeFinallyMessage::Break,
           hint: HINT,
         }
       ],
@@ -660,7 +673,7 @@ function foo() {
         {
           line: 8,
           col: 10,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "continue"),
+          message: NoUnsafeFinallyMessage::Continue,
           hint: HINT,
         }
       ],
@@ -681,7 +694,7 @@ function foo() {
         {
           line: 9,
           col: 12,
-          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          message: NoUnsafeFinallyMessage::Break,
           hint: HINT,
         }
       ],
