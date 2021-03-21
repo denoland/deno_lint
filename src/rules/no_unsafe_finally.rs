@@ -513,7 +513,178 @@ finally {
           message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "throw"),
           hint: HINT,
         }
-      ]
+      ],
+      r#"
+function foo() {
+  try {}
+  finally {
+    if (x) {
+      return 0;
+    } else {
+      return 1;
+    }
+  }
+}
+     "#: [
+        {
+          line: 6,
+          col: 6,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          hint: HINT,
+        },
+        {
+          line: 8,
+          col: 6,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          hint: HINT,
+        },
+      ],
+      r#"
+function foo() {
+  try {}
+  finally {
+    return () => {
+      return 0;
+    };
+  }
+}
+     "#: [
+        {
+          line: 5,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "return"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  label: try {
+    return 0;
+  } finally {
+    break label;
+  }
+}
+     "#: [
+        {
+          line: 6,
+          col: 4,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  while (x) {
+    try {}
+    finally {
+      break;
+    }
+  }
+}
+     "#: [
+        {
+          line: 6,
+          col: 6,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  while (x) {
+    try {}
+    finally {
+      continue;
+    }
+  }
+}
+     "#: [
+        {
+          line: 6,
+          col: 6,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "continue"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  switch (x) {
+    case 0:
+      try {}
+      finally {
+        break;
+      }
+  }
+}
+     "#: [
+        {
+          line: 7,
+          col: 8,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  a: while (x) {
+    try {}
+    finally {
+      switch (y) {
+        case 0:
+          break a;
+      }
+    }
+  }
+}
+     "#: [
+        {
+          line: 8,
+          col: 10,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  while (x) {
+    try {}
+    finally {
+      switch (y) {
+        case 0:
+          continue;
+      }
+    }
+  }
+}
+     "#: [
+        {
+          line: 8,
+          col: 10,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "continue"),
+          hint: HINT,
+        }
+      ],
+      r#"
+function foo() {
+  a: switch (x) {
+    case 0:
+      try {}
+      finally {
+        switch (y) {
+          case 1:
+            break a;
+        }
+      }
+  }
+}
+     "#: [
+        {
+          line: 9,
+          col: 12,
+          message: variant!(NoUnsafeFinallyMessage, UnsafeUsage, "break"),
+          hint: HINT,
+        }
+      ],
     };
   }
 }
