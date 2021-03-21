@@ -1,10 +1,20 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
 use crate::handler::{Handler, Traverse};
+use derive_more::Display;
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 use swc_common::{Span, Spanned};
 
 pub struct NoUnsafeFinally;
+
+const CODE: &str = "no-unsafe-finally";
+const HINT: &str = "Use of the control flow statements (`return`, `throw`, `break` and `continue`) in a `finally` block will most likely lead to undesired behavior. It's recommended to take a second look.";
+
+#[derive(Display)]
+enum NoUnsafeFinallyMessage {
+  #[display(fmt = "Unsafe usage of {} statement", _0)]
+  UnsafeUsage(String),
+}
 
 impl LintRule for NoUnsafeFinally {
   fn new() -> Box<Self> {
@@ -16,7 +26,7 @@ impl LintRule for NoUnsafeFinally {
   }
 
   fn code(&self) -> &'static str {
-    "no-unsafe-finally"
+    CODE
   }
 
   fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
@@ -79,7 +89,7 @@ struct NoUnsafeFinallyHandler;
 impl Handler for NoUnsafeFinallyHandler {
   fn break_stmt(&self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
     if stmt_inside_finally(break_stmt.span(), true, break_stmt.into_node()) {
-      add_diagnostic(ctx, break_stmt.span(), "break");
+      add_diagnostic_with_hint(ctx, break_stmt.span(), "break");
     }
   }
 
@@ -93,19 +103,19 @@ impl Handler for NoUnsafeFinallyHandler {
       false,
       continue_stmt.into_node(),
     ) {
-      add_diagnostic(ctx, continue_stmt.span(), "continue");
+      add_diagnostic_with_hint(ctx, continue_stmt.span(), "continue");
     }
   }
 
   fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
     if stmt_inside_finally(return_stmt.span(), false, return_stmt.into_node()) {
-      add_diagnostic(ctx, return_stmt.span(), "return");
+      add_diagnostic_with_hint(ctx, return_stmt.span(), "return");
     }
   }
 
   fn throw_stmt(&self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
     if stmt_inside_finally(throw_stmt.span(), false, throw_stmt.into_node()) {
-      add_diagnostic(ctx, throw_stmt.span(), "throw");
+      add_diagnostic_with_hint(ctx, throw_stmt.span(), "throw");
     }
   }
 }
@@ -134,11 +144,12 @@ fn stmt_inside_finally(
   }
 }
 
-fn add_diagnostic(ctx: &mut Context, span: Span, stmt_type: &str) {
-  ctx.add_diagnostic(
+fn add_diagnostic_with_hint(ctx: &mut Context, span: Span, stmt_type: &str) {
+  ctx.add_diagnostic_with_hint(
     span,
-    "no-unsafe-finally",
-    format!("Unsafe usage of {} statement", stmt_type),
+    CODE,
+    NoUnsafeFinallyMessage::UnsafeUsage(stmt_type.to_string()),
+    HINT,
   );
 }
 
