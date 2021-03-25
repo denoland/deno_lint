@@ -188,7 +188,7 @@ pub fn assert_diagnostic(
   {
     return;
   }
-  panic!(format!(
+  panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
     diagnostic.range.start.line,
@@ -197,7 +197,7 @@ pub fn assert_diagnostic(
     line,
     col,
     source,
-  ));
+  );
 }
 
 fn assert_diagnostic_2(

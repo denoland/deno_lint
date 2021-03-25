@@ -118,13 +118,11 @@ impl<'c> Visit for NoEmptyPatternVisitor<'c> {
         .context
         .add_diagnostic_with_hint(arr_pat.span, CODE, MESSAGE, HINT)
     } else {
-      for elem in &arr_pat.elems {
-        if let Some(element) = elem {
-          if let swc_ecmascript::ast::Pat::Object(obj_pat) = element {
-            self.visit_object_pat(&obj_pat, _parent);
-          } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = element {
-            self.visit_array_pat(&arr_pat, _parent);
-          }
+      for element in arr_pat.elems.iter().flatten() {
+        if let swc_ecmascript::ast::Pat::Object(obj_pat) = element {
+          self.visit_object_pat(&obj_pat, _parent);
+        } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = element {
+          self.visit_array_pat(&arr_pat, _parent);
         }
       }
     }
