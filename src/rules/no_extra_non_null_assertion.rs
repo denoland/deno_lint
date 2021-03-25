@@ -127,10 +127,8 @@ impl<'c> VisitAll for NoExtraNonNullAssertionVisitor<'c> {
       _ => None,
     };
 
-    if let Some(expr_or_super) = maybe_expr_or_super {
-      if let ExprOrSuper::Expr(expr) = &expr_or_super {
-        self.check_expr_for_nested_non_null_assert(opt_chain_expr.span, expr);
-      }
+    if let Some(ExprOrSuper::Expr(expr)) = maybe_expr_or_super {
+      self.check_expr_for_nested_non_null_assert(opt_chain_expr.span, expr);
     }
   }
 }
