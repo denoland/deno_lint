@@ -98,6 +98,23 @@ impl VisitAll for BindingCollector {
     self.declare(i.local.to_id());
   }
 
+  fn visit_export_default_decl(&mut self, e: &ExportDefaultDecl, _: &dyn Node) {
+    if let DefaultDecl::Class(ClassExpr {
+      ident: Some(ref ident),
+      ..
+    })
+    | DefaultDecl::Fn(FnExpr {
+      ident: Some(ref ident),
+      ..
+    })
+    | DefaultDecl::TsInterfaceDecl(TsInterfaceDecl {
+      id: ref ident, ..
+    }) = e.decl
+    {
+      self.declare(ident.to_id());
+    }
+  }
+
   fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
     let ids: Vec<Id> = find_ids(&v.name);
     for id in ids {
@@ -391,6 +408,7 @@ mod tests {
       r#"type Foo = string | number; export default Foo;"#,
       r#"type Foo<T> = { bar: T }; export default Foo;"#,
       r#"type Foo = string | undefined; export type { Foo };"#,
+
       // https://github.com/denoland/deno_lint/issues/596
       r#"
       const f = (
@@ -398,6 +416,11 @@ mod tests {
         b: boolean,
       ) => {};
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/643
+      "export default function foo() {} foo();",
+      "export default class Foo {} const foo = new Foo();",
+      "export default interface Foo {} const foo: Foo = {};",
     };
   }
 
