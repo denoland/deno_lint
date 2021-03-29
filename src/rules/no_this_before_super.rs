@@ -241,7 +241,8 @@ class C extends D {
     );
 
     // inline super class
-    assert_lint_ok::<NoThisBeforeSuper>(
+    assert_lint_ok! {
+      NoThisBeforeSuper,
       r#"
 class A extends class extends B {
   constructor() {
@@ -255,7 +256,7 @@ class A extends class extends B {
     }
 }
       "#,
-    );
+    };
 
     assert_lint_err_on_line::<NoThisBeforeSuper>(
       r#"
@@ -296,7 +297,8 @@ class A extends class extends B {
 
   #[test]
   fn no_this_before_super_nested_class() {
-    assert_lint_ok::<NoThisBeforeSuper>(
+    assert_lint_ok! {
+      NoThisBeforeSuper,
       r#"
 class A extends B {
   constructor() {
@@ -313,7 +315,7 @@ class A extends B {
   }
 }
       "#,
-    );
+    };
 
     assert_lint_err_on_line::<NoThisBeforeSuper>(
       r#"

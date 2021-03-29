@@ -1549,18 +1549,16 @@ export class Bar implements baz().test {}
   #[test]
   #[ignore = "typescript property analysis is not implemented yet"]
   fn no_unused_vars_ts_ok_12() {
-    assert_lint_ok::<NoUnusedVars>(
-      "
+    assert_lint_ok! {
+      NoUnusedVars,
+    "
 export class App {
   constructor(private logger: Logger) {
     console.log(this.logger);
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
+    "
 export class App {
   constructor(bar: string);
   constructor(private logger: Logger) {
@@ -1568,10 +1566,7 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
+    "
 export class App {
   constructor(baz: string, private logger: Logger) {
     console.log(baz);
@@ -1579,10 +1574,7 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
+    "
 export class App {
   constructor(baz: string, private logger: Logger, private bar: () => void) {
     console.log(this.logger);
@@ -1590,10 +1582,7 @@ export class App {
   }
 }
       ",
-    );
-
-    assert_lint_ok::<NoUnusedVars>(
-      "
+    "
 export class App {
   constructor(private logger: Logger) {}
   meth() {
@@ -1601,6 +1590,6 @@ export class App {
   }
 }
       ",
-    );
+    };
   }
 }
