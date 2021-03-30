@@ -107,6 +107,7 @@ pub static GLOBALS: &[(&str, bool)] = &[
   ("MessageEvent", false),
   ("NaN", false),
   ("navigator", false),
+  ("Navigator", false),
   ("Number", false),
   ("Object", false),
   ("onerror", true),
@@ -172,5 +173,6 @@ pub static GLOBALS: &[(&str, bool)] = &[
   ("Worker", false),
   ("WorkerGlobalScope", false),
   ("WorkerLocation", false),
+  ("WorkerNavigator", false),
   ("WritableStream", false),
 ];
