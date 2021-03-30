@@ -1,11 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::ast::{
-  CallExpr, Class, Constructor, ExprOrSuper, Super, ThisExpr,
-};
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Span, Spanned};
 
 pub struct NoThisBeforeSuper;
+
+const CODE: &str = "no-this-before-super";
+const MESSAGE: &str = "In the constructor of derived classes, `this` / `super` are not allowed before calling to `super()`.";
+const HINT: &str = "Call `super()` before using `this` or `super` keyword.";
 
 impl LintRule for NoThisBeforeSuper {
   fn new() -> Box<Self> {
@@ -17,120 +19,175 @@ impl LintRule for NoThisBeforeSuper {
   }
 
   fn code(&self) -> &'static str {
-    "no-this-before-super"
+    CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoThisBeforeSuperVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
   }
-}
 
-struct NoThisBeforeSuperVisitor<'c> {
-  context: &'c mut Context,
-}
-
-impl<'c> NoThisBeforeSuperVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program<'_>,
+  ) {
+    let mut handler = NoThisBeforeSuperHandler::new();
+    handler.traverse(program, context);
   }
 }
 
-impl<'c> Visit for NoThisBeforeSuperVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut class_visitor =
-      ClassVisitor::new(self.context, class.super_class.is_some());
-    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
-  }
+struct NoThisBeforeSuperHandler {
+  /// Stores bools that represent whether classes are derived one or not.
+  /// When it enters a class, a bool value is pushed into this vector. And when it leaves the
+  /// class, pop the last value of vector.
+  /// The last value of the vector indicates whether we are now in a derived class or not.
+  is_derived_class: Vec<bool>,
 }
 
-struct ClassVisitor<'a> {
-  context: &'a mut Context,
-  has_super_class: bool,
-}
-
-impl<'a> ClassVisitor<'a> {
-  fn new(context: &'a mut Context, has_super_class: bool) -> Self {
+impl NoThisBeforeSuperHandler {
+  fn new() -> Self {
     Self {
-      context,
-      has_super_class,
+      is_derived_class: Vec::new(),
+    }
+  }
+
+  fn enter_class(&mut self, is_derived: bool) {
+    self.is_derived_class.push(is_derived);
+  }
+
+  fn leave_class(&mut self) {
+    assert!(!self.is_derived_class.is_empty());
+    self.is_derived_class.pop();
+  }
+
+  fn inside_derived_class(&self) -> bool {
+    match self.is_derived_class.as_slice() {
+      [] => false,
+      [x] => *x,
+      [.., x] => *x,
     }
   }
 }
 
-impl<'a> Visit for ClassVisitor<'a> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut class_visitor =
-      ClassVisitor::new(self.context, class.super_class.is_some());
-    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
+impl Handler for NoThisBeforeSuperHandler {
+  fn on_enter_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
+    if let AstView::Node::Class(ref class) = node {
+      let is_derived = class.super_class.is_some();
+      self.enter_class(is_derived);
+    }
   }
 
-  fn visit_constructor(&mut self, cons: &Constructor, parent: &dyn Node) {
-    if self.has_super_class {
-      let mut cons_visitor = ConstructorVisitor::new(self.context);
-      cons_visitor.visit_constructor(cons, parent);
-    } else {
-      swc_ecmascript::visit::visit_constructor(self, cons, parent);
+  fn on_exit_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
+    if matches!(node, AstView::Node::Class(_)) {
+      self.leave_class();
+    }
+  }
+
+  fn constructor(&mut self, cons: &AstView::Constructor, ctx: &mut Context) {
+    if !self.inside_derived_class() {
+      return;
+    }
+
+    if let Some(body) = cons.body {
+      for stmt in &body.stmts {
+        let mut checker = SuperCallChecker::new(stmt.span());
+        checker.traverse(*stmt, ctx);
+        match checker.result() {
+          None => (),
+          Some(FirstAppeared::SuperCalled) => break,
+          Some(FirstAppeared::ThisAccessed(span))
+          | Some(FirstAppeared::SuperAccessed(span)) => {
+            ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+          }
+        }
+      }
     }
   }
 }
 
-struct ConstructorVisitor<'a> {
-  context: &'a mut Context,
-  super_called: bool,
+enum FirstAppeared {
+  SuperCalled,
+  SuperAccessed(Span),
+  ThisAccessed(Span),
 }
 
-impl<'a> ConstructorVisitor<'a> {
-  fn new(context: &'a mut Context) -> Self {
+struct SuperCallChecker {
+  first_appeared: Option<FirstAppeared>,
+  root_span: Span,
+}
+
+impl SuperCallChecker {
+  fn new(root_span: Span) -> Self {
     Self {
-      context,
-      super_called: false,
+      first_appeared: None,
+      root_span,
     }
+  }
+
+  fn yet_appeared(&self) -> bool {
+    self.first_appeared.is_none()
+  }
+
+  fn result(self) -> Option<FirstAppeared> {
+    self.first_appeared
+  }
+
+  fn node_is_inside_function(&self, node: AstView::Node) -> bool {
+    fn inside_function(root_span: Span, cur_node: AstView::Node) -> bool {
+      // Stop recursion if the current node gets out of root_node.
+      if !root_span.contains(cur_node.span()) {
+        return false;
+      }
+
+      if matches!(
+        cur_node,
+        AstView::Node::Function(_) | AstView::Node::ArrowExpr(_)
+      ) {
+        return true;
+      }
+
+      inside_function(root_span, cur_node.parent().unwrap())
+    }
+
+    inside_function(self.root_span, node)
   }
 }
 
-impl<'a> Visit for ConstructorVisitor<'a> {
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
-    let mut class_visitor =
-      ClassVisitor::new(self.context, class.super_class.is_some());
-    swc_ecmascript::visit::visit_class(&mut class_visitor, class, parent);
+impl Handler for SuperCallChecker {
+  fn this_expr(&mut self, this_expr: &AstView::ThisExpr, _ctx: &mut Context) {
+    if self.node_is_inside_function(this_expr.into_node()) {
+      return;
+    }
+
+    if self.yet_appeared() {
+      self.first_appeared = Some(FirstAppeared::ThisAccessed(this_expr.span()));
+    }
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+  fn super_(&mut self, super_: &AstView::Super, _ctx: &mut Context) {
+    if self.node_is_inside_function(super_.into_node()) {
+      return;
+    }
+
+    if self.yet_appeared() {
+      self.first_appeared = Some(FirstAppeared::SuperAccessed(super_.span()));
+    }
+  }
+
+  fn call_expr(&mut self, call_expr: &AstView::CallExpr, ctx: &mut Context) {
+    if self.node_is_inside_function(call_expr.into_node()) {
+      return;
+    }
+
+    // arguments are evaluated before the callee
     for arg in &call_expr.args {
-      self.visit_expr(&*arg.expr, call_expr);
+      self.traverse(arg.into_node(), ctx);
     }
 
-    match call_expr.callee {
-      ExprOrSuper::Super(_) => self.super_called = true,
-      ExprOrSuper::Expr(ref expr) => self.visit_expr(&**expr, call_expr),
-    }
-  }
-
-  fn visit_this_expr(&mut self, this_expr: &ThisExpr, _parent: &dyn Node) {
-    if !self.super_called {
-      self.context.add_diagnostic(
-        this_expr.span,
-        "no-this-before-super",
-        "'this' / 'super' are not allowed before 'super()'.",
-      );
-    }
-  }
-
-  fn visit_super(&mut self, sup: &Super, _parent: &dyn Node) {
-    if !self.super_called {
-      self.context.add_diagnostic(
-        sup.span,
-        "no-this-before-super",
-        "'this' / 'super' are not allowed before 'super()'.",
-      );
+    if self.yet_appeared()
+      && matches!(call_expr.callee, AstView::ExprOrSuper::Super(_))
+    {
+      self.first_appeared = Some(FirstAppeared::SuperCalled);
     }
   }
 }
@@ -138,7 +195,6 @@ impl<'a> Visit for ConstructorVisitor<'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_this_before_super_valid() {
@@ -166,12 +222,75 @@ class A extends B {
   }
 }
       "#,
+      r#"
+class A extends B {
+  constructor() {
+    function foo() {
+      this.bar();
+    }
+  }
+}
+      "#,
+      r#"
+class A extends B {
+  constructor() {
+    const foo = () => {
+      this.bar();
+    };
+  }
+}
+      "#,
+      r#"
+class A extends B {
+  constructor() {
+    super({
+      foo() {
+        this.bar();
+      }
+    });
+  }
+}
+      "#,
+
+      // inline super class
+      r#"
+class A extends class extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+} {
+    constructor() {
+      super();
+      this.a = 0;
+    }
+}
+      "#,
+
+      // nested class
+      r#"
+class A extends B {
+  constructor() {
+    super();
+    this.a = 0;
+  }
+  foo() {
+    class C extends D {
+      constructor() {
+        super();
+        this.c = 1;
+      }
+    }
+  }
+}
+      "#,
     };
   }
 
   #[test]
   fn no_this_before_super_invalid() {
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    assert_lint_err! {
+      NoThisBeforeSuper,
       r#"
 class A extends B {
   constructor() {
@@ -179,12 +298,14 @@ class A extends B {
     super();
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -192,12 +313,14 @@ class A extends B {
     super();
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -205,24 +328,28 @@ class A extends B {
     super();
   }
 }
-    "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
     super(this.foo());
   }
 }
-    "#,
-      4,
-      10,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    "#: [
+        {
+          line: 4,
+          col: 10,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -235,30 +362,14 @@ class C extends D {
     super();
   }
 }
-    "#,
-      9,
-      4,
-    );
-
-    // inline super class
-    assert_lint_ok! {
-      NoThisBeforeSuper,
-      r#"
-class A extends class extends B {
-  constructor() {
-    super();
-    this.a = 0;
-  }
-} {
-    constructor() {
-      super();
-      this.a = 0;
-    }
-}
-      "#,
-    };
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+    "#: [
+        {
+          line: 9,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends class extends B {
   constructor() {
@@ -271,12 +382,14 @@ class A extends class extends B {
       this.a = 0;
     }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends class extends B {
   constructor() {
@@ -289,35 +402,14 @@ class A extends class extends B {
       super();
     }
 }
-      "#,
-      9,
-      6,
-    );
-  }
-
-  #[test]
-  fn no_this_before_super_nested_class() {
-    assert_lint_ok! {
-      NoThisBeforeSuper,
-      r#"
-class A extends B {
-  constructor() {
-    super();
-    this.a = 0;
-  }
-  foo() {
-    class C extends D {
-      constructor() {
-        super();
-        this.c = 1;
-      }
-    }
-  }
-}
-      "#,
-    };
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 9,
+          col: 6,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -332,12 +424,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      10,
-      8,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 10,
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -353,12 +447,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A {
   constructor() {
@@ -372,12 +468,14 @@ class A {
     }
   }
 }
-      "#,
-      9,
-      8,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 9,
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -391,12 +489,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      4,
-      4,
-    );
-
-    assert_lint_err_on_line::<NoThisBeforeSuper>(
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       r#"
 class A extends B {
   constructor() {
@@ -409,9 +509,14 @@ class A extends B {
     }
   }
 }
-      "#,
-      8,
-      8,
-    );
+      "#: [
+        {
+          line: 8,
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ]
+    };
   }
 }

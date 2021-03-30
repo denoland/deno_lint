@@ -37,7 +37,11 @@ impl LintRule for NoSetterReturn {
 struct NoSetterReturnHandler;
 
 impl Handler for NoSetterReturnHandler {
-  fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
+  fn return_stmt(
+    &mut self,
+    return_stmt: &AstView::ReturnStmt,
+    ctx: &mut Context,
+  ) {
     // return without a value is allowed
     if return_stmt.arg.is_none() {
       return;

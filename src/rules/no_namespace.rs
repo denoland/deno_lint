@@ -43,7 +43,7 @@ struct NoNamespaceHandler;
 
 impl Handler for NoNamespaceHandler {
   fn ts_module_decl(
-    &self,
+    &mut self,
     module_decl: &AstView::TsModuleDecl,
     ctx: &mut Context,
   ) {

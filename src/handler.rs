@@ -3,385 +3,464 @@ use crate::linter::Context;
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 
 pub trait Handler {
-  fn array_lit(&self, _n: &AstView::ArrayLit, _ctx: &mut Context) {}
-  fn array_pat(&self, _n: &AstView::ArrayPat, _ctx: &mut Context) {}
-  fn arrow_expr(&self, _n: &AstView::ArrowExpr, _ctx: &mut Context) {}
-  fn assign_expr(&self, _n: &AstView::AssignExpr, _ctx: &mut Context) {}
-  fn assign_pat(&self, _n: &AstView::AssignPat, _ctx: &mut Context) {}
-  fn assign_pat_prop(&self, _n: &AstView::AssignPatProp, _ctx: &mut Context) {}
-  fn assign_prop(&self, _n: &AstView::AssignProp, _ctx: &mut Context) {}
-  fn await_expr(&self, _n: &AstView::AwaitExpr, _ctx: &mut Context) {}
-  fn big_int(&self, _n: &AstView::BigInt, _ctx: &mut Context) {}
-  fn bin_expr(&self, _n: &AstView::BinExpr, _ctx: &mut Context) {}
-  fn binding_ident(&self, _n: &AstView::BindingIdent, _ctx: &mut Context) {}
-  fn block_stmt(&self, _n: &AstView::BlockStmt, _ctx: &mut Context) {}
-  fn bool(&self, _n: &AstView::Bool, _ctx: &mut Context) {}
-  fn break_stmt(&self, _n: &AstView::BreakStmt, _ctx: &mut Context) {}
-  fn call_expr(&self, _n: &AstView::CallExpr, _ctx: &mut Context) {}
-  fn catch_clause(&self, _n: &AstView::CatchClause, _ctx: &mut Context) {}
-  fn class(&self, _n: &AstView::Class, _ctx: &mut Context) {}
-  fn class_decl(&self, _n: &AstView::ClassDecl, _ctx: &mut Context) {}
-  fn class_expr(&self, _n: &AstView::ClassExpr, _ctx: &mut Context) {}
-  fn class_method(&self, _n: &AstView::ClassMethod, _ctx: &mut Context) {}
-  fn class_prop(&self, _n: &AstView::ClassProp, _ctx: &mut Context) {}
+  fn on_enter_node(&mut self, _n: AstView::Node, _ctx: &mut Context) {}
+  fn on_exit_node(&mut self, _n: AstView::Node, _ctx: &mut Context) {}
+
+  fn array_lit(&mut self, _n: &AstView::ArrayLit, _ctx: &mut Context) {}
+  fn array_pat(&mut self, _n: &AstView::ArrayPat, _ctx: &mut Context) {}
+  fn arrow_expr(&mut self, _n: &AstView::ArrowExpr, _ctx: &mut Context) {}
+  fn assign_expr(&mut self, _n: &AstView::AssignExpr, _ctx: &mut Context) {}
+  fn assign_pat(&mut self, _n: &AstView::AssignPat, _ctx: &mut Context) {}
+  fn assign_pat_prop(
+    &mut self,
+    _n: &AstView::AssignPatProp,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn assign_prop(&mut self, _n: &AstView::AssignProp, _ctx: &mut Context) {}
+  fn await_expr(&mut self, _n: &AstView::AwaitExpr, _ctx: &mut Context) {}
+  fn big_int(&mut self, _n: &AstView::BigInt, _ctx: &mut Context) {}
+  fn bin_expr(&mut self, _n: &AstView::BinExpr, _ctx: &mut Context) {}
+  fn binding_ident(&mut self, _n: &AstView::BindingIdent, _ctx: &mut Context) {}
+  fn block_stmt(&mut self, _n: &AstView::BlockStmt, _ctx: &mut Context) {}
+  fn bool(&mut self, _n: &AstView::Bool, _ctx: &mut Context) {}
+  fn break_stmt(&mut self, _n: &AstView::BreakStmt, _ctx: &mut Context) {}
+  fn call_expr(&mut self, _n: &AstView::CallExpr, _ctx: &mut Context) {}
+  fn catch_clause(&mut self, _n: &AstView::CatchClause, _ctx: &mut Context) {}
+  fn class(&mut self, _n: &AstView::Class, _ctx: &mut Context) {}
+  fn class_decl(&mut self, _n: &AstView::ClassDecl, _ctx: &mut Context) {}
+  fn class_expr(&mut self, _n: &AstView::ClassExpr, _ctx: &mut Context) {}
+  fn class_method(&mut self, _n: &AstView::ClassMethod, _ctx: &mut Context) {}
+  fn class_prop(&mut self, _n: &AstView::ClassProp, _ctx: &mut Context) {}
   fn computed_prop_name(
-    &self,
+    &mut self,
     _n: &AstView::ComputedPropName,
     _ctx: &mut Context,
   ) {
   }
-  fn cond_expr(&self, _n: &AstView::CondExpr, _ctx: &mut Context) {}
-  fn constructor(&self, _n: &AstView::Constructor, _ctx: &mut Context) {}
-  fn continue_stmt(&self, _n: &AstView::ContinueStmt, _ctx: &mut Context) {}
-  fn debugger_stmt(&self, _n: &AstView::DebuggerStmt, _ctx: &mut Context) {}
-  fn decorator(&self, _n: &AstView::Decorator, _ctx: &mut Context) {}
-  fn do_while_stmt(&self, _n: &AstView::DoWhileStmt, _ctx: &mut Context) {}
-  fn empty_stmt(&self, _n: &AstView::EmptyStmt, _ctx: &mut Context) {}
-  fn export_all(&self, _n: &AstView::ExportAll, _ctx: &mut Context) {}
-  fn export_decl(&self, _n: &AstView::ExportDecl, _ctx: &mut Context) {}
+  fn cond_expr(&mut self, _n: &AstView::CondExpr, _ctx: &mut Context) {}
+  fn constructor(&mut self, _n: &AstView::Constructor, _ctx: &mut Context) {}
+  fn continue_stmt(&mut self, _n: &AstView::ContinueStmt, _ctx: &mut Context) {}
+  fn debugger_stmt(&mut self, _n: &AstView::DebuggerStmt, _ctx: &mut Context) {}
+  fn decorator(&mut self, _n: &AstView::Decorator, _ctx: &mut Context) {}
+  fn do_while_stmt(&mut self, _n: &AstView::DoWhileStmt, _ctx: &mut Context) {}
+  fn empty_stmt(&mut self, _n: &AstView::EmptyStmt, _ctx: &mut Context) {}
+  fn export_all(&mut self, _n: &AstView::ExportAll, _ctx: &mut Context) {}
+  fn export_decl(&mut self, _n: &AstView::ExportDecl, _ctx: &mut Context) {}
   fn export_default_decl(
-    &self,
+    &mut self,
     _n: &AstView::ExportDefaultDecl,
     _ctx: &mut Context,
   ) {
   }
   fn export_default_expr(
-    &self,
+    &mut self,
     _n: &AstView::ExportDefaultExpr,
     _ctx: &mut Context,
   ) {
   }
   fn export_default_specifier(
-    &self,
+    &mut self,
     _n: &AstView::ExportDefaultSpecifier,
     _ctx: &mut Context,
   ) {
   }
   fn export_named_specifier(
-    &self,
+    &mut self,
     _n: &AstView::ExportNamedSpecifier,
     _ctx: &mut Context,
   ) {
   }
   fn export_namespace_specifier(
-    &self,
+    &mut self,
     _n: &AstView::ExportNamespaceSpecifier,
     _ctx: &mut Context,
   ) {
   }
-  fn expr_or_spread(&self, _n: &AstView::ExprOrSpread, _ctx: &mut Context) {}
-  fn expr_stmt(&self, _n: &AstView::ExprStmt, _ctx: &mut Context) {}
-  fn fn_decl(&self, _n: &AstView::FnDecl, _ctx: &mut Context) {}
-  fn fn_expr(&self, _n: &AstView::FnExpr, _ctx: &mut Context) {}
-  fn for_in_stmt(&self, _n: &AstView::ForInStmt, _ctx: &mut Context) {}
-  fn for_of_stmt(&self, _n: &AstView::ForOfStmt, _ctx: &mut Context) {}
-  fn for_stmt(&self, _n: &AstView::ForStmt, _ctx: &mut Context) {}
-  fn function(&self, _n: &AstView::Function, _ctx: &mut Context) {}
-  fn getter_prop(&self, _n: &AstView::GetterProp, _ctx: &mut Context) {}
-  fn ident(&self, _n: &AstView::Ident, _ctx: &mut Context) {}
-  fn if_stmt(&self, _n: &AstView::IfStmt, _ctx: &mut Context) {}
-  fn import_decl(&self, _n: &AstView::ImportDecl, _ctx: &mut Context) {}
+  fn expr_or_spread(&mut self, _n: &AstView::ExprOrSpread, _ctx: &mut Context) {
+  }
+  fn expr_stmt(&mut self, _n: &AstView::ExprStmt, _ctx: &mut Context) {}
+  fn fn_decl(&mut self, _n: &AstView::FnDecl, _ctx: &mut Context) {}
+  fn fn_expr(&mut self, _n: &AstView::FnExpr, _ctx: &mut Context) {}
+  fn for_in_stmt(&mut self, _n: &AstView::ForInStmt, _ctx: &mut Context) {}
+  fn for_of_stmt(&mut self, _n: &AstView::ForOfStmt, _ctx: &mut Context) {}
+  fn for_stmt(&mut self, _n: &AstView::ForStmt, _ctx: &mut Context) {}
+  fn function(&mut self, _n: &AstView::Function, _ctx: &mut Context) {}
+  fn getter_prop(&mut self, _n: &AstView::GetterProp, _ctx: &mut Context) {}
+  fn ident(&mut self, _n: &AstView::Ident, _ctx: &mut Context) {}
+  fn if_stmt(&mut self, _n: &AstView::IfStmt, _ctx: &mut Context) {}
+  fn import_decl(&mut self, _n: &AstView::ImportDecl, _ctx: &mut Context) {}
   fn import_default_specifier(
-    &self,
+    &mut self,
     _n: &AstView::ImportDefaultSpecifier,
     _ctx: &mut Context,
   ) {
   }
   fn import_named_specifier(
-    &self,
+    &mut self,
     _n: &AstView::ImportNamedSpecifier,
     _ctx: &mut Context,
   ) {
   }
   fn import_star_as_specifier(
-    &self,
+    &mut self,
     _n: &AstView::ImportStarAsSpecifier,
     _ctx: &mut Context,
   ) {
   }
-  fn invalid(&self, _n: &AstView::Invalid, _ctx: &mut Context) {}
-  fn jsx_attr(&self, _n: &AstView::JSXAttr, _ctx: &mut Context) {}
+  fn invalid(&mut self, _n: &AstView::Invalid, _ctx: &mut Context) {}
+  fn jsx_attr(&mut self, _n: &AstView::JSXAttr, _ctx: &mut Context) {}
   fn jsx_closing_element(
-    &self,
+    &mut self,
     _n: &AstView::JSXClosingElement,
     _ctx: &mut Context,
   ) {
   }
   fn jsx_closing_fragment(
-    &self,
+    &mut self,
     _n: &AstView::JSXClosingFragment,
     _ctx: &mut Context,
   ) {
   }
-  fn jsx_element(&self, _n: &AstView::JSXElement, _ctx: &mut Context) {}
-  fn jsx_empty_expr(&self, _n: &AstView::JSXEmptyExpr, _ctx: &mut Context) {}
+  fn jsx_element(&mut self, _n: &AstView::JSXElement, _ctx: &mut Context) {}
+  fn jsx_empty_expr(&mut self, _n: &AstView::JSXEmptyExpr, _ctx: &mut Context) {
+  }
   fn jsx_expr_container(
-    &self,
+    &mut self,
     _n: &AstView::JSXExprContainer,
     _ctx: &mut Context,
   ) {
   }
-  fn jsx_fragment(&self, _n: &AstView::JSXFragment, _ctx: &mut Context) {}
-  fn jsx_member_expr(&self, _n: &AstView::JSXMemberExpr, _ctx: &mut Context) {}
+  fn jsx_fragment(&mut self, _n: &AstView::JSXFragment, _ctx: &mut Context) {}
+  fn jsx_member_expr(
+    &mut self,
+    _n: &AstView::JSXMemberExpr,
+    _ctx: &mut Context,
+  ) {
+  }
   fn jsx_namespaced_name(
-    &self,
+    &mut self,
     _n: &AstView::JSXNamespacedName,
     _ctx: &mut Context,
   ) {
   }
   fn jsx_opening_element(
-    &self,
+    &mut self,
     _n: &AstView::JSXOpeningElement,
     _ctx: &mut Context,
   ) {
   }
   fn jsx_opening_fragment(
-    &self,
+    &mut self,
     _n: &AstView::JSXOpeningFragment,
     _ctx: &mut Context,
   ) {
   }
-  fn jsx_spread_child(&self, _n: &AstView::JSXSpreadChild, _ctx: &mut Context) {
+  fn jsx_spread_child(
+    &mut self,
+    _n: &AstView::JSXSpreadChild,
+    _ctx: &mut Context,
+  ) {
   }
-  fn jsx_text(&self, _n: &AstView::JSXText, _ctx: &mut Context) {}
+  fn jsx_text(&mut self, _n: &AstView::JSXText, _ctx: &mut Context) {}
   fn key_value_pat_prop(
-    &self,
+    &mut self,
     _n: &AstView::KeyValuePatProp,
     _ctx: &mut Context,
   ) {
   }
-  fn key_value_prop(&self, _n: &AstView::KeyValueProp, _ctx: &mut Context) {}
-  fn labeled_stmt(&self, _n: &AstView::LabeledStmt, _ctx: &mut Context) {}
-  fn member_expr(&self, _n: &AstView::MemberExpr, _ctx: &mut Context) {}
-  fn meta_prop_expr(&self, _n: &AstView::MetaPropExpr, _ctx: &mut Context) {}
-  fn method_prop(&self, _n: &AstView::MethodProp, _ctx: &mut Context) {}
-  fn module(&self, _n: &AstView::Module, _ctx: &mut Context) {}
-  fn named_export(&self, _n: &AstView::NamedExport, _ctx: &mut Context) {}
-  fn new_expr(&self, _n: &AstView::NewExpr, _ctx: &mut Context) {}
-  fn null(&self, _n: &AstView::Null, _ctx: &mut Context) {}
-  fn number(&self, _n: &AstView::Number, _ctx: &mut Context) {}
-  fn object_lit(&self, _n: &AstView::ObjectLit, _ctx: &mut Context) {}
-  fn object_pat(&self, _n: &AstView::ObjectPat, _ctx: &mut Context) {}
-  fn opt_chain_expr(&self, _n: &AstView::OptChainExpr, _ctx: &mut Context) {}
-  fn param(&self, _n: &AstView::Param, _ctx: &mut Context) {}
-  fn paren_expr(&self, _n: &AstView::ParenExpr, _ctx: &mut Context) {}
-  fn private_method(&self, _n: &AstView::PrivateMethod, _ctx: &mut Context) {}
-  fn private_name(&self, _n: &AstView::PrivateName, _ctx: &mut Context) {}
-  fn private_prop(&self, _n: &AstView::PrivateProp, _ctx: &mut Context) {}
-  fn regex(&self, _n: &AstView::Regex, _ctx: &mut Context) {}
-  fn rest_pat(&self, _n: &AstView::RestPat, _ctx: &mut Context) {}
-  fn return_stmt(&self, _n: &AstView::ReturnStmt, _ctx: &mut Context) {}
-  fn script(&self, _n: &AstView::Script, _ctx: &mut Context) {}
-  fn seq_expr(&self, _n: &AstView::SeqExpr, _ctx: &mut Context) {}
-  fn setter_prop(&self, _n: &AstView::SetterProp, _ctx: &mut Context) {}
-  fn spread_element(&self, _n: &AstView::SpreadElement, _ctx: &mut Context) {}
-  fn str(&self, _n: &AstView::Str, _ctx: &mut Context) {}
+  fn key_value_prop(&mut self, _n: &AstView::KeyValueProp, _ctx: &mut Context) {
+  }
+  fn labeled_stmt(&mut self, _n: &AstView::LabeledStmt, _ctx: &mut Context) {}
+  fn member_expr(&mut self, _n: &AstView::MemberExpr, _ctx: &mut Context) {}
+  fn meta_prop_expr(&mut self, _n: &AstView::MetaPropExpr, _ctx: &mut Context) {
+  }
+  fn method_prop(&mut self, _n: &AstView::MethodProp, _ctx: &mut Context) {}
+  fn module(&mut self, _n: &AstView::Module, _ctx: &mut Context) {}
+  fn named_export(&mut self, _n: &AstView::NamedExport, _ctx: &mut Context) {}
+  fn new_expr(&mut self, _n: &AstView::NewExpr, _ctx: &mut Context) {}
+  fn null(&mut self, _n: &AstView::Null, _ctx: &mut Context) {}
+  fn number(&mut self, _n: &AstView::Number, _ctx: &mut Context) {}
+  fn object_lit(&mut self, _n: &AstView::ObjectLit, _ctx: &mut Context) {}
+  fn object_pat(&mut self, _n: &AstView::ObjectPat, _ctx: &mut Context) {}
+  fn opt_chain_expr(&mut self, _n: &AstView::OptChainExpr, _ctx: &mut Context) {
+  }
+  fn param(&mut self, _n: &AstView::Param, _ctx: &mut Context) {}
+  fn paren_expr(&mut self, _n: &AstView::ParenExpr, _ctx: &mut Context) {}
+  fn private_method(
+    &mut self,
+    _n: &AstView::PrivateMethod,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn private_name(&mut self, _n: &AstView::PrivateName, _ctx: &mut Context) {}
+  fn private_prop(&mut self, _n: &AstView::PrivateProp, _ctx: &mut Context) {}
+  fn regex(&mut self, _n: &AstView::Regex, _ctx: &mut Context) {}
+  fn rest_pat(&mut self, _n: &AstView::RestPat, _ctx: &mut Context) {}
+  fn return_stmt(&mut self, _n: &AstView::ReturnStmt, _ctx: &mut Context) {}
+  fn script(&mut self, _n: &AstView::Script, _ctx: &mut Context) {}
+  fn seq_expr(&mut self, _n: &AstView::SeqExpr, _ctx: &mut Context) {}
+  fn setter_prop(&mut self, _n: &AstView::SetterProp, _ctx: &mut Context) {}
+  fn spread_element(
+    &mut self,
+    _n: &AstView::SpreadElement,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn str(&mut self, _n: &AstView::Str, _ctx: &mut Context) {}
   // Neither `super` or `r#super` can be used here, so we use `super_` reluctantly
-  fn super_(&self, _n: &AstView::Super, _ctx: &mut Context) {}
-  fn switch_case(&self, _n: &AstView::SwitchCase, _ctx: &mut Context) {}
-  fn switch_stmt(&self, _n: &AstView::SwitchStmt, _ctx: &mut Context) {}
-  fn tagged_tpl(&self, _n: &AstView::TaggedTpl, _ctx: &mut Context) {}
-  fn this_expr(&self, _n: &AstView::ThisExpr, _ctx: &mut Context) {}
-  fn throw_stmt(&self, _n: &AstView::ThrowStmt, _ctx: &mut Context) {}
-  fn tpl(&self, _n: &AstView::Tpl, _ctx: &mut Context) {}
-  fn tpl_element(&self, _n: &AstView::TplElement, _ctx: &mut Context) {}
-  fn try_stmt(&self, _n: &AstView::TryStmt, _ctx: &mut Context) {}
-  fn ts_array_type(&self, _n: &AstView::TsArrayType, _ctx: &mut Context) {}
-  fn ts_as_expr(&self, _n: &AstView::TsAsExpr, _ctx: &mut Context) {}
+  fn super_(&mut self, _n: &AstView::Super, _ctx: &mut Context) {}
+  fn switch_case(&mut self, _n: &AstView::SwitchCase, _ctx: &mut Context) {}
+  fn switch_stmt(&mut self, _n: &AstView::SwitchStmt, _ctx: &mut Context) {}
+  fn tagged_tpl(&mut self, _n: &AstView::TaggedTpl, _ctx: &mut Context) {}
+  fn this_expr(&mut self, _n: &AstView::ThisExpr, _ctx: &mut Context) {}
+  fn throw_stmt(&mut self, _n: &AstView::ThrowStmt, _ctx: &mut Context) {}
+  fn tpl(&mut self, _n: &AstView::Tpl, _ctx: &mut Context) {}
+  fn tpl_element(&mut self, _n: &AstView::TplElement, _ctx: &mut Context) {}
+  fn try_stmt(&mut self, _n: &AstView::TryStmt, _ctx: &mut Context) {}
+  fn ts_array_type(&mut self, _n: &AstView::TsArrayType, _ctx: &mut Context) {}
+  fn ts_as_expr(&mut self, _n: &AstView::TsAsExpr, _ctx: &mut Context) {}
   fn ts_call_signature_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsCallSignatureDecl,
     _ctx: &mut Context,
   ) {
   }
   fn ts_conditional_type(
-    &self,
+    &mut self,
     _n: &AstView::TsConditionalType,
     _ctx: &mut Context,
   ) {
   }
   fn ts_const_assertion(
-    &self,
+    &mut self,
     _n: &AstView::TsConstAssertion,
     _ctx: &mut Context,
   ) {
   }
   fn ts_construct_signature_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsConstructSignatureDecl,
     _ctx: &mut Context,
   ) {
   }
   fn ts_constructor_type(
-    &self,
+    &mut self,
     _n: &AstView::TsConstructorType,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_enum_decl(&self, _n: &AstView::TsEnumDecl, _ctx: &mut Context) {}
-  fn ts_enum_member(&self, _n: &AstView::TsEnumMember, _ctx: &mut Context) {}
+  fn ts_enum_decl(&mut self, _n: &AstView::TsEnumDecl, _ctx: &mut Context) {}
+  fn ts_enum_member(&mut self, _n: &AstView::TsEnumMember, _ctx: &mut Context) {
+  }
   fn ts_export_assignment(
-    &self,
+    &mut self,
     _n: &AstView::TsExportAssignment,
     _ctx: &mut Context,
   ) {
   }
   fn ts_expr_with_type_args(
-    &self,
+    &mut self,
     _n: &AstView::TsExprWithTypeArgs,
     _ctx: &mut Context,
   ) {
   }
   fn ts_external_module_ref(
-    &self,
+    &mut self,
     _n: &AstView::TsExternalModuleRef,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_fn_type(&self, _n: &AstView::TsFnType, _ctx: &mut Context) {}
+  fn ts_fn_type(&mut self, _n: &AstView::TsFnType, _ctx: &mut Context) {}
   fn ts_import_equal_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsImportEqualsDecl,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_import_type(&self, _n: &AstView::TsImportType, _ctx: &mut Context) {}
+  fn ts_import_type(&mut self, _n: &AstView::TsImportType, _ctx: &mut Context) {
+  }
   fn ts_index_signature(
-    &self,
+    &mut self,
     _n: &AstView::TsIndexSignature,
     _ctx: &mut Context,
   ) {
   }
   fn ts_indexed_access_type(
-    &self,
+    &mut self,
     _n: &AstView::TsIndexedAccessType,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_infer_type(&self, _n: &AstView::TsInferType, _ctx: &mut Context) {}
+  fn ts_infer_type(&mut self, _n: &AstView::TsInferType, _ctx: &mut Context) {}
   fn ts_interface_body(
-    &self,
+    &mut self,
     _n: &AstView::TsInterfaceBody,
     _ctx: &mut Context,
   ) {
   }
   fn ts_interface_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsInterfaceDecl,
     _ctx: &mut Context,
   ) {
   }
   fn ts_intersection_type(
-    &self,
+    &mut self,
     _n: &AstView::TsIntersectionType,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_keyword_type(&self, _n: &AstView::TsKeywordType, _ctx: &mut Context) {}
-  fn ts_lit_type(&self, _n: &AstView::TsLitType, _ctx: &mut Context) {}
-  fn ts_mapped_type(&self, _n: &AstView::TsMappedType, _ctx: &mut Context) {}
+  fn ts_keyword_type(
+    &mut self,
+    _n: &AstView::TsKeywordType,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_lit_type(&mut self, _n: &AstView::TsLitType, _ctx: &mut Context) {}
+  fn ts_mapped_type(&mut self, _n: &AstView::TsMappedType, _ctx: &mut Context) {
+  }
   fn ts_method_signature(
-    &self,
+    &mut self,
     _n: &AstView::TsMethodSignature,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_module_block(&self, _n: &AstView::TsModuleBlock, _ctx: &mut Context) {}
-  fn ts_module_decl(&self, _n: &AstView::TsModuleDecl, _ctx: &mut Context) {}
+  fn ts_module_block(
+    &mut self,
+    _n: &AstView::TsModuleBlock,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_module_decl(&mut self, _n: &AstView::TsModuleDecl, _ctx: &mut Context) {
+  }
   fn ts_namespace_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsNamespaceDecl,
     _ctx: &mut Context,
   ) {
   }
   fn ts_namespace_export_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsNamespaceExportDecl,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_non_null_expr(&self, _n: &AstView::TsNonNullExpr, _ctx: &mut Context) {}
-  fn ts_optional_type(&self, _n: &AstView::TsOptionalType, _ctx: &mut Context) {
+  fn ts_non_null_expr(
+    &mut self,
+    _n: &AstView::TsNonNullExpr,
+    _ctx: &mut Context,
+  ) {
   }
-  fn ts_param_prop(&self, _n: &AstView::TsParamProp, _ctx: &mut Context) {}
+  fn ts_optional_type(
+    &mut self,
+    _n: &AstView::TsOptionalType,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_param_prop(&mut self, _n: &AstView::TsParamProp, _ctx: &mut Context) {}
   fn ts_parenthesized_type(
-    &self,
+    &mut self,
     _n: &AstView::TsParenthesizedType,
     _ctx: &mut Context,
   ) {
   }
   fn ts_property_signature(
-    &self,
+    &mut self,
     _n: &AstView::TsPropertySignature,
     _ctx: &mut Context,
   ) {
   }
   fn ts_qualified_name(
-    &self,
+    &mut self,
     _n: &AstView::TsQualifiedName,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_rest_type(&self, _n: &AstView::TsRestType, _ctx: &mut Context) {}
-  fn ts_this_type(&self, _n: &AstView::TsThisType, _ctx: &mut Context) {}
-  fn ts_tpl_lit_type(&self, _n: &AstView::TsTplLitType, _ctx: &mut Context) {}
-  fn ts_tuple_element(&self, _n: &AstView::TsTupleElement, _ctx: &mut Context) {
+  fn ts_rest_type(&mut self, _n: &AstView::TsRestType, _ctx: &mut Context) {}
+  fn ts_this_type(&mut self, _n: &AstView::TsThisType, _ctx: &mut Context) {}
+  fn ts_tpl_lit_type(
+    &mut self,
+    _n: &AstView::TsTplLitType,
+    _ctx: &mut Context,
+  ) {
   }
-  fn ts_tuple_type(&self, _n: &AstView::TsTupleType, _ctx: &mut Context) {}
+  fn ts_tuple_element(
+    &mut self,
+    _n: &AstView::TsTupleElement,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn ts_tuple_type(&mut self, _n: &AstView::TsTupleType, _ctx: &mut Context) {}
   fn ts_type_alias_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsTypeAliasDecl,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_type_ann(&self, _n: &AstView::TsTypeAnn, _ctx: &mut Context) {}
+  fn ts_type_ann(&mut self, _n: &AstView::TsTypeAnn, _ctx: &mut Context) {}
   fn ts_type_assertion(
-    &self,
+    &mut self,
     _n: &AstView::TsTypeAssertion,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_type_lit(&self, _n: &AstView::TsTypeLit, _ctx: &mut Context) {}
-  fn ts_type_operator(&self, _n: &AstView::TsTypeOperator, _ctx: &mut Context) {
+  fn ts_type_lit(&mut self, _n: &AstView::TsTypeLit, _ctx: &mut Context) {}
+  fn ts_type_operator(
+    &mut self,
+    _n: &AstView::TsTypeOperator,
+    _ctx: &mut Context,
+  ) {
   }
-  fn ts_type_param(&self, _n: &AstView::TsTypeParam, _ctx: &mut Context) {}
+  fn ts_type_param(&mut self, _n: &AstView::TsTypeParam, _ctx: &mut Context) {}
   fn ts_type_param_decl(
-    &self,
+    &mut self,
     _n: &AstView::TsTypeParamDecl,
     _ctx: &mut Context,
   ) {
   }
   fn ts_type_param_instantiation(
-    &self,
+    &mut self,
     _n: &AstView::TsTypeParamInstantiation,
     _ctx: &mut Context,
   ) {
   }
   fn ts_type_predicate(
-    &self,
+    &mut self,
     _n: &AstView::TsTypePredicate,
     _ctx: &mut Context,
   ) {
   }
-  fn ts_type_query(&self, _n: &AstView::TsTypeQuery, _ctx: &mut Context) {}
-  fn ts_type_ref(&self, _n: &AstView::TsTypeRef, _ctx: &mut Context) {}
-  fn ts_union_type(&self, _n: &AstView::TsUnionType, _ctx: &mut Context) {}
-  fn unary_expr(&self, _n: &AstView::UnaryExpr, _ctx: &mut Context) {}
-  fn update_expr(&self, _n: &AstView::UpdateExpr, _ctx: &mut Context) {}
-  fn var_decl(&self, _n: &AstView::VarDecl, _ctx: &mut Context) {}
-  fn var_declarator(&self, _n: &AstView::VarDeclarator, _ctx: &mut Context) {}
-  fn while_stmt(&self, _n: &AstView::WhileStmt, _ctx: &mut Context) {}
-  fn with_stmt(&self, _n: &AstView::WithStmt, _ctx: &mut Context) {}
-  fn yield_expr(&self, _n: &AstView::YieldExpr, _ctx: &mut Context) {}
+  fn ts_type_query(&mut self, _n: &AstView::TsTypeQuery, _ctx: &mut Context) {}
+  fn ts_type_ref(&mut self, _n: &AstView::TsTypeRef, _ctx: &mut Context) {}
+  fn ts_union_type(&mut self, _n: &AstView::TsUnionType, _ctx: &mut Context) {}
+  fn unary_expr(&mut self, _n: &AstView::UnaryExpr, _ctx: &mut Context) {}
+  fn update_expr(&mut self, _n: &AstView::UpdateExpr, _ctx: &mut Context) {}
+  fn var_decl(&mut self, _n: &AstView::VarDecl, _ctx: &mut Context) {}
+  fn var_declarator(
+    &mut self,
+    _n: &AstView::VarDeclarator,
+    _ctx: &mut Context,
+  ) {
+  }
+  fn while_stmt(&mut self, _n: &AstView::WhileStmt, _ctx: &mut Context) {}
+  fn with_stmt(&mut self, _n: &AstView::WithStmt, _ctx: &mut Context) {}
+  fn yield_expr(&mut self, _n: &AstView::YieldExpr, _ctx: &mut Context) {}
 }
 
 pub trait Traverse: Handler {
-  fn traverse<'a, N>(&self, node: N, ctx: &mut Context)
+  fn traverse<'a, N>(&mut self, node: N, ctx: &mut Context)
   where
     N: NodeTrait<'a>,
   {
+    let node = node.into_node();
+
+    // First, invoke a handler that does anything we want when _entering_ a node.
+    self.on_enter_node(node, ctx);
+
+    // Next, invoke a handler that is specific to the type of node.
     use AstView::Node::*;
-    match node.into_node() {
+    match node {
       ArrayLit(n) => {
         self.array_lit(n, ctx);
       }
@@ -864,9 +943,13 @@ pub trait Traverse: Handler {
       }
     }
 
+    // Walk the child nodes recursively.
     for child in node.children() {
       self.traverse(child, ctx);
     }
+
+    // Finally, invoke a handler that does anything we want when _leaving_ a node.
+    self.on_exit_node(node, ctx);
   }
 }
 
