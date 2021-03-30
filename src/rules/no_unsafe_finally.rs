@@ -105,7 +105,7 @@ let foo = function() {
 struct NoUnsafeFinallyHandler;
 
 impl Handler for NoUnsafeFinallyHandler {
-  fn break_stmt(&self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
+  fn break_stmt(&mut self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
     let kind = StmtKind::Break(break_stmt.label);
     if stmt_inside_finally(break_stmt.span(), kind, break_stmt.into_node()) {
       add_diagnostic_with_hint(ctx, break_stmt.span(), kind);
@@ -113,7 +113,7 @@ impl Handler for NoUnsafeFinallyHandler {
   }
 
   fn continue_stmt(
-    &self,
+    &mut self,
     continue_stmt: &AstView::ContinueStmt,
     ctx: &mut Context,
   ) {
@@ -127,14 +127,18 @@ impl Handler for NoUnsafeFinallyHandler {
     }
   }
 
-  fn return_stmt(&self, return_stmt: &AstView::ReturnStmt, ctx: &mut Context) {
+  fn return_stmt(
+    &mut self,
+    return_stmt: &AstView::ReturnStmt,
+    ctx: &mut Context,
+  ) {
     let kind = StmtKind::Return;
     if stmt_inside_finally(return_stmt.span(), kind, return_stmt.into_node()) {
       add_diagnostic_with_hint(ctx, return_stmt.span(), kind);
     }
   }
 
-  fn throw_stmt(&self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
+  fn throw_stmt(&mut self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
     let kind = StmtKind::Throw;
     if stmt_inside_finally(throw_stmt.span(), kind, throw_stmt.into_node()) {
       add_diagnostic_with_hint(ctx, throw_stmt.span(), kind);
