@@ -1,42 +1,55 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::utils::find_ids;
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::Id;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::{
-  ast::{
-    ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor,
-    Decl, ExportDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr, Ident,
-    ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-    KeyValueProp, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
-    SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsModuleDecl,
-    TsNamespaceDecl, TsPropertySignature, TsTypeRef, VarDecl, VarDeclOrPat,
-    VarDeclarator,
-  },
-  visit::VisitWith,
-};
-
+use derive_more::Display;
 use std::collections::HashSet;
+use swc_ecmascript::ast::{
+  ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
+  DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
+  FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
+  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
+  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
+  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclOrPat,
+  VarDeclarator,
+};
+use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::utils::{find_ids, Id};
+use swc_ecmascript::visit::{Node, Visit, VisitWith};
 
 pub struct NoUnusedVars;
+
+const CODE: &str = "no-unused-vars";
+
+#[derive(Display)]
+enum NoUnusedVarsMessage {
+  #[display(fmt = "`{}` is never used", _0)]
+  NeverUsed(String),
+}
+
+#[derive(Display)]
+enum NoUnusedVarsHint {
+  #[display(
+    fmt = "If this is intentional, prefix it with an underscore like `_{}`",
+    _0
+  )]
+  AddPrefix(String),
+}
 
 impl LintRule for NoUnusedVars {
   fn new() -> Box<Self> {
     Box::new(NoUnusedVars)
   }
 
+  fn tags(&self) -> &'static [&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
-    "no-unused-vars"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut collector = Collector {
-      used_vars: Default::default(),
-      cur_defining: Default::default(),
-      used_types: Default::default(),
-    };
+    let mut collector = Collector::default();
     match program {
       ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
       ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
@@ -55,6 +68,7 @@ impl LintRule for NoUnusedVars {
 }
 
 /// Collects information about variable usages.
+#[derive(Default)]
 struct Collector {
   used_vars: HashSet<Id>,
   used_types: HashSet<Id>,
@@ -129,9 +143,12 @@ impl Visit for Collector {
     n.type_args.visit_with(n, self);
   }
 
-  /// Ignore key
-  fn visit_key_value_prop(&mut self, n: &KeyValueProp, _: &dyn Node) {
-    n.value.visit_with(n, self);
+  fn visit_ts_type_query_expr(&mut self, n: &TsTypeQueryExpr, _: &dyn Node) {
+    if let TsTypeQueryExpr::TsEntityName(e) = n {
+      let id = get_id(e);
+      self.used_vars.insert(id);
+    }
+    n.visit_children_with(self);
   }
 
   fn visit_prop(&mut self, n: &Prop, _: &dyn Node) {
@@ -139,6 +156,13 @@ impl Visit for Collector {
       Prop::Shorthand(i) => self.mark_as_usage(i),
       _ => n.visit_children_with(self),
     }
+  }
+
+  fn visit_prop_name(&mut self, n: &PropName, _: &dyn Node) {
+    if let PropName::Computed(computed) = n {
+      computed.visit_children_with(self);
+    }
+    // Don't check Ident, Str, Num and BigInt
   }
 
   fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
@@ -213,6 +237,41 @@ impl Visit for Collector {
     }
   }
 
+  fn visit_class_decl(&mut self, decl: &ClassDecl, _: &dyn Node) {
+    let id = decl.ident.to_id();
+    self.cur_defining.push(id);
+    decl.class.visit_with(decl, self);
+    self.cur_defining.pop();
+  }
+
+  fn visit_ts_interface_decl(&mut self, decl: &TsInterfaceDecl, _: &dyn Node) {
+    let id = decl.id.to_id();
+    self.cur_defining.push(id);
+    decl.extends.visit_with(decl, self);
+    decl.body.visit_with(decl, self);
+    if let Some(type_params) = &decl.type_params {
+      type_params.visit_with(decl, self);
+    }
+    self.cur_defining.pop();
+  }
+
+  fn visit_ts_type_alias_decl(&mut self, decl: &TsTypeAliasDecl, _: &dyn Node) {
+    let id = decl.id.to_id();
+    self.cur_defining.push(id);
+    decl.type_ann.visit_with(decl, self);
+    if let Some(type_params) = &decl.type_params {
+      type_params.visit_with(decl, self);
+    }
+    self.cur_defining.pop();
+  }
+
+  fn visit_ts_enum_decl(&mut self, decl: &TsEnumDecl, _: &dyn Node) {
+    let id = decl.id.to_id();
+    self.cur_defining.push(id);
+    decl.members.visit_with(decl, self);
+    self.cur_defining.pop();
+  }
+
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
     let prev_len = self.cur_defining.len();
     let declaring_ids: Vec<Id> = find_ids(&declarator.name);
@@ -270,10 +329,11 @@ impl<'c> NoUnusedVarVisitor<'c> {
 
     if !self.used_vars.contains(&ident.to_id()) {
       // The variable is not used.
-      self.context.add_diagnostic(
+      self.context.add_diagnostic_with_hint(
         ident.span,
-        "no-unused-vars",
-        format!("\"{}\" is never used", ident.sym),
+        CODE,
+        NoUnusedVarsMessage::NeverUsed(ident.sym.to_string()),
+        NoUnusedVarsHint::AddPrefix(ident.sym.to_string()),
       );
     }
   }
@@ -293,8 +353,13 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     if decl.declare {
       return;
     }
+
     self.handle_id(&decl.ident);
-    decl.function.visit_with(decl, self);
+
+    // If function body is not present, it's an overload definition
+    if decl.function.body.is_some() {
+      decl.function.visit_with(decl, self);
+    }
   }
 
   fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
@@ -320,6 +385,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
       return;
     }
 
+    self.handle_id(&n.ident);
     n.visit_children_with(self);
   }
 
@@ -342,10 +408,10 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     method.function.decorators.visit_with(method, self);
     method.key.visit_with(method, self);
 
-    match method.kind {
-      MethodKind::Method => method.function.params.visit_children_with(self),
-      MethodKind::Getter => {}
-      MethodKind::Setter => {}
+    // If method body is not present, it's an overload definition
+    if matches!(method.kind, MethodKind::Method if method.function.body.is_some())
+    {
+      method.function.params.visit_children_with(self);
     }
 
     method.function.body.visit_with(method, self);
@@ -357,7 +423,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     for ident in declared_idents {
       self.handle_id(&ident);
     }
-    param.visit_children_with(self)
+    param.visit_children_with(self);
   }
 
   fn visit_import_named_specifier(
@@ -400,7 +466,10 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
         c.class.visit_with(c, self);
       }
       Decl::Fn(f) => {
-        f.function.visit_with(f, self);
+        // If function body is not present, it's an overload definition
+        if f.function.body.is_some() {
+          f.function.visit_with(f, self);
+        }
       }
       Decl::Var(v) => {
         for decl in &v.decls {
@@ -409,6 +478,27 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
         }
       }
       _ => {}
+    }
+  }
+
+  fn visit_export_default_decl(
+    &mut self,
+    export: &ExportDefaultDecl,
+    _: &dyn Node,
+  ) {
+    match &export.decl {
+      DefaultDecl::Class(c) => {
+        c.class.visit_with(c, self);
+      }
+      DefaultDecl::Fn(f) => {
+        // If function body is not present, it's an overload definition
+        if f.function.body.is_some() {
+          f.function.visit_with(f, self);
+        }
+      }
+      DefaultDecl::TsInterfaceDecl(i) => {
+        i.visit_children_with(self);
+      }
     }
   }
 
@@ -460,7 +550,6 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_unused_vars_valid() {
@@ -1078,176 +1167,420 @@ export default class Foo {
   }
 }
       ",
+      "export function foo(msg: string): void",
+      "export default function foo(msg: string): void",
+      "function _foo(msg?: string): void",
+      "const key = 0; export const obj = { [key]: true };",
+      "export class Foo { bar(msg: string): void; }",
+      "import { foo } from './foo.ts'; type Bar = typeof foo;",
+      "interface Foo {} export interface Bar extends Foo {}",
+      "import type Foo from './foo.ts'; export interface Bar extends Foo {}",
+      "import type Foo from './foo.ts'; export class Bar implements Foo {}",
+      "import type Foo from './foo.ts'; interface _Bar<T extends Foo> {}",
+      "import type Foo from './foo.ts'; type _Bar<T extends Foo> = T;",
+      "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
     };
   }
 
   #[test]
   fn no_unused_vars_invalid() {
-    assert_lint_err::<NoUnusedVars>("var a = 0", 4);
-
-    // variable shadowing
-    assert_lint_err::<NoUnusedVars>(
-      "var a = 1; function foo() { var a = 2; console.log(a); }; use(foo);",
-      4,
-    );
-
-    assert_lint_err::<NoUnusedVars>("function foox() { return foox(); }", 9);
-    assert_lint_err::<NoUnusedVars>(
-      "(function() { function foox() { if (true) { return foox(); } } }())",
-      23,
-    );
-
-    assert_lint_err::<NoUnusedVars>("var a=10", 4);
-    assert_lint_err::<NoUnusedVars>(
-      "function f() { var a = 1; return function(){ f(a *= 2); }; }",
-      9,
-    );
-
-    assert_lint_err::<NoUnusedVars>(
-      "function f() { var a = 1; return function(){ f(++a); }; }",
-      9,
-    );
-    assert_lint_err_n::<NoUnusedVars>(
+    assert_lint_err! {
+      NoUnusedVars,
+      "var a = 0": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      // variable shadowing
+      "var a = 1; function foo() { var a = 2; console.log(a); }; use(foo);": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "function foox() { return foox(); }": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foox"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foox"),
+        }
+      ],
+      "class Foo {}": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Foo"),
+        }
+      ],
+      "(function() { function foox() { if (true) { return foox(); } } }())": [
+        {
+          col: 23,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foox"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foox"),
+        }
+      ],
+      "function f() { var a = 1; return function(){ f(a *= 2); }; }": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        }
+      ],
+      "function f() { var a = 1; return function(){ f(++a); }; }": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        }
+      ],
       "function foo(first, second) {\ndoStuff(function()\
-       {\nconsole.log(second);});};",
-      vec![9, 13],
-    );
-
-    assert_lint_err::<NoUnusedVars>("var a=10;", 4);
-    assert_lint_err::<NoUnusedVars>("var a=10; a=20;", 4);
-
-    assert_lint_err_n::<NoUnusedVars>(
-      "var a=10; (function() { var a = 1; alert(a); })();",
-      vec![4],
-    );
-    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; alert(a+b)", 15);
-    assert_lint_err::<NoUnusedVars>("var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);", 10);
-    assert_lint_err_n::<NoUnusedVars>(
+       {\nconsole.log(second);});};": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
+        },
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "first"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "first"),
+        }
+      ],
+      "var a=10; a=20;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a=10; (function() { var a = 1; alert(a); })();": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a=10, b=0, c=null; alert(a+b)": [
+        {
+          col: 15,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
+        }
+      ],
+      "var a=10, b=0, c=null; setTimeout(function() { var b=2; alert(a+b+c); }, 0);": [
+        {
+          col: 10,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        }
+      ],
       "var a=10, b=0, c=null; setTimeout(function() \
-      { var b=2; var c=2; alert(a+b+c); }, 0);",
-      vec![10, 15],
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "function f(){var a=[];return a.map(function(){});}",
-      9,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "function f(){var a=[];return a.map(function g(){});}",
-      9,
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "function f(){var x;function a(){x=42;}function b(){alert(x);}}",
-      vec![9, 28, 47],
-    );
-    assert_lint_err::<NoUnusedVars>("function f(a) {}; f();", 11);
-    assert_lint_err_n::<NoUnusedVars>(
-      "function a(x, y, z){ return y; }; a();",
-      vec![11, 17],
-    );
-    assert_lint_err::<NoUnusedVars>("var min = Math.min", 4);
-    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 4);
-    assert_lint_err::<NoUnusedVars>(
-      "Foo.bar = function(baz) { return 1; };",
-      19,
-    );
-    assert_lint_err::<NoUnusedVars>("var min = {min: 1}", 4);
-    assert_lint_err::<NoUnusedVars>(
-      "function gg(baz, bar) { return baz; }; gg();",
-      17,
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "(function(foo, baz, bar) { return baz; })();",
-      vec![10, 20],
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "(function z(foo) { var bar = 33; })();",
-      vec![12, 23],
-    );
-    assert_lint_err::<NoUnusedVars>("(function z(foo) { z(); })();", 12);
-    assert_lint_err_n::<NoUnusedVars>(
-      "function f() { var a = 1; return function(){ f(a = 2); }; }",
-      vec![9, 19],
-    );
-    assert_lint_err::<NoUnusedVars>("import x from \"y\";", 7);
-    assert_lint_err::<NoUnusedVars>(
-      "export function fn2({ x, y }) {\n console.log(x); \n};",
-      25,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "export function fn2( x, y ) {\n console.log(x); \n};",
-      24,
-    );
-    assert_lint_err::<NoUnusedVars>("var _a; var b;", 12);
-    assert_lint_err::<NoUnusedVars>("function foo(a, _b) { } foo()", 13);
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(a, _b, c) { return a; } foo();",
-      20,
-    );
-    assert_lint_err::<NoUnusedVars>(
+      { var b=2; var c=2; alert(a+b+c); }, 0);": [
+        {
+          col: 10,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        },
+        {
+          col: 15,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
+        }
+      ],
+      "function f(){var a=[];return a.map(function(){});}": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        }
+      ],
+      "function f(){var a=[];return a.map(function g(){});}": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        }
+      ],
+      "function f(){var x;function a(){x=42;}function b(){alert(x);}}": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        },
+        {
+          col: 28,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        },
+        {
+          col: 47,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        }
+      ],
+      "function f(a) {}; f();": [
+        {
+          col: 11,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "function a(x, y, z){ return y; }; a();": [
+        {
+          col: 11,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        },
+        {
+          col: 17,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "z"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "z"),
+        }
+      ],
+      "var min = Math.min": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "min"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
+        }
+      ],
+      "Foo.bar = function(baz) { return 1; };": [
+        {
+          col: 19,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "baz"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "baz"),
+        }
+      ],
+      "var min = {min: 1}": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "min"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "min"),
+        }
+      ],
+      "function gg(baz, bar) { return baz; }; gg();": [
+        {
+          col: 17,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "bar"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "bar"),
+        }
+      ],
+      "(function(foo, baz, bar) { return baz; })();": [
+        {
+          col: 10,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
+        },
+        {
+          col: 20,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "bar"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "bar"),
+        }
+      ],
+      "(function z(foo) { var bar = 33; })();": [
+        {
+          col: 12,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
+        },
+        {
+          col: 23,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "bar"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "bar"),
+        }
+      ],
+      "(function z(foo) { z(); })();": [
+        {
+          col: 12,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
+        }
+      ],
+      "function f() { var a = 1; return function(){ f(a = 2); }; }": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        },
+        {
+          col: 19,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "import x from \"y\";": [
+        {
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "export function fn2({ x, y }) {\n console.log(x); \n};": [
+        {
+          col: 25,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "y"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "y"),
+        }
+      ],
+      "export function fn2( x, y ) {\n console.log(x); \n};": [
+        {
+          col: 24,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "y"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "y"),
+        }
+      ],
+      "var _a; var b;": [
+        {
+          col: 12,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        }
+      ],
+      "function foo(a, _b) { } foo()": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "function foo(a, _b, c) { return a; } foo();": [
+        {
+          col: 20,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
+        }
+      ],
       "const data = { type: 'coords', x: 1, y: 2 };\
-     const { type, ...coords } = data;\n console.log(coords);",
-      52,
-    );
-    assert_lint_err::<NoUnusedVars>(
+     const { type, ...coords } = data;\n console.log(coords);": [
+        {
+          col: 52,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "type"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "type"),
+        }
+      ],
       "const data = { type: 'coords', x: 3, y: 2 };\
-        const { type, ...coords } = data;\n console.log(type)",
-      61,
-    );
-    assert_lint_err::<NoUnusedVars>(
+        const { type, ...coords } = data;\n console.log(type)": [
+        {
+          col: 61,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "coords"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "coords"),
+        }
+      ],
       "const data = { vars: \
       ['x','y'], x: 1, y: 2 }; const { vars: [x], ...coords } = data;\n\
-       console.log(coords)",
-      61,
-    );
-    assert_lint_err::<NoUnusedVars>("const data = { defaults: { x: 0 }, x: 1, y: 2 }; const { defaults: { x }, ...coords } = data;\n console.log(coords)", 69);
-    assert_lint_err::<NoUnusedVars>("export default function(a) {}", 24);
-    assert_lint_err::<NoUnusedVars>(
-      "export default function(a, b) { console.log(a); }",
-      27,
-    );
-    assert_lint_err::<NoUnusedVars>("export default (function(a) {});", 25);
-    assert_lint_err::<NoUnusedVars>(
-      "export default (function(a, b) { console.log(a); });",
-      28,
-    );
-    assert_lint_err::<NoUnusedVars>("export default (a) => {};", 16);
-    assert_lint_err::<NoUnusedVars>(
-      "export default (a, b) => { console.log(a); };",
-      19,
-    );
-    assert_lint_err::<NoUnusedVars>("try{}catch(err){};", 11);
-    assert_lint_err::<NoUnusedVars>(
-      "(function ({ a }, b ) { return b; })();",
-      13,
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "(function ({ a }, { b, c } ) { return b; })();",
-      vec![13, 23],
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "(function ([ a ], b ) { return b; })();",
-      13,
-    );
-    assert_lint_err_n::<NoUnusedVars>(
-      "(function ([ a ], [ b, c ] ) { return b; })();",
-      vec![13, 23],
-    );
-    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 4);
-    assert_lint_err::<NoUnusedVars>(
-      "var a = function(){ return function() { a(); } };",
-      4,
-    );
-    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 6);
-    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 6);
-
-    assert_lint_err::<NoUnusedVars>("var a = function() { a(); };", 4);
-    assert_lint_err::<NoUnusedVars>(
-      "var a = function(){ return function() { a(); } };",
-      4,
-    );
-    assert_lint_err::<NoUnusedVars>("const a = () => { a(); };", 6);
-    assert_lint_err::<NoUnusedVars>("const a = () => () => { a(); };", 6);
-    assert_lint_err_on_line_n::<NoUnusedVars>(
+       console.log(coords)": [
+        {
+          col: 61,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "const data = { defaults: { x: 0 }, x: 1, y: 2 }; const { defaults: { x }, ...coords } = data;\n console.log(coords)": [
+        {
+          col: 69,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "export default function(a) {}": [
+        {
+          col: 24,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "export default function(a, b) { console.log(a); }": [
+        {
+          col: 27,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        }
+      ],
+      "export default (function(a) {});": [
+        {
+          col: 25,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "export default (function(a, b) { console.log(a); });": [
+        {
+          col: 28,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        }
+      ],
+      "export default (a) => {};": [
+        {
+          col: 16,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "export default (a, b) => { console.log(a); };": [
+        {
+          col: 19,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "b"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "b"),
+        }
+      ],
+      "try{}catch(err){};": [
+        {
+          col: 11,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "err"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "err"),
+        }
+      ],
+      "(function ({ a }, b ) { return b; })();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "(function ({ a }, { b, c } ) { return b; })();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        },
+        {
+          col: 23,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
+        }
+      ],
+      "var a = function() { a(); };": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a = function(){ return function() { a(); } };": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "const a = () => { a(); };": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "const a = () => () => { a(); };": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
       "let a = 'a';
     a = 10;
     function foo(){
@@ -1255,10 +1588,20 @@ export default class Foo {
         a = () => {
             a = 13
         }
-    }",
-      vec![(1, 4), (3, 13)],
-    );
-    assert_lint_err_on_line_n::<NoUnusedVars>(
+    }": [
+        {
+          line: 1,
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        },
+        {
+          line: 3,
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
+        }
+      ],
       "let c = 'c'
     c = 10
     function foo1() {
@@ -1267,49 +1610,62 @@ export default class Foo {
         c = 13
       }
     }
-    c = foo1",
-      vec![(1, 4)],
-    );
-    assert_lint_err_on_line::<NoUnusedVars>(
+    c = foo1": [
+        {
+          line: 1,
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "c"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "c"),
+        }
+      ],
       "
 import { ClassDecoratorFactory } from 'decorators';
 export class Foo {}
-      ",
-      2,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "ClassDecoratorFactory"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "ClassDecoratorFactory"),
+        }
+      ],
       "
 import { Foo, Bar } from 'foo';
 function baz<Foo>() {}
 baz<Bar>();
-      ",
-      2,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Foo"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 const a: string = 'hello';
 console.log(a);
-      ",
-      2,
-      9,
-    );
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { SomeOther } from 'other';
 const a: Nullable<string> = 'hello';
 console.log(a);
-      ",
-      3,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { Another } from 'some';
@@ -1319,12 +1675,14 @@ class A {
   };
 }
 new A();
-      ",
-      3,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { Another } from 'some';
@@ -1334,11 +1692,14 @@ class A {
   }
 }
 new A();
-        ",
-      3,
-      9,
-    );
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { Another } from 'some';
@@ -1348,59 +1709,70 @@ class A {
   }
 }
 new A();
-      ",
-      3,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { Another } from 'some';
 interface A {
   do(a: Nullable);
 }
-      ",
-      3,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { Another } from 'some';
 interface A {
   other: Nullable;
 }
-        ",
-      3,
-      9,
-    );
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 function foo(a: string) {
   console.log(a);
 }
 foo();
-        ",
-      2,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 2,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 function foo(): string | null {
   return null;
 }
 foo();
-        ",
-      2,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 2,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { SomeOther } from 'some';
@@ -1409,11 +1781,14 @@ class A extends Nullable {
   other: Nullable<Another>;
 }
 new A();
-        ",
-      3,
-      9,
-    );
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
+        }
+      ],
       "
 import { Nullable } from 'nullable';
 import { SomeOther } from 'some';
@@ -1422,128 +1797,245 @@ abstract class A extends Nullable {
   other: Nullable<Another>;
 }
 new A();
-        ",
-      3,
-      9,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
+        }
+      ],
       "
 enum FormFieldIds {
   PHONE = 'phone',
   EMAIL = 'email',
 }
-        ",
-      2,
-      5,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+        ": [
+        {
+          line: 2,
+          col: 5,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "FormFieldIds"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "FormFieldIds"),
+        }
+      ],
       "
 import test from 'test';
 import baz from 'baz';
 export interface Bar extends baz.test {}
-        ",
-      2,
-      7,
-    );
+        ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
+        }
+      ]
+    };
   }
 
   // TODO(magurotuna): deals with this using ControlFlow
   #[test]
   #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_for_loop_control_flow() {
-    assert_lint_err::<NoUnusedVars>(
-      "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "(function(obj) { var name; for ( name in obj ) { } })({});",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "(function(obj) { for ( var name in obj ) { } })({});",
-      0,
-    );
+    assert_lint_err! {
+      NoUnusedVars,
+      "(function(obj) { var name; for ( name in obj ) { i(); return; } })({});": [
+        {
+          col: 21,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
+        }
+      ],
+      "(function(obj) { var name; for ( name in obj ) { } })({});": [
+        {
+          col: 21,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
+        }
+      ],
+      "(function(obj) { for ( var name in obj ) { } })({});": [
+        {
+          col: 37,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "name"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
+        }
+      ]
+    };
   }
 
   // TODO(magurotuna): deals with this using ControlFlow
   #[test]
   #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_assign_expr() {
-    assert_lint_err::<NoUnusedVars>("var a = 0; a = a + 1;", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 0; a = a + a;", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 0; a += a + 1", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 0; a++;", 0);
-    assert_lint_err::<NoUnusedVars>("function foo(a) { a = a + 1 } foo();", 0);
-    assert_lint_err::<NoUnusedVars>("function foo(a) { a += a + 1 } foo();", 0);
-    assert_lint_err::<NoUnusedVars>("function foo(a) { a++ } foo();", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 3; a = a * 5 + 6;", 0);
-    assert_lint_err::<NoUnusedVars>("var a = 2, b = 4; a = a * 2 + b;", 0);
-
-    assert_lint_err::<NoUnusedVars>("const a = 1; a += 1;", 6);
+    assert_lint_err! {
+      NoUnusedVars,
+      "var a = 0; a = a + 1;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a = 0; a = a + a;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a = 0; a += a + 1": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a = 0; a++;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "function foo(a) { a = a + 1 } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "function foo(a) { a += a + 1 } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "function foo(a) { a++ } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a = 3; a = a * 5 + 6;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "var a = 2, b = 4; a = a * 2 + b;": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ],
+      "const a = 1; a += 1;": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "a"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "a"),
+        }
+      ]
+    };
   }
 
   // TODO(magurotuna): deals with this using ControlFlow
   #[test]
   #[ignore = "control flow analysis is not implemented yet"]
   fn no_unused_vars_err_assign_to_self() {
-    assert_lint_err::<NoUnusedVars>("function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();", 0);
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(cb) { cb = (function(a) { cb(1 + a); }, cb); } foo();",
-      0,
-    );
-    assert_lint_err::<NoUnusedVars>(
-      "function foo(cb) { cb = (0, function(a) { cb(1 + a); }); } foo();",
-      0,
-    );
+    assert_lint_err! {
+      NoUnusedVars,
+      "function foo(cb) { cb = function(a) { cb(1 + a); }; bar(not_cb); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
+        }
+      ],
+      "function foo(cb) { cb = function(a) { return cb(1 + a); }(); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
+        }
+      ],
+      "function foo(cb) { cb = (function(a) { cb(1 + a); }, cb); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
+        }
+      ],
+      "function foo(cb) { cb = (0, function(a) { cb(1 + a); }); } foo();": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "cb"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "cb"),
+        }
+      ]
+    };
   }
 
   #[test]
   #[ignore = "pure method analysis is not implemented yet"]
   fn no_unused_vars_err_array_methods() {
-    assert_lint_err::<NoUnusedVars>(
-      "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);",
-      4,
-    );
+    assert_lint_err! {
+      NoUnusedVars,
+      "let myArray = [1,2,3,4].filter((x) => x == 0); myArray = myArray.filter((x) => x == 1);": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "myArray"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "myArray"),
+        }
+      ]
+    };
   }
 
   #[test]
   #[ignore = "swc cannot parse this at the moment"]
   fn no_unused_vars_ts_err_06() {
-    assert_lint_err_on_line::<NoUnusedVars>(
+    assert_lint_err! {
+      NoUnusedVars,
       "
 import test from 'test';
 import baz from 'baz';
 export interface Bar extends baz().test {}
-      ",
-      0,
-      0,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
+        }
+      ],
       "
 import test from 'test';
 import baz from 'baz';
 export class Bar implements baz.test {}
-      ",
-      0,
-      0,
-    );
-
-    assert_lint_err_on_line::<NoUnusedVars>(
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
+        }
+      ],
       "
 import test from 'test';
 import baz from 'baz';
 export class Bar implements baz().test {}
-      ",
-      0,
-      0,
-    );
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
+        }
+      ]
+    };
   }
 
   #[test]
@@ -1551,14 +2043,14 @@ export class Bar implements baz().test {}
   fn no_unused_vars_ts_ok_12() {
     assert_lint_ok! {
       NoUnusedVars,
-    "
+      "
 export class App {
   constructor(private logger: Logger) {
     console.log(this.logger);
   }
 }
       ",
-    "
+      "
 export class App {
   constructor(bar: string);
   constructor(private logger: Logger) {
@@ -1566,7 +2058,7 @@ export class App {
   }
 }
       ",
-    "
+      "
 export class App {
   constructor(baz: string, private logger: Logger) {
     console.log(baz);
@@ -1574,7 +2066,7 @@ export class App {
   }
 }
       ",
-    "
+      "
 export class App {
   constructor(baz: string, private logger: Logger, private bar: () => void) {
     console.log(this.logger);
@@ -1582,7 +2074,7 @@ export class App {
   }
 }
       ",
-    "
+      "
 export class App {
   constructor(private logger: Logger) {}
   meth() {
