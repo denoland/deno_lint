@@ -72,7 +72,7 @@ impl<'c> NoInvalidRegexpVisitor<'c> {
   fn new(context: &'c mut Context) -> Self {
     Self {
       context,
-      validator: EcmaRegexValidator::new(EcmaVersion::ES2018),
+      validator: EcmaRegexValidator::new(EcmaVersion::Es2018),
     }
   }
 

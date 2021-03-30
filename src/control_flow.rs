@@ -261,7 +261,7 @@ impl Analyzer<'_> {
         BlockKind::Function => {
           match end {
             End::Forced { .. } | End::Continue => self.mark_as_end(lo, end),
-            _ => unreachable!(),
+            _ => { /* valid code is supposed to be unreachable here */ }
           }
           self.scope.end = prev_end;
         }
@@ -1529,5 +1529,22 @@ throw err;
     assert_flow!(flow, 48, false, Some(End::forced_return())); // BlockStmt of `default`
     assert_flow!(flow, 54, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 70, false, Some(End::forced_throw())); // throw stmt
+  }
+
+  // https://github.com/denoland/deno_lint/issues/644
+  #[test]
+  fn issue_644() {
+    let src = r#"
+function foo() {
+  break;
+}
+
+function bar() {
+  continue;
+}
+"#;
+
+    // Confirms that no panic happens even if there's invalid `break` or `continue` statement
+    let _ = analyze_flow(src);
   }
 }
