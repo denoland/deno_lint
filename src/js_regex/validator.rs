@@ -94,14 +94,14 @@ fn combine_surrogate_pair(lead: i64, trail: i64) -> i64 {
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum EcmaVersion {
-  ES5,
-  ES2015,
-  ES2016,
-  ES2017,
-  ES2018,
-  ES2019,
-  ES2020,
-  ES2021,
+  Es5,
+  Es2015,
+  Es2016,
+  Es2017,
+  Es2018,
+  Es2019,
+  Es2020,
+  Es2021,
 }
 
 #[derive(Debug)]
@@ -171,9 +171,9 @@ impl EcmaRegexValidator {
       if flag == 'g'
         || flag == 'i'
         || flag == 'm'
-        || (flag == 'u' && self.ecma_version >= EcmaVersion::ES2015)
-        || (flag == 'y' && self.ecma_version >= EcmaVersion::ES2015)
-        || (flag == 's' && self.ecma_version >= EcmaVersion::ES2018)
+        || (flag == 'u' && self.ecma_version >= EcmaVersion::Es2015)
+        || (flag == 'y' && self.ecma_version >= EcmaVersion::Es2015)
+        || (flag == 's' && self.ecma_version >= EcmaVersion::Es2018)
       {
         // do nothing
       } else {
@@ -190,14 +190,14 @@ impl EcmaRegexValidator {
     u_flag: bool,
   ) -> Result<(), String> {
     self.strict = u_flag; // TODO: allow toggling strict independently of u flag
-    self.u_flag = u_flag && self.ecma_version >= EcmaVersion::ES2015;
-    self.n_flag = u_flag && self.ecma_version >= EcmaVersion::ES2018;
+    self.u_flag = u_flag && self.ecma_version >= EcmaVersion::Es2015;
+    self.n_flag = u_flag && self.ecma_version >= EcmaVersion::Es2018;
     //self.reset(source, 0, source.len(), u_flag);
     self.reset(source, 0, source.chars().count(), u_flag);
     self.consume_pattern()?;
 
     if !self.n_flag
-      && self.ecma_version >= EcmaVersion::ES2018
+      && self.ecma_version >= EcmaVersion::Es2018
       && !self.group_names.is_empty()
     {
       self.n_flag = true;
@@ -348,7 +348,7 @@ impl EcmaRegexValidator {
     // Lookahead / Lookbehind
     if self.eat2('(', '?') {
       let lookbehind =
-        self.ecma_version >= EcmaVersion::ES2018 && self.eat('<');
+        self.ecma_version >= EcmaVersion::Es2018 && self.eat('<');
       let mut flag = self.eat('=');
       if !flag {
         flag = self.eat('!');
@@ -499,7 +499,7 @@ impl EcmaRegexValidator {
       return Ok(false);
     }
 
-    if self.ecma_version >= EcmaVersion::ES2018 {
+    if self.ecma_version >= EcmaVersion::Es2018 {
       self.consume_group_specifier()?;
     } else if self.code_point_with_offset(0) == Some('?') {
       return Err("Invalid group".to_string());
@@ -716,7 +716,7 @@ impl EcmaRegexValidator {
     }
 
     if self.u_flag
-      && self.ecma_version >= EcmaVersion::ES2018
+      && self.ecma_version >= EcmaVersion::Es2018
       && (self.eat('p') || self.eat('P'))
     {
       self.last_int_value = -1;
@@ -984,7 +984,7 @@ impl EcmaRegexValidator {
   /// Returns `true` if it ate the next characters successfully.
   fn eat_regexp_identifier_start(&mut self) -> Result<bool, String> {
     let start = self.index();
-    let force_u_flag = !self.u_flag && self.ecma_version >= EcmaVersion::ES2020;
+    let force_u_flag = !self.u_flag && self.ecma_version >= EcmaVersion::Es2020;
 
     if let Some(mut cp) = self.code_point_with_offset(0) {
       self.advance();
@@ -1032,7 +1032,7 @@ impl EcmaRegexValidator {
   /// Returns `true` if it ate the next characters successfully.
   fn eat_regexp_identifier_part(&mut self) -> Result<bool, String> {
     let start = self.index();
-    let force_u_flag = !self.u_flag && self.ecma_version >= EcmaVersion::ES2020;
+    let force_u_flag = !self.u_flag && self.ecma_version >= EcmaVersion::Es2020;
     let mut cp = self.code_point_with_offset(0);
     self.advance();
     let cp1 = self.code_point_with_offset(0);
@@ -1594,7 +1594,7 @@ mod tests {
 
   #[test]
   fn count_capturing_parens_test() {
-    let mut validator = EcmaRegexValidator::new(EcmaVersion::ES2018);
+    let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
     let source = "foo|(abc)de";
     validator.reset(source, 0, source.len(), false);
     assert_eq!(validator.count_capturing_parens(), 1);

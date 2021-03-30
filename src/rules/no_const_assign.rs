@@ -105,10 +105,8 @@ impl<'c> NoConstAssignVisitor<'c> {
     span: Span,
   ) {
     if !array.elems.is_empty() {
-      for elem in array.elems.iter() {
-        if let Some(element) = elem {
-          self.check_pat(element, span);
-        }
+      for elem in array.elems.iter().flatten() {
+        self.check_pat(elem, span);
       }
     }
   }

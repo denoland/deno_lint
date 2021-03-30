@@ -92,6 +92,7 @@ pub static GLOBALS: &[(&str, bool)] = &[
   ("hasOwnProperty", false),
   ("Headers", false),
   ("Infinity", false),
+  ("Intl", false),
   ("Int16Array", false),
   ("Int32Array", false),
   ("Int8Array", false),

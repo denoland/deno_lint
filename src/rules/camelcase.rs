@@ -464,10 +464,8 @@ impl<'c> CamelcaseVisitor<'c> {
         self.check_ident(ident, IdentToCheck::variable(&ident.id));
       }
       Pat::Array(ArrayPat { ref elems, .. }) => {
-        for elem in elems {
-          if let Some(pat) = elem {
-            self.check_pat(pat);
-          }
+        for pat in elems.iter().flatten() {
+          self.check_pat(pat);
         }
       }
       Pat::Rest(RestPat { ref arg, .. }) => {

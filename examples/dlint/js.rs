@@ -17,7 +17,7 @@ use swc_common::Span;
 use swc_ecmascript::ast::Program;
 
 #[derive(Deserialize)]
-struct DiagnosticsFromJS {
+struct DiagnosticsFromJs {
   code: String,
   diagnostics: Vec<InnerDiagnostics>,
 }
@@ -43,7 +43,7 @@ fn op_add_diagnostics(
   args: Value,
   _bufs: &mut [ZeroCopyBuf],
 ) -> anyhow::Result<Value> {
-  let DiagnosticsFromJS { code, diagnostics } =
+  let DiagnosticsFromJs { code, diagnostics } =
     serde_json::from_value(args).unwrap();
 
   let mut stored = state.try_take::<Diagnostics>().unwrap_or_else(HashMap::new);
@@ -80,10 +80,10 @@ fn op_query_control_flow_by_span(
     .context("ControlFlow is not set")?;
 
   #[derive(Deserialize)]
-  struct SpanFromJS {
+  struct SpanFromJs {
     span: Span,
   }
-  let span_from_js: SpanFromJS = serde_json::from_value(args).unwrap();
+  let span_from_js: SpanFromJs = serde_json::from_value(args).unwrap();
   let meta = control_flow.meta(span_from_js.span.lo());
 
   let is_reachable = meta.map(|m| !m.unreachable);
