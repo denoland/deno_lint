@@ -608,10 +608,8 @@ where
   match pat {
     Pat::Ident(ident) => op(ExtractIdentsArgs::Ident(&ident.id)),
     Pat::Array(array_pat) => {
-      for elem in &array_pat.elems {
-        if let Some(elem_pat) = elem {
-          extract_idents_from_pat_with(elem_pat, op);
-        }
+      for elem_pat in array_pat.elems.iter().flatten() {
+        extract_idents_from_pat_with(elem_pat, op);
       }
     }
     Pat::Rest(rest_pat) => extract_idents_from_pat_with(&*rest_pat.arg, op),

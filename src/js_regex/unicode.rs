@@ -554,15 +554,15 @@ pub fn is_valid_unicode_property(
   value: &str,
 ) -> bool {
   if GC_NAME_PATTERN.contains(name)
-    && version >= EcmaVersion::ES2018
+    && version >= EcmaVersion::Es2018
     && GC_VALUE_PATTERNS.es2018.contains(value)
   {
     true
   } else if SC_NAME_PATTERN.contains(name) {
-    (version >= EcmaVersion::ES2018 && SC_VALUE_PATTERNS.es2018.contains(value))
-      || (version >= EcmaVersion::ES2019
+    (version >= EcmaVersion::Es2018 && SC_VALUE_PATTERNS.es2018.contains(value))
+      || (version >= EcmaVersion::Es2019
         && SC_VALUE_PATTERNS.es2019.contains(value))
-      || (version >= EcmaVersion::ES2020
+      || (version >= EcmaVersion::Es2020
         && SC_VALUE_PATTERNS.es2020.contains(value))
   } else {
     false
@@ -573,9 +573,9 @@ pub fn is_valid_lone_unicode_property(
   version: EcmaVersion,
   value: &str,
 ) -> bool {
-  (version >= EcmaVersion::ES2018
+  (version >= EcmaVersion::Es2018
     && BIN_PROPERTY_PATTERNS.es2018.contains(value))
-    || (version >= EcmaVersion::ES2019
+    || (version >= EcmaVersion::Es2019
       && BIN_PROPERTY_PATTERNS.es2019.contains(value))
 }
 

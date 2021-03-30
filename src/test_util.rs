@@ -12,9 +12,10 @@ use swc_ecmascript::ast::Program;
 
 #[macro_export]
 macro_rules! assert_lint_ok {
-  ($rule:ty, $($src:literal),* $(,)?) => {
+  ($rule:ty, $($test:tt),+ $(,)?) => {
     $(
-      $crate::test_util::assert_lint_ok::<$rule>($src);
+      let (src, filename) = parse_ok_test!($test);
+      $crate::test_util::assert_lint_ok::<$rule>(src, filename);
     )*
   };
 }
@@ -23,32 +24,17 @@ macro_rules! assert_lint_ok {
 macro_rules! assert_lint_err {
   (
     $rule:ty,
-    $(
-      $src:literal : [
-        $(
-          {
-            $($field:ident : $value:expr),* $(,)?
-          }
-        ),* $(,)?
-      ]
-    ),+ $(,)?
+    $($src:literal : $test:tt),+
+    $(,)?
   ) => {
     $(
-      let mut errors = Vec::new();
-      $(
-        let mut builder = $crate::test_util::LintErrBuilder::new();
-        $(
-          builder.$field($value);
-        )*
-        let e = builder.build();
-        errors.push(e);
-      )*
-      let t = $crate::test_util::LintErrTester::<$rule> {
-        src: $src,
+      let (errors, filename) = parse_err_test!($test);
+      let tester = $crate::test_util::LintErrTester::<$rule>::new(
+        $src,
         errors,
-        rule: std::marker::PhantomData,
-      };
-      t.run();
+        filename,
+      );
+      tester.run();
     )*
   };
 }
@@ -67,11 +53,104 @@ macro_rules! variant {
   }};
 }
 
+macro_rules! parse_ok_test {
+  ($src:literal) => {{
+    ($src, None)
+  }};
+  ({ src : $src:literal, filename : $filename:literal $(,)? }) => {{
+    ($src, Some($filename))
+  }};
+}
+
+macro_rules! parse_err_test {
+  (
+    [
+      $(
+        {
+          $($field:ident : $value:expr),* $(,)?
+        }
+      ),* $(,)?
+    ]
+  ) => {{
+    let filename = std::option::Option::<&str>::None;
+    let mut errors = Vec::new();
+    $(
+      let mut builder = $crate::test_util::LintErrBuilder::new();
+      $(
+        builder.$field($value);
+      )*
+      let e = builder.build();
+      errors.push(e);
+    )*
+    (errors, filename)
+  }};
+  (
+    {
+      filename : $filename:literal,
+      errors : $errors:tt $(,)?
+    }
+  ) => {{
+    let (errors, _) = parse_err_test!($errors);
+    (errors, $filename)
+  }};
+}
+
 #[derive(Default)]
 pub struct LintErrTester<T: LintRule + 'static> {
-  pub src: &'static str,
-  pub errors: Vec<LintErr>,
-  pub rule: PhantomData<T>,
+  src: &'static str,
+  errors: Vec<LintErr>,
+  filename: String,
+  rule: PhantomData<T>,
+}
+
+impl<T: LintRule + 'static> LintErrTester<T> {
+  pub fn new(
+    src: &'static str,
+    errors: Vec<LintErr>,
+    filename: Option<&str>,
+  ) -> Self {
+    Self {
+      src,
+      errors,
+      filename: match filename {
+        Some(f) => f.to_string(),
+        None => "deno_lint_err_test.tsx".to_string(),
+      },
+      rule: PhantomData,
+    }
+  }
+
+  pub fn run(self) {
+    let rule = T::new();
+    let rule_code = rule.code();
+    let diagnostics = lint(rule, self.src, self.filename);
+    assert_eq!(
+      self.errors.len(),
+      diagnostics.len(),
+      "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
+      self.errors.len(),
+      diagnostics.len(),
+      self.src,
+    );
+
+    for (error, diagnostic) in self.errors.iter().zip(&diagnostics) {
+      let LintErr {
+        line,
+        col,
+        message,
+        hint,
+      } = error;
+      assert_diagnostic_2(
+        diagnostic,
+        rule_code,
+        *line,
+        *col,
+        self.src,
+        message,
+        hint.as_deref(),
+      );
+    }
+  }
 }
 
 #[derive(Default)]
@@ -127,41 +206,11 @@ impl LintErrBuilder {
   }
 }
 
-impl<T: LintRule + 'static> LintErrTester<T> {
-  pub fn run(&self) {
-    let rule = T::new();
-    let rule_code = rule.code();
-    let diagnostics = lint(rule, self.src);
-    assert_eq!(
-      self.errors.len(),
-      diagnostics.len(),
-      "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
-      self.errors.len(),
-      diagnostics.len(),
-      self.src,
-    );
-
-    for (error, diagnostic) in self.errors.iter().zip(&diagnostics) {
-      let LintErr {
-        line,
-        col,
-        message,
-        hint,
-      } = error;
-      assert_diagnostic_2(
-        diagnostic,
-        rule_code,
-        *line,
-        *col,
-        self.src,
-        message,
-        hint.as_deref(),
-      );
-    }
-  }
-}
-
-fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
+fn lint(
+  rule: Box<dyn LintRule>,
+  source: &str,
+  filename: String,
+) -> Vec<LintDiagnostic> {
   let mut linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
@@ -170,7 +219,7 @@ fn lint(rule: Box<dyn LintRule>, source: &str) -> Vec<LintDiagnostic> {
     .build();
 
   let (_, diagnostics) = linter
-    .lint("deno_lint_test.tsx".to_string(), source.to_string())
+    .lint(filename, source.to_string())
     .unwrap_or_else(|_| panic!("Failed to lint.\n[source code]\n{}", source));
   diagnostics
 }
@@ -188,7 +237,7 @@ pub fn assert_diagnostic(
   {
     return;
   }
-  panic!(format!(
+  panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
     diagnostic.range.start.line,
@@ -197,7 +246,7 @@ pub fn assert_diagnostic(
     line,
     col,
     source,
-  ));
+  );
 }
 
 fn assert_diagnostic_2(
@@ -239,9 +288,16 @@ fn assert_diagnostic_2(
   );
 }
 
-pub fn assert_lint_ok<T: LintRule + 'static>(source: &str) {
+pub fn assert_lint_ok<T: LintRule + 'static>(
+  source: &str,
+  filename: Option<&str>,
+) {
   let rule = T::new();
-  let diagnostics = lint(rule, source);
+  let filename = match filename {
+    Some(f) => f.to_string(),
+    None => "deno_lint_ok_test.tsx".to_string(),
+  };
+  let diagnostics = lint(rule, source, filename);
   if !diagnostics.is_empty() {
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
@@ -261,7 +317,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source);
+  let diagnostics = lint(rule, source, "deno_lint_err_test.tsx".to_string());
   assert_eq!(
     diagnostics.len(),
     1,
@@ -289,7 +345,7 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source);
+  let diagnostics = lint(rule, source, "deno_lint_err_test.tsx".to_string());
   assert_eq!(
     diagnostics.len(),
     expected.len(),
