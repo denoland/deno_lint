@@ -8,7 +8,8 @@ use swc_common::{Span, Spanned};
 pub struct NoUnsafeFinally;
 
 const CODE: &str = "no-unsafe-finally";
-const HINT: &str = "Use of the control flow statements (`return`, `throw`, `break` and `continue`) in a `finally` block will most likely lead to undesired behavior. It's recommended to take a second look.";
+const HINT: &str = "Use of the control flow statements (`return`, `throw`, `break` and `continue`) in a `finally` block\
+will most likely lead to undesired behavior.";
 
 #[derive(Display)]
 enum NoUnsafeFinallyMessage {
