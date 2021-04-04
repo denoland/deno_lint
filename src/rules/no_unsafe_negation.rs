@@ -10,6 +10,9 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoUnsafeNegation;
 
+const CODE: &str = "no-unsafe-negation";
+const MESSAGE: &str = "Unexpected negation of left operand";
+
 impl LintRule for NoUnsafeNegation {
   fn new() -> Box<Self> {
     Box::new(NoUnsafeNegation)
@@ -20,7 +23,7 @@ impl LintRule for NoUnsafeNegation {
   }
 
   fn code(&self) -> &'static str {
-    "no-unsafe-negation"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
@@ -49,11 +52,7 @@ impl<'c> Visit for NoUnsafeNegationVisitor<'c> {
     if bin_expr.op == BinaryOp::In || bin_expr.op == BinaryOp::InstanceOf {
       if let Expr::Unary(unary_expr) = &*bin_expr.left {
         if unary_expr.op == UnaryOp::Bang {
-          self.context.add_diagnostic(
-            bin_expr.span,
-            "no-unsafe-negation",
-            "Unexpected negation of left operand",
-          );
+          self.context.add_diagnostic(bin_expr.span, CODE, MESSAGE);
         }
       }
     }
@@ -63,7 +62,6 @@ impl<'c> Visit for NoUnsafeNegationVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_unsafe_negation_valid() {
@@ -80,8 +78,11 @@ mod tests {
 
   #[test]
   fn no_unsafe_negation_invalid() {
-    assert_lint_err::<NoUnsafeNegation>("!1 in [1, 2, 3]", 0);
-    assert_lint_err::<NoUnsafeNegation>("!key in object", 0);
-    assert_lint_err::<NoUnsafeNegation>("!foo instanceof Date", 0);
+    assert_lint_err! {
+      NoUnsafeNegation,
+      "!1 in [1, 2, 3]": [{ col: 0, message: MESSAGE }],
+      "!key in object": [{ col: 0, message: MESSAGE }],
+      "!foo instanceof Date": [{ col: 0, message: MESSAGE }],
+    };
   }
 }
