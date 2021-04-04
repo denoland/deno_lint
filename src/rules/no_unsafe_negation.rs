@@ -33,6 +33,37 @@ impl LintRule for NoUnsafeNegation {
       ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the usage of negation operator `!` as the left operand of
+relational operators.
+
+`!` operators appearing in the left operand of the following operators will
+cause an unexpected behavior because of the operator precedence: 
+
+- `in` operator
+- `instanceof` operator
+
+For example, when developers write a code like `!key in someObject`, most
+likely they want it to behave just like `!(key in someObject)`, but actually it
+behaves like `(!key) in someObject`.
+This lint rule warns such usage of `!` operator so it will be less confusing.
+
+### Invalid:
+```typescript
+if (!key in object) {}
+if (!foo instanceof Foo) {}
+```
+
+### Valid:
+```typescript
+if (!(key in object)) {}
+if (!(foo instanceof Foo)) {}
+if ((!key) in object) {}
+if ((!foo) instanceof Foo) {}
+```
+"#
+  }
 }
 
 struct NoUnsafeNegationVisitor<'c> {
@@ -73,6 +104,8 @@ mod tests {
       "!(1 in [1, 2, 3])",
       "!(key in object)",
       "!(foo instanceof Date)",
+      "(!key) in object",
+      "(!foo) instanceof Date",
     };
   }
 
