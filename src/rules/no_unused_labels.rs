@@ -1,14 +1,20 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::ast::BreakStmt;
-use swc_ecmascript::ast::ContinueStmt;
-use swc_ecmascript::ast::Ident;
-use swc_ecmascript::ast::LabeledStmt;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use derive_more::Display;
+use dprint_swc_ecma_ast_view as AstView;
+use if_chain::if_chain;
+use swc_common::Spanned;
 
 pub struct NoUnusedLabels;
+
+const CODE: &str = "no-unused-labels";
+
+#[derive(Display)]
+enum NoUnusedLabelsMessage {
+  #[display(fmt = "`{}` label is never used", _0)]
+  Unused(String),
+}
 
 impl LintRule for NoUnusedLabels {
   fn new() -> Box<Self> {
@@ -20,92 +26,135 @@ impl LintRule for NoUnusedLabels {
   }
 
   fn code(&self) -> &'static str {
-    "no-unused-labels"
+    CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoUnusedLabelsVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: AstView::Program,
+  ) {
+    let mut handler = NoUnusedLabelsHandler::default();
+    handler.traverse(program, context);
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows unused labels.
+
+A label that is declared but never used is most likely developer's mistake. If
+that label is meant to be used, then write a code so that it will be used.
+Otherwise, remove the label.
+
+### Invalid:
+```typescript
+LABEL1: while (true) {
+  console.log(42);
+}
+
+LABEL2: for (let i = 0; i < 5; i++) {
+  console.log(42);
+}
+
+LABEL3: for (const x of xs) {
+  console.log(x);
+}
+```
+
+### Valid:
+```typescript
+LABEL1: while (true) {
+  console.log(42);
+  break LABEL1;
+}
+
+LABEL2: for (let i = 0; i < 5; i++) {
+  console.log(42);
+  continue LABEL2;
+}
+
+for (const x of xs) {
+  console.log(x);
+}
+```
+"#
   }
 }
 
-struct LabelScope {
+struct Label {
   used: bool,
   name: String,
 }
 
-struct NoUnusedLabelsVisitor<'c> {
-  context: &'c mut Context,
-  label_scopes: Vec<LabelScope>,
+#[derive(Default)]
+struct NoUnusedLabelsHandler {
+  labels: Vec<Label>,
 }
 
-impl<'c> NoUnusedLabelsVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self {
-      context,
-      label_scopes: vec![],
-    }
-  }
-
-  fn maybe_check_label(&mut self, maybe_label: Option<&Ident>) {
-    if let Some(label) = maybe_label {
-      let label_name = label.sym.as_ref();
-
-      for label_scope in self.label_scopes.iter_mut().rev() {
-        if label_scope.name == label_name {
-          label_scope.used = true;
-          break;
-        }
+impl NoUnusedLabelsHandler {
+  fn check_label(&mut self, label: Option<&AstView::Ident>) {
+    if let Some(label) = label {
+      if let Some(found) = self
+        .labels
+        .iter_mut()
+        .rfind(|l| l.name.as_str() == label.sym())
+      {
+        found.used = true;
       }
     }
   }
 }
 
-impl<'c> Visit for NoUnusedLabelsVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_labeled_stmt(
+impl Handler for NoUnusedLabelsHandler {
+  fn labeled_stmt(
     &mut self,
-    labeled_stmt: &LabeledStmt,
-    parent: &dyn Node,
+    labeled_stmt: &AstView::LabeledStmt,
+    _ctx: &mut Context,
   ) {
-    let name = labeled_stmt.label.sym.as_ref();
-    let label_scope = LabelScope {
-      name: name.to_owned(),
+    self.labels.push(Label {
       used: false,
-    };
-    self.label_scopes.push(label_scope);
-    swc_ecmascript::visit::visit_labeled_stmt(self, labeled_stmt, parent);
-    let scope = self.label_scopes.pop().expect("self.label_scopes is empty");
-    if !scope.used {
-      self.context.add_diagnostic(
-        labeled_stmt.span,
-        "no-unused-labels",
-        format!("\"{}\" label is never used", name),
-      );
-    }
+      name: labeled_stmt.label.sym().to_string(),
+    });
   }
 
-  fn visit_continue_stmt(
+  fn continue_stmt(
     &mut self,
-    continue_stmt: &ContinueStmt,
-    _parent: &dyn Node,
+    continue_stmt: &AstView::ContinueStmt,
+    _ctx: &mut Context,
   ) {
-    self.maybe_check_label(continue_stmt.label.as_ref());
+    self.check_label(continue_stmt.label);
   }
 
-  fn visit_break_stmt(&mut self, break_stmt: &BreakStmt, _parent: &dyn Node) {
-    self.maybe_check_label(break_stmt.label.as_ref());
+  fn break_stmt(
+    &mut self,
+    break_stmt: &AstView::BreakStmt,
+    _ctx: &mut Context,
+  ) {
+    self.check_label(break_stmt.label);
+  }
+
+  fn on_exit_node(&mut self, node: AstView::Node, ctx: &mut Context) {
+    if_chain! {
+      if let Some(ref labeled_stmt) = node.to::<AstView::LabeledStmt>();
+      if let Some(label) = self.labels.pop();
+      if !label.used;
+      then {
+        ctx.add_diagnostic(
+          labeled_stmt.span(),
+          CODE,
+          NoUnusedLabelsMessage::Unused(label.name),
+        );
+      }
+    }
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_unused_label_valid() {
@@ -122,15 +171,38 @@ mod tests {
 
   #[test]
   fn no_unused_label_invalid() {
-    assert_lint_err::<NoUnusedLabels>("LABEL: var a = 0;", 0);
-    assert_lint_err::<NoUnusedLabels>("LABEL: if (something) { a(); }", 0);
-    assert_lint_err::<NoUnusedLabels>(
-      "LABEL: for (let i = 0; i < 5; i++) { a(); b(); }",
-      0,
-    );
-    assert_lint_err::<NoUnusedLabels>(
-      "A: for (var i = 0; i < 10; ++i) { B: break A; }",
-      34,
-    );
+    assert_lint_err! {
+      NoUnusedLabels,
+      "LABEL: var a = 0;": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "LABEL"),
+        }
+      ],
+      "LABEL: if (something) { a(); }": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "LABEL"),
+        }
+      ],
+      "LABEL: for (let i = 0; i < 5; i++) { a(); b(); }": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "LABEL"),
+        }
+      ],
+      "A: for (var i = 0; i < 10; ++i) { B: break A; }": [
+        {
+          col: 34,
+          message: variant!(NoUnusedLabelsMessage, Unused, "B"),
+        }
+      ],
+      "A: { let A = 0; console.log(A); }": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "A"),
+        }
+      ],
+    };
   }
 }
