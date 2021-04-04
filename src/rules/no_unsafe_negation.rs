@@ -1,17 +1,22 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_ecmascript::ast::BinExpr;
-use swc_ecmascript::ast::BinaryOp;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::UnaryOp;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use derive_more::Display;
+use dprint_swc_ecma_ast_view as AstView;
+use if_chain::if_chain;
+use swc_common::Spanned;
 
 pub struct NoUnsafeNegation;
 
 const CODE: &str = "no-unsafe-negation";
-const MESSAGE: &str = "Unexpected negation of left operand";
+
+#[derive(Display)]
+enum NoUnsafeNegationMessage {
+  #[display(fmt = "Unexpected negating the left operand of `{}` operator", _0)]
+  Unexpected(String),
+}
+
+const HINT: &str = "Add parentheses to clarify which range the negation operator should be applied to";
 
 impl LintRule for NoUnsafeNegation {
   fn new() -> Box<Self> {
@@ -26,12 +31,16 @@ impl LintRule for NoUnsafeNegation {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
-    let mut visitor = NoUnsafeNegationVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: AstView::Program,
+  ) {
+    NoUnsafeNegationHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {
@@ -39,7 +48,7 @@ impl LintRule for NoUnsafeNegation {
 relational operators.
 
 `!` operators appearing in the left operand of the following operators will
-cause an unexpected behavior because of the operator precedence: 
+sometimes cause an unexpected behavior because of the operator precedence: 
 
 - `in` operator
 - `instanceof` operator
@@ -66,25 +75,22 @@ if ((!foo) instanceof Foo) {}
   }
 }
 
-struct NoUnsafeNegationVisitor<'c> {
-  context: &'c mut Context,
-}
+struct NoUnsafeNegationHandler;
 
-impl<'c> NoUnsafeNegationVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c> Visit for NoUnsafeNegationVisitor<'c> {
-  noop_visit_type!();
-
-  fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    if bin_expr.op == BinaryOp::In || bin_expr.op == BinaryOp::InstanceOf {
-      if let Expr::Unary(unary_expr) = &*bin_expr.left {
-        if unary_expr.op == UnaryOp::Bang {
-          self.context.add_diagnostic(bin_expr.span, CODE, MESSAGE);
-        }
+impl Handler for NoUnsafeNegationHandler {
+  fn bin_expr(&mut self, bin_expr: &AstView::BinExpr, ctx: &mut Context) {
+    use AstView::{BinaryOp, Expr, UnaryOp};
+    if_chain! {
+      if matches!(bin_expr.op(), BinaryOp::In | BinaryOp::InstanceOf);
+      if let Expr::Unary(unary_expr) = &bin_expr.left;
+      if unary_expr.op() == UnaryOp::Bang;
+      then {
+        ctx.add_diagnostic_with_hint(
+          bin_expr.span(),
+          CODE,
+          NoUnsafeNegationMessage::Unexpected(bin_expr.op().to_string()),
+          HINT,
+        );
       }
     }
   }
@@ -113,9 +119,27 @@ mod tests {
   fn no_unsafe_negation_invalid() {
     assert_lint_err! {
       NoUnsafeNegation,
-      "!1 in [1, 2, 3]": [{ col: 0, message: MESSAGE }],
-      "!key in object": [{ col: 0, message: MESSAGE }],
-      "!foo instanceof Date": [{ col: 0, message: MESSAGE }],
+      "!1 in [1, 2, 3]": [
+        {
+          col: 0,
+          message: variant!(NoUnsafeNegationMessage, Unexpected, "in"),
+          hint: HINT
+        }
+      ],
+      "!key in object": [
+        {
+          col: 0,
+          message: variant!(NoUnsafeNegationMessage, Unexpected, "in"),
+          hint: HINT
+        }
+      ],
+      "!foo instanceof Date": [
+        {
+          col: 0,
+          message: variant!(NoUnsafeNegationMessage, Unexpected, "instanceof"),
+          hint: HINT
+        }
+      ],
     };
   }
 }
