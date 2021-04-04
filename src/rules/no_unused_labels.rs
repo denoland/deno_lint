@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::ast::BreakStmt;
 use swc_ecmascript::ast::ContinueStmt;
 use swc_ecmascript::ast::Ident;
@@ -9,6 +10,14 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoUnusedLabels;
+
+const CODE: &str = "no-unused-labels";
+
+#[derive(Display)]
+enum NoUnusedLabelsMessage {
+  #[display(fmt = "`{}` label is never used", _0)]
+  Unused(String),
+}
 
 impl LintRule for NoUnusedLabels {
   fn new() -> Box<Self> {
@@ -20,7 +29,7 @@ impl LintRule for NoUnusedLabels {
   }
 
   fn code(&self) -> &'static str {
-    "no-unused-labels"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
@@ -83,8 +92,8 @@ impl<'c> Visit for NoUnusedLabelsVisitor<'c> {
     if !scope.used {
       self.context.add_diagnostic(
         labeled_stmt.span,
-        "no-unused-labels",
-        format!("\"{}\" label is never used", name),
+        CODE,
+        NoUnusedLabelsMessage::Unused(name.to_string()),
       );
     }
   }
@@ -105,7 +114,6 @@ impl<'c> Visit for NoUnusedLabelsVisitor<'c> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_unused_label_valid() {
@@ -122,15 +130,38 @@ mod tests {
 
   #[test]
   fn no_unused_label_invalid() {
-    assert_lint_err::<NoUnusedLabels>("LABEL: var a = 0;", 0);
-    assert_lint_err::<NoUnusedLabels>("LABEL: if (something) { a(); }", 0);
-    assert_lint_err::<NoUnusedLabels>(
-      "LABEL: for (let i = 0; i < 5; i++) { a(); b(); }",
-      0,
-    );
-    assert_lint_err::<NoUnusedLabels>(
-      "A: for (var i = 0; i < 10; ++i) { B: break A; }",
-      34,
-    );
+    assert_lint_err! {
+      NoUnusedLabels,
+      "LABEL: var a = 0;": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "LABEL"),
+        }
+      ],
+      "LABEL: if (something) { a(); }": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "LABEL"),
+        }
+      ],
+      "LABEL: for (let i = 0; i < 5; i++) { a(); b(); }": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "LABEL"),
+        }
+      ],
+      "A: for (var i = 0; i < 10; ++i) { B: break A; }": [
+        {
+          col: 34,
+          message: variant!(NoUnusedLabelsMessage, Unused, "B"),
+        }
+      ],
+      "A: { let A = 0; console.log(A); }": [
+        {
+          col: 0,
+          message: variant!(NoUnusedLabelsMessage, Unused, "A"),
+        }
+      ],
+    };
   }
 }
