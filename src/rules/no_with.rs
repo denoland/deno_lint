@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
 use crate::handler::{Handler, Traverse};
+use swc_common::Spanned;
 
 pub struct NoWith;
 
@@ -31,6 +32,23 @@ impl LintRule for NoWith {
   ) {
     NoWithHandler.traverse(program, context);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the usage of `with` statements.
+
+The `with` statement is discouraged as it may be the source of confusing bugs
+and compatibility issues. For more details, see [with - JavaScript | MDN].
+
+[with - JavaScript | MDN]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/with
+
+### Invalid:
+```typescript
+with (someVar) {
+  console.log('foo');
+}
+```
+"#
+  }
 }
 
 struct NoWithHandler;
@@ -41,7 +59,7 @@ impl Handler for NoWithHandler {
     with_stmt: &dprint_swc_ecma_ast_view::WithStmt,
     ctx: &mut Context,
   ) {
-    ctx.add_diagnostic(with_stmt.inner.span, CODE, MESSAGE);
+    ctx.add_diagnostic(with_stmt.span(), CODE, MESSAGE);
   }
 }
 
