@@ -4,14 +4,13 @@ use crate::handler::{Handler, Traverse};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
+use std::convert::TryFrom;
 use swc_atoms::JsWord;
 use swc_common::Spanned;
 
 pub struct NoDeprecatedDenoApi;
 
 const CODE: &str = "no-deprecated-deno-api";
-const MESSAGE: &str = "This API is deprecated";
-const HINT: &str = "Consider using alternative APIs in `std`";
 
 impl LintRule for NoDeprecatedDenoApi {
   fn new() -> Box<Self> {
@@ -49,6 +48,8 @@ removed from the namespace in the future.
 - `Deno.readAllSync`
 - `Deno.writeAll`
 - `Deno.writeAllSync`
+- `Deno.iter`
+- `Deno.iterSync`
 
 They are already available in `std`, so replace these deprecated ones with
 alternatives from `std`.
@@ -66,23 +67,32 @@ const c = Deno.readAllSync(reader);
 // write
 await Deno.writeAll(writer, data);
 Deno.writeAllSync(writer, data);
+
+// iter
+for await (const x of Deno.iter(xs)) {}
+for (const y of Deno.iterSync(ys)) {}
 ```
 
 ### Valid:
 ```typescript
 // buffer
-import { Buffer } from "https://deno.land/std@0.92.0/io/buffer.ts";
+import { Buffer } from "https://deno.land/std/io/buffer.ts";
 const a = new Buffer();
 
 // read
-import { readAll, readAllSync } from "https://deno.land/std@0.92.0/io/util.ts";
+import { readAll, readAllSync } from "https://deno.land/std/io/util.ts";
 const b = await readAll(reader);
 const c = readAllSync(reader);
 
 // write
-import { writeAll, writeAllSync } from "https://deno.land/std@0.92.0/io/util.ts";
+import { writeAll, writeAllSync } from "https://deno.land/std/io/util.ts";
 await writeAll(writer, data);
 writeAllSync(writer, data);
+
+// iter
+import { iter, iterSync } from "https://deno.land/std/io/util.ts";
+for await (const x of iter(xs)) {}
+for (const y of iterSync(ys)) {}
 ```
 "#
   }
@@ -94,21 +104,6 @@ writeAllSync(writer, data);
 // TODO(@magurotuna): scope analyzer enhancement is required to handle shadowing correctly.
 fn is_shadowed(symbol: &JsWord, scope: &Scope) -> bool {
   scope.ids_with_symbol(symbol).is_some()
-}
-
-/// Checks if the given member expression (made up of `obj_symbol` and `prop_symbol`) is deprecated
-/// API or not. Note that this function does not take shadowing into account, so use it after
-/// calling `is_shadowed`.
-fn is_deprecated(obj_symbol: &JsWord, prop_symbol: &JsWord) -> bool {
-  const DEPRECATED_APIS: &[&str] = &[
-    "Buffer",
-    "readAll",
-    "readAllSync",
-    "writeAll",
-    "writeAllSync",
-  ];
-
-  obj_symbol == "Deno" && DEPRECATED_APIS.iter().any(|d| *d == prop_symbol)
 }
 
 /// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
@@ -124,6 +119,74 @@ fn extract_symbol<'a>(expr: &'a AstView::Expr) -> Option<&'a JsWord> {
       ..
     }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw.value()),
     _ => None,
+  }
+}
+
+enum DeprecatedApi {
+  Buffer,
+  ReadAll,
+  ReadAllSync,
+  WriteAll,
+  WriteAllSync,
+  Iter,
+  IterSync,
+}
+
+impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
+  type Error = ();
+
+  /// Converts the given member expression (made up of `obj_symbol` and `prop_symbol`) into
+  /// `DeprecatedApi` if it's one of deprecated APIs.
+  /// Note that this conversion does not take shadowing into account, so use this after calling
+  /// `is_shadowed`.
+  fn try_from(
+    (obj_symbol, prop_symbol): (&JsWord, &JsWord),
+  ) -> Result<Self, Self::Error> {
+    if obj_symbol != "Deno" {
+      return Err(());
+    }
+
+    match prop_symbol.as_ref() {
+      "Buffer" => Ok(DeprecatedApi::Buffer),
+      "readAll" => Ok(DeprecatedApi::ReadAll),
+      "readAllSync" => Ok(DeprecatedApi::ReadAllSync),
+      "writeAll" => Ok(DeprecatedApi::WriteAll),
+      "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
+      "iter" => Ok(DeprecatedApi::Iter),
+      "iterSync" => Ok(DeprecatedApi::IterSync),
+      _ => Err(()),
+    }
+  }
+}
+
+impl DeprecatedApi {
+  fn message(&self) -> String {
+    let (name, _) = self.name_and_url();
+    format!(
+      "`{}` is deprecated and scheduled for removal in Deno 2.0",
+      name,
+    )
+  }
+
+  fn hint(&self) -> String {
+    let (name, url) = self.name_and_url();
+    format!("Use `{}` from {} instead", name, url)
+  }
+
+  fn name_and_url(&self) -> (&'static str, &'static str) {
+    const BUFFER_TS: &str = "https://deno.land/std/io/buffer.ts";
+    const UTIL_TS: &str = "https://deno.land/std/io/util.ts";
+
+    use DeprecatedApi::*;
+    match *self {
+      Buffer => ("Buffer", BUFFER_TS),
+      ReadAll => ("readAll", UTIL_TS),
+      ReadAllSync => ("readAllSync", UTIL_TS),
+      WriteAll => ("writeAll", UTIL_TS),
+      WriteAllSync => ("writeAllSync", UTIL_TS),
+      Iter => ("iter", UTIL_TS),
+      IterSync => ("iterSync", UTIL_TS),
+    }
   }
 }
 
@@ -146,9 +209,14 @@ impl Handler for NoDeprecatedDenoApiHandler {
       let obj_symbol = obj.sym();
       if !is_shadowed(obj_symbol, &ctx.scope);
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
-      if is_deprecated(obj_symbol, prop_symbol);
+      if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
       then {
-        ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(
+          member_expr.span(),
+          CODE,
+          deprecated_api.message(),
+          deprecated_api.hint(),
+        );
       }
     }
   }
@@ -168,11 +236,15 @@ mod tests {
       "Deno.foo.readAllSync();",
       "Deno.foo.writeAll();",
       "Deno.foo.writeAllSync();",
+      "Deno.foo.iter();",
+      "Deno.foo.iterSync();",
       "foo.Deno.Buffer();",
       "foo.Deno.readAll();",
       "foo.Deno.readAllSync();",
       "foo.Deno.writeAll();",
       "foo.Deno.writeAllSync();",
+      "foo.Deno.iter();",
+      "foo.Deno.iterSync();",
 
       // `Deno` is shadowed
       "const Deno = 42; const a = new Deno.Buffer();",
@@ -180,6 +252,8 @@ mod tests {
       "const Deno = 42; const a = Deno.readAllSync(reader);",
       "const Deno = 42; await Deno.writeAll(writer, data);",
       "const Deno = 42; Deno.writeAllSync(writer, data);",
+      "const Deno = 42; for await (const x of Deno.iter(xs)) {}",
+      "const Deno = 42; for (const x of Deno.iterSync(xs)) {}",
       r#"import { Deno } from "./foo.ts"; Deno.writeAllSync(writer, data);"#,
 
       // access property with string literal (shadowed)
@@ -188,6 +262,8 @@ mod tests {
       r#"const Deno = 42; Deno["readAllSync"](reader);"#,
       r#"const Deno = 42; Deno["writeAll"](writer, data);"#,
       r#"const Deno = 42; Deno["writeAllSync"](writer, data);"#,
+      r#"const Deno = 42; for await (const x of Deno["iter"](xs)) {}"#,
+      r#"const Deno = 42; for (const x of Deno["iterSync"](xs)) {}"#,
 
       // access property with template literal (shadowed)
       r#"const Deno = 42; new Deno[`Buffer`]();"#,
@@ -195,6 +271,8 @@ mod tests {
       r#"const Deno = 42; Deno[`readAllSync`](reader);"#,
       r#"const Deno = 42; Deno[`writeAll`](writer, data);"#,
       r#"const Deno = 42; Deno[`writeAllSync`](writer, data);"#,
+      r#"const Deno = 42; for await (const x of Deno[`iter`](xs)) {}"#,
+      r#"const Deno = 42; for (const x of Deno[`iterSync`](xs)) {}"#,
 
       // Ignore template literals that include expressions
       r#"const read = "read"; Deno[`${read}All`](reader);"#,
@@ -203,33 +281,168 @@ mod tests {
 
   #[test]
   fn no_deprecated_deno_api_invalid() {
+    use DeprecatedApi::*;
+
     assert_lint_err! {
       NoDeprecatedDenoApi,
-      "new Deno.Buffer();": [{ col: 4, message: MESSAGE, hint: HINT }],
-      "Deno.readAll(reader);": [{ col: 0, message: MESSAGE, hint: HINT }],
-      "Deno.readAllSync(reader);": [{ col: 0, message: MESSAGE, hint: HINT }],
-      "Deno.writeAll(writer, data);": [{ col: 0, message: MESSAGE, hint: HINT }],
-      "Deno.writeAllSync(writer, data);": [{ col: 0, message: MESSAGE, hint: HINT }],
+      "new Deno.Buffer();": [
+        {
+          col: 4,
+          message: Buffer.message(),
+          hint: Buffer.hint()
+        }
+      ],
+      "Deno.readAll(reader);": [
+        {
+          col: 0,
+          message: ReadAll.message(),
+          hint: ReadAll.hint()
+        }
+      ],
+      "Deno.readAllSync(reader);": [
+        {
+          col: 0,
+          message: ReadAllSync.message(),
+          hint: ReadAllSync.hint()
+        }
+      ],
+      "Deno.writeAll(writer, data);": [
+        {
+          col: 0,
+          message: WriteAll.message(),
+          hint: WriteAll.hint()
+        }
+      ],
+      "Deno.writeAllSync(writer, data);": [
+        {
+          col: 0,
+          message: WriteAllSync.message(),
+          hint: WriteAllSync.hint()
+        }
+      ],
+      "Deno.iter(reader);": [
+        {
+          col: 0,
+          message: Iter.message(),
+          hint: Iter.hint()
+        }
+      ],
+      "Deno.iterSync(reader);": [
+        {
+          col: 0,
+          message: IterSync.message(),
+          hint: IterSync.hint()
+        }
+      ],
 
       // access property with string literal
-      r#"new Deno["Buffer"]();"#: [{ col: 4, message: MESSAGE, hint: HINT }],
-      r#"Deno["readAll"](reader);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"Deno["readAllSync"](reader);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"Deno["writeAll"](writer, data);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"Deno["writeAllSync"](writer, data);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"new Deno["Buffer"]();"#: [
+        {
+          col: 4,
+          message: Buffer.message(),
+          hint: Buffer.hint()
+        }
+      ],
+      r#"Deno["readAll"](reader);"#: [
+        {
+          col: 0,
+          message: ReadAll.message(),
+          hint: ReadAll.hint()
+        }
+      ],
+      r#"Deno["readAllSync"](reader);"#: [
+        {
+          col: 0,
+          message: ReadAllSync.message(),
+          hint: ReadAllSync.hint()
+        }
+      ],
+      r#"Deno["writeAll"](writer, data);"#: [
+        {
+          col: 0,
+          message: WriteAll.message(),
+          hint: WriteAll.hint()
+        }
+      ],
+      r#"Deno["writeAllSync"](writer, data);"#: [
+        {
+          col: 0,
+          message: WriteAllSync.message(),
+          hint: WriteAllSync.hint()
+        }
+      ],
+      r#"Deno["iter"](reader);"#: [
+        {
+          col: 0,
+          message: Iter.message(),
+          hint: Iter.hint()
+        }
+      ],
+      r#"Deno["iterSync"](reader);"#: [
+        {
+          col: 0,
+          message: IterSync.message(),
+          hint: IterSync.hint()
+        }
+      ],
 
       // access property with template literal
-      r#"new Deno[`Buffer`]();"#: [{ col: 4, message: MESSAGE, hint: HINT }],
-      r#"Deno[`readAll`](reader);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"Deno[`readAllSync`](reader);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"Deno[`writeAll`](writer, data);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"Deno[`writeAllSync`](writer, data);"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"new Deno[`Buffer`]();"#: [
+        {
+          col: 4,
+          message: Buffer.message(),
+          hint: Buffer.hint()
+        }
+      ],
+      r#"Deno[`readAll`](reader);"#: [
+        {
+          col: 0,
+          message: ReadAll.message(),
+          hint: ReadAll.hint()
+        }
+      ],
+      r#"Deno[`readAllSync`](reader);"#: [
+        {
+          col: 0,
+          message: ReadAllSync.message(),
+          hint: ReadAllSync.hint()
+        }
+      ],
+      r#"Deno[`writeAll`](writer, data);"#: [
+        {
+          col: 0,
+          message: WriteAll.message(),
+          hint: WriteAll.hint()
+        }
+      ],
+      r#"Deno[`writeAllSync`](writer, data);"#: [
+        {
+          col: 0,
+          message: WriteAllSync.message(),
+          hint: WriteAllSync.hint()
+        }
+      ],
+      r#"Deno[`iter`](reader);"#: [
+        {
+          col: 0,
+          message: Iter.message(),
+          hint: Iter.hint()
+        }
+      ],
+      r#"Deno[`iterSync`](reader);"#: [
+        {
+          col: 0,
+          message: IterSync.message(),
+          hint: IterSync.hint()
+        }
+      ],
     }
   }
 
   #[test]
   #[ignore = "Scope analyzer enhancement is required to deal with this"]
   fn shadowed_in_unrelated_scope() {
+    use DeprecatedApi::*;
     assert_lint_err! {
       NoDeprecatedDenoApi,
       r#"
@@ -237,7 +450,14 @@ function foo () {
   const Deno = 42;
 }
 Deno.readAll(reader);
-      "#: [{ line: 5, col: 0, message: MESSAGE, hint: HINT }],
+      "#: [
+        {
+          line: 5,
+          col: 0,
+          message: ReadAll.message(),
+          hint: ReadAll.hint()
+        }
+      ],
     }
   }
 }
