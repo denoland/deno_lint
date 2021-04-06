@@ -40,7 +40,11 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDupeArgsVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -72,13 +76,13 @@ function withoutDupes(a, b, c) {
   }
 }
 
-struct NoDupeArgsVisitor<'c> {
-  context: &'c mut Context,
+struct NoDupeArgsVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   error_spans: BTreeSet<Span>,
 }
 
-impl<'c> NoDupeArgsVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDupeArgsVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       error_spans: BTreeSet::new(),
@@ -123,7 +127,7 @@ impl<'c> NoDupeArgsVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoDupeArgsVisitor<'c> {
+impl<'ctx, 'view> VisitAll for NoDupeArgsVisitor<'ctx, 'view> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {

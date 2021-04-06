@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::diagnostic::{LintDiagnostic, Position};
+use dprint_swc_ecma_ast_view::CommentsIterator;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
 
@@ -47,42 +47,26 @@ impl IgnoreDirective {
   }
 }
 
-pub fn parse_ignore_directives(
+pub fn parse_ignore_directives<'pg>(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
-  leading_comments: &HashMap<BytePos, Vec<Comment>>,
-  trailing_comments: &HashMap<BytePos, Vec<Comment>>,
+  leading_comments: CommentsIterator<'pg>,
+  trailing_comments: CommentsIterator<'pg>,
 ) -> Vec<IgnoreDirective> {
   let mut ignore_directives = vec![];
 
-  leading_comments.values().for_each(|comments| {
-    for comment in comments {
-      if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directive,
-        source_map,
-        comment,
-        false,
-      ) {
-        ignore_directives.push(ignore);
-      }
+  for comment in leading_comments.chain(trailing_comments) {
+    if let Some(ignore) = parse_ignore_comment(
+      &ignore_diagnostic_directive,
+      source_map,
+      comment,
+      false,
+    ) {
+      ignore_directives.push(ignore);
     }
-  });
+  }
 
-  trailing_comments.values().for_each(|comments| {
-    for comment in comments {
-      if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directive,
-        source_map,
-        comment,
-        false,
-      ) {
-        ignore_directives.push(ignore);
-      }
-    }
-  });
-
-  ignore_directives
-    .sort_by(|a, b| a.position.line.partial_cmp(&b.position.line).unwrap());
+  ignore_directives.sort_by_key(|d| d.position.line);
   ignore_directives
 }
 

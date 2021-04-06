@@ -9,28 +9,26 @@ use crate::ignore_directives::parse_ignore_directives;
 use crate::ignore_directives::IgnoreDirective;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::ProgramInfo;
+use dprint_swc_ecma_ast_view::{self as AstView, SpannedExt};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
-use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
 use swc_common::Spanned;
-use swc_common::{comments::Comment, SyntaxContext};
+use swc_common::SyntaxContext;
 use swc_ecmascript::parser::Syntax;
 
 pub use swc_common::SourceFile;
 
-pub struct Context {
+pub struct Context<'view> {
   pub file_name: String,
   pub diagnostics: Vec<LintDiagnostic>,
   plugin_codes: HashSet<String>,
   pub source_map: Rc<SourceMap>,
-  pub(crate) leading_comments: HashMap<BytePos, Vec<Comment>>,
-  pub(crate) trailing_comments: HashMap<BytePos, Vec<Comment>>,
+  pub(crate) program: AstView::Program<'view>,
   pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
   pub(crate) scope: Scope,
   // TODO(magurotuna): Making control_flow public is just needed for implementing plugin prototype.
@@ -39,7 +37,7 @@ pub struct Context {
   pub(crate) top_level_ctxt: SyntaxContext,
 }
 
-impl Context {
+impl<'view> Context<'view> {
   pub fn add_diagnostic(
     &mut self,
     span: Span,
@@ -369,31 +367,11 @@ impl Linter {
 
     // If there's a file ignore directive that has no codes specified we must ignore
     // whole file and skip linting it.
-    if let Some(ignore_directive) = &file_ignore_directive {
-      if ignore_directive.codes.is_empty() {
-        return vec![];
-      }
-    }
-
-    let (leading, trailing) = comments.take_all();
-    let leading_coms = Rc::try_unwrap(leading)
-      .expect("Failed to get leading comments")
-      .into_inner();
-    let leading = leading_coms.into_iter().collect();
-    let trailing_coms = Rc::try_unwrap(trailing)
-      .expect("Failed to get leading comments")
-      .into_inner();
-    let trailing = trailing_coms.into_iter().collect();
-
-    let mut ignore_directives = parse_ignore_directives(
-      &self.ignore_diagnostic_directive,
-      &self.ast_parser.source_map,
-      &leading,
-      &trailing,
-    );
-
-    if let Some(ignore_directive) = file_ignore_directive {
-      ignore_directives.insert(0, ignore_directive);
+    if matches!(
+      &file_ignore_directive,
+      Some(ignore_directive) if ignore_directive.codes.is_empty()
+    ) {
+      return vec![];
     }
 
     let scope = Scope::analyze(program);
@@ -403,45 +381,57 @@ impl Linter {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
       });
 
-    let mut context = Context {
-      file_name,
-      source_map: self.ast_parser.source_map.clone(),
-      leading_comments: leading,
-      trailing_comments: trailing,
-      ignore_directives: RefCell::new(ignore_directives),
-      scope,
-      control_flow,
-      top_level_ctxt,
-      diagnostics: Vec::new(),
-      plugin_codes: HashSet::new(),
-    };
-
-    let program_info = ProgramInfo {
+    let program_info = AstView::ProgramInfo {
       program,
       source_file: None,
       tokens: None,
-      // TODO(@magurotuna): let it have SingleThreadedComments
-      comments: None,
+      comments: Some(&comments),
     };
 
-    dprint_swc_ecma_ast_view::with_ast_view(program_info, |pg| {
+    let diagnostics = AstView::with_ast_view(program_info, |pg| {
+      let mut ignore_directives =
+        if let Some(file_ignore) = file_ignore_directive {
+          vec![file_ignore]
+        } else {
+          vec![]
+        };
+      ignore_directives.extend(parse_ignore_directives(
+        &self.ignore_diagnostic_directive,
+        &self.ast_parser.source_map,
+        pg.leading_comments_fast(&pg),
+        pg.trailing_comments_fast(&pg),
+      ));
+
+      let mut context = Context {
+        file_name,
+        source_map: self.ast_parser.source_map.clone(),
+        program: pg,
+        ignore_directives: RefCell::new(ignore_directives),
+        scope,
+        control_flow,
+        top_level_ctxt,
+        diagnostics: Vec::new(),
+        plugin_codes: HashSet::new(),
+      };
+
       // Run builtin rules
       for rule in &self.rules {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
+
+      // Run plugin rules
+      for plugin in self.plugins.iter_mut() {
+        // Ignore any error
+        let _ = plugin.run(&mut context, program.clone());
+      }
+
+      self.filter_diagnostics(&mut context)
     });
 
-    // Run plugin rules
-    for plugin in self.plugins.iter_mut() {
-      // Ignore any error
-      let _ = plugin.run(&mut context, program.clone());
-    }
-
-    let d = self.filter_diagnostics(&mut context);
     let end = Instant::now();
     debug!("Linter::lint_module took {:#?}", end - start);
 
-    d
+    diagnostics
   }
 }
 

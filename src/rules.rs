@@ -88,9 +88,9 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
-pub enum ProgramRef<'a> {
-  Module(&'a swc_ecmascript::ast::Module),
-  Script(&'a swc_ecmascript::ast::Script),
+pub enum ProgramRef<'view> {
+  Module(&'view swc_ecmascript::ast::Module),
+  Script(&'view swc_ecmascript::ast::Script),
 }
 
 pub trait LintRule {
@@ -101,14 +101,18 @@ pub trait LintRule {
 
   /// Executes lint on the given `Program`.
   /// TODO(@magurotuna): remove this after all rules get to use ast_view
-  fn lint_program<'a>(&self, context: &mut Context, program: ProgramRef<'a>);
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  );
 
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'view>(
     &self,
-    context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program,
+    context: &mut Context<'view>,
+    program: dprint_swc_ecma_ast_view::Program<'view>,
   ) {
     use ProgramView::*;
     let program_ref = match program {

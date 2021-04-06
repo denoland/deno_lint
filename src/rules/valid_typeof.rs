@@ -26,7 +26,11 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = ValidTypeofVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -91,17 +95,17 @@ typeof bar === typeof qux
   }
 }
 
-struct ValidTypeofVisitor<'c> {
-  context: &'c mut Context,
+struct ValidTypeofVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> ValidTypeofVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> ValidTypeofVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for ValidTypeofVisitor<'c> {
+impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
