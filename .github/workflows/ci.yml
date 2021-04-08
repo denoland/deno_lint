@@ -135,8 +135,8 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
           yarn global add netlify-cli
-          netlify status --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
-          netlify deploy --dir=./www/.dext/static --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN --prod
+          netlify status --auth=$NETLIFY_AUTH_TOKEN
+          netlify deploy --dir=./www/.dext/static --auth=$NETLIFY_AUTH_TOKEN --prod
 
       - name: Pre-release (linux)
         if: |
@@ -144,7 +144,7 @@ jobs:
         run: |
           cd target/release/examples
           zip -r dlint-x86_64-unknown-linux-gnu.zip dlint
-      
+
       - name: Pre-release (mac)
         if: |
           contains(matrix.os, 'macOS')
@@ -157,7 +157,7 @@ jobs:
           contains(matrix.os, 'windows')
         run: |
           Compress-Archive -CompressionLevel Optimal -Force -Path target/release/examples/dlint.exe -DestinationPath target/release/examples/dlint-x86_64-pc-windows-msvc.zip
-      
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: |
