@@ -47,6 +47,14 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
+      # Work around https://github.com/actions/cache/issues/403 by using GNU tar
+      # instead of BSD tar.
+      - name: Install GNU tar
+        if: runner.os == 'macOS'
+        run: |
+          brew install gnu-tar
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
+
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -54,35 +62,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target/
-          key: b-${{ runner.os }}-${{ github.sha }}
-          restore-keys: b-${{ runner.os }}-
-
-      # It seems that the 'target' directory does not always get restored
-      # from cache correctly on MacOS. In the build log we see the following:
-      #
-      #   Fresh serde_derive v1.0.115
-      #
-      # But a little while after that Cargo aborts because 'serde_derive' is
-      # now nowhere to be found. We're not the only ones experiencing this,
-      # see https://github.com/actions-rs/cargo/issues/111.
-      #
-      #   error[E0463]: can't find crate for `serde_derive`
-      #   ##[error]   --> /Users/runner/.cargo/registry/src/github.com-
-      #       |           1ecc6299db9ec823/serde-1.0.115/src/lib.rs:285:1
-      #       |
-      #   285 | extern crate serde_derive;
-      #       | ^^^^^^^^^^^^^^^^^^^^^^^^^^ can't find crate
-      - name: Work around MacOS + Cargo + Github Actions cache bug
-        if: runner.os == 'macOS'
-        run: |
-          cargo clean --locked --release \
-                      -p ast_node \
-                      -p is-macro \
-                      -p serde_derive \
-                      -p swc_ecma_parser \
-                      -p swc_visit \
-                      -p swc_visit_macros \
-                      -p derive_more
+          key: c-${{ runner.os }}-${{ github.sha }}
+          restore-keys: c-${{ runner.os }}-
 
       - name: Environment
         run: |
@@ -131,11 +112,12 @@ jobs:
           github.repository == 'denoland/deno_lint' &&
           github.ref == 'refs/heads/main'
         env:
+          NETLIFY_SITE_ID: def7a3c7-172e-4e2a-bc4f-601a5301403f
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
           yarn global add netlify-cli
           netlify status --auth=$NETLIFY_AUTH_TOKEN
-          netlify deploy --dir=./www/.dext/static --site=def7a3c7-172e-4e2a-bc4f-601a5301403f --auth=$NETLIFY_AUTH_TOKEN --prod
+          netlify deploy --dir=./www/.dext/static --auth=$NETLIFY_AUTH_TOKEN --prod
 
       - name: Pre-release (linux)
         if: |
@@ -143,7 +125,7 @@ jobs:
         run: |
           cd target/release/examples
           zip -r dlint-x86_64-unknown-linux-gnu.zip dlint
-      
+
       - name: Pre-release (mac)
         if: |
           contains(matrix.os, 'macOS')
@@ -156,7 +138,7 @@ jobs:
           contains(matrix.os, 'windows')
         run: |
           Compress-Archive -CompressionLevel Optimal -Force -Path target/release/examples/dlint.exe -DestinationPath target/release/examples/dlint-x86_64-pc-windows-msvc.zip
-      
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: |
