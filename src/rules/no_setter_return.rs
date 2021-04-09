@@ -51,7 +51,9 @@ impl Handler for NoSetterReturnHandler {
       use AstView::Node::*;
       match node {
         SetterProp(_) => true,
-        ClassMethod(method) => method.kind() == AstView::MethodKind::Setter,
+        ClassMethod(method) => {
+          method.method_kind() == AstView::MethodKind::Setter
+        }
         FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
         _ => {
           if let Some(parent) = node.parent() {

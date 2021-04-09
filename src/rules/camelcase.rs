@@ -452,6 +452,19 @@ impl<'c> CamelcaseVisitor<'c> {
           self.check_ts_type(&*type_ann.type_ann);
         }
       }
+      TsGetterSignature(getter_sig) => {
+        if let Expr::Ident(ident) = &*getter_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident));
+        }
+        if let Some(type_ann) = &getter_sig.type_ann {
+          self.check_ts_type(&*type_ann.type_ann);
+        }
+      }
+      TsSetterSignature(setter_sig) => {
+        if let Expr::Ident(ident) = &*setter_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident));
+        }
+      }
       TsIndexSignature(_)
       | TsCallSignatureDecl(_)
       | TsConstructSignatureDecl(_) => {}
