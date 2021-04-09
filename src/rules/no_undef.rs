@@ -417,6 +417,18 @@ mod tests {
       "export default function foo() {} foo();",
       "export default class Foo {} const foo = new Foo();",
       "export default interface Foo {} const foo: Foo = {};",
+
+      // https://github.com/denoland/deno_lint/issues/658
+      r#"function foo([nb, min]: [number, number], [value, diff]: [number, number]) { return "Hello Bug !" }"#,
+      r#"const foo = ([nb, min]: [number, number], [value, diff]: [number, number]) => "Hello Bug !""#,
+      "function foo([a]: [number], [b]: [boolean]) {}",
+      "function foo([a, x]: [number, number], [b]: [boolean]) {}",
+      "function foo([a]: [number], [b, y]: [boolean, boolean]) {}",
+      "function foo({ a }: { a: number }, [b]: [boolean]) {}",
+      "const foo = ([a]: [number], [b]: [boolean]) => {};",
+      "const foo = ([a, x]: [number, number], [b]: [boolean]) => {};",
+      "const foo = ([a]: [number], [b, y]: [boolean, boolean]) => {};",
+      "const foo = ({ a }: { a: number }, [b]: [boolean]) => {};",
     };
   }
 
