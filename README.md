@@ -126,7 +126,7 @@ $ ./target/debug/examples/dlint run ../deno/std/http/server.ts ../deno/std/http/
 Found 7 problems
 ```
 
-For more concrete implementation visit [`deno`](https://github.com/denoland/deno/blob/master/cli/lint.rs)
+For more concrete implementation visit [`deno`](https://github.com/denoland/deno/blob/main/cli/tools/lint.rs)
 
 ## Developing
 
