@@ -272,6 +272,12 @@ pub trait Handler {
   ) {
   }
   fn ts_fn_type(&mut self, _n: &AstView::TsFnType, _ctx: &mut Context) {}
+  fn ts_getter_signature(
+    &mut self,
+    _n: &AstView::TsGetterSignature,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_import_equal_decl(
     &mut self,
     _n: &AstView::TsImportEqualsDecl,
@@ -378,6 +384,12 @@ pub trait Handler {
   ) {
   }
   fn ts_rest_type(&mut self, _n: &AstView::TsRestType, _ctx: &mut Context) {}
+  fn ts_setter_signature(
+    &mut self,
+    _n: &AstView::TsSetterSignature,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_this_type(&mut self, _n: &AstView::TsThisType, _ctx: &mut Context) {}
   fn ts_tpl_lit_type(
     &mut self,
@@ -803,6 +815,9 @@ pub trait Traverse: Handler {
       TsFnType(n) => {
         self.ts_fn_type(n, ctx);
       }
+      TsGetterSignature(n) => {
+        self.ts_getter_signature(n, ctx);
+      }
       TsImportEqualsDecl(n) => {
         self.ts_import_equal_decl(n, ctx);
       }
@@ -871,6 +886,9 @@ pub trait Traverse: Handler {
       }
       TsRestType(n) => {
         self.ts_rest_type(n, ctx);
+      }
+      TsSetterSignature(n) => {
+        self.ts_setter_signature(n, ctx);
       }
       TsThisType(n) => {
         self.ts_this_type(n, ctx);
