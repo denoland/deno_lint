@@ -103,12 +103,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
 
 [[package]]
-name = "cargo_gn"
-version = "0.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ba7d7f7b201dfcbc314b14f2176c92f8ba521dab538b40e426ffed25ed7cd80"
-
-[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -224,9 +218,9 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.78.0"
+version = "0.83.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e204e05d83a7c0b6e24bd444ff2e3c945067c3c8242fc7ae4879f5480977b98"
+checksum = "8e925978edbdbb035402d5e5cfa5df74229816f9576ab530b64e150dc7a2b7ce"
 dependencies = [
  "anyhow",
  "futures",
@@ -925,12 +919,11 @@ checksum = "b5eb417147ba9860a96cfe72a0b93bf88fee1744b5636ec99ab20c1aa9376581"
 
 [[package]]
 name = "rusty_v8"
-version = "0.16.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a50f63f3030b5a676b9f6e7d53bf1f880904973c2350a3f034dbf82facca0b4f"
+checksum = "44bcf83fc222cc6caf4404414eae397c910e2f1ee31f291024434ae5cc312918"
 dependencies = [
  "bitflags",
- "cargo_gn",
  "fslock",
  "lazy_static",
  "libc",
