@@ -19,8 +19,7 @@ impl LintRule for BanUntaggedIgnore {
 
   fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
     let violated_spans: Vec<Span> = context
-      .ignore_directives
-      .borrow()
+      .ignore_directives()
       .iter()
       .filter_map(|d| {
         if d.codes.is_empty() {

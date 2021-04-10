@@ -169,7 +169,7 @@ impl<'c> NoImportAssignVisitor<'c> {
   fn check(&mut self, span: Span, i: &Ident, is_assign_to_prop: bool) {
     // All imports are top-level and as a result,
     // if an identifier is not top-level, we are not assigning to import
-    if i.span.ctxt != self.context.top_level_ctxt {
+    if i.span.ctxt != self.context.top_level_ctxt() {
       return;
     }
 
@@ -216,7 +216,7 @@ impl<'c> NoImportAssignVisitor<'c> {
 
   fn is_modifier(&self, obj: &Expr, prop: &Expr) -> bool {
     if let Expr::Ident(obj) = obj {
-      if self.context.top_level_ctxt != obj.span.ctxt {
+      if self.context.top_level_ctxt() != obj.span.ctxt {
         return false;
       }
       if self.other_bindings.contains(&obj.to_id()) {

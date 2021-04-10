@@ -653,7 +653,7 @@ impl<'c> PreferConstVisitor<'c> {
   }
 
   fn report(&mut self, span: Span) {
-    if let Ok(s) = self.context.source_map.span_to_snippet(span) {
+    if let Ok(s) = self.context.source_map().span_to_snippet(span) {
       self.context.add_diagnostic_with_hint(
         span,
         CODE,

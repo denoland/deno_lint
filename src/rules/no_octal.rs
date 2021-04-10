@@ -49,7 +49,7 @@ impl<'c> Visit for NoOctalVisitor<'c> {
 
     let raw_number = self
       .context
-      .source_map
+      .source_map()
       .span_to_snippet(literal_num.span)
       .expect("error in loading snippet");
 

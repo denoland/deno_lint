@@ -133,7 +133,7 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
       // Handle return / throw / break / continue
       for (idx, stmt) in case.cons.iter().enumerate() {
         let last = idx + 1 == case.cons.len();
-        let metadata = self.context.control_flow.meta(stmt.span().lo);
+        let metadata = self.context.control_flow().meta(stmt.span().lo);
         stops_exec |= metadata.map(|v| v.stops_execution()).unwrap_or(false);
         if stops_exec {
           should_emit_err = false;
@@ -165,7 +165,7 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
           hi: cases[case_idx + 1].span.lo(),
           ctxt: case.span.ctxt,
         };
-        let span_lines = self.context.source_map.span_to_lines(span).unwrap();
+        let span_lines = self.context.source_map().span_to_lines(span).unwrap();
         // When the case body contains only new lines `case.cons` will be empty.
         // This means there are no statements detected so we must detect case
         // bodies made up of only new lines by counting the total amount of new lines.

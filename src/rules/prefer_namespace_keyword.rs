@@ -57,7 +57,7 @@ impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
 
     let snippet = self
       .context
-      .source_map
+      .source_map()
       .span_to_snippet(mod_decl.span)
       .expect("error in load snippet");
 

@@ -180,7 +180,7 @@ impl<'c> NoUndefVisitor<'c> {
     //
     // function foo(Map) { ... }
     //
-    if ident.span.ctxt != self.context.top_level_ctxt {
+    if ident.span.ctxt != self.context.top_level_ctxt() {
       return;
     }
 

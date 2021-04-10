@@ -76,7 +76,7 @@ impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
     let raw_regex = self
       .context
-      .source_map
+      .source_map()
       .span_to_snippet(regex.span)
       .expect("error in loading snippet");
 

@@ -64,7 +64,7 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
         if &ident.id.sym == "undefined" && check_scope {
-          if let Some(_binding) = self.context.scope.var(&ident.to_id()) {
+          if let Some(_binding) = self.context.scope().var(&ident.to_id()) {
             self.report_shadowing(&ident.id);
           }
           return;

@@ -113,7 +113,7 @@ impl<'c> NoConstAssignVisitor<'c> {
 
   fn check_scope_for_const(&mut self, span: Span, name: &Ident) {
     let id = name.to_id();
-    if let Some(v) = self.context.scope.var(&id) {
+    if let Some(v) = self.context.scope().var(&id) {
       if let BindingKind::Const = v.kind() {
         self.context.add_diagnostic_with_hint(
           span,

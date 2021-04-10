@@ -88,7 +88,7 @@ impl<'c> VisitAll for NoExAssignVisitor<'c> {
     let ids = find_lhs_ids(&assign_expr.left);
 
     for id in ids {
-      let var = self.context.scope.var(&id);
+      let var = self.context.scope().var(&id);
 
       if let Some(var) = var {
         if let BindingKind::CatchClause = var.kind() {

@@ -10,7 +10,6 @@ use crate::ignore_directives::parse_ignore_directives;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView, SpannedExt};
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
@@ -190,28 +189,26 @@ impl Linter {
 
   fn filter_diagnostics(&self, context: &mut Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let ignore_directives = context.ignore_directives.clone();
-    let diagnostics = &context.diagnostics;
 
     let (executed_rule_codes, available_rule_codes) = {
-      let mut executed = context.plugin_codes.clone();
+      let mut executed = context.plugin_codes().clone();
       // builtin executed rules
       executed.extend(self.rules.iter().map(|r| r.code().to_string()));
 
-      let mut available = context.plugin_codes.clone();
+      let mut available = context.plugin_codes().clone();
       // builtin all available rules
       available.extend(get_all_rules().iter().map(|r| r.code().to_string()));
 
       (executed, available)
     };
 
-    let mut filtered_diagnostics: Vec<LintDiagnostic> = diagnostics
-      .as_slice()
+    let mut filtered_diagnostics: Vec<LintDiagnostic> = context
+      .diagnostics()
       .iter()
       .cloned()
       .filter(|diagnostic| {
-        !ignore_directives
-          .borrow_mut()
+        !context
+          .ignore_directives_mut()
           .iter_mut()
           .any(|ignore_directive| {
             ignore_directive.maybe_ignore_diagnostic(&diagnostic)
@@ -220,7 +217,7 @@ impl Linter {
       .collect();
 
     if self.lint_unused_ignore_directives || self.lint_unknown_rules {
-      for ignore_directive in ignore_directives.borrow().iter() {
+      for ignore_directive in context.ignore_directives().iter() {
         for (code, used) in ignore_directive.used_codes.iter() {
           if self.lint_unused_ignore_directives
             && !used
@@ -316,7 +313,7 @@ impl Linter {
         file_name,
         source_map: self.ast_parser.source_map.clone(),
         program: pg,
-        ignore_directives: RefCell::new(ignore_directives),
+        ignore_directives,
         scope,
         control_flow,
         top_level_ctxt,

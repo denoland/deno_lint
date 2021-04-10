@@ -166,7 +166,7 @@ impl<'c> VisitAll for NoControlRegexVisitor<'c> {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
-        if let Some(regex) = extract_regex(&self.context.scope, ident, args) {
+        if let Some(regex) = extract_regex(self.context.scope(), ident, args) {
           self.check_regex(regex.as_str(), new_expr.span);
         }
       }
@@ -177,7 +177,7 @@ impl<'c> VisitAll for NoControlRegexVisitor<'c> {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) =
-          extract_regex(&self.context.scope, ident, &call_expr.args)
+          extract_regex(self.context.scope(), ident, &call_expr.args)
         {
           self.check_regex(regex.as_str(), call_expr.span);
         }

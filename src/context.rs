@@ -3,27 +3,64 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::IgnoreDirective;
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view as AstView;
-use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::{SourceMap, Span, SyntaxContext};
 
 pub struct Context<'view> {
-  pub file_name: String,
-  pub diagnostics: Vec<LintDiagnostic>,
-  pub(crate) plugin_codes: HashSet<String>,
-  pub source_map: Rc<SourceMap>,
-  pub(crate) program: AstView::Program<'view>,
-  pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
-  pub(crate) scope: Scope,
-  // TODO(magurotuna): Making control_flow public is just needed for implementing plugin prototype.
-  // It will be likely possible to revert it to `pub(crate)` later.
-  pub control_flow: ControlFlow,
-  pub(crate) top_level_ctxt: SyntaxContext,
+  file_name: String,
+  diagnostics: Vec<LintDiagnostic>,
+  plugin_codes: HashSet<String>,
+  source_map: Rc<SourceMap>,
+  program: AstView::Program<'view>,
+  ignore_directives: Vec<IgnoreDirective>,
+  scope: Scope,
+  control_flow: ControlFlow,
+  top_level_ctxt: SyntaxContext,
 }
 
 impl<'view> Context<'view> {
+  pub fn file_name(&self) -> &str {
+    &self.file_name
+  }
+
+  pub fn diagnostics(&self) -> &[LintDiagnostic] {
+    &self.diagnostics
+  }
+
+  pub fn plugin_codes(&self) -> &HashSet<String> {
+    &self.plugin_codes
+  }
+
+  pub fn source_map(&self) -> Rc<SourceMap> {
+    Rc::clone(&self.source_map)
+  }
+
+  pub fn program(&self) -> &AstView::Program<'view> {
+    &self.program
+  }
+
+  pub fn ignore_directives(&self) -> &[IgnoreDirective] {
+    &self.ignore_directives
+  }
+
+  pub fn ignore_directives_mut(&mut self) -> &mut [IgnoreDirective] {
+    &mut self.ignore_directives
+  }
+
+  pub fn scope(&self) -> &Scope {
+    &self.scope
+  }
+
+  pub fn control_flow(&self) -> &ControlFlow {
+    &self.control_flow
+  }
+
+  pub(crate) fn top_level_ctxt(&self) -> SyntaxContext {
+    self.top_level_ctxt
+  }
+
   pub fn add_diagnostic(
     &mut self,
     span: Span,

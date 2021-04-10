@@ -73,7 +73,7 @@ impl<'c> VisitAll for NoClassAssignVisitor<'c> {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     let ids = find_lhs_ids(&assign_expr.left);
     for id in ids {
-      let var = self.context.scope.var(&id);
+      let var = self.context.scope().var(&id);
       if let Some(var) = var {
         if let BindingKind::Class = var.kind() {
           self.context.add_diagnostic_with_hint(

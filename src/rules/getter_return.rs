@@ -150,7 +150,7 @@ impl<'c> GetterReturnVisitor<'c> {
 
     if self
       .context
-      .control_flow
+      .control_flow()
       .meta(getter_body_span.lo)
       .unwrap()
       .continues_execution()

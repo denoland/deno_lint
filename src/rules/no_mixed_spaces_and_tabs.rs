@@ -44,7 +44,7 @@ impl LintRule for NoMixedSpacesAndTabs {
       ProgramRef::Module(ref m) => m.span,
       ProgramRef::Script(ref s) => s.span,
     };
-    let file_and_lines = context.source_map.span_to_lines(span).unwrap();
+    let file_and_lines = context.source_map().span_to_lines(span).unwrap();
     let file = file_and_lines.file;
 
     let mut excluded_ranges = visitor.ranges;
@@ -52,7 +52,7 @@ impl LintRule for NoMixedSpacesAndTabs {
     context.leading_comments.values().for_each(|comments| {
       for comment in comments {
         let lines = context
-          .source_map
+          .source_map()
           .span_to_lines(comment.span)
           .unwrap()
           .lines;
@@ -65,7 +65,7 @@ impl LintRule for NoMixedSpacesAndTabs {
     context.trailing_comments.values().for_each(|comments| {
       for comment in comments {
         let lines = context
-          .source_map
+          .source_map()
           .span_to_lines(comment.span)
           .unwrap()
           .lines;

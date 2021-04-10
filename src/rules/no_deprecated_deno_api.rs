@@ -207,7 +207,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
     if_chain! {
       if let ExprOrSuper::Expr(Expr::Ident(ref obj)) = &member_expr.obj;
       let obj_symbol = obj.sym();
-      if !is_shadowed(obj_symbol, &ctx.scope);
+      if !is_shadowed(obj_symbol, ctx.scope());
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
       then {

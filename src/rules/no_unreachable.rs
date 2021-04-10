@@ -68,7 +68,7 @@ impl<'c> Visit for NoUnreachableVisitor<'c> {
       _ => {}
     }
 
-    if let Some(meta) = self.context.control_flow.meta(stmt.span().lo) {
+    if let Some(meta) = self.context.control_flow().meta(stmt.span().lo) {
       if meta.unreachable {
         self.context.add_diagnostic(stmt.span(), CODE, MESSAGE)
       }
