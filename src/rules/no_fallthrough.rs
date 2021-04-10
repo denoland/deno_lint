@@ -173,7 +173,9 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
   }
 }
 
-fn allow_fall_through<'c>(comments: impl Iterator<Item = &'c Comment>) -> bool {
+fn allow_fall_through<'c>(
+  mut comments: impl Iterator<Item = &'c Comment>,
+) -> bool {
   comments.any(|comment| {
     let l = comment.text.to_ascii_lowercase();
     l.contains("fallthrough")

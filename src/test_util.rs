@@ -4,6 +4,7 @@ use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
+use dprint_swc_ecma_ast_view::TokenAndSpan;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use swc_common::comments::SingleThreadedComments;
@@ -211,7 +212,7 @@ fn lint(
   source: &str,
   filename: String,
 ) -> Vec<LintDiagnostic> {
-  let mut linter = LinterBuilder::default()
+  let linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
     .syntax(ast_parser::get_default_ts_config())
@@ -362,12 +363,21 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
 
 pub fn parse(
   source_code: &str,
-) -> (Program, SingleThreadedComments, Rc<SourceMap>) {
+) -> (
+  Program,
+  SingleThreadedComments,
+  Rc<SourceMap>,
+  Vec<TokenAndSpan>,
+) {
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();
-  let (program, comments) = ast_parser
+  let ast_parser::ParsedData {
+    program,
+    comments,
+    tokens,
+  } = ast_parser
     .parse_program("lint_test.ts", syntax, source_code)
     .unwrap();
   let source_map = Rc::clone(&ast_parser.source_map);
-  (program, comments, source_map)
+  (program, comments, source_map, tokens)
 }

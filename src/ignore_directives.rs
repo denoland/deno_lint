@@ -11,16 +11,36 @@ use swc_common::Span;
 static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
 
+/*
+#[derive(Clone, Debug, PartialEq)]
+pub enum IgnoreDirective {
+  Global(DirectiveContent),
+  Line(DirectiveContent),
+}
+*/
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct IgnoreDirective {
-  pub position: Position,
-  pub span: Span,
-  pub codes: Vec<String>,
-  pub used_codes: HashMap<String, bool>,
-  pub is_global: bool,
+  position: Position,
+  span: Span,
+  codes: Vec<String>,
+  used_codes: HashMap<String, bool>,
+  is_global: bool,
 }
 
 impl IgnoreDirective {
+  pub fn span(&self) -> Span {
+    self.span
+  }
+
+  pub fn codes(&self) -> &[String] {
+    &self.codes
+  }
+
+  pub fn used_codes(&self) -> &HashMap<String, bool> {
+    &self.used_codes
+  }
+
   /// Check if `IgnoreDirective` supresses given `diagnostic` and if so
   /// mark the directive as used
   pub fn maybe_ignore_diagnostic(
@@ -116,8 +136,7 @@ pub fn parse_ignore_comment(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::ast_parser;
-  use crate::ast_parser::AstParser;
+  use crate::test_util;
   use std::rc::Rc;
 
   #[test]
@@ -141,14 +160,7 @@ target: Record<string, any>,
 ): // deno-lint-ignore ban-types
 object | undefined {}
   "#;
-    let ast_parser = AstParser::new();
-    let (_program, comments) = ast_parser
-      .parse_program(
-        "test.ts",
-        ast_parser::get_default_ts_config(),
-        &source_code,
-      )
-      .expect("Failed to parse");
+    let (_, comments, source_map, _) = test_util::parse(source_code);
     let (leading, trailing) = comments.take_all();
     let leading_coms = Rc::try_unwrap(leading)
       .expect("Failed to get leading comments")
@@ -160,7 +172,7 @@ object | undefined {}
     let trailing: Vec<&Comment> = trailing_coms.values().flatten().collect();
     let directives = parse_ignore_directives(
       "deno-lint-ignore",
-      &ast_parser.source_map,
+      &source_map,
       leading.into_iter(),
       trailing.into_iter(),
     );

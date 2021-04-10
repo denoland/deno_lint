@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::get_default_ts_config;
 use crate::ast_parser::AstParser;
+use crate::ast_parser::ParsedData;
 use crate::ast_parser::SwcDiagnosticBuffer;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
@@ -10,13 +11,13 @@ use crate::ignore_directives::parse_ignore_directives;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView, SpannedExt};
-use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::SourceMap;
 use swc_common::Spanned;
 use swc_common::SyntaxContext;
+use swc_ecmascript::parser::token::TokenAndSpan;
 use swc_ecmascript::parser::Syntax;
 
 pub use swc_common::SourceFile;
@@ -147,14 +148,20 @@ impl Linter {
       "ast_parser.parse_program took {:#?}",
       end_parse_program - start
     );
-    let (program, comments) = parse_result?;
-    let diagnostics = self.lint_program(file_name.clone(), &program, comments);
-
+    let ParsedData {
+      program,
+      comments,
+      tokens,
+    } = parse_result?;
     let source_file = self
       .ast_parser
       .source_map
-      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .get_source_file(&swc_common::FileName::Custom(file_name.clone()))
       .unwrap();
+
+    let diagnostics =
+      self.lint_program(file_name, &program, &comments, &tokens, &source_file);
+
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
     Ok((source_file, diagnostics))
@@ -164,22 +171,24 @@ impl Linter {
     mut self,
     file_name: String,
     ast: &swc_ecmascript::ast::Program,
-    comments: swc_common::comments::SingleThreadedComments,
+    comments: &SingleThreadedComments,
     source_map: Rc<SourceMap>,
+    tokens: &Vec<TokenAndSpan>,
   ) -> Result<
     (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
     SwcDiagnosticBuffer,
   > {
-    self.ast_parser.set_source_map(source_map);
-
     let start = Instant::now();
 
-    let diagnostics = self.lint_program(file_name.clone(), ast, comments);
+    self.ast_parser.set_source_map(source_map);
     let source_file = self
       .ast_parser
       .source_map
-      .get_source_file(&swc_common::FileName::Custom(file_name))
+      .get_source_file(&swc_common::FileName::Custom(file_name.clone()))
       .unwrap();
+
+    let diagnostics =
+      self.lint_program(file_name, ast, comments, tokens, &source_file);
 
     let end = Instant::now();
     debug!("Linter::lint_with_ast took {:#?}", end - start);
@@ -187,7 +196,7 @@ impl Linter {
     Ok((source_file, diagnostics))
   }
 
-  fn filter_diagnostics(&self, context: Context) -> Vec<LintDiagnostic> {
+  fn filter_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
     let (executed_rule_codes, available_rule_codes) = {
@@ -202,29 +211,28 @@ impl Linter {
       (executed, available)
     };
 
+    let mut ignore_directives = std::mem::take(context.ignore_directives_mut());
+
     let mut filtered_diagnostics: Vec<LintDiagnostic> = context
       .diagnostics()
       .iter()
       .cloned()
       .filter(|diagnostic| {
-        !context
-          .ignore_directives_mut()
-          .iter_mut()
-          .any(|ignore_directive| {
-            ignore_directive.maybe_ignore_diagnostic(&diagnostic)
-          })
+        !ignore_directives.iter_mut().any(|ignore_directive| {
+          ignore_directive.maybe_ignore_diagnostic(&diagnostic)
+        })
       })
       .collect();
 
     if self.lint_unused_ignore_directives || self.lint_unknown_rules {
-      for ignore_directive in context.ignore_directives().iter() {
-        for (code, used) in ignore_directive.used_codes.iter() {
+      for ignore_directive in ignore_directives.iter() {
+        for (code, used) in ignore_directive.used_codes().iter() {
           if self.lint_unused_ignore_directives
             && !used
             && executed_rule_codes.contains(code)
           {
             let diagnostic = context.create_diagnostic(
-              ignore_directive.span,
+              ignore_directive.span(),
               "ban-unused-ignore",
               format!("Ignore for code \"{}\" was not used.", code),
               None,
@@ -234,7 +242,7 @@ impl Linter {
 
           if self.lint_unknown_rules && !available_rule_codes.contains(code) {
             let diagnostic = context.create_diagnostic(
-              ignore_directive.span,
+              ignore_directive.span(),
               "ban-unknown-rule-code",
               format!("Unknown rule for code \"{}\"", code),
               None,
@@ -257,7 +265,9 @@ impl Linter {
     &mut self,
     file_name: String,
     program: &swc_ecmascript::ast::Program,
-    comments: SingleThreadedComments,
+    comments: &SingleThreadedComments,
+    tokens: &Vec<TokenAndSpan>,
+    source_file: &SourceFile,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let file_ignore_directive =
@@ -276,13 +286,13 @@ impl Linter {
     // whole file and skip linting it.
     if matches!(
       &file_ignore_directive,
-      Some(ignore_directive) if ignore_directive.codes.is_empty()
+      Some(ignore_directive) if ignore_directive.codes().is_empty()
     ) {
       return vec![];
     }
 
-    let scope = Scope::analyze(program);
-    let control_flow = ControlFlow::analyze(program);
+    let scope = Scope::analyze(&program);
+    let control_flow = ControlFlow::analyze(&program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
@@ -290,9 +300,9 @@ impl Linter {
 
     let program_info = AstView::ProgramInfo {
       program,
-      source_file: None,
-      tokens: None,
-      comments: Some(&comments),
+      source_file: Some(source_file),
+      tokens: Some(tokens),
+      comments: Some(comments),
     };
 
     let diagnostics = AstView::with_ast_view(program_info, |pg| {
@@ -309,17 +319,15 @@ impl Linter {
         pg.trailing_comments_fast(&pg),
       ));
 
-      let mut context = Context {
+      let mut context = Context::new(
         file_name,
-        source_map: Rc::clone(&self.ast_parser.source_map),
-        program: pg,
+        Rc::clone(&self.ast_parser.source_map),
+        pg,
         ignore_directives,
         scope,
         control_flow,
         top_level_ctxt,
-        diagnostics: Vec::new(),
-        plugin_codes: HashSet::new(),
-      };
+      );
 
       // Run builtin rules
       for rule in &self.rules {

@@ -22,8 +22,8 @@ impl LintRule for BanUntaggedIgnore {
       .ignore_directives()
       .iter()
       .filter_map(|d| {
-        if d.codes.is_empty() {
-          Some(d.span)
+        if d.codes().is_empty() {
+          Some(d.span())
         } else {
           None
         }

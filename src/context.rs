@@ -24,6 +24,27 @@ pub struct Context<'view> {
 }
 
 impl<'view> Context<'view> {
+  pub(crate) fn new(
+    file_name: String,
+    source_map: Rc<SourceMap>,
+    program: AstView::Program<'view>,
+    ignore_directives: Vec<IgnoreDirective>,
+    scope: Scope,
+    control_flow: ControlFlow,
+    top_level_ctxt: SyntaxContext,
+  ) -> Self {
+    Self {
+      file_name,
+      source_map,
+      program,
+      ignore_directives,
+      scope,
+      control_flow,
+      top_level_ctxt,
+      diagnostics: Vec::new(),
+      plugin_codes: HashSet::new(),
+    }
+  }
   pub fn file_name(&self) -> &str {
     &self.file_name
   }
@@ -48,7 +69,7 @@ impl<'view> Context<'view> {
     &self.ignore_directives
   }
 
-  pub fn ignore_directives_mut(&mut self) -> &mut [IgnoreDirective] {
+  pub fn ignore_directives_mut(&mut self) -> &mut Vec<IgnoreDirective> {
     &mut self.ignore_directives
   }
 
@@ -64,18 +85,8 @@ impl<'view> Context<'view> {
     self.top_level_ctxt
   }
 
-  pub fn all_leading_comments(&self) -> impl Iterator<Item = &'view Comment> {
-    self.program.leading_comments_fast(&self.program)
-  }
-
-  pub fn all_trailing_comments(&self) -> impl Iterator<Item = &'view Comment> {
-    self.program.trailing_comments_fast(&self.program)
-  }
-
   pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
-    self
-      .all_leading_comments()
-      .chain(self.all_trailing_comments())
+    self.program.leading_comments_fast(&self.program)
   }
 
   pub fn leading_comments_at(

@@ -64,6 +64,14 @@ mod tests {
   use crate::test_util::*;
 
   #[test]
+  fn magurotuna() {
+    assert_lint_err::<TripleSlashReference>(
+      r#"/// <reference path="foo" />"#,
+      0,
+    );
+  }
+
+  #[test]
   fn triple_slash_reference_valid() {
     assert_lint_ok! {
       TripleSlashReference,
