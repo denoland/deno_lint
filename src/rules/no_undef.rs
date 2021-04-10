@@ -23,7 +23,11 @@ impl LintRule for NoUndef {
     "no-undef"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut collector = BindingCollector {
       declared: Default::default(),
     };
@@ -165,13 +169,13 @@ impl VisitAll for BindingCollector {
   }
 }
 
-struct NoUndefVisitor<'c> {
-  context: &'c mut Context,
+struct NoUndefVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   declared: HashSet<Id>,
 }
 
-impl<'c> NoUndefVisitor<'c> {
-  fn new(context: &'c mut Context, declared: HashSet<Id>) -> Self {
+impl<'c, 'view> NoUndefVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>, declared: HashSet<Id>) -> Self {
     Self { context, declared }
   }
 
@@ -208,7 +212,7 @@ impl<'c> NoUndefVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoUndefVisitor<'c> {
+impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {

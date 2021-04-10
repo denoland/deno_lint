@@ -38,7 +38,11 @@ impl LintRule for NoFuncAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -84,17 +88,17 @@ myFuncVar = bar;  // variable reassignment, not function re-declaration
   }
 }
 
-struct NoFuncAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoFuncAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoFuncAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoFuncAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoFuncAssignVisitor<'c> {
+impl<'c, 'view> VisitAll for NoFuncAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {

@@ -39,7 +39,11 @@ impl LintRule for NoCondAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoCondAssignVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -85,12 +89,12 @@ function setHeight(someNode) {
   }
 }
 
-struct NoCondAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoCondAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoCondAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoCondAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -119,7 +123,7 @@ impl<'c> NoCondAssignVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoCondAssignVisitor<'c> {
+impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_if_stmt(

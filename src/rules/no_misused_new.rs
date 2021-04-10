@@ -38,7 +38,11 @@ impl LintRule for NoMisusedNew {
     Box::new(NoMisusedNew)
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoMisusedNewVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -85,12 +89,12 @@ interface I {
   }
 }
 
-struct NoMisusedNewVisitor<'c> {
-  context: &'c mut Context,
+struct NoMisusedNewVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoMisusedNewVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoMisusedNewVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -109,7 +113,7 @@ impl<'c> NoMisusedNewVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoMisusedNewVisitor<'c> {
+impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
   fn visit_ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, _: &dyn Node) {
     if let TsType::TsTypeLit(lit) = &*t.type_ann {
       for member in &lit.members {

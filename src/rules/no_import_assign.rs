@@ -32,7 +32,11 @@ impl LintRule for NoImportAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut collector = Collector {
       imports: Default::default(),
       ns_imports: Default::default(),
@@ -141,8 +145,8 @@ impl Visit for Collector {
   fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
 }
 
-struct NoImportAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoImportAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   /// This hashset only contains top level bindings, so using HashSet<JsWord>
   /// also can be an option.
   imports: HashSet<Id>,
@@ -151,9 +155,9 @@ struct NoImportAssignVisitor<'c> {
   other_bindings: HashSet<Id>,
 }
 
-impl<'c> NoImportAssignVisitor<'c> {
+impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
   fn new(
-    context: &'c mut Context,
+    context: &'c mut Context<'view>,
     imports: HashSet<Id>,
     ns_imports: HashSet<Id>,
     other_bindings: HashSet<Id>,
@@ -295,7 +299,7 @@ impl<'c> NoImportAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoImportAssignVisitor<'c> {
+impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {

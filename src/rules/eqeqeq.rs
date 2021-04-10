@@ -35,7 +35,11 @@ impl LintRule for Eqeqeq {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = EqeqeqVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -67,17 +71,17 @@ if ("hello world" !== input) {}
   }
 }
 
-struct EqeqeqVisitor<'c> {
-  context: &'c mut Context,
+struct EqeqeqVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> EqeqeqVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> EqeqeqVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for EqeqeqVisitor<'c> {
+impl<'c, 'view> Visit for EqeqeqVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, parent: &dyn Node) {

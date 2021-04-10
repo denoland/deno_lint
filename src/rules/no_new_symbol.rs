@@ -23,7 +23,11 @@ impl LintRule for NoNewSymbol {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoNewSymbolVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -32,17 +36,17 @@ impl LintRule for NoNewSymbol {
   }
 }
 
-struct NoNewSymbolVisitor<'c> {
-  context: &'c mut Context,
+struct NoNewSymbolVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoNewSymbolVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoNewSymbolVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoNewSymbolVisitor<'c> {
+impl<'c, 'view> VisitAll for NoNewSymbolVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {

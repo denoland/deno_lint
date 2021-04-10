@@ -38,7 +38,11 @@ impl LintRule for NoInferrableTypes {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -113,12 +117,12 @@ function fn(s = 5, t = true) {}
   }
 }
 
-struct NoInferrableTypesVisitor<'c> {
-  context: &'c mut Context,
+struct NoInferrableTypesVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoInferrableTypesVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -343,7 +347,7 @@ impl<'c> NoInferrableTypesVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoInferrableTypesVisitor<'c> {
+impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     for param in &function.params {
       if let Pat::Assign(assign_pat) = &param.pat {

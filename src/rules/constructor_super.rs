@@ -25,7 +25,11 @@ impl LintRule for ConstructorSuper {
     "constructor-super"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = ConstructorSuperVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -159,12 +163,12 @@ fn return_before_super(constructor: &Constructor) -> Option<&ReturnStmt> {
   None
 }
 
-struct ConstructorSuperVisitor<'c> {
-  context: &'c mut Context,
+struct ConstructorSuperVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> ConstructorSuperVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -236,7 +240,7 @@ impl<'c> ConstructorSuperVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ConstructorSuperVisitor<'c> {
+impl<'c, 'view> Visit for ConstructorSuperVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, parent: &dyn Node) {

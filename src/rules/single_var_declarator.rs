@@ -16,7 +16,11 @@ impl LintRule for SingleVarDeclarator {
     "single-var-declarator"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = SingleVarDeclaratorVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -25,17 +29,17 @@ impl LintRule for SingleVarDeclarator {
   }
 }
 
-struct SingleVarDeclaratorVisitor<'c> {
-  context: &'c mut Context,
+struct SingleVarDeclaratorVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> SingleVarDeclaratorVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> SingleVarDeclaratorVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for SingleVarDeclaratorVisitor<'c> {
+impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {

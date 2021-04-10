@@ -43,7 +43,11 @@ impl LintRule for NoExtraBooleanCast {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoExtraBooleanCastVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -77,12 +81,12 @@ for(;foo;) {}
   }
 }
 
-struct NoExtraBooleanCastVisitor<'c> {
-  context: &'c mut Context,
+struct NoExtraBooleanCastVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoExtraBooleanCastVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoExtraBooleanCastVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -160,7 +164,7 @@ impl<'c> NoExtraBooleanCastVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoExtraBooleanCastVisitor<'c> {
+impl<'c, 'view> VisitAll for NoExtraBooleanCastVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _: &dyn Node) {

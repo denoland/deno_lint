@@ -21,7 +21,11 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     "explicit-module-boundary-types"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -68,12 +72,12 @@ function isValid() {
   }
 }
 
-struct ExplicitModuleBoundaryTypesVisitor<'c> {
-  context: &'c mut Context,
+struct ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -158,7 +162,7 @@ impl<'c> ExplicitModuleBoundaryTypesVisitor<'c> {
   }
 }
 
-impl<'c> Visit for ExplicitModuleBoundaryTypesVisitor<'c> {
+impl<'c, 'view> Visit for ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_module_decl(

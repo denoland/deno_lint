@@ -44,7 +44,11 @@ impl LintRule for NoControlRegex {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoControlRegexVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -80,12 +84,12 @@ const pattern4 = new RegExp("\\u0020");
   }
 }
 
-struct NoControlRegexVisitor<'c> {
-  context: &'c mut Context,
+struct NoControlRegexVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoControlRegexVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoControlRegexVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -156,7 +160,7 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   u64::from_str_radix(s.as_str(), 16).ok()
 }
 
-impl<'c> VisitAll for NoControlRegexVisitor<'c> {
+impl<'c, 'view> VisitAll for NoControlRegexVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {

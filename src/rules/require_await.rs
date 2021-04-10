@@ -48,7 +48,11 @@ impl LintRule for RequireAwait {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = RequireAwaitVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -168,13 +172,13 @@ impl FunctionInfo {
   }
 }
 
-struct RequireAwaitVisitor<'c> {
-  context: &'c mut Context,
+struct RequireAwaitVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   function_info: Option<Box<FunctionInfo>>,
 }
 
-impl<'c> RequireAwaitVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> RequireAwaitVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       function_info: None,
@@ -217,7 +221,7 @@ fn is_body_empty(maybe_body: Option<&BlockStmt>) -> bool {
   maybe_body.map_or(true, |body| body.stmts.is_empty())
 }
 
-impl<'c> Visit for RequireAwaitVisitor<'c> {
+impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {

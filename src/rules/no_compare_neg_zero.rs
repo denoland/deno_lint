@@ -40,7 +40,11 @@ impl LintRule for NoCompareNegZero {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoCompareNegZeroVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -67,17 +71,17 @@ if (Object.is(x, -0)) {}
   }
 }
 
-struct NoCompareNegZeroVisitor<'c> {
-  context: &'c mut Context,
+struct NoCompareNegZeroVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoCompareNegZeroVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoCompareNegZeroVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoCompareNegZeroVisitor<'c> {
+impl<'c, 'view> VisitAll for NoCompareNegZeroVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {

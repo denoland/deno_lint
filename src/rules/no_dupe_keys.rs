@@ -40,7 +40,11 @@ impl LintRule for NoDupeKeys {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDupeKeysVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -82,12 +86,12 @@ var foo = {
   }
 }
 
-struct NoDupeKeysVisitor<'c> {
-  context: &'c mut Context,
+struct NoDupeKeysVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoDupeKeysVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -191,7 +195,7 @@ impl PropertyInfo {
   }
 }
 
-impl<'c> VisitAll for NoDupeKeysVisitor<'c> {
+impl<'c, 'view> VisitAll for NoDupeKeysVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {

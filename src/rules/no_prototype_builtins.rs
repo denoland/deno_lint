@@ -35,7 +35,11 @@ impl LintRule for NoPrototypeBuiltins {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoPrototypeBuiltinsVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -44,17 +48,17 @@ impl LintRule for NoPrototypeBuiltins {
   }
 }
 
-struct NoPrototypeBuiltinsVisitor<'c> {
-  context: &'c mut Context,
+struct NoPrototypeBuiltinsVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoPrototypeBuiltinsVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoPrototypeBuiltinsVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoPrototypeBuiltinsVisitor<'c> {
+impl<'c, 'view> Visit for NoPrototypeBuiltinsVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {

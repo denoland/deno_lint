@@ -39,7 +39,11 @@ impl LintRule for NoDupeClassMembers {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -72,12 +76,12 @@ class Foo {
   }
 }
 
-struct NoDupeClassMembersVisitor<'c> {
-  context: &'c mut Context,
+struct NoDupeClassMembersVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoDupeClassMembersVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDupeClassMembersVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -91,7 +95,7 @@ impl<'c> NoDupeClassMembersVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoDupeClassMembersVisitor<'c> {
+impl<'c, 'view> Visit for NoDupeClassMembersVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, _: &dyn Node) {
@@ -101,13 +105,13 @@ impl<'c> Visit for NoDupeClassMembersVisitor<'c> {
   }
 }
 
-struct ClassVisitor<'a, 'b> {
-  root_visitor: &'b mut NoDupeClassMembersVisitor<'a>,
+struct ClassVisitor<'a, 'b, 'view> {
+  root_visitor: &'b mut NoDupeClassMembersVisitor<'a, 'view>,
   appeared_methods: BTreeMap<MethodToCheck, Vec<(Span, String)>>,
 }
 
-impl<'a, 'b> ClassVisitor<'a, 'b> {
-  fn new(root_visitor: &'b mut NoDupeClassMembersVisitor<'a>) -> Self {
+impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
+  fn new(root_visitor: &'b mut NoDupeClassMembersVisitor<'a, 'view>) -> Self {
     Self {
       root_visitor,
       appeared_methods: BTreeMap::new(),
@@ -128,7 +132,7 @@ impl<'a, 'b> ClassVisitor<'a, 'b> {
   }
 }
 
-impl<'a, 'b> Visit for ClassVisitor<'a, 'b> {
+impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class, _: &dyn Node) {

@@ -26,7 +26,11 @@ impl LintRule for NoAsyncPromiseExecutor {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -65,12 +69,12 @@ new Promise((resolve, reject) => {});
   }
 }
 
-struct NoAsyncPromiseExecutorVisitor<'c> {
-  context: &'c mut Context,
+struct NoAsyncPromiseExecutorVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoAsyncPromiseExecutorVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoAsyncPromiseExecutorVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
@@ -84,7 +88,7 @@ fn is_async_function(expr: &Expr) -> bool {
   }
 }
 
-impl<'c> VisitAll for NoAsyncPromiseExecutorVisitor<'c> {
+impl<'c, 'view> VisitAll for NoAsyncPromiseExecutorVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {

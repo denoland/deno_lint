@@ -42,7 +42,11 @@ impl LintRule for NoEmptyInterface {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoEmptyInterfaceVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -82,17 +86,17 @@ interface Baz extends Foo, Bar {}
   }
 }
 
-struct NoEmptyInterfaceVisitor<'c> {
-  context: &'c mut Context,
+struct NoEmptyInterfaceVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoEmptyInterfaceVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoEmptyInterfaceVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoEmptyInterfaceVisitor<'c> {
+impl<'c, 'view> Visit for NoEmptyInterfaceVisitor<'c, 'view> {
   fn visit_ts_interface_decl(
     &mut self,
     interface_decl: &TsInterfaceDecl,

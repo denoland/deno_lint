@@ -24,7 +24,11 @@ impl LintRule for BanTypes {
     "ban-types"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = BanTypesVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -74,12 +78,12 @@ let f: Record<string, unknown>;
   }
 }
 
-struct BanTypesVisitor<'c> {
-  context: &'c mut Context,
+struct BanTypesVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> BanTypesVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> BanTypesVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
@@ -104,7 +108,7 @@ fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
   BAN_TYPES_MESSAGE.get(ident.as_ref()).copied()
 }
 
-impl<'c> Visit for BanTypesVisitor<'c> {
+impl<'c, 'view> Visit for BanTypesVisitor<'c, 'view> {
   fn visit_ts_type_ref(&mut self, ts_type_ref: &TsTypeRef, _parent: &dyn Node) {
     if let TsEntityName::Ident(ident) = &ts_type_ref.type_name {
       if let Some(message) = get_message(&ident.sym) {

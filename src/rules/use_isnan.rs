@@ -19,7 +19,11 @@ impl LintRule for UseIsNaN {
     "use-isnan"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = UseIsNaNVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -28,12 +32,12 @@ impl LintRule for UseIsNaN {
   }
 }
 
-struct UseIsNaNVisitor<'c> {
-  context: &'c mut Context,
+struct UseIsNaNVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> UseIsNaNVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> UseIsNaNVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
@@ -42,7 +46,7 @@ fn is_nan_identifier(ident: &swc_ecmascript::ast::Ident) -> bool {
   ident.sym == *"NaN"
 }
 
-impl<'c> Visit for UseIsNaNVisitor<'c> {
+impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_bin_expr(

@@ -37,7 +37,11 @@ impl LintRule for NoConstantCondition {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoConstantConditionVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -68,12 +72,12 @@ do {} while (x === 2);
   }
 }
 
-struct NoConstantConditionVisitor<'c> {
-  context: &'c mut Context,
+struct NoConstantConditionVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoConstantConditionVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -195,7 +199,7 @@ impl<'c> NoConstantConditionVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoConstantConditionVisitor<'c> {
+impl<'c, 'view> VisitAll for NoConstantConditionVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _parent: &dyn Node) {

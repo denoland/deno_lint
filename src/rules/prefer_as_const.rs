@@ -40,7 +40,11 @@ impl LintRule for PreferAsConst {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = PreferAsConstVisitor::new(context);
 
     match program {
@@ -50,12 +54,12 @@ impl LintRule for PreferAsConst {
   }
 }
 
-struct PreferAsConstVisitor<'c> {
-  context: &'c mut Context,
+struct PreferAsConstVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> PreferAsConstVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> PreferAsConstVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -89,7 +93,7 @@ impl<'c> PreferAsConstVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for PreferAsConstVisitor<'c> {
+impl<'c, 'view> VisitAll for PreferAsConstVisitor<'c, 'view> {
   fn visit_ts_as_expr(&mut self, as_expr: &TsAsExpr, _: &dyn Node) {
     self.compare(&as_expr.type_ann, &as_expr.expr, as_expr.type_ann.span());
   }

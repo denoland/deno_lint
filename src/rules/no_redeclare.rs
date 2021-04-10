@@ -26,7 +26,11 @@ impl LintRule for NoRedeclare {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoRedeclareVisitor {
       context,
       bindings: Default::default(),
@@ -38,13 +42,13 @@ impl LintRule for NoRedeclare {
   }
 }
 
-struct NoRedeclareVisitor<'c> {
-  context: &'c mut Context,
+struct NoRedeclareVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   /// TODO(kdy1): Change this to HashMap<Id, Vec<Span>> and use those spans to point previous bindings/
   bindings: HashSet<Id>,
 }
 
-impl<'c> NoRedeclareVisitor<'c> {
+impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
   fn declare(&mut self, i: &Ident) {
     let id = i.to_id();
 
@@ -54,7 +58,7 @@ impl<'c> NoRedeclareVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoRedeclareVisitor<'c> {
+impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {

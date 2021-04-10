@@ -27,7 +27,11 @@ impl LintRule for NoInvalidRegexp {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoInvalidRegexpVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -63,13 +67,13 @@ fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {
   None
 }
 
-struct NoInvalidRegexpVisitor<'c> {
-  context: &'c mut Context,
+struct NoInvalidRegexpVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   validator: EcmaRegexValidator,
 }
 
-impl<'c> NoInvalidRegexpVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       validator: EcmaRegexValidator::new(EcmaVersion::Es2018),
@@ -120,7 +124,7 @@ impl<'c> NoInvalidRegexpVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoInvalidRegexpVisitor<'c> {
+impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(

@@ -37,7 +37,11 @@ impl LintRule for NoDeleteVar {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDeleteVarVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -73,17 +77,17 @@ delete obj.a; // returns true;
   }
 }
 
-struct NoDeleteVarVisitor<'c> {
-  context: &'c mut Context,
+struct NoDeleteVarVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoDeleteVarVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDeleteVarVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoDeleteVarVisitor<'c> {
+impl<'c, 'view> Visit for NoDeleteVarVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _parent: &dyn Node) {

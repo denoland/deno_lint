@@ -48,7 +48,11 @@ impl LintRule for NoUnusedVars {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut collector = Collector::default();
     match program {
       ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
@@ -301,15 +305,15 @@ fn get_id(r: &TsEntityName) -> Id {
   }
 }
 
-struct NoUnusedVarVisitor<'c> {
-  context: &'c mut Context,
+struct NoUnusedVarVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   used_vars: HashSet<Id>,
   used_types: HashSet<Id>,
 }
 
-impl<'c> NoUnusedVarVisitor<'c> {
+impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
   fn new(
-    context: &'c mut Context,
+    context: &'c mut Context<'view>,
     used_vars: HashSet<Id>,
     used_types: HashSet<Id>,
   ) -> Self {
@@ -321,7 +325,7 @@ impl<'c> NoUnusedVarVisitor<'c> {
   }
 }
 
-impl<'c> NoUnusedVarVisitor<'c> {
+impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
   fn handle_id(&mut self, ident: &Ident) {
     if ident.sym.starts_with('_') {
       return;
@@ -339,7 +343,7 @@ impl<'c> NoUnusedVarVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoUnusedVarVisitor<'c> {
+impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   fn visit_arrow_expr(&mut self, expr: &ArrowExpr, _: &dyn Node) {
     let declared_idents: Vec<Ident> = find_ids(&expr.params);
 

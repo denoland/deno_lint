@@ -48,7 +48,11 @@ impl LintRule for PreferConst {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut collector = VariableCollector::new();
     match program {
       ProgramRef::Module(ref m) => collector.visit_module(m, &DUMMY_NODE),
@@ -579,11 +583,11 @@ impl Visit for VariableCollector {
   }
 }
 
-struct PreferConstVisitor<'c> {
+struct PreferConstVisitor<'c, 'view> {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
   var_groups: DisjointSet,
-  context: &'c mut Context,
+  context: &'c mut Context<'view>,
 }
 
 enum ExtractIdentsArgs<'a> {
@@ -638,9 +642,9 @@ where
   }
 }
 
-impl<'c> PreferConstVisitor<'c> {
+impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   fn new(
-    context: &'c mut Context,
+    context: &'c mut Context<'view>,
     scopes: BTreeMap<ScopeRange, Scope>,
     var_groups: DisjointSet,
   ) -> Self {
@@ -725,7 +729,7 @@ impl<'c> PreferConstVisitor<'c> {
   }
 }
 
-impl<'c> Visit for PreferConstVisitor<'c> {
+impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_module(&mut self, module: &Module, _: &dyn Node) {

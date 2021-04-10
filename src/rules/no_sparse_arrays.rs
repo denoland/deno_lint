@@ -15,7 +15,11 @@ impl LintRule for NoSparseArrays {
     "no-sparse-arrays"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoSparseArraysVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -24,17 +28,17 @@ impl LintRule for NoSparseArrays {
   }
 }
 
-struct NoSparseArraysVisitor<'c> {
-  context: &'c mut Context,
+struct NoSparseArraysVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoSparseArraysVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoSparseArraysVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoSparseArraysVisitor<'c> {
+impl<'c, 'view> Visit for NoSparseArraysVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_array_lit(

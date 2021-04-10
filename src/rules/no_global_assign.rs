@@ -42,7 +42,11 @@ impl LintRule for NoGlobalAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut collector = Collector {
       bindings: Default::default(),
     };
@@ -128,15 +132,15 @@ impl Visit for Collector {
   fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
 }
 
-struct NoGlobalAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoGlobalAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   /// This hashset only contains top level bindings, so using HashSet<JsWord>
   /// also can be an option.
   bindings: HashSet<Id>,
 }
 
-impl<'c> NoGlobalAssignVisitor<'c> {
-  fn new(context: &'c mut Context, bindings: HashSet<Id>) -> Self {
+impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>, bindings: HashSet<Id>) -> Self {
     Self { context, bindings }
   }
 
@@ -167,7 +171,7 @@ impl<'c> NoGlobalAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoGlobalAssignVisitor<'c> {
+impl<'c, 'view> Visit for NoGlobalAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, e: &AssignExpr, _: &dyn Node) {

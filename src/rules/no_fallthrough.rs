@@ -38,7 +38,11 @@ impl LintRule for NoFallthrough {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoFallthroughVisitor { context };
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -96,11 +100,11 @@ switch(myVar) {
   }
 }
 
-struct NoFallthroughVisitor<'c> {
-  context: &'c mut Context,
+struct NoFallthroughVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> Visit for NoFallthroughVisitor<'c> {
+impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
