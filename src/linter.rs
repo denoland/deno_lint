@@ -248,8 +248,7 @@ impl Linter {
       }
     }
 
-    filtered_diagnostics
-      .sort_by(|a, b| a.range.start.line.cmp(&b.range.start.line));
+    filtered_diagnostics.sort_by_key(|d| d.range.start.line);
 
     let end = Instant::now();
     debug!("Linter::filter_diagnostics took {:#?}", end - start);
