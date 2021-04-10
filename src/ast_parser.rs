@@ -156,6 +156,10 @@ impl AstParser {
     }
   }
 
+  pub(crate) fn set_source_map(&mut self, source_map: Rc<SourceMap>) {
+    self.source_map = source_map;
+  }
+
   pub(crate) fn parse_program(
     &self,
     file_name: &str,

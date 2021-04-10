@@ -261,7 +261,7 @@ impl Linter {
     );
     self.has_linted = true;
 
-    self.ast_parser.source_map = source_map;
+    self.ast_parser.set_source_map(source_map);
 
     let start = Instant::now();
 
