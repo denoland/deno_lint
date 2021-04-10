@@ -97,7 +97,6 @@ impl LinterBuilder {
 }
 
 pub struct Linter {
-  has_linted: bool,
   ast_parser: AstParser,
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
@@ -119,7 +118,6 @@ impl Linter {
     plugins: Vec<Box<dyn Plugin>>,
   ) -> Self {
     Linter {
-      has_linted: false,
       ast_parser: AstParser::new(),
       ignore_file_directive,
       ignore_diagnostic_directive,
@@ -132,18 +130,13 @@ impl Linter {
   }
 
   pub fn lint(
-    &mut self,
+    mut self,
     file_name: String,
     source_code: String,
   ) -> Result<
     (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
     SwcDiagnosticBuffer,
   > {
-    assert!(
-      !self.has_linted,
-      "Linter can be used only on a single module."
-    );
-    self.has_linted = true;
     let start = Instant::now();
 
     let parse_result =
@@ -169,7 +162,7 @@ impl Linter {
   }
 
   pub fn lint_with_ast(
-    &mut self,
+    mut self,
     file_name: String,
     ast: &swc_ecmascript::ast::Program,
     comments: swc_common::comments::SingleThreadedComments,
@@ -178,12 +171,6 @@ impl Linter {
     (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
     SwcDiagnosticBuffer,
   > {
-    assert!(
-      !self.has_linted,
-      "Linter can be used only on a single module."
-    );
-    self.has_linted = true;
-
     self.ast_parser.set_source_map(source_map);
 
     let start = Instant::now();
