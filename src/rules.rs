@@ -95,7 +95,7 @@ pub enum ProgramRef<'view> {
 }
 
 pub trait LintRule {
-  /// Creates a instance of this rule.
+  /// Creates an instance of this rule.
   fn new() -> Box<Self>
   where
     Self: Sized;
