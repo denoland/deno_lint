@@ -42,7 +42,6 @@ impl Scope {
   }
 
   // Get all declarations with a symbol.
-  #[allow(dead_code)]
   pub fn ids_with_symbol(&self, sym: &JsWord) -> Option<&Vec<Id>> {
     self.symbols.get(sym)
   }

@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::Context as _;
 use deno_core::error::AnyError;
+use deno_core::futures::StreamExt;
+use deno_core::resolve_url_or_path;
 use deno_core::FsModuleLoader;
 use deno_core::JsRuntime;
-use deno_core::ModuleSpecifier;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
@@ -136,7 +137,7 @@ impl JsRuleRunner {
 
     let module_id =
       deno_core::futures::executor::block_on(runtime.load_module(
-        &ModuleSpecifier::resolve_url_or_path("dummy.js").unwrap(),
+        &resolve_url_or_path("dummy.js").unwrap(),
         Some(create_dummy_source(plugin_path)),
       ))
       .unwrap();
@@ -158,8 +159,9 @@ impl Plugin for JsRuleRunner {
       .put(context.control_flow.clone());
 
     deno_core::futures::executor::block_on(
-      self.runtime.mod_evaluate(self.module_id),
-    )?;
+      self.runtime.mod_evaluate(self.module_id).next(),
+    )
+    .unwrap()?;
 
     let codes = self
       .runtime
