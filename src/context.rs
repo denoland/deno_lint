@@ -2,10 +2,13 @@ use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::IgnoreDirective;
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view as AstView;
+use dprint_swc_ecma_ast_view::{
+  self as AstView, BytePos, RootNode, SpannedExt,
+};
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
+use swc_common::comments::Comment;
 use swc_common::{SourceMap, Span, SyntaxContext};
 
 pub struct Context<'view> {
@@ -59,6 +62,42 @@ impl<'view> Context<'view> {
 
   pub(crate) fn top_level_ctxt(&self) -> SyntaxContext {
     self.top_level_ctxt
+  }
+
+  pub fn all_leading_comments(&self) -> impl Iterator<Item = &'view Comment> {
+    self.program.leading_comments_fast(&self.program)
+  }
+
+  pub fn all_trailing_comments(&self) -> impl Iterator<Item = &'view Comment> {
+    self.program.trailing_comments_fast(&self.program)
+  }
+
+  pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
+    self
+      .all_leading_comments()
+      .chain(self.all_trailing_comments())
+  }
+
+  pub fn leading_comments_at(
+    &self,
+    lo: BytePos,
+  ) -> impl Iterator<Item = &'view Comment> {
+    self
+      .program
+      .comments()
+      .expect("Program should have information about comments, but doesn't")
+      .leading_comments(lo)
+  }
+
+  pub fn trailing_comments_at(
+    &self,
+    hi: BytePos,
+  ) -> impl Iterator<Item = &'view Comment> {
+    self
+      .program
+      .comments()
+      .expect("Program should have information about comments, but doesn't")
+      .trailing_comments(hi)
   }
 
   pub fn add_diagnostic(

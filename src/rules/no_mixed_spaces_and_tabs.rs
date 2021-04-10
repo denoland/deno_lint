@@ -49,32 +49,17 @@ impl LintRule for NoMixedSpacesAndTabs {
 
     let mut excluded_ranges = visitor.ranges;
 
-    context.leading_comments.values().for_each(|comments| {
-      for comment in comments {
-        let lines = context
-          .source_map()
-          .span_to_lines(comment.span)
-          .unwrap()
-          .lines;
-        for line in lines.iter().skip(1) {
-          let (lo, hi) = file.line_bounds(line.line_index as usize);
-          excluded_ranges.push(Span::new(lo, hi, SyntaxContext::empty()));
-        }
+    for comment in context.all_comments() {
+      let lines = context
+        .source_map()
+        .span_to_lines(comment.span)
+        .unwrap()
+        .lines;
+      for line in lines.iter().skip(1) {
+        let (lo, hi) = file.line_bounds(line.line_index as usize);
+        excluded_ranges.push(Span::new(lo, hi, SyntaxContext::empty()));
       }
-    });
-    context.trailing_comments.values().for_each(|comments| {
-      for comment in comments {
-        let lines = context
-          .source_map()
-          .span_to_lines(comment.span)
-          .unwrap()
-          .lines;
-        for line in lines.iter().skip(1) {
-          let (lo, hi) = file.line_bounds(line.line_index as usize);
-          excluded_ranges.push(Span::new(lo, hi, SyntaxContext::empty()));
-        }
-      }
-    });
+    }
 
     let excluded_ranges = excluded_ranges.iter();
     for line_index in 0..file.count_lines() {

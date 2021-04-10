@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::diagnostic::{LintDiagnostic, Position};
-use dprint_swc_ecma_ast_view::CommentsIterator;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -47,11 +46,11 @@ impl IgnoreDirective {
   }
 }
 
-pub fn parse_ignore_directives<'pg>(
+pub fn parse_ignore_directives<'view>(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
-  leading_comments: CommentsIterator<'pg>,
-  trailing_comments: CommentsIterator<'pg>,
+  leading_comments: impl Iterator<Item = &'view Comment>,
+  trailing_comments: impl Iterator<Item = &'view Comment>,
 ) -> Vec<IgnoreDirective> {
   let mut ignore_directives = vec![];
 
@@ -157,13 +156,13 @@ object | undefined {}
     let trailing_coms = Rc::try_unwrap(trailing)
       .expect("Failed to get trailing comments")
       .into_inner();
-    let leading = leading_coms.into_iter().collect();
-    let trailing = trailing_coms.into_iter().collect();
+    let leading: Vec<&Comment> = leading_coms.values().flatten().collect();
+    let trailing: Vec<&Comment> = trailing_coms.values().flatten().collect();
     let directives = parse_ignore_directives(
       "deno-lint-ignore",
       &ast_parser.source_map,
-      &leading,
-      &trailing,
+      leading.into_iter(),
+      trailing.into_iter(),
     );
 
     assert_eq!(directives.len(), 4);

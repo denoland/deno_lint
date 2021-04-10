@@ -1,8 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use std::collections::HashMap;
-use swc_common::comments::Comment;
-use swc_common::BytePos;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, SwitchStmt,
 };
@@ -161,14 +158,9 @@ trait ContainsComments {
 
 impl ContainsComments for BlockStmt {
   fn contains_comments(&self, context: &Context) -> bool {
-    let contains = |comments: &HashMap<BytePos, Vec<Comment>>| {
-      comments
-        .values()
-        .flatten()
-        .any(|comment| self.span.contains(comment.span))
-    };
-
-    contains(&context.leading_comments) || contains(&context.trailing_comments)
+    context
+      .all_comments()
+      .any(|comment| self.span.contains(comment.span))
   }
 }
 

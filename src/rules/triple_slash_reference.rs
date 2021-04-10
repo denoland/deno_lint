@@ -30,22 +30,13 @@ impl LintRule for TripleSlashReference {
   fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
     let mut violated_comment_spans = Vec::new();
 
-    violated_comment_spans.extend(
-      context.leading_comments.values().flatten().filter_map(|c| {
-        if check_comment(c) {
-          Some(c.span)
-        } else {
-          None
-        }
-      }),
-    );
-    violated_comment_spans.extend(
-      context
-        .trailing_comments
-        .values()
-        .flatten()
-        .filter_map(|c| if check_comment(c) { Some(c.span) } else { None }),
-    );
+    violated_comment_spans.extend(context.all_comments().filter_map(|c| {
+      if check_comment(c) {
+        Some(c.span)
+      } else {
+        None
+      }
+    }));
 
     for span in violated_comment_spans {
       self.report(context, span);

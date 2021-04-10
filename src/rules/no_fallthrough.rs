@@ -111,14 +111,8 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
       case.visit_with(parent, self);
 
       if should_emit_err {
-        let mut emit = true;
-        if let Some(comments) = self.context.leading_comments.get(&case.span.lo)
-        {
-          if allow_fall_through(&comments) {
-            emit = false;
-          }
-        }
-        if emit {
+        let comments = self.context.leading_comments_at(case.span.lo);
+        if !allow_fall_through(comments) {
           self.context.add_diagnostic_with_hint(
             prev_span,
             CODE,
@@ -140,15 +134,12 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
         }
 
         if last {
-          if let Some(comments) =
-            self.context.trailing_comments.get(&stmt.span().hi)
-          {
-            if allow_fall_through(&comments) {
-              should_emit_err = false;
-              // User comment beats everything
-              prev_span = case.span;
-              continue 'cases;
-            }
+          let comments = self.context.trailing_comments_at(stmt.span().hi);
+          if allow_fall_through(comments) {
+            should_emit_err = false;
+            // User comment beats everything
+            prev_span = case.span;
+            continue 'cases;
           }
         }
       }
@@ -178,17 +169,13 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
   }
 }
 
-fn allow_fall_through(comments: &[Comment]) -> bool {
-  for comment in comments {
+fn allow_fall_through<'c>(comments: impl Iterator<Item = &'c Comment>) -> bool {
+  comments.any(|comment| {
     let l = comment.text.to_ascii_lowercase();
-    if l.contains("fallthrough")
+    l.contains("fallthrough")
       || l.contains("falls through")
       || l.contains("fall through")
-    {
-      return true;
-    }
-  }
-  false
+  })
 }
 
 #[cfg(test)]
