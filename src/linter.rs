@@ -187,7 +187,7 @@ impl Linter {
     Ok((source_file, diagnostics))
   }
 
-  fn filter_diagnostics(&self, context: &mut Context) -> Vec<LintDiagnostic> {
+  fn filter_diagnostics(&self, context: Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
     let (executed_rule_codes, available_rule_codes) = {
@@ -311,7 +311,7 @@ impl Linter {
 
       let mut context = Context {
         file_name,
-        source_map: self.ast_parser.source_map.clone(),
+        source_map: Rc::clone(&self.ast_parser.source_map),
         program: pg,
         ignore_directives,
         scope,
@@ -332,7 +332,7 @@ impl Linter {
         let _ = plugin.run(&mut context, program.clone());
       }
 
-      self.filter_diagnostics(&mut context)
+      self.filter_diagnostics(context)
     });
 
     let end = Instant::now();
