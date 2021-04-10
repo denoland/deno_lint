@@ -10,6 +10,7 @@ extern crate log;
 mod test_util;
 
 pub mod ast_parser;
+mod context;
 // TODO(magurotuna): Making control_flow public is just needed for implementing plugin prototype.
 // It will be likely possible to remove `pub` later.
 pub mod control_flow;

@@ -2,11 +2,11 @@
 use crate::ast_parser::get_default_ts_config;
 use crate::ast_parser::AstParser;
 use crate::ast_parser::SwcDiagnosticBuffer;
+use crate::context::Context;
 use crate::control_flow::ControlFlow;
-use crate::diagnostic::{LintDiagnostic, Position, Range};
+use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
-use crate::ignore_directives::IgnoreDirective;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView, SpannedExt};
@@ -16,88 +16,11 @@ use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::SourceMap;
-use swc_common::Span;
 use swc_common::Spanned;
 use swc_common::SyntaxContext;
 use swc_ecmascript::parser::Syntax;
 
 pub use swc_common::SourceFile;
-
-pub struct Context<'view> {
-  pub file_name: String,
-  pub diagnostics: Vec<LintDiagnostic>,
-  plugin_codes: HashSet<String>,
-  pub source_map: Rc<SourceMap>,
-  pub(crate) program: AstView::Program<'view>,
-  pub ignore_directives: RefCell<Vec<IgnoreDirective>>,
-  pub(crate) scope: Scope,
-  // TODO(magurotuna): Making control_flow public is just needed for implementing plugin prototype.
-  // It will be likely possible to revert it to `pub(crate)` later.
-  pub control_flow: ControlFlow,
-  pub(crate) top_level_ctxt: SyntaxContext,
-}
-
-impl<'view> Context<'view> {
-  pub fn add_diagnostic(
-    &mut self,
-    span: Span,
-    code: impl ToString,
-    message: impl ToString,
-  ) {
-    let diagnostic =
-      self.create_diagnostic(span, code.to_string(), message.to_string(), None);
-    self.diagnostics.push(diagnostic);
-  }
-
-  pub fn add_diagnostic_with_hint(
-    &mut self,
-    span: Span,
-    code: impl ToString,
-    message: impl ToString,
-    hint: impl ToString,
-  ) {
-    let diagnostic =
-      self.create_diagnostic(span, code, message, Some(hint.to_string()));
-    self.diagnostics.push(diagnostic);
-  }
-
-  fn create_diagnostic(
-    &self,
-    span: Span,
-    code: impl ToString,
-    message: impl ToString,
-    maybe_hint: Option<String>,
-  ) -> LintDiagnostic {
-    let time_start = Instant::now();
-    let start = Position::new(
-      self.source_map.lookup_byte_offset(span.lo()).pos,
-      self.source_map.lookup_char_pos(span.lo()),
-    );
-    let end = Position::new(
-      self.source_map.lookup_byte_offset(span.hi()).pos,
-      self.source_map.lookup_char_pos(span.hi()),
-    );
-
-    let diagnostic = LintDiagnostic {
-      range: Range { start, end },
-      filename: self.file_name.clone(),
-      message: message.to_string(),
-      code: code.to_string(),
-      hint: maybe_hint,
-    };
-
-    let time_end = Instant::now();
-    debug!(
-      "Context::create_diagnostic took {:?}",
-      time_end - time_start
-    );
-    diagnostic
-  }
-
-  pub fn set_plugin_codes(&mut self, codes: HashSet<String>) {
-    self.plugin_codes = codes;
-  }
-}
 
 pub struct LinterBuilder {
   ignore_file_directive: String,
@@ -326,12 +249,13 @@ impl Linter {
           }
 
           if self.lint_unknown_rules && !available_rule_codes.contains(code) {
-            filtered_diagnostics.push(context.create_diagnostic(
+            let diagnostic = context.create_diagnostic(
               ignore_directive.span,
               "ban-unknown-rule-code",
               format!("Unknown rule for code \"{}\"", code),
               None,
-            ))
+            );
+            filtered_diagnostics.push(diagnostic);
           }
         }
       }

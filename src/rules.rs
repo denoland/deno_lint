@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::linter::Context;
+use crate::context::Context;
 use dprint_swc_ecma_ast_view::Program as ProgramView;
 
 pub mod adjacent_overload_signatures;
