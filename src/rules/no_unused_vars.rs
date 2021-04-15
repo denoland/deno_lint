@@ -1122,24 +1122,6 @@ import foo from 'foo';
 import bar from 'foo';
 export interface Bar extends foo.i18n<bar> {}
       ",
-
-      // TODO(kdy1): Unignore
-      //       "
-      // import { TypeA } from './interface';
-      // export const a = <GenericComponent<TypeA> />;
-      //       ",
-
-      // TODO(kdy1): Unignore
-      //       "
-      // const text = 'text';
-      // export function Foo() {
-      //   return (
-      //     <div>
-      //       <input type=\"search\" size={30} placeholder={text} />
-      //     </div>
-      //   );
-      // }
-      //       ",
       "
 import { observable } from 'mobx';
 export default class ListModalStore {
@@ -1179,6 +1161,73 @@ export default class Foo {
       "import type Foo from './foo.ts'; interface _Bar<T extends Foo> {}",
       "import type Foo from './foo.ts'; type _Bar<T extends Foo> = T;",
       "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
+    };
+
+    // tsx
+    assert_lint_ok! {
+      NoUnusedVars,
+      {
+        src: "
+    import { TypeA } from './interface';
+    export const a = <GenericComponent<TypeA> />;
+        ",
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+const text = 'text';
+export function Foo() {
+  return (
+    <div id="hoge">
+      <input type="search" size={30} placeholder={text} />
+    </div>
+  );
+}
+        "#,
+        filename: "foo.tsx",
+      },
+
+      {
+        src: r#"
+function Root() { return null; }
+function Child() { return null; }
+export default <Root><Child>Hello World!</Child></Root>;
+        "#,
+        filename: "foo.tsx",
+      },
+
+      // https://github.com/denoland/deno_lint/issues/663
+      {
+        src: r#"
+import React from "./dummy.ts";
+export default <div />;
+        "#,
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+import React from "./dummy.ts";
+function Component() { return null; }
+export default <Component />;
+        "#,
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+import React from "./dummy.ts";
+const Component = () => { return null; }
+export default <Component />;
+        "#,
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+import React from "./dummy.ts";
+class Component extends React.Component { render() { return null; } }
+export default <Component />;
+        "#,
+        filename: "foo.tsx",
+      },
     };
   }
 
@@ -1829,7 +1878,19 @@ export interface Bar extends baz.test {}
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
-      ]
+      ],
+      "
+import React from './dummy.ts';
+const a = 42;
+foo(a);
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "React"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "React"),
+        }
+      ],
     };
   }
 
