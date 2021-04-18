@@ -6,11 +6,11 @@ use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
   DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
   FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, JSXElement, JSXElementName, MemberExpr, MethodKind,
-  NamedExport, Param, Pat, Prop, PropName, SetterProp, TsEntityName,
-  TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
-  TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr,
-  TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
+  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
+  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
+  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
+  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclOrPat,
+  VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -49,6 +49,13 @@ impl LintRule for NoUnusedVars {
   }
 
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+    // Skip linting this file to avoid emitting false positives about `jsxFactory` and `jsxFragmentFactory`
+    // if it's a JSX or TSX file.
+    // See https://github.com/denoland/deno_lint/pull/664#discussion_r614692736
+    if is_jsx_file(&context.file_name) {
+      return;
+    }
+
     let mut collector = Collector::default();
     match program {
       ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
@@ -59,13 +66,16 @@ impl LintRule for NoUnusedVars {
       context,
       collector.used_vars,
       collector.used_types,
-      collector.has_jsx_syntax,
     );
     match program {
       ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
       ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
+}
+
+fn is_jsx_file(filename: &str) -> bool {
+  filename.ends_with(".jsx") || filename.ends_with(".tsx")
 }
 
 /// Collects information about variable usages.
@@ -84,10 +94,6 @@ struct Collector {
   /// Type of this should be hashset, but we don't have a way to
   /// restore hashset after handling bindings
   cur_defining: Vec<Id>,
-
-  /// Whether the code has JSX tag syntax or not.
-  /// If it does, imported `React` has to be treated as implicitly "used".
-  has_jsx_syntax: bool,
 }
 
 impl Collector {
@@ -297,25 +303,6 @@ impl Visit for Collector {
 
     c.visit_children_with(self);
   }
-
-  fn visit_jsx_element(&mut self, jsx: &JSXElement, _: &dyn Node) {
-    self.has_jsx_syntax = true;
-    jsx.visit_children_with(self);
-  }
-
-  fn visit_jsx_element_name(
-    &mut self,
-    jsx_elem_name: &JSXElementName,
-    _: &dyn Node,
-  ) {
-    match jsx_elem_name {
-      JSXElementName::Ident(ident) => self.mark_as_usage(ident),
-
-      // TODO(@magurotuna): how should we handle these?
-      JSXElementName::JSXMemberExpr(_)
-      | JSXElementName::JSXNamespacedName(_) => {}
-    }
-  }
 }
 
 fn get_id(r: &TsEntityName) -> Id {
@@ -329,7 +316,6 @@ struct NoUnusedVarVisitor<'c> {
   context: &'c mut Context,
   used_vars: HashSet<Id>,
   used_types: HashSet<Id>,
-  has_jsx_syntax: bool,
 }
 
 impl<'c> NoUnusedVarVisitor<'c> {
@@ -337,13 +323,11 @@ impl<'c> NoUnusedVarVisitor<'c> {
     context: &'c mut Context,
     used_vars: HashSet<Id>,
     used_types: HashSet<Id>,
-    has_jsx_syntax: bool,
   ) -> Self {
     Self {
       context,
       used_vars,
       used_types,
-      has_jsx_syntax,
     }
   }
 }
@@ -470,10 +454,6 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     _: &dyn Node,
   ) {
     if self.used_types.contains(&import.local.to_id()) {
-      return;
-    }
-
-    if self.has_jsx_syntax && import.local.sym.as_ref() == "React" {
       return;
     }
 
@@ -1195,7 +1175,7 @@ export default class Foo {
       "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
     };
 
-    // tsx
+    // JSX or TSX
     assert_lint_ok! {
       NoUnusedVars,
       {
