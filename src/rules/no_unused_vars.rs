@@ -49,6 +49,13 @@ impl LintRule for NoUnusedVars {
   }
 
   fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+    // Skip linting this file to avoid emitting false positives about `jsxFactory` and `jsxFragmentFactory`
+    // if it's a JSX or TSX file.
+    // See https://github.com/denoland/deno_lint/pull/664#discussion_r614692736
+    if is_jsx_file(&context.file_name) {
+      return;
+    }
+
     let mut collector = Collector::default();
     match program {
       ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
@@ -65,6 +72,10 @@ impl LintRule for NoUnusedVars {
       ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
+}
+
+fn is_jsx_file(filename: &str) -> bool {
+  filename.ends_with(".jsx") || filename.ends_with(".tsx")
 }
 
 /// Collects information about variable usages.
@@ -445,6 +456,7 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
     if self.used_types.contains(&import.local.to_id()) {
       return;
     }
+
     self.handle_id(&import.local);
   }
 
@@ -1122,24 +1134,6 @@ import foo from 'foo';
 import bar from 'foo';
 export interface Bar extends foo.i18n<bar> {}
       ",
-
-      // TODO(kdy1): Unignore
-      //       "
-      // import { TypeA } from './interface';
-      // export const a = <GenericComponent<TypeA> />;
-      //       ",
-
-      // TODO(kdy1): Unignore
-      //       "
-      // const text = 'text';
-      // export function Foo() {
-      //   return (
-      //     <div>
-      //       <input type=\"search\" size={30} placeholder={text} />
-      //     </div>
-      //   );
-      // }
-      //       ",
       "
 import { observable } from 'mobx';
 export default class ListModalStore {
@@ -1179,6 +1173,73 @@ export default class Foo {
       "import type Foo from './foo.ts'; interface _Bar<T extends Foo> {}",
       "import type Foo from './foo.ts'; type _Bar<T extends Foo> = T;",
       "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
+    };
+
+    // JSX or TSX
+    assert_lint_ok! {
+      NoUnusedVars,
+      {
+        src: "
+    import { TypeA } from './interface';
+    export const a = <GenericComponent<TypeA> />;
+        ",
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+const text = 'text';
+export function Foo() {
+  return (
+    <div id="hoge">
+      <input type="search" size={30} placeholder={text} />
+    </div>
+  );
+}
+        "#,
+        filename: "foo.tsx",
+      },
+
+      {
+        src: r#"
+function Root() { return null; }
+function Child() { return null; }
+export default <Root><Child>Hello World!</Child></Root>;
+        "#,
+        filename: "foo.tsx",
+      },
+
+      // https://github.com/denoland/deno_lint/issues/663
+      {
+        src: r#"
+import React from "./dummy.ts";
+export default <div />;
+        "#,
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+import React from "./dummy.ts";
+function Component() { return null; }
+export default <Component />;
+        "#,
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+import React from "./dummy.ts";
+const Component = () => { return null; }
+export default <Component />;
+        "#,
+        filename: "foo.tsx",
+      },
+      {
+        src: r#"
+import React from "./dummy.ts";
+class Component extends React.Component { render() { return null; } }
+export default <Component />;
+        "#,
+        filename: "foo.tsx",
+      },
     };
   }
 
@@ -1829,7 +1890,19 @@ export interface Bar extends baz.test {}
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
-      ]
+      ],
+      "
+import React from './dummy.ts';
+const a = 42;
+foo(a);
+      ": [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "React"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "React"),
+        }
+      ],
     };
   }
 
