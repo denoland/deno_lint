@@ -42,7 +42,7 @@ type Codes = HashSet<String>;
 fn op_add_diagnostics(
   state: &mut OpState,
   args: Value,
-  _bufs: &mut [ZeroCopyBuf],
+  _maybe_buf: Option<ZeroCopyBuf>,
 ) -> anyhow::Result<Value> {
   let DiagnosticsFromJs { code, diagnostics } =
     serde_json::from_value(args).unwrap();
@@ -60,7 +60,7 @@ fn op_add_diagnostics(
 fn op_add_rule_code(
   state: &mut OpState,
   args: Value,
-  _bufs: &mut [ZeroCopyBuf],
+  _maybe_buf: Option<ZeroCopyBuf>,
 ) -> Result<Value, AnyError> {
   let code_from_js: Code = serde_json::from_value(args).unwrap();
 
@@ -74,7 +74,7 @@ fn op_add_rule_code(
 fn op_query_control_flow_by_span(
   state: &mut OpState,
   args: Value,
-  _bufs: &mut [ZeroCopyBuf],
+  _maybe_buf: Option<ZeroCopyBuf>,
 ) -> Result<Value, AnyError> {
   let control_flow = state
     .try_borrow::<ControlFlow>()
@@ -124,15 +124,13 @@ impl JsRuleRunner {
       .unwrap();
     runtime.register_op(
       "op_add_diagnostics",
-      deno_core::json_op_sync(op_add_diagnostics),
+      deno_core::op_sync(op_add_diagnostics),
     );
-    runtime.register_op(
-      "op_add_rule_code",
-      deno_core::json_op_sync(op_add_rule_code),
-    );
+    runtime
+      .register_op("op_add_rule_code", deno_core::op_sync(op_add_rule_code));
     runtime.register_op(
       "op_query_control_flow_by_span",
-      deno_core::json_op_sync(op_query_control_flow_by_span),
+      deno_core::op_sync(op_query_control_flow_by_span),
     );
 
     let module_id =
