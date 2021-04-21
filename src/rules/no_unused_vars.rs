@@ -474,16 +474,16 @@ impl<'c> Visit for NoUnusedVarVisitor<'c> {
   /// No error as export is kind of usage
   fn visit_export_decl(&mut self, export: &ExportDecl, _: &dyn Node) {
     match &export.decl {
-      Decl::Class(c) => {
+      Decl::Class(c) if !c.declare => {
         c.class.visit_with(c, self);
       }
-      Decl::Fn(f) => {
+      Decl::Fn(f) if !f.declare => {
         // If function body is not present, it's an overload definition
         if f.function.body.is_some() {
           f.function.visit_with(f, self);
         }
       }
-      Decl::Var(v) => {
+      Decl::Var(v) if !v.declare => {
         for decl in &v.decls {
           decl.name.visit_with(decl, self);
           decl.init.visit_with(decl, self);
@@ -1125,6 +1125,14 @@ declare class Foo {
   foo(): string;
 }
       ",
+
+      // https://github.com/denoland/deno_lint/issues/670
+      "export declare class Foo { constructor(arg: string); }",
+      "export declare function foo(): void;",
+      "export declare const foo: number;",
+      "export declare let foo: number;",
+      "export declare var foo: number;",
+
       "
 import foo from 'foo';
 export interface Bar extends foo.i18n {}
