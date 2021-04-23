@@ -900,6 +900,28 @@ function foo() {
     assert_flow!(flow, 55, true, None); // `baz();`
   }
 
+  // https://github.com/denoland/deno_lint/issues/674
+  #[test]
+  fn while_6() {
+    let src = r#"
+while (true) {
+  if (x === 42) {
+    break;
+  }
+  throw new Error("error");
+}
+foo();
+      "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 1, false, None); // while stmt
+    assert_flow!(flow, 14, false, Some(End::Continue)); // BlockStmt of while
+    assert_flow!(flow, 18, false, Some(End::Continue)); // if stmt
+    assert_flow!(flow, 32, false, Some(End::Break)); // BlockStmt of if
+    assert_flow!(flow, 38, false, Some(End::Break)); // break stmt
+    assert_flow!(flow, 51, false, Some(End::forced_throw())); // throw stmt
+    assert_flow!(flow, 79, false, None); // `foo();` (which is _reachable_ if `x` equals `42`)
+  }
+
   #[test]
   fn do_while_1() {
     let src = r#"
