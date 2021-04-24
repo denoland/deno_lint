@@ -594,7 +594,9 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
       n.body.visit_with(n, a);
 
-      if a.scope.found_break.is_none() {
+      let has_break = matches!(a.scope.found_break, Some(None));
+
+      if !has_break {
         let end = match a.get_end_reason(n.body.span().lo) {
           Some(e) if e.is_forced() => e,
           _ => End::forced_infinite_loop(),
@@ -613,15 +615,11 @@ impl Visit for Analyzer<'_> {
         }
       }
 
-      if forced_end.is_none() {
-        a.mark_as_end(n.span.lo, End::Continue);
+      if forced_end.is_none() || has_break {
+        a.mark_as_end(n.body.span().lo, End::Continue);
         a.scope.end = Some(End::Continue);
       }
     });
-
-    if let Some(e) = forced_end {
-      self.scope.end = Some(e);
-    }
   }
 
   fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
@@ -664,14 +662,14 @@ impl Visit for Analyzer<'_> {
         matches!(n.test.as_bool(), (_, Value::Known(true)));
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
-      let infinite_loop = a.scope.found_break.is_none();
+      let has_break = matches!(a.scope.found_break, Some(None));
 
-      if unconditionally_enter && return_or_throw {
+      if unconditionally_enter && return_or_throw && !has_break {
         // This `unwrap` is safe;
         // if `return_or_throw` is true, `end_reason` is surely wrapped in `Some`.
         a.mark_as_end(body_lo, end_reason.unwrap());
         a.scope.end = end_reason;
-      } else if unconditionally_enter && infinite_loop {
+      } else if unconditionally_enter && !has_break {
         let end = End::forced_infinite_loop();
         a.mark_as_end(body_lo, end);
         a.scope.end = Some(end);
@@ -694,8 +692,9 @@ impl Visit for Analyzer<'_> {
       let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
       let infinite_loop = matches!(n.test.as_bool(), (_, Value::Known(true)))
         && a.scope.found_break.is_none();
+      let has_break = matches!(a.scope.found_break, Some(None));
 
-      if return_or_throw {
+      if return_or_throw && !has_break {
         // This `unwrap` is safe;
         // if `return_or_throw` is true, `end_reason` is surely wrapped in `Some`.
         a.mark_as_end(body_lo, end_reason.unwrap());
@@ -704,6 +703,9 @@ impl Visit for Analyzer<'_> {
         let end = End::forced_infinite_loop();
         a.mark_as_end(body_lo, end);
         a.scope.end = Some(end);
+      } else {
+        a.mark_as_end(body_lo, End::Continue);
+        a.scope.end = Some(End::Continue);
       }
     });
 
