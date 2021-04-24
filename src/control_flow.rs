@@ -934,7 +934,7 @@ function foo() {
       "#;
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
-    assert_flow!(flow, 23, false, Some(End::Break)); // BlockStmt of do-while
+    assert_flow!(flow, 23, false, Some(End::Continue)); // BlockStmt of do-while
     assert_flow!(flow, 53, false, Some(End::forced_return())); // return stmt
   }
 
@@ -950,7 +950,7 @@ function foo() {
       "#;
     let flow = analyze_flow(src);
     assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
-    assert_flow!(flow, 23, false, Some(End::Break)); // BlockStmt of do-while
+    assert_flow!(flow, 23, false, Some(End::Continue)); // BlockStmt of do-while
     assert_flow!(flow, 53, false, None); // `bar();`
   }
 
@@ -1063,6 +1063,28 @@ function foo() {
     ); // return stmt
   }
 
+  // https://github.com/denoland/deno_lint/issues/674
+  #[test]
+  fn do_while_8() {
+    let src = r#"
+do {
+  if (x === 42) {
+    break;
+  }
+  throw new Error("error");
+} while (true);
+foo();
+      "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 1, false, None); // do-while stmt
+    assert_flow!(flow, 4, false, Some(End::Continue)); // BlockStmt of do-while
+    assert_flow!(flow, 8, false, Some(End::Continue)); // if stmt
+    assert_flow!(flow, 22, false, Some(End::Break)); // BlockStmt of if
+    assert_flow!(flow, 28, false, Some(End::Break)); // break stmt
+    assert_flow!(flow, 41, false, Some(End::forced_throw())); // throw stmt
+    assert_flow!(flow, 83, false, None); // `foo();` (which is _reachable_ if `x` equals `42`)
+  }
+
   #[test]
   fn for_1() {
     let src = r#"
@@ -1139,6 +1161,28 @@ function foo() {
     assert_flow!(flow, 70, false, None); // `bar();`
   }
 
+  // https://github.com/denoland/deno_lint/issues/674
+  #[test]
+  fn for_5() {
+    let src = r#"
+for (let i = 0; true; i++) {
+  if (f(i)) {
+    break;
+  }
+  throw new Error("error");
+}
+foo();
+      "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 1, false, None); // for stmt
+    assert_flow!(flow, 28, false, Some(End::Continue)); // BlockStmt of for
+    assert_flow!(flow, 32, false, Some(End::Continue)); // if stmt
+    assert_flow!(flow, 42, false, Some(End::Break)); // BlockStmt of if
+    assert_flow!(flow, 48, false, Some(End::Break)); // break stmt
+    assert_flow!(flow, 61, false, Some(End::forced_throw())); // throw stmt
+    assert_flow!(flow, 89, false, None); // `foo();` (which is _reachable_ if `f(i)` is truthy)
+  }
+
   #[test]
   fn for_in_1() {
     let src = r#"
@@ -1157,6 +1201,23 @@ function foo() {
   }
 
   #[test]
+  fn for_in_2() {
+    let src = r#"
+function foo() {
+  for (let i in {}) {
+    break;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-in
+    assert_flow!(flow, 44, false, Some(End::Break)); // return stmt
+    assert_flow!(flow, 57, false, None); // `bar();`
+  }
+
+  #[test]
   fn for_of_1() {
     let src = r#"
 function foo() {
@@ -1171,6 +1232,23 @@ function foo() {
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-of
     assert_flow!(flow, 44, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 60, false, None); // `bar();`
+  }
+
+  #[test]
+  fn for_of_2() {
+    let src = r#"
+function foo() {
+  for (let i of []) {
+    break;
+  }
+  bar();
+}
+    "#;
+    let flow = analyze_flow(src);
+    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-of
+    assert_flow!(flow, 44, false, Some(End::Break)); // return stmt
+    assert_flow!(flow, 57, false, None); // `bar();`
   }
 
   #[test]
