@@ -280,7 +280,7 @@ impl Analyzer<'_> {
         BlockKind::Label(label) => {
           if let Some(Some(id)) = &self.scope.found_break {
             if *id == label {
-              // Eat break statemnt
+              // Eat break statement
               self.scope.found_break = None;
             }
           }
