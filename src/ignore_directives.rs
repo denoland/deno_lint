@@ -11,14 +11,6 @@ use swc_common::Span;
 static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
 
-/*
-#[derive(Clone, Debug, PartialEq)]
-pub enum IgnoreDirective {
-  Global(DirectiveContent),
-  Line(DirectiveContent),
-}
-*/
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct IgnoreDirective {
   position: Position,
