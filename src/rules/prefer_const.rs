@@ -12,8 +12,8 @@ use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
   Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
   Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp, Pat,
-  PatOrExpr, Script, Stmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
-  VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
+  PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl,
+  VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::visit::noop_visit_type;
@@ -88,6 +88,7 @@ impl RawScope {
   }
 }
 
+#[derive(Debug)]
 struct DeclInfo {
   /// the span of its declaration
   span: Span,
@@ -472,6 +473,13 @@ impl Visit for VariableCollector {
         alt.visit_children_with(a);
       });
     }
+  }
+
+  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
+    self.with_child_scope(switch_stmt, |a| {
+      switch_stmt.discriminant.visit_children_with(a);
+      switch_stmt.cases.visit_children_with(a);
+    });
   }
 
   fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
@@ -901,6 +909,13 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     }
   }
 
+  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
+    self.with_child_scope(switch_stmt, |a| {
+      switch_stmt.discriminant.visit_children_with(a);
+      switch_stmt.cases.visit_children_with(a);
+    });
+  }
+
   fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
     self.with_child_scope(while_stmt, |a| {
       while_stmt.test.visit_children_with(a);
@@ -1160,6 +1175,94 @@ let global2 = 42;
 
     let alt_vars = variables(scope_iter.next().unwrap());
     assert!(alt_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+  #[test]
+  fn collector_works_switch_1() {
+    let src = r#"
+let global1;
+switch (foo) {
+  case 0:
+    global1 = 0;
+}
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1"], global_vars);
+
+    let switch_vars = variables(scope_iter.next().unwrap());
+    assert!(switch_vars.is_empty());
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_switch_2() {
+    let src = r#"
+let global1;
+switch (foo) {
+  case 0:
+    global1 = 0;
+  case 1: {
+    let case1;
+  }
+  default:
+    console.log("default");
+}
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1"], global_vars);
+
+    let switch_vars = variables(scope_iter.next().unwrap());
+    assert!(switch_vars.is_empty());
+
+    let case1_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["case1"], case1_vars);
+
+    assert!(scope_iter.next().is_none());
+  }
+
+  #[test]
+  fn collector_works_switch_3() {
+    let src = r#"
+let global1;
+switch (foo) {
+  case 0: {
+    let case0;
+  }
+  case 1: {
+    let case1;
+  }
+  default: {
+    let case2 = 42;
+    case2++;
+    console.log(case2);
+  }
+}
+    "#;
+    let v = collect(src);
+    let mut scope_iter = v.scopes.values();
+
+    let global_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["global1"], global_vars);
+
+    let switch_vars = variables(scope_iter.next().unwrap());
+    assert!(switch_vars.is_empty());
+
+    let case0_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["case0"], case0_vars);
+
+    let case1_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["case1"], case1_vars);
+
+    let case2_vars = variables(scope_iter.next().unwrap());
+    assert_eq!(vec!["case2"], case2_vars);
 
     assert!(scope_iter.next().is_none());
   }
@@ -1787,6 +1890,11 @@ mod prefer_const_tests {
       r#"(function() { let [x = -1, y] = [1,2]; y = 0; })();"#,
       r#"let {a: x = -1, b: y} = {a:1,b:2}; y = 0;"#,
       r#"let [x = -1, y] = [1,2]; y = 0;"#,
+
+      // https://github.com/denoland/deno_lint/issues/665
+      r#"let a; switch (foo) { case 0: a = 0; break; }"#,
+      r#"let a; switch (foo) { case 0: bar(); break; default: a = "default"; break; }"#,
+      r#"let a; switch (foo) { case 0: { a = 0; break; } }"#,
     };
   }
 

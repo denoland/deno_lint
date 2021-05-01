@@ -392,6 +392,28 @@ declare module "SomeModule" {
   export function fn(): void;
 }
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/674
+      r#"
+const a = "foo";
+while (true) {
+  if (a == "foo") {
+    break;
+  }
+  throw new Error("bar");
+}
+console.log("foobar");
+      "#,
+      r#"
+const a = "foo";
+do {
+  if (a == "foo") {
+    break;
+  }
+  throw new Error("bar");
+} while (true);
+console.log("foobar");
+      "#,
     };
   }
 

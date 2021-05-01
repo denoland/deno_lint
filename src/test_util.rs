@@ -10,6 +10,7 @@ use std::rc::Rc;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::SourceMap;
 use swc_ecmascript::ast::Program;
+use swc_ecmascript::parser::{Syntax, TsConfig};
 
 #[macro_export]
 macro_rules! assert_lint_ok {
@@ -115,7 +116,7 @@ impl<T: LintRule + 'static> LintErrTester<T> {
       errors,
       filename: match filename {
         Some(f) => f.to_string(),
-        None => "deno_lint_err_test.tsx".to_string(),
+        None => "deno_lint_err_test.ts".to_string(),
       },
       rule: PhantomData,
     }
@@ -207,6 +208,16 @@ impl LintErrBuilder {
   }
 }
 
+fn get_ts_config_with_tsx() -> Syntax {
+  let ts_config = TsConfig {
+    dynamic_import: true,
+    decorators: true,
+    tsx: true,
+    ..Default::default()
+  };
+  Syntax::Typescript(ts_config)
+}
+
 fn lint(
   rule: Box<dyn LintRule>,
   source: &str,
@@ -215,13 +226,21 @@ fn lint(
   let linter = LinterBuilder::default()
     .lint_unused_ignore_directives(false)
     .lint_unknown_rules(false)
-    .syntax(ast_parser::get_default_ts_config())
+    .syntax(if filename.ends_with(".tsx") {
+      get_ts_config_with_tsx()
+    } else {
+      ast_parser::get_default_ts_config()
+    })
     .rules(vec![rule])
     .build();
 
-  let (_, diagnostics) = linter
-    .lint(filename, source.to_string())
-    .unwrap_or_else(|_| panic!("Failed to lint.\n[source code]\n{}", source));
+  let diagnostics = match linter.lint(filename, source.to_string()) {
+    Ok((_, diagnostics)) => diagnostics,
+    Err(e) => panic!(
+      "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
+      e, source
+    ),
+  };
   diagnostics
 }
 
@@ -296,7 +315,7 @@ pub fn assert_lint_ok<T: LintRule + 'static>(
   let rule = T::new();
   let filename = match filename {
     Some(f) => f.to_string(),
-    None => "deno_lint_ok_test.tsx".to_string(),
+    None => "deno_lint_ok_test.ts".to_string(),
   };
   let diagnostics = lint(rule, source, filename);
   if !diagnostics.is_empty() {
@@ -318,7 +337,7 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source, "deno_lint_err_test.tsx".to_string());
+  let diagnostics = lint(rule, source, "deno_lint_err_test.ts".to_string());
   assert_eq!(
     diagnostics.len(),
     1,
@@ -346,7 +365,7 @@ pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
 ) {
   let rule = T::new();
   let rule_code = rule.code();
-  let diagnostics = lint(rule, source, "deno_lint_err_test.tsx".to_string());
+  let diagnostics = lint(rule, source, "deno_lint_err_test.ts".to_string());
   assert_eq!(
     diagnostics.len(),
     expected.len(),
