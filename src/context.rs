@@ -2,9 +2,7 @@ use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::IgnoreDirective;
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{
-  self as AstView, BytePos, RootNode, SpannedExt,
-};
+use dprint_swc_ecma_ast_view::{self as AstView, BytePos, RootNode};
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Instant;
@@ -86,7 +84,11 @@ impl<'view> Context<'view> {
   }
 
   pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
-    self.program.leading_comments_fast(&self.program)
+    self
+      .program
+      .comments()
+      .expect("Program should have information about comments, but doesn't")
+      .all_comments()
   }
 
   pub fn leading_comments_at(

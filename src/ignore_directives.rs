@@ -69,12 +69,11 @@ impl IgnoreDirective {
 pub fn parse_ignore_directives<'view>(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
-  leading_comments: impl Iterator<Item = &'view Comment>,
-  trailing_comments: impl Iterator<Item = &'view Comment>,
+  comments: impl Iterator<Item = &'view Comment>,
 ) -> Vec<IgnoreDirective> {
   let mut ignore_directives = vec![];
 
-  for comment in leading_comments.chain(trailing_comments) {
+  for comment in comments {
     if let Some(ignore) = parse_ignore_comment(
       &ignore_diagnostic_directive,
       source_map,
@@ -173,8 +172,7 @@ object | undefined {}
     let directives = parse_ignore_directives(
       "deno-lint-ignore",
       &source_map,
-      leading.into_iter(),
-      trailing.into_iter(),
+      leading.into_iter().chain(trailing),
     );
 
     assert_eq!(directives.len(), 4);

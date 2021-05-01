@@ -10,7 +10,7 @@ use crate::ignore_directives::parse_ignore_comment;
 use crate::ignore_directives::parse_ignore_directives;
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{self as AstView, SpannedExt};
+use dprint_swc_ecma_ast_view::{self as AstView, RootNode};
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
@@ -315,8 +315,7 @@ impl Linter {
       ignore_directives.extend(parse_ignore_directives(
         &self.ignore_diagnostic_directive,
         &self.ast_parser.source_map,
-        pg.leading_comments_fast(&pg),
-        pg.trailing_comments_fast(&pg),
+        pg.comments().unwrap().all_comments(),
       ));
 
       let mut context = Context::new(
