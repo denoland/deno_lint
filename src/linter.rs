@@ -173,7 +173,7 @@ impl Linter {
     ast: &swc_ecmascript::ast::Program,
     comments: &SingleThreadedComments,
     source_map: Rc<SourceMap>,
-    tokens: &Vec<TokenAndSpan>,
+    tokens: &[TokenAndSpan],
   ) -> Result<
     (Rc<swc_common::SourceFile>, Vec<LintDiagnostic>),
     SwcDiagnosticBuffer,
@@ -266,7 +266,7 @@ impl Linter {
     file_name: String,
     program: &swc_ecmascript::ast::Program,
     comments: &SingleThreadedComments,
-    tokens: &Vec<TokenAndSpan>,
+    tokens: &[TokenAndSpan],
     source_file: &SourceFile,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();

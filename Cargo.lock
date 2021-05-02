@@ -273,9 +273,9 @@ dependencies = [
 
 [[package]]
 name = "dprint-swc-ecma-ast-view"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb20b44f890c460fe78e04c13ea49e69821b58b7a36e7905f43719f6dd9badfa"
+checksum = "2a67b73960128ad2a3babed25572e30156eb97a6512bb216d806aa8d3b7f42a9"
 dependencies = [
  "bumpalo",
  "fnv",
@@ -1202,9 +1202,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.31.3"
+version = "0.31.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45286c7e1199a0c9ef13951535f5c6f777228d26df2fcf2d2d81ef11d0f22e40"
+checksum = "9148743bf5d6dcc482fd4db219968b216bff61a475c7838e0f60e00886cfa2b4"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",

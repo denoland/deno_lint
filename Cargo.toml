@@ -26,7 +26,7 @@ regex = "=1.4.3"
 once_cell = "1.5.2"
 derive_more = { version = "0.99.13", features = ["display"] }
 anyhow = "1.0.40"
-dprint-swc-ecma-ast-view = "0.16.0"
+dprint-swc-ecma-ast-view = "0.17.0"
 if_chain = "1.0.1"
 
 [dev-dependencies]
