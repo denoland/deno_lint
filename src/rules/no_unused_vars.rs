@@ -215,7 +215,7 @@ impl Visit for Collector {
     self.used_vars.insert(export.orig.to_id());
   }
 
-  /// Handl for-in/of loops
+  /// Handle for-in/of loops
   fn visit_var_decl_or_pat(&mut self, node: &VarDeclOrPat, _: &dyn Node) {
     // We need this because find_ids searches ids only in the pattern.
     node.visit_children_with(self);
