@@ -1,16 +1,18 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
+use if_chain::if_chain;
 use std::collections::HashSet;
+use swc_atoms::js_word;
 use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
   DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
-  FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
-  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
-  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
-  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclOrPat,
-  VarDeclarator,
+  FnDecl, FnExpr, Function, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, MemberExpr, MethodKind,
+  NamedExport, Param, Pat, Prop, PropName, SetterProp, TsEntityName,
+  TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
+  TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr,
+  TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -250,6 +252,25 @@ impl Visit for Collector {
     } else {
       expr.function.visit_with(expr, self);
     }
+  }
+
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+    if_chain! {
+      if let Some(first_param) = function.params.get(0);
+      if let Pat::Ident(ident) = &first_param.pat;
+      if ident.type_ann.is_some();
+      if ident.id.sym == js_word!("this");
+      then {
+        // If the first parameter of a function is `this` keyword with type annotated, it is a
+        // fake parameter specifying what type `this` becomes inside the function body.
+        // (See https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+        // for more info)
+        // Since it's just a fake parameter, we can mark it as used.
+        self.mark_as_usage(&ident.id);
+      }
+    }
+
+    function.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, decl: &ClassDecl, _: &dyn Node) {
