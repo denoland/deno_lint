@@ -1185,6 +1185,21 @@ export default class Foo {
       "import type Foo from './foo.ts'; interface _Bar<T extends Foo> {}",
       "import type Foo from './foo.ts'; type _Bar<T extends Foo> = T;",
       "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
+
+      // https://github.com/denoland/deno_lint/issues/667#issuecomment-821856328
+      // `this` as a fake parameter. See: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+      "export function f(this: void) {}",
+      "export const foo = { bar(this: Foo) {} };",
+      "export interface Foo { bar(this: void): void; }",
+      "export interface Foo { bar(baz: (this: void) => void ): void; }",
+      "export class Foo { bar(this: Foo) {} }",
+      r#"
+export abstract class Point4DPartial {
+    toString(this: Point4D): string {
+      return [this.getPosition(), this.z, this.getTime()].join(", ");
+    }
+}
+      "#,
     };
 
     // JSX or TSX
