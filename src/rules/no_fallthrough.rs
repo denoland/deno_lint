@@ -38,7 +38,11 @@ impl LintRule for NoFallthrough {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoFallthroughVisitor { context };
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -96,11 +100,11 @@ switch(myVar) {
   }
 }
 
-struct NoFallthroughVisitor<'c> {
-  context: &'c mut Context,
+struct NoFallthroughVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> Visit for NoFallthroughVisitor<'c> {
+impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
@@ -111,14 +115,8 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
       case.visit_with(parent, self);
 
       if should_emit_err {
-        let mut emit = true;
-        if let Some(comments) = self.context.leading_comments.get(&case.span.lo)
-        {
-          if allow_fall_through(&comments) {
-            emit = false;
-          }
-        }
-        if emit {
+        let comments = self.context.leading_comments_at(case.span.lo);
+        if !allow_fall_through(comments) {
           self.context.add_diagnostic_with_hint(
             prev_span,
             CODE,
@@ -133,22 +131,19 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
       // Handle return / throw / break / continue
       for (idx, stmt) in case.cons.iter().enumerate() {
         let last = idx + 1 == case.cons.len();
-        let metadata = self.context.control_flow.meta(stmt.span().lo);
+        let metadata = self.context.control_flow().meta(stmt.span().lo);
         stops_exec |= metadata.map(|v| v.stops_execution()).unwrap_or(false);
         if stops_exec {
           should_emit_err = false;
         }
 
         if last {
-          if let Some(comments) =
-            self.context.trailing_comments.get(&stmt.span().hi)
-          {
-            if allow_fall_through(&comments) {
-              should_emit_err = false;
-              // User comment beats everything
-              prev_span = case.span;
-              continue 'cases;
-            }
+          let comments = self.context.trailing_comments_at(stmt.span().hi);
+          if allow_fall_through(comments) {
+            should_emit_err = false;
+            // User comment beats everything
+            prev_span = case.span;
+            continue 'cases;
           }
         }
       }
@@ -165,7 +160,7 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
           hi: cases[case_idx + 1].span.lo(),
           ctxt: case.span.ctxt,
         };
-        let span_lines = self.context.source_map.span_to_lines(span).unwrap();
+        let span_lines = self.context.source_map().span_to_lines(span).unwrap();
         // When the case body contains only new lines `case.cons` will be empty.
         // This means there are no statements detected so we must detect case
         // bodies made up of only new lines by counting the total amount of new lines.
@@ -178,17 +173,15 @@ impl<'c> Visit for NoFallthroughVisitor<'c> {
   }
 }
 
-fn allow_fall_through(comments: &[Comment]) -> bool {
-  for comment in comments {
+fn allow_fall_through<'c>(
+  mut comments: impl Iterator<Item = &'c Comment>,
+) -> bool {
+  comments.any(|comment| {
     let l = comment.text.to_ascii_lowercase();
-    if l.contains("fallthrough")
+    l.contains("fallthrough")
       || l.contains("falls through")
       || l.contains("fall through")
-    {
-      return true;
-    }
-  }
-  false
+  })
 }
 
 #[cfg(test)]

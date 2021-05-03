@@ -5,7 +5,6 @@ use regex::Regex;
 use std::collections::HashMap;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use swc_common::BytePos;
 use swc_common::SourceMap;
 use swc_common::Span;
 
@@ -14,14 +13,26 @@ static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IgnoreDirective {
-  pub position: Position,
-  pub span: Span,
-  pub codes: Vec<String>,
-  pub used_codes: HashMap<String, bool>,
-  pub is_global: bool,
+  position: Position,
+  span: Span,
+  codes: Vec<String>,
+  used_codes: HashMap<String, bool>,
+  is_global: bool,
 }
 
 impl IgnoreDirective {
+  pub fn span(&self) -> Span {
+    self.span
+  }
+
+  pub fn codes(&self) -> &[String] {
+    &self.codes
+  }
+
+  pub fn used_codes(&self) -> &HashMap<String, bool> {
+    &self.used_codes
+  }
+
   /// Check if `IgnoreDirective` supresses given `diagnostic` and if so
   /// mark the directive as used
   pub fn maybe_ignore_diagnostic(
@@ -47,42 +58,25 @@ impl IgnoreDirective {
   }
 }
 
-pub fn parse_ignore_directives(
+pub fn parse_ignore_directives<'view>(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
-  leading_comments: &HashMap<BytePos, Vec<Comment>>,
-  trailing_comments: &HashMap<BytePos, Vec<Comment>>,
+  comments: impl Iterator<Item = &'view Comment>,
 ) -> Vec<IgnoreDirective> {
   let mut ignore_directives = vec![];
 
-  leading_comments.values().for_each(|comments| {
-    for comment in comments {
-      if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directive,
-        source_map,
-        comment,
-        false,
-      ) {
-        ignore_directives.push(ignore);
-      }
+  for comment in comments {
+    if let Some(ignore) = parse_ignore_comment(
+      &ignore_diagnostic_directive,
+      source_map,
+      comment,
+      false,
+    ) {
+      ignore_directives.push(ignore);
     }
-  });
+  }
 
-  trailing_comments.values().for_each(|comments| {
-    for comment in comments {
-      if let Some(ignore) = parse_ignore_comment(
-        &ignore_diagnostic_directive,
-        source_map,
-        comment,
-        false,
-      ) {
-        ignore_directives.push(ignore);
-      }
-    }
-  });
-
-  ignore_directives
-    .sort_by(|a, b| a.position.line.partial_cmp(&b.position.line).unwrap());
+  ignore_directives.sort_by_key(|d| d.position.line);
   ignore_directives
 }
 
@@ -133,8 +127,7 @@ pub fn parse_ignore_comment(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::ast_parser;
-  use crate::ast_parser::AstParser;
+  use crate::test_util;
   use std::rc::Rc;
 
   #[test]
@@ -158,14 +151,7 @@ target: Record<string, any>,
 ): // deno-lint-ignore ban-types
 object | undefined {}
   "#;
-    let ast_parser = AstParser::new();
-    let (_program, comments) = ast_parser
-      .parse_program(
-        "test.ts",
-        ast_parser::get_default_ts_config(),
-        &source_code,
-      )
-      .expect("Failed to parse");
+    let (_, comments, source_map, _) = test_util::parse(source_code);
     let (leading, trailing) = comments.take_all();
     let leading_coms = Rc::try_unwrap(leading)
       .expect("Failed to get leading comments")
@@ -173,13 +159,12 @@ object | undefined {}
     let trailing_coms = Rc::try_unwrap(trailing)
       .expect("Failed to get trailing comments")
       .into_inner();
-    let leading = leading_coms.into_iter().collect();
-    let trailing = trailing_coms.into_iter().collect();
+    let leading: Vec<&Comment> = leading_coms.values().flatten().collect();
+    let trailing: Vec<&Comment> = trailing_coms.values().flatten().collect();
     let directives = parse_ignore_directives(
       "deno-lint-ignore",
-      &ast_parser.source_map,
-      &leading,
-      &trailing,
+      &source_map,
+      leading.into_iter().chain(trailing),
     );
 
     assert_eq!(directives.len(), 4);

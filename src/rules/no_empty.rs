@@ -1,8 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use std::collections::HashMap;
-use swc_common::comments::Comment;
-use swc_common::BytePos;
 use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, SwitchStmt,
 };
@@ -25,7 +22,11 @@ impl LintRule for NoEmpty {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoEmptyVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -90,17 +91,17 @@ try {
   }
 }
 
-struct NoEmptyVisitor<'c> {
-  context: &'c mut Context,
+struct NoEmptyVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoEmptyVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoEmptyVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoEmptyVisitor<'c> {
+impl<'c, 'view> Visit for NoEmptyVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
@@ -161,14 +162,9 @@ trait ContainsComments {
 
 impl ContainsComments for BlockStmt {
   fn contains_comments(&self, context: &Context) -> bool {
-    let contains = |comments: &HashMap<BytePos, Vec<Comment>>| {
-      comments
-        .values()
-        .flatten()
-        .any(|comment| self.span.contains(comment.span))
-    };
-
-    contains(&context.leading_comments) || contains(&context.trailing_comments)
+    context
+      .all_comments()
+      .any(|comment| self.span.contains(comment.span))
   }
 }
 

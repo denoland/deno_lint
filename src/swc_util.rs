@@ -148,7 +148,7 @@ impl<S: StringRepr> StringRepr for Option<S> {
   }
 }
 
-/// Find [Id]s in the lhs of an assigmnet expression.
+/// Find `Id`s in the lhs of an assigmnet expression.
 pub(crate) fn find_lhs_ids<I>(n: &PatOrExpr) -> Vec<I>
 where
   I: IdentLike,

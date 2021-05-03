@@ -18,7 +18,11 @@ impl LintRule for DefaultParamLast {
     "default-param-last"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = DefaultParamLastVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -54,12 +58,12 @@ function f(a = 2, b = 3) {}
   }
 }
 
-struct DefaultParamLastVisitor<'c> {
-  context: &'c mut Context,
+struct DefaultParamLastVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> DefaultParamLastVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> DefaultParamLastVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -93,7 +97,7 @@ impl<'c> DefaultParamLastVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for DefaultParamLastVisitor<'c> {
+impl<'c, 'view> VisitAll for DefaultParamLastVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {

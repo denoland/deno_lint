@@ -17,7 +17,11 @@ impl LintRule for NoNonNullAssertedOptionalChain {
     "no-non-null-asserted-optional-chain"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoNonNullAssertedOptionalChainVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -26,12 +30,12 @@ impl LintRule for NoNonNullAssertedOptionalChain {
   }
 }
 
-struct NoNonNullAssertedOptionalChainVisitor<'c> {
-  context: &'c mut Context,
+struct NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoNonNullAssertedOptionalChainVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -50,7 +54,7 @@ impl<'c> NoNonNullAssertedOptionalChainVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoNonNullAssertedOptionalChainVisitor<'c> {
+impl<'c, 'view> Visit for NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
   fn visit_ts_non_null_expr(
     &mut self,
     ts_non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,

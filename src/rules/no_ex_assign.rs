@@ -35,7 +35,11 @@ impl LintRule for NoExAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoExAssignVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -71,24 +75,24 @@ try {
   }
 }
 
-struct NoExAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoExAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoExAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoExAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoExAssignVisitor<'c> {
+impl<'c, 'view> VisitAll for NoExAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
     let ids = find_lhs_ids(&assign_expr.left);
 
     for id in ids {
-      let var = self.context.scope.var(&id);
+      let var = self.context.scope().var(&id);
 
       if let Some(var) = var {
         if let BindingKind::CatchClause = var.kind() {

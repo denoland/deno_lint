@@ -45,7 +45,11 @@ impl LintRule for GetterReturn {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = GetterReturnVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -89,8 +93,8 @@ class Person {
   }
 }
 
-struct GetterReturnVisitor<'c> {
-  context: &'c mut Context,
+struct GetterReturnVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   errors: BTreeMap<Span, GetterReturnMessage>,
   /// If this visitor is currently in a getter, its name is stored.
   getter_name: Option<String>,
@@ -98,8 +102,8 @@ struct GetterReturnVisitor<'c> {
   has_return: bool,
 }
 
-impl<'c> GetterReturnVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       errors: BTreeMap::new(),
@@ -150,7 +154,7 @@ impl<'c> GetterReturnVisitor<'c> {
 
     if self
       .context
-      .control_flow
+      .control_flow()
       .meta(getter_body_span.lo)
       .unwrap()
       .continues_execution()
@@ -184,7 +188,7 @@ impl<'c> GetterReturnVisitor<'c> {
   }
 }
 
-impl<'c> Visit for GetterReturnVisitor<'c> {
+impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {

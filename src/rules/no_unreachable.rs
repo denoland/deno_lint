@@ -24,7 +24,11 @@ impl LintRule for NoUnreachable {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoUnreachableVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -33,17 +37,17 @@ impl LintRule for NoUnreachable {
   }
 }
 
-struct NoUnreachableVisitor<'c> {
-  context: &'c mut Context,
+struct NoUnreachableVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoUnreachableVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoUnreachableVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoUnreachableVisitor<'c> {
+impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
   fn visit_stmt(&mut self, stmt: &Stmt, _: &dyn Node) {
     stmt.visit_children_with(self);
 
@@ -68,7 +72,7 @@ impl<'c> Visit for NoUnreachableVisitor<'c> {
       _ => {}
     }
 
-    if let Some(meta) = self.context.control_flow.meta(stmt.span().lo) {
+    if let Some(meta) = self.context.control_flow().meta(stmt.span().lo) {
       if meta.unreachable {
         self.context.add_diagnostic(stmt.span(), CODE, MESSAGE)
       }

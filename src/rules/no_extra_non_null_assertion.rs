@@ -38,7 +38,11 @@ impl LintRule for NoExtraNonNullAssertion {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -75,12 +79,12 @@ function anotherFunc(bar?: { str: string }) { return bar?.str; }
   }
 }
 
-struct NoExtraNonNullAssertionVisitor<'c> {
-  context: &'c mut Context,
+struct NoExtraNonNullAssertionVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoExtraNonNullAssertionVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoExtraNonNullAssertionVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -104,7 +108,7 @@ impl<'c> NoExtraNonNullAssertionVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoExtraNonNullAssertionVisitor<'c> {
+impl<'c, 'view> VisitAll for NoExtraNonNullAssertionVisitor<'c, 'view> {
   fn visit_ts_non_null_expr(
     &mut self,
     ts_non_null_expr: &TsNonNullExpr,

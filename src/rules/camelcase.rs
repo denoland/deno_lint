@@ -31,7 +31,11 @@ impl LintRule for Camelcase {
     "camelcase"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = CamelcaseVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -389,15 +393,15 @@ impl IdentToCheck {
   }
 }
 
-struct CamelcaseVisitor<'c> {
-  context: &'c mut Context,
+struct CamelcaseVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   errors: BTreeMap<Span, IdentToCheck>,
   /// Already visited identifiers
   visited: BTreeSet<Span>,
 }
 
-impl<'c> CamelcaseVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> CamelcaseVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       errors: BTreeMap::new(),
@@ -552,7 +556,7 @@ impl<'c> CamelcaseVisitor<'c> {
   }
 }
 
-impl<'c> Visit for CamelcaseVisitor<'c> {
+impl<'c, 'view> Visit for CamelcaseVisitor<'c, 'view> {
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
     if fn_decl.declare {
       return;

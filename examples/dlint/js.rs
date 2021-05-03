@@ -8,8 +8,9 @@ use deno_core::JsRuntime;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
 use deno_core::ZeroCopyBuf;
+use deno_lint::context::Context;
 use deno_lint::control_flow::ControlFlow;
-use deno_lint::linter::{Context, Plugin};
+use deno_lint::linter::Plugin;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -154,7 +155,7 @@ impl Plugin for JsRuleRunner {
       .runtime
       .op_state()
       .borrow_mut()
-      .put(context.control_flow.clone());
+      .put(context.control_flow().clone());
 
     deno_core::futures::executor::block_on(
       self.runtime.mod_evaluate(self.module_id).next(),

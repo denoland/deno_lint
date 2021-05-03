@@ -31,7 +31,7 @@ impl LintRule for NoNamespace {
     context: &mut Context,
     program: dprint_swc_ecma_ast_view::Program<'_>,
   ) {
-    if context.file_name.ends_with(".d.ts") {
+    if context.file_name().ends_with(".d.ts") {
       return;
     }
 

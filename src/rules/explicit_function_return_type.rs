@@ -15,7 +15,11 @@ impl LintRule for ExplicitFunctionReturnType {
     "explicit-function-return-type"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -45,17 +49,17 @@ function anotherCalc(): void { return; }
   }
 }
 
-struct ExplicitFunctionReturnTypeVisitor<'c> {
-  context: &'c mut Context,
+struct ExplicitFunctionReturnTypeVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> ExplicitFunctionReturnTypeVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> ExplicitFunctionReturnTypeVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for ExplicitFunctionReturnTypeVisitor<'c> {
+impl<'c, 'view> Visit for ExplicitFunctionReturnTypeVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_function(

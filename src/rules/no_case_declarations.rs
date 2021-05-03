@@ -28,7 +28,11 @@ impl LintRule for NoCaseDeclarations {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoCaseDeclarationsVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -89,17 +93,17 @@ switch (choice) {
   }
 }
 
-struct NoCaseDeclarationsVisitor<'c> {
-  context: &'c mut Context,
+struct NoCaseDeclarationsVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoCaseDeclarationsVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoCaseDeclarationsVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoCaseDeclarationsVisitor<'c> {
+impl<'c, 'view> VisitAll for NoCaseDeclarationsVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_switch_case(

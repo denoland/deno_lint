@@ -24,7 +24,11 @@ impl LintRule for NoOctal {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoOctalVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -33,23 +37,23 @@ impl LintRule for NoOctal {
   }
 }
 
-struct NoOctalVisitor<'c> {
-  context: &'c mut Context,
+struct NoOctalVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoOctalVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoOctalVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoOctalVisitor<'c> {
+impl<'c, 'view> Visit for NoOctalVisitor<'c, 'view> {
   fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
     let raw_number = self
       .context
-      .source_map
+      .source_map()
       .span_to_snippet(literal_num.span)
       .expect("error in loading snippet");
 

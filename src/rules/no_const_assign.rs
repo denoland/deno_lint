@@ -22,7 +22,11 @@ impl LintRule for NoConstAssign {
     "no-const-assign"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoConstAssignVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -56,12 +60,12 @@ for (const c in [1,2,3]) {}
   }
 }
 
-struct NoConstAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoConstAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoConstAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -113,7 +117,7 @@ impl<'c> NoConstAssignVisitor<'c> {
 
   fn check_scope_for_const(&mut self, span: Span, name: &Ident) {
     let id = name.to_id();
-    if let Some(v) = self.context.scope.var(&id) {
+    if let Some(v) = self.context.scope().var(&id) {
       if let BindingKind::Const = v.kind() {
         self.context.add_diagnostic_with_hint(
           span,
@@ -126,7 +130,7 @@ impl<'c> NoConstAssignVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoConstAssignVisitor<'c> {
+impl<'c, 'view> Visit for NoConstAssignVisitor<'c, 'view> {
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {

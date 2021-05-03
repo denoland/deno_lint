@@ -26,7 +26,11 @@ impl LintRule for NoArrayConstructor {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoArrayConstructorVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -66,12 +70,12 @@ const c = [1,2,3];
   }
 }
 
-struct NoArrayConstructorVisitor<'c> {
-  context: &'c mut Context,
+struct NoArrayConstructorVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoArrayConstructorVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoArrayConstructorVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -84,7 +88,7 @@ impl<'c> NoArrayConstructorVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoArrayConstructorVisitor<'c> {
+impl<'c, 'view> VisitAll for NoArrayConstructorVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {

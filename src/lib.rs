@@ -10,6 +10,7 @@ extern crate log;
 mod test_util;
 
 pub mod ast_parser;
+pub mod context;
 // TODO(magurotuna): Making control_flow public is just needed for implementing plugin prototype.
 // It will be likely possible to remove `pub` later.
 pub mod control_flow;
@@ -29,6 +30,7 @@ mod lint_tests {
   use crate::linter::*;
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
+  use dprint_swc_ecma_ast_view::TokenAndSpan;
   use std::rc::Rc;
   use swc_common::comments::SingleThreadedComments;
   use swc_common::SourceMap;
@@ -40,7 +42,7 @@ mod lint_tests {
     unused_dir: bool,
     rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
-    let mut linter = LinterBuilder::default()
+    let linter = LinterBuilder::default()
       .lint_unknown_rules(unknown_rules)
       .lint_unused_ignore_directives(unused_dir)
       .rules(rules)
@@ -56,18 +58,25 @@ mod lint_tests {
     ast: Program,
     comments: SingleThreadedComments,
     source_map: Rc<SourceMap>,
+    tokens: Vec<TokenAndSpan>,
     unknown_rules: bool,
     unused_dir: bool,
     rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
-    let mut linter = LinterBuilder::default()
+    let linter = LinterBuilder::default()
       .lint_unknown_rules(unknown_rules)
       .lint_unused_ignore_directives(unused_dir)
       .rules(rules)
       .build();
 
     let (_, diagnostics) = linter
-      .lint_with_ast("lint_test.ts".to_string(), &ast, comments, source_map)
+      .lint_with_ast(
+        "lint_test.ts".to_string(),
+        &ast,
+        &comments,
+        source_map,
+        &tokens,
+      )
       .expect("Failed to lint");
     diagnostics
   }
@@ -84,6 +93,7 @@ mod lint_tests {
     ast: Program,
     comments: SingleThreadedComments,
     source_map: Rc<SourceMap>,
+    tokens: Vec<TokenAndSpan>,
     unknown_rules: bool,
     unused_dir: bool,
   ) -> Vec<LintDiagnostic> {
@@ -91,6 +101,7 @@ mod lint_tests {
       ast,
       comments,
       source_map,
+      tokens,
       unknown_rules,
       unused_dir,
       get_recommended_rules(),
@@ -254,9 +265,10 @@ const _fooBar = 42;
 
   #[test]
   fn empty_file_with_ast() {
-    let (ast, comments, source_map) = parse("");
-    let diagnostics =
-      lint_recommended_rules_with_ast(ast, comments, source_map, true, false);
+    let (ast, comments, source_map, tokens) = parse("");
+    let diagnostics = lint_recommended_rules_with_ast(
+      ast, comments, source_map, tokens, true, false,
+    );
     assert!(diagnostics.is_empty());
   }
 }

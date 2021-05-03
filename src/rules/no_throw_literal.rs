@@ -16,7 +16,11 @@ impl LintRule for NoThrowLiteral {
     "no-throw-literal"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoThrowLiteralVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -25,17 +29,17 @@ impl LintRule for NoThrowLiteral {
   }
 }
 
-struct NoThrowLiteralVisitor<'c> {
-  context: &'c mut Context,
+struct NoThrowLiteralVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoThrowLiteralVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoThrowLiteralVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoThrowLiteralVisitor<'c> {
+impl<'c, 'view> Visit for NoThrowLiteralVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_throw_stmt(&mut self, throw_stmt: &ThrowStmt, _parent: &dyn Node) {

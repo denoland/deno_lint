@@ -40,7 +40,11 @@ impl LintRule for NoDupeElseIf {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDupeElseIfVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -83,13 +87,13 @@ else if (a === 7) {}
 /// A visitor to check the `no-dupe-else-if` rule.
 /// Determination logic is ported from ESLint's implementation. For more, see:
 /// [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
-struct NoDupeElseIfVisitor<'c> {
-  context: &'c mut Context,
+struct NoDupeElseIfVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   checked_span: HashSet<Span>,
 }
 
-impl<'c> NoDupeElseIfVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       checked_span: HashSet::new(),
@@ -97,7 +101,7 @@ impl<'c> NoDupeElseIfVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoDupeElseIfVisitor<'c> {
+impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {

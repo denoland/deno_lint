@@ -30,7 +30,11 @@ impl LintRule for ForDirection {
     "for-direction"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = ForDirectionVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -63,12 +67,12 @@ const MESSAGE: &str = "Update clause moves variable in the wrong direction";
 const HINT: &str =
   "Flip the update clause logic or change the continuation step condition";
 
-struct ForDirectionVisitor<'c> {
-  context: &'c mut Context,
+struct ForDirectionVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> ForDirectionVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> ForDirectionVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -146,7 +150,7 @@ impl<'c> ForDirectionVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for ForDirectionVisitor<'c> {
+impl<'c, 'view> VisitAll for ForDirectionVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {

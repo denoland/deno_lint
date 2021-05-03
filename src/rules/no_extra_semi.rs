@@ -36,7 +36,11 @@ impl LintRule for NoExtraSemi {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoExtraSemiVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
@@ -67,17 +71,17 @@ function foo() {}
   }
 }
 
-struct NoExtraSemiVisitor<'c> {
-  context: &'c mut Context,
+struct NoExtraSemiVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoExtraSemiVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoExtraSemiVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoExtraSemiVisitor<'c> {
+impl<'c, 'view> Visit for NoExtraSemiVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt, _parent: &dyn Node) {

@@ -794,7 +794,7 @@ mod tests {
   use crate::test_util;
 
   fn analyze_flow(src: &str) -> ControlFlow {
-    let (program, _, _) = test_util::parse(src);
+    let (program, _, _, _) = test_util::parse(src);
     ControlFlow::analyze(&program)
   }
 

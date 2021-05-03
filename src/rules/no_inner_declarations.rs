@@ -41,7 +41,11 @@ impl LintRule for NoInnerDeclarations {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut valid_visitor = ValidDeclsVisitor::new();
     match program {
       ProgramRef::Module(ref m) => {
@@ -205,14 +209,14 @@ impl VisitAll for ValidDeclsVisitor {
   }
 }
 
-struct NoInnerDeclarationsVisitor<'c> {
-  context: &'c mut Context,
+struct NoInnerDeclarationsVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   valid_decls: HashSet<Span>,
   in_function: bool,
 }
 
-impl<'c> NoInnerDeclarationsVisitor<'c> {
-  fn new(context: &'c mut Context, valid_decls: HashSet<Span>) -> Self {
+impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>, valid_decls: HashSet<Span>) -> Self {
     Self {
       context,
       valid_decls,
@@ -221,7 +225,7 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
   }
 }
 
-impl<'c> NoInnerDeclarationsVisitor<'c> {
+impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   fn add_diagnostic(&mut self, span: Span, kind: &str) {
     let root = if self.in_function {
       "function"
@@ -238,7 +242,7 @@ impl<'c> NoInnerDeclarationsVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoInnerDeclarationsVisitor<'c> {
+impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {

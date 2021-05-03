@@ -1,4 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use dprint_swc_ecma_ast_view::TokenAndSpan;
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
@@ -156,12 +157,16 @@ impl AstParser {
     }
   }
 
+  pub(crate) fn set_source_map(&mut self, source_map: Rc<SourceMap>) {
+    self.source_map = source_map;
+  }
+
   pub(crate) fn parse_program(
     &self,
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
-  ) -> Result<(ast::Program, SingleThreadedComments), SwcDiagnosticBuffer> {
+  ) -> Result<ParsedData, SwcDiagnosticBuffer> {
     // NOTE: calling `self.source_map.new_source_file` mutates `source_map`
     // even though it's of type `Rc`.
     let swc_source_file = self.source_map.new_source_file(
@@ -179,6 +184,8 @@ impl AstParser {
       Some(&comments),
     );
 
+    let tokens: Vec<TokenAndSpan> = lexer.clone().into_iter().collect();
+
     let mut parser = Parser::new_from(lexer);
 
     let parse_result = parser.parse_program().map_err(move |err| {
@@ -193,7 +200,11 @@ impl AstParser {
       })
     });
 
-    parse_result.map(|program| (program, comments))
+    parse_result.map(|program| ParsedData {
+      program,
+      comments,
+      tokens,
+    })
   }
 
   pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
@@ -205,4 +216,10 @@ impl Default for AstParser {
   fn default() -> Self {
     Self::new()
   }
+}
+
+pub(crate) struct ParsedData {
+  pub(crate) program: ast::Program,
+  pub(crate) comments: SingleThreadedComments,
+  pub(crate) tokens: Vec<TokenAndSpan>,
 }

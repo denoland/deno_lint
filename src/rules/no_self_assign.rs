@@ -49,7 +49,11 @@ impl LintRule for NoSelfAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -58,12 +62,12 @@ impl LintRule for NoSelfAssign {
   }
 }
 
-struct NoSelfAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoSelfAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoSelfAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -284,7 +288,7 @@ impl<'c> NoSelfAssignVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoSelfAssignVisitor<'c> {
+impl<'c, 'view> VisitAll for NoSelfAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_assign_expr(

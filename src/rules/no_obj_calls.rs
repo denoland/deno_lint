@@ -30,7 +30,11 @@ impl LintRule for NoObjCalls {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoObjCallsVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -39,12 +43,12 @@ impl LintRule for NoObjCalls {
   }
 }
 
-struct NoObjCallsVisitor<'c> {
-  context: &'c mut Context,
+struct NoObjCallsVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoObjCallsVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoObjCallsVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -63,7 +67,7 @@ impl<'c> NoObjCallsVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoObjCallsVisitor<'c> {
+impl<'c, 'view> Visit for NoObjCallsVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {

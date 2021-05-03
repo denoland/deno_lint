@@ -35,7 +35,11 @@ impl LintRule for NoDebugger {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDebuggerVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -68,17 +72,17 @@ function isLongString(x: string) {
 "#
   }
 }
-struct NoDebuggerVisitor<'c> {
-  context: &'c mut Context,
+struct NoDebuggerVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoDebuggerVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDebuggerVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoDebuggerVisitor<'c> {
+impl<'c, 'view> Visit for NoDebuggerVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_debugger_stmt(

@@ -27,7 +27,11 @@ impl LintRule for NoRegexSpaces {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -36,12 +40,12 @@ impl LintRule for NoRegexSpaces {
   }
 }
 
-struct NoRegexSpacesVisitor<'c> {
-  context: &'c mut Context,
+struct NoRegexSpacesVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoRegexSpacesVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoRegexSpacesVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -75,7 +79,7 @@ impl<'c> NoRegexSpacesVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoRegexSpacesVisitor<'c> {
+impl<'c, 'view> VisitAll for NoRegexSpacesVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {
@@ -85,7 +89,7 @@ impl<'c> VisitAll for NoRegexSpacesVisitor<'c> {
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
-        if let Some(regex) = extract_regex(&self.context.scope, ident, args) {
+        if let Some(regex) = extract_regex(self.context.scope(), ident, args) {
           self.check_regex(regex.as_str(), new_expr.span);
         }
       }
@@ -96,7 +100,7 @@ impl<'c> VisitAll for NoRegexSpacesVisitor<'c> {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) =
-          extract_regex(&self.context.scope, ident, &call_expr.args)
+          extract_regex(self.context.scope(), ident, &call_expr.args)
         {
           self.check_regex(regex.as_str(), call_expr.span);
         }

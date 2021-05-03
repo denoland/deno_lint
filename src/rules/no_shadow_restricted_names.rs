@@ -25,7 +25,11 @@ impl LintRule for NoShadowRestrictedNames {
     Box::new(NoShadowRestrictedNames)
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -42,12 +46,12 @@ impl LintRule for NoShadowRestrictedNames {
   }
 }
 
-struct NoShadowRestrictedNamesVisitor<'c> {
-  context: &'c mut Context,
+struct NoShadowRestrictedNamesVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoShadowRestrictedNamesVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -64,7 +68,7 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
         // trying to assign `undefined`
         // Check is scope is valid for current pattern
         if &ident.id.sym == "undefined" && check_scope {
-          if let Some(_binding) = self.context.scope.var(&ident.to_id()) {
+          if let Some(_binding) = self.context.scope().var(&ident.to_id()) {
             self.report_shadowing(&ident.id);
           }
           return;
@@ -119,7 +123,7 @@ impl<'c> NoShadowRestrictedNamesVisitor<'c> {
   }
 }
 
-impl<'c> VisitAll for NoShadowRestrictedNamesVisitor<'c> {
+impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, node: &VarDecl, _: &dyn Node) {

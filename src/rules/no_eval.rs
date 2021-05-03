@@ -26,7 +26,11 @@ impl LintRule for NoEval {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoEvalVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -57,12 +61,12 @@ const value = obj[x];
   }
 }
 
-struct NoEvalVisitor<'c> {
-  context: &'c mut Context,
+struct NoEvalVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoEvalVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoEvalVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 
@@ -97,7 +101,7 @@ impl<'c> NoEvalVisitor<'c> {
   }
 }
 
-impl<'c> Visit for NoEvalVisitor<'c> {
+impl<'c, 'view> Visit for NoEvalVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {

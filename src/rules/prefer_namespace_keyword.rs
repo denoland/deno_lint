@@ -24,7 +24,11 @@ impl LintRule for PreferNamespaceKeyword {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = PreferNamespaceKeywordVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -33,17 +37,17 @@ impl LintRule for PreferNamespaceKeyword {
   }
 }
 
-struct PreferNamespaceKeywordVisitor<'c> {
-  context: &'c mut Context,
+struct PreferNamespaceKeywordVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> PreferNamespaceKeywordVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> PreferNamespaceKeywordVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
+impl<'c, 'view> Visit for PreferNamespaceKeywordVisitor<'c, 'view> {
   fn visit_ts_module_decl(
     &mut self,
     mod_decl: &TsModuleDecl,
@@ -57,7 +61,7 @@ impl<'c> Visit for PreferNamespaceKeywordVisitor<'c> {
 
     let snippet = self
       .context
-      .source_map
+      .source_map()
       .span_to_snippet(mod_decl.span)
       .expect("error in load snippet");
 

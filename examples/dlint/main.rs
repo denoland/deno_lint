@@ -192,7 +192,7 @@ fn run_linter(
       linter_builder = linter_builder.add_plugin(js_runner);
     }
 
-    let mut linter = linter_builder.build();
+    let linter = linter_builder.build();
 
     let (source_file, diagnostics) = linter
       .lint(file_path.to_string_lossy().to_string(), source_code)

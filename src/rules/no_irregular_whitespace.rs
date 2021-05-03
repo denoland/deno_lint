@@ -55,7 +55,11 @@ impl LintRule for NoIrregularWhitespace {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoIrregularWhitespaceVisitor::default();
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -68,7 +72,7 @@ impl LintRule for NoIrregularWhitespace {
       ProgramRef::Module(ref m) => m.span,
       ProgramRef::Script(ref s) => s.span,
     };
-    let file_and_lines = context.source_map.span_to_lines(span).unwrap();
+    let file_and_lines = context.source_map().span_to_lines(span).unwrap();
     let file = file_and_lines.file;
 
     for line_index in 0..file.count_lines() {

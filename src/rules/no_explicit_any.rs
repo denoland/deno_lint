@@ -23,7 +23,11 @@ impl LintRule for NoExplicitAny {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoExplicitAnyVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -56,17 +60,17 @@ function foo(): undefined { return undefined; }
   }
 }
 
-struct NoExplicitAnyVisitor<'c> {
-  context: &'c mut Context,
+struct NoExplicitAnyVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoExplicitAnyVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoExplicitAnyVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoExplicitAnyVisitor<'c> {
+impl<'c, 'view> Visit for NoExplicitAnyVisitor<'c, 'view> {
   fn visit_ts_keyword_type(
     &mut self,
     ts_keyword_type: &TsKeywordType,

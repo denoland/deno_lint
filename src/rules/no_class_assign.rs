@@ -26,7 +26,11 @@ impl LintRule for NoClassAssign {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoClassAssignVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -57,23 +61,23 @@ c = 0;  // reassigning the variable `c`
   }
 }
 
-struct NoClassAssignVisitor<'c> {
-  context: &'c mut Context,
+struct NoClassAssignVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoClassAssignVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoClassAssignVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoClassAssignVisitor<'c> {
+impl<'c, 'view> VisitAll for NoClassAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
     let ids = find_lhs_ids(&assign_expr.left);
     for id in ids {
-      let var = self.context.scope.var(&id);
+      let var = self.context.scope().var(&id);
       if let Some(var) = var {
         if let BindingKind::Class = var.kind() {
           self.context.add_diagnostic_with_hint(

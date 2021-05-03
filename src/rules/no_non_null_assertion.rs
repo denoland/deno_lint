@@ -14,7 +14,11 @@ impl LintRule for NoNonNullAssertion {
     "no-non-null-assertion"
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoNonNullAssertionVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -23,17 +27,17 @@ impl LintRule for NoNonNullAssertion {
   }
 }
 
-struct NoNonNullAssertionVisitor<'c> {
-  context: &'c mut Context,
+struct NoNonNullAssertionVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoNonNullAssertionVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoNonNullAssertionVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoNonNullAssertionVisitor<'c> {
+impl<'c, 'view> Visit for NoNonNullAssertionVisitor<'c, 'view> {
   fn visit_ts_non_null_expr(
     &mut self,
     non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,

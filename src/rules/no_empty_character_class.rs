@@ -26,7 +26,11 @@ impl LintRule for NoEmptyCharacterClass {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoEmptyCharacterClassVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -60,23 +64,23 @@ a typo or mistake.
   }
 }
 
-struct NoEmptyCharacterClassVisitor<'c> {
-  context: &'c mut Context,
+struct NoEmptyCharacterClassVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoEmptyCharacterClassVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoEmptyCharacterClassVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> Visit for NoEmptyCharacterClassVisitor<'c> {
+impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
     let raw_regex = self
       .context
-      .source_map
+      .source_map()
       .span_to_snippet(regex.span)
       .expect("error in loading snippet");
 

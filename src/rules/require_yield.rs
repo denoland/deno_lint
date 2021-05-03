@@ -29,7 +29,11 @@ impl LintRule for RequireYield {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = RequireYieldVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -38,13 +42,13 @@ impl LintRule for RequireYield {
   }
 }
 
-struct RequireYieldVisitor<'c> {
-  context: &'c mut Context,
+struct RequireYieldVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
   yield_stack: Vec<u32>,
 }
 
-impl<'c> RequireYieldVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> RequireYieldVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
       yield_stack: vec![],
@@ -72,7 +76,7 @@ impl<'c> RequireYieldVisitor<'c> {
   }
 }
 
-impl<'c> Visit for RequireYieldVisitor<'c> {
+impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr, _parent: &dyn Node) {

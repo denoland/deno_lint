@@ -37,7 +37,11 @@ impl LintRule for NoDuplicateCase {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef<'_>) {
+  fn lint_program<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: ProgramRef<'view>,
+  ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
@@ -84,17 +88,17 @@ switch (someText) {
   }
 }
 
-struct NoDuplicateCaseVisitor<'c> {
-  context: &'c mut Context,
+struct NoDuplicateCaseVisitor<'c, 'view> {
+  context: &'c mut Context<'view>,
 }
 
-impl<'c> NoDuplicateCaseVisitor<'c> {
-  fn new(context: &'c mut Context) -> Self {
+impl<'c, 'view> NoDuplicateCaseVisitor<'c, 'view> {
+  fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
 }
 
-impl<'c> VisitAll for NoDuplicateCaseVisitor<'c> {
+impl<'c, 'view> VisitAll for NoDuplicateCaseVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
