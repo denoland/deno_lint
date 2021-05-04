@@ -168,6 +168,7 @@ pub static GLOBALS: &[(&str, bool)] = &[
   ("WeakSet", false),
   ("WebAssembly", false),
   ("WebSocket", false),
+  ("WebSocketStream", false),
   ("window", false),
   ("Window", false),
   ("Worker", false),
