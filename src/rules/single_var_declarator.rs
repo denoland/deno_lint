@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::ast::VarDecl;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -7,13 +8,21 @@ use swc_ecmascript::visit::Visit;
 
 pub struct SingleVarDeclarator;
 
+const CODE: &str = "single-var-declarator";
+
+#[derive(Display)]
+enum SingleVarDeclaratorMessage {
+  #[display(fmt = "Multiple variable declarators are not allowed")]
+  Unexpected,
+}
+
 impl LintRule for SingleVarDeclarator {
   fn new() -> Box<Self> {
     Box::new(SingleVarDeclarator)
   }
 
   fn code(&self) -> &'static str {
-    "single-var-declarator"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -46,8 +55,8 @@ impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
         var_decl.span,
-        "single-var-declarator",
-        "Multiple variable declarators are not allowed",
+        CODE,
+        SingleVarDeclaratorMessage::Unexpected,
       );
     }
   }
@@ -56,21 +65,26 @@ impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn single_var_declarator_invalid() {
-    assert_lint_err::<SingleVarDeclarator>(
-      r#"const a1 = "a", b1 = "b", c1 = "c";"#,
-      0,
-    );
-    assert_lint_err::<SingleVarDeclarator>(
-      r#"let a2 = "a", b2 = "b", c2 = "c";"#,
-      0,
-    );
-    assert_lint_err::<SingleVarDeclarator>(
-      r#"var a3 = "a", b3 = "b", c3 = "c";"#,
-      0,
-    );
+    assert_lint_err! {
+      SingleVarDeclarator,
+      r#"const a1 = "a", b1 = "b", c1 = "c";"#: [
+      {
+        col:  0,
+        message: SingleVarDeclaratorMessage::Unexpected,
+      }],
+      r#"let a2 = "a", b2 = "b", c2 = "c";"#: [
+      {
+        col:  0,
+        message: SingleVarDeclaratorMessage::Unexpected,
+      }],
+      r#"var a3 = "a", b3 = "b", c3 = "c";"#: [
+      {
+        col:  0,
+        message: SingleVarDeclaratorMessage::Unexpected,
+      }],
+    }
   }
 }
