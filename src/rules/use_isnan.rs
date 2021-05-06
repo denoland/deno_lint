@@ -1,10 +1,29 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct UseIsNaN;
+
+const CODE: &str = "use-isnan";
+
+#[derive(Display)]
+enum UseIsNaNMessage {
+  #[display(fmt = "Use the isNaN function to compare with NaN")]
+  Comparison,
+
+  #[display(
+    fmt = "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch"
+  )]
+  SwitchUnmatched,
+
+  #[display(
+    fmt = "'case NaN' can never match. Use Number.isNaN before the switch"
+  )]
+  CaseUnmatched,
+}
 
 impl LintRule for UseIsNaN {
   fn new() -> Box<Self> {
@@ -16,7 +35,7 @@ impl LintRule for UseIsNaN {
   }
 
   fn code(&self) -> &'static str {
-    "use-isnan"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -67,8 +86,8 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             bin_expr.span,
-            "use-isnan",
-            "Use the isNaN function to compare with NaN",
+            CODE,
+            UseIsNaNMessage::Comparison,
           );
         }
       }
@@ -76,8 +95,8 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
         if is_nan_identifier(&ident) {
           self.context.add_diagnostic(
             bin_expr.span,
-            "use-isnan",
-            "Use the isNaN function to compare with NaN",
+            CODE,
+            UseIsNaNMessage::Comparison,
           );
         }
       }
@@ -94,8 +113,8 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
       if is_nan_identifier(&ident) {
         self.context.add_diagnostic(
           switch_stmt.span,
-          "use-isnan",
-          "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch",
+          CODE,
+          UseIsNaNMessage::SwitchUnmatched,
         );
       }
     }
@@ -106,8 +125,8 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
           if is_nan_identifier(ident) {
             self.context.add_diagnostic(
               case.span,
-              "use-isnan",
-              "'case NaN' can never match. Use Number.isNaN before the switch",
+              CODE,
+              UseIsNaNMessage::CaseUnmatched,
             );
           }
         }
@@ -123,7 +142,15 @@ mod tests {
 
   #[test]
   fn use_isnan_invalid() {
-    assert_lint_err::<UseIsNaN>("42 === NaN", 0);
+    assert_lint_err! {
+      UseIsNaN,
+      "42 === NaN": [
+      {
+        col: 0,
+        message: UseIsNaNMessage::Comparison,
+      }]
+    };
+
     assert_lint_err_on_line_n::<UseIsNaN>(
       r#"
 switch (NaN) {
