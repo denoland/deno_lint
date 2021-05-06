@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::ast::{Expr, ThrowStmt};
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -7,13 +8,24 @@ use swc_ecmascript::visit::Visit;
 
 pub struct NoThrowLiteral;
 
+const CODE: &str = "no-throw-literal";
+
+#[derive(Display)]
+enum NoThrowLiteralMessage {
+  #[display(fmt = "expected an error object to be thrown")]
+  ErrObjectExpected,
+
+  #[display(fmt = "do not throw undefined")]
+  Undefined,
+}
+
 impl LintRule for NoThrowLiteral {
   fn new() -> Box<Self> {
     Box::new(NoThrowLiteral)
   }
 
   fn code(&self) -> &'static str {
-    "no-throw-literal"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -46,14 +58,14 @@ impl<'c, 'view> Visit for NoThrowLiteralVisitor<'c, 'view> {
     match &*throw_stmt.arg {
       Expr::Lit(_) => self.context.add_diagnostic(
         throw_stmt.span,
-        "no-throw-literal",
-        "expected an error object to be thrown",
+        CODE,
+        NoThrowLiteralMessage::ErrObjectExpected,
       ),
       Expr::Ident(ident) if ident.sym == *"undefined" => {
         self.context.add_diagnostic(
           throw_stmt.span,
-          "no-throw-literal",
-          "do not throw undefined",
+          CODE,
+          NoThrowLiteralMessage::Undefined,
         )
       }
       _ => {}
@@ -64,7 +76,6 @@ impl<'c, 'view> Visit for NoThrowLiteralVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_throw_literal_valid() {
@@ -76,10 +87,33 @@ mod tests {
 
   #[test]
   fn no_throw_literal_invalid() {
-    assert_lint_err::<NoThrowLiteral>("throw 'kumiko'", 0);
-    assert_lint_err::<NoThrowLiteral>("throw true", 0);
-    assert_lint_err::<NoThrowLiteral>("throw 1096", 0);
-    assert_lint_err::<NoThrowLiteral>("throw null", 0);
-    assert_lint_err::<NoThrowLiteral>("throw undefined", 0);
+    assert_lint_err! {
+      NoThrowLiteral,
+      r#"throw 'kumiko'"#: [
+      {
+        col:  0,
+        message: NoThrowLiteralMessage::ErrObjectExpected,
+      }],
+      r#"throw true"#: [
+      {
+        col:  0,
+        message: NoThrowLiteralMessage::ErrObjectExpected,
+      }],
+      r#"throw 1096"#: [
+      {
+        col:  0,
+        message: NoThrowLiteralMessage::ErrObjectExpected,
+      }],
+      r#"throw null"#: [
+      {
+        col:  0,
+        message: NoThrowLiteralMessage::ErrObjectExpected,
+      }],
+      r#"throw undefined"#: [
+      {
+        col:  0,
+        message: NoThrowLiteralMessage::Undefined,
+      }],
+    }
   }
 }
