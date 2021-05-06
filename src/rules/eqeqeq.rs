@@ -102,7 +102,6 @@ impl<'c, 'view> Visit for EqeqeqVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn eqeqeq_valid() {
@@ -119,43 +118,215 @@ mod tests {
 
   #[test]
   fn eqeqeq_invalid() {
-    assert_lint_err::<Eqeqeq>("a == b", 0);
-    assert_lint_err::<Eqeqeq>("a != b", 0);
-    assert_lint_err::<Eqeqeq>("typeof a == 'number'", 0);
-    assert_lint_err::<Eqeqeq>("'string' != typeof a", 0);
-    assert_lint_err::<Eqeqeq>("true == true", 0);
-    assert_lint_err::<Eqeqeq>("2 == 3", 0);
-    assert_lint_err::<Eqeqeq>("'hello' != 'world'", 0);
-    assert_lint_err::<Eqeqeq>("a == null", 0);
-    assert_lint_err::<Eqeqeq>("null != a", 0);
-    assert_lint_err::<Eqeqeq>("true == null", 0);
-    assert_lint_err::<Eqeqeq>("true != null", 0);
-    assert_lint_err::<Eqeqeq>("null == null", 0);
-    assert_lint_err::<Eqeqeq>("null != null", 0);
-    assert_lint_err_on_line::<Eqeqeq>(
+    assert_lint_err! {
+      Eqeqeq,
+
+      "a == b": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "a != b": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "typeof a == 'number'": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "'string' != typeof a": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "true == true": [
+      {
+        col: 0,
+
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "2 == 3": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "'hello' != 'world'": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "a == null": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "null != a": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "true == null": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "true != null": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "null == null": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "null != null": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
       r#"
 a
 ==
-b"#,
-      2,
-      0,
-    );
-    assert_lint_err::<Eqeqeq>("(a) == b", 0);
-    assert_lint_err::<Eqeqeq>("(a) != b", 0);
-    assert_lint_err::<Eqeqeq>("a == (b)", 0);
-    assert_lint_err::<Eqeqeq>("a != (b)", 0);
-    assert_lint_err::<Eqeqeq>("(a) == (b)", 0);
-    assert_lint_err::<Eqeqeq>("(a) != (b)", 0);
-    assert_lint_err_n::<Eqeqeq>("(a == b) == (c)", vec![0, 1]);
-    assert_lint_err_n::<Eqeqeq>("(a != b) != (c)", vec![0, 1]);
-    assert_lint_err::<Eqeqeq>("(a == b) === (c)", 1);
-    assert_lint_err::<Eqeqeq>("(a == b) !== (c)", 1);
-    assert_lint_err::<Eqeqeq>("(a === b) == (c)", 0);
-    assert_lint_err::<Eqeqeq>("(a === b) != (c)", 0);
-    assert_lint_err::<Eqeqeq>("a == b;", 0);
-    assert_lint_err::<Eqeqeq>("a!=b;", 0);
-    assert_lint_err::<Eqeqeq>("(a + b) == c;", 0);
-    assert_lint_err::<Eqeqeq>("(a + b)  !=  c;", 0);
-    assert_lint_err::<Eqeqeq>("((1) )  ==  (2);", 0);
+b     "#: [
+      {
+        line: 2,
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a) == b": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a) != b": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "a == (b)": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "a != (b)": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "(a) == (b)": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a) != (b)": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "(a == b) == (c)": [
+      {
+        line: 1,
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      },
+      {
+        line: 1,
+        col: 1,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+
+      "(a != b) != (c)": [
+      {
+        line: 1,
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      },
+      {
+        line: 1,
+        col: 1,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "(a == b) === (c)": [
+      {
+        col: 1,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a == b) !== (c)": [
+      {
+        col: 1,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a === b) == (c)": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a === b) != (c)": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "a == b;": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "a!=b;": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "(a + b) == c;": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+      "(a + b)  !=  c;": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedNotEqual,
+        hint: EqeqeqHint::UseNoteqeq,
+      }],
+      "((1) )  ==  (2);": [
+      {
+        col: 0,
+        message: EqeqeqMessage::ExpectedEqual,
+        hint: EqeqeqHint::UseEqeqeq,
+      }],
+    }
   }
 }
