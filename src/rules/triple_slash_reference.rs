@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
+use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
@@ -8,13 +9,17 @@ use swc_common::Span;
 
 pub struct TripleSlashReference;
 
+const CODE: &str = "triple-slash-reference";
+
+#[derive(Display)]
+enum TripleSlashReferenceMessage {
+  #[display(fmt = "`triple slash reference` is not allowed")]
+  Unexpected,
+}
+
 impl TripleSlashReference {
   fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic(
-      span,
-      "triple-slash-reference",
-      "`triple slash reference` is not allowed",
-    );
+    context.add_diagnostic(span, CODE, TripleSlashReferenceMessage::Unexpected);
   }
 }
 
@@ -24,7 +29,7 @@ impl LintRule for TripleSlashReference {
   }
 
   fn code(&self) -> &'static str {
-    "triple-slash-reference"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
@@ -62,14 +67,6 @@ fn check_comment(comment: &Comment) -> bool {
 mod tests {
   use super::*;
   use crate::test_util::*;
-
-  #[test]
-  fn magurotuna() {
-    assert_lint_err::<TripleSlashReference>(
-      r#"/// <reference path="foo" />"#,
-      0,
-    );
-  }
 
   #[test]
   fn triple_slash_reference_valid() {
@@ -117,17 +114,23 @@ import foo = require('foo');
       0,
     );
 
-    assert_lint_err::<TripleSlashReference>(
-      r#"/// <reference path="foo" />"#,
-      0,
-    );
-    assert_lint_err::<TripleSlashReference>(
-      r#"/// <reference types="foo" />"#,
-      0,
-    );
-    assert_lint_err::<TripleSlashReference>(
-      r#"/// <reference lib="foo" />"#,
-      0,
-    );
+    assert_lint_err! {
+      TripleSlashReference,
+      r#"/// <reference path="foo" />"#: [
+      {
+        col:  0,
+        message: TripleSlashReferenceMessage::Unexpected,
+      }],
+      r#"/// <reference types="foo" />"#: [
+      {
+        col:  0,
+        message: TripleSlashReferenceMessage::Unexpected,
+      }],
+      r#"/// <reference lib="foo" />"#: [
+      {
+        col:  0,
+        message: TripleSlashReferenceMessage::Unexpected,
+      }],
+    }
   }
 }
