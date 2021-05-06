@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::ast::{Expr, ExprOrSuper};
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -8,13 +9,23 @@ use swc_common::Span;
 
 pub struct NoNonNullAssertedOptionalChain;
 
+const CODE: &str = "no-non-null-asserted-optional-chain";
+
+#[derive(Display)]
+enum NoNonNullAssertedOptionalChainMessage {
+  #[display(
+    fmt = "Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong."
+  )]
+  WrongAssertion,
+}
+
 impl LintRule for NoNonNullAssertedOptionalChain {
   fn new() -> Box<Self> {
     Box::new(NoNonNullAssertedOptionalChain)
   }
 
   fn code(&self) -> &'static str {
-    "no-non-null-asserted-optional-chain"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -42,8 +53,8 @@ impl<'c, 'view> NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
   fn add_diagnostic(&mut self, span: Span) {
     self.context.add_diagnostic(
       span,
-      "no-non-null-asserted-optional-chain",
-      "Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong.",
+      CODE,
+      NoNonNullAssertedOptionalChainMessage::WrongAssertion,
     );
   }
 
@@ -90,7 +101,6 @@ impl<'c, 'view> Visit for NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_non_null_asserted_optional_chain_valid() {
@@ -107,15 +117,58 @@ mod tests {
 
   #[test]
   fn no_non_null_asserted_optional_chain_invalid() {
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar!;", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.['bar']!;", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo?.bar()!;", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("foo.bar?.()!;", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!.baz", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!().baz", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar)!()", 0);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar!)", 1);
-    assert_lint_err::<NoNonNullAssertedOptionalChain>("(foo?.bar!)()", 1);
+    assert_lint_err! {
+      NoNonNullAssertedOptionalChain,
+      r#"foo?.bar!;"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"foo?.['bar']!;"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"foo?.bar()!;"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"foo.bar?.()!;"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"(foo?.bar)!.baz"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"(foo?.bar)!().baz"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"(foo?.bar)!"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"(foo?.bar)!()"#: [
+      {
+        col:  0,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"(foo?.bar!)"#: [
+      {
+        col:  1,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+      r#"(foo?.bar!)()"#: [
+      {
+        col:  1,
+        message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
+      }],
+    }
   }
 }
