@@ -138,7 +138,6 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn use_isnan_invalid() {
@@ -148,10 +147,7 @@ mod tests {
       {
         col: 0,
         message: UseIsNaNMessage::Comparison,
-      }]
-    };
-
-    assert_lint_err_on_line_n::<UseIsNaN>(
+      }],
       r#"
 switch (NaN) {
   case NaN:
@@ -159,8 +155,17 @@ switch (NaN) {
   default:
     break;
 }
-      "#,
-      vec![(2, 0), (3, 2)],
-    );
+        "#: [
+      {
+        line: 2,
+        col: 0,
+        message: UseIsNaNMessage::SwitchUnmatched,
+      },
+      {
+        line: 3,
+        col: 2,
+        message: UseIsNaNMessage::CaseUnmatched,
+      }],
+    }
   }
 }
