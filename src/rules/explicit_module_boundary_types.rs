@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -12,13 +13,33 @@ use swc_ecmascript::ast::{
 
 pub struct ExplicitModuleBoundaryTypes;
 
+const CODE: &str = "explicit-module-boundary-types";
+
+#[derive(Display)]
+enum ExplicitModuleBoundaryTypesMessage {
+  #[display(fmt = "Missing return type on function")]
+  MissingRetType,
+
+  #[display(fmt = "All arguments should be typed")]
+  MissingArgType,
+}
+
+#[derive(Display)]
+enum ExplicitModuleBoundaryTypesHint {
+  #[display(fmt = "Add a return type to the function signature")]
+  AddRetType,
+
+  #[display(fmt = "Add types to all the function arguments")]
+  AddArgTypes,
+}
+
 impl LintRule for ExplicitModuleBoundaryTypes {
   fn new() -> Box<Self> {
     Box::new(ExplicitModuleBoundaryTypes)
   }
 
   fn code(&self) -> &'static str {
-    "explicit-module-boundary-types"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -93,9 +114,9 @@ impl<'c, 'view> ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
     if function.return_type.is_none() {
       self.context.add_diagnostic_with_hint(
         function.span,
-        "explicit-module-boundary-types",
-        "Missing return type on function",
-        "Add a return type to the function signature",
+        CODE,
+        ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        ExplicitModuleBoundaryTypesHint::AddRetType,
       );
     }
     for param in &function.params {
@@ -107,9 +128,9 @@ impl<'c, 'view> ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
     if arrow.return_type.is_none() {
       self.context.add_diagnostic_with_hint(
         arrow.span,
-        "explicit-module-boundary-types",
-        "Missing return type on function",
-        "Add a return type to the function signature",
+        CODE,
+        ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        ExplicitModuleBoundaryTypesHint::AddRetType,
       );
     }
     for pat in &arrow.params {
@@ -124,18 +145,18 @@ impl<'c, 'view> ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
         if TsKeywordTypeKind::TsAnyKeyword == keyword_type.kind {
           self.context.add_diagnostic_with_hint(
             span,
-            "explicit-module-boundary-types",
-            "All arguments should be typed",
-            "Add types to all the function arguments",
+            CODE,
+            ExplicitModuleBoundaryTypesMessage::MissingArgType,
+            ExplicitModuleBoundaryTypesHint::AddArgTypes,
           );
         }
       }
     } else {
       self.context.add_diagnostic_with_hint(
         span,
-        "explicit-module-boundary-types",
-        "All arguments should be typed",
-        "Add types to all the function arguments",
+        CODE,
+        ExplicitModuleBoundaryTypesMessage::MissingArgType,
+        ExplicitModuleBoundaryTypesHint::AddArgTypes,
       );
     }
   }
@@ -190,7 +211,6 @@ impl<'c, 'view> Visit for ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn explicit_module_boundary_types_valid() {
@@ -206,29 +226,45 @@ mod tests {
 
   #[test]
   fn explicit_module_boundary_types_invalid() {
-    assert_lint_err::<ExplicitModuleBoundaryTypes>(
-      "export function test() { return; }",
-      7,
-    );
-    assert_lint_err::<ExplicitModuleBoundaryTypes>(
-      "export default function () { return 1; }",
-      15,
-    );
-    assert_lint_err::<ExplicitModuleBoundaryTypes>(
-      "export var arrowFn = () => 'test';",
-      21,
-    );
-    assert_lint_err::<ExplicitModuleBoundaryTypes>(
-      "export var arrowFn = (arg): string => `test ${arg}`;",
-      22,
-    );
-    assert_lint_err::<ExplicitModuleBoundaryTypes>(
-      "export var arrowFn = (arg: any): string => `test ${arg}`;",
-      22,
-    );
-    assert_lint_err::<ExplicitModuleBoundaryTypes>(
-      "export class Test { method() { return; } }",
-      20,
-    );
+    assert_lint_err! {
+      ExplicitModuleBoundaryTypes,
+
+      r#"export function test() { return; }"#: [
+      {
+        col: 7,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export default function () { return 1; }"#: [
+      {
+        col: 15,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export var arrowFn = () => 'test';"#: [
+      {
+        col: 21,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export var arrowFn = (arg): string => `test ${arg}`;"#: [
+      {
+        col: 22,
+        message: ExplicitModuleBoundaryTypesMessage::MissingArgType,
+        hint: ExplicitModuleBoundaryTypesHint::AddArgTypes,
+      }],
+      r#"export var arrowFn = (arg: any): string => `test ${arg}`;"#: [
+      {
+        col: 22,
+        message: ExplicitModuleBoundaryTypesMessage::MissingArgType,
+        hint: ExplicitModuleBoundaryTypesHint::AddArgTypes,
+      }],
+      r#"export class Test { method() { return; } }"#: [
+      {
+        col: 20,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+    }
   }
 }
