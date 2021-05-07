@@ -235,55 +235,55 @@ mod tests {
       }],
       r#"const {a: x} = {a: 0}; x = 1;"#: [
       {
-        col:  23,
+        col: 23,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; ({x} = {x: 1});"#: [
       {
-        col:  15,
+        col: 15,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; ({a: x = 1} = {});"#: [
       {
-        col:  14,
+        col: 14,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; x += 1;"#: [
       {
-        col:  13,
+        col: 13,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; ++x;"#: [
       {
-        col:  13,
+        col: 13,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; function foo() { x = x + 1; }"#: [
       {
-        col:  30,
+        col: 30,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; function foo(a) { x = a; }"#: [
       {
-        col:  31,
+        col: 31,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"for (const i = 0; i < 10; ++i) {}"#: [
       {
-        col:  26,
+        col: 26,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
       r#"const x = 0; while (true) { x = x + 1; }"#: [
       {
-        col:  28,
+        col: 28,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
@@ -298,7 +298,7 @@ switch (char) {
 }"#: [
       {
         line: 7,
-        col:  4,
+        col: 4,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
