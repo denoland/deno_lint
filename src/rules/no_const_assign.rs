@@ -230,7 +230,7 @@ mod tests {
       NoConstAssign,
       r#"const x = 0; x = 1;"#: [
       {
-        col:  13,
+        col: 13,
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
