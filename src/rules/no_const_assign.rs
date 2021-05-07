@@ -168,7 +168,6 @@ impl<'c, 'view> Visit for NoConstAssignVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_const_assign_valid() {
@@ -288,9 +287,6 @@ mod tests {
         message: NoConstantAssignMessage::Unexpected,
         hint: NoConstantAssignHint::Remove,
       }],
-    }
-
-    assert_lint_err_on_line::<NoConstAssign>(
       r#"
 switch (char) {
   case "a":
@@ -299,20 +295,24 @@ switch (char) {
   case "b":
     a = false;
   break;
-}"#,
-      7,
-      4,
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#: [
+      {
+        line: 7,
+        col:  4,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
-  try {
-    const a = 1;
-    a = 2;
-  } catch (e) {}"#,
-      4,
-      4,
-    );
-    assert_lint_err_on_line_n::<NoConstAssign>(
+try {
+  const a = 1;
+  a = 2;
+} catch (e) {}"#:[
+      {
+        line: 4,
+        col: 2,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 if (true) {
   const a = 1;
@@ -321,48 +321,65 @@ if (true) {
   } else {
     a = 2;
   }
-}"#,
-      vec![(5, 4), (7, 4)],
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#:[
+      {
+        line: 5,
+        col: 4,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      },
+      {
+        line: 7,
+        col: 4,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 for (const a of [1, 2, 3]) {
   a = 0;
-}"#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#:[
+      {
+        line: 3,
+        col: 2,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 for (const a in [1, 2, 3]) {
   a = 0;
-}"#,
-      3,
-      2,
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#:[
+      {
+        line: 3,
+        col: 2,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 while (true) {
   const a = 1;
   while (a == 1) {
     a = 2;
   }
-}"#,
-      5,
-      4,
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#:[
+      {
+        line: 5,
+        col: 4,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 const lambda = () => {
   const a = 1;
   {
     a = 1;
   }
-}"#,
-      5,
-      4,
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#:[
+      {
+        line: 5,
+        col: 4,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 class URL {
   get port(){
@@ -370,22 +387,37 @@ class URL {
     port = 3000;
     return port;
   }
-}"#,
-      5,
-      4,
-    );
-    assert_lint_err_on_line::<NoConstAssign>(
+}"#:[
+      {
+        line: 5,
+        col: 4,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
       r#"
 declare module "foo" {
   const a = 1;
   a=2;
-}"#,
-      4,
-      2,
-    );
-    assert_lint_err_n::<NoConstAssign>(
-      "const x = 0  ; x = 1; x = 2;",
-      vec![15, 22],
-    );
+}"#:[
+      {
+        line: 4,
+        col: 2,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
+      "const x = 0  ; x = 1; x = 2;": [
+      {
+        line: 1,
+        col: 15,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      },
+      {
+        line: 1,
+        col: 22,
+        message: NoConstantAssignMessage::Unexpected,
+        hint: NoConstantAssignHint::Remove,
+      }],
+    }
   }
 }
