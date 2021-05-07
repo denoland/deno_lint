@@ -1,10 +1,25 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct ExplicitFunctionReturnType;
+
+const CODE: &str = "explicit-function-return-type";
+
+#[derive(Display)]
+enum ExplicitFunctionReturnTypeMessage {
+  #[display(fmt = "Missing return type on function")]
+  MissingRetType,
+}
+
+#[derive(Display)]
+enum ExplicitFunctionReturnTypeHint {
+  #[display(fmt = "Add a return type to the function signature")]
+  AddRetType,
+}
 
 impl LintRule for ExplicitFunctionReturnType {
   fn new() -> Box<Self> {
@@ -12,7 +27,7 @@ impl LintRule for ExplicitFunctionReturnType {
   }
 
   fn code(&self) -> &'static str {
-    "explicit-function-return-type"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -70,9 +85,9 @@ impl<'c, 'view> Visit for ExplicitFunctionReturnTypeVisitor<'c, 'view> {
     if function.return_type.is_none() {
       self.context.add_diagnostic_with_hint(
         function.span,
-        "explicit-function-return-type",
-        "Missing return type on function",
-        "Add a return type to the function signature",
+        CODE,
+        ExplicitFunctionReturnTypeMessage::MissingRetType,
+        ExplicitFunctionReturnTypeHint::AddRetType,
       );
     }
     for stmt in &function.body {
@@ -84,7 +99,6 @@ impl<'c, 'view> Visit for ExplicitFunctionReturnTypeVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn explicit_function_return_type_valid() {
@@ -98,14 +112,33 @@ mod tests {
 
   #[test]
   fn explicit_function_return_type_invalid() {
-    assert_lint_err::<ExplicitFunctionReturnType>("function foo() { }", 0);
-    assert_lint_err_on_line_n::<ExplicitFunctionReturnType>(
+    assert_lint_err! {
+      ExplicitFunctionReturnType,
+
+      r#"function foo() { }"#: [
+      {
+        col: 0,
+        message: ExplicitFunctionReturnTypeMessage::MissingRetType,
+        hint: ExplicitFunctionReturnTypeHint::AddRetType,
+      }],
       r#"
 function a() {
   function b() {}
 }
-      "#,
-      vec![(2, 0), (3, 2)],
-    );
+      "#: [
+      {
+        line: 2,
+        col: 0,
+        message: ExplicitFunctionReturnTypeMessage::MissingRetType,
+        hint: ExplicitFunctionReturnTypeHint::AddRetType,
+      },
+      {
+        line: 3,
+        col: 2,
+        message: ExplicitFunctionReturnTypeMessage::MissingRetType,
+        hint: ExplicitFunctionReturnTypeHint::AddRetType,
+      },
+      ]
+    }
   }
 }

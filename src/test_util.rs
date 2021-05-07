@@ -326,49 +326,6 @@ pub fn assert_lint_ok<T: LintRule + 'static>(
   }
 }
 
-pub fn assert_lint_err<T: LintRule + 'static>(source: &str, col: usize) {
-  assert_lint_err_on_line::<T>(source, 1, col)
-}
-
-pub fn assert_lint_err_on_line<T: LintRule + 'static>(
-  source: &str,
-  line: usize,
-  col: usize,
-) {
-  let rule = T::new();
-  let rule_code = rule.code();
-  let diagnostics = lint(rule, source, "deno_lint_err_test.ts".to_string());
-  assert_eq!(
-    diagnostics.len(),
-    1,
-    "1 diagnostic expected, but got {}.\n\nsource:\n{}\n",
-    diagnostics.len(),
-    source
-  );
-  assert_diagnostic(&diagnostics[0], rule_code, line, col, source);
-}
-
-pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
-  source: &str,
-  expected: Vec<(usize, usize)>,
-) {
-  let rule = T::new();
-  let rule_code = rule.code();
-  let diagnostics = lint(rule, source, "deno_lint_err_test.ts".to_string());
-  assert_eq!(
-    diagnostics.len(),
-    expected.len(),
-    "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
-    expected.len(),
-    diagnostics.len(),
-    source
-  );
-  for i in 0..diagnostics.len() {
-    let (line, col) = expected[i];
-    assert_diagnostic(&diagnostics[i], rule_code, line, col, source);
-  }
-}
-
 pub fn parse(
   source_code: &str,
 ) -> (
