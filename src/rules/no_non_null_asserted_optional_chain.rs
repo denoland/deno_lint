@@ -121,52 +121,52 @@ mod tests {
       NoNonNullAssertedOptionalChain,
       r#"foo?.bar!;"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"foo?.['bar']!;"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"foo?.bar()!;"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"foo.bar?.()!;"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"(foo?.bar)!.baz"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"(foo?.bar)!().baz"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"(foo?.bar)!"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"(foo?.bar)!()"#: [
       {
-        col:  0,
+        col: 0,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"(foo?.bar!)"#: [
       {
-        col:  1,
+        col: 1,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
       r#"(foo?.bar!)()"#: [
       {
-        col:  1,
+        col: 1,
         message: NoNonNullAssertedOptionalChainMessage::WrongAssertion,
       }],
     }
