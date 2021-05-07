@@ -348,17 +348,6 @@ pub fn assert_lint_err_on_line<T: LintRule + 'static>(
   assert_diagnostic(&diagnostics[0], rule_code, line, col, source);
 }
 
-pub fn assert_lint_err_n<T: LintRule + 'static>(
-  source: &str,
-  expected: Vec<usize>,
-) {
-  let mut real: Vec<(usize, usize)> = Vec::new();
-  for col in expected {
-    real.push((1, col));
-  }
-  assert_lint_err_on_line_n::<T>(source, real)
-}
-
 pub fn assert_lint_err_on_line_n<T: LintRule + 'static>(
   source: &str,
   expected: Vec<(usize, usize)>,

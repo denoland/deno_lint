@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::{ArrowExpr, Function, Pat};
 use swc_ecmascript::visit::noop_visit_type;
@@ -9,13 +10,29 @@ use swc_ecmascript::visit::VisitAllWith;
 
 pub struct DefaultParamLast;
 
+const CODE: &str = "default-param-last";
+
+#[derive(Display)]
+enum DefaultParamLastMessage {
+  #[display(fmt = "default parameters should be at last")]
+  DefaultLast,
+}
+
+#[derive(Display)]
+enum DefaultParamLastHint {
+  #[display(
+    fmt = "Modify the signatures to move default parameter(s) to the end"
+  )]
+  MoveToEnd,
+}
+
 impl LintRule for DefaultParamLast {
   fn new() -> Box<Self> {
     Box::new(DefaultParamLast)
   }
 
   fn code(&self) -> &'static str {
-    "default-param-last"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -70,9 +87,9 @@ impl<'c, 'view> DefaultParamLastVisitor<'c, 'view> {
   fn report(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
-      "default-param-last",
-      "default parameters should be at last",
-      "Modify the signatures to move default parameter(s) to the end",
+      CODE,
+      DefaultParamLastMessage::DefaultLast,
+      DefaultParamLastHint::MoveToEnd,
     );
   }
 
@@ -112,7 +129,6 @@ impl<'c, 'view> VisitAll for DefaultParamLastVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   // Some tests are derived from
   // https://github.com/eslint/eslint/blob/v7.9.0/tests/lib/rules/default-param-last.js
@@ -146,79 +162,147 @@ class Foo {
 
   #[test]
   fn default_param_last_invalid() {
-    assert_lint_err::<DefaultParamLast>("function f(a = 2, b) {}", 11);
-    assert_lint_err::<DefaultParamLast>("const f = function (a = 2, b) {}", 20);
-    assert_lint_err_n::<DefaultParamLast>(
-      "function f(a = 5, b = 6, c) {}",
-      vec![18, 11],
-    );
-    assert_lint_err_n::<DefaultParamLast>(
-      "function f(a = 5, b, c = 6, d) {}",
-      vec![21, 11],
-    );
-    assert_lint_err::<DefaultParamLast>("function f(a = 5, b, c = 5) {}", 11);
-    assert_lint_err::<DefaultParamLast>("const f = (a = 5, b, ...c) => {}", 11);
-    assert_lint_err::<DefaultParamLast>(
-      "const f = function f (a, b = 5, c) {}",
-      25,
-    );
-    assert_lint_err::<DefaultParamLast>("const f = (a = 5, { b }) => {}", 11);
-    assert_lint_err::<DefaultParamLast>("const f = ({ a } = {}, b) => {}", 11);
-    assert_lint_err::<DefaultParamLast>(
-      "const f = ({ a, b } = { a: 1, b: 2 }, c) => {}",
-      11,
-    );
-    assert_lint_err::<DefaultParamLast>("const f = ([a] = [], b) => {}", 11);
-    assert_lint_err::<DefaultParamLast>(
-      "const f = ([a, b] = [1, 2], c) => {}",
-      11,
-    );
-    assert_lint_err_on_line::<DefaultParamLast>(
+    assert_lint_err! {
+      DefaultParamLast,
+
+      r#"function f(a = 2, b) {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = function (a = 2, b) {}"#: [
+      {
+        col: 20,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"function f(a = 5, b = 6, c) {}"#: [
+      {
+        col: 18,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      },
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"function f(a = 5, b, c = 6, d) {}"#: [
+      {
+        col: 21,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      },
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"function f(a = 5, b, c = 5) {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = (a = 5, b, ...c) => {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = function f (a, b = 5, c) {}"#: [
+      {
+        col: 25,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = (a = 5, { b }) => {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = ({ a } = {}, b) => {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = ({ a, b } = { a: 1, b: 2 }, c) => {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = ([a] = [], b) => {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"const f = ([a, b] = [1, 2], c) => {}"#: [
+      {
+        col: 11,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+
       r#"
 class Foo {
   bar(a = 2, b) {}
 }
-      "#,
-      3,
-      6,
-    );
-    assert_lint_err_on_line::<DefaultParamLast>(
+      "#: [
+      {
+        line: 3,
+        col: 6,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
       r#"
 function f() {
   function g(a = 5, b) {}
 }
-"#,
-      3,
-      13,
-    );
-    assert_lint_err_on_line::<DefaultParamLast>(
+"#: [
+      {
+        line: 3,
+        col: 13,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
       r#"
 const f = () => {
   function g(a = 5, b) {}
 }
-"#,
-      3,
-      13,
-    );
-    assert_lint_err_on_line::<DefaultParamLast>(
+"#: [
+      {
+        line: 3,
+        col: 13,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
       r#"
 function f() {
   const g = (a = 5, b) => {}
 }
-"#,
-      3,
-      13,
-    );
-    assert_lint_err_on_line::<DefaultParamLast>(
+"#: [
+      {
+        line: 3,
+        col: 13,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
       r#"
 const f = () => {
   const g = (a = 5, b) => {}
 }
-"#,
-      3,
-      13,
-    );
-    assert_lint_err_on_line::<DefaultParamLast>(
+"#: [
+      {
+        line: 3,
+        col: 13,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
       r#"
 class Foo {
   bar(a, b = 1) {
@@ -227,9 +311,13 @@ class Foo {
     }
   }
 }
-      "#,
-      5,
-      8,
-    );
+"#: [
+      {
+        line: 5,
+        col: 8,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+    }
   }
 }
