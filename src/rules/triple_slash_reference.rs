@@ -66,7 +66,6 @@ fn check_comment(comment: &Comment) -> bool {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn triple_slash_reference_valid() {
@@ -97,25 +96,25 @@ mod tests {
 
   #[test]
   fn triple_slash_reference_invalid() {
-    assert_lint_err_on_line::<TripleSlashReference>(
+    assert_lint_err! {
+      TripleSlashReference,
       r#"
 /// <reference types="foo" />
-import * as foo from 'foo';"#,
-      2,
-      0,
-    );
-
-    assert_lint_err_on_line::<TripleSlashReference>(
+import * as foo from 'foo';"#:[
+      {
+        line: 2,
+        col: 0,
+        message: TripleSlashReferenceMessage::Unexpected,
+      }],
       r#"
 /// <reference types="foo" />
 import foo = require('foo');
-    "#,
-      2,
-      0,
-    );
-
-    assert_lint_err! {
-      TripleSlashReference,
+    "#:[
+      {
+        line: 2,
+        col: 0,
+        message: TripleSlashReferenceMessage::Unexpected,
+      }],
       r#"/// <reference path="foo" />"#: [
       {
         col:  0,
