@@ -141,27 +141,27 @@ mod tests {
   fn eat_test() {
     let mut reader = Reader::new();
     reader.reset("abcdefghijk", 0, 11, true);
-    assert_eq!(reader.eat('a'), true);
-    assert_eq!(reader.eat3('b', 'd', 'd'), false);
-    assert_eq!(reader.eat3('b', 'c', 'd'), true);
-    assert_eq!(reader.eat2('e', 'f'), true);
-    assert_eq!(reader.eat('h'), false);
-    assert_eq!(reader.eat('g'), true);
-    assert_eq!(reader.eat2('h', 'i'), true);
-    assert_eq!(reader.eat3('j', 'k', 'a'), false);
+    assert!(reader.eat('a'));
+    assert!(!reader.eat3('b', 'd', 'd'));
+    assert!(reader.eat3('b', 'c', 'd'));
+    assert!(reader.eat2('e', 'f'));
+    assert!(!reader.eat('h'));
+    assert!(reader.eat('g'));
+    assert!(reader.eat2('h', 'i'));
+    assert!(!reader.eat3('j', 'k', 'a'));
   }
 
   #[test]
   fn rewind_test() {
     let mut reader = Reader::new();
     reader.reset("abcd", 0, 4, true);
-    assert_eq!(reader.eat('a'), true);
-    assert_eq!(reader.eat3('b', 'd', 'd'), false);
-    assert_eq!(reader.eat3('b', 'c', 'd'), true);
+    assert!(reader.eat('a'));
+    assert!(!reader.eat3('b', 'd', 'd'));
+    assert!(reader.eat3('b', 'c', 'd'));
     reader.rewind(0);
-    assert_eq!(reader.eat('a'), true);
-    assert_eq!(reader.eat3('b', 'd', 'd'), false);
-    assert_eq!(reader.eat3('b', 'c', 'd'), true);
+    assert!(reader.eat('a'));
+    assert!(!reader.eat3('b', 'd', 'd'));
+    assert!(reader.eat3('b', 'c', 'd'));
   }
 
   #[test]

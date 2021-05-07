@@ -1,16 +1,18 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
+use if_chain::if_chain;
 use std::collections::HashSet;
+use swc_atoms::js_word;
 use swc_ecmascript::ast::{
   ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
   DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
-  FnDecl, FnExpr, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, MemberExpr, MethodKind, NamedExport, Param, Pat, Prop,
-  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
-  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
-  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclOrPat,
-  VarDeclarator,
+  FnDecl, FnExpr, Function, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, MemberExpr, MethodKind,
+  NamedExport, Param, Pat, Prop, PropName, SetterProp, TsEntityName,
+  TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
+  TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr,
+  TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -215,7 +217,7 @@ impl Visit for Collector {
     self.used_vars.insert(export.orig.to_id());
   }
 
-  /// Handl for-in/of loops
+  /// Handle for-in/of loops
   fn visit_var_decl_or_pat(&mut self, node: &VarDeclOrPat, _: &dyn Node) {
     // We need this because find_ids searches ids only in the pattern.
     node.visit_children_with(self);
@@ -250,6 +252,25 @@ impl Visit for Collector {
     } else {
       expr.function.visit_with(expr, self);
     }
+  }
+
+  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+    if_chain! {
+      if let Some(first_param) = function.params.get(0);
+      if let Pat::Ident(ident) = &first_param.pat;
+      if ident.type_ann.is_some();
+      if ident.id.sym == js_word!("this");
+      then {
+        // If the first parameter of a function is `this` keyword with type annotated, it is a
+        // fake parameter specifying what type `this` becomes inside the function body.
+        // (See https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+        // for more info)
+        // Since it's just a fake parameter, we can mark it as used.
+        self.mark_as_usage(&ident.id);
+      }
+    }
+
+    function.visit_children_with(self);
   }
 
   fn visit_class_decl(&mut self, decl: &ClassDecl, _: &dyn Node) {
@@ -1185,6 +1206,21 @@ export default class Foo {
       "import type Foo from './foo.ts'; interface _Bar<T extends Foo> {}",
       "import type Foo from './foo.ts'; type _Bar<T extends Foo> = T;",
       "type Foo = { a: number }; function _bar<T extends keyof Foo>() {}",
+
+      // https://github.com/denoland/deno_lint/issues/667#issuecomment-821856328
+      // `this` as a fake parameter. See: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+      "export function f(this: void) {}",
+      "export const foo = { bar(this: Foo) {} };",
+      "export interface Foo { bar(this: void): void; }",
+      "export interface Foo { bar(baz: (this: void) => void ): void; }",
+      "export class Foo { bar(this: Foo) {} }",
+      r#"
+export abstract class Point4DPartial {
+    toString(this: Point4D): string {
+      return [this.getPosition(), this.z, this.getTime()].join(", ");
+    }
+}
+      "#,
     };
 
     // JSX or TSX
