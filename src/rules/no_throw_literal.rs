@@ -91,27 +91,27 @@ mod tests {
       NoThrowLiteral,
       r#"throw 'kumiko'"#: [
       {
-        col:  0,
+        col: 0,
         message: NoThrowLiteralMessage::ErrObjectExpected,
       }],
       r#"throw true"#: [
       {
-        col:  0,
+        col: 0,
         message: NoThrowLiteralMessage::ErrObjectExpected,
       }],
       r#"throw 1096"#: [
       {
-        col:  0,
+        col: 0,
         message: NoThrowLiteralMessage::ErrObjectExpected,
       }],
       r#"throw null"#: [
       {
-        col:  0,
+        col: 0,
         message: NoThrowLiteralMessage::ErrObjectExpected,
       }],
       r#"throw undefined"#: [
       {
-        col:  0,
+        col: 0,
         message: NoThrowLiteralMessage::Undefined,
       }],
     }

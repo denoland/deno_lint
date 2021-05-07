@@ -83,7 +83,7 @@ mod tests {
       NoSparseArrays,
       r#"const sparseArray = [1,,3];"#: [
       {
-        col:  20,
+        col: 20,
         message: NoSparseArraysMessage::Disallowed,
       }],
     }

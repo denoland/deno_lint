@@ -72,17 +72,17 @@ mod tests {
       SingleVarDeclarator,
       r#"const a1 = "a", b1 = "b", c1 = "c";"#: [
       {
-        col:  0,
+        col: 0,
         message: SingleVarDeclaratorMessage::Unexpected,
       }],
       r#"let a2 = "a", b2 = "b", c2 = "c";"#: [
       {
-        col:  0,
+        col: 0,
         message: SingleVarDeclaratorMessage::Unexpected,
       }],
       r#"var a3 = "a", b3 = "b", c3 = "c";"#: [
       {
-        col:  0,
+        col: 0,
         message: SingleVarDeclaratorMessage::Unexpected,
       }],
     }

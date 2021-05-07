@@ -117,17 +117,17 @@ import foo = require('foo');
       }],
       r#"/// <reference path="foo" />"#: [
       {
-        col:  0,
+        col: 0,
         message: TripleSlashReferenceMessage::Unexpected,
       }],
       r#"/// <reference types="foo" />"#: [
       {
-        col:  0,
+        col: 0,
         message: TripleSlashReferenceMessage::Unexpected,
       }],
       r#"/// <reference lib="foo" />"#: [
       {
-        col:  0,
+        col: 0,
         message: TripleSlashReferenceMessage::Unexpected,
       }],
     }
