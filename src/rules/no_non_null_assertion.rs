@@ -1,9 +1,18 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoNonNullAssertion;
+
+const CODE: &str = "no-non-null-assertion";
+
+#[derive(Display)]
+enum NoNonNullAssertionMessage {
+  #[display(fmt = "do not use non-null assertion")]
+  Unexpected,
+}
 
 impl LintRule for NoNonNullAssertion {
   fn new() -> Box<Self> {
@@ -11,7 +20,7 @@ impl LintRule for NoNonNullAssertion {
   }
 
   fn code(&self) -> &'static str {
-    "no-non-null-assertion"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -45,8 +54,8 @@ impl<'c, 'view> Visit for NoNonNullAssertionVisitor<'c, 'view> {
   ) {
     self.context.add_diagnostic(
       non_null_expr.span,
-      "no-non-null-assertion",
-      "do not use non-null assertion",
+      CODE,
+      NoNonNullAssertionMessage::Unexpected,
     );
   }
 }
@@ -54,7 +63,6 @@ impl<'c, 'view> Visit for NoNonNullAssertionVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_non_null_assertion_valid() {
@@ -73,23 +81,100 @@ mod tests {
 
   #[test]
   fn no_non_null_assertion_invalid() {
-    assert_lint_err::<NoNonNullAssertion>("instance!.doWork()", 0);
-    assert_lint_err::<NoNonNullAssertion>("foo.bar!.includes('baz');", 0);
-    assert_lint_err::<NoNonNullAssertion>("x.y.z!?.();", 0);
-    assert_lint_err::<NoNonNullAssertion>("x!?.y.z;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x!?.[y].z;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x.y.z!!();", 0);
-    assert_lint_err::<NoNonNullAssertion>("x.y!!;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x!!.y;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x!!!;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x.y?.z!();", 0);
-    assert_lint_err::<NoNonNullAssertion>("x.y.z!();", 0);
-    assert_lint_err::<NoNonNullAssertion>("x![y]?.z;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x![y];", 0);
-    assert_lint_err::<NoNonNullAssertion>("!x!.y;", 1);
-    assert_lint_err::<NoNonNullAssertion>("x!.y?.z;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x.y!;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x!.y;", 0);
-    assert_lint_err::<NoNonNullAssertion>("x!;", 0);
+    assert_lint_err! {
+      NoNonNullAssertion,
+
+      r#"instance!.doWork()"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"foo.bar!.includes('baz');"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y.z!?.();"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!?.y.z;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!?.[y].z;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y.z!!();"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y!!;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!!.y;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!!!;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y?.z!();"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y.z!();"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x![y]?.z;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x![y];"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"!x!.y;"#: [
+      {
+        col: 1,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!.y?.z;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y!;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!.y;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+
+    }
   }
 }
