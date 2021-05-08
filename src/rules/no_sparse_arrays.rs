@@ -1,10 +1,19 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use derive_more::Display;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 pub struct NoSparseArrays;
+
+const CODE: &str = "no-sparse-arrays";
+
+#[derive(Display)]
+enum NoSparseArraysMessage {
+  #[display(fmt = "Sparse arrays are not allowed")]
+  Disallowed,
+}
 
 impl LintRule for NoSparseArrays {
   fn new() -> Box<Self> {
@@ -12,7 +21,7 @@ impl LintRule for NoSparseArrays {
   }
 
   fn code(&self) -> &'static str {
-    "no-sparse-arrays"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -49,8 +58,8 @@ impl<'c, 'view> Visit for NoSparseArraysVisitor<'c, 'view> {
     if array_lit.elems.iter().any(|e| e.is_none()) {
       self.context.add_diagnostic(
         array_lit.span,
-        "no-sparse-arrays",
-        "Sparse arrays are not allowed",
+        CODE,
+        NoSparseArraysMessage::Disallowed,
       );
     }
   }
@@ -59,7 +68,6 @@ impl<'c, 'view> Visit for NoSparseArraysVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::*;
 
   #[test]
   fn no_sparse_arrays_valid() {
@@ -71,6 +79,13 @@ mod tests {
 
   #[test]
   fn no_sparse_arrays_invalid() {
-    assert_lint_err::<NoSparseArrays>("const sparseArray = [1,,3];", 20);
+    assert_lint_err! {
+      NoSparseArrays,
+      r#"const sparseArray = [1,,3];"#: [
+      {
+        col: 20,
+        message: NoSparseArraysMessage::Disallowed,
+      }],
+    }
   }
 }
