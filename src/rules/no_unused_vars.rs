@@ -3,14 +3,16 @@ use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
+use std::iter;
+use std::mem;
 use swc_atoms::js_word;
 use swc_ecmascript::ast::{
-  ArrowExpr, CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
-  DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
-  FnDecl, FnExpr, Function, Ident, ImportDefaultSpecifier,
-  ImportNamedSpecifier, ImportStarAsSpecifier, MemberExpr, MethodKind,
-  NamedExport, Param, Pat, Prop, PropName, SetterProp, TsEntityName,
-  TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
+  ArrowExpr, CallExpr, CatchClause, ClassDecl, ClassMethod, ClassProp,
+  Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
+  ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
+  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
+  MemberExpr, MethodKind, NamedExport, Param, Pat, Prop, PropName, SetterProp,
+  TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
   TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr,
   TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
 };
@@ -103,6 +105,41 @@ struct Collector {
 }
 
 impl Collector {
+  /// The variable usage during its declaration should _NOT_ be treated as used.
+  /// For example:
+  ///
+  /// ```typescript
+  /// // `a` is called, but effectively nothing occurs until `a` is called from _outside_ of this
+  /// // function body.
+  /// const a = () => { a(); };
+  ///
+  /// // Same goes for type or interface definitions.
+  /// type JsonValue = number | string | boolean | Array<JsonValue> | {
+  ///   [key: string]: JsonValue;
+  /// };
+  /// interface Foo {
+  ///   a: Foo;
+  /// }
+  /// ```
+  ///
+  /// To handle it, we need to store the variables that are currently being declared.
+  /// This is a helper method, responsible for preserving and then restoring variables data.
+  fn with_cur_defining<I, F>(&mut self, ids: I, op: F)
+  where
+    I: IntoIterator<Item = Id>,
+    F: FnOnce(&mut Collector),
+  {
+    // Preserve the original state
+    let prev_len = self.cur_defining.len();
+    self.cur_defining.extend(ids);
+
+    op(self);
+
+    // Restore the original state
+    self.cur_defining.drain(prev_len..);
+    assert_eq!(self.cur_defining.len(), prev_len);
+  }
+
   fn mark_as_usage(&mut self, i: &Ident) {
     let id = i.to_id();
 
@@ -238,20 +275,15 @@ impl Visit for Collector {
 
   fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
     let id = decl.ident.to_id();
-    self.cur_defining.push(id);
-    decl.function.visit_with(decl, self);
-    self.cur_defining.pop();
+    self.with_cur_defining(iter::once(id), |a| {
+      decl.function.visit_with(decl, a);
+    });
   }
 
   fn visit_fn_expr(&mut self, expr: &FnExpr, _: &dyn Node) {
-    if let Some(ident) = &expr.ident {
-      let id = ident.to_id();
-      self.cur_defining.push(id);
-      expr.function.visit_with(expr, self);
-      self.cur_defining.pop();
-    } else {
-      expr.function.visit_with(expr, self);
-    }
+    // We have to do nothing special for identifiers of FnExprs (if any), because they are allowed
+    // to be not-used.
+    expr.function.visit_with(expr, self);
   }
 
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
@@ -273,52 +305,75 @@ impl Visit for Collector {
     function.visit_children_with(self);
   }
 
+  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
+    call_expr.callee.visit_children_with(self);
+
+    // Arguments have different context than that of the current `cur_defining`.
+    // That is, if the variables that are currently being declared are used inside the arguments,
+    // we have to think of it as _used_.
+    // Consider the following example:
+    //
+    // ```typescript
+    // const i = setInterval(() => {
+    //  clearInterval(i);
+    // }, 1000);
+    // ```
+    //
+    // In the above example, when visiting `setInterval`, we have `i` included in `cur_defining`.
+    // `setInterval` is taking a closure as an argument and `i` is used in it.
+    // Naturally we have to treat `i` as used, because this closure is effectively invoked
+    // lazily; not invoked at the time when `i` is being defined.
+    let prev = mem::take(&mut self.cur_defining);
+    for arg in &call_expr.args {
+      self.cur_defining = Vec::new();
+      arg.visit_children_with(self);
+    }
+    self.cur_defining = prev;
+
+    call_expr.type_args.visit_children_with(self);
+  }
+
   fn visit_class_decl(&mut self, decl: &ClassDecl, _: &dyn Node) {
     let id = decl.ident.to_id();
-    self.cur_defining.push(id);
-    decl.class.visit_with(decl, self);
-    self.cur_defining.pop();
+    self.with_cur_defining(iter::once(id), |a| {
+      decl.class.visit_with(decl, a);
+    });
   }
 
   fn visit_ts_interface_decl(&mut self, decl: &TsInterfaceDecl, _: &dyn Node) {
     let id = decl.id.to_id();
-    self.cur_defining.push(id);
-    decl.extends.visit_with(decl, self);
-    decl.body.visit_with(decl, self);
-    if let Some(type_params) = &decl.type_params {
-      type_params.visit_with(decl, self);
-    }
-    self.cur_defining.pop();
+    self.with_cur_defining(iter::once(id), |a| {
+      decl.extends.visit_with(decl, a);
+      decl.body.visit_with(decl, a);
+      if let Some(type_params) = &decl.type_params {
+        type_params.visit_with(decl, a);
+      }
+    });
   }
 
   fn visit_ts_type_alias_decl(&mut self, decl: &TsTypeAliasDecl, _: &dyn Node) {
     let id = decl.id.to_id();
-    self.cur_defining.push(id);
-    decl.type_ann.visit_with(decl, self);
-    if let Some(type_params) = &decl.type_params {
-      type_params.visit_with(decl, self);
-    }
-    self.cur_defining.pop();
+    self.with_cur_defining(iter::once(id), |a| {
+      decl.type_ann.visit_with(decl, a);
+      if let Some(type_params) = &decl.type_params {
+        type_params.visit_with(decl, a);
+      }
+    });
   }
 
   fn visit_ts_enum_decl(&mut self, decl: &TsEnumDecl, _: &dyn Node) {
     let id = decl.id.to_id();
-    self.cur_defining.push(id);
-    decl.members.visit_with(decl, self);
-    self.cur_defining.pop();
+    self.with_cur_defining(iter::once(id), |a| {
+      decl.members.visit_with(decl, a);
+    });
   }
 
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
-    let prev_len = self.cur_defining.len();
     let declaring_ids: Vec<Id> = find_ids(&declarator.name);
-    self.cur_defining.extend(declaring_ids);
-
-    declarator.name.visit_with(declarator, self);
-    declarator.init.visit_with(declarator, self);
-
-    // Restore the original state
-    self.cur_defining.drain(prev_len..);
-    assert_eq!(self.cur_defining.len(), prev_len);
+    self.with_cur_defining(declaring_ids, |a| {
+      declarator.name.visit_with(declarator, a);
+      declarator.init.visit_with(declarator, a);
+    });
   }
 
   fn visit_constructor(&mut self, c: &Constructor, _: &dyn Node) {
@@ -1221,6 +1276,13 @@ export abstract class Point4DPartial {
     }
 }
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/667
+      "const i = setInterval(() => clearInterval(i), 1000);",
+      "const i = setInterval(function() { clearInterval(i); }, 1000);",
+      "const i = setInterval(function foo() { clearInterval(i); }, 1000);",
+      "setTimeout(function foo() { const foo = 42; console.log(foo); });",
+      "const fn = function foo() {}; fn();",
     };
 
     // JSX or TSX
@@ -1246,7 +1308,6 @@ export function Foo() {
         "#,
         filename: "foo.tsx",
       },
-
       {
         src: r#"
 function Root() { return null; }
@@ -2155,7 +2216,16 @@ export class Bar implements baz().test {}
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
         }
-      ]
+      ],
+
+      // FnExpr
+      "const fn = function foo() { foo(); };": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "fn"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "fn"),
+        }
+      ],
     };
   }
 
