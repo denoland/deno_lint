@@ -115,7 +115,7 @@ impl Handler for NoAwaitInLoopHandler {
       }
     }
 
-    if inside_loop(await_expr, await_expr.into_node()) {
+    if inside_loop(await_expr, await_expr.as_node()) {
       ctx.add_diagnostic_with_hint(await_expr.span(), CODE, MESSAGE, HINT);
     }
   }

@@ -199,7 +199,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
     ctx: &mut Context,
   ) {
     // Not check chained member expressions (e.g. `foo.bar.baz`)
-    if member_expr.parent.is::<AstView::MemberExpr>() {
+    if member_expr.parent().is::<AstView::MemberExpr>() {
       return;
     }
 
