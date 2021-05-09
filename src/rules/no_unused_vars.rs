@@ -2012,6 +2012,15 @@ foo(a);
           hint: variant!(NoUnusedVarsHint, AddPrefix, "React"),
         }
       ],
+
+      // FnExpr
+      "const fn = function foo() { foo(); };": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "fn"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "fn"),
+        }
+      ],
     };
   }
 
@@ -2215,15 +2224,6 @@ export class Bar implements baz().test {}
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
-        }
-      ],
-
-      // FnExpr
-      "const fn = function foo() { foo(); };": [
-        {
-          col: 6,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "fn"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "fn"),
         }
       ],
     };
