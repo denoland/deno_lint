@@ -155,7 +155,7 @@ impl SuperCallChecker {
 
 impl Handler for SuperCallChecker {
   fn this_expr(&mut self, this_expr: &AstView::ThisExpr, _ctx: &mut Context) {
-    if self.node_is_inside_function(this_expr.into_node()) {
+    if self.node_is_inside_function(this_expr.as_node()) {
       return;
     }
 
@@ -165,7 +165,7 @@ impl Handler for SuperCallChecker {
   }
 
   fn super_(&mut self, super_: &AstView::Super, _ctx: &mut Context) {
-    if self.node_is_inside_function(super_.into_node()) {
+    if self.node_is_inside_function(super_.as_node()) {
       return;
     }
 
@@ -175,13 +175,13 @@ impl Handler for SuperCallChecker {
   }
 
   fn call_expr(&mut self, call_expr: &AstView::CallExpr, ctx: &mut Context) {
-    if self.node_is_inside_function(call_expr.into_node()) {
+    if self.node_is_inside_function(call_expr.as_node()) {
       return;
     }
 
     // arguments are evaluated before the callee
     for arg in &call_expr.args {
-      self.traverse(arg.into_node(), ctx);
+      self.traverse(arg.as_node(), ctx);
     }
 
     if self.yet_appeared()

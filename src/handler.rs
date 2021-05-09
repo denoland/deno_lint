@@ -465,7 +465,7 @@ pub trait Traverse: Handler {
   where
     N: NodeTrait<'a>,
   {
-    let node = node.into_node();
+    let node = node.as_node();
 
     // First, invoke a handler that does anything we want when _entering_ a node.
     self.on_enter_node(node, ctx);

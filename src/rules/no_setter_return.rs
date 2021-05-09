@@ -65,7 +65,7 @@ impl Handler for NoSetterReturnHandler {
       }
     }
 
-    if inside_setter(return_stmt.into_node()) {
+    if inside_setter(return_stmt.as_node()) {
       ctx.add_diagnostic(return_stmt.span(), CODE, MESSAGE);
     }
   }
