@@ -4,11 +4,10 @@ use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
 use std::iter;
-use std::mem;
 use swc_atoms::js_word;
 use swc_ecmascript::ast::{
-  ArrowExpr, CallExpr, CatchClause, ClassDecl, ClassMethod, ClassProp,
-  Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
+  ArrowExpr, AssignPatProp, CallExpr, CatchClause, ClassDecl, ClassMethod,
+  ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
   ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   MemberExpr, MethodKind, NamedExport, Param, Pat, Prop, PropName, SetterProp,
@@ -140,6 +139,33 @@ impl Collector {
     assert_eq!(self.cur_defining.len(), prev_len);
   }
 
+  /// This is a helper method, responsible for temporarily ignoring `cur_defining` while doing
+  /// the given operation (`op`).
+  ///
+  /// For some context, we need to ignore variables that are being declared (which we call
+  /// `cur_defining`).
+  /// Take function arguments as an example. If `cur_defining` is used inside the arguments, we
+  /// have to think of it as _used_.
+  ///
+  /// ```typescript
+  /// const i = setInterval(() => {
+  ///  clearInterval(i);
+  /// }, 1000);
+  /// ```
+  ///
+  /// In the above example, when visiting `setInterval`, we have `i` included in `cur_defining`.
+  /// `setInterval` is taking a closure as an argument and `i` is used in it.
+  /// Naturally we have to treat `i` as used, because this closure is effectively invoked
+  /// lazily; not invoked at the time when `i` is being defined.
+  fn without_cur_defining<F>(&mut self, op: F)
+  where
+    F: FnOnce(&mut Collector),
+  {
+    let prev = std::mem::take(&mut self.cur_defining);
+    op(self);
+    self.cur_defining = prev;
+  }
+
   fn mark_as_usage(&mut self, i: &Ident) {
     let id = i.to_id();
 
@@ -238,6 +264,17 @@ impl Visit for Collector {
     }
   }
 
+  fn visit_assign_pat_prop(
+    &mut self,
+    assign_pat_prop: &AssignPatProp,
+    _: &dyn Node,
+  ) {
+    // handle codes like `const { foo, bar = foo } = { foo: 42 };`
+    self.without_cur_defining(|a| {
+      assign_pat_prop.value.visit_children_with(a);
+    });
+  }
+
   fn visit_member_expr(&mut self, member_expr: &MemberExpr, _: &dyn Node) {
     member_expr.obj.visit_with(member_expr, self);
     if member_expr.computed {
@@ -308,27 +345,11 @@ impl Visit for Collector {
   fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
     call_expr.callee.visit_children_with(self);
 
-    // Arguments have different context than that of the current `cur_defining`.
-    // That is, if the variables that are currently being declared are used inside the arguments,
-    // we have to think of it as _used_.
-    // Consider the following example:
-    //
-    // ```typescript
-    // const i = setInterval(() => {
-    //  clearInterval(i);
-    // }, 1000);
-    // ```
-    //
-    // In the above example, when visiting `setInterval`, we have `i` included in `cur_defining`.
-    // `setInterval` is taking a closure as an argument and `i` is used in it.
-    // Naturally we have to treat `i` as used, because this closure is effectively invoked
-    // lazily; not invoked at the time when `i` is being defined.
-    let prev = mem::take(&mut self.cur_defining);
     for arg in &call_expr.args {
-      self.cur_defining = Vec::new();
-      arg.visit_children_with(self);
+      self.without_cur_defining(|a| {
+        arg.visit_children_with(a);
+      });
     }
-    self.cur_defining = prev;
 
     call_expr.type_args.visit_children_with(self);
   }
@@ -1283,6 +1304,19 @@ export abstract class Point4DPartial {
       "const i = setInterval(function foo() { clearInterval(i); }, 1000);",
       "setTimeout(function foo() { const foo = 42; console.log(foo); });",
       "const fn = function foo() {}; fn();",
+
+      // https://github.com/denoland/deno_lint/issues/687
+      "const { foo, bar = foo } = { foo: 42 }; console.log(bar);",
+      "const { foo, bar = f(foo) } = makeObj(); console.log(bar);",
+      "const { foo, bar = foo.prop } = makeObj(); console.log(bar);",
+      "const { foo, bar = await foo } = makeObj(); console.log(bar);",
+      "const { foo, bar = foo ? 42 : 7 } = makeObj(); console.log(bar);",
+      "const { foo, bar = baz ? foo : 7 } = makeObj(); console.log(bar);",
+      "const { foo, bar = `hello ${foo}` } = makeObj(); console.log(bar);",
+      "const { foo, bar = [foo] } = makeObj(); console.log(bar);",
+      "const { foo, bar = { key: foo } } = makeObj(); console.log(bar);",
+      "const { foo, bar = function() { foo(); } } = makeObj(); console.log(bar);",
+      "const { foo, bar = () => foo() } = makeObj(); console.log(bar);",
     };
 
     // JSX or TSX
@@ -2012,6 +2046,15 @@ foo(a);
           hint: variant!(NoUnusedVarsHint, AddPrefix, "React"),
         }
       ],
+
+      // FnExpr
+      "const fn = function foo() { foo(); };": [
+        {
+          col: 6,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "fn"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "fn"),
+        }
+      ],
     };
   }
 
@@ -2215,15 +2258,6 @@ export class Bar implements baz().test {}
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "test"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "test"),
-        }
-      ],
-
-      // FnExpr
-      "const fn = function foo() { foo(); };": [
-        {
-          col: 6,
-          message: variant!(NoUnusedVarsMessage, NeverUsed, "fn"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "fn"),
         }
       ],
     };
