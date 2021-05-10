@@ -396,14 +396,6 @@ impl Visit for Collector {
       declarator.init.visit_with(declarator, a);
     });
   }
-
-  fn visit_constructor(&mut self, c: &Constructor, _: &dyn Node) {
-    if c.body.is_none() {
-      return;
-    }
-
-    c.visit_children_with(self);
-  }
 }
 
 fn get_id(r: &TsEntityName) -> Id {
@@ -514,6 +506,15 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   fn visit_setter_prop(&mut self, prop: &SetterProp, _: &dyn Node) {
     prop.key.visit_with(prop, self);
     prop.body.visit_with(prop, self);
+  }
+
+  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+    // If function body is not present, it's an overload definition
+    if constructor.body.is_none() {
+      return;
+    }
+
+    constructor.visit_children_with(self);
   }
 
   fn visit_class_method(&mut self, method: &ClassMethod, _: &dyn Node) {
@@ -1317,6 +1318,17 @@ export abstract class Point4DPartial {
       "const { foo, bar = { key: foo } } = makeObj(); console.log(bar);",
       "const { foo, bar = function() { foo(); } } = makeObj(); console.log(bar);",
       "const { foo, bar = () => foo() } = makeObj(); console.log(bar);",
+
+      // https://github.com/denoland/deno_lint/issues/690
+      r#"
+export class Foo {
+  constructor(x: number);
+  constructor(y: string);
+  constructor(xy: number | string) {
+    console.log(xy);
+  }
+}
+      "#,
     };
 
     // JSX or TSX
