@@ -49,6 +49,43 @@ impl LintRule for UseIsNaN {
       ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows comparisons to 'NaN'.
+
+Because `NaN` is unique in JavaScript by not being equal to anything, including itself, the results of comparisons to `NaN` are confusing:
+
+- `NaN === NaN` or `NaN == NaN` evaluate to false
+- `NaN !== NaN` or `NaN != NaN` evaluate to true
+
+Therefore, this rule makes you use the isNaN() or Number.isNaN() to judge the value is `NaN` or not.
+
+### Invalid:
+```typescript
+if (foo == NaN) {
+    // ...
+}
+```
+
+```typescript
+if (foo != NaN) {
+    // ...
+}
+```
+
+### Valid:
+```typescript
+if (isNaN(foo)) {
+    // ...
+}
+```
+
+```typescript
+if (!isNaN(foo)) {
+    // ...
+}
+```"#
+  }
 }
 
 struct UseIsNaNVisitor<'c, 'view> {
