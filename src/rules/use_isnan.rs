@@ -73,6 +73,13 @@ if (foo != NaN) {
 }
 ```
 
+```typescript
+switch (foo) {
+  case NaN:
+    // ...
+}
+```
+
 ### Valid:
 ```typescript
 if (isNaN(foo)) {
@@ -82,6 +89,13 @@ if (isNaN(foo)) {
 
 ```typescript
 if (!isNaN(foo)) {
+    // ...
+}
+```
+
+```typescript
+switch (foo) {
+  case isNaN(foo):
     // ...
 }
 ```"#
