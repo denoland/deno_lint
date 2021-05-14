@@ -74,9 +74,16 @@ if (foo != NaN) {
 ```
 
 ```typescript
-switch (foo) {
-  case NaN:
+switch (NaN) {
+  case foo:
     // ...
+}
+```
+
+```
+switch (foo) {
+    case NaN:
+      // ...
 }
 ```
 
@@ -89,13 +96,6 @@ if (isNaN(foo)) {
 
 ```typescript
 if (!isNaN(foo)) {
-    // ...
-}
-```
-
-```typescript
-switch (foo) {
-  case isNaN(foo):
     // ...
 }
 ```"#
