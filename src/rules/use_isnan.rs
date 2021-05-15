@@ -82,21 +82,21 @@ switch (NaN) {
 
 ```
 switch (foo) {
-    case NaN:
-      // ...
+  case NaN:
+    // ...
 }
 ```
 
 ### Valid:
 ```typescript
 if (isNaN(foo)) {
-    // ...
+  // ...
 }
 ```
 
 ```typescript
 if (!isNaN(foo)) {
-    // ...
+  // ...
 }
 ```"#
   }
