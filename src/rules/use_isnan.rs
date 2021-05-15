@@ -63,13 +63,13 @@ Therefore, this rule makes you use the `isNaN()` or `Number.isNaN()` to judge th
 ### Invalid:
 ```typescript
 if (foo == NaN) {
-    // ...
+  // ...
 }
 ```
 
 ```typescript
 if (foo != NaN) {
-    // ...
+  // ...
 }
 ```
 
