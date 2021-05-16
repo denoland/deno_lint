@@ -13,7 +13,7 @@ use swc_ecmascript::ast::{
   MemberExpr, MethodKind, NamedExport, Param, Pat, Prop, PropName, SetterProp,
   TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
   TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr,
-  TsTypeRef, VarDecl, VarDeclOrPat, VarDeclarator,
+  TsTypeRef, VarDecl, VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -289,25 +289,6 @@ impl Visit for Collector {
     _: &dyn Node,
   ) {
     self.used_vars.insert(export.orig.to_id());
-  }
-
-  /// Handle for-in/of loops
-  fn visit_var_decl_or_pat(&mut self, node: &VarDeclOrPat, _: &dyn Node) {
-    // We need this because find_ids searches ids only in the pattern.
-    node.visit_children_with(self);
-
-    match node {
-      VarDeclOrPat::VarDecl(v) => {
-        // This is declaration, but cannot be removed.
-        let ids = find_ids(v);
-        self.used_vars.extend(ids);
-      }
-      VarDeclOrPat::Pat(p) => {
-        // This is assignment, but cannot be removed
-        let ids = find_ids(p);
-        self.used_vars.extend(ids);
-      }
-    }
   }
 
   fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
@@ -736,16 +717,6 @@ mod tests {
       "var _a",
       "function foo(_a) { } foo();",
       "function foo(a, _b) { return a; } foo();",
-      "(function(obj) { var name; for ( name in obj ) return; })({});",
-      "(function(obj) { var name; for ( name in obj ) { return; } })({});",
-      "(function(obj) { for ( var name in obj ) { return true } })({})",
-      "(function(obj) { for ( var name in obj ) return true })({})",
-      "(function(obj) { let name; for ( name in obj ) return; })({});",
-      "(function(obj) { let name; for ( name in obj ) { return; } })({});",
-      "(function(obj) { for ( let name in obj ) { return true } })({})",
-      "(function(obj) { for ( let name in obj ) return true })({})",
-      "(function(obj) { for ( const name in obj ) { return true } })({})",
-      "(function(obj) { for ( const name in obj ) return true })({})",
       "try{}catch(err){console.error(err);}",
       "try{}catch(_ignoreErr){}",
       "var a = 0, b; b = a = a + 1; foo(b);",
@@ -2066,6 +2037,88 @@ foo(a);
           message: variant!(NoUnusedVarsMessage, NeverUsed, "fn"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "fn"),
         }
+      ],
+
+      // https://github.com/denoland/deno_lint/issues/697
+      "for (const x of xs) {}": [
+        {
+          col: 11,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "let x; for (x of xs) {}": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "for await (const x of xs) {}": [
+        {
+          col: 17,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "let x; for await (x of xs) {}": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "for (const x in xs) {}": [
+        {
+          col: 11,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "let x; for (x in xs) {}": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x"),
+        }
+      ],
+      "for (const [x1, x2] of xs) {}": [
+        {
+          col: 12,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x1"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x1"),
+        },
+        {
+          col: 16,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x2"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x2"),
+        }
+      ],
+      "let x1, x2; for ([x1, x2] of xs) { console.log(x1); }": [
+        {
+          col: 8,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x2"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x2"),
+        },
+      ],
+      "for (const { x1, x2 } of xs) {}": [
+        {
+          col: 13,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x1"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x1"),
+        },
+        {
+          col: 17,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x2"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x2"),
+        }
+      ],
+      "let x1, x2; for ({ x1, x2 } of xs) { console.log(x2); }": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "x1"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "x1"),
+        },
       ],
     };
   }
