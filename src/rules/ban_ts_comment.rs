@@ -18,13 +18,42 @@ use swc_common::Span;
 /// - ts-nocheck: allowed with comment
 pub struct BanTsComment;
 
+const CODE: &str = "ban-ts-comment";
+
+#[derive(Clone, Copy)]
+enum DirectiveKind {
+  ExpectError,
+  Ignore,
+  Nocheck,
+}
+
+impl DirectiveKind {
+  fn as_message(&self) -> &'static str {
+    use DirectiveKind::*;
+    match *self {
+      ExpectError => "`@ts-expect-error` is not allowed without comment",
+      Ignore => "`@ts-ignore` is not allowed without comment",
+      Nocheck => "`@ts-nocheck` is not allowed without comment",
+    }
+  }
+
+  fn as_hint(&self) -> &'static str {
+    use DirectiveKind::*;
+    match *self {
+      ExpectError => "Add an in-line comment explaining the reason for using `@ts-expect-error`, like `// @ts-expect-error: <reason>`",
+      Ignore => "Add an in-line comment explaining the reason for using `@ts-ignore`, like `// @ts-ignore: <reason>`",
+      Nocheck => "Add an in-line comment explaining the reason for using `@ts-nocheck`, like `// @ts-nocheck: <reason>`",
+    }
+  }
+}
+
 impl BanTsComment {
-  fn report(&self, context: &mut Context, span: Span) {
+  fn report(&self, context: &mut Context, span: Span, kind: DirectiveKind) {
     context.add_diagnostic_with_hint(
       span,
-      "ban-ts-comment",
-      "ts directives are not allowed without comment",
-      "Add an in-line comment explaining the reason for using this directive",
+      CODE,
+      kind.as_message(),
+      kind.as_hint(),
     );
   }
 }
@@ -39,22 +68,19 @@ impl LintRule for BanTsComment {
   }
 
   fn code(&self) -> &'static str {
-    "ban-ts-comment"
+    CODE
   }
 
   fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
     let mut violated_comment_spans = Vec::new();
 
     violated_comment_spans.extend(context.all_comments().filter_map(|c| {
-      if check_comment(c) {
-        Some(c.span)
-      } else {
-        None
-      }
+      let kind = check_comment(c)?;
+      Some((c.span, kind))
     }));
 
-    for span in violated_comment_spans {
-      self.report(context, span);
+    for (span, kind) in violated_comment_spans {
+      self.report(context, span, kind);
     }
   }
 
@@ -94,17 +120,30 @@ let a: number = "I am a string";
   }
 }
 
-/// Returns `true` if the comment should be reported.
-fn check_comment(comment: &Comment) -> bool {
+/// Returns `None` if the comment includes no directives.
+fn check_comment(comment: &Comment) -> Option<DirectiveKind> {
   if comment.kind != CommentKind::Line {
-    return false;
+    return None;
   }
 
-  static BTC_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"^/*\s*@ts-(expect-error|ignore|nocheck)$"#).unwrap()
-  });
+  static EXPECT_ERROR_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^/*\s*@ts-expect-error$"#).unwrap());
+  static IGNORE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^/*\s*@ts-ignore$"#).unwrap());
+  static NOCHECK_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"^/*\s*@ts-nocheck$"#).unwrap());
 
-  BTC_REGEX.is_match(&comment.text)
+  if EXPECT_ERROR_REGEX.is_match(&comment.text) {
+    return Some(DirectiveKind::ExpectError);
+  }
+  if IGNORE_REGEX.is_match(&comment.text) {
+    return Some(DirectiveKind::Ignore);
+  }
+  if NOCHECK_REGEX.is_match(&comment.text) {
+    return Some(DirectiveKind::Nocheck);
+  }
+
+  None
 }
 
 #[cfg(test)]
@@ -165,24 +204,66 @@ console.log('hello');
       r#"// @ts-expect-error"#: [
             {
               col: 0,
-              message: "ts directives are not allowed without comment",
-              hint: "Add an in-line comment explaining the reason for using this directive",
+              message: DirectiveKind::ExpectError.as_message(),
+              hint: DirectiveKind::ExpectError.as_hint(),
+            }
+          ],
+      r#"/// @ts-expect-error"#: [
+            {
+              col: 0,
+              message: DirectiveKind::ExpectError.as_message(),
+              hint: DirectiveKind::ExpectError.as_hint(),
+            }
+          ],
+      r#"//@ts-expect-error"#: [
+            {
+              col: 0,
+              message: DirectiveKind::ExpectError.as_message(),
+              hint: DirectiveKind::ExpectError.as_hint(),
             }
           ],
     r#"// @ts-ignore"#: [
             {
               col: 0,
-              message: "ts directives are not allowed without comment",
-              hint: "Add an in-line comment explaining the reason for using this directive",
+              message: DirectiveKind::Ignore.as_message(),
+              hint: DirectiveKind::Ignore.as_hint(),
+            }
+          ],
+    r#"/// @ts-ignore"#: [
+            {
+              col: 0,
+              message: DirectiveKind::Ignore.as_message(),
+              hint: DirectiveKind::Ignore.as_hint(),
+            }
+          ],
+    r#"//@ts-ignore"#: [
+            {
+              col: 0,
+              message: DirectiveKind::Ignore.as_message(),
+              hint: DirectiveKind::Ignore.as_hint(),
             }
           ],
     r#"// @ts-nocheck"#: [
             {
               col: 0,
-              message: "ts directives are not allowed without comment",
-              hint: "Add an in-line comment explaining the reason for using this directive",
+              message: DirectiveKind::Nocheck.as_message(),
+              hint: DirectiveKind::Nocheck.as_hint(),
             }
-          ]
+          ],
+    r#"/// @ts-nocheck"#: [
+            {
+              col: 0,
+              message: DirectiveKind::Nocheck.as_message(),
+              hint: DirectiveKind::Nocheck.as_hint(),
+            }
+          ],
+    r#"//@ts-nocheck"#: [
+            {
+              col: 0,
+              message: DirectiveKind::Nocheck.as_message(),
+              hint: DirectiveKind::Nocheck.as_hint(),
+            }
+          ],
     };
   }
 }
