@@ -1,18 +1,26 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use derive_more::Display;
+use dprint_swc_ecma_ast_view::{self as AstView, Spanned};
 use std::collections::HashSet;
-use swc_common::Span;
-use swc_common::Spanned;
-use swc_ecmascript::ast::{
-  Class, ClassMember, ClassMethod, Decl, ExportDecl, Expr, FnDecl, Ident, Lit,
-  Module, ModuleDecl, ModuleItem, Script, Stmt, Str, TsInterfaceBody,
-  TsMethodSignature, TsModuleBlock, TsTypeElement, TsTypeLit,
-};
-use swc_ecmascript::visit::VisitAllWith;
-use swc_ecmascript::visit::{Node, VisitAll};
 
 pub struct AdjacentOverloadSignatures;
+
+const CODE: &str = "adjacent-overload-signatures";
+
+#[derive(Display)]
+enum AdjacentOverloadSignaturesMessage {
+  #[display(fmt = "All `{}` signatures should be adjacent", _0)]
+  ShouldBeAdjacent(String),
+}
+
+#[derive(Display)]
+enum AdjacentOverloadSignaturesHint {
+  #[display(fmt = "Make sure all overloaded signatures are grouped together")]
+  GroupedTogether,
+}
 
 impl LintRule for AdjacentOverloadSignatures {
   fn new() -> Box<Self> {
@@ -24,19 +32,19 @@ impl LintRule for AdjacentOverloadSignatures {
   }
 
   fn code(&self) -> &'static str {
-    "adjacent-overload-signatures"
+    CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: AstView::Program<'_>,
   ) {
-    let mut visitor = AdjacentOverloadSignaturesVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    AdjacentOverloadSignaturesHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {
@@ -111,51 +119,80 @@ export function bar(): void {}
   }
 }
 
-struct AdjacentOverloadSignaturesVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct AdjacentOverloadSignaturesHandler;
+
+impl Handler for AdjacentOverloadSignaturesHandler {
+  fn script(&mut self, script: &AstView::Script, ctx: &mut Context) {
+    check(&script.body, ctx);
+  }
+
+  fn module(&mut self, module: &AstView::Module, ctx: &mut Context) {
+    check(&module.body, ctx);
+  }
+
+  fn ts_module_block(
+    &mut self,
+    ts_module_block: &AstView::TsModuleBlock,
+    ctx: &mut Context,
+  ) {
+    check(&ts_module_block.body, ctx);
+  }
+
+  fn class(&mut self, class: &AstView::Class, ctx: &mut Context) {
+    check(&class.body, ctx);
+  }
+
+  fn ts_type_lit(
+    &mut self,
+    ts_type_lit: &AstView::TsTypeLit,
+    ctx: &mut Context,
+  ) {
+    check(&ts_type_lit.members, ctx);
+  }
+
+  fn ts_interface_body(
+    &mut self,
+    ts_interface_body: &AstView::TsInterfaceBody,
+    ctx: &mut Context,
+  ) {
+    check(&ts_interface_body.body, ctx);
+  }
 }
 
-impl<'c, 'view> AdjacentOverloadSignaturesVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, span: Span, fn_name: &str) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      "adjacent-overload-signatures",
-      format!("All '{}' signatures should be adjacent", fn_name),
-      "Make sure all overloaded signatures are grouped together",
-    );
-  }
-
-  fn check<'a, 'b, T, U>(&'a mut self, items: T)
-  where
-    T: IntoIterator<Item = &'b U>,
-    U: ExtractMethod + Spanned + 'b,
-  {
-    let mut seen_methods = HashSet::new();
-    let mut last_method = None;
-    for item in items {
-      if let Some(method) = item.get_method() {
-        if seen_methods.contains(&method)
-          && last_method.as_ref() != Some(&method)
-        {
-          self.add_diagnostic(item.span(), method.get_name());
-        }
-
-        seen_methods.insert(method.clone());
-        last_method = Some(method);
-      } else {
-        last_method = None;
+fn check<'a, T, U>(items: T, ctx: &'a mut Context)
+where
+  T: IntoIterator<Item = &'a U>,
+  U: ExtractMethod + Spanned + 'a,
+{
+  let mut seen_methods = HashSet::new();
+  let mut last_method = None;
+  for item in items {
+    if let Some(method) = item.get_method() {
+      if seen_methods.contains(&method) && last_method.as_ref() != Some(&method)
+      {
+        ctx.add_diagnostic_with_hint(
+          item.span(),
+          CODE,
+          AdjacentOverloadSignaturesMessage::ShouldBeAdjacent(
+            method.to_string(),
+          ),
+          AdjacentOverloadSignaturesHint::GroupedTogether,
+        );
       }
+
+      seen_methods.insert(method.clone());
+      last_method = Some(method);
+    } else {
+      last_method = None;
     }
   }
 }
 
-fn extract_ident_from_decl(decl: &Decl) -> Option<String> {
+fn extract_ident_from_decl(decl: &AstView::Decl) -> Option<String> {
   match decl {
-    Decl::Fn(FnDecl { ref ident, .. }) => Some(ident.sym.to_string()),
+    AstView::Decl::Fn(AstView::FnDecl { ref ident, .. }) => {
+      Some(ident.sym().to_string())
+    }
     _ => None,
   }
 }
@@ -164,25 +201,26 @@ trait ExtractMethod {
   fn get_method(&self) -> Option<Method>;
 }
 
-impl ExtractMethod for ExportDecl {
+impl<'a> ExtractMethod for AstView::ExportDecl<'a> {
   fn get_method(&self) -> Option<Method> {
     let method_name = extract_ident_from_decl(&self.decl);
     method_name.map(Method::Method)
   }
 }
 
-impl ExtractMethod for Stmt {
+impl<'a> ExtractMethod for AstView::Stmt<'a> {
   fn get_method(&self) -> Option<Method> {
     let method_name = match self {
-      Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
+      AstView::Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
       _ => None,
     };
     method_name.map(Method::Method)
   }
 }
 
-impl ExtractMethod for ModuleItem {
+impl<'a> ExtractMethod for AstView::ModuleItem<'a> {
   fn get_method(&self) -> Option<Method> {
+    use AstView::{ModuleDecl, ModuleItem};
     match self {
       ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
         export_decl.get_method()
@@ -193,18 +231,19 @@ impl ExtractMethod for ModuleItem {
   }
 }
 
-impl ExtractMethod for ClassMember {
+impl<'a> ExtractMethod for AstView::ClassMember<'a> {
   fn get_method(&self) -> Option<Method> {
+    use AstView::{ClassMember, ClassMethod};
     match self {
-      ClassMember::Method(ClassMethod {
-        ref key, is_static, ..
-      }) => key.string_repr().map(|k| {
-        if *is_static {
-          Method::Static(k)
-        } else {
-          Method::Method(k)
-        }
-      }),
+      ClassMember::Method(ClassMethod { ref inner, .. }) => {
+        inner.key.string_repr().map(|k| {
+          if inner.is_static {
+            Method::Static(k)
+          } else {
+            Method::Method(k)
+          }
+        })
+      }
       ClassMember::Constructor(_) => {
         Some(Method::Method("constructor".to_string()))
       }
@@ -213,18 +252,15 @@ impl ExtractMethod for ClassMember {
   }
 }
 
-impl ExtractMethod for TsTypeElement {
+impl<'a> ExtractMethod for AstView::TsTypeElement<'a> {
   fn get_method(&self) -> Option<Method> {
+    use AstView::{Expr, Lit, TsMethodSignature, TsTypeElement};
     match self {
       TsTypeElement::TsMethodSignature(TsMethodSignature {
         ref key, ..
-      }) => match &**key {
-        Expr::Ident(Ident { ref sym, .. }) => {
-          Some(Method::Method(sym.to_string()))
-        }
-        Expr::Lit(Lit::Str(Str { ref value, .. })) => {
-          Some(Method::Method(value.to_string()))
-        }
+      }) => match &*key {
+        Expr::Ident(ident) => Some(Method::Method(ident.sym().to_string())),
+        Expr::Lit(Lit::Str(s)) => Some(Method::Method(s.value().to_string())),
         _ => None,
       },
       TsTypeElement::TsCallSignatureDecl(_) => Some(Method::CallSignature),
@@ -236,56 +272,16 @@ impl ExtractMethod for TsTypeElement {
   }
 }
 
-impl<'c, 'view> VisitAll for AdjacentOverloadSignaturesVisitor<'c, 'view> {
-  fn visit_script(&mut self, script: &Script, _parent: &dyn Node) {
-    self.check(&script.body);
-  }
-
-  fn visit_module(&mut self, module: &Module, _parent: &dyn Node) {
-    self.check(&module.body);
-  }
-
-  fn visit_ts_module_block(
-    &mut self,
-    ts_module_block: &TsModuleBlock,
-    _parent: &dyn Node,
-  ) {
-    self.check(&ts_module_block.body);
-  }
-
-  fn visit_class(&mut self, class: &Class, _parent: &dyn Node) {
-    self.check(&class.body);
-  }
-
-  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
-    self.check(&ts_type_lit.members);
-  }
-
-  fn visit_ts_interface_body(
-    &mut self,
-    ts_inteface_body: &TsInterfaceBody,
-    _parent: &dyn Node,
-  ) {
-    self.check(&ts_inteface_body.body);
-  }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Display)]
 enum Method {
+  #[display(fmt = "{}", _0)]
   Method(String),
+  #[display(fmt = "{}", _0)]
   Static(String),
+  #[display(fmt = "call")]
   CallSignature,
+  #[display(fmt = "new")]
   ConstructSignature,
-}
-
-impl Method {
-  fn get_name(&self) -> &str {
-    match self {
-      Method::Method(ref s) | Method::Static(ref s) => s,
-      Method::CallSignature => "call",
-      Method::ConstructSignature => "new",
-    }
-  }
 }
 
 #[cfg(test)]
@@ -558,8 +554,8 @@ export function foo(sn: string | number) {}
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -572,8 +568,8 @@ export function foo(sn: string | number) {}
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -586,8 +582,8 @@ function foo(sn: string | number) {}
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -600,8 +596,8 @@ function foo(sn: string | number) {}
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -614,8 +610,8 @@ function foo(sn: string | number) {}
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -627,8 +623,8 @@ function foo(sn: string | number) {}
             {
               line: 5,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -645,8 +641,8 @@ class Bar {
             {
               line: 9,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -659,8 +655,8 @@ declare function foo(sn: string | number);
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -673,8 +669,8 @@ declare function foo(sn: string | number);
             {
               line: 6,
               col: 0,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -689,8 +685,8 @@ declare module 'Foo' {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -707,8 +703,8 @@ declare module 'Foo' {
             {
               line: 8,
               col: 2,
-              message: "All 'baz' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "baz"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -723,8 +719,8 @@ declare namespace Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -741,8 +737,8 @@ declare namespace Foo {
             {
               line: 8,
               col: 2,
-              message: "All 'baz' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "baz"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -757,8 +753,8 @@ type Foo = {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -773,8 +769,8 @@ type Foo = {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -790,8 +786,8 @@ type Foo = {
             {
               line: 5,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -807,8 +803,8 @@ interface Foo {
             {
               line: 5,
               col: 2,
-              message: "All 'call' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "call"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -823,8 +819,8 @@ interface Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -839,8 +835,8 @@ interface Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -855,8 +851,8 @@ interface Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -872,8 +868,8 @@ interface Foo {
             {
               line: 5,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -890,8 +886,8 @@ interface Foo {
             {
               line: 8,
               col: 4,
-              message: "All 'baz' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "baz"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -906,8 +902,8 @@ interface Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'new' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "new"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -922,14 +918,14 @@ interface Foo {
             {
               line: 5,
               col: 2,
-              message: "All 'new' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "new"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             },
             {
               line: 7,
               col: 2,
-              message: "All 'new' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "new"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -944,8 +940,8 @@ class Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'constructor' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "constructor"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -960,8 +956,8 @@ class Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -976,8 +972,8 @@ class Foo {
             {
               line: 7,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -993,8 +989,8 @@ class Foo {
             {
               line: 8,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -1010,8 +1006,8 @@ class Foo {
             {
               line: 5,
               col: 2,
-              message: "All 'constructor' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "constructor"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -1027,8 +1023,8 @@ class Foo {
             {
               line: 5,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -1044,8 +1040,8 @@ class Foo {
             {
               line: 5,
               col: 2,
-              message: "All 'foo' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "foo"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -1062,8 +1058,8 @@ class Foo {
             {
               line: 7,
               col: 6,
-              message: "All 'bar' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "bar"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -1080,8 +1076,8 @@ class Foo {
             {
               line: 7,
               col: 6,
-              message: "All 'bar' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "bar"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ],
 r#"
@@ -1098,8 +1094,8 @@ type Foo = {
             {
               line: 8,
               col: 4,
-              message: "All 'baz' signatures should be adjacent",
-              hint: "Make sure all overloaded signatures are grouped together"
+              message: variant!(AdjacentOverloadSignaturesMessage, ShouldBeAdjacent, "baz"),
+              hint: AdjacentOverloadSignaturesHint::GroupedTogether,
             }
           ]
     };
