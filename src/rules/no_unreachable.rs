@@ -93,21 +93,6 @@ function foo() {
     return 1;
   }
 }
-```
-
-```typescript
-function bar() {
-  return x;
-  var x;
-}
-```
-
-```typescript
-switch (foo) {
-  case 1:
-    break;
-    var x;
-}
 ```"#
   }
 }
