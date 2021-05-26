@@ -39,7 +39,7 @@ impl LintRule for NoUnreachable {
   fn docs(&self) -> &'static str {
     r#"Disallows the unreachable code after the control flow statements.
 
-Because the control flow statements(`return`,`throw`, `break` and `continue`) unconditionally exit a block of code, any statements after them cannot be executed.
+Because the control flow statements (`return`, `throw`, `break` and `continue`) unconditionally exit a block of code, any statements after them cannot be executed.
 
 ### Invalid:
 ```typescript
