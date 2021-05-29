@@ -75,12 +75,8 @@ impl LintRule for NoUnusedVars {
       collector.used_types,
     );
     match program {
-      ProgramRef::Module(ref m) => {
-        dbg!(m).visit_with(&DUMMY_NODE, &mut visitor)
-      }
-      ProgramRef::Script(ref s) => {
-        dbg!(s).visit_with(&DUMMY_NODE, &mut visitor)
-      }
+      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }
@@ -649,20 +645,6 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  #[test]
-  fn magurotuna() {
-    assert_lint_ok! {
-      NoUnusedVars,
-      r#"
-import type { Foo } from "./foo.ts";
-//type Foo = string[];
-function _bar(...Foo: Foo) {
-  console.log(Foo);
-}
-      "#,
-    };
-  }
 
   #[test]
   fn no_unused_vars_valid() {
@@ -1320,6 +1302,18 @@ export class Foo {
       "#,
 
       // https://github.com/denoland/deno_lint/issues/705
+      r#"
+type Foo = string[];
+function _bar(...Foo: Foo): void {
+  console.log(Foo);
+}
+      "#,
+      r#"
+import type { Foo } from "./foo.ts";
+function _bar(...Foo: Foo) {
+  console.log(Foo);
+}
+      "#,
       r#"
 import type { Filters } from "./types.ts";
 export function audioFilters(...Filters: Filters[]): void {
