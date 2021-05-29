@@ -81,6 +81,8 @@ impl LintRule for NoUnusedVars {
   }
 }
 
+// TODO(@magurotuna): use MediaType instead
+// https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/media_type.rs#L15-L26
 fn is_jsx_file(filename: &str) -> bool {
   filename.ends_with(".jsx") || filename.ends_with(".tsx")
 }
@@ -1305,15 +1307,12 @@ export class Foo {
     // JSX or TSX
     assert_lint_ok! {
       NoUnusedVars,
-      {
-        src: "
-    import { TypeA } from './interface';
-    export const a = <GenericComponent<TypeA> />;
-        ",
-        filename: "foo.tsx",
-      },
-      {
-        src: r#"
+      filename: "foo.tsx",
+      r#"
+import { TypeA } from './interface';
+export const a = <GenericComponent<TypeA> />;
+      "#,
+      r#"
 const text = 'text';
 export function Foo() {
   return (
@@ -1322,50 +1321,33 @@ export function Foo() {
     </div>
   );
 }
-        "#,
-        filename: "foo.tsx",
-      },
-      {
-        src: r#"
+      "#,
+      r#"
 function Root() { return null; }
 function Child() { return null; }
 export default <Root><Child>Hello World!</Child></Root>;
-        "#,
-        filename: "foo.tsx",
-      },
+      "#,
 
       // https://github.com/denoland/deno_lint/issues/663
-      {
-        src: r#"
+      r#"
 import React from "./dummy.ts";
 export default <div />;
-        "#,
-        filename: "foo.tsx",
-      },
-      {
-        src: r#"
+      "#,
+      r#"
 import React from "./dummy.ts";
 function Component() { return null; }
 export default <Component />;
-        "#,
-        filename: "foo.tsx",
-      },
-      {
-        src: r#"
+      "#,
+      r#"
 import React from "./dummy.ts";
 const Component = () => { return null; }
 export default <Component />;
-        "#,
-        filename: "foo.tsx",
-      },
-      {
-        src: r#"
+      "#,
+      r#"
 import React from "./dummy.ts";
 class Component extends React.Component { render() { return null; } }
 export default <Component />;
-        "#,
-        filename: "foo.tsx",
-      },
+      "#,
     };
   }
 

@@ -72,6 +72,8 @@ mod tests {
   fn no_namespace_valid() {
     assert_lint_ok! {
       NoNamespace,
+      filename: "foo.ts",
+
       r#"declare global {}"#,
       r#"declare module 'foo' {}"#,
       r#"declare module foo {}"#,
@@ -100,17 +102,17 @@ declare namespace foo {
   }
 }
       "#,
-      {
-        src: r#"namespace foo {}"#,
-        filename: "test.d.ts",
-      },
-      {
-        src: r#"module foo {}"#,
-        filename: "test.d.ts",
-      },
-      {
-        // https://github.com/denoland/deno_lint/issues/633
-        src: r#"
+    };
+
+    assert_lint_ok! {
+      NoNamespace,
+      filename: "test.d.ts",
+
+      r#"namespace foo {}"#,
+      r#"module foo {}"#,
+
+      // https://github.com/denoland/deno_lint/issues/633
+      r#"
 export declare namespace Utility {
   export namespace Matcher {
     export type CharSchema<
@@ -126,9 +128,7 @@ export declare namespace Utility {
       : never;
   }
 }
-        "#,
-        filename: "test.d.ts",
-      },
+      "#,
     };
   }
 

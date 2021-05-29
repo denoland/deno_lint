@@ -50,6 +50,7 @@ pub mod no_import_assign;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
+pub mod no_invalid_triple_slash_reference;
 pub mod no_irregular_whitespace;
 pub mod no_misused_new;
 pub mod no_mixed_spaces_and_tabs;
@@ -188,6 +189,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_inferrable_types::NoInferrableTypes::new(),
     no_inner_declarations::NoInnerDeclarations::new(),
     no_invalid_regexp::NoInvalidRegexp::new(),
+    no_invalid_triple_slash_reference::NoInvalidTripleSlashReference::new(),
     no_irregular_whitespace::NoIrregularWhitespace::new(),
     no_misused_new::NoMisusedNew::new(),
     no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
