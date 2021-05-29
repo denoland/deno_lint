@@ -81,6 +81,8 @@ impl LintRule for NoUnusedVars {
   }
 }
 
+// TODO(@magurotuna): use MediaType instead
+// https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/media_type.rs#L15-L26
 fn is_jsx_file(filename: &str) -> bool {
   filename.ends_with(".jsx") || filename.ends_with(".tsx")
 }
