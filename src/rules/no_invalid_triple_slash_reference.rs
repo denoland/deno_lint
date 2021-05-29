@@ -190,15 +190,13 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
     } else {
       Some(ReportKind::NotTypesInJs(comment.span))
     }
+  } else if is_path_ref(&comment.text)
+    || is_types_ref(&comment.text)
+    || is_lib_ref(&comment.text)
+  {
+    None
   } else {
-    if is_path_ref(&comment.text)
-      || is_types_ref(&comment.text)
-      || is_lib_ref(&comment.text)
-    {
-      None
-    } else {
-      Some(ReportKind::InvalidDirective(comment.span))
-    }
+    Some(ReportKind::InvalidDirective(comment.span))
   }
 }
 
