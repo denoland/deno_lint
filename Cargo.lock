@@ -1155,9 +1155,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.15.4"
+version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf55207e36eaa746e474bbf57ae2ee7455626f6711d0e7c14065bfc13bc59ed5"
+checksum = "689d527d8b1838691ebfd7a8432bbb378074ece0a23293539c5119a8faa7ef67"
 dependencies = [
  "fxhash",
  "once_cell",
