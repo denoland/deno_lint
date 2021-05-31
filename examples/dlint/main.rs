@@ -25,6 +25,7 @@ mod js;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
+    .version(clap::crate_version!())
     .setting(AppSettings::SubcommandRequiredElseHelp)
     .subcommand(
       SubCommand::with_name("rules")
