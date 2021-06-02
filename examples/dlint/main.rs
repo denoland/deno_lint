@@ -7,6 +7,7 @@ use clap::App;
 use clap::AppSettings;
 use clap::Arg;
 use clap::SubCommand;
+use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
@@ -15,10 +16,11 @@ use log::debug;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use swc_common::BytePos;
+use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 
 mod config;
 mod js;
@@ -185,6 +187,7 @@ fn run_linter(
 
     let mut linter_builder = LinterBuilder::default()
       .rules(rules)
+      .syntax(determine_syntax(file_path))
       .lint_unknown_rules(true)
       .lint_unused_ignore_directives(true);
 
@@ -224,6 +227,39 @@ fn run_linter(
   }
 
   Ok(())
+}
+
+/// Determine what syntax should be used as parse config from the file path.
+fn determine_syntax(path: &Path) -> Syntax {
+  match path.extension() {
+    Some(os_str) => match os_str.to_str() {
+      Some("ts") => get_default_ts_config(),
+      Some("js") | Some("mjs") | Some("cjs") => get_default_es_config(),
+      Some("tsx") => Syntax::Typescript(TsConfig {
+        tsx: true,
+        dynamic_import: true,
+        decorators: true,
+        ..Default::default()
+      }),
+      Some("jsx") => Syntax::Es(EsConfig {
+        jsx: true,
+        num_sep: true,
+        class_private_props: false,
+        class_private_methods: false,
+        class_props: false,
+        export_default_from: true,
+        export_namespace_from: true,
+        dynamic_import: true,
+        nullish_coalescing: true,
+        optional_chaining: true,
+        import_meta: true,
+        top_level_await: true,
+        ..Default::default()
+      }),
+      _ => get_default_ts_config(),
+    },
+    None => get_default_ts_config(),
+  }
 }
 
 #[derive(Clone, Copy, Serialize)]
