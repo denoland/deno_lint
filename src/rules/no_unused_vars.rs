@@ -1302,6 +1302,29 @@ export class Foo {
   }
 }
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/705
+      r#"
+type Foo = string[];
+function _bar(...Foo: Foo): void {
+  console.log(Foo);
+}
+      "#,
+      r#"
+import type { Foo } from "./foo.ts";
+function _bar(...Foo: Foo) {
+  console.log(Foo);
+}
+      "#,
+      r#"
+import type { Filters } from "./types.ts";
+export function audioFilters(...Filters: Filters[]): void {
+  for (const filter of Filters) {
+    console.log(filter);
+    return;
+  }
+}
+      "#,
     };
 
     // JSX or TSX
