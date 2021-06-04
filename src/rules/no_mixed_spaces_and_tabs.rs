@@ -89,6 +89,34 @@ impl LintRule for NoMixedSpacesAndTabs {
       }
     }
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows mixed spaces and tabs for indentation.
+
+Most code rules need to use of tabs or spaces for indentation. Therefore, if a line of code is indented with both tabs and spaces, it will usually result in an error.
+
+### Invalid:
+
+```typescript
+function add(x, y) {
+      return x + y;
+}
+```
+
+```typescript
+    let x = 5,
+        y = 7;
+}
+```
+
+### Valid:
+
+```typescript
+function add(x, y) {
+    return x + y;
+}
+```"#
+  }
 }
 
 #[derive(Default)]
