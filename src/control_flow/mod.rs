@@ -391,7 +391,7 @@ impl Visit for Analyzer<'_> {
   fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
     n.visit_children_with(self);
 
-    if self.scope.end.is_none() {
+    if matches!(self.scope.end, None | Some(End::Continue)) {
       match n {
         Expr::Ident(i) => {
           self.scope.used_hoistable_ids.insert(i.to_id());

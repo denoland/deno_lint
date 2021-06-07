@@ -858,3 +858,31 @@ function bar() {
   // Confirms that no panic happens even if there's invalid `break` or `continue` statement
   let _ = analyze_flow(src);
 }
+
+#[test]
+fn issue_716() {
+  let src = r#"
+function foo() {
+  if (bool) {} else {}
+  try {
+    bar();
+    return 42;
+  } catch (err) {
+    console.error(err);
+  }
+}
+      "#;
+  let flow = analyze_flow(src);
+  assert_flow!(flow, 1, false, Some(End::Continue)); // function
+  assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+  assert_flow!(flow, 20, false, Some(End::Continue)); // if stmt
+  assert_flow!(flow, 30, false, Some(End::Continue)); // BlockStmt of if
+  assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of else
+  assert_flow!(flow, 43, false, Some(End::Continue)); // try stmt
+  assert_flow!(flow, 47, false, Some(End::forced_return())); // BlockStmt of try
+  assert_flow!(flow, 53, false, None); // `bar();`
+  assert_flow!(flow, 64, false, Some(End::forced_return())); // return stmt
+  assert_flow!(flow, 79, false, Some(End::Continue)); // catch clause
+  assert_flow!(flow, 91, false, Some(End::Continue)); // BlockStmt of catch
+  assert_flow!(flow, 97, false, None); // `console.error(err);`
+}
