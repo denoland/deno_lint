@@ -474,6 +474,23 @@ do {
 } while (true);
 console.log("foobar");
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/716
+      r#"
+function foo(trueOrFalse: boolean) {
+  if (trueOrFalse) {
+    // noop
+  } else {
+    // noop
+  }
+  try {
+    bar();
+    return 42;
+  } catch (err) {
+    console.error(err);
+  }
+}
+      "#,
     };
   }
 
