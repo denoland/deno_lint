@@ -1,13 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{
+  self as AstView, Spanned, TsEntityName, TsKeywordTypeKind,
+};
+use if_chain::if_chain;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use swc_ecmascript::ast::{
-  TsEntityName, TsKeywordType, TsKeywordTypeKind, TsTypeLit,
-  TsTypeParamInstantiation, TsTypeRef,
-};
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct BanTypes;
 
@@ -26,23 +25,16 @@ impl LintRule for BanTypes {
     CODE
   }
 
-  fn lint_program<'view>(
-    &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  ) {
-    let mut visitor = BanTypesVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
   }
 
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program,
+    program: AstView::Program,
   ) {
+    BanTypesHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {
@@ -87,16 +79,6 @@ let f: Record<string, unknown>;
   }
 }
 
-struct BanTypesVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
-
-impl<'c, 'view> BanTypesVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
 static BAN_TYPES_MESSAGE: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(
   || {
     let mut map = HashMap::new();
@@ -117,53 +99,48 @@ fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
   BAN_TYPES_MESSAGE.get(ident.as_ref()).copied()
 }
 
-impl<'c, 'view> Visit for BanTypesVisitor<'c, 'view> {
-  fn visit_ts_type_ref(&mut self, ts_type_ref: &TsTypeRef, _parent: &dyn Node) {
-    if let TsEntityName::Ident(ident) = &ts_type_ref.type_name {
-      if let Some(message) = get_message(&ident.sym) {
-        self.context.add_diagnostic(ts_type_ref.span, CODE, message);
-      }
-    }
-    if let Some(type_param) = &ts_type_ref.type_params {
-      self.visit_ts_type_param_instantiation(type_param, ts_type_ref);
-    }
-  }
+struct BanTypesHandler;
 
-  fn visit_ts_type_lit(&mut self, ts_type_lit: &TsTypeLit, _parent: &dyn Node) {
-    if !ts_type_lit.members.is_empty() {
-      for element in ts_type_lit.members.iter() {
-        self.visit_ts_type_element(element, ts_type_lit);
-      }
-      return;
-    }
-    self.context.add_diagnostic(
-      ts_type_lit.span,
-      CODE,
-      get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
-    );
-  }
-
-  fn visit_ts_keyword_type(
+impl Handler for BanTypesHandler {
+  fn ts_type_ref(
     &mut self,
-    ts_keyword_type: &TsKeywordType,
-    _parent: &dyn Node,
+    ts_type_ref: &AstView::TsTypeRef,
+    ctx: &mut Context,
   ) {
-    if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.kind {
-      self.context.add_diagnostic(
-        ts_keyword_type.span,
+    if_chain! {
+      if let TsEntityName::Ident(ident) = &ts_type_ref.type_name;
+      if let Some(message) = get_message(ident.sym());
+      then {
+        ctx.add_diagnostic(ts_type_ref.span(), CODE, message);
+      }
+    }
+  }
+
+  fn ts_type_lit(
+    &mut self,
+    ts_type_lit: &AstView::TsTypeLit,
+    ctx: &mut Context,
+  ) {
+    if ts_type_lit.members.is_empty() {
+      ctx.add_diagnostic(
+        ts_type_lit.span(),
         CODE,
-        get_message("object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `object` key
+        get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
       );
     }
   }
 
-  fn visit_ts_type_param_instantiation(
+  fn ts_keyword_type(
     &mut self,
-    ts_type_param_instantiation: &TsTypeParamInstantiation,
-    _parent: &dyn Node,
+    ts_keyword_type: &AstView::TsKeywordType,
+    ctx: &mut Context,
   ) {
-    for param in ts_type_param_instantiation.params.iter() {
-      self.visit_ts_type(&param, ts_type_param_instantiation);
+    if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.keyword_kind() {
+      ctx.add_diagnostic(
+        ts_keyword_type.span(),
+        CODE,
+        get_message("object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `object` key
+      );
     }
   }
 }
@@ -306,7 +283,7 @@ mod tests {
       "
 class Foo<F = String> extends Bar<String> implements Baz<Object> {
   constructor(foo: String | Object) {}
-    
+
   exit(): Array<String> {
     const foo: String = 1 as String;
   }
