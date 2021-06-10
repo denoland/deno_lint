@@ -53,7 +53,7 @@ impl TryFrom<&str> for BannedType {
   type Error = ();
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
-    match value.as_ref() {
+    match value {
       "String" => Ok(Self::String),
       "Boolean" => Ok(Self::Boolean),
       "Number" => Ok(Self::Number),
