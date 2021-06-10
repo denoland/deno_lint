@@ -11,6 +11,8 @@ use swc_ecmascript::visit::Visit;
 
 pub struct BanTypes;
 
+const CODE: &str = "ban-types";
+
 impl LintRule for BanTypes {
   fn new() -> Box<Self> {
     Box::new(BanTypes)
@@ -21,7 +23,7 @@ impl LintRule for BanTypes {
   }
 
   fn code(&self) -> &'static str {
-    "ban-types"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -34,6 +36,13 @@ impl LintRule for BanTypes {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
       ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
     }
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: dprint_swc_ecma_ast_view::Program,
+  ) {
   }
 
   fn docs(&self) -> &'static str {
@@ -112,9 +121,7 @@ impl<'c, 'view> Visit for BanTypesVisitor<'c, 'view> {
   fn visit_ts_type_ref(&mut self, ts_type_ref: &TsTypeRef, _parent: &dyn Node) {
     if let TsEntityName::Ident(ident) = &ts_type_ref.type_name {
       if let Some(message) = get_message(&ident.sym) {
-        self
-          .context
-          .add_diagnostic(ts_type_ref.span, "ban-types", message);
+        self.context.add_diagnostic(ts_type_ref.span, CODE, message);
       }
     }
     if let Some(type_param) = &ts_type_ref.type_params {
@@ -131,7 +138,7 @@ impl<'c, 'view> Visit for BanTypesVisitor<'c, 'view> {
     }
     self.context.add_diagnostic(
       ts_type_lit.span,
-      "ban-types",
+      CODE,
       get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
     );
   }
@@ -144,7 +151,7 @@ impl<'c, 'view> Visit for BanTypesVisitor<'c, 'view> {
     if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.kind {
       self.context.add_diagnostic(
         ts_keyword_type.span,
-        "ban-types",
+        CODE,
         get_message("object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `object` key
       );
     }
