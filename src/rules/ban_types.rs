@@ -5,12 +5,66 @@ use dprint_swc_ecma_ast_view::{
   self as AstView, Spanned, TsEntityName, TsKeywordTypeKind,
 };
 use if_chain::if_chain;
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use std::convert::TryFrom;
 
 pub struct BanTypes;
 
 const CODE: &str = "ban-types";
+
+#[derive(Clone, Copy)]
+enum BannedType {
+  String,
+  Boolean,
+  Number,
+  Symbol,
+  Function,
+  CapitalObject,
+  LowerObject,
+}
+
+impl BannedType {
+  fn as_message(&self) -> &'static str {
+    use BannedType::*;
+    match *self {
+      String | Boolean | Number | Symbol => "For consistency, it is recommended to use the lower-case primitive",
+      Function => "This provides no type safety bacause it represents all functions and classes",
+      CapitalObject => "This type may be different from what you expect it to be",
+      LowerObject => "This type is tricky to use so should be avoided if possible",
+    }
+  }
+
+  fn as_hint(&self) -> &'static str {
+    use BannedType::*;
+    match *self {
+      String => "Use `string` instead",
+      Boolean => "Use `boolean` instead",
+      Number => "Use `number` instead",
+      Symbol => "Use `symbol` instead",
+      Function => "Define the function shape explicitly",
+      CapitalObject => {
+        r#"If you want a type meaning "any object", use `Record<string, unknown>` instead. Or if you want a type meaning "any value", you probably want `unknown` instead."#
+      }
+      LowerObject => "Use `Record<string, unknown>` instead",
+    }
+  }
+}
+
+impl TryFrom<&str> for BannedType {
+  type Error = ();
+
+  fn try_from(value: &str) -> Result<Self, Self::Error> {
+    match value.as_ref() {
+      "String" => Ok(Self::String),
+      "Boolean" => Ok(Self::Boolean),
+      "Number" => Ok(Self::Number),
+      "Symbol" => Ok(Self::Symbol),
+      "Function" => Ok(Self::Function),
+      "Object" => Ok(Self::CapitalObject),
+      "object" => Ok(Self::LowerObject),
+      _ => Err(()),
+    }
+  }
+}
 
 impl LintRule for BanTypes {
   fn new() -> Box<Self> {
@@ -79,26 +133,6 @@ let f: Record<string, unknown>;
   }
 }
 
-static BAN_TYPES_MESSAGE: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(
-  || {
-    let mut map = HashMap::new();
-    map.insert("String", "Use `string` instead");
-    map.insert("Boolean", "Use `boolean` instead");
-    map.insert("Number", "Use `number` instead");
-    map.insert("Symbol", "Use `symbol` instead");
-    map.insert("Function", "Define the function shape Explicitly.");
-    map.insert("Object",
-  "if you want a type meaning `any object` use `Record<string, unknown>` instead,
-or if you want a type meaning `any value`, you probably want `unknown` instead.");
-    map.insert("object", "Use `Record<string, unknown>` instead");
-    map
-  },
-);
-
-fn get_message(ident: impl AsRef<str>) -> Option<&'static str> {
-  BAN_TYPES_MESSAGE.get(ident.as_ref()).copied()
-}
-
 struct BanTypesHandler;
 
 impl Handler for BanTypesHandler {
@@ -109,9 +143,14 @@ impl Handler for BanTypesHandler {
   ) {
     if_chain! {
       if let TsEntityName::Ident(ident) = &ts_type_ref.type_name;
-      if let Some(message) = get_message(ident.sym());
+      if let Ok(banned_type) = BannedType::try_from(ident.sym().as_ref());
       then {
-        ctx.add_diagnostic(ts_type_ref.span(), CODE, message);
+        ctx.add_diagnostic_with_hint(
+          ts_type_ref.span(),
+          CODE,
+          banned_type.as_message(),
+          banned_type.as_hint(),
+        );
       }
     }
   }
@@ -122,10 +161,11 @@ impl Handler for BanTypesHandler {
     ctx: &mut Context,
   ) {
     if ts_type_lit.members.is_empty() {
-      ctx.add_diagnostic(
+      ctx.add_diagnostic_with_hint(
         ts_type_lit.span(),
         CODE,
-        get_message("Object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `Object` key
+        BannedType::CapitalObject.as_message(),
+        BannedType::CapitalObject.as_hint(),
       );
     }
   }
@@ -136,10 +176,11 @@ impl Handler for BanTypesHandler {
     ctx: &mut Context,
   ) {
     if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.keyword_kind() {
-      ctx.add_diagnostic(
+      ctx.add_diagnostic_with_hint(
         ts_keyword_type.span(),
         CODE,
-        get_message("object").unwrap(), // `BAN_TYPES_MESSAGE` absolutely has `object` key
+        BannedType::LowerObject.as_message(),
+        BannedType::LowerObject.as_hint(),
       );
     }
   }
@@ -165,7 +206,11 @@ mod tests {
   #[test]
   fn ban_types_invalid() {
     fn message(ty: &str) -> &str {
-      get_message(ty).unwrap()
+      BannedType::try_from(ty).unwrap().as_message()
+    }
+
+    fn hint(ty: &str) -> &str {
+      BannedType::try_from(ty).unwrap().as_hint()
     }
 
     assert_lint_err! {
@@ -174,110 +219,129 @@ mod tests {
         {
           col: 7,
           message: message("String"),
+          hint: hint("String"),
         }
       ],
       "let a: Object;": [
         {
           col: 7,
           message: message("Object"),
+          hint: hint("Object"),
         }
       ],
       "let a: Number;": [
         {
           col: 7,
           message: message("Number"),
+          hint: hint("Number"),
         }
       ],
       "let a: Function;": [
         {
           col: 7,
           message: message("Function"),
+          hint: hint("Function"),
         }
       ],
       "let a: object;": [
         {
           col: 7,
           message: message("object"),
+          hint: hint("object"),
         }
       ],
       "let a: {};": [
         {
           col: 7,
           message: message("Object"),
+          hint: hint("Object"),
         }
       ],
       "let a: { b: String };": [
         {
           col: 12,
           message: message("String"),
+          hint: hint("String"),
         }
       ],
       "let a: { b: Number };": [
         {
           col: 12,
           message: message("Number"),
+          hint: hint("Number"),
         }
       ],
       "let a: { b: object, c: Object };": [
         {
           col: 12,
           message: message("object"),
+          hint: hint("object"),
         },
         {
           col: 23,
           message: message("Object"),
+          hint: hint("Object"),
         }
       ],
       "let a: { b: { c : Function } };": [
         {
           col: 18,
           message: message("Function"),
+          hint: hint("Function"),
         }
       ],
       "let a: Array<String>": [
         {
           col: 13,
           message: message("String"),
+          hint: hint("String"),
         }
       ],
       "let a: Number<Function>": [
         {
           col: 7,
           message: message("Number"),
+          hint: hint("Number"),
         },
         {
           col: 14,
           message: message("Function"),
+          hint: hint("Function"),
         }
       ],
       "function foo(a: String) {}": [
         {
           col: 16,
           message: message("String"),
+          hint: hint("String"),
         }
       ],
       "function foo(): Number {}": [
         {
           col: 16,
           message: message("Number"),
+          hint: hint("Number"),
         }
       ],
       "let a: () => Number;": [
         {
           col: 13,
           message: message("Number"),
+          hint: hint("Number"),
         }
       ],
       "'a' as String;": [
         {
           col: 7,
           message: message("String"),
+          hint: hint("String"),
         }
       ],
       "1 as Number;": [
         {
           col: 5,
           message: message("Number"),
+          hint: hint("Number"),
         }
       ],
       "
@@ -292,41 +356,49 @@ class Foo<F = String> extends Bar<String> implements Baz<Object> {
           line: 2,
           col: 14,
           message: message("String"),
+          hint: hint("String"),
         },
         {
           line: 2,
           col: 34,
           message: message("String"),
+          hint: hint("String"),
         },
         {
           line: 2,
           col: 57,
           message: message("Object"),
+          hint: hint("Object"),
         },
         {
           line: 3,
           col: 19,
           message: message("String"),
+          hint: hint("String"),
         },
         {
           line: 3,
           col: 28,
           message: message("Object"),
+          hint: hint("Object"),
         },
         {
           line: 5,
           col: 16,
           message: message("String"),
+          hint: hint("String"),
         },
         {
           line: 6,
           col: 15,
           message: message("String"),
+          hint: hint("String"),
         },
         {
           line: 6,
           col: 29,
           message: message("String"),
+          hint: hint("String"),
         }
       ]
     };
