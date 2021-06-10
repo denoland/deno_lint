@@ -99,7 +99,7 @@ type and the misunderstood `Object` type.
 There are very few situations where primitive wrapper objects are desired and
 far more often a mistake was made with the case of the primitive type.  You also
 cannot assign a primitive wrapper object to a primitive leading to type issues
-down the line
+down the line.
 
 With `Function`, it is better to explicitly define the entire function
 signature rather than use the non-specific `Function` type which won't give you
