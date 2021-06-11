@@ -27,7 +27,7 @@ impl BannedType {
     use BannedType::*;
     match *self {
       String | Boolean | Number | Symbol => "For consistency, it is recommended to use the lower-case primitive",
-      Function => "This provides no type safety bacause it represents all functions and classes",
+      Function => "This provides no type safety because it represents all functions and classes",
       CapitalObject => "This type may be different from what you expect it to be",
       LowerObject => "This type is tricky to use so should be avoided if possible",
     }
