@@ -71,7 +71,15 @@ impl LintRule for BanTsComment {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    _program: dprint_swc_ecma_ast_view::Program,
+  ) {
     let mut violated_comment_spans = Vec::new();
 
     violated_comment_spans.extend(context.all_comments().filter_map(|c| {
