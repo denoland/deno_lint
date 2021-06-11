@@ -99,13 +99,13 @@ Most code conventions require either tabs or spaces be used for indentation. The
 
 ```typescript
 function add(x: number, y: number) {
-    return x + y; // indented with a tab + two spaces
+          return x + y; // indented with a tab + two spaces
 }
 ```
 
 ```typescript
-    let x = 5, // indented with a tab + two spaces
-        y = 7;
+          let x = 5, // indented with a tab + two spaces
+              y = 7;
 ```
 
 ### Valid:
