@@ -26,7 +26,7 @@ impl BannedType {
   fn as_message(&self) -> &'static str {
     use BannedType::*;
     match *self {
-      String | Boolean | Number | Symbol => "For consistency, it is recommended to use the lower-case primitive",
+      String | Boolean | Number | Symbol => "The corresponding lower-case primitive should be used",
       Function => "This provides no type safety because it represents all functions and classes",
       CapitalObject => "This type may be different from what you expect it to be",
       LowerObject => "This type is tricky to use so should be avoided if possible",
@@ -99,7 +99,10 @@ type and the misunderstood `Object` type.
 There are very few situations where primitive wrapper objects are desired and
 far more often a mistake was made with the case of the primitive type.  You also
 cannot assign a primitive wrapper object to a primitive leading to type issues
-down the line.
+down the line. For reference, [the TypeScript handbook] also says we shouldn't
+ever use these wrapper objects.
+
+[the TypeScript handbook]: https://www.typescriptlang.org/docs/handbook/declaration-files/do-s-and-don-ts.html#number-string-boolean-symbol-and-object
 
 With `Function`, it is better to explicitly define the entire function
 signature rather than use the non-specific `Function` type which won't give you
