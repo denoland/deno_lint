@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use swc_common::Spanned;
 
 pub struct NoWith;
@@ -58,8 +58,9 @@ impl Handler for NoWithHandler {
     &mut self,
     with_stmt: &dprint_swc_ecma_ast_view::WithStmt,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     ctx.add_diagnostic(with_stmt.span(), CODE, MESSAGE);
+    TraverseFlow::Continue
   }
 }
 

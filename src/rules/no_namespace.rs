@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 use swc_common::Spanned;
 
@@ -46,7 +46,7 @@ impl Handler for NoNamespaceHandler {
     &mut self,
     module_decl: &AstView::TsModuleDecl,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     fn inside_ambient_context(current_node: AstView::Node) -> bool {
       use AstView::Node::*;
       match current_node {
@@ -61,6 +61,8 @@ impl Handler for NoNamespaceHandler {
     if !inside_ambient_context(module_decl.as_node()) {
       ctx.add_diagnostic(module_decl.span(), CODE, MESSAGE);
     }
+
+    TraverseFlow::Continue
   }
 }
 

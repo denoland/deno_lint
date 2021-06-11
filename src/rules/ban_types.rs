@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use dprint_swc_ecma_ast_view::{
   self as AstView, Spanned, TsEntityName, TsKeywordTypeKind,
 };
@@ -143,7 +143,7 @@ impl Handler for BanTypesHandler {
     &mut self,
     ts_type_ref: &AstView::TsTypeRef,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     if_chain! {
       if let TsEntityName::Ident(ident) = &ts_type_ref.type_name;
       if let Ok(banned_type) = BannedType::try_from(ident.sym().as_ref());
@@ -156,13 +156,15 @@ impl Handler for BanTypesHandler {
         );
       }
     }
+
+    TraverseFlow::Continue
   }
 
   fn ts_type_lit(
     &mut self,
     ts_type_lit: &AstView::TsTypeLit,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     if ts_type_lit.members.is_empty() {
       ctx.add_diagnostic_with_hint(
         ts_type_lit.span(),
@@ -171,13 +173,15 @@ impl Handler for BanTypesHandler {
         BannedType::CapitalObject.as_hint(),
       );
     }
+
+    TraverseFlow::Continue
   }
 
   fn ts_keyword_type(
     &mut self,
     ts_keyword_type: &AstView::TsKeywordType,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.keyword_kind() {
       ctx.add_diagnostic_with_hint(
         ts_keyword_type.span(),
@@ -186,6 +190,8 @@ impl Handler for BanTypesHandler {
         BannedType::LowerObject.as_hint(),
       );
     }
+
+    TraverseFlow::Continue
   }
 }
 
