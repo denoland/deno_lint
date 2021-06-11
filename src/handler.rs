@@ -8,7 +8,7 @@ use dprint_swc_ecma_ast_view::{self as ast_view, NodeTrait};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TraverseFlow {
   Continue,
-  // TODO(magurotuna) remove before creating PR
+  // TODO(magurotuna) remove it before creating a PR that refactors `camelcase`
   #[allow(dead_code)]
   Break,
 }
