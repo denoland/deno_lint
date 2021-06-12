@@ -10,6 +10,8 @@ use swc_ecmascript::visit::Visit;
 
 pub struct ConstructorSuper;
 
+const CODE: &str = "constructor-super";
+
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
 impl LintRule for ConstructorSuper {
@@ -22,7 +24,7 @@ impl LintRule for ConstructorSuper {
   }
 
   fn code(&self) -> &'static str {
-    "constructor-super"
+    CODE
   }
 
   fn lint_program<'view>(
@@ -184,7 +186,7 @@ impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
         let kind = DiagnosticKind::NoSuper;
         self.context.add_diagnostic_with_hint(
           constructor.span,
-          "constructor-super",
+          CODE,
           kind.message(),
           kind.hint(),
         );
@@ -196,7 +198,7 @@ impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
       let kind = DiagnosticKind::UnnecessaryConstructor;
       self.context.add_diagnostic_with_hint(
         constructor.span,
-        "constructor-super",
+        CODE,
         kind.message(),
         kind.hint(),
       );
@@ -210,7 +212,7 @@ impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
       let kind = DiagnosticKind::TooManySuper;
       self.context.add_diagnostic_with_hint(
         *exceeded_super_span,
-        "constructor-super",
+        CODE,
         kind.message(),
         kind.hint(),
       );
@@ -221,7 +223,7 @@ impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
         let kind = DiagnosticKind::NoSuper;
         self.context.add_diagnostic_with_hint(
           constructor.span,
-          "constructor-super",
+          CODE,
           kind.message(),
           kind.hint(),
         );
@@ -230,7 +232,7 @@ impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
         let kind = DiagnosticKind::UnnecessarySuper;
         self.context.add_diagnostic_with_hint(
           super_calls[0],
-          "constructor-super",
+          CODE,
           kind.message(),
           kind.hint(),
         );
