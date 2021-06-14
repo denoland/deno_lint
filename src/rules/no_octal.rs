@@ -84,6 +84,10 @@ mod tests {
       NoOctal,
       "07": [{col: 0, message: MESSAGE}],
       "let x = 7 + 07": [{col: 12, message: MESSAGE}],
+
+      // https://github.com/denoland/deno/issues/10954
+      // Make sure it doesn't panic
+      "020000000000000000000;": [{col: 0, message: MESSAGE}],
     }
   }
 }
