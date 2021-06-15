@@ -36,6 +36,12 @@ enum NoUnusedVarsHint {
     _0
   )]
   AddPrefix(String),
+  #[display(
+    fmt = "If this is intentional, alias it with an underscore like `{} as _{}`",
+    _0,
+    _0
+  )]
+  Alias(String),
 }
 
 impl LintRule for NoUnusedVars {
@@ -408,19 +414,54 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
   }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum IdentKind<'a> {
+  NamedImport(&'a Ident),
+  DefaultImport(&'a Ident),
+  StarAsImport(&'a Ident),
+  Other(&'a Ident),
+}
+
+impl<'a> IdentKind<'a> {
+  fn inner(&self) -> &Ident {
+    match *self {
+      IdentKind::NamedImport(ident) => ident,
+      IdentKind::DefaultImport(ident) => ident,
+      IdentKind::StarAsImport(ident) => ident,
+      IdentKind::Other(ident) => ident,
+    }
+  }
+
+  fn to_message(&self) -> NoUnusedVarsMessage {
+    let ident = self.inner();
+    NoUnusedVarsMessage::NeverUsed(ident.sym.to_string())
+  }
+
+  fn to_hint(&self) -> NoUnusedVarsHint {
+    let symbol = self.inner().sym.to_string();
+    match self {
+      IdentKind::NamedImport(_) => NoUnusedVarsHint::Alias(symbol),
+      IdentKind::DefaultImport(_)
+      | IdentKind::StarAsImport(_)
+      | IdentKind::Other(_) => NoUnusedVarsHint::AddPrefix(symbol),
+    }
+  }
+}
+
 impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
-  fn handle_id(&mut self, ident: &Ident) {
-    if ident.sym.starts_with('_') {
+  fn handle_id(&mut self, ident: IdentKind) {
+    let inner = ident.inner();
+    if inner.sym.starts_with('_') {
       return;
     }
 
-    if !self.used_vars.contains(&ident.to_id()) {
+    if !self.used_vars.contains(&inner.to_id()) {
       // The variable is not used.
       self.context.add_diagnostic_with_hint(
-        ident.span,
+        inner.span,
         CODE,
-        NoUnusedVarsMessage::NeverUsed(ident.sym.to_string()),
-        NoUnusedVarsHint::AddPrefix(ident.sym.to_string()),
+        ident.to_message(),
+        ident.to_hint(),
       );
     }
   }
@@ -431,7 +472,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     let declared_idents: Vec<Ident> = find_ids(&expr.params);
 
     for ident in declared_idents {
-      self.handle_id(&ident);
+      self.handle_id(IdentKind::Other(&ident));
     }
     expr.body.visit_with(expr, self)
   }
@@ -441,7 +482,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
       return;
     }
 
-    self.handle_id(&decl.ident);
+    self.handle_id(IdentKind::Other(&decl.ident));
 
     // If function body is not present, it's an overload definition
     if decl.function.body.is_some() {
@@ -461,7 +502,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     let declared_idents: Vec<Ident> = find_ids(&declarator.name);
 
     for ident in declared_idents {
-      self.handle_id(&ident);
+      self.handle_id(IdentKind::Other(&ident));
     }
     declarator.name.visit_with(declarator, self);
     declarator.init.visit_with(declarator, self);
@@ -472,7 +513,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
       return;
     }
 
-    self.handle_id(&n.ident);
+    self.handle_id(IdentKind::Other(&n.ident));
     n.visit_children_with(self);
   }
 
@@ -480,7 +521,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     let declared_idents: Vec<Ident> = find_ids(&clause.param);
 
     for ident in declared_idents {
-      self.handle_id(&ident);
+      self.handle_id(IdentKind::Other(&ident));
     }
 
     clause.body.visit_with(clause, self);
@@ -517,7 +558,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     let declared_idents: Vec<Ident> = find_ids(&param.pat);
 
     for ident in declared_idents {
-      self.handle_id(&ident);
+      self.handle_id(IdentKind::Other(&ident));
     }
     param.visit_children_with(self);
   }
@@ -530,7 +571,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     if self.used_types.contains(&import.local.to_id()) {
       return;
     }
-    self.handle_id(&import.local);
+    self.handle_id(IdentKind::NamedImport(&import.local));
   }
 
   fn visit_import_default_specifier(
@@ -542,7 +583,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
       return;
     }
 
-    self.handle_id(&import.local);
+    self.handle_id(IdentKind::DefaultImport(&import.local));
   }
 
   fn visit_import_star_as_specifier(
@@ -553,7 +594,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     if self.used_types.contains(&import.local.to_id()) {
       return;
     }
-    self.handle_id(&import.local);
+    self.handle_id(IdentKind::StarAsImport(&import.local));
   }
 
   /// No error as export is kind of usage
@@ -621,7 +662,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     if self.used_types.contains(&n.id.to_id()) {
       return;
     }
-    self.handle_id(&n.id);
+    self.handle_id(IdentKind::Other(&n.id));
   }
 
   fn visit_ts_module_decl(&mut self, n: &TsModuleDecl, _: &dyn Node) {
@@ -1818,7 +1859,7 @@ export class Foo {}
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "ClassDecoratorFactory"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "ClassDecoratorFactory"),
+          hint: variant!(NoUnusedVarsHint, Alias, "ClassDecoratorFactory"),
         }
       ],
       "
@@ -1830,7 +1871,7 @@ baz<Bar>();
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Foo"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Foo"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Foo"),
         }
       ],
       "
@@ -1842,7 +1883,7 @@ console.log(a);
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Nullable"),
         }
       ],
       "
@@ -1855,7 +1896,7 @@ console.log(a);
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, Alias, "SomeOther"),
         }
       ],
       "
@@ -1872,7 +1913,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Another"),
         }
       ],
       "
@@ -1889,7 +1930,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Another"),
         }
       ],
       "
@@ -1906,7 +1947,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Another"),
         }
       ],
       "
@@ -1920,7 +1961,7 @@ interface A {
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Another"),
         }
       ],
       "
@@ -1934,7 +1975,7 @@ interface A {
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Another"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Another"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Another"),
         }
       ],
       "
@@ -1948,7 +1989,7 @@ foo();
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Nullable"),
         }
       ],
       "
@@ -1962,7 +2003,7 @@ foo();
           line: 2,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "Nullable"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "Nullable"),
+          hint: variant!(NoUnusedVarsHint, Alias, "Nullable"),
         }
       ],
       "
@@ -1978,7 +2019,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, Alias, "SomeOther"),
         }
       ],
       "
@@ -1994,7 +2035,7 @@ new A();
           line: 3,
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "SomeOther"),
-          hint: variant!(NoUnusedVarsHint, AddPrefix, "SomeOther"),
+          hint: variant!(NoUnusedVarsHint, Alias, "SomeOther"),
         }
       ],
       "
@@ -2032,6 +2073,16 @@ foo(a);
           col: 7,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "React"),
           hint: variant!(NoUnusedVarsHint, AddPrefix, "React"),
+        }
+      ],
+
+      // https://github.com/denoland/deno_lint/issues/730
+      r#"import * as foo from "./foo.ts";"#: [
+        {
+          line: 1,
+          col: 12,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
         }
       ],
 
