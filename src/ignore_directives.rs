@@ -91,19 +91,16 @@ pub fn parse_ignore_directives<'view>(
   source_map: &SourceMap,
   comments: impl Iterator<Item = &'view Comment>,
 ) -> Vec<IgnoreDirective> {
-  let mut ignore_directives = vec![];
-
-  for comment in comments {
-    if let Some(ignore) = parse_ignore_comment(
-      &ignore_diagnostic_directive,
-      source_map,
-      comment,
-      DirectiveKind::Line,
-    ) {
-      ignore_directives.push(ignore);
-    }
-  }
-
+  let mut ignore_directives: Vec<IgnoreDirective> = comments
+    .filter_map(|comment| {
+      parse_ignore_comment(
+        &ignore_diagnostic_directive,
+        source_map,
+        comment,
+        DirectiveKind::Line,
+      )
+    })
+    .collect();
   ignore_directives.sort_by_key(|d| d.position.line);
   ignore_directives
 }
