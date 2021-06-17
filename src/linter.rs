@@ -6,7 +6,9 @@ use crate::ast_parser::SwcDiagnosticBuffer;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
-use crate::ignore_directives::{parse_ignore_comment, parse_ignore_directives, DirectiveKind};
+use crate::ignore_directives::{
+  parse_global_ignore_directives, parse_ignore_directives,
+};
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView, RootNode};
@@ -269,26 +271,6 @@ impl Linter {
     source_file: &SourceFile,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let file_ignore_directive =
-      comments.with_leading(program.span().lo(), |c| {
-        c.iter().find_map(|comment| {
-          parse_ignore_comment(
-            &self.ignore_file_directive,
-            &*self.ast_parser.source_map,
-            comment,
-            DirectiveKind::Global,
-          )
-        })
-      });
-
-    // If there's a file ignore directive that has no codes specified we must ignore
-    // whole file and skip linting it.
-    if matches!(
-      &file_ignore_directive,
-      Some(ignore_directive) if ignore_directive.codes().is_empty()
-    ) {
-      return vec![];
-    }
 
     let scope = Scope::analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
@@ -305,17 +287,31 @@ impl Linter {
     };
 
     let diagnostics = AstView::with_ast_view(program_info, |pg| {
-      let mut ignore_directives =
-        if let Some(file_ignore) = file_ignore_directive {
-          vec![file_ignore]
-        } else {
-          vec![]
-        };
-      ignore_directives.extend(parse_ignore_directives(
+      let global_ignore_directive = parse_global_ignore_directives(
+        &self.ignore_file_directive,
+        &*self.ast_parser.source_map,
+        pg.comments().unwrap().leading_comments(pg.span().lo()),
+      );
+
+      // If a global ignore directive that has no codes specified exists, we must skip linting on
+      // this file.
+      if matches!(global_ignore_directive, Some(ref global_ignore) if global_ignore.ignore_all())
+      {
+        return vec![];
+      }
+
+      let line_ignore_directives = parse_ignore_directives(
         &self.ignore_diagnostic_directive,
         &self.ast_parser.source_map,
         pg.comments().unwrap().all_comments(),
-      ));
+      );
+
+      let ignore_directives = {
+        let mut v = Vec::with_capacity(1 + line_ignore_directives.len());
+        v.extend(global_ignore_directive);
+        v.extend(line_ignore_directives);
+        v
+      };
 
       let mut context = Context::new(
         file_name,

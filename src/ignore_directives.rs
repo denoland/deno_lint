@@ -20,6 +20,14 @@ pub struct IgnoreDirective {
   kind: DirectiveKind,
 }
 
+impl IgnoreDirective {
+  /// If the directive has no codes specified, it means all the rules should be
+  /// ignored.
+  pub fn ignore_all(&self) -> bool {
+    self.codes.is_empty()
+  }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DirectiveKind {
   /// The directive has an effect on the whole file.
@@ -100,7 +108,22 @@ pub fn parse_ignore_directives<'view>(
   ignore_directives
 }
 
-pub fn parse_ignore_comment(
+pub fn parse_global_ignore_directives<'view>(
+  ignore_global_directive: &str,
+  source_map: &SourceMap,
+  mut comments: impl Iterator<Item = &'view Comment>,
+) -> Option<IgnoreDirective> {
+  comments.find_map(|comment| {
+    parse_ignore_comment(
+      ignore_global_directive,
+      source_map,
+      comment,
+      DirectiveKind::Global,
+    )
+  })
+}
+
+fn parse_ignore_comment(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
   comment: &Comment,
