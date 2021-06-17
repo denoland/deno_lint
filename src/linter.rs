@@ -6,8 +6,7 @@ use crate::ast_parser::SwcDiagnosticBuffer;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
-use crate::ignore_directives::parse_ignore_comment;
-use crate::ignore_directives::parse_ignore_directives;
+use crate::ignore_directives::{parse_ignore_comment, parse_ignore_directives, DirectiveKind};
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView, RootNode};
@@ -277,7 +276,7 @@ impl Linter {
             &self.ignore_file_directive,
             &*self.ast_parser.source_map,
             comment,
-            true,
+            DirectiveKind::Global,
           )
         })
       });

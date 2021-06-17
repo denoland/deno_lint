@@ -17,7 +17,28 @@ pub struct IgnoreDirective {
   span: Span,
   codes: Vec<String>,
   used_codes: HashMap<String, bool>,
-  is_global: bool,
+  kind: DirectiveKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DirectiveKind {
+  /// The directive has an effect on the whole file.
+  Global,
+
+  /// The directive has an effect on the next line.
+  Line,
+}
+
+impl DirectiveKind {
+  fn is_global(&self) -> bool {
+    matches!(*self, DirectiveKind::Global)
+  }
+
+  // TODO(magurotuna) remove
+  #[allow(unused)]
+  fn is_line(&self) -> bool {
+    matches!(*self, DirectiveKind::Line)
+  }
 }
 
 impl IgnoreDirective {
@@ -39,8 +60,7 @@ impl IgnoreDirective {
     &mut self,
     diagnostic: &LintDiagnostic,
   ) -> bool {
-    // `is_global` means that diagnostic is ignored in whole file.
-    if self.is_global {
+    if self.kind.is_global() {
       // pass
     } else if self.position.line != diagnostic.range.start.line - 1 {
       return false;
@@ -70,7 +90,7 @@ pub fn parse_ignore_directives<'view>(
       &ignore_diagnostic_directive,
       source_map,
       comment,
-      false,
+      DirectiveKind::Line,
     ) {
       ignore_directives.push(ignore);
     }
@@ -84,7 +104,7 @@ pub fn parse_ignore_comment(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
   comment: &Comment,
-  is_global: bool,
+  kind: DirectiveKind,
 ) -> Option<IgnoreDirective> {
   if comment.kind != CommentKind::Line {
     return None;
@@ -116,7 +136,7 @@ pub fn parse_ignore_comment(
         span: comment.span,
         codes,
         used_codes,
-        is_global,
+        kind,
       });
     }
   }
