@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::diagnostic::{LintDiagnostic, Position};
+use dprint_swc_ecma_ast_view::{self as ast_view, RootNode, Spanned};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -86,11 +87,12 @@ impl IgnoreDirective {
   }
 }
 
-pub fn parse_line_ignore_directives<'view>(
+pub fn parse_line_ignore_directives(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
-  comments: impl Iterator<Item = &'view Comment>,
+  program: ast_view::Program,
 ) -> Vec<IgnoreDirective> {
+  let comments = program.comments().unwrap().all_comments();
   let mut ignore_directives: Vec<IgnoreDirective> = comments
     .filter_map(|comment| {
       parse_ignore_comment(
@@ -108,8 +110,12 @@ pub fn parse_line_ignore_directives<'view>(
 pub fn parse_global_ignore_directives<'view>(
   ignore_global_directive: &str,
   source_map: &SourceMap,
-  mut comments: impl Iterator<Item = &'view Comment>,
+  program: ast_view::Program,
 ) -> Option<IgnoreDirective> {
+  let mut comments = program
+    .comments()
+    .unwrap()
+    .leading_comments(program.span().lo());
   comments.find_map(|comment| {
     parse_ignore_comment(
       ignore_global_directive,
@@ -168,7 +174,6 @@ fn parse_ignore_comment(
 mod tests {
   use super::*;
   use crate::test_util;
-  use dprint_swc_ecma_ast_view::{RootNode, Spanned};
 
   #[test]
   fn test_parse_line_ignore_comments() {
@@ -193,11 +198,8 @@ object | undefined {}
   "#;
 
     test_util::parse_and_then(source_code, |program, source_map| {
-      let line_directives = parse_line_ignore_directives(
-        "deno-lint-ignore",
-        &source_map,
-        program.comments().unwrap().all_comments(),
-      );
+      let line_directives =
+        parse_line_ignore_directives("deno-lint-ignore", &source_map, program);
 
       assert_eq!(line_directives.len(), 4);
       let d = &line_directives[0];
@@ -251,8 +253,9 @@ object | undefined {}
       let global_directive = parse_global_ignore_directives(
         "deno-lint-ignore-file",
         &source_map,
-        program.comments().unwrap().leading_comments(program.span().lo()),
-      ).unwrap();
+        program,
+      )
+      .unwrap();
 
       assert_eq!(
         global_directive.position,

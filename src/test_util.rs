@@ -354,7 +354,10 @@ pub fn parse(
   (program, comments, source_map, tokens)
 }
 
-pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program, Rc<SourceMap>)) {
+pub fn parse_and_then(
+  source_code: &str,
+  test: impl Fn(ast_view::Program, Rc<SourceMap>),
+) {
   let filename = "lint_test.ts";
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();

@@ -11,12 +11,11 @@ use crate::ignore_directives::{
 };
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{self as AstView, RootNode};
+use dprint_swc_ecma_ast_view::{self as AstView};
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::SourceMap;
-use swc_common::Spanned;
 use swc_common::SyntaxContext;
 use swc_ecmascript::parser::token::TokenAndSpan;
 use swc_ecmascript::parser::Syntax;
@@ -290,7 +289,7 @@ impl Linter {
       let global_ignore_directive = parse_global_ignore_directives(
         &self.ignore_file_directive,
         &*self.ast_parser.source_map,
-        pg.comments().unwrap().leading_comments(pg.span().lo()),
+        pg,
       );
 
       // If a global ignore directive that has no codes specified exists, we must skip linting on
@@ -303,7 +302,7 @@ impl Linter {
       let line_ignore_directives = parse_line_ignore_directives(
         &self.ignore_diagnostic_directive,
         &self.ast_parser.source_map,
-        pg.comments().unwrap().all_comments(),
+        pg,
       );
 
       let ignore_directives = {
