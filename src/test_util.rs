@@ -333,6 +333,8 @@ pub fn assert_lint_ok<T: LintRule + 'static>(
   }
 }
 
+const TEST_FILE_NAME: &str = "lint_test.ts";
+
 pub fn parse(
   source_code: &str,
 ) -> (
@@ -348,7 +350,7 @@ pub fn parse(
     comments,
     tokens,
   } = ast_parser
-    .parse_program("lint_test.ts", syntax, source_code)
+    .parse_program(TEST_FILE_NAME, syntax, source_code)
     .unwrap();
   let source_map = Rc::clone(&ast_parser.source_map);
   (program, comments, source_map, tokens)
@@ -358,21 +360,11 @@ pub fn parse_and_then(
   source_code: &str,
   test: impl Fn(ast_view::Program, Rc<SourceMap>),
 ) {
-  let filename = "lint_test.ts";
-  let ast_parser = ast_parser::AstParser::new();
-  let syntax = ast_parser::get_default_ts_config();
-  let ast_parser::ParsedData {
-    program,
-    comments,
-    tokens,
-  } = ast_parser
-    .parse_program(filename, syntax, source_code)
+  let (program, comments, source_map, tokens) = parse(source_code);
+  let source_file = source_map
+    .get_source_file(&swc_common::FileName::Custom(TEST_FILE_NAME.to_string()))
     .unwrap();
-  let source_file = ast_parser
-    .source_map
-    .get_source_file(&swc_common::FileName::Custom(filename.to_string()))
-    .unwrap();
-  let source_map = Rc::clone(&ast_parser.source_map);
+
   let program_info = ast_view::ProgramInfo {
     program: &program,
     source_file: Some(&source_file),
