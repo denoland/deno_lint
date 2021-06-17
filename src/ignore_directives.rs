@@ -107,7 +107,7 @@ pub fn parse_line_ignore_directives(
   ignore_directives
 }
 
-pub fn parse_global_ignore_directives<'view>(
+pub fn parse_global_ignore_directives(
   ignore_global_directive: &str,
   source_map: &SourceMap,
   program: ast_view::Program,
