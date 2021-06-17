@@ -168,7 +168,7 @@ fn parse_ignore_comment(
 mod tests {
   use super::*;
   use crate::test_util;
-  use dprint_swc_ecma_ast_view::RootNode;
+  use dprint_swc_ecma_ast_view::{RootNode, Spanned};
 
   #[test]
   fn test_parse_line_ignore_comments() {
@@ -240,6 +240,29 @@ object | undefined {}
         }
       );
       assert_eq!(d.codes, vec!["ban-types"]);
+    });
+  }
+
+  #[test]
+  fn test_parse_global_ignore_directives() {
+    let source_code = "// deno-lint-ignore-file";
+
+    test_util::parse_and_then(source_code, |program, source_map| {
+      let global_directive = parse_global_ignore_directives(
+        "deno-lint-ignore-file",
+        &source_map,
+        program.comments().unwrap().leading_comments(program.span().lo()),
+      ).unwrap();
+
+      assert_eq!(
+        global_directive.position,
+        Position {
+          line: 1,
+          col: 0,
+          byte_pos: 0
+        }
+      );
+      assert!(global_directive.codes.is_empty());
     });
   }
 }
