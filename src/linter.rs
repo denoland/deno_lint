@@ -271,7 +271,6 @@ impl Linter {
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
-    let scope = Scope::analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {
@@ -311,6 +310,8 @@ impl Linter {
         v.extend(line_ignore_directives);
         v
       };
+
+      let scope = Scope::analyze(pg);
 
       let mut context = Context::new(
         file_name,
