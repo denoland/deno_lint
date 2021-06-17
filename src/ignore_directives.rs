@@ -86,7 +86,7 @@ impl IgnoreDirective {
   }
 }
 
-pub fn parse_ignore_directives<'view>(
+pub fn parse_line_ignore_directives<'view>(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
   comments: impl Iterator<Item = &'view Comment>,
@@ -168,10 +168,10 @@ fn parse_ignore_comment(
 mod tests {
   use super::*;
   use crate::test_util;
-  use std::rc::Rc;
+  use dprint_swc_ecma_ast_view::RootNode;
 
   #[test]
-  fn test_parse_ignore_comments() {
+  fn test_parse_line_ignore_comments() {
     let source_code = r#"
 // deno-lint-ignore no-explicit-any no-empty no-debugger
 function foo(): any {}
@@ -191,62 +191,55 @@ target: Record<string, any>,
 ): // deno-lint-ignore ban-types
 object | undefined {}
   "#;
-    let (_, comments, source_map, _) = test_util::parse(source_code);
-    let (leading, trailing) = comments.take_all();
-    let leading_coms = Rc::try_unwrap(leading)
-      .expect("Failed to get leading comments")
-      .into_inner();
-    let trailing_coms = Rc::try_unwrap(trailing)
-      .expect("Failed to get trailing comments")
-      .into_inner();
-    let leading: Vec<&Comment> = leading_coms.values().flatten().collect();
-    let trailing: Vec<&Comment> = trailing_coms.values().flatten().collect();
-    let directives = parse_ignore_directives(
-      "deno-lint-ignore",
-      &source_map,
-      leading.into_iter().chain(trailing),
-    );
 
-    assert_eq!(directives.len(), 4);
-    let d = &directives[0];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 2,
-        col: 0,
-        byte_pos: 1
-      }
-    );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[1];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 8,
-        col: 0,
-        byte_pos: 146
-      }
-    );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[2];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 11,
-        col: 0,
-        byte_pos: 229
-      }
-    );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[3];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 17,
-        col: 3,
-        byte_pos: 388
-      }
-    );
-    assert_eq!(d.codes, vec!["ban-types"]);
+    test_util::parse_and_then(source_code, |program, source_map| {
+      let line_directives = parse_line_ignore_directives(
+        "deno-lint-ignore",
+        &source_map,
+        program.comments().unwrap().all_comments(),
+      );
+
+      assert_eq!(line_directives.len(), 4);
+      let d = &line_directives[0];
+      assert_eq!(
+        d.position,
+        Position {
+          line: 2,
+          col: 0,
+          byte_pos: 1
+        }
+      );
+      assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+      let d = &line_directives[1];
+      assert_eq!(
+        d.position,
+        Position {
+          line: 8,
+          col: 0,
+          byte_pos: 146
+        }
+      );
+      assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+      let d = &line_directives[2];
+      assert_eq!(
+        d.position,
+        Position {
+          line: 11,
+          col: 0,
+          byte_pos: 229
+        }
+      );
+      assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+      let d = &line_directives[3];
+      assert_eq!(
+        d.position,
+        Position {
+          line: 17,
+          col: 3,
+          byte_pos: 388
+        }
+      );
+      assert_eq!(d.codes, vec!["ban-types"]);
+    });
   }
 }

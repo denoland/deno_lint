@@ -4,7 +4,7 @@ use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
-use dprint_swc_ecma_ast_view::TokenAndSpan;
+use dprint_swc_ecma_ast_view::{self as ast_view, TokenAndSpan};
 use std::marker::PhantomData;
 use std::rc::Rc;
 use swc_common::comments::SingleThreadedComments;
@@ -352,4 +352,32 @@ pub fn parse(
     .unwrap();
   let source_map = Rc::clone(&ast_parser.source_map);
   (program, comments, source_map, tokens)
+}
+
+pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program, Rc<SourceMap>)) {
+  let filename = "lint_test.ts";
+  let ast_parser = ast_parser::AstParser::new();
+  let syntax = ast_parser::get_default_ts_config();
+  let ast_parser::ParsedData {
+    program,
+    comments,
+    tokens,
+  } = ast_parser
+    .parse_program(filename, syntax, source_code)
+    .unwrap();
+  let source_file = ast_parser
+    .source_map
+    .get_source_file(&swc_common::FileName::Custom(filename.to_string()))
+    .unwrap();
+  let source_map = Rc::clone(&ast_parser.source_map);
+  let program_info = ast_view::ProgramInfo {
+    program: &program,
+    source_file: Some(&source_file),
+    tokens: Some(&tokens),
+    comments: Some(&comments),
+  };
+
+  ast_view::with_ast_view(program_info, |pg| {
+    test(pg, source_map);
+  });
 }

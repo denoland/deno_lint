@@ -7,7 +7,7 @@ use crate::context::Context;
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::{
-  parse_global_ignore_directives, parse_ignore_directives,
+  parse_global_ignore_directives, parse_line_ignore_directives,
 };
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
@@ -300,7 +300,7 @@ impl Linter {
         return vec![];
       }
 
-      let line_ignore_directives = parse_ignore_directives(
+      let line_ignore_directives = parse_line_ignore_directives(
         &self.ignore_diagnostic_directive,
         &self.ast_parser.source_map,
         pg.comments().unwrap().all_comments(),
