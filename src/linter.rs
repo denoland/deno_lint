@@ -226,9 +226,9 @@ impl Linter {
 
     if self.lint_unused_ignore_directives || self.lint_unknown_rules {
       for ignore_directive in ignore_directives.iter() {
-        for (code, used) in ignore_directive.used_codes().iter() {
+        for (code, status) in ignore_directive.codes().iter() {
           if self.lint_unused_ignore_directives
-            && !used
+            && !status.used
             && executed_rule_codes.contains(code)
           {
             let diagnostic = context.create_diagnostic(

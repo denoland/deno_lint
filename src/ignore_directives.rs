@@ -16,8 +16,7 @@ static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
 pub struct IgnoreDirective {
   position: Position,
   span: Span,
-  codes: Vec<String>,
-  used_codes: HashMap<String, bool>,
+  codes: HashMap<String, CodeStatus>,
   kind: DirectiveKind,
 }
 
@@ -27,6 +26,11 @@ impl IgnoreDirective {
   pub fn ignore_all(&self) -> bool {
     self.codes.is_empty()
   }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CodeStatus {
+  pub used: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,12 +59,8 @@ impl IgnoreDirective {
     self.span
   }
 
-  pub fn codes(&self) -> &[String] {
+  pub fn codes(&self) -> &HashMap<String, CodeStatus> {
     &self.codes
-  }
-
-  pub fn used_codes(&self) -> &HashMap<String, bool> {
-    &self.used_codes
   }
 
   /// Check if `IgnoreDirective` supresses given `diagnostic` and if so
@@ -75,15 +75,12 @@ impl IgnoreDirective {
       return false;
     }
 
-    let mut should_ignore = false;
-    for code in self.codes.iter() {
-      if code == &diagnostic.code {
-        should_ignore = true;
-        *self.used_codes.get_mut(code).unwrap() = true;
-      }
+    if let Some(code_status) = self.codes.get_mut(&diagnostic.code) {
+      code_status.used = true;
+      true
+    } else {
+      false
     }
-
-    should_ignore
   }
 }
 
@@ -146,22 +143,23 @@ fn parse_ignore_comment(
       let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
       let codes = comment_text
         .split(',')
-        .filter(|code| !code.is_empty())
-        .map(|code| String::from(code.trim()))
-        .collect::<Vec<String>>();
+        .filter_map(|code| {
+          if code.is_empty() {
+            None
+          } else {
+            let code = code.trim().to_string();
+            Some((code, CodeStatus::default()))
+          }
+        })
+        .collect();
 
       let location = source_map.lookup_char_pos(comment.span.lo());
       let position = Position::new(comment.span.lo(), location);
-      let mut used_codes = HashMap::new();
-      codes.iter().for_each(|code| {
-        used_codes.insert(code.to_string(), false);
-      });
 
       return Some(IgnoreDirective {
         position,
         span: comment.span,
         codes,
-        used_codes,
         kind,
       });
     }
@@ -174,6 +172,15 @@ fn parse_ignore_comment(
 mod tests {
   use super::*;
   use crate::test_util;
+
+  fn code_map(
+    codes: impl IntoIterator<Item = &'static str>,
+  ) -> HashMap<String, CodeStatus> {
+    codes
+      .into_iter()
+      .map(|code| (code.to_string(), CodeStatus::default()))
+      .collect()
+  }
 
   #[test]
   fn test_parse_line_ignore_comments() {
@@ -211,7 +218,10 @@ object | undefined {}
           byte_pos: 1
         }
       );
-      assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
       let d = &line_directives[1];
       assert_eq!(
         d.position,
@@ -221,7 +231,10 @@ object | undefined {}
           byte_pos: 146
         }
       );
-      assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
       let d = &line_directives[2];
       assert_eq!(
         d.position,
@@ -231,7 +244,10 @@ object | undefined {}
           byte_pos: 229
         }
       );
-      assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
       let d = &line_directives[3];
       assert_eq!(
         d.position,
@@ -241,7 +257,7 @@ object | undefined {}
           byte_pos: 388
         }
       );
-      assert_eq!(d.codes, vec!["ban-types"]);
+      assert_eq!(d.codes, code_map(["ban-types"]));
     });
   }
 
@@ -287,7 +303,7 @@ object | undefined {}
             byte_pos: 0
           }
         );
-        assert_eq!(global_directive.codes, vec!["foo"]);
+        assert_eq!(global_directive.codes, code_map(["foo"]));
       },
     );
 
@@ -309,7 +325,7 @@ object | undefined {}
             byte_pos: 0
           }
         );
-        assert_eq!(global_directive.codes, vec!["foo", "bar"]);
+        assert_eq!(global_directive.codes, code_map(["foo", "bar"]));
       },
     );
 
@@ -334,7 +350,7 @@ object | undefined {}
             byte_pos: 1
           }
         );
-        assert_eq!(global_directive.codes, vec!["foo"]);
+        assert_eq!(global_directive.codes, code_map(["foo"]));
       },
     );
 
