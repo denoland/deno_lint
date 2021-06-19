@@ -169,7 +169,7 @@ const fooBar: any = 42;
   }
 
   #[test]
-  fn warn_unused_dir() {
+  fn ban_unused_ignore_enabled() {
     let src = r#"
  // deno-lint-ignore no-explicit-any
  function _bar(_p: boolean) {
@@ -177,7 +177,10 @@ const fooBar: any = 42;
    const _foo = false
  }
       "#;
-    let diagnostics = lint_recommended_rules(src, false, true);
+
+    let diagnostics = lint_recommended_rules(
+      src, false, true, // enables `ban-unused-ignore`
+    );
 
     assert_eq!(diagnostics.len(), 2);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1, src);
@@ -185,7 +188,7 @@ const fooBar: any = 42;
   }
 
   #[test]
-  fn ignore_unused_dir() {
+  fn ban_unused_ignore_disabled() {
     let diagnostics = lint_recommended_rules(
       r#"
  // deno-lint-ignore no-explicit-any
@@ -194,14 +197,14 @@ const fooBar: any = 42;
  }
       "#,
       false,
-      false,
+      false, // disables `ban-unused-ignore`
     );
 
     assert_eq!(diagnostics.len(), 0);
   }
 
   #[test]
-  fn unused_dir_not_report_unexecuted_rule() {
+  fn ban_unused_ignore_not_report_unexecuted_rule() {
     use crate::rules::camelcase::Camelcase;
     let diagnostics = lint_specified_rule::<Camelcase>(
       r#"
@@ -209,7 +212,37 @@ const fooBar: any = 42;
 const _fooBar = 42;
       "#,
       false,
-      true,
+      true, // enables `ban-unused-ignore`
+    );
+
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
+  fn ban_unused_ignore_file_level_ignore_directive() {
+    let diagnostics = lint_recommended_rules(
+      r#"
+// deno-lint-ignore-file ban-unused-ignore
+
+// deno-lint-ignore no-explicit-any
+const _foo = 42;
+      "#,
+      false,
+      true, // enables `ban-unused-ignore`
+    );
+
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
+  fn ban_unused_ignore_line_level_ignore_directive() {
+    let diagnostics = lint_recommended_rules(
+      r#"
+// deno-lint-ignore no-explicit-any ban-unused-ignore
+const _foo = 42;
+      "#,
+      false,
+      true, // enables `ban-unused-ignore`
     );
 
     assert!(diagnostics.is_empty());
@@ -241,7 +274,9 @@ const _fooBar = 42;
    // pass
  }
       "#;
-    let diagnostics = lint_recommended_rules(src, false, true);
+    let diagnostics = lint_recommended_rules(
+      src, false, true, // enables `ban-unused-ignore`
+    );
 
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 1, src);

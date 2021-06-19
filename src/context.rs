@@ -153,6 +153,18 @@ impl<'view> Context<'view> {
     &self,
     specified_rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
+    const CODE: &str = "ban-unused-ignore";
+
+    // If there's a file-level ignore directive containing `ban-unused-ignore`,
+    // exit without running this rule.
+    if self
+      .file_ignore_directive
+      .as_ref()
+      .map_or(false, |file_ignore| file_ignore.has_code(CODE))
+    {
+      return vec![];
+    }
+
     let executed_builtin_codes: HashSet<&'static str> =
       specified_rules.iter().map(|r| r.code()).collect();
     let is_unused_code = |&(code, status): &(&String, &CodeStatus)| {
@@ -178,12 +190,18 @@ impl<'view> Context<'view> {
     }
 
     for line_ignore in self.line_ignore_directives.values() {
+      // If the line-level ignore directive contains `ban-unused-ignore`, then
+      // skip checking this directive as a whole.
+      if line_ignore.has_code(CODE) {
+        continue;
+      }
+
       for (unused_code, _status) in
         line_ignore.codes().iter().filter(is_unused_code)
       {
         let d = self.create_diagnostic(
           line_ignore.span(),
-          "ban-unused-ignore",
+          CODE,
           format!("Ignore for code \"{}\" was not used.", unused_code),
           None,
         );

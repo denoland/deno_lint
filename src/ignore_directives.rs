@@ -39,6 +39,10 @@ impl<T: DirectiveKind> IgnoreDirective<T> {
     &self.codes
   }
 
+  pub fn has_code(&self, code: &str) -> bool {
+    self.codes.contains_key(code)
+  }
+
   pub fn check_used(&mut self, diagnostic_code: &str) -> bool {
     if let Some(status) = self.codes.get_mut(diagnostic_code) {
       status.mark_as_used();
