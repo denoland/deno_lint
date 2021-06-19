@@ -4,18 +4,12 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use swc_common::Span;
 
 pub struct BanUntaggedTodo;
 
 const CODE: &str = "ban-untagged-todo";
 const MESSAGE: &str = "TODO should be tagged with (@username) or (#issue)";
 const HINT: &str = "Add a user tag or issue reference to the TODO comment, e.g. TODO(@djones), TODO(djones), TODO(#123)";
-impl BanUntaggedTodo {
-  fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
-  }
-}
 
 impl LintRule for BanUntaggedTodo {
   fn new() -> Box<Self> {
@@ -26,7 +20,15 @@ impl LintRule for BanUntaggedTodo {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    _program: dprint_swc_ecma_ast_view::Program,
+  ) {
     let mut violated_comment_spans = Vec::new();
 
     violated_comment_spans.extend(context.all_comments().filter_map(|c| {
@@ -38,7 +40,7 @@ impl LintRule for BanUntaggedTodo {
     }));
 
     for span in violated_comment_spans {
-      self.report(context, span);
+      context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 
