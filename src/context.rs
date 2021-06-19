@@ -169,8 +169,8 @@ impl<'view> Context<'view> {
       {
         let d = self.create_diagnostic(
           file_ignore.span(),
-          "ban-unused-ignore",
-          format!("Ignorshshe for code \"{}\" was not used.", unused_code),
+          CODE,
+          format!("Ignore for code \"{}\" was not used.", unused_code),
           None,
         );
         diagnostics.push(d);
