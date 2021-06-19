@@ -2,7 +2,7 @@
 use serde::Serialize;
 use std::convert::TryInto;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {
   pub line: usize,

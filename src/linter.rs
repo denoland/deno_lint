@@ -7,9 +7,9 @@ use crate::context::Context;
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::{
-  parse_global_ignore_directives, parse_line_ignore_directives,
+  parse_file_ignore_directives, parse_line_ignore_directives,
 };
-use crate::rules::{get_all_rules, LintRule};
+use crate::rules::LintRule;
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView};
 use std::rc::Rc;
@@ -199,60 +199,13 @@ impl Linter {
   fn filter_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
-    let (executed_rule_codes, available_rule_codes) = {
-      let mut executed = context.plugin_codes().clone();
-      // builtin executed rules
-      executed.extend(self.rules.iter().map(|r| r.code().to_string()));
-
-      let mut available = context.plugin_codes().clone();
-      // builtin all available rules
-      available.extend(get_all_rules().iter().map(|r| r.code().to_string()));
-
-      (executed, available)
-    };
-
-    let mut ignore_directives = std::mem::take(context.ignore_directives_mut());
-
-    let mut filtered_diagnostics: Vec<LintDiagnostic> = context
-      .diagnostics()
-      .iter()
-      .cloned()
-      .filter(|diagnostic| {
-        !ignore_directives.iter_mut().any(|ignore_directive| {
-          ignore_directive.maybe_ignore_diagnostic(&diagnostic)
-        })
-      })
-      .collect();
-
-    if self.lint_unused_ignore_directives || self.lint_unknown_rules {
-      for ignore_directive in ignore_directives.iter() {
-        for (code, status) in ignore_directive.codes().iter() {
-          if self.lint_unused_ignore_directives
-            && !status.used
-            && executed_rule_codes.contains(code)
-          {
-            let diagnostic = context.create_diagnostic(
-              ignore_directive.span(),
-              "ban-unused-ignore",
-              format!("Ignore for code \"{}\" was not used.", code),
-              None,
-            );
-            filtered_diagnostics.push(diagnostic);
-          }
-
-          if self.lint_unknown_rules && !available_rule_codes.contains(code) {
-            let diagnostic = context.create_diagnostic(
-              ignore_directive.span(),
-              "ban-unknown-rule-code",
-              format!("Unknown rule for code \"{}\"", code),
-              None,
-            );
-            filtered_diagnostics.push(diagnostic);
-          }
-        }
-      }
+    let mut filtered_diagnostics = context.check_ignore_directive_usage();
+    if self.lint_unused_ignore_directives {
+      filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
     }
-
+    if self.lint_unknown_rules {
+      filtered_diagnostics.extend(context.ban_unknown_rule_code());
+    }
     filtered_diagnostics.sort_by_key(|d| d.range.start.line);
 
     let end = Instant::now();
@@ -285,7 +238,7 @@ impl Linter {
     };
 
     let diagnostics = AstView::with_ast_view(program_info, |pg| {
-      let global_ignore_directive = parse_global_ignore_directives(
+      let file_ignore_directive = parse_file_ignore_directives(
         &self.ignore_file_directive,
         &*self.ast_parser.source_map,
         pg,
@@ -293,7 +246,7 @@ impl Linter {
 
       // If a global ignore directive that has no codes specified exists, we must skip linting on
       // this file.
-      if matches!(global_ignore_directive, Some(ref global_ignore) if global_ignore.ignore_all())
+      if matches!(file_ignore_directive, Some(ref file_ignore) if file_ignore.ignore_all())
       {
         return vec![];
       }
@@ -304,20 +257,14 @@ impl Linter {
         pg,
       );
 
-      let ignore_directives = {
-        let mut v = Vec::with_capacity(1 + line_ignore_directives.len());
-        v.extend(global_ignore_directive);
-        v.extend(line_ignore_directives);
-        v
-      };
-
       let scope = Scope::analyze(pg);
 
       let mut context = Context::new(
         file_name,
         Rc::clone(&self.ast_parser.source_map),
         pg,
-        ignore_directives,
+        file_ignore_directive,
+        line_ignore_directives,
         scope,
         control_flow,
         top_level_ctxt,
