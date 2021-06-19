@@ -130,12 +130,12 @@ For more concrete implementation visit [`deno`](https://github.com/denoland/deno
 
 ## Developing
 
-Make sure to have latest stable version of Rust installed (1.52.1).
+Make sure to have latest stable version of Rust installed (1.53.0).
 
 ```shell
 // check version
 $ rustc --version
-rustc 1.52.1 (9bc8c42bb 2021-05-09)
+rustc 1.53.0 (53cb7b09b 2021-06-17)
 
 // build all targets
 $ cargo build --all-targets
