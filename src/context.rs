@@ -1,9 +1,9 @@
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
-use crate::ignore_directives::CodeStatus;
-use crate::ignore_directives::{FileIgnoreDirective, LineIgnoreDirective};
-use crate::rules::get_all_rules;
-use crate::rules::LintRule;
+use crate::ignore_directives::{
+  CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
+};
+use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as AstView, BytePos, RootNode};
 use std::collections::{HashMap, HashSet};
