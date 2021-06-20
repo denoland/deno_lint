@@ -190,11 +190,9 @@ impl<'view> Context<'view> {
     }
 
     for line_ignore in self.line_ignore_directives.values() {
-      // If the line-level ignore directive contains `ban-unused-ignore`, then
-      // skip checking this directive as a whole.
-      if line_ignore.has_code(CODE) {
-        continue;
-      }
+      // We do nothing special even if the line-level ignore directive contains
+      // `ban-unused-ignore`. `ban-unused-ignore` can be ignored only via the
+      // file-level directive.
 
       for (unused_code, _status) in
         line_ignore.codes().iter().filter(is_unused_code)

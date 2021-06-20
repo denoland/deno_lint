@@ -236,16 +236,17 @@ const _foo = 42;
 
   #[test]
   fn ban_unused_ignore_line_level_ignore_directive() {
-    let diagnostics = lint_recommended_rules(
-      r#"
+    // `ban-unused-ignore` can't be ignored via line-level ignore directives
+    let src = r#"
 // deno-lint-ignore no-explicit-any ban-unused-ignore
 const _foo = 42;
-      "#,
-      false,
-      true, // enables `ban-unused-ignore`
+      "#;
+    let diagnostics = lint_recommended_rules(
+      src, false, true, // enables `ban-unused-ignore`
     );
 
-    assert!(diagnostics.is_empty());
+    assert_eq!(diagnostics.len(), 1);
+    assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 0, src);
   }
 
   #[test]

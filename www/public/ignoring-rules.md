@@ -80,7 +80,7 @@ deno_lint provides `ban-unused-ignore` rule, which will detect ignore directives
 that don't ever suppress certain diagnostics. This is useful when you want to discover
 ignore directives that are no longer necessary after refactoring the code.
 
-In some cases, however, you might want to ignore `ban-unused-ignore` rule itself.
+In a few cases, however, you might want to ignore `ban-unused-ignore` rule itself.
 One of the typical cases would be when working with auto-generated files; it makes
 sense to add file-level ignore directives for some rules, and there's almost no
 need for detecting unused directives via `ban-unused-ignore` in this case.
@@ -96,13 +96,7 @@ suppress the rule for a whole file:
 console.log(42);
 ```
 
-Note that if you want to ignore unused directives per line, you must place `ban-unused-ignore`
-on the same line as other rule codes. This is a bit different from how `// deno-lint-ignore`
-works normally, in the sense that `// deno-lint-ignore ban-unused-ignore` works
-for the _same_ line while the normal `// deno-lint-ignore <codes...>` works for
-the _next_ line.
-
-```ts
-// deno-lint-ignore ban-unused-ignore no-explicit-any
-console.log(42);
-```
+Do note that ignoring `ban-unused-ignore` itself only works via file-level ignore
+directives. This means that per line directives, like `// deno-lint-ignore ban-unused-ignore`,
+don't work at all. If you want to ignore `ban-unused-ignore` for some special reasons,
+make sure to add it as a file-level ignore directive.
