@@ -4,6 +4,8 @@ use swc_common::Span;
 
 pub struct BanUntaggedIgnore;
 
+const CODE: &str = "ban-untagged-ignore";
+
 impl LintRule for BanUntaggedIgnore {
   fn new() -> Box<Self> {
     Box::new(BanUntaggedIgnore)
@@ -14,10 +16,18 @@ impl LintRule for BanUntaggedIgnore {
   }
 
   fn code(&self) -> &'static str {
-    "ban-untagged-ignore"
+    CODE
   }
 
-  fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    _program: dprint_swc_ecma_ast_view::Program,
+  ) {
     let mut violated_spans: Vec<Span> = context
       .file_ignore_directive()
       .iter()
@@ -34,7 +44,7 @@ impl LintRule for BanUntaggedIgnore {
     for span in violated_spans {
       context.add_diagnostic_with_hint(
         span,
-        "ban-untagged-ignore",
+        CODE,
         "Ignore directive requires lint rule name(s)",
         "Add one or more lint rule names.  E.g. // deno-lint-ignore adjacent-overload-signatures",
       )
