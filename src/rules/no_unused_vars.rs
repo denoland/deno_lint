@@ -432,12 +432,12 @@ impl<'a> IdentKind<'a> {
     }
   }
 
-  fn to_message(&self) -> NoUnusedVarsMessage {
+  fn to_message(self) -> NoUnusedVarsMessage {
     let ident = self.inner();
     NoUnusedVarsMessage::NeverUsed(ident.sym.to_string())
   }
 
-  fn to_hint(&self) -> NoUnusedVarsHint {
+  fn to_hint(self) -> NoUnusedVarsHint {
     let symbol = self.inner().sym.to_string();
     match self {
       IdentKind::NamedImport(_) => NoUnusedVarsHint::Alias(symbol),
