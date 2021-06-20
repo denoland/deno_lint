@@ -104,8 +104,8 @@ function add(x: number, y: number) {
 ```
 
 ```typescript
-          let x = 5, // indented with a tab + two spaces
-              y = 7;
+	let x = 5, // indented with a tab
+	    y = 7; // indented with a tab + four spaces
 ```
 
 ### Valid:
