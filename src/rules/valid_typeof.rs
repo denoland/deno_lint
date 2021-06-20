@@ -26,11 +26,7 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program<'view>(
-    &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef) {
     let mut visitor = ValidTypeofVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
