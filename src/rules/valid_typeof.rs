@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use crate::swc_util::StringRepr;
 use swc_common::Spanned;
 use swc_ecmascript::ast::BinExpr;
 use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecmascript::ast::Expr::{Lit, Unary};
+use swc_ecmascript::ast::Expr::{Lit, Tpl, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
@@ -26,11 +27,7 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program<'view>(
-    &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef) {
     let mut visitor = ValidTypeofVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -124,6 +121,14 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
               self.context.add_diagnostic(str.span, CODE, MESSAGE);
             }
           }
+          Tpl(tpl) => {
+            if tpl
+              .string_repr()
+              .map_or(false, |s| !is_valid_typeof_string(&s))
+            {
+              self.context.add_diagnostic(tpl.span, CODE, MESSAGE);
+            }
+          }
           _ => {
             self.context.add_diagnostic(operand.span(), CODE, MESSAGE);
           }
@@ -166,11 +171,35 @@ mod tests {
   fn valid_typeof_valid() {
     assert_lint_ok! {
       ValidTypeof,
-      r#"
-typeof foo === "string"
-typeof bar == "undefined"
-      "#,
-      r#"typeof bar === typeof qux"#,
+      r#"typeof foo === "undefined""#,
+      r#"typeof foo === "object""#,
+      r#"typeof foo === "boolean""#,
+      r#"typeof foo === "number""#,
+      r#"typeof foo === "string""#,
+      r#"typeof foo === "function""#,
+      r#"typeof foo === "symbol""#,
+      r#"typeof foo === "bigint""#,
+
+      r#"typeof foo == 'undefined'"#,
+      r#"typeof foo == 'object'"#,
+      r#"typeof foo == 'boolean'"#,
+      r#"typeof foo == 'number'"#,
+      r#"typeof foo == 'string'"#,
+      r#"typeof foo == 'function'"#,
+      r#"typeof foo == 'symbol'"#,
+      r#"typeof foo == 'bigint'"#,
+
+      // https://github.com/denoland/deno_lint/issues/741
+      r#"typeof foo !== `undefined`"#,
+      r#"typeof foo !== `object`"#,
+      r#"typeof foo !== `boolean`"#,
+      r#"typeof foo !== `number`"#,
+      r#"typeof foo !== `string`"#,
+      r#"typeof foo !== `function`"#,
+      r#"typeof foo !== `symbol`"#,
+      r#"typeof foo !== `bigint`"#,
+
+      r#"typeof bar != typeof qux"#,
     };
   }
 

@@ -1,14 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
-use swc_common::Span;
-use swc_ecmascript::ast::{
-  Class, ClassMember, Constructor, Expr, ExprOrSuper, ReturnStmt, Stmt,
-};
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use super::{Context, LintRule, ProgramRef};
+use crate::handler::{Handler, Traverse};
+use dprint_swc_ecma_ast_view::{self as ast_view, Span, Spanned};
+use if_chain::if_chain;
 
 pub struct ConstructorSuper;
+
+const CODE: &str = "constructor-super";
 
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
@@ -22,19 +20,19 @@ impl LintRule for ConstructorSuper {
   }
 
   fn code(&self) -> &'static str {
-    "constructor-super"
+    CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: ast_view::Program,
   ) {
-    let mut visitor = ConstructorSuperVisitor::new(context);
-    match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    ConstructorSuperHandler.traverse(program, context);
   }
 
   fn docs(&self) -> &'static str {
@@ -116,16 +114,11 @@ impl DiagnosticKind {
   }
 }
 
-fn inherits_from_non_constructor(class: &Class) -> bool {
-  if let Some(expr) = &class.super_class {
-    if let Expr::Lit(_) = &**expr {
-      return true;
-    }
-  }
-  false
+fn inherits_from_non_constructor(class: &ast_view::Class) -> bool {
+  matches!(&class.super_class, Some(ast_view::Expr::Lit(_)))
 }
 
-fn super_call_spans(constructor: &Constructor) -> Vec<Span> {
+fn super_call_spans(constructor: &ast_view::Constructor) -> Vec<Span> {
   if let Some(block_stmt) = &constructor.body {
     block_stmt
       .stmts
@@ -137,25 +130,29 @@ fn super_call_spans(constructor: &Constructor) -> Vec<Span> {
   }
 }
 
-fn extract_super_span(stmt: &Stmt) -> Option<Span> {
-  if let Stmt::Expr(expr) = stmt {
-    if let Expr::Call(call) = &*expr.expr {
-      if matches!(&call.callee, ExprOrSuper::Super(_)) {
-        return Some(call.span);
-      }
+fn extract_super_span(stmt: &ast_view::Stmt) -> Option<Span> {
+  if_chain! {
+    if let ast_view::Stmt::Expr(expr) = stmt;
+    if let ast_view::Expr::Call(call) = expr.expr;
+    if matches!(&call.callee, ast_view::ExprOrSuper::Super(_));
+    then {
+      Some(call.span())
+    } else {
+      None
     }
   }
-  None
 }
 
-fn return_before_super(constructor: &Constructor) -> Option<&ReturnStmt> {
+fn return_before_super<'a, 'view>(
+  constructor: &'a ast_view::Constructor<'view>,
+) -> Option<&'a ast_view::ReturnStmt<'view>> {
   if let Some(block_stmt) = &constructor.body {
     for stmt in &block_stmt.stmts {
       if extract_super_span(stmt).is_some() {
         return None;
       }
 
-      if let Stmt::Return(ret) = stmt {
+      if let ast_view::Stmt::Return(ret) = stmt {
         return Some(ret);
       }
     }
@@ -163,93 +160,86 @@ fn return_before_super(constructor: &Constructor) -> Option<&ReturnStmt> {
   None
 }
 
-struct ConstructorSuperVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
-
-impl<'c, 'view> ConstructorSuperVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
+fn check_constructor(
+  cons: &ast_view::Constructor,
+  class: &ast_view::Class,
+  ctx: &mut Context,
+) {
+  // Declarations shouldn't be linted
+  if cons.body.is_none() {
+    return;
   }
 
-  fn check_constructor(&mut self, constructor: &Constructor, class: &Class) {
-    // Declarations shouldn't be linted
-    if constructor.body.is_none() {
-      return;
-    }
-
-    // returning value is a substitute of 'super()'.
-    if let Some(ret) = return_before_super(constructor) {
-      if ret.arg.is_none() && class.super_class.is_some() {
-        let kind = DiagnosticKind::NoSuper;
-        self.context.add_diagnostic_with_hint(
-          constructor.span,
-          "constructor-super",
-          kind.message(),
-          kind.hint(),
-        );
-      }
-      return;
-    }
-
-    if inherits_from_non_constructor(class) {
-      let kind = DiagnosticKind::UnnecessaryConstructor;
-      self.context.add_diagnostic_with_hint(
-        constructor.span,
-        "constructor-super",
-        kind.message(),
-        kind.hint(),
-      );
-      return;
-    }
-
-    let super_calls = super_call_spans(constructor);
-
-    // in case where there are more than one `super()` calls.
-    for exceeded_super_span in super_calls.iter().skip(1) {
-      let kind = DiagnosticKind::TooManySuper;
-      self.context.add_diagnostic_with_hint(
-        *exceeded_super_span,
-        "constructor-super",
+  // returning value is a substitute of `super()`.
+  if let Some(ret) = return_before_super(cons) {
+    if ret.arg.is_none() && class.super_class.is_some() {
+      let kind = DiagnosticKind::NoSuper;
+      ctx.add_diagnostic_with_hint(
+        cons.span(),
+        CODE,
         kind.message(),
         kind.hint(),
       );
     }
+    return;
+  }
 
-    match (super_calls.is_empty(), class.super_class.is_some()) {
-      (true, true) => {
-        let kind = DiagnosticKind::NoSuper;
-        self.context.add_diagnostic_with_hint(
-          constructor.span,
-          "constructor-super",
-          kind.message(),
-          kind.hint(),
-        );
-      }
-      (false, false) => {
-        let kind = DiagnosticKind::UnnecessarySuper;
-        self.context.add_diagnostic_with_hint(
-          super_calls[0],
-          "constructor-super",
-          kind.message(),
-          kind.hint(),
-        );
-      }
-      _ => {}
+  if inherits_from_non_constructor(class) {
+    let kind = DiagnosticKind::UnnecessaryConstructor;
+    ctx.add_diagnostic_with_hint(
+      cons.span(),
+      CODE,
+      kind.message(),
+      kind.hint(),
+    );
+    return;
+  }
+
+  let super_calls = super_call_spans(cons);
+
+  // in case where there are more than one `super()` calls.
+  for exceeded_super_span in super_calls.iter().skip(1) {
+    let kind = DiagnosticKind::TooManySuper;
+    ctx.add_diagnostic_with_hint(
+      *exceeded_super_span,
+      CODE,
+      kind.message(),
+      kind.hint(),
+    );
+  }
+
+  match (super_calls.is_empty(), class.super_class.is_some()) {
+    (true, true) => {
+      let kind = DiagnosticKind::NoSuper;
+      ctx.add_diagnostic_with_hint(
+        cons.span(),
+        CODE,
+        kind.message(),
+        kind.hint(),
+      );
     }
+    (false, false) => {
+      let kind = DiagnosticKind::UnnecessarySuper;
+      ctx.add_diagnostic_with_hint(
+        super_calls[0],
+        CODE,
+        kind.message(),
+        kind.hint(),
+      );
+    }
+    _ => {}
   }
 }
 
-impl<'c, 'view> Visit for ConstructorSuperVisitor<'c, 'view> {
-  noop_visit_type!();
+struct ConstructorSuperHandler;
 
-  fn visit_class(&mut self, class: &Class, parent: &dyn Node) {
+impl Handler for ConstructorSuperHandler {
+  fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
     for member in &class.body {
-      if let ClassMember::Constructor(constructor) = member {
-        self.check_constructor(constructor, class);
+      if let ast_view::ClassMember::Constructor(cons) = member {
+        check_constructor(cons, class, ctx);
       }
     }
-    swc_ecmascript::visit::visit_class(self, class, parent);
   }
 }
 

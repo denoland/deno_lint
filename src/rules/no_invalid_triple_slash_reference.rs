@@ -49,9 +49,9 @@ impl LintRule for NoInvalidTripleSlashReference {
   fn docs(&self) -> &'static str {
     r#"Warns the wrong usage of triple-slash reference directives.
 
-Deno supports the triple-slash reference directives of `types`, `path`, and
-`lib`. This lint rule checks if there is an invalid, badly-formed directive
-because it is most likely a mistake.
+Deno supports the triple-slash reference directives of `types`, `path`, `lib`,
+and `no-default-lib`. This lint rule checks if there is an invalid, badly-formed
+directive because it is most likely a mistake.
 
 Additionally, note that only the `types` directive is allowed in JavaScript
 files. This directive is useful for telling the TypeScript compiler the location
@@ -73,6 +73,7 @@ JavaScript files and suggests replacing it with the `types` directive.
 ```javascript
 /// <reference path="./mod.d.ts" />
 /// <reference lib="es2017.string" />
+/// <reference no-default-lib="true" />
 /// <reference foo="bar" />
 
 // ... the rest of the JavaScript ...
@@ -102,6 +103,7 @@ JavaScript files and suggests replacing it with the `types` directive.
 /// <reference types="./mod.d.ts" />
 /// <reference path="./mod.d.ts" />
 /// <reference lib="es2017.string" />
+/// <reference no-default-lib="true" />
 
 // ... the rest of the TypeScript ...
 ```
@@ -148,7 +150,7 @@ impl ReportKind {
         r#"In JavaScript only the `types` directive is allowed, like `/// <reference types="..." />`"#
       }
       InvalidDirective(_) => {
-        r#"Correct format is `/// <reference xxx="some_value" />` where `xxx` is one of `types`, `path`, and `lib`"#
+        r#"Correct format is `/// <reference xxx="some_value" />` where `xxx` is one of `types`, `path`, `lib`, or `no-default-lib`"#
       }
     }
   }
@@ -162,7 +164,7 @@ impl ReportKind {
   }
 }
 
-// These four regexes should be consistent with how Deno resolves modules.
+// These regexes should be consistent with how Deno resolves modules.
 // https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/module_graph.rs
 static TRIPLE_SLASH_REFERENCE_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r#"(?i)^/\s*<reference\s.*?/>"#).unwrap());
@@ -173,6 +175,9 @@ static TYPES_REFERENCE_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r#"(?i)\stypes\s*=\s*["']([^"']*)["']"#).unwrap());
 static LIB_REFERENCE_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r#"(?i)\slib\s*=\s*["']([^"']*)["']"#).unwrap());
+static NO_DEFAULT_LIB_REFERENCE_RE: Lazy<Regex> = Lazy::new(|| {
+  Regex::new(r#"(?i)\sno-default-lib\s*=\s*["']([^"']*)["']"#).unwrap()
+});
 
 /// Returns `Some` if the comment should be reported.
 fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
@@ -193,6 +198,7 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
   } else if is_path_ref(&comment.text)
     || is_types_ref(&comment.text)
     || is_lib_ref(&comment.text)
+    || is_no_default_lib_ref(&comment.text)
   {
     None
   } else {
@@ -210,6 +216,10 @@ fn is_types_ref(s: &str) -> bool {
 
 fn is_lib_ref(s: &str) -> bool {
   LIB_REFERENCE_RE.is_match(s)
+}
+
+fn is_no_default_lib_ref(s: &str) -> bool {
+  NO_DEFAULT_LIB_REFERENCE_RE.is_match(s)
 }
 
 #[cfg(test)]
@@ -259,6 +269,20 @@ mod tests {
   }
 
   #[test]
+  fn test_is_no_default_lib_ref() {
+    let testcases = [
+      (r#"/ <reference no-default-lib="foo" />"#, true),
+      (r#"/ <reference no-default-lib='foo' />"#, true),
+      (r#"/ <reference no-default-lib = "foo" />"#, true),
+      (r#"/ <reference nno-default-lib = "foo" />"#, false),
+    ];
+
+    for (input, expected) in &testcases {
+      assert_eq!(*expected, is_no_default_lib_ref(input));
+    }
+  }
+
+  #[test]
   fn test_is_js_or_jsx() {
     let testcases = [
       ("foo.js", true),
@@ -304,10 +328,14 @@ mod tests {
       line(r#"<reference path="./mod.d.ts" />"#),
       // just double slash
       line(r#"<reference lib="./mod.d.ts" />"#),
+      // just double slash
+      line(r#"<reference no-default-lib="true" />"#),
       // block comment
       block(r#"<reference path="./mod.d.ts" />"#),
       // block comment
       block(r#"<reference lib="./mod.d.ts" />"#),
+      // block comment
+      block(r#"<reference no-default-lib="true" />"#),
     ];
     for valid_comment in &valid_comments {
       assert!(check_comment(valid_comment, true).is_none());
@@ -316,6 +344,7 @@ mod tests {
     let invalid_comments = [
       line(r#"/ <reference path="./mod.d.ts" />"#),
       line(r#"/ <reference lib="./mod.d.ts" />"#),
+      line(r#"/ <reference no-default-lib="true" />"#),
       line(r#"/<reference path="./mod.d.ts" />"#),
       line(r#"/      <reference path="./mod.d.ts"     />           foo bar "#),
       line(r#"/ <reference foo="./mod.d.ts" />"#),
@@ -333,6 +362,7 @@ mod tests {
       line(r#"/ <reference types="./mod.d.ts" />"#),
       line(r#"/ <reference path="./mod.d.ts" />"#),
       line(r#"/ <reference lib="./mod.d.ts" />"#),
+      line(r#"/ <reference no-default-lib="true" />"#),
       line(r#"/<reference types="./mod.d.ts" />"#),
       line(r#"/      <reference types="./mod.d.ts"     />           foo bar "#),
       line(r#"/ foo <reference path="./mod.d.ts" />"#),
@@ -367,6 +397,7 @@ mod tests {
       r#"// <reference lib="lib" />"#,
       r#"/* <reference path="path" /> */"#,
       r#"/* <reference lib="lib" /> */"#,
+      r#"/* <reference no-default-lib="true" /> */"#,
       r#"/// hello <reference path="./mod.d.ts" />"#,
       r#"
         /*
@@ -383,6 +414,9 @@ mod tests {
       r#"/// <reference path="path" />"#,
       r#"/// <reference lib="lib" />"#,
       r#"/// foo <reference bar />"#,
+
+      // https://github.com/denoland/deno_lint/issues/718
+      r#"/// <reference no-default-lib="true" />"#,
     };
   }
 
@@ -410,6 +444,14 @@ mod tests {
         },
       ],
       r#"/// <reference lib="foo" />"#: [
+        {
+          line: 1,
+          col: 0,
+          message: not_types_in_js_msg,
+          hint: not_types_in_js_hint,
+        },
+      ],
+      r#"/// <reference no-default-lib="true" />"#: [
         {
           line: 1,
           col: 0,
