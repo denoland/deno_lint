@@ -166,11 +166,35 @@ mod tests {
   fn valid_typeof_valid() {
     assert_lint_ok! {
       ValidTypeof,
-      r#"
-typeof foo === "string"
-typeof bar == "undefined"
-      "#,
-      r#"typeof bar === typeof qux"#,
+      r#"typeof foo === "undefined""#,
+      r#"typeof foo === "object""#,
+      r#"typeof foo === "boolean""#,
+      r#"typeof foo === "number""#,
+      r#"typeof foo === "string""#,
+      r#"typeof foo === "function""#,
+      r#"typeof foo === "symbol""#,
+      r#"typeof foo === "bigint""#,
+
+      r#"typeof foo == 'undefined'"#,
+      r#"typeof foo == 'object'"#,
+      r#"typeof foo == 'boolean'"#,
+      r#"typeof foo == 'number'"#,
+      r#"typeof foo == 'string'"#,
+      r#"typeof foo == 'function'"#,
+      r#"typeof foo == 'symbol'"#,
+      r#"typeof foo == 'bigint'"#,
+
+      // https://github.com/denoland/deno_lint/issues/741
+      r#"typeof foo !== `undefined`"#,
+      r#"typeof foo !== `object`"#,
+      r#"typeof foo !== `boolean`"#,
+      r#"typeof foo !== `number`"#,
+      r#"typeof foo !== `string`"#,
+      r#"typeof foo !== `function`"#,
+      r#"typeof foo !== `symbol`"#,
+      r#"typeof foo !== `bigint`"#,
+
+      r#"typeof bar != typeof qux"#,
     };
   }
 
