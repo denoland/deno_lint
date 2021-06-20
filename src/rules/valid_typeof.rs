@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use crate::swc_util::StringRepr;
 use swc_common::Spanned;
 use swc_ecmascript::ast::BinExpr;
 use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecmascript::ast::Expr::{Lit, Unary};
+use swc_ecmascript::ast::Expr::{Lit, Tpl, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
@@ -118,6 +119,14 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
           Lit(Str(str)) => {
             if !is_valid_typeof_string(&str.value) {
               self.context.add_diagnostic(str.span, CODE, MESSAGE);
+            }
+          }
+          Tpl(tpl) => {
+            if tpl
+              .string_repr()
+              .map_or(false, |s| !is_valid_typeof_string(&s))
+            {
+              self.context.add_diagnostic(tpl.span, CODE, MESSAGE);
             }
           }
           _ => {
