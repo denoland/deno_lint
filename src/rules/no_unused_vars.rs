@@ -10,10 +10,10 @@ use swc_ecmascript::ast::{
   ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
   ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  MemberExpr, MethodKind, NamedExport, Param, Pat, Prop, PropName, SetterProp,
-  TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl,
-  TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr,
-  TsTypeRef, VarDecl, VarDeclarator,
+  MemberExpr, MethodKind, NamedExport, Param, Pat, PrivateMethod, Prop,
+  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
+  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
+  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::{find_ids, Id};
@@ -548,6 +548,18 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     // If method body is not present, it's an overload definition
     if matches!(method.kind, MethodKind::Method if method.function.body.is_some())
     {
+      method.function.params.visit_children_with(self);
+    }
+
+    method.function.body.visit_with(method, self);
+  }
+
+  fn visit_private_method(&mut self, method: &PrivateMethod, _: &dyn Node) {
+    method.function.decorators.visit_with(method, self);
+    method.key.visit_with(method, self);
+
+    // If method body is not present, it's an overload definition
+    if method.function.body.is_some() {
       method.function.params.visit_children_with(self);
     }
 
@@ -1366,6 +1378,17 @@ export function audioFilters(...Filters: Filters[]): void {
   }
 }
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/739
+      r#"
+export class Test {
+  #myFunction(value: string): string;
+  #myFunction(value: number): number;
+  #myFunction(value: string | number) {
+    return value;
+  }
+}
+      "#,
     };
 
     // JSX or TSX
@@ -2176,6 +2199,23 @@ foo(a);
           hint: variant!(NoUnusedVarsHint, AddPrefix, "x1"),
         },
       ],
+
+        r#"
+export class Foo {
+  #myFunction(value: string): string;
+  #myFunction(value: number): number;
+  #myFunction(value: string | number) {
+    return 42;
+  }
+}
+        "#: [
+          {
+            col: 14,
+            line:5,
+            message: variant!(NoUnusedVarsMessage, NeverUsed, "value"),
+            hint: variant!(NoUnusedVarsHint, AddPrefix, "value"),
+          },
+        ],
     };
   }
 
