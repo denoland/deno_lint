@@ -27,6 +27,7 @@ pub struct Context<'view> {
 }
 
 impl<'view> Context<'view> {
+  #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
     file_name: String,
     source_map: Rc<SourceMap>,
