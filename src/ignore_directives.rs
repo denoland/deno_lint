@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::diagnostic::{LintDiagnostic, Position};
+use dprint_swc_ecma_ast_view::{self as ast_view, RootNode, Spanned};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -8,84 +8,97 @@ use swc_common::comments::CommentKind;
 use swc_common::SourceMap;
 use swc_common::Span;
 
-static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
+pub type LineIgnoreDirective = IgnoreDirective<Line>;
+pub type FileIgnoreDirective = IgnoreDirective<File>;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct IgnoreDirective {
-  position: Position,
+pub enum Line {}
+pub enum File {}
+pub trait DirectiveKind {}
+impl DirectiveKind for Line {}
+impl DirectiveKind for File {}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IgnoreDirective<T: DirectiveKind> {
   span: Span,
-  codes: Vec<String>,
-  used_codes: HashMap<String, bool>,
-  is_global: bool,
+  codes: HashMap<String, CodeStatus>,
+  _marker: std::marker::PhantomData<T>,
 }
 
-impl IgnoreDirective {
+impl<T: DirectiveKind> IgnoreDirective<T> {
   pub fn span(&self) -> Span {
     self.span
   }
 
-  pub fn codes(&self) -> &[String] {
+  /// If the directive has no codes specified, it means all the rules should be
+  /// ignored.
+  pub fn ignore_all(&self) -> bool {
+    self.codes.is_empty()
+  }
+
+  pub fn codes(&self) -> &HashMap<String, CodeStatus> {
     &self.codes
   }
 
-  pub fn used_codes(&self) -> &HashMap<String, bool> {
-    &self.used_codes
+  pub fn has_code(&self, code: &str) -> bool {
+    self.codes.contains_key(code)
   }
 
-  /// Check if `IgnoreDirective` supresses given `diagnostic` and if so
-  /// mark the directive as used
-  pub fn maybe_ignore_diagnostic(
-    &mut self,
-    diagnostic: &LintDiagnostic,
-  ) -> bool {
-    // `is_global` means that diagnostic is ignored in whole file.
-    if self.is_global {
-      // pass
-    } else if self.position.line != diagnostic.range.start.line - 1 {
-      return false;
+  pub fn check_used(&mut self, diagnostic_code: &str) -> bool {
+    if let Some(status) = self.codes.get_mut(diagnostic_code) {
+      status.mark_as_used();
+      true
+    } else {
+      false
     }
-
-    let mut should_ignore = false;
-    for code in self.codes.iter() {
-      if code == &diagnostic.code {
-        should_ignore = true;
-        *self.used_codes.get_mut(code).unwrap() = true;
-      }
-    }
-
-    should_ignore
   }
 }
 
-pub fn parse_ignore_directives<'view>(
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CodeStatus {
+  pub used: bool,
+}
+
+impl CodeStatus {
+  fn mark_as_used(&mut self) {
+    self.used = true;
+  }
+}
+
+pub fn parse_line_ignore_directives(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
-  comments: impl Iterator<Item = &'view Comment>,
-) -> Vec<IgnoreDirective> {
-  let mut ignore_directives = vec![];
-
-  for comment in comments {
-    if let Some(ignore) = parse_ignore_comment(
-      &ignore_diagnostic_directive,
-      source_map,
-      comment,
-      false,
-    ) {
-      ignore_directives.push(ignore);
-    }
-  }
-
-  ignore_directives.sort_by_key(|d| d.position.line);
-  ignore_directives
+  program: ast_view::Program,
+) -> HashMap<usize, LineIgnoreDirective> {
+  program
+    .comments()
+    .unwrap()
+    .all_comments()
+    .filter_map(|comment| {
+      parse_ignore_comment(&ignore_diagnostic_directive, source_map, comment)
+    })
+    .collect()
 }
 
-pub fn parse_ignore_comment(
+pub fn parse_file_ignore_directives(
+  ignore_global_directive: &str,
+  source_map: &SourceMap,
+  program: ast_view::Program,
+) -> Option<FileIgnoreDirective> {
+  program
+    .comments()
+    .unwrap()
+    .leading_comments(program.span().lo())
+    .find_map(|comment| {
+      parse_ignore_comment(ignore_global_directive, source_map, comment)
+        .map(|(_pos, dir)| dir)
+    })
+}
+
+fn parse_ignore_comment<T: DirectiveKind>(
   ignore_diagnostic_directive: &str,
   source_map: &SourceMap,
   comment: &Comment,
-  is_global: bool,
-) -> Option<IgnoreDirective> {
+) -> Option<(usize, IgnoreDirective<T>)> {
   if comment.kind != CommentKind::Line {
     return None;
   }
@@ -97,27 +110,33 @@ pub fn parse_ignore_comment(
       let comment_text = comment_text
         .strip_prefix(ignore_diagnostic_directive)
         .unwrap();
+
+      static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
+
       let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
       let codes = comment_text
         .split(',')
-        .filter(|code| !code.is_empty())
-        .map(|code| String::from(code.trim()))
-        .collect::<Vec<String>>();
+        .filter_map(|code| {
+          if code.is_empty() {
+            None
+          } else {
+            let code = code.trim().to_string();
+            Some((code, CodeStatus::default()))
+          }
+        })
+        .collect();
 
       let location = source_map.lookup_char_pos(comment.span.lo());
-      let position = Position::new(comment.span.lo(), location);
-      let mut used_codes = HashMap::new();
-      codes.iter().for_each(|code| {
-        used_codes.insert(code.to_string(), false);
-      });
 
-      return Some(IgnoreDirective {
-        position,
-        span: comment.span,
-        codes,
-        used_codes,
-        is_global,
-      });
+      return Some((
+        location.line,
+        IgnoreDirective::<T> {
+          span: comment.span,
+          codes,
+          _marker: std::marker::PhantomData,
+        },
+      ));
     }
   }
 
@@ -128,10 +147,18 @@ pub fn parse_ignore_comment(
 mod tests {
   use super::*;
   use crate::test_util;
-  use std::rc::Rc;
+
+  fn code_map(
+    codes: impl IntoIterator<Item = &'static str>,
+  ) -> HashMap<String, CodeStatus> {
+    codes
+      .into_iter()
+      .map(|code| (code.to_string(), CodeStatus::default()))
+      .collect()
+  }
 
   #[test]
-  fn test_parse_ignore_comments() {
+  fn test_parse_line_ignore_comments() {
     let source_code = r#"
 // deno-lint-ignore no-explicit-any no-empty no-debugger
 function foo(): any {}
@@ -151,62 +178,107 @@ target: Record<string, any>,
 ): // deno-lint-ignore ban-types
 object | undefined {}
   "#;
-    let (_, comments, source_map, _) = test_util::parse(source_code);
-    let (leading, trailing) = comments.take_all();
-    let leading_coms = Rc::try_unwrap(leading)
-      .expect("Failed to get leading comments")
-      .into_inner();
-    let trailing_coms = Rc::try_unwrap(trailing)
-      .expect("Failed to get trailing comments")
-      .into_inner();
-    let leading: Vec<&Comment> = leading_coms.values().flatten().collect();
-    let trailing: Vec<&Comment> = trailing_coms.values().flatten().collect();
-    let directives = parse_ignore_directives(
-      "deno-lint-ignore",
-      &source_map,
-      leading.into_iter().chain(trailing),
+
+    test_util::parse_and_then(source_code, |program, source_map| {
+      let line_directives =
+        parse_line_ignore_directives("deno-lint-ignore", &source_map, program);
+
+      assert_eq!(line_directives.len(), 4);
+      let d = line_directives.get(&2).unwrap();
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
+      let d = line_directives.get(&8).unwrap();
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
+      let d = line_directives.get(&11).unwrap();
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
+      let d = line_directives.get(&17).unwrap();
+      assert_eq!(d.codes, code_map(["ban-types"]));
+    });
+  }
+
+  #[test]
+  fn test_parse_global_ignore_directives() {
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file",
+      |program, source_map| {
+        let file_directive = parse_file_ignore_directives(
+          "deno-lint-ignore-file",
+          &source_map,
+          program,
+        )
+        .unwrap();
+
+        assert!(file_directive.codes.is_empty());
+      },
     );
 
-    assert_eq!(directives.len(), 4);
-    let d = &directives[0];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 2,
-        col: 0,
-        byte_pos: 1
-      }
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file foo",
+      |program, source_map| {
+        let file_directive = parse_file_ignore_directives(
+          "deno-lint-ignore-file",
+          &source_map,
+          program,
+        )
+        .unwrap();
+
+        assert_eq!(file_directive.codes, code_map(["foo"]));
+      },
     );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[1];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 8,
-        col: 0,
-        byte_pos: 146
-      }
+
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file foo bar",
+      |program, source_map| {
+        let file_directive = parse_file_ignore_directives(
+          "deno-lint-ignore-file",
+          &source_map,
+          program,
+        )
+        .unwrap();
+
+        assert_eq!(file_directive.codes, code_map(["foo", "bar"]));
+      },
     );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[2];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 11,
-        col: 0,
-        byte_pos: 229
-      }
+
+    test_util::parse_and_then(
+      r#"
+// deno-lint-ignore-file foo
+// deno-lint-ignore-file bar
+"#,
+      |program, source_map| {
+        let file_directive = parse_file_ignore_directives(
+          "deno-lint-ignore-file",
+          &source_map,
+          program,
+        )
+        .unwrap();
+
+        assert_eq!(file_directive.codes, code_map(["foo"]));
+      },
     );
-    assert_eq!(d.codes, vec!["no-explicit-any", "no-empty", "no-debugger"]);
-    let d = &directives[3];
-    assert_eq!(
-      d.position,
-      Position {
-        line: 17,
-        col: 3,
-        byte_pos: 388
-      }
+
+    test_util::parse_and_then(
+      r#"
+const x = 42;
+// deno-lint-ignore-file foo
+"#,
+      |program, source_map| {
+        let file_directive = parse_file_ignore_directives(
+          "deno-lint-ignore-file",
+          &source_map,
+          program,
+        );
+
+        assert!(file_directive.is_none());
+      },
     );
-    assert_eq!(d.codes, vec!["ban-types"]);
   }
 }

@@ -1,4 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use dprint_swc_ecma_ast_view as ast_view;
 use std::collections::HashMap;
 use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;
@@ -6,8 +7,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
   DoWhileStmt, Expr, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt, Function,
   Ident, ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  Invalid, Param, Pat, Program, SwitchStmt, VarDecl, VarDeclKind, WhileStmt,
-  WithStmt,
+  Invalid, Param, Pat, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -16,27 +16,37 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 use swc_ecmascript::visit::VisitWith;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Scope {
   vars: HashMap<Id, Var>,
   symbols: HashMap<JsWord, Vec<Id>>,
 }
 
 impl Scope {
-  pub fn analyze(program: &Program) -> Self {
-    let mut scope = Self {
-      vars: Default::default(),
-      symbols: Default::default(),
-    };
+  pub fn analyze(program: ast_view::Program) -> Self {
+    let mut scope = Self::default();
     let mut path = vec![];
 
-    program.visit_with(
-      &Invalid { span: DUMMY_SP },
-      &mut Analyzer {
-        scope: &mut scope,
-        path: &mut path,
-      },
-    );
+    match program {
+      ast_view::Program::Module(module) => {
+        module.inner.visit_with(
+          &Invalid { span: DUMMY_SP },
+          &mut Analyzer {
+            scope: &mut scope,
+            path: &mut path,
+          },
+        );
+      }
+      ast_view::Program::Script(script) => {
+        script.inner.visit_with(
+          &Invalid { span: DUMMY_SP },
+          &mut Analyzer {
+            scope: &mut scope,
+            path: &mut path,
+          },
+        );
+      }
+    };
 
     scope
   }
@@ -310,9 +320,11 @@ mod tests {
   use crate::test_util;
   use swc_ecmascript::utils::Id;
 
-  fn test_scope(source_code: &str) -> Scope {
-    let (program, _, _, _) = test_util::parse(source_code);
-    Scope::analyze(&program)
+  fn test_scope(source_code: &str, test: impl Fn(Scope)) {
+    test_util::parse_and_then(source_code, |program, _source_map| {
+      let scope = Scope::analyze(program);
+      test(scope);
+    });
   }
 
   fn id(scope: &Scope, s: &str) -> Id {
@@ -357,21 +369,22 @@ try {
   const msg = "asdf " + e.message;
 }
 "#;
-    let scope = test_scope(source_code);
-    assert_eq!(var(&scope, "a").kind(), BindingKind::Const);
-    assert_eq!(var(&scope, "a").path(), &[]);
+    test_scope(source_code, |scope| {
+      assert_eq!(var(&scope, "a").kind(), BindingKind::Const);
+      assert_eq!(var(&scope, "a").path(), &[]);
 
-    assert_eq!(var(&scope, "b").kind(), BindingKind::Param);
-    assert_eq!(scope.ids_with_symbol(&"c".into()).unwrap().len(), 2);
-    assert_eq!(
-      var(&scope, "d").path(),
-      &[ScopeKind::Function, ScopeKind::Block]
-    );
+      assert_eq!(var(&scope, "b").kind(), BindingKind::Param);
+      assert_eq!(scope.ids_with_symbol(&"c".into()).unwrap().len(), 2);
+      assert_eq!(
+        var(&scope, "d").path(),
+        &[ScopeKind::Function, ScopeKind::Block]
+      );
 
-    assert_eq!(var(&scope, "Foo").kind(), BindingKind::Class);
-    assert_eq!(var(&scope, "Foo").path(), &[]);
+      assert_eq!(var(&scope, "Foo").kind(), BindingKind::Class);
+      assert_eq!(var(&scope, "Foo").path(), &[]);
 
-    assert_eq!(var(&scope, "e").kind(), BindingKind::CatchClause);
-    assert_eq!(var(&scope, "e").path(), &[]);
+      assert_eq!(var(&scope, "e").kind(), BindingKind::CatchClause);
+      assert_eq!(var(&scope, "e").path(), &[]);
+    });
   }
 }

@@ -28,17 +28,18 @@ impl LintRule for BanUntaggedIgnore {
     context: &mut Context,
     _program: dprint_swc_ecma_ast_view::Program,
   ) {
-    let violated_spans: Vec<Span> = context
-      .ignore_directives()
+    let mut violated_spans: Vec<Span> = context
+      .file_ignore_directive()
       .iter()
-      .filter_map(|d| {
-        if d.codes().is_empty() {
-          Some(d.span())
-        } else {
-          None
-        }
-      })
+      .filter_map(|d| d.ignore_all().then(|| d.span()))
       .collect();
+
+    violated_spans.extend(
+      context
+        .line_ignore_directives()
+        .values()
+        .filter_map(|d| d.ignore_all().then(|| d.span())),
+    );
 
     for span in violated_spans {
       context.add_diagnostic_with_hint(
