@@ -43,6 +43,7 @@ impl LintRule for NoDeprecatedDenoApi {
 The following APIs in `Deno` namespace are now marked as deprecated and will get
 removed from the namespace in the future.
 
+**IO APIs**
 - `Deno.Buffer`
 - `Deno.readAll`
 - `Deno.readAllSync`
@@ -51,9 +52,17 @@ removed from the namespace in the future.
 - `Deno.iter`
 - `Deno.iterSync`
 
-They are already available in `std`, so replace these deprecated ones with
-alternatives from `std`.
+**Custom Inspector API**
+- `Deno.customInspect`
+
+The IO APIs are already available in `std/io`, so replace these deprecated ones
+with alternatives from `std/io`.
 For more detail, see [the tracking issue](https://github.com/denoland/deno/issues/9795).
+
+`Deno.customInspect` was deprecated in favor of
+`Symbol.for("Deno.customInspect")`. Replace the usages with this symbol
+expression. See [deno#9294](https://github.com/denoland/deno/issues/9294)
+for more details.
 
 ### Invalid:
 ```typescript
@@ -71,6 +80,13 @@ Deno.writeAllSync(writer, data);
 // iter
 for await (const x of Deno.iter(xs)) {}
 for (const y of Deno.iterSync(ys)) {}
+
+// custom inspector
+class A {
+  [Deno.customInspect]() {
+    return "This is A";
+  }
+}
 ```
 
 ### Valid:
@@ -93,6 +109,13 @@ writeAllSync(writer, data);
 import { iter, iterSync } from "https://deno.land/std/io/util.ts";
 for await (const x of iter(xs)) {}
 for (const y of iterSync(ys)) {}
+
+// custom inspector
+class A {
+  [Symbol.for("Deno.customInspect")]() {
+    return "This is A";
+  }
+}
 ```
 "#
   }
@@ -130,6 +153,7 @@ enum DeprecatedApi {
   WriteAllSync,
   Iter,
   IterSync,
+  CustomInspect,
 }
 
 impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
@@ -154,14 +178,19 @@ impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
       "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
       "iter" => Ok(DeprecatedApi::Iter),
       "iterSync" => Ok(DeprecatedApi::IterSync),
+      "customInspect" => Ok(DeprecatedApi::CustomInspect),
       _ => Err(()),
     }
   }
 }
+enum Replacement {
+  NameAndUrl(&'static str, &'static str),
+  Name(&'static str),
+}
 
 impl DeprecatedApi {
   fn message(&self) -> String {
-    let (name, _) = self.name_and_url();
+    let name = self.get_deprecated_api_name();
     format!(
       "`{}` is deprecated and scheduled for removal in Deno 2.0",
       name,
@@ -169,23 +198,43 @@ impl DeprecatedApi {
   }
 
   fn hint(&self) -> String {
-    let (name, url) = self.name_and_url();
-    format!("Use `{}` from {} instead", name, url)
+    match self.get_replacement() {
+      Replacement::Name(name) => format!("Use `{}` instead", name),
+      Replacement::NameAndUrl(name, url) => {
+        format!("Use `{}` from {} instead", name, url)
+      }
+    }
   }
 
-  fn name_and_url(&self) -> (&'static str, &'static str) {
+  fn get_deprecated_api_name(&self) -> &'static str {
+    use DeprecatedApi::*;
+    match *self {
+      Buffer => "Deno.Buffer",
+      ReadAll => "Deno.readAll",
+      ReadAllSync => "Deno.readAllSync",
+      WriteAll => "Deno.writeAll",
+      WriteAllSync => "Deno.writeAllSync",
+      Iter => "Deno.iter",
+      IterSync => "Deno.iterSync",
+      CustomInspect => "Deno.customInspect",
+    }
+  }
+
+  fn get_replacement(&self) -> Replacement {
     const BUFFER_TS: &str = "https://deno.land/std/io/buffer.ts";
     const UTIL_TS: &str = "https://deno.land/std/io/util.ts";
 
     use DeprecatedApi::*;
+    use Replacement::*;
     match *self {
-      Buffer => ("Buffer", BUFFER_TS),
-      ReadAll => ("readAll", UTIL_TS),
-      ReadAllSync => ("readAllSync", UTIL_TS),
-      WriteAll => ("writeAll", UTIL_TS),
-      WriteAllSync => ("writeAllSync", UTIL_TS),
-      Iter => ("iter", UTIL_TS),
-      IterSync => ("iterSync", UTIL_TS),
+      Buffer => NameAndUrl("Buffer", BUFFER_TS),
+      ReadAll => NameAndUrl("readAll", UTIL_TS),
+      ReadAllSync => NameAndUrl("readAllSync", UTIL_TS),
+      WriteAll => NameAndUrl("writeAll", UTIL_TS),
+      WriteAllSync => NameAndUrl("writeAllSync", UTIL_TS),
+      Iter => NameAndUrl("iter", UTIL_TS),
+      IterSync => NameAndUrl("iterSync", UTIL_TS),
+      CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
     }
   }
 }
@@ -238,6 +287,7 @@ mod tests {
       "Deno.foo.writeAllSync();",
       "Deno.foo.iter();",
       "Deno.foo.iterSync();",
+      "Deno.foo.customInspect;",
       "foo.Deno.Buffer();",
       "foo.Deno.readAll();",
       "foo.Deno.readAllSync();",
@@ -245,6 +295,7 @@ mod tests {
       "foo.Deno.writeAllSync();",
       "foo.Deno.iter();",
       "foo.Deno.iterSync();",
+      "foo.Deno.customInspect;",
 
       // `Deno` is shadowed
       "const Deno = 42; const a = new Deno.Buffer();",
@@ -254,6 +305,7 @@ mod tests {
       "const Deno = 42; Deno.writeAllSync(writer, data);",
       "const Deno = 42; for await (const x of Deno.iter(xs)) {}",
       "const Deno = 42; for (const x of Deno.iterSync(xs)) {}",
+      r#"const Deno = 42; Deno.customInspect"#,
       r#"import { Deno } from "./foo.ts"; Deno.writeAllSync(writer, data);"#,
 
       // access property with string literal (shadowed)
@@ -264,6 +316,7 @@ mod tests {
       r#"const Deno = 42; Deno["writeAllSync"](writer, data);"#,
       r#"const Deno = 42; for await (const x of Deno["iter"](xs)) {}"#,
       r#"const Deno = 42; for (const x of Deno["iterSync"](xs)) {}"#,
+      r#"const Deno = 42; Deno["customInspect"]"#,
 
       // access property with template literal (shadowed)
       r#"const Deno = 42; new Deno[`Buffer`]();"#,
@@ -273,6 +326,7 @@ mod tests {
       r#"const Deno = 42; Deno[`writeAllSync`](writer, data);"#,
       r#"const Deno = 42; for await (const x of Deno[`iter`](xs)) {}"#,
       r#"const Deno = 42; for (const x of Deno[`iterSync`](xs)) {}"#,
+      r#"const Deno = 42; Deno[`customInspect`]"#,
 
       // Ignore template literals that include expressions
       r#"const read = "read"; Deno[`${read}All`](reader);"#,
@@ -334,6 +388,13 @@ mod tests {
           hint: IterSync.hint()
         }
       ],
+      "Deno.customInspect;": [
+        {
+          col: 0,
+          message: CustomInspect.message(),
+          hint: CustomInspect.hint()
+        }
+      ],
 
       // access property with string literal
       r#"new Deno["Buffer"]();"#: [
@@ -385,6 +446,13 @@ mod tests {
           hint: IterSync.hint()
         }
       ],
+      r#"Deno["customInspect"];"#: [
+        {
+          col: 0,
+          message: CustomInspect.message(),
+          hint: CustomInspect.hint()
+        }
+      ],
 
       // access property with template literal
       r#"new Deno[`Buffer`]();"#: [
@@ -434,6 +502,13 @@ mod tests {
           col: 0,
           message: IterSync.message(),
           hint: IterSync.hint()
+        }
+      ],
+      r#"Deno[`customInspect`];"#: [
+        {
+          col: 0,
+          message: CustomInspect.message(),
+          hint: CustomInspect.hint()
         }
       ],
     }
