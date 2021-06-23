@@ -7,7 +7,10 @@ use swc_common::Spanned;
 pub struct NoNamespace;
 
 const CODE: &str = "no-namespace";
-const MESSAGE: &str = "custom typescript modules are outdated";
+const MESSAGE: &str = "TypeScript's `module` and `namespace` are discouraged to
+use";
+const HINT: &str = "Use ES2015 module syntax (`import`/`export`) to organize
+the code instead";
 
 impl LintRule for NoNamespace {
   fn new() -> Box<Self> {
@@ -112,7 +115,7 @@ impl Handler for NoNamespaceHandler {
     }
 
     if !inside_ambient_context(module_decl.as_node()) {
-      ctx.add_diagnostic(module_decl.span(), CODE, MESSAGE);
+      ctx.add_diagnostic_with_hint(module_decl.span(), CODE, MESSAGE, HINT);
     }
   }
 }
@@ -189,17 +192,37 @@ export declare namespace Utility {
   fn no_namespace_invalid() {
     assert_lint_err! {
       NoNamespace,
-      "module foo {}": [{ col: 0, message: MESSAGE }],
-      "namespace foo {}": [{ col: 0, message: MESSAGE }],
-      "namespace Foo.Bar {}": [{ col: 0, message: MESSAGE }],
+      "module foo {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      "namespace foo {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "namespace Foo.Bar {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       "namespace Foo.Bar { namespace Baz.Bas {} }": [
         {
           col: 0,
-          message: MESSAGE
+          message: MESSAGE,
+          hint: HINT,
         },
         {
           col: 20,
-          message: MESSAGE
+          message: MESSAGE,
+          hint: HINT,
         },
       ],
     };
