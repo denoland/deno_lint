@@ -169,3 +169,85 @@ fn glob(
 
   Ok(file_paths)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use deno_lint::rules::get_recommended_rules;
+  use std::collections::HashSet;
+
+  macro_rules! svec {
+    ($( $elem:literal ),* $(,)?) => {{
+      vec![$( $elem.to_string() ),*]
+    }}
+  }
+  macro_rules! set {
+    ($( $elem:literal ),* $(,)?) => {{
+      vec![$( $elem ),*].into_iter().collect::<HashSet<&'static str>>()
+    }}
+  }
+
+  fn into_codes(rules: Vec<Box<dyn LintRule>>) -> HashSet<&'static str> {
+    rules.iter().map(|rule| rule.code()).collect()
+  }
+
+  #[test]
+  fn test_get_rules() {
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec![],
+        include: svec![],
+        exclude: svec![],
+      },
+      ..Default::default()
+    };
+    assert!(config.get_rules().is_empty());
+
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec!["recommended"],
+        include: svec![],
+        exclude: svec![],
+      },
+      ..Default::default()
+    };
+    let recommended_rules_codes = into_codes(get_recommended_rules());
+    assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
+
+    // even if "recommended" is specified in `tags` and `include` contains a rule
+    // code that is in the "recommended" set, we have to make sure that each
+    // rule is run just once respectively.
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec!["recommended"],
+        include: svec!["no-empty"], // "no-empty" belongs to "recommended"
+        exclude: svec![],
+      },
+      ..Default::default()
+    };
+    let recommended_rules_codes = into_codes(get_recommended_rules());
+    assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
+
+    // `include` has higher precedence over `exclude`
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec![],
+        include: svec!["eqeqeq"],
+        exclude: svec!["eqeqeq"],
+      },
+      ..Default::default()
+    };
+    assert_eq!(into_codes(config.get_rules()), set!["eqeqeq"]);
+
+    // if unknown rule is specified, just ignore it
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec![],
+        include: svec!["this-is-a-totally-unknown-rule"],
+        exclude: svec!["this-is-also-another-unknown-rule"],
+      },
+      ..Default::default()
+    };
+    assert_eq!(into_codes(config.get_rules()), set![]);
+  }
+}
