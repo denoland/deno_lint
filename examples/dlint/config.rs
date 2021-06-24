@@ -3,6 +3,7 @@ use anyhow::bail;
 use anyhow::Error as AnyError;
 use deno_lint::rules::{get_all_rules, LintRule};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -30,41 +31,34 @@ pub struct Config {
 
 impl Config {
   pub fn get_rules(&self) -> Vec<Box<dyn LintRule>> {
-    let mut rules = get_all_rules();
+    let mut rules = HashMap::new();
 
-    if !self.rules.tags.is_empty() {
-      rules = rules
-        .into_iter()
-        .filter(|rule| {
-          for tag in rule.tags().to_owned() {
-            if self.rules.tags.contains(&tag.to_string()) {
-              return true;
-            }
-          }
-          false
-        })
-        .collect();
-    }
-
-    if !self.rules.exclude.is_empty() {
-      rules = rules
-        .into_iter()
-        .filter(|rule| !self.rules.exclude.contains(&rule.code().to_string()))
-        .collect();
-    }
-
-    if !self.rules.include.is_empty() {
-      for include_rule in &self.rules.include {
-        if let Some(rule) = get_all_rules()
-          .into_iter()
-          .find(|rule| rule.code() == include_rule)
-        {
-          rules.push(rule);
+    for config_tag in self.rules.tags.iter() {
+      rules.extend(get_all_rules().into_iter().filter_map(|rule| {
+        let code = rule.code();
+        if rule.tags().contains(&config_tag.as_str()) {
+          Some((code, rule))
+        } else {
+          None
         }
+      }));
+    }
+
+    for exclude in self.rules.exclude.iter() {
+      rules.remove(exclude.as_str());
+    }
+
+    let mut rules_per_code = get_all_rules()
+      .into_iter()
+      .map(|rule| (rule.code(), rule))
+      .collect::<HashMap<_, _>>();
+    for include in self.rules.include.iter() {
+      if let Some(rule) = rules_per_code.remove(include.as_str()) {
+        rules.insert(include, rule);
       }
     }
 
-    rules
+    rules.into_iter().map(|(_code, rule)| rule).collect()
   }
 
   pub fn get_files(&self) -> Result<Vec<PathBuf>, AnyError> {
@@ -168,4 +162,86 @@ fn glob(
   }
 
   Ok(file_paths)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use deno_lint::rules::get_recommended_rules;
+  use std::collections::HashSet;
+
+  macro_rules! svec {
+    ($( $elem:literal ),* $(,)?) => {{
+      vec![$( $elem.to_string() ),*]
+    }}
+  }
+  macro_rules! set {
+    ($( $elem:literal ),* $(,)?) => {{
+      vec![$( $elem ),*].into_iter().collect::<HashSet<&'static str>>()
+    }}
+  }
+
+  fn into_codes(rules: Vec<Box<dyn LintRule>>) -> HashSet<&'static str> {
+    rules.iter().map(|rule| rule.code()).collect()
+  }
+
+  #[test]
+  fn test_get_rules() {
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec![],
+        include: svec![],
+        exclude: svec![],
+      },
+      ..Default::default()
+    };
+    assert!(config.get_rules().is_empty());
+
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec!["recommended"],
+        include: svec![],
+        exclude: svec![],
+      },
+      ..Default::default()
+    };
+    let recommended_rules_codes = into_codes(get_recommended_rules());
+    assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
+
+    // even if "recommended" is specified in `tags` and `include` contains a rule
+    // code that is in the "recommended" set, we have to make sure that each
+    // rule is run just once respectively.
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec!["recommended"],
+        include: svec!["no-empty"], // "no-empty" belongs to "recommended"
+        exclude: svec![],
+      },
+      ..Default::default()
+    };
+    let recommended_rules_codes = into_codes(get_recommended_rules());
+    assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
+
+    // `include` has higher precedence over `exclude`
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec![],
+        include: svec!["eqeqeq"],
+        exclude: svec!["eqeqeq"],
+      },
+      ..Default::default()
+    };
+    assert_eq!(into_codes(config.get_rules()), set!["eqeqeq"]);
+
+    // if unknown rule is specified, just ignore it
+    let config = Config {
+      rules: RulesConfig {
+        tags: svec![],
+        include: svec!["this-is-a-totally-unknown-rule"],
+        exclude: svec!["this-is-also-another-unknown-rule"],
+      },
+      ..Default::default()
+    };
+    assert_eq!(into_codes(config.get_rules()), set![]);
+  }
 }
