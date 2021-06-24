@@ -3,6 +3,7 @@ use anyhow::bail;
 use anyhow::Error as AnyError;
 use deno_lint::rules::{get_all_rules, LintRule};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -30,41 +31,34 @@ pub struct Config {
 
 impl Config {
   pub fn get_rules(&self) -> Vec<Box<dyn LintRule>> {
-    let mut rules = get_all_rules();
+    let mut rules = HashMap::new();
 
-    if !self.rules.tags.is_empty() {
-      rules = rules
-        .into_iter()
-        .filter(|rule| {
-          for tag in rule.tags().to_owned() {
-            if self.rules.tags.contains(&tag.to_string()) {
-              return true;
-            }
-          }
-          false
-        })
-        .collect();
-    }
-
-    if !self.rules.exclude.is_empty() {
-      rules = rules
-        .into_iter()
-        .filter(|rule| !self.rules.exclude.contains(&rule.code().to_string()))
-        .collect();
-    }
-
-    if !self.rules.include.is_empty() {
-      for include_rule in &self.rules.include {
-        if let Some(rule) = get_all_rules()
-          .into_iter()
-          .find(|rule| rule.code() == include_rule)
-        {
-          rules.push(rule);
+    for config_tag in self.rules.tags.iter() {
+      rules.extend(get_all_rules().into_iter().filter_map(|rule| {
+        let code = rule.code();
+        if rule.tags().contains(&config_tag.as_str()) {
+          Some((code, rule))
+        } else {
+          None
         }
+      }));
+    }
+
+    for exclude in self.rules.exclude.iter() {
+      rules.remove(exclude.as_str());
+    }
+
+    let mut rules_per_code = get_all_rules()
+      .into_iter()
+      .map(|rule| (rule.code(), rule))
+      .collect::<HashMap<_, _>>();
+    for include in self.rules.include.iter() {
+      if let Some(rule) = rules_per_code.remove(include.as_str()) {
+        rules.insert(include, rule);
       }
     }
 
-    rules
+    rules.into_iter().map(|(_code, rule)| rule).collect()
   }
 
   pub fn get_files(&self) -> Result<Vec<PathBuf>, AnyError> {
