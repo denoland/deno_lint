@@ -7,7 +7,10 @@ use swc_common::Spanned;
 pub struct NoNamespace;
 
 const CODE: &str = "no-namespace";
-const MESSAGE: &str = "custom typescript modules are outdated";
+const MESSAGE: &str = "TypeScript's `module` and `namespace` are discouraged to
+use";
+const HINT: &str = "Use ES2015 module syntax (`import`/`export`) to organize
+the code instead";
 
 impl LintRule for NoNamespace {
   fn new() -> Box<Self> {
@@ -37,6 +40,59 @@ impl LintRule for NoNamespace {
 
     NoNamespaceHandler.traverse(program, context);
   }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of `namespace` and `module` keywords in TypeScript code.
+
+`namespace` and `module` are both thought of as outdated keywords to organize
+the code. Instead, it is generally preferable to use ES2015 module syntax (e.g.
+`import`/`export`).
+
+However, this rule still allows the use of these keywords in the following two
+cases:
+
+- they are used for defining ["ambient" namespaces] along with `declare` keywords
+- they are written in TypeScript's type definition files: `.d.ts`
+
+["ambient" namespaces]: https://www.typescriptlang.org/docs/handbook/namespaces.html#ambient-namespaces
+
+### Invalid:
+```typescript
+// foo.ts
+
+module mod {}
+namespace ns {}
+```
+
+```typescript
+// bar.d.ts
+
+// all usage of `module` and `namespace` keywords are allowed here
+```
+
+### Valid:
+```typescript
+// foo.ts
+
+declare global {}
+declare module mod1 {}
+declare module "mod2" {}
+declare namespace ns {}
+```
+
+```typescript
+// bar.d.ts
+
+module mod1 {}
+namespace ns1 {}
+
+declare global {}
+declare module mod2 {}
+declare module "mod3" {}
+declare namespace ns2 {}
+```
+"#
+  }
 }
 
 struct NoNamespaceHandler;
@@ -59,7 +115,7 @@ impl Handler for NoNamespaceHandler {
     }
 
     if !inside_ambient_context(module_decl.as_node()) {
-      ctx.add_diagnostic(module_decl.span(), CODE, MESSAGE);
+      ctx.add_diagnostic_with_hint(module_decl.span(), CODE, MESSAGE, HINT);
     }
   }
 }
@@ -136,17 +192,37 @@ export declare namespace Utility {
   fn no_namespace_invalid() {
     assert_lint_err! {
       NoNamespace,
-      "module foo {}": [{ col: 0, message: MESSAGE }],
-      "namespace foo {}": [{ col: 0, message: MESSAGE }],
-      "namespace Foo.Bar {}": [{ col: 0, message: MESSAGE }],
+      "module foo {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      "namespace foo {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
+      "namespace Foo.Bar {}": [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        }
+      ],
       "namespace Foo.Bar { namespace Baz.Bas {} }": [
         {
           col: 0,
-          message: MESSAGE
+          message: MESSAGE,
+          hint: HINT,
         },
         {
           col: 20,
-          message: MESSAGE
+          message: MESSAGE,
+          hint: HINT,
         },
       ],
     };
