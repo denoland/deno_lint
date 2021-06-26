@@ -166,55 +166,57 @@ fn run_linter(
   }
 
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
-  paths.par_iter().for_each(|file_path| {
-    let source_code =
-      std::fs::read_to_string(&file_path).expect("Failed to load file");
+  paths
+    .par_iter()
+    .try_for_each(|file_path| -> Result<(), AnyError> {
+      let source_code = std::fs::read_to_string(&file_path)?;
 
-    let mut rules = if let Some(config) = maybe_config.clone() {
-      config.get_rules()
-    } else {
-      get_recommended_rules()
-    };
+      let mut rules = if let Some(config) = maybe_config.clone() {
+        config.get_rules()
+      } else {
+        get_recommended_rules()
+      };
 
-    if let Some(rule_name) = filter_rule_name {
-      rules = rules
-        .into_iter()
-        .filter(|r| r.code() == rule_name)
-        .collect()
-    };
+      if let Some(rule_name) = filter_rule_name {
+        rules = rules
+          .into_iter()
+          .filter(|r| r.code() == rule_name)
+          .collect()
+      };
 
-    debug!("Configured rules: {}", rules.len());
+      debug!("Configured rules: {}", rules.len());
 
-    let mut linter_builder = LinterBuilder::default()
-      .rules(rules)
-      .syntax(determine_syntax(file_path))
-      .lint_unknown_rules(true)
-      .lint_unused_ignore_directives(true);
+      let mut linter_builder = LinterBuilder::default()
+        .rules(rules)
+        .syntax(determine_syntax(file_path))
+        .lint_unknown_rules(true)
+        .lint_unused_ignore_directives(true);
 
-    for plugin_path in &plugin_paths {
-      let js_runner = js::JsRuleRunner::new(plugin_path);
-      linter_builder = linter_builder.add_plugin(js_runner);
-    }
+      for plugin_path in &plugin_paths {
+        let js_runner = js::JsRuleRunner::new(plugin_path);
+        linter_builder = linter_builder.add_plugin(js_runner);
+      }
 
-    let linter = linter_builder.build();
+      let linter = linter_builder.build();
 
-    let (source_file, diagnostics) = linter
-      .lint(file_path.to_string_lossy().to_string(), source_code)
-      .expect("Failed to lint");
+      let (source_file, diagnostics) =
+        linter.lint(file_path.to_string_lossy().to_string(), source_code)?;
 
-    error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
+      error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
-    let mut lock = file_diagnostics.lock().unwrap();
+      let mut lock = file_diagnostics.lock().unwrap();
 
-    lock.insert(
-      file_path,
-      FileDiagnostics {
-        diagnostics,
-        lines: source_file.lines.clone(),
-        source_code: source_file.src.to_string(),
-      },
-    );
-  });
+      lock.insert(
+        file_path,
+        FileDiagnostics {
+          diagnostics,
+          lines: source_file.lines.clone(),
+          source_code: source_file.src.to_string(),
+        },
+      );
+
+      Ok(())
+    })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
     display_diagnostics(&d.diagnostics, &d.source_code, &d.lines);
