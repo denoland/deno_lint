@@ -148,13 +148,15 @@ $ cargo test
 
 Prerequisites:
 
-- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), [`stackcollapse-perf`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl), [`rust-unmangle`](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), [`stackcollapse-perf`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl), [`c++filt`](https://sourceware.org/binutils/docs/binutils/c_002b_002bfilt.html) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
 
 ```shell
 $ RUSTFLAGS='-g' cargo build --release --all-targets # build target
 $ sudo perf record --call-graph dwarf ./target/release/examples/dlint benchmarks/oak/**.ts # create performance profile
-$ perf script | stackcollapse-perf | rust-unmangle | flamegraph > flame.svg # generate flamegraph
+$ perf script | stackcollapse-perf | c++filt | flamegraph > flame.svg # generate flamegraph
 ```
+
+You can use [rust-unmangle](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) or [rustfilt](https://github.com/luser/rustfilt) instead of c++filt.
 
 These commands can take a few minutes to run.
 
