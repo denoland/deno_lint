@@ -71,7 +71,7 @@ impl Colorize for markdown::Span {
     match self {
       Break => "\n".to_string(),
       Text(text) => text,
-      Code(code) => ansi_term::Color::Green.paint(code).to_string(), // todo
+      Code(code) => ansi_term::Color::Green.paint(code).to_string(),
       Link(label, url, _title) => {
         format!("[{label}]({url})", label = label, url = url)
       }
