@@ -35,7 +35,7 @@ impl Colorize for markdown::Block {
         // TODO(magurotuna) syntax highlight
         content
           .split('\n')
-          .map(|line| format!("{}", line).indent(4))
+          .map(|line| line.to_string().indent(4))
           .join_by("\n")
           .linebreak()
       }
