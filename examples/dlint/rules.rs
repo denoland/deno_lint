@@ -1,3 +1,4 @@
+use crate::color::Colorize;
 use deno_lint::rules::get_all_rules;
 use serde::Serialize;
 
@@ -37,7 +38,6 @@ pub fn print_rules<F: RuleFormatter>(mut rules: Vec<Rule>) {
     }
   }
 }
-
 pub enum JsonFormatter {}
 pub enum PrettyFormatter {}
 
@@ -54,21 +54,6 @@ impl RuleFormatter for JsonFormatter {
   }
 }
 
-fn make_skin() -> termimad::MadSkin {
-  use crossterm::style::Attribute;
-  use crossterm::style::Color;
-  let mut skin = termimad::MadSkin::default();
-  skin.headers[0].set_fg(Color::Blue);
-  skin.headers[0].align = termimad::Alignment::Left;
-  skin.headers[0].add_attr(Attribute::Bold);
-  skin.headers[2].set_fg(Color::Red);
-  skin.headers[2].add_attr(Attribute::Bold);
-  skin.inline_code.set_fg(Color::Green);
-  // this doesn't work...
-  //skin.code_block.set_bg(Color::Yellow);
-  skin
-}
-
 impl RuleFormatter for PrettyFormatter {
   fn format(rules: &mut [Rule]) -> Result<String, &'static str> {
     match rules {
@@ -78,24 +63,14 @@ impl RuleFormatter for PrettyFormatter {
       // Certain rule name is specified.
       // Print its documentation richly.
       [rule] => {
-        let skin = make_skin();
-        let res = if rule.docs.is_empty() {
-          skin
-            .term_text(&format!(
-              "documentation for `{}` not available",
-              rule.code
-            ))
-            .to_string()
+        let md = if rule.docs.is_empty() {
+          format!("documentation for `{}` is not available", rule.code)
         } else {
-          skin
-            .term_text(&format!(
-              "# {code}\n\n{docs}",
-              code = rule.code,
-              docs = rule.docs
-            ))
-            .to_string()
+          format!("# {code}\n\n{docs}", code = rule.code, docs = rule.docs)
         };
-        Ok(res)
+        let md_tokens = markdown::tokenize(&md);
+
+        Ok(md_tokens.colorize())
       }
 
       // No rule name is specified.

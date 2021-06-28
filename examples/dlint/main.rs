@@ -21,6 +21,7 @@ use std::sync::{Arc, Mutex};
 use swc_common::BytePos;
 use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 
+mod color;
 mod config;
 mod js;
 mod rules;

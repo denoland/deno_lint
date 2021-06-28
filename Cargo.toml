@@ -31,10 +31,10 @@ if_chain = "1.0.1"
 
 [dev-dependencies]
 annotate-snippets = { version = "0.9.0", features = ["color"] }
+ansi_term = "0.12.1"
 clap = "2.33.3"
-crossterm = "0.20.0"
 deno_core = "0.84.0"
 env_logger = "0.8.3"
 globwalk = "0.8.1"
+markdown = "0.3.0"
 rayon = "1.5.0"
-termimad = "0.12.1"
