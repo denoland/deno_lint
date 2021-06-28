@@ -11,7 +11,7 @@ use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
+use deno_lint::rules::{get_all_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
 use serde::Serialize;
@@ -33,10 +33,9 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
       SubCommand::with_name("rules")
         .arg(
           Arg::with_name("RULE_NAME")
-            .help("Show detailed information about rule"),
+            .help("Show detailed information about rule. If omitted, show the list of all rules."),
         )
-        .arg(Arg::with_name("json").long("json"))
-        .arg(Arg::with_name("all").long("all")),
+        .arg(Arg::with_name("json").long("json")),
     )
     .subcommand(
       SubCommand::with_name("run")
@@ -271,26 +270,15 @@ struct Rule {
   tags: &'static [&'static str],
 }
 
-enum RuleTag {
-  Recommended,
-  All,
-}
-
-fn get_rules_by_tag(tag: RuleTag) -> Vec<Rule> {
-  fn to_rule(rule: Box<dyn LintRule>) -> Rule {
-    Rule {
+fn get_all_rules_metadata() -> Vec<Rule> {
+  get_all_rules()
+    .into_iter()
+    .map(|rule| Rule {
       code: rule.code(),
       docs: rule.docs(),
       tags: rule.tags(),
-    }
-  }
-
-  match tag {
-    RuleTag::Recommended => {
-      get_recommended_rules().into_iter().map(to_rule).collect()
-    }
-    RuleTag::All => get_all_rules().into_iter().map(to_rule).collect(),
-  }
+    })
+    .collect()
 }
 
 trait RuleFormatter {
@@ -339,8 +327,8 @@ impl RuleFormatter for PrettyFormatter {
   }
 }
 
-fn print_rules<F: RuleFormatter>(rules: &mut [Rule]) {
-  match F::format(rules) {
+fn print_rules<F: RuleFormatter>(mut rules: Vec<Rule>) {
+  match F::format(&mut rules) {
     Err(e) => {
       eprintln!("{}", e);
       std::process::exit(1);
@@ -396,21 +384,15 @@ fn main() -> Result<(), AnyError> {
     }
     ("rules", Some(rules_matches)) => {
       let json = rules_matches.is_present("json");
-      let tag = if rules_matches.is_present("all") {
-        RuleTag::All
+      let rules = if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
+        filter_rules(get_all_rules_metadata(), rule_name)
       } else {
-        RuleTag::Recommended
+        get_all_rules_metadata()
       };
-      let mut rules =
-        if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
-          filter_rules(get_rules_by_tag(tag), rule_name)
-        } else {
-          get_rules_by_tag(tag)
-        };
       if json {
-        print_rules::<JsonFormatter>(&mut rules);
+        print_rules::<JsonFormatter>(rules);
       } else {
-        print_rules::<PrettyFormatter>(&mut rules);
+        print_rules::<PrettyFormatter>(rules);
       }
     }
     _ => unreachable!(),
