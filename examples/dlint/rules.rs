@@ -56,30 +56,36 @@ impl RuleFormatter for JsonFormatter {
 
 impl RuleFormatter for PrettyFormatter {
   fn format(rules: &mut [Rule]) -> Result<String, &'static str> {
-    if rules.is_empty() {
-      return Err("Rule not found!");
-    }
+    match rules {
+      // Unknown rule name is specified.
+      [] => Err("Rule not found!"),
 
-    if rules.len() == 1 {
-      let rule = &rules[0];
-      let docs = if rule.docs.is_empty() {
-        "documentation not available"
-      } else {
-        rule.docs
-      };
-      return Ok(format!("- {code}\n\n{docs}", code = rule.code, docs = docs));
-    }
-
-    rules.sort_by_key(|r| r.code);
-    let mut list = Vec::with_capacity(1 + rules.len());
-    list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
-    list.extend(rules.iter().map(|r| {
-      let mut s = format!(" - {}", r.code);
-      if r.tags.contains(&"recommended") {
-        s += " ✔️";
+      // Certain rule name is specified.
+      // Print its documentation richly.
+      [rule] => {
+        let docs = if rule.docs.is_empty() {
+          "documentation not available"
+        } else {
+          rule.docs
+        };
+        Ok(format!("- {code}\n\n{docs}", code = rule.code, docs = docs))
       }
-      s
-    }));
-    Ok(list.join("\n"))
+
+      // No rule name is specified.
+      // Print the list of all rules.
+      rules => {
+        rules.sort_by_key(|r| r.code);
+        let mut list = Vec::with_capacity(1 + rules.len());
+        list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
+        list.extend(rules.iter().map(|r| {
+          let mut s = format!(" - {}", r.code);
+          if r.tags.contains(&"recommended") {
+            s += " ✔️";
+          }
+          s
+        }));
+        Ok(list.join("\n"))
+      }
+    }
   }
 }
