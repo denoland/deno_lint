@@ -65,6 +65,7 @@ expression. See [deno#9294](https://github.com/denoland/deno/issues/9294)
 for more details.
 
 ### Invalid:
+
 ```typescript
 // buffer
 const a = Deno.Buffer();
@@ -90,6 +91,7 @@ class A {
 ```
 
 ### Valid:
+
 ```typescript
 // buffer
 import { Buffer } from "https://deno.land/std/io/buffer.ts";
