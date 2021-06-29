@@ -1,3 +1,4 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::lexer::{lex, MediaType, TokenOrComment};
 use std::convert::TryFrom;
 use swc_ecmascript::parser::token::{Token, Word};

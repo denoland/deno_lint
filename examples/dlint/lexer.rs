@@ -1,3 +1,5 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+
 //! This module is mostly brought from https://github.com/denoland/deno/blob/96d05829002ef065b8fc84fe70de062cff0e95b3/cli/ast/mod.rs
 
 use std::convert::TryFrom;
