@@ -29,6 +29,9 @@ pub fn get_specific_rule_metadata(rule_name: &str) -> Vec<Rule> {
 }
 
 pub fn print_rules<F: RuleFormatter>(mut rules: Vec<Rule>) {
+  #[cfg(windows)]
+  ansi_term::enable_ansi_support().expect("Failed to enable ANSI support");
+
   match F::format(&mut rules) {
     Err(e) => {
       eprintln!("{}", e);
