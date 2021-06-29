@@ -69,9 +69,13 @@ impl RuleFormatter for PrettyFormatter {
         } else {
           format!("# {code}\n\n{docs}", code = rule.code, docs = rule.docs)
         };
-        let md_tokens = markdown::tokenize(&md);
 
-        Ok(md_tokens.colorize())
+        if atty::is(atty::Stream::Stdout) {
+          let md_tokens = markdown::tokenize(&md);
+          Ok(md_tokens.colorize())
+        } else {
+          Ok(md)
+        }
       }
 
       // No rule name is specified.

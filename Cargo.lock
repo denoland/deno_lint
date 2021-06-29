@@ -258,6 +258,7 @@ dependencies = [
  "annotate-snippets",
  "ansi_term 0.12.1",
  "anyhow",
+ "atty",
  "clap",
  "deno_core",
  "derive_more",
