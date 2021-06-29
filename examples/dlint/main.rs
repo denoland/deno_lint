@@ -24,6 +24,7 @@ use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 mod color;
 mod config;
 mod js;
+mod lexer;
 mod rules;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
