@@ -116,8 +116,11 @@ impl Colorize for markdown::Block {
         .map(|li| format!("• {}", li.colorize()).indent(2))
         .join_by("\n")
         .linebreak(),
-      Raw(content) => content,
-      Hr => "-".repeat(80),
+      Raw(content) => content.linebreak(),
+      Hr => ansi_term::Color::Fixed(8)
+        .paint("-".repeat(80))
+        .to_string()
+        .linebreak(),
     }
   }
 }

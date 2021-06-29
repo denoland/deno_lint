@@ -52,12 +52,12 @@ removed from the namespace in the future.
 - `Deno.iter`
 - `Deno.iterSync`
 
-**Custom Inspector API**
-- `Deno.customInspect`
-
 The IO APIs are already available in `std/io`, so replace these deprecated ones
 with alternatives from `std/io`.
 For more detail, see [the tracking issue](https://github.com/denoland/deno/issues/9795).
+
+**Custom Inspector API**
+- `Deno.customInspect`
 
 `Deno.customInspect` was deprecated in favor of
 `Symbol.for("Deno.customInspect")`. Replace the usages with this symbol
