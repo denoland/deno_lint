@@ -11,10 +11,9 @@ use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::rules::{get_all_rules, get_recommended_rules, LintRule};
+use deno_lint::rules::get_recommended_rules;
 use log::debug;
 use rayon::prelude::*;
-use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -22,8 +21,11 @@ use std::sync::{Arc, Mutex};
 use swc_common::BytePos;
 use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 
+mod color;
 mod config;
 mod js;
+mod lexer;
+mod rules;
 
 fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
   App::new("dlint")
@@ -33,10 +35,9 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
       SubCommand::with_name("rules")
         .arg(
           Arg::with_name("RULE_NAME")
-            .help("Show detailed information about rule"),
+            .help("Show detailed information about rule. If omitted, show the list of all rules."),
         )
-        .arg(Arg::with_name("json").long("json"))
-        .arg(Arg::with_name("all").long("all")),
+        .arg(Arg::with_name("json").long("json")),
     )
     .subcommand(
       SubCommand::with_name("run")
@@ -264,97 +265,6 @@ fn determine_syntax(path: &Path) -> Syntax {
   }
 }
 
-#[derive(Clone, Copy, Serialize)]
-struct Rule {
-  code: &'static str,
-  docs: &'static str,
-  tags: &'static [&'static str],
-}
-
-enum RuleTag {
-  Recommended,
-  All,
-}
-
-fn get_rules_by_tag(tag: RuleTag) -> Vec<Rule> {
-  fn to_rule(rule: Box<dyn LintRule>) -> Rule {
-    Rule {
-      code: rule.code(),
-      docs: rule.docs(),
-      tags: rule.tags(),
-    }
-  }
-
-  match tag {
-    RuleTag::Recommended => {
-      get_recommended_rules().into_iter().map(to_rule).collect()
-    }
-    RuleTag::All => get_all_rules().into_iter().map(to_rule).collect(),
-  }
-}
-
-trait RuleFormatter {
-  fn format(rules: &mut [Rule]) -> Result<String, &'static str>;
-}
-
-enum JsonFormatter {}
-enum PrettyFormatter {}
-
-impl RuleFormatter for JsonFormatter {
-  fn format(rules: &mut [Rule]) -> Result<String, &'static str> {
-    if rules.is_empty() {
-      return Err("Rule not found!");
-    }
-    serde_json::to_string_pretty(rules).map_err(|_| "failed to format!")
-  }
-}
-
-impl RuleFormatter for PrettyFormatter {
-  fn format(rules: &mut [Rule]) -> Result<String, &'static str> {
-    if rules.is_empty() {
-      return Err("Rule not found!");
-    }
-
-    if rules.len() == 1 {
-      let rule = &rules[0];
-      let docs = if rule.docs.is_empty() {
-        "documentation not available"
-      } else {
-        rule.docs
-      };
-      return Ok(format!("- {code}\n\n{docs}", code = rule.code, docs = docs));
-    }
-
-    rules.sort_by_key(|r| r.code);
-    let mut list = Vec::with_capacity(1 + rules.len());
-    list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
-    list.extend(rules.iter().map(|r| {
-      let mut s = format!(" - {}", r.code);
-      if r.tags.contains(&"recommended") {
-        s += " ✔️";
-      }
-      s
-    }));
-    Ok(list.join("\n"))
-  }
-}
-
-fn print_rules<F: RuleFormatter>(rules: &mut [Rule]) {
-  match F::format(rules) {
-    Err(e) => {
-      eprintln!("{}", e);
-      std::process::exit(1);
-    }
-    Ok(text) => {
-      println!("{}", text);
-    }
-  }
-}
-
-fn filter_rules(rules: Vec<Rule>, rule_name: &str) -> Vec<Rule> {
-  rules.into_iter().filter(|r| r.code == rule_name).collect()
-}
-
 fn main() -> Result<(), AnyError> {
   env_logger::init();
 
@@ -395,22 +305,15 @@ fn main() -> Result<(), AnyError> {
       )?;
     }
     ("rules", Some(rules_matches)) => {
-      let json = rules_matches.is_present("json");
-      let tag = if rules_matches.is_present("all") {
-        RuleTag::All
+      let rules = if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
+        rules::get_specific_rule_metadata(rule_name)
       } else {
-        RuleTag::Recommended
+        rules::get_all_rules_metadata()
       };
-      let mut rules =
-        if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
-          filter_rules(get_rules_by_tag(tag), rule_name)
-        } else {
-          get_rules_by_tag(tag)
-        };
-      if json {
-        print_rules::<JsonFormatter>(&mut rules);
+      if rules_matches.is_present("json") {
+        rules::print_rules::<rules::JsonFormatter>(rules);
       } else {
-        print_rules::<PrettyFormatter>(&mut rules);
+        rules::print_rules::<rules::PrettyFormatter>(rules);
       }
     }
     _ => unreachable!(),
