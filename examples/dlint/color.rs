@@ -73,7 +73,10 @@ impl Colorize for markdown::Block {
                           ansi_term::Color::Yellow
                             .paint(&line[span])
                             .to_string()
-                        } else if ident == *"async" || ident == *"of" {
+                        } else if matches!(
+                          ident.as_ref(),
+                          "async" | "of" | "enum" | "type" | "interface"
+                        ) {
                           ansi_term::Color::Cyan.paint(&line[span]).to_string()
                         } else {
                           line[span].to_string()
