@@ -56,12 +56,14 @@ which is confusing and error prone.  Specifying them last allows them to be left
 out without changing the semantics of the other parameters.
 
 ### Invalid:
+
 ```typescript
 function f(a = 2, b) {}
 function f(a = 5, b, c = 5) {}
 ```
-    
+
 ### Valid:
+
 ```typescript
 function f() {}
 function f(a) {}
