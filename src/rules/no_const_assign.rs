@@ -56,6 +56,7 @@ impl LintRule for NoConstAssign {
 Modifying a variable declared as `const` will result in a runtime error.
 
 ### Invalid:
+
 ```typescript
 const a = 0;
 a = 1;
@@ -65,6 +66,7 @@ a++;
 ```
 
 ### Valid:
+
 ```typescript
 const a = 0;
 const b = a + 1;
