@@ -56,8 +56,9 @@ impl LintRule for NoDupeClassMembers {
 
 Declaring a function of the same name twice in a class will cause the previous
 declaration(s) to be overwritten, causing unexpected behaviors.
-    
+
 ### Invalid:
+
 ```typescript
 class Foo {
   bar() {}
@@ -66,6 +67,7 @@ class Foo {
 ```
 
 ### Valid:
+
 ```typescript
 class Foo {
   bar() {}
