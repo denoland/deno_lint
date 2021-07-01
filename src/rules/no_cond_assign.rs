@@ -57,12 +57,14 @@ impl LintRule for NoCondAssign {
 Use of the assignment operator within a conditional statement is often the result of mistyping the equality operator, `==`. If an assignment within a conditional statement is required then this rule allows it by wrapping the assignment in parentheses.
 
 ### Invalid:
+
 ```typescript
-var x;
+let x;
 if (x = 0) {
-  var b = 1;
+  let b = 1;
 }
 ```
+
 ```typescript
 function setHeight(someNode) {
   do {
@@ -72,12 +74,14 @@ function setHeight(someNode) {
 ```
 
 ### Valid:
+
 ```typescript
-var x;
+let x;
 if (x === 0) {
-  var b = 1;
+  let b = 1;
 }
 ```
+
 ```typescript
 function setHeight(someNode) {
   do {
