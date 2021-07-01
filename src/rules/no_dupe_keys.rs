@@ -58,29 +58,34 @@ impl LintRule for NoDupeKeys {
 Setting the same key multiple times in an object literal will override other assignments to that key and can cause unexpected behaviour.
 
 ### Invalid:
+
 ```typescript
 const foo = {
   bar: "baz",
-  bar: "qux"
+  bar: "qux",
 };
 ```
+
 ```typescript
 const foo = {
   "bar": "baz",
-  bar: "qux"
+  bar: "qux",
 };
 ```
+
 ```typescript
 const foo = {
   0x1: "baz",
-  1: "qux"
+  1: "qux",
 };
 ```
+
 ### Valid:
+
 ```typescript
-var foo = {
+const foo = {
   bar: "baz",
-  quxx: "qux"
+  quxx: "qux",
 };
 ```"#
   }
