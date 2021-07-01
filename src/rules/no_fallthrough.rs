@@ -62,8 +62,9 @@ an explicit comment that fallthrough was intentional.  The fallthrough comment
 must contain one of `fallthrough`, `falls through` or `fall through`.
 
 ### Invalid:
+
 ```typescript
-switch(myVar) {
+switch (myVar) {
   case 1:
     console.log('1');
 
@@ -74,8 +75,9 @@ switch(myVar) {
 ```
 
 ### Valid:
+
 ```typescript
-switch(myVar) {
+switch (myVar) {
   case 1:
     console.log('1');
     break;
@@ -86,7 +88,7 @@ switch(myVar) {
 }
 // If myVar = 1, outputs only `1`
 
-switch(myVar) {
+switch (myVar) {
   case 1:
     console.log('1');
     /* falls through */
