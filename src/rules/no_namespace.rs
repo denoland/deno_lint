@@ -57,35 +57,31 @@ cases:
 ["ambient" namespaces]: https://www.typescriptlang.org/docs/handbook/namespaces.html#ambient-namespaces
 
 ### Invalid:
+
 ```typescript
 // foo.ts
-
 module mod {}
 namespace ns {}
 ```
 
-```typescript
+```dts
 // bar.d.ts
-
-// all usage of `module` and `namespace` keywords are allowed here
+// all usage of `module` and `namespace` keywords are allowed in `.d.ts`
 ```
 
 ### Valid:
 ```typescript
 // foo.ts
-
 declare global {}
 declare module mod1 {}
 declare module "mod2" {}
 declare namespace ns {}
 ```
 
-```typescript
+```dts
 // bar.d.ts
-
 module mod1 {}
 namespace ns1 {}
-
 declare global {}
 declare module mod2 {}
 declare module "mod3" {}
