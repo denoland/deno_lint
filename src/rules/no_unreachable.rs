@@ -42,6 +42,7 @@ impl LintRule for NoUnreachable {
 Because the control flow statements (`return`, `throw`, `break` and `continue`) unconditionally exit a block of code, any statements after them cannot be executed.
 
 ### Invalid:
+
 ```typescript
 function foo() {
   return true;
@@ -93,7 +94,8 @@ function foo() {
     return 1;
   }
 }
-```"#
+```
+"#
   }
 }
 

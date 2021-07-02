@@ -38,14 +38,15 @@ impl LintRule for NoEmptyPattern {
   }
 
   fn docs(&self) -> &'static str {
-    r#"Disallows the use of empty patterns in destructuring 
+    r#"Disallows the use of empty patterns in destructuring
 
 In destructuring, it is possible to use empty patterns such as `{}` or `[]` which
 have no effect, most likely not what the author intended.
-    
+
 ### Invalid:
+
 ```typescript
-// In these examples below, {} and [] are not object literals or empty arrays, 
+// In these examples below, {} and [] are not object literals or empty arrays,
 // but placeholders for destructured variable names
 const {} = someObj;
 const [] = someArray;
@@ -56,6 +57,7 @@ function myFunc([]) {}
 ```
 
 ### Valid:
+
 ```typescript
 const {a} = someObj;
 const [a] = someArray;

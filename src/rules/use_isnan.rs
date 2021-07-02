@@ -55,32 +55,27 @@ impl LintRule for UseIsNaN {
 
 Because `NaN` is unique in JavaScript by not being equal to anything, including itself, the results of comparisons to `NaN` are confusing:
 
-- `NaN === NaN` or `NaN == NaN` evaluate to false
-- `NaN !== NaN` or `NaN != NaN` evaluate to true
+- `NaN === NaN` or `NaN == NaN` evaluate to `false`
+- `NaN !== NaN` or `NaN != NaN` evaluate to `true`
 
 Therefore, this rule makes you use the `isNaN()` or `Number.isNaN()` to judge the value is `NaN` or not.
 
 ### Invalid:
+
 ```typescript
 if (foo == NaN) {
   // ...
 }
-```
 
-```typescript
 if (foo != NaN) {
   // ...
 }
-```
 
-```typescript
 switch (NaN) {
   case foo:
     // ...
 }
-```
 
-```
 switch (foo) {
   case NaN:
     // ...
@@ -88,17 +83,17 @@ switch (foo) {
 ```
 
 ### Valid:
+
 ```typescript
 if (isNaN(foo)) {
   // ...
 }
-```
 
-```typescript
 if (!isNaN(foo)) {
   // ...
 }
-```"#
+```
+"#
   }
 }
 

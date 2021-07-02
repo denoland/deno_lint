@@ -50,6 +50,7 @@ that label is meant to be used, then write a code so that it will be used.
 Otherwise, remove the label.
 
 ### Invalid:
+
 ```typescript
 LABEL1: while (true) {
   console.log(42);
@@ -65,6 +66,7 @@ LABEL3: for (const x of xs) {
 ```
 
 ### Valid:
+
 ```typescript
 LABEL1: while (true) {
   console.log(42);

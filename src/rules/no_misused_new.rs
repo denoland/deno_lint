@@ -59,12 +59,13 @@ impl LintRule for NoMisusedNew {
   }
 
   fn docs(&self) -> &'static str {
-    r#"Disallows defining constructors for interfaces or new for classes
+    r#"Disallows defining `constructor`s for interfaces or `new` for classes
 
-Specifying a constructor for an interface or defining a `new` method for a class
+Specifying a `constructor` for an interface or defining a `new` method for a class
 is incorrect and should be avoided.
-    
+
 ### Invalid:
+
 ```typescript
 class C {
   new(): C;
@@ -76,6 +77,7 @@ interface I {
 ```
 
 ### Valid:
+
 ```typescript
 class C {
   constructor() {}
@@ -216,12 +218,12 @@ mod tests {
     export class Fnv32a extends Fnv32Base<Fnv32a> {
       write(data: Uint8Array): Fnv32a {
         let hash = this.sum32();
-    
+
         data.forEach((c) => {
           hash ^= c;
           hash = mul32(hash, prime32);
         });
-    
+
         this._updateState(hash);
         return this;
       }

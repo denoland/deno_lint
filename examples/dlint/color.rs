@@ -11,7 +11,7 @@ impl Colorize for markdown::Block {
   fn colorize(self) -> String {
     use markdown::Block::*;
     match self {
-      Header(spans, level) if level == 1 => {
+      Header(spans, 1) => {
         let style = ansi_term::Style::new()
           .bold()
           .underline()
@@ -19,11 +19,19 @@ impl Colorize for markdown::Block {
           .fg(ansi_term::Color::Purple);
         style.paint(spans.colorize()).to_string().linebreak()
       }
-      Header(spans, _level) => {
+      Header(spans, 2 | 3) => {
         let style = ansi_term::Style::new()
           .bold()
           .underline()
           .fg(ansi_term::Color::Purple);
+        style.paint(spans.colorize()).to_string().linebreak()
+      }
+      Header(spans, 4) => {
+        let style = ansi_term::Style::new().bold().fg(ansi_term::Color::Purple);
+        style.paint(spans.colorize()).to_string().linebreak()
+      }
+      Header(spans, _level) => {
+        let style = ansi_term::Style::new().fg(ansi_term::Color::Purple);
         style.paint(spans.colorize()).to_string().linebreak()
       }
       Paragraph(spans) => spans.colorize().linebreak(),
@@ -73,7 +81,10 @@ impl Colorize for markdown::Block {
                           ansi_term::Color::Yellow
                             .paint(&line[span])
                             .to_string()
-                        } else if ident == *"async" || ident == *"of" {
+                        } else if matches!(
+                          ident.as_ref(),
+                          "async" | "of" | "enum" | "type" | "interface"
+                        ) {
                           ansi_term::Color::Cyan.paint(&line[span]).to_string()
                         } else {
                           line[span].to_string()

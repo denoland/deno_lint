@@ -49,13 +49,17 @@ impl LintRule for Camelcase {
 
 Consistency in a code base is key for readability and maintainability.  This rule
 enforces variable declarations and object property names which you create to be
-in camelCase.  Of note:
+in camelCase.
+
+Of note:
+
 * `_` is allowed at the start or end of a variable
 * All uppercase variable names (e.g. constants) may have `_` in their name
 * If you have to use a snake_case key in an object for some reasons, wrap it in quotation mark
 * This rule also applies to variables imported or exported via ES modules, but not to object properties of those variables
-    
+
 ### Invalid:
+
 ```typescript
 let first_name = "Ichigo";
 const obj1 = { last_name: "Hoshimiya" };
@@ -79,6 +83,7 @@ interface snake_case_interface { some_property: number; }
 ```
 
 ### Valid:
+
 ```typescript
 let firstName = "Ichigo";
 const FIRST_NAME = "Ichigo";

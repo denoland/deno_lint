@@ -67,6 +67,7 @@ In general, the primary reason to use async functions is to use await expression
 If an async function has no await expression, it is most likely an unintentional mistake.
 
 ### Invalid:
+
 ```typescript
 async function f1() {
   doSomething();
@@ -92,6 +93,7 @@ class MyClass {
 ```
 
 ### Valid:
+
 ```typescript
 await asyncFunction();
 

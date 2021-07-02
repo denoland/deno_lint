@@ -67,8 +67,9 @@ during code execution will likely result in runtime errors.  It also makes for
 poor code readability and difficult maintenance.
 
 ### Invalid:
+
 ```typescript
-import defaultMod, { namedMod } from './mod.js'; 
+import defaultMod, { namedMod } from './mod.js';
 import * as modNameSpace from './mod2.js';
 
 defaultMod = 0;
@@ -78,8 +79,9 @@ modNameSpace = {};
 ```
 
 ### Valid:
+
 ```typescript
-import defaultMod, { namedMod } from './mod.js'; 
+import defaultMod, { namedMod } from './mod.js';
 import * as modNameSpace from './mod2.js';
 
 // properties of bound imports may be set
