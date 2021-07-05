@@ -56,8 +56,9 @@ impl LintRule for NoFuncAssign {
 Javascript allows for the reassignment of a function definition.  This is
 generally a mistake on the developers part, or poor coding practice as code
 readability and maintainability will suffer.
-    
+
 ### Invalid:
+
 ```typescript
 function foo() {}
 foo = bar;
@@ -71,6 +72,7 @@ function myFunc() {}
 ```
 
 ### Valid:
+
 ```typescript
 function foo() {}
 const someVar = foo;

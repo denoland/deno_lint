@@ -134,7 +134,7 @@ mod tests {
       RequireYield,
       r#"
 function foo() {}
-function* bar() { 
+function* bar() {
   yield "bar";
 }
 function* emptyBar() {}

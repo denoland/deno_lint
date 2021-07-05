@@ -60,10 +60,11 @@ statement, intending only for a single case statement to be executed.  This
 rule enforces that you either end each case statement with a break statement or
 an explicit comment that fallthrough was intentional.  The fallthrough comment
 must contain one of `fallthrough`, `falls through` or `fall through`.
-    
+
 ### Invalid:
+
 ```typescript
-switch(myVar) {
+switch (myVar) {
   case 1:
     console.log('1');
 
@@ -74,8 +75,9 @@ switch(myVar) {
 ```
 
 ### Valid:
+
 ```typescript
-switch(myVar) {
+switch (myVar) {
   case 1:
     console.log('1');
     break;
@@ -86,7 +88,7 @@ switch(myVar) {
 }
 // If myVar = 1, outputs only `1`
 
-switch(myVar) {
+switch (myVar) {
   case 1:
     console.log('1');
     /* falls through */
@@ -149,10 +151,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
       }
 
       let empty = case.cons.is_empty()
-        || match &case.cons[0] {
-          Stmt::Block(b) => b.stmts.is_empty(),
-          _ => false,
-        };
+        || matches!(case.cons.as_slice(), [Stmt::Block(b)] if b.stmts.is_empty());
 
       if case_idx + 1 < cases.len() && empty {
         let span = Span {
@@ -225,6 +224,26 @@ mod tests {
       "switch('test') { case 'symbol':\n case 'function': default: b(); }",
       "switch('test') { case 'symbol':\n case 'function':\n default: b(); }",
       "switch('test') { case 'symbol': case 'function': default: b(); }",
+
+      // https://github.com/denoland/deno_lint/issues/746
+      r#"
+switch(someValue) {
+  case 0: {
+    // nothing to do for this value
+  } break;
+  case 1:
+    break;
+}
+      "#,
+      r#"
+switch(someValue) {
+  case 0: {
+    // nothing to do for this value
+  } break;
+  default:
+    console.log(42);
+}
+      "#,
     };
   }
 

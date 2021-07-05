@@ -6,16 +6,16 @@ use crate::ast_parser::SwcDiagnosticBuffer;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
-use crate::ignore_directives::parse_ignore_comment;
-use crate::ignore_directives::parse_ignore_directives;
-use crate::rules::{get_all_rules, LintRule};
+use crate::ignore_directives::{
+  parse_file_ignore_directives, parse_line_ignore_directives,
+};
+use crate::rules::LintRule;
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{self as AstView, RootNode};
+use dprint_swc_ecma_ast_view::{self as AstView};
 use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedComments;
 use swc_common::SourceMap;
-use swc_common::Spanned;
 use swc_common::SyntaxContext;
 use swc_ecmascript::parser::token::TokenAndSpan;
 use swc_ecmascript::parser::Syntax;
@@ -199,60 +199,13 @@ impl Linter {
   fn filter_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
-    let (executed_rule_codes, available_rule_codes) = {
-      let mut executed = context.plugin_codes().clone();
-      // builtin executed rules
-      executed.extend(self.rules.iter().map(|r| r.code().to_string()));
-
-      let mut available = context.plugin_codes().clone();
-      // builtin all available rules
-      available.extend(get_all_rules().iter().map(|r| r.code().to_string()));
-
-      (executed, available)
-    };
-
-    let mut ignore_directives = std::mem::take(context.ignore_directives_mut());
-
-    let mut filtered_diagnostics: Vec<LintDiagnostic> = context
-      .diagnostics()
-      .iter()
-      .cloned()
-      .filter(|diagnostic| {
-        !ignore_directives.iter_mut().any(|ignore_directive| {
-          ignore_directive.maybe_ignore_diagnostic(&diagnostic)
-        })
-      })
-      .collect();
-
-    if self.lint_unused_ignore_directives || self.lint_unknown_rules {
-      for ignore_directive in ignore_directives.iter() {
-        for (code, used) in ignore_directive.used_codes().iter() {
-          if self.lint_unused_ignore_directives
-            && !used
-            && executed_rule_codes.contains(code)
-          {
-            let diagnostic = context.create_diagnostic(
-              ignore_directive.span(),
-              "ban-unused-ignore",
-              format!("Ignore for code \"{}\" was not used.", code),
-              None,
-            );
-            filtered_diagnostics.push(diagnostic);
-          }
-
-          if self.lint_unknown_rules && !available_rule_codes.contains(code) {
-            let diagnostic = context.create_diagnostic(
-              ignore_directive.span(),
-              "ban-unknown-rule-code",
-              format!("Unknown rule for code \"{}\"", code),
-              None,
-            );
-            filtered_diagnostics.push(diagnostic);
-          }
-        }
-      }
+    let mut filtered_diagnostics = context.check_ignore_directive_usage();
+    if self.lint_unused_ignore_directives {
+      filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
     }
-
+    if self.lint_unknown_rules {
+      filtered_diagnostics.extend(context.ban_unknown_rule_code());
+    }
     filtered_diagnostics.sort_by_key(|d| d.range.start.line);
 
     let end = Instant::now();
@@ -270,28 +223,7 @@ impl Linter {
     source_file: &SourceFile,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let file_ignore_directive =
-      comments.with_leading(program.span().lo(), |c| {
-        c.iter().find_map(|comment| {
-          parse_ignore_comment(
-            &self.ignore_file_directive,
-            &*self.ast_parser.source_map,
-            comment,
-            true,
-          )
-        })
-      });
 
-    // If there's a file ignore directive that has no codes specified we must ignore
-    // whole file and skip linting it.
-    if matches!(
-      &file_ignore_directive,
-      Some(ignore_directive) if ignore_directive.codes().is_empty()
-    ) {
-      return vec![];
-    }
-
-    let scope = Scope::analyze(&program);
     let control_flow = ControlFlow::analyze(&program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {
@@ -306,23 +238,33 @@ impl Linter {
     };
 
     let diagnostics = AstView::with_ast_view(program_info, |pg| {
-      let mut ignore_directives =
-        if let Some(file_ignore) = file_ignore_directive {
-          vec![file_ignore]
-        } else {
-          vec![]
-        };
-      ignore_directives.extend(parse_ignore_directives(
+      let file_ignore_directive = parse_file_ignore_directives(
+        &self.ignore_file_directive,
+        &*self.ast_parser.source_map,
+        pg,
+      );
+
+      // If a global ignore directive that has no codes specified exists, we must skip linting on
+      // this file.
+      if matches!(file_ignore_directive, Some(ref file_ignore) if file_ignore.ignore_all())
+      {
+        return vec![];
+      }
+
+      let line_ignore_directives = parse_line_ignore_directives(
         &self.ignore_diagnostic_directive,
         &self.ast_parser.source_map,
-        pg.comments().unwrap().all_comments(),
-      ));
+        pg,
+      );
+
+      let scope = Scope::analyze(pg);
 
       let mut context = Context::new(
         file_name,
         Rc::clone(&self.ast_parser.source_map),
         pg,
-        ignore_directives,
+        file_ignore_directive,
+        line_ignore_directives,
         scope,
         control_flow,
         top_level_ctxt,

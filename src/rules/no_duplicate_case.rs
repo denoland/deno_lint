@@ -54,16 +54,17 @@ impl LintRule for NoDuplicateCase {
 
 When you reuse a case test expression in a `switch` statement, the duplicate case will
 never be reached meaning this is almost always a bug.
-    
+
 ### Invalid:
+
 ```typescript
 const someText = "a";
 switch (someText) {
-  case "a":
+  case "a": // (1)
     break;
   case "b":
     break;
-  case "a": // duplicate test expression
+  case "a": // duplicate of (1)
     break;
   default:
     break;
@@ -71,6 +72,7 @@ switch (someText) {
 ```
 
 ### Valid:
+
 ```typescript
 const someText = "a";
 switch (someText) {

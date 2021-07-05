@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use crate::swc_util::StringRepr;
 use swc_common::Spanned;
 use swc_ecmascript::ast::BinExpr;
 use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecmascript::ast::Expr::{Lit, Unary};
+use swc_ecmascript::ast::Expr::{Lit, Tpl, Unary};
 use swc_ecmascript::ast::Lit::Str;
 use swc_ecmascript::ast::UnaryOp::TypeOf;
 use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
@@ -26,11 +27,7 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program<'view>(
-    &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  ) {
+  fn lint_program(&self, context: &mut Context, program: ProgramRef) {
     let mut visitor = ValidTypeofVisitor::new(context);
     match program {
       ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
@@ -42,6 +39,7 @@ impl LintRule for ValidTypeof {
     r#"Restricts the use of the `typeof` operator to a specific set of string literals.
 
 When used with a value the `typeof` operator returns one of the following strings:
+
 - `"undefined"`
 - `"object"`
 - `"boolean"`
@@ -54,44 +52,30 @@ When used with a value the `typeof` operator returns one of the following string
 This rule disallows comparison with anything other than one of these string literals when using the `typeof` operator, as this likely represents a typing mistake in the string. The rule also disallows comparing the result of a `typeof` operation with any non-string literal value, such as `undefined`, which can represent an inadvertent use of a keyword instead of a string. This includes comparing against string variables even if they contain one of the above values as this cannot be guaranteed. An exception to this is comparing the results of two `typeof` operations as these are both guaranteed to return on of the above strings.
 
 ### Invalid:
+
 ```typescript
-typeof foo === "strnig"
-```
-```typescript
-typeof foo == "undefimed"
-```
-```typescript
-typeof bar != "nunber"
-```
-```typescript
-typeof bar !== "fucntion"
-```
-```typescript
-typeof foo === undefined
-```
-```typescript
-typeof bar == Object
-```
-```typescript
-typeof baz === anotherVariable
-```
-```typescript
-typeof foo == 5
+// typo
+typeof foo === "strnig";
+typeof foo == "undefimed";
+typeof bar != "nunber";
+typeof bar !== "fucntion";
+
+// compare with non-string literals
+typeof foo === undefined;
+typeof bar == Object;
+typeof baz === anotherVariable;
+typeof foo == 5;
 ```
 
 ### Valid:
+
 ```typescript
-typeof foo === "undefined"
+typeof foo === "undefined";
+typeof bar == "object";
+typeof baz === "string";
+typeof bar === typeof qux;
 ```
-```typescript
-typeof bar == "object"
-```
-```typescript
-typeof baz === "string"
-```
-```typescript
-typeof bar === typeof qux
-```"#
+"#
   }
 }
 
@@ -122,6 +106,14 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
           Lit(Str(str)) => {
             if !is_valid_typeof_string(&str.value) {
               self.context.add_diagnostic(str.span, CODE, MESSAGE);
+            }
+          }
+          Tpl(tpl) => {
+            if tpl
+              .string_repr()
+              .map_or(false, |s| !is_valid_typeof_string(&s))
+            {
+              self.context.add_diagnostic(tpl.span, CODE, MESSAGE);
             }
           }
           _ => {
@@ -166,11 +158,35 @@ mod tests {
   fn valid_typeof_valid() {
     assert_lint_ok! {
       ValidTypeof,
-      r#"
-typeof foo === "string"
-typeof bar == "undefined"
-      "#,
-      r#"typeof bar === typeof qux"#,
+      r#"typeof foo === "undefined""#,
+      r#"typeof foo === "object""#,
+      r#"typeof foo === "boolean""#,
+      r#"typeof foo === "number""#,
+      r#"typeof foo === "string""#,
+      r#"typeof foo === "function""#,
+      r#"typeof foo === "symbol""#,
+      r#"typeof foo === "bigint""#,
+
+      r#"typeof foo == 'undefined'"#,
+      r#"typeof foo == 'object'"#,
+      r#"typeof foo == 'boolean'"#,
+      r#"typeof foo == 'number'"#,
+      r#"typeof foo == 'string'"#,
+      r#"typeof foo == 'function'"#,
+      r#"typeof foo == 'symbol'"#,
+      r#"typeof foo == 'bigint'"#,
+
+      // https://github.com/denoland/deno_lint/issues/741
+      r#"typeof foo !== `undefined`"#,
+      r#"typeof foo !== `object`"#,
+      r#"typeof foo !== `boolean`"#,
+      r#"typeof foo !== `number`"#,
+      r#"typeof foo !== `string`"#,
+      r#"typeof foo !== `function`"#,
+      r#"typeof foo !== `symbol`"#,
+      r#"typeof foo !== `bigint`"#,
+
+      r#"typeof bar != typeof qux"#,
     };
   }
 

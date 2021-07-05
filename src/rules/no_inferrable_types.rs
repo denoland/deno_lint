@@ -53,12 +53,13 @@ impl LintRule for NoInferrableTypes {
   fn docs(&self) -> &'static str {
     r#"Disallows easily inferrable types
 
-Variable initializations to javascript primitives (and null) are obvious
+Variable initializations to JavaScript primitives (and `null`) are obvious
 in their type.  Specifying their type can add additional verbosity to the code.
 For example, with `const x: number = 5`, specifying `number` is unnecessary as
 it is obvious that `5` is a number.
-    
+
 ### Invalid:
+
 ```typescript
 const a: bigint = 10n;
 const b: bigint = BigInt(10);
@@ -87,6 +88,7 @@ function fn(s: number = 5, t: boolean = true) {}
 ```
 
 ### Valid:
+
 ```typescript
 const a = 10n;
 const b = BigInt(10);

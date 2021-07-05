@@ -48,7 +48,7 @@ impl LintRule for NoUnsafeNegation {
 relational operators.
 
 `!` operators appearing in the left operand of the following operators will
-sometimes cause an unexpected behavior because of the operator precedence: 
+sometimes cause an unexpected behavior because of the operator precedence:
 
 - `in` operator
 - `instanceof` operator
@@ -59,12 +59,14 @@ behaves like `(!key) in someObject`.
 This lint rule warns such usage of `!` operator so it will be less confusing.
 
 ### Invalid:
+
 ```typescript
 if (!key in object) {}
 if (!foo instanceof Foo) {}
 ```
 
 ### Valid:
+
 ```typescript
 if (!(key in object)) {}
 if (!(foo instanceof Foo)) {}

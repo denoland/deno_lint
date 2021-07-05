@@ -40,47 +40,37 @@ impl LintRule for NoEmpty {
 Empty block statements are legal but often represent that something was missed and can make code less readable. This rule ignores block statements that only contain comments. This rule also ignores empty constructors and function bodies (including arrow functions), which are covered by the `no-empty-function` rule.
 
 ### Invalid:
+
 ```typescript
-if (foo) {
-}
-```
-```typescript
-while (foo) {
-}
-```
-```typescript
-switch(foo) {
-}
-```
-```typescript
+if (foo) {}
+
+while (foo) {}
+
+switch(foo) {}
+
 try {
   doSomething();
-} catch(ex) {
-
-} finally {
-
-}
+} catch(e) {}
+finally {}
 ```
 
 ### Valid:
+
 ```typescript
 if (foo) {
   // empty
 }
-```
-```typescript
+
 while (foo) {
   /* empty */
 }
-```
-```typescript
+
 try {
   doSomething();
-} catch (ex) {
+} catch (e) {
   // continue regardless of error
 }
-```
-```typescript
+
 try {
   doSomething();
 } finally {

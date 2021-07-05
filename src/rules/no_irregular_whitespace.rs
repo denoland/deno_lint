@@ -108,11 +108,12 @@ impl LintRule for NoIrregularWhitespace {
     r#"Disallows the use of non-space or non-tab whitespace characters
 
 Non-space or non-tab whitespace characters can be very difficult to spot in your
-code as editors will often render them invisibly.  These invisible characters can 
+code as editors will often render them invisibly.  These invisible characters can
 cause issues or unexpected behaviors.  Sometimes these characters are added
 inadvertently through copy/paste or incorrect keyboard shortcuts.
 
 The following characters are disallowed:
+
 ```
 \u000B - Line Tabulation (\v) - <VT>
 \u000C - Form Feed (\f) - <FF>

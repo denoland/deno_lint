@@ -41,7 +41,7 @@ impl LintRule for NoAsyncPromiseExecutor {
   fn docs(&self) -> &'static str {
     r#"Requires that async promise executor functions are not used
 
-Promise constructors take an executor function as an argument with `resolve` and 
+Promise constructors take an executor function as an argument with `resolve` and
 `reject` parameters that can be used to control the state of the created Promise.
 This function is allowed to be async but this is generally not a good idea for
 several reasons:
@@ -55,12 +55,14 @@ Promise constructor can be reduced, extracting the async code and changing it to
 be synchronous.
 
 ### Invalid:
+
 ```typescript
 new Promise(async function(resolve, reject) {});
 new Promise(async (resolve, reject) => {});
 ```
-    
+
 ### Valid:
+
 ```typescript
 new Promise(function(resolve, reject) {});
 new Promise((resolve, reject) => {});
