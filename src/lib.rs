@@ -245,8 +245,13 @@ const _foo = 42;
       src, false, true, // enables `ban-unused-ignore`
     );
 
-    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics.len(), 2);
+
+    // Both `no-explicit-any` and `ban-unused-ignore` are considered "unused"
+    // ignore directives in this case. Remember that `ban-unused-ignore`, if
+    // it's ignored at a line level, doesn't have any effect.
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 2, 0, src);
+    assert_diagnostic(&diagnostics[1], "ban-unused-ignore", 2, 0, src);
   }
 
   #[test]

@@ -8,6 +8,7 @@ pub mod ban_types;
 pub mod ban_unknown_rule_code;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
+pub mod ban_unused_ignore;
 pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
@@ -148,6 +149,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     ban_unknown_rule_code::BanUnknownRuleCode::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
+    ban_unused_ignore::BanUnusedIgnore::new(),
     camelcase::Camelcase::new(),
     constructor_super::ConstructorSuper::new(),
     default_param_last::DefaultParamLast::new(),
