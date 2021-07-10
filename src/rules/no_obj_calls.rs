@@ -93,14 +93,14 @@ impl<'c, 'view> NoObjCallsVisitor<'c, 'view> {
   }
 
   fn check_callee(&mut self, callee: &Ident, span: Span) {
-    if matches!(callee.sym.as_ref(), "Math" | "JSON" | "Reflect" | "Atomics") {
-      if self.context.scope().var(&callee.to_id()).is_none() {
-        self.context.add_diagnostic(
-          span,
-          "no-obj-calls",
-          get_message(callee.sym.as_ref()),
-        );
-      }
+    if matches!(callee.sym.as_ref(), "Math" | "JSON" | "Reflect" | "Atomics")
+      && self.context.scope().var(&callee.to_id()).is_none()
+    {
+      self.context.add_diagnostic(
+        span,
+        "no-obj-calls",
+        get_message(callee.sym.as_ref()),
+      );
     }
   }
 }
