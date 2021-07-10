@@ -1,6 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use if_chain::if_chain;
 use swc_ecmascript::ast::{Expr, NewExpr};
+use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::{VisitAll, VisitAllWith};
@@ -76,8 +78,11 @@ impl<'c, 'view> VisitAll for NoNewSymbolVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
-    if let Expr::Ident(ident) = &*new_expr.callee {
-      if ident.sym == *"Symbol" {
+    if_chain! {
+      if let Expr::Ident(ident) = &*new_expr.callee;
+      if ident.sym == *"Symbol";
+      if self.context.scope().var(&ident.to_id()).is_none();
+      then {
         self.context.add_diagnostic(new_expr.span, CODE, MESSAGE);
       }
     }
@@ -94,6 +99,12 @@ mod tests {
       NoNewSymbol,
       "new Class()",
       "Symbol()",
+      // not a built-in Symbol
+      r#"
+function f(Symbol: typeof SomeClass) {
+  const foo = new Symbol();
+}
+      "#,
     };
   }
 
