@@ -5,6 +5,7 @@ use dprint_swc_ecma_ast_view::Program as ProgramView;
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
 pub mod ban_types;
+pub mod ban_unknown_rule_code;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
 pub mod camelcase;
@@ -144,6 +145,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
     ban_types::BanTypes::new(),
+    ban_unknown_rule_code::BanUnknownRuleCode::new(),
     ban_untagged_ignore::BanUntaggedIgnore::new(),
     ban_untagged_todo::BanUntaggedTodo::new(),
     camelcase::Camelcase::new(),
