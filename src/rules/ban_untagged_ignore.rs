@@ -76,27 +76,23 @@ mod tests {
   use super::*;
 
   #[test]
-  fn ban_ts_ignore_valid() {
+  fn ban_untagged_ignore_valid() {
     assert_lint_ok! {
       BanUntaggedIgnore,
       r#"
-// deno-lint-ignore some-code some-code-2
-function bar() {
-  // pass
-}
+// deno-lint-ignore no-explicit-any
+export const foo: any = 42;
     "#,
     };
   }
 
   #[test]
-  fn ban_ts_ignore_invalid() {
+  fn ban_untagged_ignore_invalid() {
     assert_lint_err! {
       BanUntaggedIgnore,
       r#"
 // deno-lint-ignore
-function foo() {
-  // pass
-}
+export const foo: any = 42;
       "#: [
         {
           line: 2,
