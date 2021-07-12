@@ -9,7 +9,7 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 const BANNED_PROPERTIES: &[&str] =
-  &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumberable"];
+  &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
 
 pub struct NoPrototypeBuiltins;
 
@@ -99,19 +99,19 @@ mod tests {
       r#"
   Object.prototype.hasOwnProperty.call(foo, "bar");
   Object.prototype.isPrototypeOf.call(foo, "bar");
-  Object.prototype.propertyIsEnumberable.call(foo, "bar");
+  Object.prototype.propertyIsEnumerable.call(foo, "bar");
   Object.prototype.hasOwnProperty.apply(foo, ["bar"]);
   Object.prototype.isPrototypeOf.apply(foo, ["bar"]);
-  Object.prototype.propertyIsEnumberable.apply(foo, ["bar"]);
+  Object.prototype.propertyIsEnumerable.apply(foo, ["bar"]);
   hasOwnProperty(foo, "bar");
   isPrototypeOf(foo, "bar");
-  propertyIsEnumberable(foo, "bar");
+  propertyIsEnumerable(foo, "bar");
   ({}.hasOwnProperty.call(foo, "bar"));
   ({}.isPrototypeOf.call(foo, "bar"));
-  ({}.propertyIsEnumberable.call(foo, "bar"));
+  ({}.propertyIsEnumerable.call(foo, "bar"));
   ({}.hasOwnProperty.apply(foo, ["bar"]));
   ({}.isPrototypeOf.apply(foo, ["bar"]));
-  ({}.propertyIsEnumberable.apply(foo, ["bar"]));
+  ({}.propertyIsEnumerable.apply(foo, ["bar"]));
       "#,
     };
   }
@@ -122,7 +122,7 @@ mod tests {
       NoPrototypeBuiltins,
       "foo.hasOwnProperty('bar');": [{col: 0, message: get_message("hasOwnProperty")}],
       "foo.isPrototypeOf('bar');": [{col: 0, message: get_message("isPrototypeOf")}],
-      "foo.propertyIsEnumberable('bar');": [{col: 0, message: get_message("propertyIsEnumberable")}],
+      "foo.propertyIsEnumerable('bar');": [{col: 0, message: get_message("propertyIsEnumerable")}],
       "foo.bar.baz.hasOwnProperty('bar');": [{col: 0, message: get_message("hasOwnProperty")}],
     }
   }
