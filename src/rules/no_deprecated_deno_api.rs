@@ -333,7 +333,7 @@ mod tests {
       r#"const Deno = 42; Deno["writeAllSync"](writer, data);"#,
       r#"const Deno = 42; for await (const x of Deno["iter"](xs)) {}"#,
       r#"const Deno = 42; for (const x of Deno["iterSync"](xs)) {}"#,
-      r#"const Deno = 42; Deno["Copy"](reader, writer);#,
+      r#"const Deno = 42; Deno["copy"](reader, writer);"#,
       r#"const Deno = 42; Deno["customInspect"]"#,
 
       // access property with template literal (shadowed)
