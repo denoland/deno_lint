@@ -234,8 +234,6 @@ fn lint(
   filename: &str,
 ) -> Vec<LintDiagnostic> {
   let linter = LinterBuilder::default()
-    .lint_unused_ignore_directives(false)
-    .lint_unknown_rules(false)
     .syntax(if filename.ends_with(".tsx") {
       get_ts_config_with_tsx()
     } else {
