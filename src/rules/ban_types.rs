@@ -20,6 +20,7 @@ enum BannedType {
   Function,
   CapitalObject,
   LowerObject,
+  EmptyObjectLiteral,
 }
 
 impl BannedType {
@@ -30,6 +31,7 @@ impl BannedType {
       Function => "This provides no type safety because it represents all functions and classes",
       CapitalObject => "This type may be different from what you expect it to be",
       LowerObject => "This type is tricky to use so should be avoided if possible",
+      EmptyObjectLiteral => "`{}` doesn't mean an empty object, but means any types other than `null` and `undefined`",
     }
   }
 
@@ -45,6 +47,9 @@ impl BannedType {
         r#"If you want a type meaning "any object", use `Record<string, unknown>` instead. Or if you want a type meaning "any value", you probably want `unknown` instead."#
       }
       LowerObject => "Use `Record<string, unknown>` instead",
+      EmptyObjectLiteral => {
+        r#"If you want a type that means "empty object", use `Record<string, never>` instead"#
+      }
     }
   }
 }
@@ -61,6 +66,7 @@ impl TryFrom<&str> for BannedType {
       "Function" => Ok(Self::Function),
       "Object" => Ok(Self::CapitalObject),
       "object" => Ok(Self::LowerObject),
+      "{}" => Ok(Self::EmptyObjectLiteral),
       _ => Err(()),
     }
   }
@@ -108,8 +114,10 @@ With `Function`, it is better to explicitly define the entire function
 signature rather than use the non-specific `Function` type which won't give you
 type safety with the function.
 
-Finally, `Object` means "any non-nullish value" rather than "any object type".
-`Record<string, unknown>` is a good choice for a meaning of "any object type".
+Finally, `Object` and `{}` means "any non-nullish value" rather than "any object
+type". `Record<string, unknown>` is a good choice for a meaning of "any object
+type". On the other hand `object` type means "any object type", but using
+`Record<string, unknown>` is much more preferable in this case too.
 
 ### Invalid:
 ```typescript
@@ -131,6 +139,7 @@ let c: number;
 let d: symbol;
 let e: () => number;
 let f: Record<string, unknown>;
+let g = Record<string, never>;
 ```
 "#
   }
@@ -167,8 +176,8 @@ impl Handler for BanTypesHandler {
       ctx.add_diagnostic_with_hint(
         ts_type_lit.span(),
         CODE,
-        BannedType::CapitalObject.as_message(),
-        BannedType::CapitalObject.as_hint(),
+        BannedType::EmptyObjectLiteral.as_message(),
+        BannedType::EmptyObjectLiteral.as_hint(),
       );
     }
   }
@@ -256,8 +265,8 @@ mod tests {
       "let a: {};": [
         {
           col: 7,
-          message: message("Object"),
-          hint: hint("Object"),
+          message: message("{}"),
+          hint: hint("{}"),
         }
       ],
       "let a: { b: String };": [
