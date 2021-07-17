@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 use swc_common::Spanned;
 
@@ -74,7 +74,11 @@ async function doSomething(items) {
 struct NoAwaitInLoopHandler;
 
 impl Handler for NoAwaitInLoopHandler {
-  fn await_expr(&mut self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
+  fn await_expr(
+    &mut self,
+    await_expr: &AstView::AwaitExpr,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     fn inside_loop(
       await_expr: &AstView::AwaitExpr,
       node: AstView::Node,
@@ -118,6 +122,8 @@ impl Handler for NoAwaitInLoopHandler {
     if inside_loop(await_expr, await_expr.as_node()) {
       ctx.add_diagnostic_with_hint(await_expr.span(), CODE, MESSAGE, HINT);
     }
+
+    TraverseFlow::Continue
   }
 }
 

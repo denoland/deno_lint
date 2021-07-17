@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use derive_more::Display;
 use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
@@ -80,7 +80,11 @@ if ((!foo) instanceof Foo) {}
 struct NoUnsafeNegationHandler;
 
 impl Handler for NoUnsafeNegationHandler {
-  fn bin_expr(&mut self, bin_expr: &AstView::BinExpr, ctx: &mut Context) {
+  fn bin_expr(
+    &mut self,
+    bin_expr: &AstView::BinExpr,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     use AstView::{BinaryOp, Expr, UnaryOp};
     if_chain! {
       if matches!(bin_expr.op(), BinaryOp::In | BinaryOp::InstanceOf);
@@ -95,6 +99,8 @@ impl Handler for NoUnsafeNegationHandler {
         );
       }
     }
+
+    TraverseFlow::Continue
   }
 }
 

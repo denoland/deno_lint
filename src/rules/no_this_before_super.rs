@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Span, Spanned};
 
 pub struct NoThisBeforeSuper;
@@ -83,9 +83,13 @@ impl Handler for NoThisBeforeSuperHandler {
     }
   }
 
-  fn constructor(&mut self, cons: &AstView::Constructor, ctx: &mut Context) {
+  fn constructor(
+    &mut self,
+    cons: &AstView::Constructor,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     if !self.inside_derived_class() {
-      return;
+      return TraverseFlow::Continue;
     }
 
     if let Some(body) = cons.body {
@@ -102,6 +106,8 @@ impl Handler for NoThisBeforeSuperHandler {
         }
       }
     }
+
+    TraverseFlow::Continue
   }
 }
 
@@ -154,29 +160,45 @@ impl SuperCallChecker {
 }
 
 impl Handler for SuperCallChecker {
-  fn this_expr(&mut self, this_expr: &AstView::ThisExpr, _ctx: &mut Context) {
+  fn this_expr(
+    &mut self,
+    this_expr: &AstView::ThisExpr,
+    _ctx: &mut Context,
+  ) -> TraverseFlow {
     if self.node_is_inside_function(this_expr.as_node()) {
-      return;
+      return TraverseFlow::Continue;
     }
 
     if self.yet_appeared() {
       self.first_appeared = Some(FirstAppeared::ThisAccessed(this_expr.span()));
     }
+
+    TraverseFlow::Continue
   }
 
-  fn super_(&mut self, super_: &AstView::Super, _ctx: &mut Context) {
+  fn super_(
+    &mut self,
+    super_: &AstView::Super,
+    _ctx: &mut Context,
+  ) -> TraverseFlow {
     if self.node_is_inside_function(super_.as_node()) {
-      return;
+      return TraverseFlow::Continue;
     }
 
     if self.yet_appeared() {
       self.first_appeared = Some(FirstAppeared::SuperAccessed(super_.span()));
     }
+
+    TraverseFlow::Continue
   }
 
-  fn call_expr(&mut self, call_expr: &AstView::CallExpr, ctx: &mut Context) {
+  fn call_expr(
+    &mut self,
+    call_expr: &AstView::CallExpr,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     if self.node_is_inside_function(call_expr.as_node()) {
-      return;
+      return TraverseFlow::Continue;
     }
 
     // arguments are evaluated before the callee
@@ -189,6 +211,8 @@ impl Handler for SuperCallChecker {
     {
       self.first_appeared = Some(FirstAppeared::SuperCalled);
     }
+
+    TraverseFlow::Continue
   }
 }
 

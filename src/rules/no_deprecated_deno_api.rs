@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
@@ -260,10 +260,10 @@ impl Handler for NoDeprecatedDenoApiHandler {
     &mut self,
     member_expr: &AstView::MemberExpr,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     // Not check chained member expressions (e.g. `foo.bar.baz`)
     if member_expr.parent().is::<AstView::MemberExpr>() {
-      return;
+      return TraverseFlow::Continue;
     }
 
     use AstView::{Expr, ExprOrSuper};
@@ -282,6 +282,8 @@ impl Handler for NoDeprecatedDenoApiHandler {
         );
       }
     }
+
+    TraverseFlow::Continue
   }
 }
 

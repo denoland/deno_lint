@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use crate::swc_util::StringRepr;
 use derive_more::Display;
 use dprint_swc_ecma_ast_view::{self as AstView, Spanned};
@@ -122,40 +122,58 @@ export function bar(): void {}
 struct AdjacentOverloadSignaturesHandler;
 
 impl Handler for AdjacentOverloadSignaturesHandler {
-  fn script(&mut self, script: &AstView::Script, ctx: &mut Context) {
+  fn script(
+    &mut self,
+    script: &AstView::Script,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     check(&script.body, ctx);
+    TraverseFlow::Continue
   }
 
-  fn module(&mut self, module: &AstView::Module, ctx: &mut Context) {
+  fn module(
+    &mut self,
+    module: &AstView::Module,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     check(&module.body, ctx);
+    TraverseFlow::Continue
   }
 
   fn ts_module_block(
     &mut self,
     ts_module_block: &AstView::TsModuleBlock,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     check(&ts_module_block.body, ctx);
+    TraverseFlow::Continue
   }
 
-  fn class(&mut self, class: &AstView::Class, ctx: &mut Context) {
+  fn class(
+    &mut self,
+    class: &AstView::Class,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     check(&class.body, ctx);
+    TraverseFlow::Continue
   }
 
   fn ts_type_lit(
     &mut self,
     ts_type_lit: &AstView::TsTypeLit,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     check(&ts_type_lit.members, ctx);
+    TraverseFlow::Continue
   }
 
   fn ts_interface_body(
     &mut self,
     ts_interface_body: &AstView::TsInterfaceBody,
     ctx: &mut Context,
-  ) {
+  ) -> TraverseFlow {
     check(&ts_interface_body.body, ctx);
+    TraverseFlow::Continue
   }
 }
 
