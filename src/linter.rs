@@ -25,8 +25,6 @@ pub use swc_common::SourceFile;
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  lint_unused_ignore_directives: bool,
-  lint_unknown_rules: bool,
   syntax: swc_ecmascript::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
   plugins: Vec<Box<dyn Plugin>>,
@@ -37,8 +35,6 @@ impl LinterBuilder {
     Self {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
-      lint_unused_ignore_directives: true,
-      lint_unknown_rules: true,
       syntax: get_default_ts_config(),
       rules: vec![],
       plugins: vec![],
@@ -49,8 +45,6 @@ impl LinterBuilder {
     Linter::new(
       self.ignore_file_directive,
       self.ignore_diagnostic_directive,
-      self.lint_unused_ignore_directives,
-      self.lint_unknown_rules,
       self.syntax,
       self.rules,
       self.plugins,
@@ -64,19 +58,6 @@ impl LinterBuilder {
 
   pub fn ignore_diagnostic_directive(mut self, directive: &str) -> Self {
     self.ignore_diagnostic_directive = directive.to_owned();
-    self
-  }
-
-  pub fn lint_unused_ignore_directives(
-    mut self,
-    lint_unused_ignore_directives: bool,
-  ) -> Self {
-    self.lint_unused_ignore_directives = lint_unused_ignore_directives;
-    self
-  }
-
-  pub fn lint_unknown_rules(mut self, lint_unknown_rules: bool) -> Self {
-    self.lint_unknown_rules = lint_unknown_rules;
     self
   }
 
@@ -100,8 +81,6 @@ pub struct Linter {
   ast_parser: AstParser,
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  lint_unused_ignore_directives: bool,
-  lint_unknown_rules: bool,
   syntax: Syntax,
   rules: Vec<Box<dyn LintRule>>,
   plugins: Vec<Box<dyn Plugin>>,
@@ -111,8 +90,6 @@ impl Linter {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    lint_unused_ignore_directives: bool,
-    lint_unknown_rules: bool,
     syntax: Syntax,
     rules: Vec<Box<dyn LintRule>>,
     plugins: Vec<Box<dyn Plugin>>,
@@ -121,8 +98,6 @@ impl Linter {
       ast_parser: AstParser::new(),
       ignore_file_directive,
       ignore_diagnostic_directive,
-      lint_unused_ignore_directives,
-      lint_unknown_rules,
       syntax,
       rules,
       plugins,
@@ -200,12 +175,10 @@ impl Linter {
     let start = Instant::now();
 
     let mut filtered_diagnostics = context.check_ignore_directive_usage();
-    if self.lint_unused_ignore_directives {
-      filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
-    }
-    if self.lint_unknown_rules {
-      filtered_diagnostics.extend(context.ban_unknown_rule_code());
-    }
+    // Run `ban-unused-ignore`
+    filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
+    // Run `ban-unknown-rule-code`
+    filtered_diagnostics.extend(context.ban_unknown_rule_code());
     filtered_diagnostics.sort_by_key(|d| d.range.start.line);
 
     let end = Instant::now();

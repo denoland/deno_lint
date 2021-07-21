@@ -150,6 +150,9 @@ impl<'view> Context<'view> {
     filtered
   }
 
+  /// Lint rule implementation for `ban-unused-ignore`.
+  /// This should be run after all normal rules have been finished because this
+  /// works for diagnostics reported by other rules.
   pub(crate) fn ban_unused_ignore(
     &self,
     specified_rules: &[Box<dyn LintRule>],
@@ -211,6 +214,10 @@ impl<'view> Context<'view> {
     diagnostics
   }
 
+  /// Lint rule implementation for `ban-unknown-rule-code`.
+  /// This should be run after all normal rules have been finished because
+  /// currently we collect the rule codes of plugins as they are run and thus
+  /// there's no way of knowing what are the "known" rule codes beforehand.
   pub(crate) fn ban_unknown_rule_code(&self) -> Vec<LintDiagnostic> {
     let builtin_all_rule_codes: HashSet<&'static str> =
       get_all_rules().into_iter().map(|r| r.code()).collect();

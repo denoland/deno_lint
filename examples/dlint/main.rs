@@ -189,9 +189,7 @@ fn run_linter(
 
       let mut linter_builder = LinterBuilder::default()
         .rules(rules)
-        .syntax(determine_syntax(file_path))
-        .lint_unknown_rules(true)
-        .lint_unused_ignore_directives(true);
+        .syntax(determine_syntax(file_path));
 
       for plugin_path in &plugin_paths {
         let js_runner = js::JsRuleRunner::new(plugin_path);
