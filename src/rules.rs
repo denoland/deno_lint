@@ -83,6 +83,7 @@ pub mod no_with;
 pub mod prefer_as_const;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
+pub mod prefer_primordials;
 pub mod require_await;
 pub mod require_yield;
 pub mod single_var_declarator;
@@ -224,6 +225,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     prefer_as_const::PreferAsConst::new(),
     prefer_const::PreferConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
+    prefer_primordials::PreferPrimordials::new(),
     require_await::RequireAwait::new(),
     require_yield::RequireYield::new(),
     single_var_declarator::SingleVarDeclarator::new(),
