@@ -8,8 +8,8 @@ use swc_common::Spanned;
 pub struct PreferPrimordials;
 
 const CODE: &str = "prefer-primordials";
-const MESSAGE: &str = "TODO";
-const HINT: &str = "TODO";
+const MESSAGE: &str = "Don't use the global intrinsic";
+const HINT: &str = "Instead use the equivalent from the `primordials` object";
 
 impl LintRule for PreferPrimordials {
   fn new() -> Box<Self> {
@@ -37,7 +37,62 @@ impl LintRule for PreferPrimordials {
   }
 
   fn docs(&self) -> &'static str {
-    r#""#
+    r#"Suggests using frozen intrinsics from `primordials` rather than the
+default globals.
+
+This lint rule is designed to be dedicated to Deno's internal code. Normal users
+don't have to run this rule for their code.
+
+Primordials are a frozen set of all intrinsic objects in the runtime, which we
+should use in the Deno's internal to avoid the risk of prototype pollution. This
+rule detects the direct use of global intrinsics and suggests replacing it with
+the corresponding one from the `primordials` object.
+
+Note that currently this rule _cannot_ detect all erronous cases; there are a
+lot of false negatives. One such example is:
+
+```javascript
+const arr = getSomeArrayOfNumbers();
+const evens = arr.filter((val) => val % 2 === 0);
+```
+
+The second line of this example should be:
+
+```javascript
+const evens = primordials.ArrayPrototypeFilter(arr, (val) => val % 2 === 0);
+```
+
+but this would require type checking in order to know that `arr` is of type
+`Array`. Because deno_lint can't do type checking, this rule will emit no error
+for this example (i.e. false negative).
+
+### Invalid:
+
+```javascript
+const arr = new Array();
+
+const s = JSON.stringify({});
+
+const i = parseInt("42");
+
+const { ownKeys } = Reflect;
+```
+
+### Valid:
+
+```javascript
+const { Array } = primordials;
+const arr = new Array();
+
+const { JSONStringify } = primordials;
+const s = JSONStringify({});
+
+const { NumberParseInt } = primordials;
+const i = NumberParseInt("42");
+
+const { ReflectOwnKeys } = primordials;
+```
+"#
   }
 }
 
@@ -68,6 +123,7 @@ const TARGETS: &[&str] = &[
   "Int8Array",
   "Map",
   "Number",
+  "parseInt",
   "Object",
   "queueMicrotask",
   "RangeError",
@@ -87,8 +143,6 @@ const TARGETS: &[&str] = &[
   "WeakSet",
   "Promise",
 ];
-
-// TODO parseInt -> Number.parseInt
 
 struct PreferPrimordialsHandler;
 
@@ -174,6 +228,10 @@ new Map();
 const { ArrayPrototypeMap } = primordials;
 ArrayPrototypeMap([1, 2, 3], (val) => val * 2);
       "#,
+      r#"
+const parseInt = () => {};
+parseInt();
+      "#,
     };
   }
 
@@ -181,11 +239,49 @@ ArrayPrototypeMap([1, 2, 3], (val) => val * 2);
   fn prefer_primordials_invalid() {
     assert_lint_err! {
       PreferPrimordials,
-      r#"new Array()"#: [],
-      r#"JSON.parse("{}")"#: [],
-      r#"const { JSON } = primordials; JSON.parse("{}")"#: [],
-      r#"Symbol.for("foo")"#: [],
-      r#"const { Symbol } = primordials; Symbol.for("foo")"#: [],
+      r#"new Array()"#: [
+        {
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"JSON.parse("{}")"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"
+const { JSON } = primordials;
+JSON.parse("{}");
+      "#: [
+        {
+          line: 2,
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"Symbol.for("foo")"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"
+const { Symbol } = primordials;
+Symbol.for("foo");
+      "#: [
+        {
+          line: 2,
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
       r#"
 const { Symbol } = primordials;
 class A {
@@ -193,7 +289,14 @@ class A {
     yield "a";
   }
 }
-      "#: [],
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
       r#"
 const { Symbol } = primordials;
 const a = {
@@ -201,23 +304,75 @@ const a = {
     yield "a";
   }
 }
-      "#: [],
+      "#: [
+        {
+          line: 4,
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
       r#"
 const { ObjectDefineProperty, Symbol } = primordials;
 ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" });
-      "#: [],
+      "#: [
+        {
+          line: 3,
+          col: 24,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
       r#"
 const { Number } = primordials;
-Number.parseInt('10');
-      "#: [],
-      r#"parseInt("10")"#: [],
-      r#"const { ownKeys } = Reflect;"#: [],
-      r#"new Map();"#: [],
+Number.parseInt("10");
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"parseInt("10")"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"const { ownKeys } = Reflect;"#: [
+        {
+          col: 8,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"new Map();"#: [
+        {
+          col: 4,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
       r#"
 const { Function } = primordials;
 const noop = Function.prototype;
-      "#: [],
-      r#"[1, 2, 3].map(val => val * 2);"#: [],
+      "#: [
+        {
+          line: 3,
+          col: 13,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"[1, 2, 3].map(val => val * 2);"#: [
+        {
+          col: 10,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
     }
   }
 }
