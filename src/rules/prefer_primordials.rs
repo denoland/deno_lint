@@ -150,7 +150,7 @@ struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
   fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
-    fn inside_var_decl_lhs_or_member_expr(
+    fn inside_var_decl_lhs_or_member_expr_or_prop(
       orig: ast_view::Node,
       node: ast_view::Node,
     ) -> bool {
@@ -160,14 +160,22 @@ impl Handler for PreferPrimordialsHandler {
       if let Some(decl) = node.to::<ast_view::VarDeclarator>() {
         return decl.name.span().contains(orig.span());
       }
+      if let Some(kv) = node.to::<ast_view::KeyValueProp>() {
+        return kv.key.span().contains(orig.span());
+      }
 
       match node.parent() {
         None => false,
-        Some(parent) => inside_var_decl_lhs_or_member_expr(orig, parent),
+        Some(parent) => {
+          inside_var_decl_lhs_or_member_expr_or_prop(orig, parent)
+        }
       }
     }
 
-    if inside_var_decl_lhs_or_member_expr(ident.as_node(), ident.as_node()) {
+    if inside_var_decl_lhs_or_member_expr_or_prop(
+      ident.as_node(),
+      ident.as_node(),
+    ) {
       return;
     }
 
@@ -307,6 +315,7 @@ ArrayPrototypeMap([1, 2, 3], (val) => val * 2);
 const parseInt = () => {};
 parseInt();
       "#,
+      r#"const foo = { Error: 1 };"#,
     };
   }
 
