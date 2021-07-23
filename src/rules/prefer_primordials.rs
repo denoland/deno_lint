@@ -1,9 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-#![allow(unused)] // TODO delete
 use super::{Context, LintRule, ProgramRef};
 use crate::handler::{Handler, Traverse};
+use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as ast_view, NodeTrait};
+use if_chain::if_chain;
 use swc_common::Spanned;
+use swc_ecmascript::utils::ident::IdentLike;
 
 pub struct PreferPrimordials;
 
@@ -146,7 +148,91 @@ const TARGETS: &[&str] = &[
 
 struct PreferPrimordialsHandler;
 
-impl Handler for PreferPrimordialsHandler {}
+impl Handler for PreferPrimordialsHandler {
+  fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
+    fn inside_var_declarator_or_member_expr(node: ast_view::Node) -> bool {
+      if matches!(
+        node.kind(),
+        ast_view::NodeKind::VarDeclarator | ast_view::NodeKind::MemberExpr
+      ) {
+        return true;
+      }
+
+      match node.parent() {
+        None => false,
+        Some(parent) => inside_var_declarator_or_member_expr(parent),
+      }
+    }
+
+    if inside_var_declarator_or_member_expr(ident.as_node()) {
+      return;
+    }
+
+    if TARGETS.contains(&ident.sym().as_ref())
+      && !is_shadowed(ident, ctx.scope())
+    {
+      ctx.add_diagnostic_with_hint(ident.span(), CODE, MESSAGE, HINT);
+    }
+  }
+
+  fn var_declarator(
+    &mut self,
+    var_declarator: &ast_view::VarDeclarator,
+    ctx: &mut Context,
+  ) {
+    if_chain! {
+      if let Some(ast_view::Expr::Ident(ident)) = &var_declarator.init;
+      if TARGETS.contains(&ident.sym().as_ref());
+      then {
+        ctx.add_diagnostic_with_hint(var_declarator.span(), CODE, MESSAGE, HINT);
+      }
+    }
+  }
+
+  fn member_expr(
+    &mut self,
+    member_expr: &ast_view::MemberExpr,
+    ctx: &mut Context,
+  ) {
+    use ast_view::{Expr, ExprOrSuper};
+
+    // If `member_expr.obj` is an array literal, access to its properties or
+    // methods should be replaced with the one from `primordials`.
+    // For example:
+    //
+    // ```js
+    // [1, 2, 3].filter((val) => val % 2 === 0)
+    // ```
+    //
+    // should be turned into:
+    //
+    // ```js
+    // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
+    // ```
+    if let ExprOrSuper::Expr(Expr::Array(_)) = &member_expr.obj {
+      ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
+      return;
+    }
+
+    // Don't check non-root elements in chained member expressions
+    // e.g. `bar.baz` in `foo.bar.baz`
+    if member_expr.parent().is::<ast_view::MemberExpr>() {
+      return;
+    }
+
+    if_chain! {
+      if let ExprOrSuper::Expr(Expr::Ident(ident)) = &member_expr.obj;
+      if TARGETS.contains(&ident.sym().as_ref());
+      then {
+        ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
+      }
+    }
+  }
+}
+
+fn is_shadowed(ident: &ast_view::Ident, scope: &Scope) -> bool {
+  scope.var(&ident.inner.to_id()).is_some()
+}
 
 #[cfg(test)]
 mod tests {
@@ -258,7 +344,7 @@ const { JSON } = primordials;
 JSON.parse("{}");
       "#: [
         {
-          line: 2,
+          line: 3,
           col: 0,
           message: MESSAGE,
           hint: HINT,
@@ -276,7 +362,7 @@ const { Symbol } = primordials;
 Symbol.for("foo");
       "#: [
         {
-          line: 2,
+          line: 3,
           col: 0,
           message: MESSAGE,
           hint: HINT,
@@ -343,7 +429,7 @@ Number.parseInt("10");
       ],
       r#"const { ownKeys } = Reflect;"#: [
         {
-          col: 8,
+          col: 6,
           message: MESSAGE,
           hint: HINT,
         },
@@ -368,7 +454,7 @@ const noop = Function.prototype;
       ],
       r#"[1, 2, 3].map(val => val * 2);"#: [
         {
-          col: 10,
+          col: 0,
           message: MESSAGE,
           hint: HINT,
         },
