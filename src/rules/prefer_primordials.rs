@@ -150,21 +150,24 @@ struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
   fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
-    fn inside_var_declarator_or_member_expr(node: ast_view::Node) -> bool {
-      if matches!(
-        node.kind(),
-        ast_view::NodeKind::VarDeclarator | ast_view::NodeKind::MemberExpr
-      ) {
+    fn inside_var_decl_lhs_or_member_expr(
+      orig: ast_view::Node,
+      node: ast_view::Node,
+    ) -> bool {
+      if node.is::<ast_view::MemberExpr>() {
         return true;
+      }
+      if let Some(decl) = node.to::<ast_view::VarDeclarator>() {
+        return decl.name.span().contains(orig.span());
       }
 
       match node.parent() {
         None => false,
-        Some(parent) => inside_var_declarator_or_member_expr(parent),
+        Some(parent) => inside_var_decl_lhs_or_member_expr(orig, parent),
       }
     }
 
-    if inside_var_declarator_or_member_expr(ident.as_node()) {
+    if inside_var_decl_lhs_or_member_expr(ident.as_node(), ident.as_node()) {
       return;
     }
 
@@ -172,20 +175,6 @@ impl Handler for PreferPrimordialsHandler {
       && !is_shadowed(ident, ctx.scope())
     {
       ctx.add_diagnostic_with_hint(ident.span(), CODE, MESSAGE, HINT);
-    }
-  }
-
-  fn var_declarator(
-    &mut self,
-    var_declarator: &ast_view::VarDeclarator,
-    ctx: &mut Context,
-  ) {
-    if_chain! {
-      if let Some(ast_view::Expr::Ident(ident)) = &var_declarator.init;
-      if TARGETS.contains(&ident.sym().as_ref());
-      then {
-        ctx.add_diagnostic_with_hint(var_declarator.span(), CODE, MESSAGE, HINT);
-      }
     }
   }
 
@@ -325,9 +314,23 @@ parseInt();
   fn prefer_primordials_invalid() {
     assert_lint_err! {
       PreferPrimordials,
-      r#"new Array()"#: [
+      r#"const foo = Symbol("foo");"#: [
         {
-          col: 4,
+          col: 12,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"const foo = Symbol.for("foo");"#: [
+        {
+          col: 12,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"const arr = new Array();"#: [
+        {
+          col: 16,
           message: MESSAGE,
           hint: HINT,
         },
@@ -429,7 +432,7 @@ Number.parseInt("10");
       ],
       r#"const { ownKeys } = Reflect;"#: [
         {
-          col: 6,
+          col: 20,
           message: MESSAGE,
           hint: HINT,
         },
