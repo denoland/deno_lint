@@ -11,7 +11,7 @@ use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::rules::get_recommended_rules;
+use deno_lint::rules::{get_all_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -172,20 +172,22 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(&file_path)?;
 
-      let mut rules = if let Some(config) = maybe_config.clone() {
+      let rules = if let Some(config) = maybe_config.clone() {
         config.get_rules()
+      } else if let Some(rule_name) = filter_rule_name {
+        get_all_rules()
+          .into_iter()
+          .filter(|r| r.code() == rule_name)
+          .collect()
       } else {
         get_recommended_rules()
       };
 
-      if let Some(rule_name) = filter_rule_name {
-        rules = rules
-          .into_iter()
-          .filter(|r| r.code() == rule_name)
-          .collect()
-      };
-
       debug!("Configured rules: {}", rules.len());
+
+      if rules.is_empty() {
+        bail!("There's no rule to be run!");
+      }
 
       let mut linter_builder = LinterBuilder::default()
         .rules(rules)
