@@ -34,8 +34,8 @@ impl LintRule for NoRegexSpaces {
   ) {
     let mut visitor = NoRegexSpacesVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }
@@ -70,7 +70,7 @@ impl<'c, 'view> NoRegexSpacesVisitor<'c, 'view> {
     for mtch in SPACES.find_iter(regex) {
       let not_in_classes = &character_classes
         .iter()
-        .all(|ref v| mtch.start() < v.0 || v.1 <= mtch.start());
+        .all(|v| mtch.start() < v.0 || v.1 <= mtch.start());
       if *not_in_classes {
         self.context.add_diagnostic(span, CODE, MESSAGE);
         return;

@@ -40,13 +40,13 @@ impl LintRule for NoMixedSpacesAndTabs {
   ) {
     let mut visitor = NoMixedSpacesAndTabsVisitor::default();
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
 
     let span = match program {
-      ProgramRef::Module(ref m) => m.span,
-      ProgramRef::Script(ref s) => s.span,
+      ProgramRef::Module(m) => m.span,
+      ProgramRef::Script(s) => s.span,
     };
     let file_and_lines = context.source_map().span_to_lines(span).unwrap();
     let file = file_and_lines.file;

@@ -74,7 +74,7 @@ pub fn parse_line_ignore_directives(
     .unwrap()
     .all_comments()
     .filter_map(|comment| {
-      parse_ignore_comment(&ignore_diagnostic_directive, source_map, comment)
+      parse_ignore_comment(ignore_diagnostic_directive, source_map, comment)
     })
     .collect()
 }

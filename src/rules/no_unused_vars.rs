@@ -65,14 +65,14 @@ impl LintRule for NoUnusedVars {
     // Skip linting this file to avoid emitting false positives about `jsxFactory` and `jsxFragmentFactory`
     // if it's a JSX or TSX file.
     // See https://github.com/denoland/deno_lint/pull/664#discussion_r614692736
-    if is_jsx_file(&context.file_name()) {
+    if is_jsx_file(context.file_name()) {
       return;
     }
 
     let mut collector = Collector::default();
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut collector),
     }
 
     let mut visitor = NoUnusedVarVisitor::new(
@@ -81,8 +81,8 @@ impl LintRule for NoUnusedVars {
       collector.used_types,
     );
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }

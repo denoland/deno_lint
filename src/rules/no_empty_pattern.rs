@@ -32,8 +32,8 @@ impl LintRule for NoEmptyPattern {
   ) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 
@@ -126,9 +126,9 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
     } else {
       for element in arr_pat.elems.iter().flatten() {
         if let swc_ecmascript::ast::Pat::Object(obj_pat) = element {
-          self.visit_object_pat(&obj_pat, _parent);
+          self.visit_object_pat(obj_pat, _parent);
         } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = element {
-          self.visit_array_pat(&arr_pat, _parent);
+          self.visit_array_pat(arr_pat, _parent);
         }
       }
     }

@@ -48,10 +48,10 @@ impl LintRule for NoInnerDeclarations {
   ) {
     let mut valid_visitor = ValidDeclsVisitor::new();
     match program {
-      ProgramRef::Module(ref m) => {
+      ProgramRef::Module(m) => {
         m.visit_all_with(&DUMMY_NODE, &mut valid_visitor)
       }
-      ProgramRef::Script(ref s) => {
+      ProgramRef::Script(s) => {
         s.visit_all_with(&DUMMY_NODE, &mut valid_visitor)
       }
     }
@@ -59,8 +59,8 @@ impl LintRule for NoInnerDeclarations {
     let mut visitor =
       NoInnerDeclarationsVisitor::new(context, valid_visitor.valid_decls);
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 

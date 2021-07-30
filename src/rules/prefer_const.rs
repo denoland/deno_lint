@@ -55,8 +55,8 @@ impl LintRule for PreferConst {
   ) {
     let mut collector = VariableCollector::new();
     match program {
-      ProgramRef::Module(ref m) => collector.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => collector.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => collector.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => collector.visit_script(s, &DUMMY_NODE),
     }
 
     let mut visitor = PreferConstVisitor::new(
@@ -65,8 +65,8 @@ impl LintRule for PreferConst {
       mem::take(&mut collector.var_groups),
     );
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 }
@@ -712,7 +712,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   ) {
     let scope = self.get_scope();
     let decls: Vec<DeclInfo> = idents
-      .filter_map(|i| get_decl_by_ident(Rc::clone(&scope), &i))
+      .filter_map(|i| get_decl_by_ident(Rc::clone(&scope), i))
       .collect();
 
     match decls.as_slice() {

@@ -51,14 +51,14 @@ impl LintRule for NoGlobalAssign {
       bindings: Default::default(),
     };
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut collector),
     }
 
     let mut visitor = NoGlobalAssignVisitor::new(context, collector.bindings);
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 
