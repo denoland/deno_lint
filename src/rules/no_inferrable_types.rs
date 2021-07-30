@@ -45,8 +45,8 @@ impl LintRule for NoInferrableTypes {
   ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 
@@ -219,7 +219,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
           self.check_callee(callee, span, "Number");
         }
         Expr::Ident(ident) => {
-          if self.is_nan_or_infinity(&ident) {
+          if self.is_nan_or_infinity(ident) {
             self.add_diagnostic_helper(span);
           }
         }
@@ -231,7 +231,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
             self.check_callee(callee, span, "Number");
           }
           Expr::Ident(ident) => {
-            if self.is_nan_or_infinity(&ident) {
+            if self.is_nan_or_infinity(ident) {
               self.add_diagnostic_helper(span);
             }
           }
@@ -342,9 +342,9 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     span: swc_common::Span,
   ) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
-      self.check_keyword_type(&value, ts_type, span);
+      self.check_keyword_type(value, ts_type, span);
     } else if let TsType::TsTypeRef(ts_type) = &*ts_type.type_ann {
-      self.check_ref_type(&value, ts_type, span);
+      self.check_ref_type(value, ts_type, span);
     }
   }
 }

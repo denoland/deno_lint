@@ -45,8 +45,8 @@ impl LintRule for NoMisusedNew {
   ) {
     let mut visitor = NoMisusedNewVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 
@@ -121,7 +121,7 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
       for member in &lit.members {
         if let TsMethodSignature(signature) = &member {
           if let Expr::Ident(ident) = &*signature.key {
-            if self.is_constructor_keyword(&ident) {
+            if self.is_constructor_keyword(ident) {
               self.context.add_diagnostic_with_hint(
                 ident.span,
                 CODE,
@@ -140,7 +140,7 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
       match &member {
         TsMethodSignature(signature) => {
           if let Expr::Ident(ident) = &*signature.key {
-            if self.is_constructor_keyword(&ident) {
+            if self.is_constructor_keyword(ident) {
               // constructor
               self.context.add_diagnostic_with_hint(
                 signature.span,
@@ -154,7 +154,7 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
         TsConstructSignatureDecl(signature) => {
           if signature.type_ann.is_some()
             && self
-              .match_parent_type(&n.id, &signature.type_ann.as_ref().unwrap())
+              .match_parent_type(&n.id, signature.type_ann.as_ref().unwrap())
           {
             self.context.add_diagnostic_with_hint(
               signature.span,
@@ -185,7 +185,7 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
         if method.function.return_type.is_some()
           && self.match_parent_type(
             &expr.ident,
-            &method.function.return_type.as_ref().unwrap(),
+            method.function.return_type.as_ref().unwrap(),
           )
         {
           // new

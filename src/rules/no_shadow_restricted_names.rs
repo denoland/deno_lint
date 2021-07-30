@@ -32,8 +32,8 @@ impl LintRule for NoShadowRestrictedNames {
   ) {
     let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 
@@ -109,8 +109,8 @@ impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
   }
 
   fn check_shadowing(&mut self, ident: &Ident) {
-    if self.is_restricted_names(&ident) {
-      self.report_shadowing(&ident);
+    if self.is_restricted_names(ident) {
+      self.report_shadowing(ident);
     }
   }
 
@@ -159,7 +159,7 @@ impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
 
   fn visit_arrow_expr(&mut self, node: &ArrowExpr, _: &dyn Node) {
     for param in &node.params {
-      self.check_pat(&param, false);
+      self.check_pat(param, false);
     }
   }
 

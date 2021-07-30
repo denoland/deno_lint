@@ -190,7 +190,7 @@ where
 
 fn extract_ident_from_decl(decl: &AstView::Decl) -> Option<String> {
   match decl {
-    AstView::Decl::Fn(AstView::FnDecl { ref ident, .. }) => {
+    AstView::Decl::Fn(AstView::FnDecl { ident, .. }) => {
       Some(ident.sym().to_string())
     }
     _ => None,
@@ -235,7 +235,7 @@ impl<'a> ExtractMethod for AstView::ClassMember<'a> {
   fn get_method(&self) -> Option<Method> {
     use AstView::{ClassMember, ClassMethod};
     match self {
-      ClassMember::Method(ClassMethod { ref inner, .. }) => {
+      ClassMember::Method(ClassMethod { inner, .. }) => {
         inner.key.string_repr().map(|k| {
           if inner.is_static {
             Method::Static(k)

@@ -125,7 +125,7 @@ fn display_diagnostics(
       }),
       footer,
       slices: vec![snippet::Slice {
-        source: &slice_source,
+        source: slice_source,
         line_start: diagnostic.range.start.line,
         origin: Some(&diagnostic.filename),
         fold: false,

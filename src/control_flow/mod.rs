@@ -522,7 +522,7 @@ impl Visit for Analyzer<'_> {
     match &n.alt {
       Some(alt) => {
         self.with_child_scope(BlockKind::If, alt.span().lo, |a| {
-          a.visit_stmt_or_block(&alt);
+          a.visit_stmt_or_block(alt);
         });
         let alt_reason = self.get_end_reason(alt.span().lo);
 

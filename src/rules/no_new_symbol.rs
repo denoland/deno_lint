@@ -32,8 +32,8 @@ impl LintRule for NoNewSymbol {
   ) {
     let mut visitor = NoNewSymbolVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 

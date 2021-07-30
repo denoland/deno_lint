@@ -197,7 +197,7 @@ impl Linter {
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
-    let control_flow = ControlFlow::analyze(&program);
+    let control_flow = ControlFlow::analyze(program);
     let top_level_ctxt = swc_common::GLOBALS
       .set(&self.ast_parser.globals, || {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)

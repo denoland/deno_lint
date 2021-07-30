@@ -43,8 +43,8 @@ impl LintRule for NoImportAssign {
       other_bindings: Default::default(),
     };
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut collector),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut collector),
     }
 
     let mut visitor = NoImportAssignVisitor::new(
@@ -54,8 +54,8 @@ impl LintRule for NoImportAssign {
       collector.other_bindings,
     );
     match program {
-      ProgramRef::Module(ref m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
 
@@ -211,7 +211,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
       }
       Expr::Member(e) => {
         if let ExprOrSuper::Expr(obj) = &e.obj {
-          self.check_assign(span, &obj, true)
+          self.check_assign(span, obj, true)
         }
       }
       Expr::OptChain(e) => self.check_expr(span, &e.expr),
@@ -291,7 +291,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
 
       Expr::Paren(ParenExpr { expr, .. })
       | Expr::OptChain(OptChainExpr { expr, .. }) => {
-        return self.modifies_first(&expr)
+        return self.modifies_first(expr)
       }
 
       _ => {}
@@ -368,7 +368,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
 
     if let ExprOrSuper::Expr(callee) = &n.callee {
       if let Some(arg) = n.args.first() {
-        if self.modifies_first(&callee) {
+        if self.modifies_first(callee) {
           self.check_assign(n.span, &arg.expr, true);
         }
       }

@@ -144,8 +144,8 @@ fn is_shadowed(symbol: &JsWord, scope: &Scope) -> bool {
 fn extract_symbol<'a>(expr: &'a AstView::Expr) -> Option<&'a JsWord> {
   use AstView::{Expr, Lit, Tpl};
   match expr {
-    Expr::Lit(Lit::Str(ref s)) => Some(s.value()),
-    Expr::Ident(ref ident) => Some(ident.sym()),
+    Expr::Lit(Lit::Str(s)) => Some(s.value()),
+    Expr::Ident(ident) => Some(ident.sym()),
     Expr::Tpl(Tpl {
       ref exprs,
       ref quasis,
@@ -268,7 +268,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
 
     use AstView::{Expr, ExprOrSuper};
     if_chain! {
-      if let ExprOrSuper::Expr(Expr::Ident(ref obj)) = &member_expr.obj;
+      if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
       let obj_symbol = obj.sym();
       if !is_shadowed(obj_symbol, ctx.scope());
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);

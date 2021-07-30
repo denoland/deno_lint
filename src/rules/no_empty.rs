@@ -29,8 +29,8 @@ impl LintRule for NoEmpty {
   ) {
     let mut visitor = NoEmptyVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 
@@ -120,7 +120,7 @@ impl<'c, 'view> Visit for NoEmptyVisitor<'c, 'view> {
 
   fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
     if block_stmt.stmts.is_empty() {
-      if !block_stmt.contains_comments(&self.context) {
+      if !block_stmt.contains_comments(self.context) {
         self.context.add_diagnostic_with_hint(
           block_stmt.span,
           CODE,
