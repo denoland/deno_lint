@@ -13,7 +13,7 @@ use std::time::Instant;
 use swc_common::comments::Comment;
 use swc_common::{SourceMap, Span, SyntaxContext};
 
-/// `Context` stores data needed while performing a single lint to a file.
+/// `Context` stores data needed while performing all lint rules to a file.
 pub struct Context<'view> {
   /// File name on which the lint rule is run
   file_name: String,
@@ -34,7 +34,7 @@ pub struct Context<'view> {
   /// File-level ignore directive (`deno-lint-ignore-file`)
   file_ignore_directive: Option<FileIgnoreDirective>,
 
-  /// The map that stores line-level ignore directives.
+  /// The map that stores line-level ignore directives (`deno-lint-ignore`).
   /// The key of the map is line number.
   line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
 
