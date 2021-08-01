@@ -4,10 +4,11 @@ Extra (and unnecessary) semi-colons can cause confusion when reading the code as
 well as making the code less clean.
 
 ### Invalid:
-```typescript
-const x = 5;;
 
-function foo() {};
+```typescript
+const x = 5;
+
+function foo() {}
 ```
 
 ### Valid:

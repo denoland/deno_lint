@@ -4,6 +4,7 @@ The following APIs in `Deno` namespace are now marked as deprecated and will get
 removed from the namespace in the future.
 
 **IO APIs**
+
 - `Deno.Buffer`
 - `Deno.readAll`
 - `Deno.readAllSync`
@@ -14,16 +15,17 @@ removed from the namespace in the future.
 - `Deno.copy`
 
 The IO APIs are already available in `std/io`, so replace these deprecated ones
-with alternatives from `std/io`.
-For more detail, see [the tracking issue](https://github.com/denoland/deno/issues/9795).
+with alternatives from `std/io`. For more detail, see
+[the tracking issue](https://github.com/denoland/deno/issues/9795).
 
 **Custom Inspector API**
+
 - `Deno.customInspect`
 
 `Deno.customInspect` was deprecated in favor of
 `Symbol.for("Deno.customInspect")`. Replace the usages with this symbol
-expression. See [deno#9294](https://github.com/denoland/deno/issues/9294)
-for more details.
+expression. See [deno#9294](https://github.com/denoland/deno/issues/9294) for
+more details.
 
 ### Invalid:
 

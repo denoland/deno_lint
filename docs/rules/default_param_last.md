@@ -1,8 +1,8 @@
 Enforces default parameter(s) to be last in the function signature.
 
-Parameters with default values are optional by nature but cannot be left out
-of the function call without mapping the function inputs to different parameters
-which is confusing and error prone.  Specifying them last allows them to be left
+Parameters with default values are optional by nature but cannot be left out of
+the function call without mapping the function inputs to different parameters
+which is confusing and error prone. Specifying them last allows them to be left
 out without changing the semantics of the other parameters.
 
 ### Invalid:

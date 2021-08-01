@@ -1,5 +1,5 @@
-Suggests using frozen intrinsics from `primordials` rather than the
-default globals.
+Suggests using frozen intrinsics from `primordials` rather than the default
+globals.
 
 This lint rule is designed to be dedicated to Deno's internal code. Normal users
 don't have to run this rule for their code.

@@ -1,8 +1,8 @@
 Disallows the use of non-space or non-tab whitespace characters
 
 Non-space or non-tab whitespace characters can be very difficult to spot in your
-code as editors will often render them invisibly.  These invisible characters can
-cause issues or unexpected behaviors.  Sometimes these characters are added
+code as editors will often render them invisibly. These invisible characters can
+cause issues or unexpected behaviors. Sometimes these characters are added
 inadvertently through copy/paste or incorrect keyboard shortcuts.
 
 The following characters are disallowed:
@@ -35,5 +35,5 @@ The following characters are disallowed:
 ```
 
 To fix this linting issue, replace instances of the above with regular spaces,
-tabs or new lines.  If it's not obvious where the offending character(s) are
-try retyping the line from scratch.
+tabs or new lines. If it's not obvious where the offending character(s) are try
+retyping the line from scratch.

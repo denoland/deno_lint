@@ -1,15 +1,16 @@
 Requires `await` is not used in a for loop body
 
-Async and await are used in Javascript to provide parallel execution.  If each
+Async and await are used in Javascript to provide parallel execution. If each
 element in the for loop is waited upon using `await`, then this negates the
 benefits of using async/await as no more elements in the loop can be processed
 until the current element finishes.
 
-A common solution is to refactor the code to run the loop body asynchronously and
-capture the promises generated.  After the loop finishes you can then await all
-the promises at once.
+A common solution is to refactor the code to run the loop body asynchronously
+and capture the promises generated. After the loop finishes you can then await
+all the promises at once.
 
 ### Invalid:
+
 ```javascript
 async function doSomething(items) {
   const results = [];
@@ -22,6 +23,7 @@ async function doSomething(items) {
 ```
 
 ### Valid:
+
 ```javascript
 async function doSomething(items) {
   const results = [];

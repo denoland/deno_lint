@@ -1,6 +1,7 @@
 Restricts the use of the `typeof` operator to a specific set of string literals.
 
-When used with a value the `typeof` operator returns one of the following strings:
+When used with a value the `typeof` operator returns one of the following
+strings:
 
 - `"undefined"`
 - `"object"`
@@ -11,7 +12,15 @@ When used with a value the `typeof` operator returns one of the following string
 - `"symbol"`
 - `"bigint"`
 
-This rule disallows comparison with anything other than one of these string literals when using the `typeof` operator, as this likely represents a typing mistake in the string. The rule also disallows comparing the result of a `typeof` operation with any non-string literal value, such as `undefined`, which can represent an inadvertent use of a keyword instead of a string. This includes comparing against string variables even if they contain one of the above values as this cannot be guaranteed. An exception to this is comparing the results of two `typeof` operations as these are both guaranteed to return on of the above strings.
+This rule disallows comparison with anything other than one of these string
+literals when using the `typeof` operator, as this likely represents a typing
+mistake in the string. The rule also disallows comparing the result of a
+`typeof` operation with any non-string literal value, such as `undefined`, which
+can represent an inadvertent use of a keyword instead of a string. This includes
+comparing against string variables even if they contain one of the above values
+as this cannot be guaranteed. An exception to this is comparing the results of
+two `typeof` operations as these are both guaranteed to return on of the above
+strings.
 
 ### Invalid:
 

@@ -1,6 +1,7 @@
 Disallows duplicate keys in object literals.
 
-Setting the same key multiple times in an object literal will override other assignments to that key and can cause unexpected behaviour.
+Setting the same key multiple times in an object literal will override other
+assignments to that key and can cause unexpected behaviour.
 
 ### Invalid:
 

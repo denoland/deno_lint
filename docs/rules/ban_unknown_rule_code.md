@@ -17,7 +17,7 @@ This rule checks for the validity of the specified rule names (i.e. whether
 ```typescript
 // typo
 // deno-lint-ignore no-extra-sem
-export const a = 42;;
+export const a = 42;
 
 // unknown rule name
 // deno-lint-ignore UNKNOWN_RULE_NAME
@@ -28,7 +28,7 @@ const b = "b";
 
 ```typescript
 // deno-lint-ignore no-extra-semi
-export const a = 42;;
+export const a = 42;
 
 // deno-lint-ignore no-unused-vars
 const b = "b";

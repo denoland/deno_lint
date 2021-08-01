@@ -1,6 +1,8 @@
 Disallows the unreachable code after the control flow statements.
 
-Because the control flow statements (`return`, `throw`, `break` and `continue`) unconditionally exit a block of code, any statements after them cannot be executed.
+Because the control flow statements (`return`, `throw`, `break` and `continue`)
+unconditionally exit a block of code, any statements after them cannot be
+executed.
 
 ### Invalid:
 

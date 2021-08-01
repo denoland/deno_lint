@@ -1,8 +1,9 @@
 Disallows the deletion of variables
 
-`delete` is used to remove a property from an object.  Variables declared via
-`var`, `let` and `const` cannot be deleted (`delete` will return `false`).  Setting
-`strict` mode on will raise a syntax error when attempting to delete a variable.
+`delete` is used to remove a property from an object. Variables declared via
+`var`, `let` and `const` cannot be deleted (`delete` will return `false`).
+Setting `strict` mode on will raise a syntax error when attempting to delete a
+variable.
 
 ### Invalid:
 

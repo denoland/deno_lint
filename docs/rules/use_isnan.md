@@ -1,11 +1,13 @@
 Disallows comparisons to `NaN`.
 
-Because `NaN` is unique in JavaScript by not being equal to anything, including itself, the results of comparisons to `NaN` are confusing:
+Because `NaN` is unique in JavaScript by not being equal to anything, including
+itself, the results of comparisons to `NaN` are confusing:
 
 - `NaN === NaN` or `NaN == NaN` evaluate to `false`
 - `NaN !== NaN` or `NaN != NaN` evaluate to `true`
 
-Therefore, this rule makes you use the `isNaN()` or `Number.isNaN()` to judge the value is `NaN` or not.
+Therefore, this rule makes you use the `isNaN()` or `Number.isNaN()` to judge
+the value is `NaN` or not.
 
 ### Invalid:
 

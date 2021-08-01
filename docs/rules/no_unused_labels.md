@@ -7,15 +7,18 @@ Otherwise, remove the label.
 ### Invalid:
 
 ```typescript
-LABEL1: while (true) {
+LABEL1:
+while (true) {
   console.log(42);
 }
 
-LABEL2: for (let i = 0; i < 5; i++) {
+LABEL2:
+for (let i = 0; i < 5; i++) {
   console.log(42);
 }
 
-LABEL3: for (const x of xs) {
+LABEL3:
+for (const x of xs) {
   console.log(x);
 }
 ```
@@ -23,12 +26,14 @@ LABEL3: for (const x of xs) {
 ### Valid:
 
 ```typescript
-LABEL1: while (true) {
+LABEL1:
+while (true) {
   console.log(42);
   break LABEL1;
 }
 
-LABEL2: for (let i = 0; i < 5; i++) {
+LABEL2:
+for (let i = 0; i < 5; i++) {
   console.log(42);
   continue LABEL2;
 }

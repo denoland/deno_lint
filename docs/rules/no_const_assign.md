@@ -19,5 +19,5 @@ const a = 0;
 const b = a + 1;
 
 // `c` is out of scope on each loop iteration, allowing a new assignment
-for (const c in [1,2,3]) {}
+for (const c in [1, 2, 3]) {}
 ```

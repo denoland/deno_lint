@@ -1,6 +1,9 @@
 Disallows the use of the assignment operator, `=`, in conditional statements.
 
-Use of the assignment operator within a conditional statement is often the result of mistyping the equality operator, `==`. If an assignment within a conditional statement is required then this rule allows it by wrapping the assignment in parentheses.
+Use of the assignment operator within a conditional statement is often the
+result of mistyping the equality operator, `==`. If an assignment within a
+conditional statement is required then this rule allows it by wrapping the
+assignment in parentheses.
 
 ### Invalid:
 

@@ -7,7 +7,8 @@ the code. Instead, it is generally preferable to use ES2015 module syntax (e.g.
 However, this rule still allows the use of these keywords in the following two
 cases:
 
-- they are used for defining ["ambient" namespaces] along with `declare` keywords
+- they are used for defining ["ambient" namespaces] along with `declare`
+  keywords
 - they are written in TypeScript's type definition files: `.d.ts`
 
 ["ambient" namespaces]: https://www.typescriptlang.org/docs/handbook/namespaces.html#ambient-namespaces
@@ -26,6 +27,7 @@ namespace ns {}
 ```
 
 ### Valid:
+
 ```typescript
 // foo.ts
 declare global {}

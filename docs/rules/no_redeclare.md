@@ -1,5 +1,4 @@
-Disallows redeclaration of variables, functions, parameters with the same
-name.
+Disallows redeclaration of variables, functions, parameters with the same name.
 
 JavaScript allows us to redeclare variables with the same name using `var`, but
 redeclaration should not be used since it can make variables hard to trace.

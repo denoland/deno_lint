@@ -1,7 +1,8 @@
 Disallows async functions that have no await expression
 
-In general, the primary reason to use async functions is to use await expressions inside.
-If an async function has no await expression, it is most likely an unintentional mistake.
+In general, the primary reason to use async functions is to use await
+expressions inside. If an async function has no await expression, it is most
+likely an unintentional mistake.
 
 ### Invalid:
 
@@ -19,7 +20,7 @@ const f3 = async () => doSomething();
 const obj = {
   async method() {
     doSomething();
-  }
+  },
 };
 
 class MyClass {

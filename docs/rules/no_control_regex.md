@@ -1,8 +1,8 @@
 Disallows the use ascii control characters in regular expressions
 
-Control characters are invisible characters in the ASCII range of 0-31.  It is
-uncommon to use these in a regular expression and more often it is a mistake
-in the regular expression.
+Control characters are invisible characters in the ASCII range of 0-31. It is
+uncommon to use these in a regular expression and more often it is a mistake in
+the regular expression.
 
 ### Invalid:
 
