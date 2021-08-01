@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse};
+use crate::handler::{Handler, Traverse, TraverseFlow};
 use dprint_swc_ecma_ast_view::{self as ast_view, Span, Spanned};
 use if_chain::if_chain;
 
@@ -51,7 +51,7 @@ class Z {
 
 class B extends Z {
   constructor() {} // missing super() call
-} 
+}
 class C {
   constructor() {
     super();  // Syntax error
@@ -234,12 +234,17 @@ fn check_constructor(
 struct ConstructorSuperHandler;
 
 impl Handler for ConstructorSuperHandler {
-  fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
+  fn class(
+    &mut self,
+    class: &ast_view::Class,
+    ctx: &mut Context,
+  ) -> TraverseFlow {
     for member in &class.body {
       if let ast_view::ClassMember::Constructor(cons) = member {
         check_constructor(cons, class, ctx);
       }
     }
+    TraverseFlow::Continue
   }
 }
 
