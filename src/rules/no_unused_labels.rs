@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse, TraverseFlow};
+use crate::handler::{Handler, Traverse};
 use derive_more::Display;
 use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
@@ -115,30 +115,27 @@ impl Handler for NoUnusedLabelsHandler {
     &mut self,
     labeled_stmt: &AstView::LabeledStmt,
     _ctx: &mut Context,
-  ) -> TraverseFlow {
+  ) {
     self.labels.push(Label {
       used: false,
       name: labeled_stmt.label.sym().to_string(),
     });
-    TraverseFlow::Continue
   }
 
   fn continue_stmt(
     &mut self,
     continue_stmt: &AstView::ContinueStmt,
     _ctx: &mut Context,
-  ) -> TraverseFlow {
+  ) {
     self.check_label(continue_stmt.label);
-    TraverseFlow::Continue
   }
 
   fn break_stmt(
     &mut self,
     break_stmt: &AstView::BreakStmt,
     _ctx: &mut Context,
-  ) -> TraverseFlow {
+  ) {
     self.check_label(break_stmt.label);
-    TraverseFlow::Continue
   }
 
   fn on_exit_node(&mut self, node: AstView::Node, ctx: &mut Context) {

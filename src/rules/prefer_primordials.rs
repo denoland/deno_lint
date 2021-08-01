@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse, TraverseFlow};
+use crate::handler::{Handler, Traverse};
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::{self as ast_view, NodeTrait};
 use if_chain::if_chain;
@@ -149,11 +149,7 @@ const TARGETS: &[&str] = &[
 struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
-  fn ident(
-    &mut self,
-    ident: &ast_view::Ident,
-    ctx: &mut Context,
-  ) -> TraverseFlow {
+  fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
     fn inside_var_decl_lhs_or_member_expr_or_prop(
       orig: ast_view::Node,
       node: ast_view::Node,
@@ -180,7 +176,7 @@ impl Handler for PreferPrimordialsHandler {
       ident.as_node(),
       ident.as_node(),
     ) {
-      return TraverseFlow::Continue;
+      return;
     }
 
     if TARGETS.contains(&ident.sym().as_ref())
@@ -188,15 +184,13 @@ impl Handler for PreferPrimordialsHandler {
     {
       ctx.add_diagnostic_with_hint(ident.span(), CODE, MESSAGE, HINT);
     }
-
-    TraverseFlow::Continue
   }
 
   fn member_expr(
     &mut self,
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
-  ) -> TraverseFlow {
+  ) {
     use ast_view::{Expr, ExprOrSuper};
 
     // If `member_expr.obj` is an array literal, access to its properties or
@@ -214,13 +208,13 @@ impl Handler for PreferPrimordialsHandler {
     // ```
     if let ExprOrSuper::Expr(Expr::Array(_)) = &member_expr.obj {
       ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
-      return TraverseFlow::Continue;
+      return;
     }
 
     // Don't check non-root elements in chained member expressions
     // e.g. `bar.baz` in `foo.bar.baz`
     if member_expr.parent().is::<ast_view::MemberExpr>() {
-      return TraverseFlow::Continue;
+      return;
     }
 
     if_chain! {
@@ -230,8 +224,6 @@ impl Handler for PreferPrimordialsHandler {
         ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
       }
     }
-
-    TraverseFlow::Continue
   }
 }
 

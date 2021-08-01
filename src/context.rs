@@ -1,5 +1,6 @@
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
+use crate::handler::TraverseFlow;
 use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
@@ -12,18 +13,42 @@ use std::time::Instant;
 use swc_common::comments::Comment;
 use swc_common::{SourceMap, Span, SyntaxContext};
 
+/// `Context` stores data needed while performing a single lint to a file.
 pub struct Context<'view> {
+  /// File name on which the lint rule is run
   file_name: String,
+
+  /// Stores diagnostics that are generated while linting
   diagnostics: Vec<LintDiagnostic>,
+
+  /// Stores codes of plugin (user-defined) rules
   plugin_codes: HashSet<String>,
+
+  /// `SourceMap` of swc
   source_map: Rc<SourceMap>,
+
+  /// The AST view of the program, which for example can be used for getting
+  /// comments
   program: AstView::Program<'view>,
+
+  /// File-level ignore directive (`deno-lint-ignore-file`)
   file_ignore_directive: Option<FileIgnoreDirective>,
-  /// key is line number
+
+  /// The map that stores line-level ignore directives.
+  /// The key of the map is line number.
   line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
+
+  /// Scope analysis result
   scope: Scope,
+
+  /// Control-flow analysis result
   control_flow: ControlFlow,
+
+  /// The `SyntaxContext` of the top level
   top_level_ctxt: SyntaxContext,
+
+  /// A value to control whether the node's children will be traversed or not.
+  traverse_flow: TraverseFlow,
 }
 
 impl<'view> Context<'view> {
@@ -49,6 +74,7 @@ impl<'view> Context<'view> {
       top_level_ctxt,
       diagnostics: Vec::new(),
       plugin_codes: HashSet::new(),
+      traverse_flow: TraverseFlow::default(),
     }
   }
   pub fn file_name(&self) -> &str {
@@ -89,6 +115,14 @@ impl<'view> Context<'view> {
 
   pub(crate) fn top_level_ctxt(&self) -> SyntaxContext {
     self.top_level_ctxt
+  }
+
+  pub(crate) fn traverse_flow(&self) -> TraverseFlow {
+    self.traverse_flow
+  }
+
+  pub(crate) fn traverse_flow_mut(&mut self) -> &mut TraverseFlow {
+    &mut self.traverse_flow
   }
 
   pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {

@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, ProgramRef};
-use crate::handler::{Handler, Traverse, TraverseFlow};
+use crate::handler::{Handler, Traverse};
 use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Spanned};
 
 pub struct NoSetterReturn;
@@ -41,10 +41,10 @@ impl Handler for NoSetterReturnHandler {
     &mut self,
     return_stmt: &AstView::ReturnStmt,
     ctx: &mut Context,
-  ) -> TraverseFlow {
+  ) {
     // return without a value is allowed
     if return_stmt.arg.is_none() {
-      return TraverseFlow::Continue;
+      return;
     }
 
     fn inside_setter(node: AstView::Node) -> bool {
@@ -68,8 +68,6 @@ impl Handler for NoSetterReturnHandler {
     if inside_setter(return_stmt.as_node()) {
       ctx.add_diagnostic(return_stmt.span(), CODE, MESSAGE);
     }
-
-    TraverseFlow::Continue
   }
 }
 
