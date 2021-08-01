@@ -704,6 +704,7 @@ pub struct TraverseFlow {
 }
 
 impl TraverseFlow {
+  // TODO(magurotuna): remove this directive once `camelcase` is refactored
   #[allow(unused)]
   fn set_stop_traverse(&mut self) {
     self.stop_traverse = true;
@@ -724,6 +725,7 @@ impl TraverseFlow {
   }
 }
 
+// TODO(magurotuna): remove this directive once `camelcase` is refactored
 #[allow(unused)]
 macro_rules! stop_traverse {
   ($ctx:expr) => {
