@@ -62,15 +62,15 @@ impl LintRule for NoIrregularWhitespace {
   ) {
     let mut visitor = NoIrregularWhitespaceVisitor::default();
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
 
     let excluded_ranges = visitor.ranges.iter();
 
     let span = match program {
-      ProgramRef::Module(ref m) => m.span,
-      ProgramRef::Script(ref s) => s.span,
+      ProgramRef::Module(m) => m.span,
+      ProgramRef::Script(s) => s.span,
     };
     let file_and_lines = context.source_map().span_to_lines(span).unwrap();
     let file = file_and_lines.file;

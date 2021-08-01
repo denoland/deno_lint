@@ -9,7 +9,7 @@ use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
 
 const BANNED_PROPERTIES: &[&str] =
-  &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumberable"];
+  &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
 
 pub struct NoPrototypeBuiltins;
 
@@ -42,9 +42,41 @@ impl LintRule for NoPrototypeBuiltins {
   ) {
     let mut visitor = NoPrototypeBuiltinsVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
+  }
+
+  fn docs(&self) -> &'static str {
+    r#"Disallows the use of `Object.prototype` builtins directly
+
+If objects are created via `Object.create(null)` they have no prototype
+specified. This can lead to runtime errors when you assume objects have
+properties from `Object.prototype` and attempt to call the following methods:
+
+- `hasOwnProperty`
+- `isPrototypeOf`
+- `propertyIsEnumerable`
+
+Instead, it's always encouraged to call these methods from `Object.prototype`
+explicitly.
+
+### Invalid:
+
+```typescript
+const a = foo.hasOwnProperty("bar");
+const b = foo.isPrototypeOf("bar");
+const c = foo.propertyIsEnumerable("bar");
+```
+
+### Valid:
+
+```typescript
+const a = Object.prototype.hasOwnProperty.call(foo, "bar");
+const b = Object.prototype.isPrototypeOf.call(foo, "bar");
+const c = Object.prototype.propertyIsEnumerable.call(foo, "bar");
+```
+"#
   }
 }
 
@@ -99,19 +131,19 @@ mod tests {
       r#"
   Object.prototype.hasOwnProperty.call(foo, "bar");
   Object.prototype.isPrototypeOf.call(foo, "bar");
-  Object.prototype.propertyIsEnumberable.call(foo, "bar");
+  Object.prototype.propertyIsEnumerable.call(foo, "bar");
   Object.prototype.hasOwnProperty.apply(foo, ["bar"]);
   Object.prototype.isPrototypeOf.apply(foo, ["bar"]);
-  Object.prototype.propertyIsEnumberable.apply(foo, ["bar"]);
+  Object.prototype.propertyIsEnumerable.apply(foo, ["bar"]);
   hasOwnProperty(foo, "bar");
   isPrototypeOf(foo, "bar");
-  propertyIsEnumberable(foo, "bar");
+  propertyIsEnumerable(foo, "bar");
   ({}.hasOwnProperty.call(foo, "bar"));
   ({}.isPrototypeOf.call(foo, "bar"));
-  ({}.propertyIsEnumberable.call(foo, "bar"));
+  ({}.propertyIsEnumerable.call(foo, "bar"));
   ({}.hasOwnProperty.apply(foo, ["bar"]));
   ({}.isPrototypeOf.apply(foo, ["bar"]));
-  ({}.propertyIsEnumberable.apply(foo, ["bar"]));
+  ({}.propertyIsEnumerable.apply(foo, ["bar"]));
       "#,
     };
   }
@@ -122,7 +154,7 @@ mod tests {
       NoPrototypeBuiltins,
       "foo.hasOwnProperty('bar');": [{col: 0, message: get_message("hasOwnProperty")}],
       "foo.isPrototypeOf('bar');": [{col: 0, message: get_message("isPrototypeOf")}],
-      "foo.propertyIsEnumberable('bar');": [{col: 0, message: get_message("propertyIsEnumberable")}],
+      "foo.propertyIsEnumerable('bar');": [{col: 0, message: get_message("propertyIsEnumerable")}],
       "foo.bar.baz.hasOwnProperty('bar');": [{col: 0, message: get_message("hasOwnProperty")}],
     }
   }

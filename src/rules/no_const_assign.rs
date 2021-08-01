@@ -45,8 +45,8 @@ impl LintRule for NoConstAssign {
   ) {
     let mut visitor = NoConstAssignVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 
@@ -153,7 +153,7 @@ impl<'c, 'view> Visit for NoConstAssignVisitor<'c, 'view> {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
         if let Expr::Ident(ident) = &**pat_expr {
-          self.check_scope_for_const(assign_expr.span, &ident);
+          self.check_scope_for_const(assign_expr.span, ident);
         }
       }
       PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span),
@@ -162,7 +162,7 @@ impl<'c, 'view> Visit for NoConstAssignVisitor<'c, 'view> {
 
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _node: &dyn Node) {
     if let Expr::Ident(ident) = &*update_expr.arg {
-      self.check_scope_for_const(update_expr.span, &ident);
+      self.check_scope_for_const(update_expr.span, ident);
     }
   }
 }

@@ -46,8 +46,8 @@ impl LintRule for NoCondAssign {
   ) {
     let mut visitor = NoCondAssignVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 
@@ -160,7 +160,7 @@ impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
     _parent: &dyn Node,
   ) {
     if let Some(for_test) = &for_stmt.test {
-      self.check_condition(&for_test);
+      self.check_condition(for_test);
     }
   }
 

@@ -51,6 +51,7 @@ removed from the namespace in the future.
 - `Deno.writeAllSync`
 - `Deno.iter`
 - `Deno.iterSync`
+- `Deno.copy`
 
 The IO APIs are already available in `std/io`, so replace these deprecated ones
 with alternatives from `std/io`.
@@ -82,6 +83,9 @@ Deno.writeAllSync(writer, data);
 for await (const x of Deno.iter(xs)) {}
 for (const y of Deno.iterSync(ys)) {}
 
+// copy
+await Deno.copy(reader, writer);
+
 // custom inspector
 class A {
   [Deno.customInspect]() {
@@ -112,6 +116,10 @@ import { iter, iterSync } from "https://deno.land/std/io/util.ts";
 for await (const x of iter(xs)) {}
 for (const y of iterSync(ys)) {}
 
+// copy
+import { copy } from "https://deno.land/std/io/util.ts";
+await copy(reader, writer);
+
 // custom inspector
 class A {
   [Symbol.for("Deno.customInspect")]() {
@@ -136,8 +144,8 @@ fn is_shadowed(symbol: &JsWord, scope: &Scope) -> bool {
 fn extract_symbol<'a>(expr: &'a AstView::Expr) -> Option<&'a JsWord> {
   use AstView::{Expr, Lit, Tpl};
   match expr {
-    Expr::Lit(Lit::Str(ref s)) => Some(s.value()),
-    Expr::Ident(ref ident) => Some(ident.sym()),
+    Expr::Lit(Lit::Str(s)) => Some(s.value()),
+    Expr::Ident(ident) => Some(ident.sym()),
     Expr::Tpl(Tpl {
       ref exprs,
       ref quasis,
@@ -155,6 +163,7 @@ enum DeprecatedApi {
   WriteAllSync,
   Iter,
   IterSync,
+  Copy,
   CustomInspect,
 }
 
@@ -180,6 +189,7 @@ impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
       "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
       "iter" => Ok(DeprecatedApi::Iter),
       "iterSync" => Ok(DeprecatedApi::IterSync),
+      "copy" => Ok(DeprecatedApi::Copy),
       "customInspect" => Ok(DeprecatedApi::CustomInspect),
       _ => Err(()),
     }
@@ -218,6 +228,7 @@ impl DeprecatedApi {
       WriteAllSync => "Deno.writeAllSync",
       Iter => "Deno.iter",
       IterSync => "Deno.iterSync",
+      Copy => "Deno.copy",
       CustomInspect => "Deno.customInspect",
     }
   }
@@ -236,6 +247,7 @@ impl DeprecatedApi {
       WriteAllSync => NameAndUrl("writeAllSync", UTIL_TS),
       Iter => NameAndUrl("iter", UTIL_TS),
       IterSync => NameAndUrl("iterSync", UTIL_TS),
+      Copy => NameAndUrl("copy", UTIL_TS),
       CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
     }
   }
@@ -256,7 +268,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
 
     use AstView::{Expr, ExprOrSuper};
     if_chain! {
-      if let ExprOrSuper::Expr(Expr::Ident(ref obj)) = &member_expr.obj;
+      if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
       let obj_symbol = obj.sym();
       if !is_shadowed(obj_symbol, ctx.scope());
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
@@ -291,6 +303,7 @@ mod tests {
       "Deno.foo.writeAllSync();",
       "Deno.foo.iter();",
       "Deno.foo.iterSync();",
+      "Deno.foo.copy();",
       "Deno.foo.customInspect;",
       "foo.Deno.Buffer();",
       "foo.Deno.readAll();",
@@ -299,6 +312,7 @@ mod tests {
       "foo.Deno.writeAllSync();",
       "foo.Deno.iter();",
       "foo.Deno.iterSync();",
+      "foo.Deno.copy();",
       "foo.Deno.customInspect;",
 
       // `Deno` is shadowed
@@ -309,6 +323,7 @@ mod tests {
       "const Deno = 42; Deno.writeAllSync(writer, data);",
       "const Deno = 42; for await (const x of Deno.iter(xs)) {}",
       "const Deno = 42; for (const x of Deno.iterSync(xs)) {}",
+      "const Deno = 42; await Deno.copy(reader, writer);",
       r#"const Deno = 42; Deno.customInspect"#,
       r#"import { Deno } from "./foo.ts"; Deno.writeAllSync(writer, data);"#,
 
@@ -320,6 +335,7 @@ mod tests {
       r#"const Deno = 42; Deno["writeAllSync"](writer, data);"#,
       r#"const Deno = 42; for await (const x of Deno["iter"](xs)) {}"#,
       r#"const Deno = 42; for (const x of Deno["iterSync"](xs)) {}"#,
+      r#"const Deno = 42; Deno["copy"](reader, writer);"#,
       r#"const Deno = 42; Deno["customInspect"]"#,
 
       // access property with template literal (shadowed)
@@ -330,6 +346,7 @@ mod tests {
       r#"const Deno = 42; Deno[`writeAllSync`](writer, data);"#,
       r#"const Deno = 42; for await (const x of Deno[`iter`](xs)) {}"#,
       r#"const Deno = 42; for (const x of Deno[`iterSync`](xs)) {}"#,
+      r#"const Deno = 42; Deno[`copy`](reader, writer);"#,
       r#"const Deno = 42; Deno[`customInspect`]"#,
 
       // Ignore template literals that include expressions
@@ -392,6 +409,13 @@ mod tests {
           hint: IterSync.hint()
         }
       ],
+      "Deno.copy(reader, writer);": [
+        {
+          col: 0,
+          message: Copy.message(),
+          hint: Copy.hint()
+        }
+      ],
       "Deno.customInspect;": [
         {
           col: 0,
@@ -450,6 +474,13 @@ mod tests {
           hint: IterSync.hint()
         }
       ],
+      r#"Deno["copy"](reader, writer);"#: [
+        {
+          col: 0,
+          message: Copy.message(),
+          hint: Copy.hint()
+        }
+      ],
       r#"Deno["customInspect"];"#: [
         {
           col: 0,
@@ -506,6 +537,13 @@ mod tests {
           col: 0,
           message: IterSync.message(),
           hint: IterSync.hint()
+        }
+      ],
+      r#"Deno[`copy`](reader);"#: [
+        {
+          col: 0,
+          message: Copy.message(),
+          hint: Copy.hint()
         }
       ],
       r#"Deno[`customInspect`];"#: [

@@ -45,8 +45,8 @@ impl LintRule for UseIsNaN {
   ) {
     let mut visitor = UseIsNaNVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(ref s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
+      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
 
@@ -129,7 +129,7 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
       || bin_expr.op == swc_ecmascript::ast::BinaryOp::GtEq
     {
       if let swc_ecmascript::ast::Expr::Ident(ident) = &*bin_expr.left {
-        if is_nan_identifier(&ident) {
+        if is_nan_identifier(ident) {
           self.context.add_diagnostic(
             bin_expr.span,
             CODE,
@@ -138,7 +138,7 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
         }
       }
       if let swc_ecmascript::ast::Expr::Ident(ident) = &*bin_expr.right {
-        if is_nan_identifier(&ident) {
+        if is_nan_identifier(ident) {
           self.context.add_diagnostic(
             bin_expr.span,
             CODE,
@@ -156,7 +156,7 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
   ) {
     if let swc_ecmascript::ast::Expr::Ident(ident) = &*switch_stmt.discriminant
     {
-      if is_nan_identifier(&ident) {
+      if is_nan_identifier(ident) {
         self.context.add_diagnostic(
           switch_stmt.span,
           CODE,

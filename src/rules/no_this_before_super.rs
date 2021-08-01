@@ -71,7 +71,7 @@ impl NoThisBeforeSuperHandler {
 
 impl Handler for NoThisBeforeSuperHandler {
   fn on_enter_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
-    if let AstView::Node::Class(ref class) = node {
+    if let AstView::Node::Class(class) = node {
       let is_derived = class.super_class.is_some();
       self.enter_class(is_derived);
     }

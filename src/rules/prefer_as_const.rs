@@ -48,8 +48,8 @@ impl LintRule for PreferAsConst {
     let mut visitor = PreferAsConstVisitor::new(context);
 
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }
@@ -118,7 +118,7 @@ impl<'c, 'view> VisitAll for PreferAsConstVisitor<'c, 'view> {
         | Pat::Ident(BindingIdent { type_ann, .. }) = &decl.name
         {
           if let Some(TsTypeAnn { type_ann, .. }) = &type_ann {
-            self.compare(type_ann, &init, type_ann.span());
+            self.compare(type_ann, init, type_ann.span());
           }
         }
       }

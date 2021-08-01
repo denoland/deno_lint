@@ -58,8 +58,8 @@ impl LintRule for NoSelfAssign {
   ) {
     let mut visitor = NoSelfAssignVisitor::new(context);
     match program {
-      ProgramRef::Module(ref m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(ref s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
 }
@@ -137,11 +137,11 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
       (ExprOrSuper::Expr(l_boxed_expr), ExprOrSuper::Expr(r_boxed_expr)) => {
         match (&**l_boxed_expr, &**r_boxed_expr) {
           (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
-            self.is_same_member(&l_member_expr, &r_member_expr)
+            self.is_same_member(l_member_expr, r_member_expr)
           }
           (Expr::This(_), Expr::This(_)) => true,
           (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-            self.is_same_ident(&l_ident, &r_ident)
+            self.is_same_ident(l_ident, r_ident)
           }
           _ => false,
         }
