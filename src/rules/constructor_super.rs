@@ -51,7 +51,7 @@ class Z {
 
 class B extends Z {
   constructor() {} // missing super() call
-} 
+}
 class C {
   constructor() {
     super();  // Syntax error
