@@ -144,6 +144,9 @@ impl AstParser {
     });
 
     let tokens = parser.input().take();
+
+    // take out the comment maps because that's what dprint-swc-ast-view
+    // uses and what we use in deno's language server because it is Sync.
     let (leading, trailing) = comments.take_all();
     let leading_comments = Rc::try_unwrap(leading).unwrap().into_inner();
     let trailing_comments = Rc::try_unwrap(trailing).unwrap().into_inner();

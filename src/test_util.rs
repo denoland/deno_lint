@@ -258,6 +258,7 @@ pub fn assert_diagnostic(
   source: &str,
 ) {
   if diagnostic.code == code
+    // todo(dsherret): we should change these to be consistent (ex. both 1-indexed)
     && diagnostic.range.start.line_index + 1 == line
     && diagnostic.range.start.column_index == col
   {
@@ -267,7 +268,7 @@ pub fn assert_diagnostic(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
     diagnostic.range.start.line_index + 1,
-    diagnostic.range.start.column_index, // todo: not +1?
+    diagnostic.range.start.column_index,
     code,
     line,
     col,
