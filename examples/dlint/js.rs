@@ -242,7 +242,7 @@ const rules = new Map();
 function registerRule(ruleClass) {
   const code = ruleClass.ruleCode();
   rules.set(code, ruleClass);
-  Deno.core.jsonOpSync('op_add_rule_code', { code });
+  Deno.core.opSync('op_add_rule_code', { code });
 }
 globalThis.runPlugins = function(programAst, ruleCodes) {
   for (const code of ruleCodes) {
@@ -251,7 +251,7 @@ globalThis.runPlugins = function(programAst, ruleCodes) {
       continue;
     }
     const diagnostics = new rule().collectDiagnostics(programAst);
-    Deno.core.jsonOpSync('op_add_diagnostics', { code, diagnostics });
+    Deno.core.opSync('op_add_diagnostics', { code, diagnostics });
   }
 };
 registerRule(Plugin);
