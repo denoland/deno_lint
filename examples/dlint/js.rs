@@ -1,7 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::Context as _;
 use deno_core::error::AnyError;
-use deno_core::futures::StreamExt;
 use deno_core::resolve_url_or_path;
 use deno_core::FsModuleLoader;
 use deno_core::JsRuntime;
