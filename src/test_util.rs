@@ -367,7 +367,7 @@ pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program)) {
   let (source_file, program, leading_comments, trailing_comments, tokens) =
     parse(source_code);
   let program_info = ast_view::ProgramInfo {
-    program: &program,
+    program: (&program).into(),
     source_file: Some(&source_file),
     tokens: Some(&tokens),
     comments: Some(ast_view::Comments {

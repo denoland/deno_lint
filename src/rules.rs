@@ -92,9 +92,38 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
+#[derive(Clone, Copy)]
 pub enum ProgramRef<'view> {
   Module(&'view swc_ecmascript::ast::Module),
   Script(&'view swc_ecmascript::ast::Script),
+}
+
+impl<'view> From<&'view swc_ecmascript::ast::Program> for ProgramRef<'view> {
+  fn from(program: &'view swc_ecmascript::ast::Program) -> Self {
+    use swc_ecmascript::ast::Program;
+
+    match program {
+      Program::Module(module) => ProgramRef::Module(module),
+      Program::Script(script) => ProgramRef::Script(script),
+    }
+  }
+}
+
+impl<'view> From<ProgramRef<'view>>
+  for dprint_swc_ecma_ast_view::ProgramRef<'view>
+{
+  fn from(
+    program: ProgramRef<'view>,
+  ) -> dprint_swc_ecma_ast_view::ProgramRef<'view> {
+    match program {
+      ProgramRef::Module(module) => {
+        dprint_swc_ecma_ast_view::ProgramRef::Module(module)
+      }
+      ProgramRef::Script(script) => {
+        dprint_swc_ecma_ast_view::ProgramRef::Script(script)
+      }
+    }
+  }
 }
 
 pub trait LintRule {

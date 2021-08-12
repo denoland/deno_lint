@@ -10,6 +10,7 @@ use crate::ignore_directives::{
   parse_file_ignore_directives, parse_line_ignore_directives,
 };
 use crate::rules::LintRule;
+use crate::rules::ProgramRef;
 use crate::scopes::Scope;
 use dprint_swc_ecma_ast_view::SourceFileTextInfo;
 use dprint_swc_ecma_ast_view::{self as AstView};
@@ -130,7 +131,7 @@ impl Linter {
     let diagnostics = self.lint_program(
       file_name,
       &source_file,
-      &program,
+      (&program).into(),
       &leading_comments,
       &trailing_comments,
       &tokens,
@@ -145,11 +146,11 @@ impl Linter {
     mut self,
     file_name: String,
     source_file: &dyn SourceFile,
-    ast: &swc_ecmascript::ast::Program,
+    ast: ProgramRef,
     leading_comments: &SingleThreadedCommentsMapInner,
     trailing_comments: &SingleThreadedCommentsMapInner,
     tokens: &[TokenAndSpan],
-  ) -> Result<Vec<LintDiagnostic>, SwcDiagnostic> {
+  ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
     let diagnostics = self.lint_program(
       file_name,
@@ -163,7 +164,7 @@ impl Linter {
     let end = Instant::now();
     debug!("Linter::lint_with_ast took {:#?}", end - start);
 
-    Ok(diagnostics)
+    diagnostics
   }
 
   fn filter_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
@@ -186,7 +187,7 @@ impl Linter {
     &mut self,
     file_name: String,
     source_file: &dyn SourceFile,
-    program: &swc_ecmascript::ast::Program,
+    program: ProgramRef,
     leading_comments: &SingleThreadedCommentsMapInner,
     trailing_comments: &SingleThreadedCommentsMapInner,
     tokens: &[TokenAndSpan],
@@ -200,7 +201,7 @@ impl Linter {
       });
 
     let program_info = AstView::ProgramInfo {
-      program,
+      program: program.into(),
       source_file: Some(source_file),
       tokens: Some(tokens),
       comments: Some(dprint_swc_ecma_ast_view::Comments {
@@ -244,7 +245,7 @@ impl Linter {
       // Run plugin rules
       for plugin in self.plugins.iter_mut() {
         // Ignore any error
-        let _ = plugin.run(&mut context, program.clone());
+        let _ = plugin.run(&mut context, program);
       }
 
       self.filter_diagnostics(context)
@@ -261,6 +262,6 @@ pub trait Plugin {
   fn run(
     &mut self,
     context: &mut Context,
-    program: swc_ecmascript::ast::Program,
+    program: ProgramRef,
   ) -> anyhow::Result<()>;
 }

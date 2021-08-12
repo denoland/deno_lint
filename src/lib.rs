@@ -28,11 +28,10 @@ pub mod swc_util;
 mod lint_tests {
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
-  use crate::rules::{get_recommended_rules, LintRule};
+  use crate::rules::{get_recommended_rules, LintRule, ProgramRef};
   use crate::test_util::{assert_diagnostic, parse};
   use dprint_swc_ecma_ast_view::TokenAndSpan;
   use swc_common::comments::SingleThreadedCommentsMapInner;
-  use swc_ecmascript::ast::Program;
 
   fn lint(source: &str, rules: Vec<Box<dyn LintRule>>) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
@@ -45,7 +44,7 @@ mod lint_tests {
 
   fn lint_with_ast(
     source_file: &dyn SourceFile,
-    ast: &Program,
+    ast: ProgramRef,
     leading_comments: &SingleThreadedCommentsMapInner,
     trailing_comments: &SingleThreadedCommentsMapInner,
     tokens: &[TokenAndSpan],
@@ -53,16 +52,14 @@ mod lint_tests {
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
-    linter
-      .lint_with_ast(
-        "lint_test.ts".to_string(),
-        source_file,
-        ast,
-        leading_comments,
-        trailing_comments,
-        tokens,
-      )
-      .expect("Failed to lint")
+    linter.lint_with_ast(
+      "lint_test.ts".to_string(),
+      source_file,
+      ast,
+      leading_comments,
+      trailing_comments,
+      tokens,
+    )
   }
 
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {
@@ -71,7 +68,7 @@ mod lint_tests {
 
   fn lint_recommended_rules_with_ast(
     source_file: &dyn SourceFile,
-    ast: &Program,
+    ast: ProgramRef,
     leading_comments: &SingleThreadedCommentsMapInner,
     trailing_comments: &SingleThreadedCommentsMapInner,
     tokens: &[TokenAndSpan],
@@ -240,7 +237,7 @@ const _foo = 42;
       parse("");
     let diagnostics = lint_recommended_rules_with_ast(
       &source_file,
-      &ast,
+      (&ast).into(),
       &leading_comments,
       &trailing_comments,
       &tokens,

@@ -4,7 +4,7 @@ use swc_common::BytePos;
 
 fn analyze_flow(src: &str) -> ControlFlow {
   let (_, program, _, _, _) = test_util::parse(src);
-  ControlFlow::analyze(&program)
+  ControlFlow::analyze((&program).into())
 }
 
 macro_rules! assert_flow {

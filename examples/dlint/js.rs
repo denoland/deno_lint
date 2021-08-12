@@ -10,12 +10,12 @@ use deno_core::ZeroCopyBuf;
 use deno_lint::context::Context;
 use deno_lint::control_flow::ControlFlow;
 use deno_lint::linter::Plugin;
+use deno_lint::rules::ProgramRef;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use swc_common::Span;
-use swc_ecmascript::ast::Program;
 
 #[derive(Deserialize)]
 struct DiagnosticsFromJs {
@@ -149,7 +149,7 @@ impl Plugin for JsRuleRunner {
   fn run(
     &mut self,
     context: &mut Context,
-    program: Program,
+    program: ProgramRef,
   ) -> Result<(), AnyError> {
     self
       .runtime
@@ -174,7 +174,11 @@ impl Plugin for JsRuleRunner {
       "runPlugins",
       &format!(
         "runPlugins({ast}, {rule_codes});",
-        ast = serde_json::to_string(&program).unwrap(),
+        ast = match program {
+          ProgramRef::Module(module) => serde_json::to_string(module),
+          ProgramRef::Script(script) => serde_json::to_string(script),
+        }
+        .unwrap(),
         rule_codes = serde_json::to_string(&codes).unwrap()
       ),
     )?;

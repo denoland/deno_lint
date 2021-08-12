@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod analyze_test;
 
+use crate::rules::ProgramRef;
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,
@@ -20,12 +21,19 @@ pub struct ControlFlow {
 }
 
 impl ControlFlow {
-  pub fn analyze(program: &Program) -> Self {
+  pub fn analyze(program: ProgramRef) -> Self {
     let mut v = Analyzer {
       scope: Scope::new(None, BlockKind::Program),
       info: Default::default(),
     };
-    program.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+    match program {
+      ProgramRef::Module(module) => {
+        module.visit_with(&Invalid { span: DUMMY_SP }, &mut v)
+      }
+      ProgramRef::Script(script) => {
+        script.visit_with(&Invalid { span: DUMMY_SP }, &mut v)
+      }
+    }
     ControlFlow { meta: v.info }
   }
 
