@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::Context as _;
+use ast_view::ProgramRef;
 use deno_core::error::AnyError;
 use deno_core::resolve_url_or_path;
 use deno_core::FsModuleLoader;
@@ -10,7 +11,6 @@ use deno_core::ZeroCopyBuf;
 use deno_lint::context::Context;
 use deno_lint::control_flow::ControlFlow;
 use deno_lint::linter::Plugin;
-use deno_lint::rules::ProgramRef;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};

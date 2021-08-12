@@ -1,5 +1,4 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use dprint_swc_ecma_ast_view as ast_view;
 use std::collections::HashMap;
 use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;

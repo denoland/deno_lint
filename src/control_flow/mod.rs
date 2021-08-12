@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod analyze_test;
 
-use crate::rules::ProgramRef;
+use ast_view::ProgramRef;
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,

@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::{Comment, CommentKind};
@@ -29,7 +29,7 @@ impl LintRule for NoInvalidTripleSlashReference {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    _program: dprint_swc_ecma_ast_view::Program<'_>,
+    _program: Program<'_>,
   ) {
     let is_js_like = is_js_or_jsx(context.file_name());
 

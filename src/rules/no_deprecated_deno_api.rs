@@ -1,8 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
 use std::convert::TryFrom;
 use swc_atoms::JsWord;
@@ -32,7 +31,7 @@ impl LintRule for NoDeprecatedDenoApi {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: AstView::Program<'_>,
+    program: Program<'_>,
   ) {
     NoDeprecatedDenoApiHandler.traverse(program, context);
   }
@@ -53,8 +52,8 @@ fn is_shadowed(symbol: &JsWord, scope: &Scope) -> bool {
 
 /// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
 /// return `None`).
-fn extract_symbol<'a>(expr: &'a AstView::Expr) -> Option<&'a JsWord> {
-  use AstView::{Expr, Lit, Tpl};
+fn extract_symbol<'a>(expr: &'a ast_view::Expr) -> Option<&'a JsWord> {
+  use ast_view::{Expr, Lit, Tpl};
   match expr {
     Expr::Lit(Lit::Str(s)) => Some(s.value()),
     Expr::Ident(ident) => Some(ident.sym()),
@@ -170,15 +169,15 @@ struct NoDeprecatedDenoApiHandler;
 impl Handler for NoDeprecatedDenoApiHandler {
   fn member_expr(
     &mut self,
-    member_expr: &AstView::MemberExpr,
+    member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
     // Not check chained member expressions (e.g. `foo.bar.baz`)
-    if member_expr.parent().is::<AstView::MemberExpr>() {
+    if member_expr.parent().is::<ast_view::MemberExpr>() {
       return;
     }
 
-    use AstView::{Expr, ExprOrSuper};
+    use ast_view::{Expr, ExprOrSuper};
     if_chain! {
       if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
       let obj_symbol = obj.sym();

@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
 use swc_common::Spanned;
 
@@ -28,7 +28,7 @@ impl LintRule for NoWith {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     NoWithHandler.traverse(program, context);
   }
@@ -42,11 +42,7 @@ impl LintRule for NoWith {
 struct NoWithHandler;
 
 impl Handler for NoWithHandler {
-  fn with_stmt(
-    &mut self,
-    with_stmt: &dprint_swc_ecma_ast_view::WithStmt,
-    ctx: &mut Context,
-  ) {
+  fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
     ctx.add_diagnostic(with_stmt.span(), CODE, MESSAGE);
   }
 }

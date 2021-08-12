@@ -5,7 +5,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use ast_view::SourceFileTextInfo;
-use dprint_swc_ecma_ast_view::{self as ast_view, TokenAndSpan};
+use ast_view::TokenAndSpan;
 use std::marker::PhantomData;
 use swc_common::comments::SingleThreadedCommentsMapInner;
 use swc_ecmascript::ast::Program;

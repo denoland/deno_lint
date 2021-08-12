@@ -4,7 +4,9 @@ use serde::Serialize;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {
+  /// The 0-indexed line index.
   pub line_index: usize,
+  /// The 0-indexed column index.
   pub column_index: usize,
   pub byte_pos: usize,
 }
@@ -12,7 +14,7 @@ pub struct Position {
 impl Position {
   pub fn new(
     byte_pos: swc_common::BytePos,
-    loc: dprint_swc_ecma_ast_view::LineAndColumnIndex,
+    loc: ast_view::LineAndColumnIndex,
   ) -> Self {
     Position {
       line_index: loc.line_index,

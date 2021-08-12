@@ -1,8 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
 use derive_more::Display;
-use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
 use swc_common::Spanned;
 
@@ -38,7 +37,7 @@ impl LintRule for NoUnsafeNegation {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: AstView::Program,
+    program: Program,
   ) {
     NoUnsafeNegationHandler.traverse(program, context);
   }
@@ -52,8 +51,8 @@ impl LintRule for NoUnsafeNegation {
 struct NoUnsafeNegationHandler;
 
 impl Handler for NoUnsafeNegationHandler {
-  fn bin_expr(&mut self, bin_expr: &AstView::BinExpr, ctx: &mut Context) {
-    use AstView::{BinaryOp, Expr, UnaryOp};
+  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
+    use ast_view::{BinaryOp, Expr, UnaryOp};
     if_chain! {
       if matches!(bin_expr.op(), BinaryOp::In | BinaryOp::InstanceOf);
       if let Expr::Unary(unary_expr) = &bin_expr.left;

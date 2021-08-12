@@ -6,9 +6,7 @@ use crate::ignore_directives::{
 };
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{
-  self as AstView, BytePos, RootNode, SourceFile,
-};
+use ast_view::{BytePos, RootNode, SourceFile};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use swc_common::comments::Comment;
@@ -30,7 +28,7 @@ pub struct Context<'view> {
 
   /// The AST view of the program, which for example can be used for getting
   /// comments
-  program: AstView::Program<'view>,
+  program: ast_view::Program<'view>,
 
   /// File-level ignore directive (`deno-lint-ignore-file`)
   file_ignore_directive: Option<FileIgnoreDirective>,
@@ -56,8 +54,8 @@ impl<'view> Context<'view> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
     file_name: String,
-    source_file: &'view dyn SourceFile,
-    program: AstView::Program<'view>,
+    source_file: &'view impl SourceFile,
+    program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
     line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
     scope: Scope,
@@ -98,7 +96,7 @@ impl<'view> Context<'view> {
     &self.source_file.text()[span.lo.0 as usize..span.hi.0 as usize]
   }
 
-  pub fn program(&self) -> &AstView::Program<'view> {
+  pub fn program(&self) -> &ast_view::Program<'view> {
     &self.program
   }
 

@@ -114,7 +114,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
           ctxt: case.span.ctxt,
         };
         // todo(dsherret): use `span.line_start_fast(context.program)` and
-        // `line_end_fast` when switching to ASTView
+        // `line_end_fast` when switching to ast_view
         let span_line_count = self
           .context
           .file_text_substring(&span)

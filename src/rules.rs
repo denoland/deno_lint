@@ -1,6 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::context::Context;
-use dprint_swc_ecma_ast_view::Program as ProgramView;
+
+pub use ast_view::Program;
+pub use ast_view::ProgramRef;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -92,40 +94,6 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
-#[derive(Clone, Copy)]
-pub enum ProgramRef<'view> {
-  Module(&'view swc_ecmascript::ast::Module),
-  Script(&'view swc_ecmascript::ast::Script),
-}
-
-impl<'view> From<&'view swc_ecmascript::ast::Program> for ProgramRef<'view> {
-  fn from(program: &'view swc_ecmascript::ast::Program) -> Self {
-    use swc_ecmascript::ast::Program;
-
-    match program {
-      Program::Module(module) => ProgramRef::Module(module),
-      Program::Script(script) => ProgramRef::Script(script),
-    }
-  }
-}
-
-impl<'view> From<ProgramRef<'view>>
-  for dprint_swc_ecma_ast_view::ProgramRef<'view>
-{
-  fn from(
-    program: ProgramRef<'view>,
-  ) -> dprint_swc_ecma_ast_view::ProgramRef<'view> {
-    match program {
-      ProgramRef::Module(module) => {
-        dprint_swc_ecma_ast_view::ProgramRef::Module(module)
-      }
-      ProgramRef::Script(script) => {
-        dprint_swc_ecma_ast_view::ProgramRef::Script(script)
-      }
-    }
-  }
-}
-
 pub trait LintRule {
   /// Creates an instance of this rule.
   fn new() -> Box<Self>
@@ -145,9 +113,9 @@ pub trait LintRule {
   fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
-    program: dprint_swc_ecma_ast_view::Program<'view>,
+    program: Program<'view>,
   ) {
-    use ProgramView::*;
+    use Program::*;
     let program_ref = match program {
       Module(m) => ProgramRef::Module(m.inner),
       Script(s) => ProgramRef::Script(s.inner),

@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{self as ast_view, NodeTrait};
+use ast_view::NodeTrait;
 use if_chain::if_chain;
 use swc_common::Spanned;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -33,7 +33,7 @@ impl LintRule for PreferPrimordials {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     PreferPrimordialsHandler.traverse(program, context);
   }

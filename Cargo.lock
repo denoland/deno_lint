@@ -293,9 +293,9 @@ dependencies = [
 
 [[package]]
 name = "dprint-swc-ecma-ast-view"
-version = "0.29.0"
+version = "0.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "342f0eafdac6c525ba1058c5af084c4dece5a768b85a9c5d1d7390d5b44a8675"
+checksum = "1e0b3e6ed225d00331200847a92fe50a5d9cea6c5f956e3640757c476467fedf"
 dependencies = [
  "bumpalo",
  "fnv",
@@ -303,6 +303,7 @@ dependencies = [
  "swc_atoms",
  "swc_common",
  "swc_ecmascript",
+ "text_lines",
 ]
 
 [[package]]
@@ -1401,6 +1402,12 @@ checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "text_lines"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "116279ecd8fa26fbdcf20c79ee6f85a5ce325a953486e11e71c51670bdaa308f"
 
 [[package]]
 name = "textwrap"

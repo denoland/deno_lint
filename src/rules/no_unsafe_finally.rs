@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
+use ast_view::NodeTrait;
 use derive_more::Display;
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
 use swc_common::{Span, Spanned};
 
 pub struct NoUnsafeFinally;
@@ -54,7 +54,7 @@ impl LintRule for NoUnsafeFinally {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     NoUnsafeFinallyHandler.traverse(program, context);
   }
@@ -68,7 +68,11 @@ impl LintRule for NoUnsafeFinally {
 struct NoUnsafeFinallyHandler;
 
 impl Handler for NoUnsafeFinallyHandler {
-  fn break_stmt(&mut self, break_stmt: &AstView::BreakStmt, ctx: &mut Context) {
+  fn break_stmt(
+    &mut self,
+    break_stmt: &ast_view::BreakStmt,
+    ctx: &mut Context,
+  ) {
     let kind = StmtKind::Break(break_stmt.label);
     if stmt_inside_finally(break_stmt.span(), kind, break_stmt.as_node()) {
       add_diagnostic_with_hint(ctx, break_stmt.span(), kind);
@@ -77,7 +81,7 @@ impl Handler for NoUnsafeFinallyHandler {
 
   fn continue_stmt(
     &mut self,
-    continue_stmt: &AstView::ContinueStmt,
+    continue_stmt: &ast_view::ContinueStmt,
     ctx: &mut Context,
   ) {
     let kind = StmtKind::Continue(continue_stmt.label);
@@ -89,7 +93,7 @@ impl Handler for NoUnsafeFinallyHandler {
 
   fn return_stmt(
     &mut self,
-    return_stmt: &AstView::ReturnStmt,
+    return_stmt: &ast_view::ReturnStmt,
     ctx: &mut Context,
   ) {
     let kind = StmtKind::Return;
@@ -98,7 +102,11 @@ impl Handler for NoUnsafeFinallyHandler {
     }
   }
 
-  fn throw_stmt(&mut self, throw_stmt: &AstView::ThrowStmt, ctx: &mut Context) {
+  fn throw_stmt(
+    &mut self,
+    throw_stmt: &ast_view::ThrowStmt,
+    ctx: &mut Context,
+  ) {
     let kind = StmtKind::Throw;
     if stmt_inside_finally(throw_stmt.span(), kind, throw_stmt.as_node()) {
       add_diagnostic_with_hint(ctx, throw_stmt.span(), kind);
@@ -108,8 +116,8 @@ impl Handler for NoUnsafeFinallyHandler {
 
 #[derive(Clone, Copy)]
 enum StmtKind<'a> {
-  Break(Option<&'a AstView::Ident<'a>>),
-  Continue(Option<&'a AstView::Ident<'a>>),
+  Break(Option<&'a ast_view::Ident<'a>>),
+  Continue(Option<&'a ast_view::Ident<'a>>),
   Return,
   Throw,
 }
@@ -123,7 +131,7 @@ impl<'a> StmtKind<'a> {
     matches!(self, StmtKind::Continue(_))
   }
 
-  fn label(&self) -> Option<&'a AstView::Ident<'a>> {
+  fn label(&self) -> Option<&'a ast_view::Ident<'a>> {
     if let StmtKind::Break(label) | StmtKind::Continue(label) = self {
       *label
     } else {
@@ -136,9 +144,9 @@ impl<'a> StmtKind<'a> {
 fn stmt_inside_finally(
   stmt_span: Span,
   stmt_kind: StmtKind,
-  cur_node: AstView::Node,
+  cur_node: ast_view::Node,
 ) -> bool {
-  use AstView::Node::*;
+  use ast_view::Node::*;
   match (cur_node, stmt_kind.label()) {
     (Function(_), _) | (ArrowExpr(_), _) => false,
     (LabeledStmt(labeled_stmt), Some(label))
@@ -157,7 +165,7 @@ fn stmt_inside_finally(
       false
     }
     (
-      TryStmt(AstView::TryStmt {
+      TryStmt(ast_view::TryStmt {
         finalizer: Some(ref f),
         ..
       }),

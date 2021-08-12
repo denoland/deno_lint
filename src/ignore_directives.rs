@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use dprint_swc_ecma_ast_view::{self as ast_view, RootNode, Spanned};
+use ast_view::{RootNode, Spanned};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;

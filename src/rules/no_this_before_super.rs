@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Span, Spanned};
+use ast_view::{NodeTrait, Span, Spanned};
 
 pub struct NoThisBeforeSuper;
 
@@ -29,7 +29,7 @@ impl LintRule for NoThisBeforeSuper {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     let mut handler = NoThisBeforeSuperHandler::new();
     handler.traverse(program, context);
@@ -75,20 +75,20 @@ impl NoThisBeforeSuperHandler {
 }
 
 impl Handler for NoThisBeforeSuperHandler {
-  fn on_enter_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
-    if let AstView::Node::Class(class) = node {
+  fn on_enter_node(&mut self, node: ast_view::Node, _ctx: &mut Context) {
+    if let ast_view::Node::Class(class) = node {
       let is_derived = class.super_class.is_some();
       self.enter_class(is_derived);
     }
   }
 
-  fn on_exit_node(&mut self, node: AstView::Node, _ctx: &mut Context) {
-    if matches!(node, AstView::Node::Class(_)) {
+  fn on_exit_node(&mut self, node: ast_view::Node, _ctx: &mut Context) {
+    if matches!(node, ast_view::Node::Class(_)) {
       self.leave_class();
     }
   }
 
-  fn constructor(&mut self, cons: &AstView::Constructor, ctx: &mut Context) {
+  fn constructor(&mut self, cons: &ast_view::Constructor, ctx: &mut Context) {
     if !self.inside_derived_class() {
       return;
     }
@@ -137,8 +137,8 @@ impl SuperCallChecker {
     self.first_appeared
   }
 
-  fn node_is_inside_function(&self, node: AstView::Node) -> bool {
-    fn inside_function(root_span: Span, cur_node: AstView::Node) -> bool {
+  fn node_is_inside_function(&self, node: ast_view::Node) -> bool {
+    fn inside_function(root_span: Span, cur_node: ast_view::Node) -> bool {
       // Stop recursion if the current node gets out of root_node.
       if !root_span.contains(cur_node.span()) {
         return false;
@@ -146,7 +146,7 @@ impl SuperCallChecker {
 
       if matches!(
         cur_node,
-        AstView::Node::Function(_) | AstView::Node::ArrowExpr(_)
+        ast_view::Node::Function(_) | ast_view::Node::ArrowExpr(_)
       ) {
         return true;
       }
@@ -159,7 +159,7 @@ impl SuperCallChecker {
 }
 
 impl Handler for SuperCallChecker {
-  fn this_expr(&mut self, this_expr: &AstView::ThisExpr, _ctx: &mut Context) {
+  fn this_expr(&mut self, this_expr: &ast_view::ThisExpr, _ctx: &mut Context) {
     if self.node_is_inside_function(this_expr.as_node()) {
       return;
     }
@@ -169,7 +169,7 @@ impl Handler for SuperCallChecker {
     }
   }
 
-  fn super_(&mut self, super_: &AstView::Super, _ctx: &mut Context) {
+  fn super_(&mut self, super_: &ast_view::Super, _ctx: &mut Context) {
     if self.node_is_inside_function(super_.as_node()) {
       return;
     }
@@ -179,7 +179,7 @@ impl Handler for SuperCallChecker {
     }
   }
 
-  fn call_expr(&mut self, call_expr: &AstView::CallExpr, ctx: &mut Context) {
+  fn call_expr(&mut self, call_expr: &ast_view::CallExpr, ctx: &mut Context) {
     if self.node_is_inside_function(call_expr.as_node()) {
       return;
     }
@@ -190,7 +190,7 @@ impl Handler for SuperCallChecker {
     }
 
     if self.yet_appeared()
-      && matches!(call_expr.callee, AstView::ExprOrSuper::Super(_))
+      && matches!(call_expr.callee, ast_view::ExprOrSuper::Super(_))
     {
       self.first_appeared = Some(FirstAppeared::SuperCalled);
     }

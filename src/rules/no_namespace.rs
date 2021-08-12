@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use ast_view::NodeTrait;
 use swc_common::Spanned;
 
 pub struct NoNamespace;
@@ -32,7 +32,7 @@ impl LintRule for NoNamespace {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     if context.file_name().ends_with(".d.ts") {
       return;
@@ -52,11 +52,11 @@ struct NoNamespaceHandler;
 impl Handler for NoNamespaceHandler {
   fn ts_module_decl(
     &mut self,
-    module_decl: &AstView::TsModuleDecl,
+    module_decl: &ast_view::TsModuleDecl,
     ctx: &mut Context,
   ) {
-    fn inside_ambient_context(current_node: AstView::Node) -> bool {
-      use AstView::Node::*;
+    fn inside_ambient_context(current_node: ast_view::Node) -> bool {
+      use ast_view::Node::*;
       match current_node {
         TsModuleDecl(module_decl) if module_decl.declare() => true,
         _ => match current_node.parent() {

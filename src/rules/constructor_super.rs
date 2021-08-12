@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as ast_view, Span, Spanned};
+use ast_view::{Span, Spanned};
 use if_chain::if_chain;
 
 pub struct ConstructorSuper;
@@ -30,7 +30,7 @@ impl LintRule for ConstructorSuper {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: ast_view::Program,
+    program: Program,
   ) {
     ConstructorSuperHandler.traverse(program, context);
   }

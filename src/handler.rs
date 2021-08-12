@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::context::Context;
-use dprint_swc_ecma_ast_view::{self as ast_view, NodeTrait};
+use ast_view::NodeTrait;
 
 pub trait Handler {
   fn on_enter_node(&mut self, _n: ast_view::Node, _ctx: &mut Context) {}

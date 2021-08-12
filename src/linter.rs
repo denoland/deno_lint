@@ -10,17 +10,16 @@ use crate::ignore_directives::{
   parse_file_ignore_directives, parse_line_ignore_directives,
 };
 use crate::rules::LintRule;
-use crate::rules::ProgramRef;
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::SourceFileTextInfo;
-use dprint_swc_ecma_ast_view::{self as AstView};
+use ast_view::ProgramRef;
+use ast_view::SourceFileTextInfo;
 use std::time::Instant;
 use swc_common::comments::SingleThreadedCommentsMapInner;
 use swc_common::SyntaxContext;
 use swc_ecmascript::parser::token::TokenAndSpan;
 use swc_ecmascript::parser::Syntax;
 
-pub use AstView::SourceFile;
+pub use ast_view::SourceFile;
 
 pub struct LinterBuilder {
   ignore_file_directive: String,
@@ -145,7 +144,7 @@ impl Linter {
   pub fn lint_with_ast(
     mut self,
     file_name: String,
-    source_file: &dyn SourceFile,
+    source_file: &impl SourceFile,
     ast: ProgramRef,
     leading_comments: &SingleThreadedCommentsMapInner,
     trailing_comments: &SingleThreadedCommentsMapInner,
@@ -186,7 +185,7 @@ impl Linter {
   fn lint_program(
     &mut self,
     file_name: String,
-    source_file: &dyn SourceFile,
+    source_file: &impl SourceFile,
     program: ProgramRef,
     leading_comments: &SingleThreadedCommentsMapInner,
     trailing_comments: &SingleThreadedCommentsMapInner,
@@ -200,17 +199,17 @@ impl Linter {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
       });
 
-    let program_info = AstView::ProgramInfo {
-      program: program.into(),
+    let program_info = ast_view::ProgramInfo {
+      program,
       source_file: Some(source_file),
       tokens: Some(tokens),
-      comments: Some(dprint_swc_ecma_ast_view::Comments {
+      comments: Some(ast_view::Comments {
         leading: leading_comments,
         trailing: trailing_comments,
       }),
     };
 
-    let diagnostics = AstView::with_ast_view(program_info, |pg| {
+    let diagnostics = ast_view::with_ast_view(program_info, |pg| {
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ignore_file_directive, pg);
 

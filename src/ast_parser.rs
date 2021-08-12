@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use dprint_swc_ecma_ast_view::SourceFile;
-use dprint_swc_ecma_ast_view::SourceFileTextInfo;
+use ast_view::SourceFile;
+use ast_view::SourceFileTextInfo;
 use std::error::Error;
 use std::fmt;
 use std::rc::Rc;

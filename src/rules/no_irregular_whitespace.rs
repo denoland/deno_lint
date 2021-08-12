@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule, Program, ProgramRef};
+use ast_view::RootNode;
 use derive_more::Display;
-use dprint_swc_ecma_ast_view::{self as AstView, RootNode};
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
 use swc_common::{hygiene::SyntaxContext, BytePos, Span};
@@ -56,7 +56,7 @@ impl LintRule for NoIrregularWhitespace {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: AstView::Program,
+    program: Program,
   ) {
     let file_span = context.source_file().span();
     let mut check_span = |span: Span| {
