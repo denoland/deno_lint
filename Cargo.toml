@@ -34,7 +34,7 @@ annotate-snippets = { version = "0.9.0", features = ["color"] }
 ansi_term = "0.12.1"
 atty = "0.2.14"
 clap = "2.33.3"
-deno_core = "0.84.0"
+deno_core = "0.96.0"
 env_logger = "0.8.3"
 globwalk = "0.8.1"
 markdown = "0.3.0"

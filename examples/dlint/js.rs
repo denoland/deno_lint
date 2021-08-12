@@ -118,10 +118,10 @@ impl JsRuleRunner {
     });
 
     runtime
-      .execute("visitor.js", include_str!("visitor.js"))
+      .execute_script("visitor.js", include_str!("visitor.js"))
       .unwrap();
     runtime
-      .execute("control-flow.js", include_str!("control-flow.js"))
+      .execute_script("control-flow.js", include_str!("control-flow.js"))
       .unwrap();
     runtime.register_op(
       "op_add_diagnostics",
@@ -133,6 +133,7 @@ impl JsRuleRunner {
       "op_query_control_flow_by_span",
       deno_core::op_sync(op_query_control_flow_by_span),
     );
+    runtime.sync_ops_cache();
 
     let module_id =
       deno_core::futures::executor::block_on(runtime.load_module(
@@ -157,10 +158,9 @@ impl Plugin for JsRuleRunner {
       .borrow_mut()
       .put(context.control_flow().clone());
 
-    deno_core::futures::executor::block_on(
-      self.runtime.mod_evaluate(self.module_id).next(),
-    )
-    .unwrap()?;
+    let _ = self.runtime.mod_evaluate(self.module_id);
+    deno_core::futures::executor::block_on(self.runtime.run_event_loop(false))
+      .unwrap();
 
     let codes = self
       .runtime
@@ -171,7 +171,7 @@ impl Plugin for JsRuleRunner {
 
     context.set_plugin_codes(codes.clone());
 
-    self.runtime.execute(
+    self.runtime.execute_script(
       "runPlugins",
       &format!(
         "runPlugins({ast}, {rule_codes});",
@@ -210,7 +210,7 @@ const rules = new Map();
 function registerRule(ruleClass) {
   const code = ruleClass.ruleCode();
   rules.set(code, ruleClass);
-  Deno.core.jsonOpSync('op_add_rule_code', { code });
+  Deno.core.opSync('op_add_rule_code', { code });
 }
 globalThis.runPlugins = function(programAst, ruleCodes) {
   for (const code of ruleCodes) {
@@ -219,7 +219,7 @@ globalThis.runPlugins = function(programAst, ruleCodes) {
       continue;
     }
     const diagnostics = new rule().collectDiagnostics(programAst);
-    Deno.core.jsonOpSync('op_add_diagnostics', { code, diagnostics });
+    Deno.core.opSync('op_add_diagnostics', { code, diagnostics });
   }
 };
 registerRule(Plugin);
