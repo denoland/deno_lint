@@ -504,20 +504,17 @@ impl CamelcaseHandler {
                 );
               }
               ast_view::Pat::Assign(ast_view::AssignPat {
-                ref left, ..
+                left: ast_view::Pat::Ident(value_ident),
+                ..
               }) => {
-                if let ast_view::Pat::Ident(value_ident) = left {
-                  self.check_ident(
-                    value_ident,
-                    IdentToCheck::object_pat(
-                      &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
-                      Some(&value_ident.id.inner),
-                      true,
-                    ),
-                  );
-                } else {
-                  self.check_pat(value);
-                }
+                self.check_ident(
+                  value_ident,
+                  IdentToCheck::object_pat(
+                    &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
+                    Some(&value_ident.id.inner),
+                    true,
+                  ),
+                );
               }
               _ => {
                 self.check_pat(value);
