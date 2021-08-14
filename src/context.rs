@@ -1,6 +1,5 @@
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
-use crate::handler::TraverseFlow;
 use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
@@ -117,12 +116,16 @@ impl<'view> Context<'view> {
     self.top_level_ctxt
   }
 
-  pub(crate) fn traverse_flow(&self) -> TraverseFlow {
-    self.traverse_flow
+  pub(crate) fn assert_traverse_init(&self) {
+    self.traverse_flow.assert_init();
   }
 
-  pub(crate) fn traverse_flow_mut(&mut self) -> &mut TraverseFlow {
-    &mut self.traverse_flow
+  pub(crate) fn should_stop_traverse(&mut self) -> bool {
+    self.traverse_flow.should_stop()
+  }
+
+  pub(crate) fn stop_traverse(&mut self) {
+    self.traverse_flow.set_stop_traverse();
   }
 
   pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
@@ -351,5 +354,35 @@ impl<'view> Context<'view> {
 
   pub fn set_plugin_codes(&mut self, codes: HashSet<String>) {
     self.plugin_codes = codes;
+  }
+}
+
+/// A struct containing a boolean value to control whether a node's children
+/// will be traversed or not.
+/// If there's no need to further traverse children nodes, you can call
+/// `ctx.stop_traverse()` from inside a handler method, which will cancel
+/// further traverse.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct TraverseFlow {
+  stop_traverse: bool,
+}
+
+impl TraverseFlow {
+  fn set_stop_traverse(&mut self) {
+    self.stop_traverse = true;
+  }
+
+  fn reset(&mut self) {
+    self.stop_traverse = false;
+  }
+
+  fn assert_init(&self) {
+    assert!(!self.stop_traverse);
+  }
+
+  fn should_stop(&mut self) -> bool {
+    let stop = self.stop_traverse;
+    self.reset();
+    stop
   }
 }

@@ -507,7 +507,7 @@ pub trait Traverse: Handler {
     let node = node.as_node();
 
     // Make sure that `traverse_flow` is in initialized state
-    ctx.traverse_flow().assert_init();
+    ctx.assert_traverse_init();
 
     // First, invoke a handler that does anything we want when _entering_ a node.
     self.on_enter_node(node, ctx);
@@ -680,7 +680,7 @@ pub trait Traverse: Handler {
     };
 
     // Walk the child nodes recursively.
-    if !ctx.traverse_flow_mut().should_stop() {
+    if !ctx.should_stop_traverse() {
       for child in node.children() {
         self.traverse(child, ctx);
       }
@@ -692,44 +692,3 @@ pub trait Traverse: Handler {
 }
 
 impl<H: Handler> Traverse for H {}
-
-/// A struct containing a boolean value to control whether a node's children
-/// will be traversed or not.
-/// If there's no need to further traverse children nodes, you can call
-/// `stop_traverse!(ctx)` from inside a handler method. By doing this, the
-/// method is early-returned and further traverse will be canceled.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct TraverseFlow {
-  stop_traverse: bool,
-}
-
-impl TraverseFlow {
-  // TODO(magurotuna): remove this directive once `camelcase` is refactored
-  #[allow(unused)]
-  fn set_stop_traverse(&mut self) {
-    self.stop_traverse = true;
-  }
-
-  fn reset(&mut self) {
-    self.stop_traverse = false;
-  }
-
-  fn assert_init(&self) {
-    assert!(!self.stop_traverse);
-  }
-
-  fn should_stop(&mut self) -> bool {
-    let stop = self.stop_traverse;
-    self.reset();
-    stop
-  }
-}
-
-// TODO(magurotuna): remove this directive once `camelcase` is refactored
-#[allow(unused)]
-macro_rules! stop_traverse {
-  ($ctx:expr) => {
-    $ctx.traverse_flow_mut().set_stop_traverse();
-    return;
-  };
-}
