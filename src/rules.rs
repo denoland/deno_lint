@@ -137,9 +137,7 @@ pub trait LintRule {
 
   /// Returns the documentation string for this rule, describing what this rule is for with several
   /// examples.
-  fn docs(&self) -> &'static str {
-    ""
-  }
+  fn docs(&self) -> &'static str;
 }
 
 pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {

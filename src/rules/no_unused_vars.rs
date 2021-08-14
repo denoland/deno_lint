@@ -85,6 +85,10 @@ impl LintRule for NoUnusedVars {
       ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_unused_vars.md")
+  }
 }
 
 // TODO(@magurotuna): use MediaType instead

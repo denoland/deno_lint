@@ -39,6 +39,10 @@ impl LintRule for NoNonNullAssertedOptionalChain {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_non_null_asserted_optional_chain.md")
+  }
 }
 
 struct NoNonNullAssertedOptionalChainVisitor<'c, 'view> {

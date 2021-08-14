@@ -44,6 +44,10 @@ impl LintRule for NoShadowRestrictedNames {
   fn code(&self) -> &'static str {
     CODE
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_shadow_restricted_names.md")
+  }
 }
 
 struct NoShadowRestrictedNamesVisitor<'c, 'view> {

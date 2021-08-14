@@ -40,6 +40,10 @@ impl LintRule for RequireYield {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/require_yield.md")
+  }
 }
 
 struct RequireYieldVisitor<'c, 'view> {

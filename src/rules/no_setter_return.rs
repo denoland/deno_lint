@@ -32,6 +32,10 @@ impl LintRule for NoSetterReturn {
   ) {
     NoSetterReturnHandler.traverse(program, context);
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_setter_return.md")
+  }
 }
 
 struct NoSetterReturnHandler;

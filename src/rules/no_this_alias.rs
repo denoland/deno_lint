@@ -35,6 +35,10 @@ impl LintRule for NoThisAlias {
       ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_this_alias.md")
+  }
 }
 
 struct NoThisAliasVisitor<'c, 'view> {

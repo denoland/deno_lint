@@ -47,6 +47,10 @@ impl LintRule for TripleSlashReference {
       self.report(context, span);
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/triple_slash_reference.md")
+  }
 }
 
 /// Returns `true` if the comment should be reported.

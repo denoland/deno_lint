@@ -35,6 +35,10 @@ impl LintRule for PreferNamespaceKeyword {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/prefer_namespace_keyword.md")
+  }
 }
 
 struct PreferNamespaceKeywordVisitor<'c, 'view> {

@@ -35,6 +35,10 @@ impl LintRule for NoSparseArrays {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_sparse_arrays.md")
+  }
 }
 
 struct NoSparseArraysVisitor<'c, 'view> {
