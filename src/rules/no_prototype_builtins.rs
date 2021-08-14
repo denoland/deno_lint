@@ -47,6 +47,7 @@ impl LintRule for NoPrototypeBuiltins {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_prototype_builtins.md")
   }

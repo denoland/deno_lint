@@ -36,6 +36,7 @@ impl LintRule for NoSparseArrays {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_sparse_arrays.md")
   }

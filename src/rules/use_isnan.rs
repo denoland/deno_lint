@@ -50,6 +50,7 @@ impl LintRule for UseIsNaN {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/use_isnan.md")
   }

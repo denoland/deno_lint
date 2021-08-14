@@ -54,6 +54,7 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/explicit_module_boundary_types.md")
   }

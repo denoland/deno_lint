@@ -51,6 +51,7 @@ impl LintRule for NoDupeClassMembers {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_dupe_class_members.md")
   }

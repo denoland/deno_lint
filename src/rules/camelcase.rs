@@ -44,6 +44,7 @@ impl LintRule for Camelcase {
     visitor.report_errors();
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/camelcase.md")
   }

@@ -90,6 +90,7 @@ impl LintRule for NoMixedSpacesAndTabs {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_mixed_spaces_and_tabs.md")
   }

@@ -48,6 +48,7 @@ impl LintRule for TripleSlashReference {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/triple_slash_reference.md")
   }

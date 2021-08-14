@@ -86,6 +86,7 @@ impl LintRule for NoUnusedVars {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_unused_vars.md")
   }

@@ -37,6 +37,7 @@ impl LintRule for SingleVarDeclarator {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/single_var_declarator.md")
   }

@@ -39,6 +39,7 @@ impl LintRule for NoInvalidRegexp {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_invalid_regexp.md")
   }

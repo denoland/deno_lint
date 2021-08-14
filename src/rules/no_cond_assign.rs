@@ -51,6 +51,7 @@ impl LintRule for NoCondAssign {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_cond_assign.md")
   }

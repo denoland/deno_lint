@@ -53,6 +53,7 @@ impl LintRule for NoDupeArgs {
     visitor.report_errors();
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_dupe_args.md")
   }

@@ -47,6 +47,7 @@ impl LintRule for DefaultParamLast {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/default_param_last.md")
   }

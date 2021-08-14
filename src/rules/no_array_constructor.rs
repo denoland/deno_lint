@@ -38,6 +38,7 @@ impl LintRule for NoArrayConstructor {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_array_constructor.md")
   }

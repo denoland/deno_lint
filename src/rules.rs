@@ -137,6 +137,7 @@ pub trait LintRule {
 
   /// Returns the documentation string for this rule, describing what this rule is for with several
   /// examples.
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str;
 }
 

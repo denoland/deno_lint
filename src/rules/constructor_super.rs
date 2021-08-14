@@ -35,6 +35,7 @@ impl LintRule for ConstructorSuper {
     ConstructorSuperHandler.traverse(program, context);
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/constructor_super.md")
   }

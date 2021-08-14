@@ -38,6 +38,7 @@ impl LintRule for NoAsyncPromiseExecutor {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_async_promise_executor.md")
   }

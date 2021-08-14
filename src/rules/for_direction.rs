@@ -42,6 +42,7 @@ impl LintRule for ForDirection {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/for_direction.md")
   }

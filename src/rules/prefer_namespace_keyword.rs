@@ -36,6 +36,7 @@ impl LintRule for PreferNamespaceKeyword {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/prefer_namespace_keyword.md")
   }

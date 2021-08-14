@@ -51,6 +51,7 @@ impl LintRule for BanUntaggedIgnore {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/ban_untagged_ignore.md")
   }

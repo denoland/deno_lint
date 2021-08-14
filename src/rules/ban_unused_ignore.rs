@@ -29,6 +29,7 @@ impl LintRule for BanUnusedIgnore {
     // noop
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/ban_unused_ignore.md")
   }

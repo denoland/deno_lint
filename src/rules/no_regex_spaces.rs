@@ -39,6 +39,7 @@ impl LintRule for NoRegexSpaces {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_regex_spaces.md")
   }

@@ -50,6 +50,7 @@ impl LintRule for NoFallthrough {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_fallthrough.md")
   }

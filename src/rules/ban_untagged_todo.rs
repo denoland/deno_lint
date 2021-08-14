@@ -44,6 +44,7 @@ impl LintRule for BanUntaggedTodo {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/ban_untagged_todo.md")
   }

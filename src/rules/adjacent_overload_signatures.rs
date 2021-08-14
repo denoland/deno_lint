@@ -47,6 +47,7 @@ impl LintRule for AdjacentOverloadSignatures {
     AdjacentOverloadSignaturesHandler.traverse(program, context);
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/adjacent_overload_signatures.md")
   }

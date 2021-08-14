@@ -15,6 +15,10 @@ name = "deno_lint"
 [[example]]
 name = "dlint"
 
+[features]
+default = []
+docs = []
+
 [dependencies]
 log = "0.4.14"
 serde = { version = "1.0.125", features = ["derive"] }

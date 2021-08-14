@@ -70,6 +70,7 @@ impl LintRule for PreferConst {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/prefer_const.md")
   }

@@ -40,6 +40,7 @@ impl LintRule for NoNonNullAssertedOptionalChain {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_non_null_asserted_optional_chain.md")
   }

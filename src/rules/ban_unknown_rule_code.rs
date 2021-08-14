@@ -29,6 +29,7 @@ impl LintRule for BanUnknownRuleCode {
     // noop
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/ban_unknown_rule_code.md")
   }

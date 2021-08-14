@@ -62,6 +62,7 @@ impl LintRule for NoGlobalAssign {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_global_assign.md")
   }
