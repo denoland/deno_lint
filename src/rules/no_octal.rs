@@ -57,13 +57,9 @@ impl<'c, 'view> Visit for NoOctalVisitor<'c, 'view> {
   fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
-    let raw_number = self
-      .context
-      .source_map()
-      .span_to_snippet(literal_num.span)
-      .expect("error in loading snippet");
+    let raw_number = self.context.file_text_substring(&literal_num.span);
 
-    if OCTAL.is_match(&raw_number) {
+    if OCTAL.is_match(raw_number) {
       self.context.add_diagnostic_with_hint(
         literal_num.span,
         CODE,

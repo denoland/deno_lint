@@ -6,12 +6,13 @@ use crate::ignore_directives::{
 };
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view::{self as AstView, BytePos, RootNode};
+use dprint_swc_ecma_ast_view::{
+  self as AstView, BytePos, RootNode, SourceFile,
+};
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::time::Instant;
 use swc_common::comments::Comment;
-use swc_common::{SourceMap, Span, SyntaxContext};
+use swc_common::{Span, SyntaxContext};
 
 /// `Context` stores data needed while performing all lint rules to a file.
 pub struct Context<'view> {
@@ -24,8 +25,8 @@ pub struct Context<'view> {
   /// Stores codes of plugin (user-defined) rules
   plugin_codes: HashSet<String>,
 
-  /// `SourceMap` of swc
-  source_map: Rc<SourceMap>,
+  /// Information about the file text.
+  source_file: &'view dyn SourceFile,
 
   /// The AST view of the program, which for example can be used for getting
   /// comments
@@ -55,7 +56,7 @@ impl<'view> Context<'view> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
     file_name: String,
-    source_map: Rc<SourceMap>,
+    source_file: &'view dyn SourceFile,
     program: AstView::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
     line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
@@ -65,7 +66,7 @@ impl<'view> Context<'view> {
   ) -> Self {
     Self {
       file_name,
-      source_map,
+      source_file,
       program,
       file_ignore_directive,
       line_ignore_directives,
@@ -89,8 +90,12 @@ impl<'view> Context<'view> {
     &self.plugin_codes
   }
 
-  pub fn source_map(&self) -> Rc<SourceMap> {
-    Rc::clone(&self.source_map)
+  pub fn source_file(&self) -> &dyn SourceFile {
+    self.source_file
+  }
+
+  pub fn file_text_substring(&self, span: &Span) -> &str {
+    &self.source_file.text()[span.lo.0 as usize..span.hi.0 as usize]
   }
 
   pub fn program(&self) -> &AstView::Program<'view> {
@@ -169,12 +174,14 @@ impl<'view> Context<'view> {
         }
       }
 
-      let diagnostic_line = diagnostic.range.start.line;
-      if let Some(l) =
-        self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
-      {
-        if l.check_used(&diagnostic.code) {
-          continue;
+      let diagnostic_line = diagnostic.range.start.line_index;
+      if diagnostic_line > 0 {
+        if let Some(l) =
+          self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
+        {
+          if l.check_used(&diagnostic.code) {
+            continue;
+          }
         }
       }
 
@@ -325,12 +332,12 @@ impl<'view> Context<'view> {
   ) -> LintDiagnostic {
     let time_start = Instant::now();
     let start = Position::new(
-      self.source_map.lookup_byte_offset(span.lo()).pos,
-      self.source_map.lookup_char_pos(span.lo()),
+      span.lo(),
+      self.source_file.line_and_column_index(span.lo()),
     );
     let end = Position::new(
-      self.source_map.lookup_byte_offset(span.hi()).pos,
-      self.source_map.lookup_char_pos(span.hi()),
+      span.hi(),
+      self.source_file.line_and_column_index(span.hi()),
     );
 
     let diagnostic = LintDiagnostic {

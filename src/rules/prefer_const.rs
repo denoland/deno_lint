@@ -670,14 +670,13 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn report(&mut self, span: Span) {
-    if let Ok(s) = self.context.source_map().span_to_snippet(span) {
-      self.context.add_diagnostic_with_hint(
-        span,
-        CODE,
-        PreferConstMessage::NeverReassigned(s),
-        PreferConstHint::UseConst,
-      );
-    }
+    let span_text = self.context.file_text_substring(&span).to_string();
+    self.context.add_diagnostic_with_hint(
+      span,
+      CODE,
+      PreferConstMessage::NeverReassigned(span_text),
+      PreferConstHint::UseConst,
+    );
   }
 
   fn with_child_scope<F, S>(&mut self, node: &S, op: F)
@@ -999,7 +998,7 @@ mod variable_collector_tests {
   use crate::test_util;
 
   fn collect(src: &str) -> VariableCollector {
-    let (program, _, _, _) = test_util::parse(src);
+    let (_, program, _, _, _) = test_util::parse(src);
     let mut v = VariableCollector::new();
     v.visit_program(&program, &program);
     v

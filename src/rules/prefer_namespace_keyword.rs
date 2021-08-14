@@ -64,13 +64,8 @@ impl<'c, 'view> Visit for PreferNamespaceKeywordVisitor<'c, 'view> {
     static KEYWORD: Lazy<Regex> =
       Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
 
-    let snippet = self
-      .context
-      .source_map()
-      .span_to_snippet(mod_decl.span)
-      .expect("error in load snippet");
-
-    if let Some(capt) = KEYWORD.captures(&snippet) {
+    let snippet = self.context.file_text_substring(&mod_decl.span);
+    if let Some(capt) = KEYWORD.captures(snippet) {
       let keyword = capt.name("keyword").unwrap().as_str();
       if keyword == "module" && !mod_decl.global {
         self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE)

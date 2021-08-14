@@ -321,7 +321,7 @@ mod tests {
   use swc_ecmascript::utils::Id;
 
   fn test_scope(source_code: &str, test: impl Fn(Scope)) {
-    test_util::parse_and_then(source_code, |program, _source_map| {
+    test_util::parse_and_then(source_code, |program| {
       let scope = Scope::analyze(program);
       test(scope);
     });

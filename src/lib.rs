@@ -31,9 +31,7 @@ mod lint_tests {
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
   use dprint_swc_ecma_ast_view::TokenAndSpan;
-  use std::rc::Rc;
-  use swc_common::comments::SingleThreadedComments;
-  use swc_common::SourceMap;
+  use swc_common::comments::SingleThreadedCommentsMapInner;
   use swc_ecmascript::ast::Program;
 
   fn lint(source: &str, rules: Vec<Box<dyn LintRule>>) -> Vec<LintDiagnostic> {
@@ -46,24 +44,25 @@ mod lint_tests {
   }
 
   fn lint_with_ast(
-    ast: Program,
-    comments: SingleThreadedComments,
-    source_map: Rc<SourceMap>,
-    tokens: Vec<TokenAndSpan>,
+    source_file: &dyn SourceFile,
+    ast: &Program,
+    leading_comments: &SingleThreadedCommentsMapInner,
+    trailing_comments: &SingleThreadedCommentsMapInner,
+    tokens: &[TokenAndSpan],
     rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
-    let (_, diagnostics) = linter
+    linter
       .lint_with_ast(
         "lint_test.ts".to_string(),
-        &ast,
-        &comments,
-        source_map,
-        &tokens,
+        source_file,
+        ast,
+        leading_comments,
+        trailing_comments,
+        tokens,
       )
-      .expect("Failed to lint");
-    diagnostics
+      .expect("Failed to lint")
   }
 
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {
@@ -71,12 +70,20 @@ mod lint_tests {
   }
 
   fn lint_recommended_rules_with_ast(
-    ast: Program,
-    comments: SingleThreadedComments,
-    source_map: Rc<SourceMap>,
-    tokens: Vec<TokenAndSpan>,
+    source_file: &dyn SourceFile,
+    ast: &Program,
+    leading_comments: &SingleThreadedCommentsMapInner,
+    trailing_comments: &SingleThreadedCommentsMapInner,
+    tokens: &[TokenAndSpan],
   ) -> Vec<LintDiagnostic> {
-    lint_with_ast(ast, comments, source_map, tokens, get_recommended_rules())
+    lint_with_ast(
+      source_file,
+      ast,
+      leading_comments,
+      trailing_comments,
+      tokens,
+      get_recommended_rules(),
+    )
   }
 
   fn lint_specified_rule<T: LintRule + 'static>(
@@ -229,9 +236,15 @@ const _foo = 42;
 
   #[test]
   fn empty_file_with_ast() {
-    let (ast, comments, source_map, tokens) = parse("");
-    let diagnostics =
-      lint_recommended_rules_with_ast(ast, comments, source_map, tokens);
+    let (source_file, ast, leading_comments, trailing_comments, tokens) =
+      parse("");
+    let diagnostics = lint_recommended_rules_with_ast(
+      &source_file,
+      &ast,
+      &leading_comments,
+      &trailing_comments,
+      &tokens,
+    );
     assert!(diagnostics.is_empty());
   }
 }

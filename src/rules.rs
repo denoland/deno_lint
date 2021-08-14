@@ -55,7 +55,6 @@ pub mod no_invalid_regexp;
 pub mod no_invalid_triple_slash_reference;
 pub mod no_irregular_whitespace;
 pub mod no_misused_new;
-pub mod no_mixed_spaces_and_tabs;
 pub mod no_namespace;
 pub mod no_new_symbol;
 pub mod no_non_null_asserted_optional_chain;
@@ -196,7 +195,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_invalid_triple_slash_reference::NoInvalidTripleSlashReference::new(),
     no_irregular_whitespace::NoIrregularWhitespace::new(),
     no_misused_new::NoMisusedNew::new(),
-    no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain::new(),

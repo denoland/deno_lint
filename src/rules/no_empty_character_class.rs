@@ -58,11 +58,7 @@ impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
-    let raw_regex = self
-      .context
-      .source_map()
-      .span_to_snippet(regex.span)
-      .expect("error in loading snippet");
+    let raw_regex = self.context.file_text_substring(&regex.span);
 
     static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
@@ -81,7 +77,7 @@ impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
         .unwrap()
     });
 
-    if !RULE_REGEX.is_match(&raw_regex) {
+    if !RULE_REGEX.is_match(raw_regex) {
       self
         .context
         .add_diagnostic_with_hint(regex.span, CODE, MESSAGE, HINT);

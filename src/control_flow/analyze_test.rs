@@ -3,7 +3,7 @@ use crate::test_util;
 use swc_common::BytePos;
 
 fn analyze_flow(src: &str) -> ControlFlow {
-  let (program, _, _, _) = test_util::parse(src);
+  let (_, program, _, _, _) = test_util::parse(src);
   ControlFlow::analyze(&program)
 }
 

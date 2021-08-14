@@ -12,13 +12,14 @@ use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_all_rules, get_recommended_rules};
+use dprint_swc_ecma_ast_view::SourceFile;
+use dprint_swc_ecma_ast_view::SourceFileTextInfo;
 use log::debug;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use swc_common::BytePos;
 use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 
 mod color;
@@ -72,41 +73,26 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
 // and adjusted range of diagnostic (ie. original range - start line
 // of sliced source code).
 fn get_slice_source_and_range<'a>(
-  line_start_indexes: &[(usize, usize)],
-  source: &'a str,
+  source_file: &'a SourceFileTextInfo,
   range: &Range,
 ) -> (&'a str, (usize, usize)) {
-  let (_, first_line_start) = line_start_indexes[range.start.line - 1];
-  let last_line_end = if range.end.line == line_start_indexes.len() {
-    source.len() - 1
-  } else {
-    let (last_line_no, _) = line_start_indexes[range.end.line - 1];
-    line_start_indexes[last_line_no + 1].1 - 1
-  };
+  let first_line_start =
+    source_file.line_start(range.start.line_index).0 as usize;
+  let last_line_end = source_file.line_end(range.end.line_index).0 as usize;
   let adjusted_start = range.start.byte_pos - first_line_start;
   let adjusted_end = range.end.byte_pos - first_line_start;
   let adjusted_range = (adjusted_start, adjusted_end);
-  let slice_str = &source[first_line_start..last_line_end];
+  let slice_str = &source_file.text()[first_line_start..last_line_end];
   (slice_str, adjusted_range)
 }
 
 fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
-  source_code: &str,
-  lines: &[BytePos],
+  source_file: &SourceFileTextInfo,
 ) {
-  let line_start_indexes = lines
-    .iter()
-    .map(|pos| pos.0 as usize)
-    .enumerate()
-    .collect::<Vec<_>>();
-
   for diagnostic in diagnostics {
-    let (slice_source, range) = get_slice_source_and_range(
-      &line_start_indexes,
-      source_code,
-      &diagnostic.range,
-    );
+    let (slice_source, range) =
+      get_slice_source_and_range(source_file, &diagnostic.range);
     let footer = if let Some(hint) = &diagnostic.hint {
       vec![snippet::Annotation {
         label: Some(hint),
@@ -126,7 +112,7 @@ fn display_diagnostics(
       footer,
       slices: vec![snippet::Slice {
         source: slice_source,
-        line_start: diagnostic.range.start.line,
+        line_start: diagnostic.range.start.line_index + 1, // make 1-indexed
         origin: Some(&diagnostic.filename),
         fold: false,
         annotations: vec![snippet::SourceAnnotation {
@@ -161,8 +147,7 @@ fn run_linter(
   let error_counts = Arc::new(AtomicUsize::new(0));
 
   struct FileDiagnostics {
-    source_code: String,
-    lines: Vec<BytePos>,
+    source_file: SourceFileTextInfo,
     diagnostics: Vec<LintDiagnostic>,
   }
 
@@ -211,8 +196,7 @@ fn run_linter(
         file_path,
         FileDiagnostics {
           diagnostics,
-          lines: source_file.lines.clone(),
-          source_code: source_file.src.to_string(),
+          source_file,
         },
       );
 
@@ -220,12 +204,16 @@ fn run_linter(
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    display_diagnostics(&d.diagnostics, &d.source_code, &d.lines);
+    display_diagnostics(&d.diagnostics, &d.source_file);
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);
   if err_count > 0 {
-    eprintln!("Found {} problems", err_count);
+    eprintln!(
+      "Found {} problem{}",
+      err_count,
+      if err_count == 1 { "" } else { "s" }
+    );
     std::process::exit(1);
   }
 

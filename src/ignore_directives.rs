@@ -5,7 +5,6 @@ use regex::Regex;
 use std::collections::HashMap;
 use swc_common::comments::Comment;
 use swc_common::comments::CommentKind;
-use swc_common::SourceMap;
 use swc_common::Span;
 
 pub type LineIgnoreDirective = IgnoreDirective<Line>;
@@ -66,7 +65,6 @@ impl CodeStatus {
 
 pub fn parse_line_ignore_directives(
   ignore_diagnostic_directive: &str,
-  source_map: &SourceMap,
   program: ast_view::Program,
 ) -> HashMap<usize, LineIgnoreDirective> {
   program
@@ -74,31 +72,33 @@ pub fn parse_line_ignore_directives(
     .unwrap()
     .all_comments()
     .filter_map(|comment| {
-      parse_ignore_comment(ignore_diagnostic_directive, source_map, comment)
+      parse_ignore_comment(ignore_diagnostic_directive, comment).map(
+        |directive| {
+          (
+            program.source_file().unwrap().line_index(directive.span.lo),
+            directive,
+          )
+        },
+      )
     })
     .collect()
 }
 
 pub fn parse_file_ignore_directives(
   ignore_global_directive: &str,
-  source_map: &SourceMap,
   program: ast_view::Program,
 ) -> Option<FileIgnoreDirective> {
   program
     .comments()
     .unwrap()
     .leading_comments(program.span().lo())
-    .find_map(|comment| {
-      parse_ignore_comment(ignore_global_directive, source_map, comment)
-        .map(|(_pos, dir)| dir)
-    })
+    .find_map(|comment| parse_ignore_comment(ignore_global_directive, comment))
 }
 
 fn parse_ignore_comment<T: DirectiveKind>(
   ignore_diagnostic_directive: &str,
-  source_map: &SourceMap,
   comment: &Comment,
-) -> Option<(usize, IgnoreDirective<T>)> {
+) -> Option<IgnoreDirective<T>> {
   if comment.kind != CommentKind::Line {
     return None;
   }
@@ -127,16 +127,11 @@ fn parse_ignore_comment<T: DirectiveKind>(
         })
         .collect();
 
-      let location = source_map.lookup_char_pos(comment.span.lo());
-
-      return Some((
-        location.line,
-        IgnoreDirective::<T> {
-          span: comment.span,
-          codes,
-          _marker: std::marker::PhantomData,
-        },
-      ));
+      return Some(IgnoreDirective::<T> {
+        span: comment.span,
+        codes,
+        _marker: std::marker::PhantomData,
+      });
     }
   }
 
@@ -179,87 +174,63 @@ target: Record<string, any>,
 object | undefined {}
   "#;
 
-    test_util::parse_and_then(source_code, |program, source_map| {
+    test_util::parse_and_then(source_code, |program| {
       let line_directives =
-        parse_line_ignore_directives("deno-lint-ignore", &source_map, program);
+        parse_line_ignore_directives("deno-lint-ignore", program);
 
       assert_eq!(line_directives.len(), 4);
-      let d = line_directives.get(&2).unwrap();
+      let d = line_directives.get(&1).unwrap();
       assert_eq!(
         d.codes,
         code_map(["no-explicit-any", "no-empty", "no-debugger"])
       );
-      let d = line_directives.get(&8).unwrap();
+      let d = line_directives.get(&7).unwrap();
       assert_eq!(
         d.codes,
         code_map(["no-explicit-any", "no-empty", "no-debugger"])
       );
-      let d = line_directives.get(&11).unwrap();
+      let d = line_directives.get(&10).unwrap();
       assert_eq!(
         d.codes,
         code_map(["no-explicit-any", "no-empty", "no-debugger"])
       );
-      let d = line_directives.get(&17).unwrap();
+      let d = line_directives.get(&16).unwrap();
       assert_eq!(d.codes, code_map(["ban-types"]));
     });
   }
 
   #[test]
   fn test_parse_global_ignore_directives() {
-    test_util::parse_and_then(
-      "// deno-lint-ignore-file",
-      |program, source_map| {
-        let file_directive = parse_file_ignore_directives(
-          "deno-lint-ignore-file",
-          &source_map,
-          program,
-        )
-        .unwrap();
+    test_util::parse_and_then("// deno-lint-ignore-file", |program| {
+      let file_directive =
+        parse_file_ignore_directives("deno-lint-ignore-file", program).unwrap();
 
-        assert!(file_directive.codes.is_empty());
-      },
-    );
+      assert!(file_directive.codes.is_empty());
+    });
 
-    test_util::parse_and_then(
-      "// deno-lint-ignore-file foo",
-      |program, source_map| {
-        let file_directive = parse_file_ignore_directives(
-          "deno-lint-ignore-file",
-          &source_map,
-          program,
-        )
-        .unwrap();
+    test_util::parse_and_then("// deno-lint-ignore-file foo", |program| {
+      let file_directive =
+        parse_file_ignore_directives("deno-lint-ignore-file", program).unwrap();
 
-        assert_eq!(file_directive.codes, code_map(["foo"]));
-      },
-    );
+      assert_eq!(file_directive.codes, code_map(["foo"]));
+    });
 
-    test_util::parse_and_then(
-      "// deno-lint-ignore-file foo bar",
-      |program, source_map| {
-        let file_directive = parse_file_ignore_directives(
-          "deno-lint-ignore-file",
-          &source_map,
-          program,
-        )
-        .unwrap();
+    test_util::parse_and_then("// deno-lint-ignore-file foo bar", |program| {
+      let file_directive =
+        parse_file_ignore_directives("deno-lint-ignore-file", program).unwrap();
 
-        assert_eq!(file_directive.codes, code_map(["foo", "bar"]));
-      },
-    );
+      assert_eq!(file_directive.codes, code_map(["foo", "bar"]));
+    });
 
     test_util::parse_and_then(
       r#"
 // deno-lint-ignore-file foo
 // deno-lint-ignore-file bar
 "#,
-      |program, source_map| {
-        let file_directive = parse_file_ignore_directives(
-          "deno-lint-ignore-file",
-          &source_map,
-          program,
-        )
-        .unwrap();
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
 
         assert_eq!(file_directive.codes, code_map(["foo"]));
       },
@@ -270,12 +241,9 @@ object | undefined {}
 const x = 42;
 // deno-lint-ignore-file foo
 "#,
-      |program, source_map| {
-        let file_directive = parse_file_ignore_directives(
-          "deno-lint-ignore-file",
-          &source_map,
-          program,
-        );
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program);
 
         assert!(file_directive.is_none());
       },

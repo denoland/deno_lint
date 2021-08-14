@@ -1,25 +1,23 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use serde::Serialize;
-use std::convert::TryInto;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {
-  pub line: usize,
-  pub col: usize,
+  pub line_index: usize,
+  pub column_index: usize,
   pub byte_pos: usize,
 }
 
 impl Position {
-  pub fn new(byte_pos: swc_common::BytePos, loc: swc_common::Loc) -> Self {
+  pub fn new(
+    byte_pos: swc_common::BytePos,
+    loc: dprint_swc_ecma_ast_view::LineAndColumnIndex,
+  ) -> Self {
     Position {
-      line: loc.line,
-      // Using loc.col instead of loc.col_display
-      // because it leads to out-of-bounds columns if file
-      // contains non-narrow chars (like tabs).
-      // See: https://github.com/denoland/deno_lint/issues/139
-      col: loc.col.0,
-      byte_pos: byte_pos.0.try_into().expect("Failed to convert byte_pos"),
+      line_index: loc.line_index,
+      column_index: loc.column_index,
+      byte_pos: byte_pos.0 as usize,
     }
   }
 }
