@@ -69,6 +69,11 @@ impl LintRule for PreferConst {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/prefer_const.md")
+  }
 }
 
 type Scope = Rc<RefCell<RawScope>>;

@@ -11,7 +11,9 @@ const p1 = await Deno.run({
 }).status();
 
 if (p1.code !== 0) {
-  throw new Error(`Failed: rustfmt ${check ? "--check" : ""} examples/dlint/main.rs`);
+  throw new Error(
+    `Failed: rustfmt ${check ? "--check" : ""} examples/dlint/main.rs`,
+  );
 }
 
 const p2 = await Deno.run({
@@ -26,10 +28,20 @@ if (p2.code !== 0) {
 console.log("deno fmt");
 
 const p3 = await Deno.run({
-  cmd: ["deno", "fmt", ...checkArgs, "benchmarks/benchmarks.ts", "www/pages"],
+  cmd: [
+    "deno",
+    "fmt",
+    ...checkArgs,
+    "tools",
+    "benchmarks/benchmarks.ts",
+    "www/pages",
+    "docs/rules",
+  ],
   stdin: "null",
 }).status();
 
 if (p3.code !== 0) {
-  throw new Error(`Failed: deno fmt ${check ? "--check" : ""} benchmarks/benchmarks.ts`);
+  throw new Error(
+    `Failed: deno fmt ${check ? "--check" : ""} benchmarks/benchmarks.ts`,
+  );
 }

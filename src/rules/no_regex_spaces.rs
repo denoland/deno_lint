@@ -38,6 +38,11 @@ impl LintRule for NoRegexSpaces {
       ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_regex_spaces.md")
+  }
 }
 
 struct NoRegexSpacesVisitor<'c, 'view> {

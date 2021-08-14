@@ -39,6 +39,11 @@ impl LintRule for NoThrowLiteral {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_throw_literal.md")
+  }
 }
 
 struct NoThrowLiteralVisitor<'c, 'view> {

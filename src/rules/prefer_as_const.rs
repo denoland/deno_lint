@@ -52,6 +52,11 @@ impl LintRule for PreferAsConst {
       ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
   }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/prefer_as_const.md")
+  }
 }
 
 struct PreferAsConstVisitor<'c, 'view> {

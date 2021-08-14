@@ -34,6 +34,11 @@ impl LintRule for NoThisBeforeSuper {
     let mut handler = NoThisBeforeSuperHandler::new();
     handler.traverse(program, context);
   }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_this_before_super.md")
+  }
 }
 
 struct NoThisBeforeSuperHandler {
