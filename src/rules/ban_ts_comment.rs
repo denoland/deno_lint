@@ -104,11 +104,11 @@ fn check_comment(comment: &Comment) -> Option<DirectiveKind> {
   }
 
   static EXPECT_ERROR_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-expect-error$"#).unwrap());
+    Lazy::new(|| Regex::new(r#"^/*\s*@ts-expect-error\s*$"#).unwrap());
   static IGNORE_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-ignore$"#).unwrap());
+    Lazy::new(|| Regex::new(r#"^/*\s*@ts-ignore\s*$"#).unwrap());
   static NOCHECK_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-nocheck$"#).unwrap());
+    Lazy::new(|| Regex::new(r#"^/*\s*@ts-nocheck\s*$"#).unwrap());
 
   if EXPECT_ERROR_REGEX.is_match(&comment.text) {
     return Some(DirectiveKind::ExpectError);
@@ -132,6 +132,7 @@ mod tests {
     assert_lint_ok! {
       BanTsComment,
       r#"// just a comment containing @ts-expect-error somewhere"#,
+      r#"// just a random @ts-expect-error     comment with too many spaces"#,
       r#"/* @ts-expect-error */"#,
       r#"/** @ts-expect-error */"#,
       r#"/*
@@ -139,6 +140,7 @@ mod tests {
 */
 "#,
       r#"// just a comment containing @ts-ignore somewhere"#,
+      r#"// just a random @ts-ignore     comment with too many spaces"#,
       r#"/* @ts-ignore */"#,
       r#"/** @ts-ignore */"#,
       r#"/*
@@ -146,6 +148,7 @@ mod tests {
 */
 "#,
       r#"// just a comment containing @ts-nocheck somewhere"#,
+      r#"// just a random @ts-nocheck     comment with too many spaces"#,
       r#"/* @ts-nocheck */"#,
       r#"/** @ts-nocheck */"#,
       r#"/*
@@ -199,6 +202,13 @@ console.log('hello');
               hint: DirectiveKind::ExpectError.as_hint(),
             }
           ],
+      r#"// @ts-expect-error    "#: [
+        {
+          col: 0,
+          message: DirectiveKind::ExpectError.as_message(),
+          hint: DirectiveKind::ExpectError.as_hint(),
+        }
+      ],
     r#"// @ts-ignore"#: [
             {
               col: 0,
@@ -220,6 +230,13 @@ console.log('hello');
               hint: DirectiveKind::Ignore.as_hint(),
             }
           ],
+    r#"// @ts-ignore    "#: [
+      {
+        col: 0,
+        message: DirectiveKind::Ignore.as_message(),
+        hint: DirectiveKind::Ignore.as_hint(),
+      }
+          ],
     r#"// @ts-nocheck"#: [
             {
               col: 0,
@@ -240,6 +257,13 @@ console.log('hello');
               message: DirectiveKind::Nocheck.as_message(),
               hint: DirectiveKind::Nocheck.as_hint(),
             }
+          ],
+    r#"// @ts-nocheck    "#: [
+      {
+        col: 0,
+        message: DirectiveKind::Nocheck.as_message(),
+        hint: DirectiveKind::Nocheck.as_hint(),
+      }
           ],
     };
   }
