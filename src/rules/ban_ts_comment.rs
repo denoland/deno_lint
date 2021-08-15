@@ -181,92 +181,85 @@ console.log('hello');
 
   #[test]
   fn ban_ts_comment_invalid() {
+    //@ts-expect-error
     assert_lint_err! {
       BanTsComment,
-      r#"// @ts-expect-error"#: [
-            {
-              col: 0,
-              message: DirectiveKind::ExpectError.as_message(),
-              hint: DirectiveKind::ExpectError.as_hint(),
-            }
-          ],
-      r#"/// @ts-expect-error"#: [
-            {
-              col: 0,
-              message: DirectiveKind::ExpectError.as_message(),
-              hint: DirectiveKind::ExpectError.as_hint(),
-            }
-          ],
-      r#"//@ts-expect-error"#: [
-            {
-              col: 0,
-              message: DirectiveKind::ExpectError.as_message(),
-              hint: DirectiveKind::ExpectError.as_hint(),
-            }
-          ],
-      r#"// @ts-expect-error    "#: [
+      DirectiveKind::ExpectError.as_message(),
+      DirectiveKind::ExpectError.as_hint(),
+      r#"// @ts-expect-error"# : [
         {
-          col: 0,
-          message: DirectiveKind::ExpectError.as_message(),
-          hint: DirectiveKind::ExpectError.as_hint(),
+          col: 0
         }
       ],
-    r#"// @ts-ignore"#: [
-            {
-              col: 0,
-              message: DirectiveKind::Ignore.as_message(),
-              hint: DirectiveKind::Ignore.as_hint(),
-            }
-          ],
-    r#"/// @ts-ignore"#: [
-            {
-              col: 0,
-              message: DirectiveKind::Ignore.as_message(),
-              hint: DirectiveKind::Ignore.as_hint(),
-            }
-          ],
-    r#"//@ts-ignore"#: [
-            {
-              col: 0,
-              message: DirectiveKind::Ignore.as_message(),
-              hint: DirectiveKind::Ignore.as_hint(),
-            }
-          ],
-    r#"// @ts-ignore    "#: [
-      {
-        col: 0,
-        message: DirectiveKind::Ignore.as_message(),
-        hint: DirectiveKind::Ignore.as_hint(),
-      }
-          ],
-    r#"// @ts-nocheck"#: [
-            {
-              col: 0,
-              message: DirectiveKind::Nocheck.as_message(),
-              hint: DirectiveKind::Nocheck.as_hint(),
-            }
-          ],
-    r#"/// @ts-nocheck"#: [
-            {
-              col: 0,
-              message: DirectiveKind::Nocheck.as_message(),
-              hint: DirectiveKind::Nocheck.as_hint(),
-            }
-          ],
-    r#"//@ts-nocheck"#: [
-            {
-              col: 0,
-              message: DirectiveKind::Nocheck.as_message(),
-              hint: DirectiveKind::Nocheck.as_hint(),
-            }
-          ],
-    r#"// @ts-nocheck    "#: [
-      {
-        col: 0,
-        message: DirectiveKind::Nocheck.as_message(),
-        hint: DirectiveKind::Nocheck.as_hint(),
-      }
-          ],
-    };
+      r#"/// @ts-expect-error"# : [
+        {
+          col: 0
+        }
+      ] ,
+      r#"/// @ts-expect-error"# : [
+        {
+          col: 0
+        }
+      ],
+      r#"// @ts-expect-error    "# : [
+        {
+          col: 0
+        }
+      ]
+    }
+
+    //@ts-ignore
+    assert_lint_err! {
+      BanTsComment,
+      DirectiveKind::Ignore.as_message(),
+      DirectiveKind::Ignore.as_hint(),
+      r#"// @ts-ignore"# : [
+        {
+          col: 0
+        }
+      ],
+      r#"/// @ts-ignore"# : [
+        {
+          col: 0
+        }
+      ] ,
+      r#"//@ts-ignore"# : [
+        {
+          col: 0
+        }
+      ],
+      r#"// @ts-ignore    "# : [
+        {
+          col: 0
+        }
+      ]
+    }
+
+    //@ts-nocheck
+    assert_lint_err! {
+      BanTsComment,
+      DirectiveKind::Nocheck.as_message(),
+      DirectiveKind::Nocheck.as_hint(),
+      r#"// @ts-nocheck"# : [
+        {
+          col: 0
+        }
+      ],
+      r#"/// @ts-nocheck"# : [
+        {
+          col: 0
+        }
+      ] ,
+      r#"//@ts-nocheck"# : [
+        {
+          col: 0
+        }
+      ],
+      r#"// @ts-nocheck    "# : [
+        {
+          col: 0
+        }
+      ]
+    }
   }
 }

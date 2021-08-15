@@ -61,6 +61,40 @@ macro_rules! assert_lint_err {
       $($src: $test,)*
     }
   };
+
+  (
+    $rule: ty,
+    $message: expr,
+    $hint: expr,
+    filename: $filename:literal,
+    $($src:literal : $test:tt),+
+    $(,)?
+  ) => {
+      $(
+      let errors = parse_err_test!($message, $hint, $test);
+      let tester = $crate::test_util::LintErrTester::<$rule>::new(
+        $src,
+        errors,
+        $filename,
+      );
+      tester.run();
+    )*
+  };
+  (
+    $rule: ty,
+    $message: expr,
+    $hint: expr,
+    $($src:literal : $test:tt),+
+    $(,)?
+  ) => {
+      assert_lint_err! {
+        $rule,
+        $message,
+        $hint,
+        filename: "deno_lint_err_test.ts",
+        $($src: $test,)*
+      }
+  };
 }
 
 #[macro_export]
@@ -98,6 +132,7 @@ macro_rules! parse_err_test {
     )*
     errors
   }};
+
   (
     {
       filename : $filename:literal,
@@ -106,6 +141,33 @@ macro_rules! parse_err_test {
   ) => {{
     let (errors, _) = parse_err_test!($errors);
     (errors, $filename)
+  }};
+
+  (
+    $message: expr,
+    $hint: expr,
+    [
+      $(
+        {
+          $($field:ident : $value:expr),* $(,)?
+        }
+      ),* $(,)?
+    ]
+  ) => {{
+    let errors = parse_err_test!(
+      $(
+        [
+          {
+            message: $message,
+            hint: $hint,
+            $(
+              $field: $value,
+            )*
+          },
+        ]
+      )*
+    );
+    errors
   }};
 }
 
