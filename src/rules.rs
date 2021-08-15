@@ -1,8 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::context::Context;
-
-pub use ast_view::Program;
-pub use ast_view::ProgramRef;
+use crate::Program;
+use crate::ProgramRef;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;

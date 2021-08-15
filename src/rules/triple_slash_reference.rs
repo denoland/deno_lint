@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
+use crate::ProgramRef;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;

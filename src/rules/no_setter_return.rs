@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, Program, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use ast_view::{NodeTrait, Spanned};
 
 pub struct NoSetterReturn;

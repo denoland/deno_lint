@@ -24,6 +24,9 @@ pub mod rules;
 mod scopes;
 pub mod swc_util;
 
+pub use ast_view::Program;
+pub use ast_view::ProgramRef;
+
 #[cfg(test)]
 mod lint_tests {
   use crate::diagnostic::LintDiagnostic;

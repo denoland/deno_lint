@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
+use crate::ProgramRef;
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

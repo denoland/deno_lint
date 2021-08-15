@@ -1,7 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, Program, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::{Program, ProgramRef};
 use ast_view::Spanned;
 use derive_more::Display;
 use std::collections::HashSet;
