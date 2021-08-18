@@ -30,9 +30,9 @@ impl Position {
 
 fn to_one_indexed<S>(x: &usize, s: S) -> Result<S::Ok, S::Error>
 where
-    S: Serializer,
+  S: Serializer,
 {
-    s.serialize_u32((x + 1) as u32)
+  s.serialize_u32((x + 1) as u32)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
