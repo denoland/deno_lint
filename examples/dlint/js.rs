@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::Context as _;
+use ast_view::ProgramRef;
 use deno_core::error::AnyError;
 use deno_core::resolve_url_or_path;
 use deno_core::FsModuleLoader;
@@ -15,7 +16,6 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use swc_common::Span;
-use swc_ecmascript::ast::Program;
 
 #[derive(Deserialize)]
 struct DiagnosticsFromJs {
@@ -149,7 +149,7 @@ impl Plugin for JsRuleRunner {
   fn run(
     &mut self,
     context: &mut Context,
-    program: Program,
+    program: ProgramRef,
   ) -> Result<(), AnyError> {
     self
       .runtime
@@ -174,7 +174,11 @@ impl Plugin for JsRuleRunner {
       "runPlugins",
       &format!(
         "runPlugins({ast}, {rule_codes});",
-        ast = serde_json::to_string(&program).unwrap(),
+        ast = match program {
+          ProgramRef::Module(module) => serde_json::to_string(module),
+          ProgramRef::Script(script) => serde_json::to_string(script),
+        }
+        .unwrap(),
         rule_codes = serde_json::to_string(&codes).unwrap()
       ),
     )?;

@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_common::{comments::Comment, Span, Spanned, DUMMY_SP};
 use swc_ecmascript::{
@@ -113,12 +114,20 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
           hi: cases[case_idx + 1].span.lo(),
           ctxt: case.span.ctxt,
         };
-        let span_lines = self.context.source_map().span_to_lines(span).unwrap();
+        // todo(dsherret): use `span.line_start_fast(context.program)` and
+        // `line_end_fast` when switching to ast_view
+        let span_line_count = self
+          .context
+          .file_text_substring(&span)
+          .chars()
+          .filter(|c| *c == '\n')
+          .count()
+          + 1;
         // When the case body contains only new lines `case.cons` will be empty.
         // This means there are no statements detected so we must detect case
         // bodies made up of only new lines by counting the total amount of new lines.
         // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
-        should_emit_err = span_lines.lines.len() > 2;
+        should_emit_err = span_line_count > 2;
       }
 
       prev_span = case.span;

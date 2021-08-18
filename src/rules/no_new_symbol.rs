@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use if_chain::if_chain;
 use swc_ecmascript::ast::{Expr, NewExpr};
 use swc_ecmascript::utils::ident::IdentLike;

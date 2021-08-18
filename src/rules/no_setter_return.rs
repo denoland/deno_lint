@@ -1,7 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait, Spanned};
+use crate::{Program, ProgramRef};
+use ast_view::{NodeTrait, Spanned};
 
 pub struct NoSetterReturn;
 
@@ -28,7 +29,7 @@ impl LintRule for NoSetterReturn {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     NoSetterReturnHandler.traverse(program, context);
   }
@@ -44,7 +45,7 @@ struct NoSetterReturnHandler;
 impl Handler for NoSetterReturnHandler {
   fn return_stmt(
     &mut self,
-    return_stmt: &AstView::ReturnStmt,
+    return_stmt: &ast_view::ReturnStmt,
     ctx: &mut Context,
   ) {
     // return without a value is allowed
@@ -52,12 +53,12 @@ impl Handler for NoSetterReturnHandler {
       return;
     }
 
-    fn inside_setter(node: AstView::Node) -> bool {
-      use AstView::Node::*;
+    fn inside_setter(node: ast_view::Node) -> bool {
+      use ast_view::Node::*;
       match node {
         SetterProp(_) => true,
         ClassMethod(method) => {
-          method.method_kind() == AstView::MethodKind::Setter
+          method.method_kind() == ast_view::MethodKind::Setter
         }
         FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
         _ => {

@@ -1,22 +1,19 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use dprint_swc_ecma_ast_view::TokenAndSpan;
-use std::cell::RefCell;
+use ast_view::SourceFile;
+use ast_view::SourceFileTextInfo;
 use std::error::Error;
 use std::fmt;
 use std::rc::Rc;
 use swc_common::comments::SingleThreadedComments;
-use swc_common::errors::Diagnostic;
-use swc_common::errors::DiagnosticBuilder;
-use swc_common::errors::Emitter;
-use swc_common::errors::Handler;
-use swc_common::errors::HandlerFlags;
-use swc_common::FileName;
+use swc_common::comments::SingleThreadedCommentsMapInner;
+use swc_common::BytePos;
 use swc_common::Globals;
 use swc_common::Mark;
-use swc_common::SourceMap;
-use swc_common::Span;
+use swc_common::Spanned;
 use swc_ecmascript::ast;
 use swc_ecmascript::parser::lexer::Lexer;
+use swc_ecmascript::parser::token::TokenAndSpan;
+use swc_ecmascript::parser::Capturing;
 use swc_ecmascript::parser::EsConfig;
 use swc_ecmascript::parser::JscTarget;
 use swc_ecmascript::parser::Parser;
@@ -55,64 +52,39 @@ pub fn get_default_ts_config() -> Syntax {
 }
 
 #[derive(Clone, Debug)]
-pub struct SwcDiagnosticBuffer {
-  pub diagnostics: Vec<String>,
+pub struct SwcDiagnostic {
+  pub filename: String,
+  pub line_display: usize,
+  pub column_display: usize,
+  pub message: String,
 }
 
-impl Error for SwcDiagnosticBuffer {}
+impl Error for SwcDiagnostic {}
 
-impl fmt::Display for SwcDiagnosticBuffer {
+impl fmt::Display for SwcDiagnostic {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let msg = self.diagnostics.join(",");
-
-    f.pad(&msg)
+    f.write_str(&format!(
+      "{} at {}:{}:{}",
+      self.message, self.filename, self.line_display, self.column_display
+    ))
   }
 }
 
-impl SwcDiagnosticBuffer {
+impl SwcDiagnostic {
   pub(crate) fn from_swc_error(
-    error_buffer: SwcErrorBuffer,
-    parser: &AstParser,
+    filename: &str,
+    source_file: &impl SourceFile,
+    err: swc_ecmascript::parser::error::Error,
   ) -> Self {
-    let s = error_buffer.0.borrow().clone();
+    let span = err.span();
+    let line_and_column = source_file.line_and_column_index(span.lo);
 
-    let diagnostics = s
-      .iter()
-      .map(|d| {
-        let mut msg = d.message();
-
-        if let Some(span) = d.span.primary_span() {
-          let location = parser.get_span_location(span);
-          let filename = match &location.file.name {
-            FileName::Custom(n) => n,
-            _ => unreachable!(),
-          };
-          msg = format!(
-            "{} at {}:{}:{}",
-            msg, filename, location.line, location.col_display
-          );
-        }
-
-        msg
-      })
-      .collect::<Vec<String>>();
-
-    Self { diagnostics }
-  }
-}
-
-#[derive(Clone)]
-pub(crate) struct SwcErrorBuffer(Rc<RefCell<Vec<Diagnostic>>>);
-
-impl SwcErrorBuffer {
-  pub(crate) fn default() -> Self {
-    Self(Rc::new(RefCell::new(vec![])))
-  }
-}
-
-impl Emitter for SwcErrorBuffer {
-  fn emit(&mut self, db: &DiagnosticBuilder) {
-    self.0.borrow_mut().push((**db).clone());
+    SwcDiagnostic {
+      line_display: line_and_column.line_index + 1,
+      column_display: line_and_column.column_index + 1,
+      filename: filename.to_string(),
+      message: err.kind().msg().to_string(),
+    }
   }
 }
 
@@ -121,9 +93,6 @@ impl Emitter for SwcErrorBuffer {
 /// Allows to build more complicated parser by providing a callback
 /// to `parse_module`.
 pub(crate) struct AstParser {
-  pub(crate) buffered_error: SwcErrorBuffer,
-  pub(crate) source_map: Rc<SourceMap>,
-  pub(crate) handler: Handler,
   pub(crate) globals: Globals,
   /// The marker passed to the resolver (from swc).
   ///
@@ -133,32 +102,14 @@ pub(crate) struct AstParser {
 
 impl AstParser {
   pub(crate) fn new() -> Self {
-    let buffered_error = SwcErrorBuffer::default();
-
-    let handler = Handler::with_emitter_and_flags(
-      Box::new(buffered_error.clone()),
-      HandlerFlags {
-        dont_buffer_diagnostics: true,
-        can_emit_warnings: true,
-        ..Default::default()
-      },
-    );
-
     let globals = Globals::new();
     let top_level_mark =
       swc_common::GLOBALS.set(&globals, || Mark::fresh(Mark::root()));
 
     AstParser {
-      buffered_error,
-      source_map: Rc::new(SourceMap::default()),
-      handler,
       globals,
       top_level_mark,
     }
-  }
-
-  pub(crate) fn set_source_map(&mut self, source_map: Rc<SourceMap>) {
-    self.source_map = source_map;
   }
 
   pub(crate) fn parse_program(
@@ -166,49 +117,47 @@ impl AstParser {
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
-  ) -> Result<ParsedData, SwcDiagnosticBuffer> {
-    // NOTE: calling `self.source_map.new_source_file` mutates `source_map`
-    // even though it's of type `Rc`.
-    let swc_source_file = self.source_map.new_source_file(
-      FileName::Custom(file_name.to_string()),
-      source_code.to_string(),
+  ) -> Result<ParsedData, SwcDiagnostic> {
+    let source_file =
+      SourceFileTextInfo::new(BytePos(0), source_code.to_string());
+    let string_input = StringInput::new(
+      source_code,
+      BytePos(0),
+      BytePos(source_code.len() as u32),
     );
-
-    let buffered_err = self.buffered_error.clone();
 
     let comments = SingleThreadedComments::default();
-    let lexer = Lexer::new(
+    let lexer = Capturing::new(Lexer::new(
       syntax,
       JscTarget::Es2019,
-      StringInput::from(&*swc_source_file),
+      string_input,
       Some(&comments),
-    );
-
-    let tokens: Vec<TokenAndSpan> = lexer.clone().into_iter().collect();
+    ));
 
     let mut parser = Parser::new_from(lexer);
+    let program = parser.parse_program().map_err(|err| {
+      SwcDiagnostic::from_swc_error(file_name, &source_file, err)
+    })?;
 
-    let parse_result = parser.parse_program().map_err(move |err| {
-      let mut diagnostic_builder = err.into_diagnostic(&self.handler);
-      diagnostic_builder.emit();
-      SwcDiagnosticBuffer::from_swc_error(buffered_err, self)
+    let program = swc_common::GLOBALS.set(&self.globals, || {
+      program.fold_with(&mut ts_resolver(self.top_level_mark))
     });
 
-    let parse_result = parse_result.map(|program| {
-      swc_common::GLOBALS.set(&self.globals, || {
-        program.fold_with(&mut ts_resolver(self.top_level_mark))
-      })
-    });
+    let tokens = parser.input().take();
 
-    parse_result.map(|program| ParsedData {
+    // take out the comment maps because that's what dprint-swc-ast-view
+    // uses and what we use in deno's language server because it is Sync.
+    let (leading, trailing) = comments.take_all();
+    let leading_comments = Rc::try_unwrap(leading).unwrap().into_inner();
+    let trailing_comments = Rc::try_unwrap(trailing).unwrap().into_inner();
+
+    Ok(ParsedData {
+      source_file,
       program,
-      comments,
+      leading_comments,
+      trailing_comments,
       tokens,
     })
-  }
-
-  pub(crate) fn get_span_location(&self, span: Span) -> swc_common::Loc {
-    self.source_map.lookup_char_pos(span.lo())
   }
 }
 
@@ -219,7 +168,9 @@ impl Default for AstParser {
 }
 
 pub(crate) struct ParsedData {
+  pub(crate) source_file: SourceFileTextInfo,
   pub(crate) program: ast::Program,
-  pub(crate) comments: SingleThreadedComments,
+  pub(crate) leading_comments: SingleThreadedCommentsMapInner,
+  pub(crate) trailing_comments: SingleThreadedCommentsMapInner,
   pub(crate) tokens: Vec<TokenAndSpan>,
 }

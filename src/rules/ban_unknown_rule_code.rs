@@ -1,4 +1,6 @@
-use super::{Context, LintRule, ProgramRef};
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::{Context, LintRule};
+use crate::{Program, ProgramRef};
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
@@ -24,7 +26,7 @@ impl LintRule for BanUnknownRuleCode {
   fn lint_program_with_ast_view(
     &self,
     _context: &mut Context,
-    _program: dprint_swc_ecma_ast_view::Program<'_>,
+    _program: Program<'_>,
   ) {
     // noop
   }

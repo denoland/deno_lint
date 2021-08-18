@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use derive_more::Display;
-use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
 use swc_common::Spanned;
 
@@ -36,7 +36,7 @@ impl LintRule for NoUnusedLabels {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: AstView::Program,
+    program: Program,
   ) {
     let mut handler = NoUnusedLabelsHandler::default();
     handler.traverse(program, context);
@@ -59,7 +59,7 @@ struct NoUnusedLabelsHandler {
 }
 
 impl NoUnusedLabelsHandler {
-  fn check_label(&mut self, label: Option<&AstView::Ident>) {
+  fn check_label(&mut self, label: Option<&ast_view::Ident>) {
     if let Some(label) = label {
       if let Some(found) = self
         .labels
@@ -75,7 +75,7 @@ impl NoUnusedLabelsHandler {
 impl Handler for NoUnusedLabelsHandler {
   fn labeled_stmt(
     &mut self,
-    labeled_stmt: &AstView::LabeledStmt,
+    labeled_stmt: &ast_view::LabeledStmt,
     _ctx: &mut Context,
   ) {
     self.labels.push(Label {
@@ -86,7 +86,7 @@ impl Handler for NoUnusedLabelsHandler {
 
   fn continue_stmt(
     &mut self,
-    continue_stmt: &AstView::ContinueStmt,
+    continue_stmt: &ast_view::ContinueStmt,
     _ctx: &mut Context,
   ) {
     self.check_label(continue_stmt.label);
@@ -94,15 +94,15 @@ impl Handler for NoUnusedLabelsHandler {
 
   fn break_stmt(
     &mut self,
-    break_stmt: &AstView::BreakStmt,
+    break_stmt: &ast_view::BreakStmt,
     _ctx: &mut Context,
   ) {
     self.check_label(break_stmt.label);
   }
 
-  fn on_exit_node(&mut self, node: AstView::Node, ctx: &mut Context) {
+  fn on_exit_node(&mut self, node: ast_view::Node, ctx: &mut Context) {
     if_chain! {
-      if let Some(ref labeled_stmt) = node.to::<AstView::LabeledStmt>();
+      if let Some(ref labeled_stmt) = node.to::<ast_view::LabeledStmt>();
       if let Some(label) = self.labels.pop();
       if !label.used;
       then {

@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::context::Context;
-use dprint_swc_ecma_ast_view::Program as ProgramView;
+use crate::Program;
+use crate::ProgramRef;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -55,7 +56,6 @@ pub mod no_invalid_regexp;
 pub mod no_invalid_triple_slash_reference;
 pub mod no_irregular_whitespace;
 pub mod no_misused_new;
-pub mod no_mixed_spaces_and_tabs;
 pub mod no_namespace;
 pub mod no_new_symbol;
 pub mod no_non_null_asserted_optional_chain;
@@ -93,11 +93,6 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
-pub enum ProgramRef<'view> {
-  Module(&'view swc_ecmascript::ast::Module),
-  Script(&'view swc_ecmascript::ast::Script),
-}
-
 pub trait LintRule {
   /// Creates an instance of this rule.
   fn new() -> Box<Self>
@@ -117,9 +112,9 @@ pub trait LintRule {
   fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
-    program: dprint_swc_ecma_ast_view::Program<'view>,
+    program: Program<'view>,
   ) {
-    use ProgramView::*;
+    use Program::*;
     let program_ref = match program {
       Module(m) => ProgramRef::Module(m.inner),
       Script(s) => ProgramRef::Script(s.inner),
@@ -196,7 +191,6 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_invalid_triple_slash_reference::NoInvalidTripleSlashReference::new(),
     no_irregular_whitespace::NoIrregularWhitespace::new(),
     no_misused_new::NoMisusedNew::new(),
-    no_mixed_spaces_and_tabs::NoMixedSpacesAndTabs::new(),
     no_namespace::NoNamespace::new(),
     no_new_symbol::NoNewSymbol::new(),
     no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain::new(),

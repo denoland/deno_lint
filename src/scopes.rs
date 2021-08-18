@@ -1,5 +1,4 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use dprint_swc_ecma_ast_view as ast_view;
 use std::collections::HashMap;
 use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;
@@ -321,7 +320,7 @@ mod tests {
   use swc_ecmascript::utils::Id;
 
   fn test_scope(source_code: &str, test: impl Fn(Scope)) {
-    test_util::parse_and_then(source_code, |program, _source_map| {
+    test_util::parse_and_then(source_code, |program| {
       let scope = Scope::analyze(program);
       test(scope);
     });

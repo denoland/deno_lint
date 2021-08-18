@@ -1,7 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use crate::{Program, ProgramRef};
+use ast_view::NodeTrait;
 use swc_common::Spanned;
 
 pub struct NoAwaitInLoop;
@@ -26,7 +27,7 @@ impl LintRule for NoAwaitInLoop {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     NoAwaitInLoopHandler.traverse(program, context);
   }
@@ -40,20 +41,24 @@ impl LintRule for NoAwaitInLoop {
 struct NoAwaitInLoopHandler;
 
 impl Handler for NoAwaitInLoopHandler {
-  fn await_expr(&mut self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
+  fn await_expr(
+    &mut self,
+    await_expr: &ast_view::AwaitExpr,
+    ctx: &mut Context,
+  ) {
     fn inside_loop(
-      await_expr: &AstView::AwaitExpr,
-      node: AstView::Node,
+      await_expr: &ast_view::AwaitExpr,
+      node: ast_view::Node,
     ) -> bool {
-      use AstView::Node::*;
+      use ast_view::Node::*;
       match node {
         FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
         ForOfStmt(stmt) if stmt.await_token().is_some() => {
           // `await` is allowed to use within the body of `for await (const x of y) { ... }`
           false
         }
-        ForInStmt(AstView::ForInStmt { right, .. })
-        | ForOfStmt(AstView::ForOfStmt { right, .. }) => {
+        ForInStmt(ast_view::ForInStmt { right, .. })
+        | ForOfStmt(ast_view::ForOfStmt { right, .. }) => {
           // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
           // except for the case where the given `await_expr` is contained in the `right` part.
           // e.g. for (const x of await xs) { ... }

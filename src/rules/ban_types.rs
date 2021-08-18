@@ -1,9 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{
-  self as AstView, Spanned, TsEntityName, TsKeywordTypeKind,
-};
+use crate::{Program, ProgramRef};
+use ast_view::{Spanned, TsEntityName, TsKeywordTypeKind};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 
@@ -92,7 +91,7 @@ impl LintRule for BanTypes {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: AstView::Program,
+    program: Program,
   ) {
     BanTypesHandler.traverse(program, context);
   }
@@ -108,7 +107,7 @@ struct BanTypesHandler;
 impl Handler for BanTypesHandler {
   fn ts_type_ref(
     &mut self,
-    ts_type_ref: &AstView::TsTypeRef,
+    ts_type_ref: &ast_view::TsTypeRef,
     ctx: &mut Context,
   ) {
     if_chain! {
@@ -127,7 +126,7 @@ impl Handler for BanTypesHandler {
 
   fn ts_type_lit(
     &mut self,
-    ts_type_lit: &AstView::TsTypeLit,
+    ts_type_lit: &ast_view::TsTypeLit,
     ctx: &mut Context,
   ) {
     if ts_type_lit.members.is_empty() {
@@ -142,7 +141,7 @@ impl Handler for BanTypesHandler {
 
   fn ts_keyword_type(
     &mut self,
-    ts_keyword_type: &AstView::TsKeywordType,
+    ts_keyword_type: &ast_view::TsKeywordType,
     ctx: &mut Context,
   ) {
     if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.keyword_kind() {

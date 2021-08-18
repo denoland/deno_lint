@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
+use crate::{Program, ProgramRef};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
@@ -78,7 +79,7 @@ impl LintRule for BanTsComment {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    _program: dprint_swc_ecma_ast_view::Program,
+    _program: Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 

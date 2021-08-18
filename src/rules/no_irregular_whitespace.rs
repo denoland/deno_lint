@@ -1,12 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule};
+use crate::{Program, ProgramRef};
+use ast_view::RootNode;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
 use swc_common::{hygiene::SyntaxContext, BytePos, Span};
-use swc_ecmascript::ast::Str;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct NoIrregularWhitespace;
 
@@ -25,7 +24,7 @@ static IRREGULAR_WHITESPACE: Lazy<Regex> = Lazy::new(|| {
 static IRREGULAR_LINE_TERMINATORS: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"[\u2028\u2029]").unwrap());
 
-fn test_for_whitespace(value: &str) -> Option<Vec<Matches>> {
+fn test_for_whitespace(value: &str) -> Vec<Matches> {
   let mut matches_vector: Vec<Matches> = vec![];
   if IRREGULAR_WHITESPACE.is_match(value) {
     let matches = IRREGULAR_WHITESPACE.find_iter(value);
@@ -35,11 +34,7 @@ fn test_for_whitespace(value: &str) -> Option<Vec<Matches>> {
     let matches = IRREGULAR_LINE_TERMINATORS.find_iter(value);
     matches_vector.push(matches);
   }
-  if !matches_vector.is_empty() {
-    Some(matches_vector)
-  } else {
-    None
-  }
+  matches_vector
 }
 
 impl LintRule for NoIrregularWhitespace {
@@ -55,74 +50,52 @@ impl LintRule for NoIrregularWhitespace {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoIrregularWhitespaceVisitor::default();
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
-
-    let excluded_ranges = visitor.ranges.iter();
-
-    let span = match program {
-      ProgramRef::Module(m) => m.span,
-      ProgramRef::Script(s) => s.span,
-    };
-    let file_and_lines = context.source_map().span_to_lines(span).unwrap();
-    let file = file_and_lines.file;
-
-    for line_index in 0..file.count_lines() {
-      let line = file.get_line(line_index).unwrap();
-      let (byte_pos, _hi) = file.line_bounds(line_index);
-
-      if let Some(whitespace_results) = test_for_whitespace(&line) {
-        for whitespace_matches in whitespace_results.into_iter() {
-          for whitespace_match in whitespace_matches {
-            let range = whitespace_match.range();
-            let span = Span::new(
-              byte_pos + BytePos(range.start as u32),
-              byte_pos + BytePos(range.end as u32),
-              SyntaxContext::empty(),
-            );
-            let is_excluded =
-              excluded_ranges.clone().any(|range| range.contains(span));
-            if !is_excluded {
-              context.add_diagnostic_with_hint(
-                span,
-                CODE,
-                NoIrregularWhitespaceMessage::NotAllowed,
-                HINT,
-              );
-            }
-          }
+    let file_span = context.source_file().span();
+    let mut check_span = |span: Span| {
+      let whitespace_text = context.source_file().text()
+        [span.lo().0 as usize..span.hi().0 as usize]
+        .to_string();
+      for whitespace_matches in
+        test_for_whitespace(&whitespace_text).into_iter()
+      {
+        for whitespace_match in whitespace_matches {
+          let range = whitespace_match.range();
+          let span = Span::new(
+            span.lo() + BytePos(range.start as u32),
+            span.lo() + BytePos(range.end as u32),
+            SyntaxContext::empty(),
+          );
+          context.add_diagnostic_with_hint(
+            span,
+            CODE,
+            NoIrregularWhitespaceMessage::NotAllowed,
+            HINT,
+          );
         }
       }
+    };
+    let mut last_end = BytePos(0);
+
+    for token in program.tokens().unwrap().tokens {
+      check_span(Span::new(last_end, token.span.lo(), Default::default()));
+      last_end = token.span.hi();
     }
+
+    check_span(Span::new(last_end, file_span.hi(), Default::default()));
   }
 
   #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_irregular_whitespace.md")
-  }
-}
-
-struct NoIrregularWhitespaceVisitor {
-  ranges: Vec<Span>,
-}
-
-impl NoIrregularWhitespaceVisitor {
-  fn default() -> Self {
-    Self { ranges: vec![] }
-  }
-}
-
-impl Visit for NoIrregularWhitespaceVisitor {
-  fn visit_str(&mut self, string_literal: &Str, _parent: &dyn Node) {
-    self.ranges.push(string_literal.span);
   }
 }
 
