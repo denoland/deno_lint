@@ -4,11 +4,10 @@ use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
-use dprint_swc_ecma_ast_view::{self as ast_view, TokenAndSpan};
+use ast_view::SourceFileTextInfo;
+use ast_view::TokenAndSpan;
 use std::marker::PhantomData;
-use std::rc::Rc;
-use swc_common::comments::SingleThreadedComments;
-use swc_common::SourceMap;
+use swc_common::comments::SingleThreadedCommentsMapInner;
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::parser::{Syntax, TsConfig};
 
@@ -242,15 +241,13 @@ fn lint(
     .rules(vec![rule])
     .build();
 
-  let diagnostics = match linter.lint(filename.to_string(), source.to_string())
-  {
+  match linter.lint(filename.to_string(), source.to_string()) {
     Ok((_, diagnostics)) => diagnostics,
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
       e, source
     ),
-  };
-  diagnostics
+  }
 }
 
 pub fn assert_diagnostic(
@@ -261,16 +258,17 @@ pub fn assert_diagnostic(
   source: &str,
 ) {
   if diagnostic.code == code
-    && diagnostic.range.start.line == line
-    && diagnostic.range.start.col == col
+    // todo(dsherret): we should change these to be consistent (ex. both 1-indexed)
+    && diagnostic.range.start.line_index + 1 == line
+    && diagnostic.range.start.column_index == col
   {
     return;
   }
   panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
-    diagnostic.range.start.line,
-    diagnostic.range.start.col,
+    diagnostic.range.start.line_index + 1,
+    diagnostic.range.start.column_index,
     code,
     line,
     col,
@@ -293,14 +291,17 @@ fn assert_diagnostic_2(
     code, diagnostic.code, source
   );
   assert_eq!(
-    line, diagnostic.range.start.line,
+    line,
+    diagnostic.range.start.line_index + 1,
     "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    line, diagnostic.range.start.line, source
+    line,
+    diagnostic.range.start.line_index + 1,
+    source
   );
   assert_eq!(
-    col, diagnostic.range.start.col,
+    col, diagnostic.range.start.column_index,
     "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    col, diagnostic.range.start.col, source
+    col, diagnostic.range.start.column_index, source
   );
   assert_eq!(
     message, &diagnostic.message,
@@ -336,41 +337,46 @@ const TEST_FILE_NAME: &str = "lint_test.ts";
 pub fn parse(
   source_code: &str,
 ) -> (
+  SourceFileTextInfo,
   Program,
-  SingleThreadedComments,
-  Rc<SourceMap>,
+  SingleThreadedCommentsMapInner,
+  SingleThreadedCommentsMapInner,
   Vec<TokenAndSpan>,
 ) {
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();
   let ast_parser::ParsedData {
+    source_file,
     program,
-    comments,
+    leading_comments,
+    trailing_comments,
     tokens,
   } = ast_parser
     .parse_program(TEST_FILE_NAME, syntax, source_code)
     .unwrap();
-  let source_map = Rc::clone(&ast_parser.source_map);
-  (program, comments, source_map, tokens)
+  (
+    source_file,
+    program,
+    leading_comments,
+    trailing_comments,
+    tokens,
+  )
 }
 
-pub fn parse_and_then(
-  source_code: &str,
-  test: impl Fn(ast_view::Program, Rc<SourceMap>),
-) {
-  let (program, comments, source_map, tokens) = parse(source_code);
-  let source_file = source_map
-    .get_source_file(&swc_common::FileName::Custom(TEST_FILE_NAME.to_string()))
-    .unwrap();
-
+pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program)) {
+  let (source_file, program, leading_comments, trailing_comments, tokens) =
+    parse(source_code);
   let program_info = ast_view::ProgramInfo {
-    program: &program,
+    program: (&program).into(),
     source_file: Some(&source_file),
     tokens: Some(&tokens),
-    comments: Some(&comments),
+    comments: Some(ast_view::Comments {
+      leading: &leading_comments,
+      trailing: &trailing_comments,
+    }),
   };
 
   ast_view::with_ast_view(program_info, |pg| {
-    test(pg, source_map);
+    test(pg);
   });
 }

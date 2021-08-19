@@ -1,7 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use crate::{Program, ProgramRef};
+use ast_view::NodeTrait;
 use swc_common::Spanned;
 
 pub struct NoAwaitInLoop;
@@ -26,68 +27,38 @@ impl LintRule for NoAwaitInLoop {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     NoAwaitInLoopHandler.traverse(program, context);
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Requires `await` is not used in a for loop body
-
-Async and await are used in Javascript to provide parallel execution.  If each
-element in the for loop is waited upon using `await`, then this negates the
-benefits of using async/await as no more elements in the loop can be processed
-until the current element finishes.
-
-A common solution is to refactor the code to run the loop body asynchronously and
-capture the promises generated.  After the loop finishes you can then await all
-the promises at once.
-
-### Invalid:
-```javascript
-async function doSomething(items) {
-  const results = [];
-  for (const item of items) {
-    // Each item in the array blocks on the previous one finishing
-    results.push(await someAsyncProcessing(item));
-  }
-  return processResults(results);
-}
-```
-
-### Valid:
-```javascript
-async function doSomething(items) {
-  const results = [];
-  for (const item of items) {
-    // Kick off all item processing asynchronously...
-    results.push(someAsyncProcessing(item));
-  }
-  // ...and then await their completion after the loop
-  return processResults(await Promise.all(results));
-}
-```
-"#
+    include_str!("../../docs/rules/no_await_in_loop.md")
   }
 }
 
 struct NoAwaitInLoopHandler;
 
 impl Handler for NoAwaitInLoopHandler {
-  fn await_expr(&mut self, await_expr: &AstView::AwaitExpr, ctx: &mut Context) {
+  fn await_expr(
+    &mut self,
+    await_expr: &ast_view::AwaitExpr,
+    ctx: &mut Context,
+  ) {
     fn inside_loop(
-      await_expr: &AstView::AwaitExpr,
-      node: AstView::Node,
+      await_expr: &ast_view::AwaitExpr,
+      node: ast_view::Node,
     ) -> bool {
-      use AstView::Node::*;
+      use ast_view::Node::*;
       match node {
         FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
         ForOfStmt(stmt) if stmt.await_token().is_some() => {
           // `await` is allowed to use within the body of `for await (const x of y) { ... }`
           false
         }
-        ForInStmt(AstView::ForInStmt { right, .. })
-        | ForOfStmt(AstView::ForOfStmt { right, .. }) => {
+        ForInStmt(ast_view::ForInStmt { right, .. })
+        | ForOfStmt(ast_view::ForOfStmt { right, .. }) => {
           // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
           // except for the case where the given `await_expr` is contained in the `right` part.
           // e.g. for (const x of await xs) { ... }

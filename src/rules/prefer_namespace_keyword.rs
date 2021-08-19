@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_ecmascript::ast::{TsModuleDecl, TsModuleName};
@@ -35,6 +36,11 @@ impl LintRule for PreferNamespaceKeyword {
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
   }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/prefer_namespace_keyword.md")
+  }
 }
 
 struct PreferNamespaceKeywordVisitor<'c, 'view> {
@@ -59,13 +65,8 @@ impl<'c, 'view> Visit for PreferNamespaceKeywordVisitor<'c, 'view> {
     static KEYWORD: Lazy<Regex> =
       Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
 
-    let snippet = self
-      .context
-      .source_map()
-      .span_to_snippet(mod_decl.span)
-      .expect("error in load snippet");
-
-    if let Some(capt) = KEYWORD.captures(&snippet) {
+    let snippet = self.context.file_text_substring(&mod_decl.span);
+    if let Some(capt) = KEYWORD.captures(snippet) {
       let keyword = capt.name("keyword").unwrap().as_str();
       if keyword == "module" && !mod_decl.global {
         self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE)

@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 use derive_more::Display;
 
@@ -47,33 +48,9 @@ impl LintRule for NoExAssign {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the reassignment of exception parameters
-
-There is generally no good reason to reassign an exception parameter.  Once
-reassigned the code from that point on has no reference to the error anymore.
-
-### Invalid:
-
-```typescript
-try {
-  someFunc();
-} catch (e) {
-  e = true;
-  // can no longer access the thrown error
-}
-```
-
-### Valid:
-
-```typescript
-try {
-  someFunc();
-} catch (e) {
-  const anotherVar = true;
-}
-```
-"#
+    include_str!("../../docs/rules/no_ex_assign.md")
   }
 }
 

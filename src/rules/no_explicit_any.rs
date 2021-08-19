@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use swc_ecmascript::ast::TsKeywordType;
 use swc_ecmascript::visit::Node;
 use swc_ecmascript::visit::Visit;
@@ -35,30 +36,9 @@ impl LintRule for NoExplicitAny {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows use of the `any` type
-
-Use of the `any` type disables the type check system around that variable,
-defeating the purpose of Typescript which is to provide type safe code.
-Additionally, the use of `any` hinders code readability, since it is not
-immediately clear what type of value is being referenced.  It is better to be
-explicit about all types.  For a more type-safe alternative to `any`, use
-`unknown` if you are unable to choose a more specific type.
-
-### Invalid:
-
-```typescript
-const someNumber: any = "two";
-function foo(): any { return undefined; }
-```
-
-### Valid:
-
-```typescript
-const someNumber: string = "two";
-function foo(): undefined { return undefined; }
-```
-"#
+    include_str!("../../docs/rules/no_explicit_any.md")
   }
 }
 

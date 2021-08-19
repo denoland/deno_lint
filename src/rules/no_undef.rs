@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::globals::GLOBALS;
+use crate::ProgramRef;
 use swc_atoms::js_word;
 use swc_ecmascript::{
   ast::*,
@@ -41,6 +42,11 @@ impl LintRule for NoUndef {
       ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
       ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
     }
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_undef.md")
   }
 }
 

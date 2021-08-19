@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
@@ -43,6 +44,11 @@ impl LintRule for NoShadowRestrictedNames {
 
   fn code(&self) -> &'static str {
     CODE
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_shadow_restricted_names.md")
   }
 }
 

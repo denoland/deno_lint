@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::ast::DebuggerStmt;
 use swc_ecmascript::visit::noop_visit_type;
@@ -47,31 +48,9 @@ impl LintRule for NoDebugger {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the use of the `debugger` statement
-
-`debugger` is a statement which is meant for stopping the javascript execution
-environment and start the debugger at the statement.  Modern debuggers and tooling
-no longer need this statement and leaving it in can cause the execution of your
-code to stop in production.
-
-### Invalid:
-
-```typescript
-function isLongString(x: string) {
-  debugger;
-  return x.length > 100;
-}
-```
-
-### Valid:
-
-```typescript
-function isLongString(x: string) {
-  return x.length > 100;  // set breakpoint here instead
-}
-```
-"#
+    include_str!("../../docs/rules/no_debugger.md")
   }
 }
 struct NoDebuggerVisitor<'c, 'view> {

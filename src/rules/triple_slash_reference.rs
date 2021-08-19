@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
+use crate::ProgramRef;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -46,6 +47,11 @@ impl LintRule for TripleSlashReference {
     for span in violated_comment_spans {
       self.report(context, span);
     }
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/triple_slash_reference.md")
   }
 }
 

@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -51,30 +52,9 @@ impl LintRule for NoDupeClassMembers {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows using a class member function name more than once
-
-Declaring a function of the same name twice in a class will cause the previous
-declaration(s) to be overwritten, causing unexpected behaviors.
-
-### Invalid:
-
-```typescript
-class Foo {
-  bar() {}
-  bar() {}
-}
-```
-
-### Valid:
-
-```typescript
-class Foo {
-  bar() {}
-  fizz() {}
-}
-```
-"#
+    include_str!("../../docs/rules/no_dupe_class_members.md")
   }
 }
 

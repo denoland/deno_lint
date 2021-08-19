@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
+use crate::{Program, ProgramRef};
 use swc_common::Span;
 
 pub struct BanUntaggedIgnore;
@@ -26,7 +27,7 @@ impl LintRule for BanUntaggedIgnore {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    _program: dprint_swc_ecma_ast_view::Program,
+    _program: Program,
   ) {
     let mut violated_spans: Vec<Span> = context
       .file_ignore_directive()
@@ -51,23 +52,9 @@ impl LintRule for BanUntaggedIgnore {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Requires `deno-lint-ignore` to be annotated with one or more rule names.
-
-Ignoring all rules can mask unexpected or future problems. Therefore you need to explicitly specify which rule(s) are to be ignored.
-
-### Invalid:
-```typescript
-// deno-lint-ignore
-export function duplicateArgumentsFn(a, b, a) { }
-```
-
-### Valid:
-```typescript
-// deno-lint-ignore no-dupe-args
-export function duplicateArgumentsFn(a, b, a) { }
-```
-"#
+    include_str!("../../docs/rules/ban_untagged_ignore.md")
   }
 }
 

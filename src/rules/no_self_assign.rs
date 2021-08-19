@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
+use crate::ProgramRef;
 
 use derive_more::Display;
 use swc_common::Span;
@@ -61,6 +62,11 @@ impl LintRule for NoSelfAssign {
       ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
       ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_self_assign.md")
   }
 }
 

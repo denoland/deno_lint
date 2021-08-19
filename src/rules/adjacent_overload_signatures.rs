@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::{Program, ProgramRef};
+use ast_view::Spanned;
 use derive_more::Display;
-use dprint_swc_ecma_ast_view::{self as AstView, Spanned};
 use std::collections::HashSet;
 
 pub struct AdjacentOverloadSignatures;
@@ -42,109 +43,43 @@ impl LintRule for AdjacentOverloadSignatures {
   fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context,
-    program: AstView::Program<'_>,
+    program: Program<'_>,
   ) {
     AdjacentOverloadSignaturesHandler.traverse(program, context);
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Requires overload signatures to be adjacent to each other.
-
-Overloaded signatures which are not next to each other can lead to code which is hard to read and maintain.
-
-### Invalid:
-(`bar` is declared in-between `foo` overloads)
-```typescript
-type FooType = {
-  foo(s: string): void;
-  foo(n: number): void;
-  bar(): void;
-  foo(sn: string | number): void;
-};
-```
-```typescript
-interface FooInterface {
-  foo(s: string): void;
-  foo(n: number): void;
-  bar(): void;
-  foo(sn: string | number): void;
-}
-```
-```typescript
-class FooClass {
-  foo(s: string): void;
-  foo(n: number): void;
-  bar(): void {}
-  foo(sn: string | number): void {}
-}
-```
-```typescript
-export function foo(s: string): void;
-export function foo(n: number): void;
-export function bar(): void {}
-export function foo(sn: string | number): void {}
-```
-### Valid:
-(`bar` is declared after `foo`)
-```typescript
-type FooType = {
-  foo(s: string): void;
-  foo(n: number): void;
-  foo(sn: string | number): void;
-  bar(): void;
-};
-```
-```typescript
-interface FooInterface {
-  foo(s: string): void;
-  foo(n: number): void;
-  foo(sn: string | number): void;
-  bar(): void;
-}
-```
-```typescript
-class FooClass {
-  foo(s: string): void;
-  foo(n: number): void;
-  foo(sn: string | number): void {}
-  bar(): void {}
-}
-```
-```typescript
-export function foo(s: string): void;
-export function foo(n: number): void;
-export function foo(sn: string | number): void {}
-export function bar(): void {}
-```"#
+    include_str!("../../docs/rules/adjacent_overload_signatures.md")
   }
 }
 
 struct AdjacentOverloadSignaturesHandler;
 
 impl Handler for AdjacentOverloadSignaturesHandler {
-  fn script(&mut self, script: &AstView::Script, ctx: &mut Context) {
+  fn script(&mut self, script: &ast_view::Script, ctx: &mut Context) {
     check(&script.body, ctx);
   }
 
-  fn module(&mut self, module: &AstView::Module, ctx: &mut Context) {
+  fn module(&mut self, module: &ast_view::Module, ctx: &mut Context) {
     check(&module.body, ctx);
   }
 
   fn ts_module_block(
     &mut self,
-    ts_module_block: &AstView::TsModuleBlock,
+    ts_module_block: &ast_view::TsModuleBlock,
     ctx: &mut Context,
   ) {
     check(&ts_module_block.body, ctx);
   }
 
-  fn class(&mut self, class: &AstView::Class, ctx: &mut Context) {
+  fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
     check(&class.body, ctx);
   }
 
   fn ts_type_lit(
     &mut self,
-    ts_type_lit: &AstView::TsTypeLit,
+    ts_type_lit: &ast_view::TsTypeLit,
     ctx: &mut Context,
   ) {
     check(&ts_type_lit.members, ctx);
@@ -152,7 +87,7 @@ impl Handler for AdjacentOverloadSignaturesHandler {
 
   fn ts_interface_body(
     &mut self,
-    ts_interface_body: &AstView::TsInterfaceBody,
+    ts_interface_body: &ast_view::TsInterfaceBody,
     ctx: &mut Context,
   ) {
     check(&ts_interface_body.body, ctx);
@@ -188,9 +123,9 @@ where
   }
 }
 
-fn extract_ident_from_decl(decl: &AstView::Decl) -> Option<String> {
+fn extract_ident_from_decl(decl: &ast_view::Decl) -> Option<String> {
   match decl {
-    AstView::Decl::Fn(AstView::FnDecl { ident, .. }) => {
+    ast_view::Decl::Fn(ast_view::FnDecl { ident, .. }) => {
       Some(ident.sym().to_string())
     }
     _ => None,
@@ -201,26 +136,26 @@ trait ExtractMethod {
   fn get_method(&self) -> Option<Method>;
 }
 
-impl<'a> ExtractMethod for AstView::ExportDecl<'a> {
+impl<'a> ExtractMethod for ast_view::ExportDecl<'a> {
   fn get_method(&self) -> Option<Method> {
     let method_name = extract_ident_from_decl(&self.decl);
     method_name.map(Method::Method)
   }
 }
 
-impl<'a> ExtractMethod for AstView::Stmt<'a> {
+impl<'a> ExtractMethod for ast_view::Stmt<'a> {
   fn get_method(&self) -> Option<Method> {
     let method_name = match self {
-      AstView::Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
+      ast_view::Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
       _ => None,
     };
     method_name.map(Method::Method)
   }
 }
 
-impl<'a> ExtractMethod for AstView::ModuleItem<'a> {
+impl<'a> ExtractMethod for ast_view::ModuleItem<'a> {
   fn get_method(&self) -> Option<Method> {
-    use AstView::{ModuleDecl, ModuleItem};
+    use ast_view::{ModuleDecl, ModuleItem};
     match self {
       ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
         export_decl.get_method()
@@ -231,9 +166,9 @@ impl<'a> ExtractMethod for AstView::ModuleItem<'a> {
   }
 }
 
-impl<'a> ExtractMethod for AstView::ClassMember<'a> {
+impl<'a> ExtractMethod for ast_view::ClassMember<'a> {
   fn get_method(&self) -> Option<Method> {
-    use AstView::{ClassMember, ClassMethod};
+    use ast_view::{ClassMember, ClassMethod};
     match self {
       ClassMember::Method(ClassMethod { inner, .. }) => {
         inner.key.string_repr().map(|k| {
@@ -252,9 +187,9 @@ impl<'a> ExtractMethod for AstView::ClassMember<'a> {
   }
 }
 
-impl<'a> ExtractMethod for AstView::TsTypeElement<'a> {
+impl<'a> ExtractMethod for ast_view::TsTypeElement<'a> {
   fn get_method(&self) -> Option<Method> {
-    use AstView::{Expr, Lit, TsMethodSignature, TsTypeElement};
+    use ast_view::{Expr, Lit, TsMethodSignature, TsTypeElement};
     match self {
       TsTypeElement::TsMethodSignature(TsMethodSignature {
         ref key, ..

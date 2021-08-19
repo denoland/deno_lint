@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 use derive_more::Display;
 use swc_ecmascript::ast::AssignExpr;
@@ -50,43 +51,9 @@ impl LintRule for NoFuncAssign {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the overwriting/reassignment of an existing function
-
-Javascript allows for the reassignment of a function definition.  This is
-generally a mistake on the developers part, or poor coding practice as code
-readability and maintainability will suffer.
-
-### Invalid:
-
-```typescript
-function foo() {}
-foo = bar;
-
-const a = function baz() {
-  baz = "now I'm a string";
-}
-
-myFunc = existingFunc;
-function myFunc() {}
-```
-
-### Valid:
-
-```typescript
-function foo() {}
-const someVar = foo;
-
-const a = function baz() {
-  const someStr = "now I'm a string";
-}
-
-const anotherFuncRef = existingFunc;
-
-let myFuncVar = function() {}
-myFuncVar = bar;  // variable reassignment, not function re-declaration
-```
-"#
+    include_str!("../../docs/rules/no_func_assign.md")
   }
 }
 

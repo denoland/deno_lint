@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::ast::{
   DoWhileStmt, EmptyStmt, ForInStmt, ForOfStmt, ForStmt, IfStmt, LabeledStmt,
@@ -48,27 +49,9 @@ impl LintRule for NoExtraSemi {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the use of unnecessary semi-colons
-
-Extra (and unnecessary) semi-colons can cause confusion when reading the code as
-well as making the code less clean.
-
-### Invalid:
-```typescript
-const x = 5;;
-
-function foo() {};
-```
-
-### Valid:
-
-```typescript
-const x = 5;
-
-function foo() {}
-```
-"#
+    include_str!("../../docs/rules/no_extra_semi.md")
   }
 }
 

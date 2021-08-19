@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::ast::{
   ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
@@ -58,36 +59,9 @@ impl LintRule for NoMisusedNew {
     CODE
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows defining `constructor`s for interfaces or `new` for classes
-
-Specifying a `constructor` for an interface or defining a `new` method for a class
-is incorrect and should be avoided.
-
-### Invalid:
-
-```typescript
-class C {
-  new(): C;
-}
-
-interface I {
-  constructor(): void;
-}
-```
-
-### Valid:
-
-```typescript
-class C {
-  constructor() {}
-}
-
-interface I {
-  new (): C;
-}
-```
-"#
+    include_str!("../../docs/rules/no_misused_new.md")
   }
 }
 

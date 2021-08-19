@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use std::collections::HashSet;
 use swc_common::{Span, Spanned};
@@ -52,37 +53,9 @@ impl LintRule for NoDupeElseIf {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows using the same condition twice in an `if`/`else if` statement
-
-When you reuse a condition in an `if`/`else if` statement, the duplicate condition
-will never be reached (without unusual side-effects) meaning this is almost always
-a bug.
-
-### Invalid:
-
-```typescript
-if (a) {}
-else if (b) {}
-else if (a) {} // duplicate of condition above
-
-if (a === 5) {}
-else if (a === 6) {}
-else if (a === 5) {} // duplicate of condition above
-```
-
-### Valid:
-
-```typescript
-if (a) {}
-else if (b) {}
-else if (c) {}
-
-if (a === 5) {}
-else if (a === 6) {}
-else if (a === 7) {}
-```
-"#
+    include_str!("../../docs/rules/no_dupe_else_if.md")
   }
 }
 

@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
-use dprint_swc_ecma_ast_view as ast_view;
 use swc_ecmascript::ast::{
   BigInt, Bool, ComputedPropName, Expr, ExprOrSpread, Ident, JSXText, Lit,
   MemberExpr, Null, Number, PatOrExpr, PrivateName, Prop, PropName,

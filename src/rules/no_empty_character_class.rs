@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use once_cell::sync::Lazy;
 use swc_ecmascript::ast::Regex;
 use swc_ecmascript::visit::noop_visit_type;
@@ -38,32 +39,9 @@ impl LintRule for NoEmptyCharacterClass {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows using the empty character class in a regular expression
-
-Regular expression character classes are a series of characters in brackets, e.g. `[abc]`.
-if nothing is supplied in the brackets it will not match anything which is likely
-a typo or mistake.
-
-### Invalid:
-
-```typescript
-/^abc[]/.test("abcdefg");  // false, as `d` does not match an empty character class
-"abcdefg".match(/^abc[]/); // null
-```
-
-### Valid:
-
-```typescript
-// Without a character class
-/^abc/.test("abcdefg"); // true
-"abcdefg".match(/^abc/); // ["abc"]
-
-// With a valid character class
-/^abc[a-z]/.test("abcdefg"); // true
-"abcdefg".match(/^abc[a-z]/); // ["abcd"]
-```
-"#
+    include_str!("../../docs/rules/no_empty_character_class.md")
   }
 }
 
@@ -81,11 +59,7 @@ impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
-    let raw_regex = self
-      .context
-      .source_map()
-      .span_to_snippet(regex.span)
-      .expect("error in loading snippet");
+    let raw_regex = self.context.file_text_substring(&regex.span);
 
     static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
@@ -104,7 +78,7 @@ impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
         .unwrap()
     });
 
-    if !RULE_REGEX.is_match(&raw_regex) {
+    if !RULE_REGEX.is_match(raw_regex) {
       self
         .context
         .add_diagnostic_with_hint(regex.span, CODE, MESSAGE, HINT);

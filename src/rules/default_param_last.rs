@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::{ArrowExpr, Function, Pat};
@@ -47,33 +48,9 @@ impl LintRule for DefaultParamLast {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Enforces default parameter(s) to be last in the function signature.
-
-Parameters with default values are optional by nature but cannot be left out
-of the function call without mapping the function inputs to different parameters
-which is confusing and error prone.  Specifying them last allows them to be left
-out without changing the semantics of the other parameters.
-
-### Invalid:
-
-```typescript
-function f(a = 2, b) {}
-function f(a = 5, b, c = 5) {}
-```
-
-### Valid:
-
-```typescript
-function f() {}
-function f(a) {}
-function f(a = 5) {}
-function f(a, b = 5) {}
-function f(a, b = 5, c = 5) {}
-function f(a, b = 5, ...c) {}
-function f(a = 2, b = 3) {}
-```
-"#
+    include_str!("../../docs/rules/default_param_last.md")
   }
 }
 

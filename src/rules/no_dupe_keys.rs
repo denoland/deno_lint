@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
+use crate::ProgramRef;
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -52,42 +53,9 @@ impl LintRule for NoDupeKeys {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows duplicate keys in object literals.
-
-Setting the same key multiple times in an object literal will override other assignments to that key and can cause unexpected behaviour.
-
-### Invalid:
-
-```typescript
-const foo = {
-  bar: "baz",
-  bar: "qux",
-};
-```
-
-```typescript
-const foo = {
-  "bar": "baz",
-  bar: "qux",
-};
-```
-
-```typescript
-const foo = {
-  0x1: "baz",
-  1: "qux",
-};
-```
-
-### Valid:
-
-```typescript
-const foo = {
-  bar: "baz",
-  quxx: "qux",
-};
-```"#
+    include_str!("../../docs/rules/no_dupe_keys.md")
   }
 }
 

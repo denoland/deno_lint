@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use derive_more::Display;
-use dprint_swc_ecma_ast_view as AstView;
 use if_chain::if_chain;
 use swc_common::Spanned;
 
@@ -38,50 +38,22 @@ impl LintRule for NoUnsafeNegation {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: AstView::Program,
+    program: Program,
   ) {
     NoUnsafeNegationHandler.traverse(program, context);
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the usage of negation operator `!` as the left operand of
-relational operators.
-
-`!` operators appearing in the left operand of the following operators will
-sometimes cause an unexpected behavior because of the operator precedence:
-
-- `in` operator
-- `instanceof` operator
-
-For example, when developers write a code like `!key in someObject`, most
-likely they want it to behave just like `!(key in someObject)`, but actually it
-behaves like `(!key) in someObject`.
-This lint rule warns such usage of `!` operator so it will be less confusing.
-
-### Invalid:
-
-```typescript
-if (!key in object) {}
-if (!foo instanceof Foo) {}
-```
-
-### Valid:
-
-```typescript
-if (!(key in object)) {}
-if (!(foo instanceof Foo)) {}
-if ((!key) in object) {}
-if ((!foo) instanceof Foo) {}
-```
-"#
+    include_str!("../../docs/rules/no_unsafe_negation.md")
   }
 }
 
 struct NoUnsafeNegationHandler;
 
 impl Handler for NoUnsafeNegationHandler {
-  fn bin_expr(&mut self, bin_expr: &AstView::BinExpr, ctx: &mut Context) {
-    use AstView::{BinaryOp, Expr, UnaryOp};
+  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
+    use ast_view::{BinaryOp, Expr, UnaryOp};
     if_chain! {
       if matches!(bin_expr.op(), BinaryOp::In | BinaryOp::InstanceOf);
       if let Expr::Unary(unary_expr) = &bin_expr.left;

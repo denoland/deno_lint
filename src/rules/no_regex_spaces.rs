@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::extract_regex;
+use crate::ProgramRef;
 use once_cell::sync::Lazy;
 use swc_common::Span;
 use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
@@ -37,6 +38,11 @@ impl LintRule for NoRegexSpaces {
       ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
       ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
     }
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_regex_spaces.md")
   }
 }
 

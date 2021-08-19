@@ -1,7 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use dprint_swc_ecma_ast_view::{self as AstView, NodeTrait};
+use crate::{Program, ProgramRef};
+use ast_view::NodeTrait;
 use swc_common::Spanned;
 
 pub struct NoNamespace;
@@ -32,7 +33,7 @@ impl LintRule for NoNamespace {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    program: dprint_swc_ecma_ast_view::Program<'_>,
+    program: Program<'_>,
   ) {
     if context.file_name().ends_with(".d.ts") {
       return;
@@ -41,53 +42,9 @@ impl LintRule for NoNamespace {
     NoNamespaceHandler.traverse(program, context);
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the use of `namespace` and `module` keywords in TypeScript code.
-
-`namespace` and `module` are both thought of as outdated keywords to organize
-the code. Instead, it is generally preferable to use ES2015 module syntax (e.g.
-`import`/`export`).
-
-However, this rule still allows the use of these keywords in the following two
-cases:
-
-- they are used for defining ["ambient" namespaces] along with `declare` keywords
-- they are written in TypeScript's type definition files: `.d.ts`
-
-["ambient" namespaces]: https://www.typescriptlang.org/docs/handbook/namespaces.html#ambient-namespaces
-
-### Invalid:
-
-```typescript
-// foo.ts
-module mod {}
-namespace ns {}
-```
-
-```dts
-// bar.d.ts
-// all usage of `module` and `namespace` keywords are allowed in `.d.ts`
-```
-
-### Valid:
-```typescript
-// foo.ts
-declare global {}
-declare module mod1 {}
-declare module "mod2" {}
-declare namespace ns {}
-```
-
-```dts
-// bar.d.ts
-module mod1 {}
-namespace ns1 {}
-declare global {}
-declare module mod2 {}
-declare module "mod3" {}
-declare namespace ns2 {}
-```
-"#
+    include_str!("../../docs/rules/no_namespace.md")
   }
 }
 
@@ -96,11 +53,11 @@ struct NoNamespaceHandler;
 impl Handler for NoNamespaceHandler {
   fn ts_module_decl(
     &mut self,
-    module_decl: &AstView::TsModuleDecl,
+    module_decl: &ast_view::TsModuleDecl,
     ctx: &mut Context,
   ) {
-    fn inside_ambient_context(current_node: AstView::Node) -> bool {
-      use AstView::Node::*;
+    fn inside_ambient_context(current_node: ast_view::Node) -> bool {
+      use ast_view::Node::*;
       match current_node {
         TsModuleDecl(module_decl) if module_decl.declare() => true,
         _ => match current_node.parent() {

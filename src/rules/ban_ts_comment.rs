@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
+use crate::{Program, ProgramRef};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
@@ -78,7 +79,7 @@ impl LintRule for BanTsComment {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    _program: dprint_swc_ecma_ast_view::Program,
+    _program: Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 
@@ -92,39 +93,9 @@ impl LintRule for BanTsComment {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the use of Typescript directives without a comment.
-
-Typescript directives reduce the effectiveness of the compiler, something which should only be done in exceptional circumstances.  The reason why should be documented in a comment alongside the directive.
-
-### Invalid:
-```typescript
-// @ts-expect-error
-let a: number = "I am a string";
-```
-```typescript
-// @ts-ignore
-let a: number = "I am a string";
-```
-```typescript
-// @ts-nocheck
-let a: number = "I am a string";
-```
-
-### Valid:
-```typescript
-// @ts-expect-error: Temporary workaround (see ticket #422)
-let a: number = "I am a string";
-```
-```typescript
-// @ts-ignore: Temporary workaround (see ticket #422)
-let a: number = "I am a string";
-```
-```typescript
-// @ts-nocheck: Temporary workaround (see ticket #422)
-let a: number = "I am a string";
-```
-"#
+    include_str!("../../docs/rules/ban_ts_comment.md")
   }
 }
 

@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -50,50 +51,9 @@ impl LintRule for UseIsNaN {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows comparisons to `NaN`.
-
-Because `NaN` is unique in JavaScript by not being equal to anything, including itself, the results of comparisons to `NaN` are confusing:
-
-- `NaN === NaN` or `NaN == NaN` evaluate to `false`
-- `NaN !== NaN` or `NaN != NaN` evaluate to `true`
-
-Therefore, this rule makes you use the `isNaN()` or `Number.isNaN()` to judge the value is `NaN` or not.
-
-### Invalid:
-
-```typescript
-if (foo == NaN) {
-  // ...
-}
-
-if (foo != NaN) {
-  // ...
-}
-
-switch (NaN) {
-  case foo:
-    // ...
-}
-
-switch (foo) {
-  case NaN:
-    // ...
-}
-```
-
-### Valid:
-
-```typescript
-if (isNaN(foo)) {
-  // ...
-}
-
-if (!isNaN(foo)) {
-  // ...
-}
-```
-"#
+    include_str!("../../docs/rules/use_isnan.md")
   }
 }
 

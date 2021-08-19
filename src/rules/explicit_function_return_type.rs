@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -42,27 +43,9 @@ impl LintRule for ExplicitFunctionReturnType {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Requires all functions to have explicit return types.
-
-Explicit return types have a number of advantages including easier to understand
-code and better type safety.  It is clear from the signature what the return
-type of the function (if any) will be.
-
-### Invalid:
-
-```typescript
-function someCalc() { return 2*2; }
-function anotherCalc() { return; }
-```
-
-### Valid:
-
-```typescript
-function someCalc(): number { return 2 * 2; }
-function anotherCalc(): void { return; }
-```
-"#
+    include_str!("../../docs/rules/explicit_function_return_type.md")
   }
 }
 

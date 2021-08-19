@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use swc_common::Spanned;
 use swc_ecmascript::ast::{Decl, Stmt, VarDecl, VarDeclKind};
 use swc_ecmascript::visit::Node;
@@ -36,66 +37,9 @@ impl LintRule for NoUnreachable {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the unreachable code after the control flow statements.
-
-Because the control flow statements (`return`, `throw`, `break` and `continue`) unconditionally exit a block of code, any statements after them cannot be executed.
-
-### Invalid:
-
-```typescript
-function foo() {
-  return true;
-  console.log("done");
-}
-```
-
-```typescript
-function bar() {
-  throw new Error("Oops!");
-  console.log("done");
-}
-```
-
-```typescript
-while (value) {
-  break;
-  console.log("done");
-}
-```
-
-```typescript
-throw new Error("Oops!");
-console.log("done");
-```
-
-```typescript
-function baz() {
-  if (Math.random() < 0.5) {
-    return;
-  } else {
-    throw new Error();
-  }
-  console.log("done");
-}
-```
-
-```typescript
-for (;;) {}
-console.log("done");
-```
-
-### Valid
-
-```typescript
-function foo() {
-  return bar();
-  function bar() {
-    return 1;
-  }
-}
-```
-"#
+    include_str!("../../docs/rules/no_unreachable.md")
   }
 }
 

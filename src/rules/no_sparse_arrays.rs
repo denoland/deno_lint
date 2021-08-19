@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_ecmascript::visit::noop_visit_type;
 use swc_ecmascript::visit::Node;
@@ -34,6 +35,11 @@ impl LintRule for NoSparseArrays {
       ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
       ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
     }
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_sparse_arrays.md")
   }
 }
 

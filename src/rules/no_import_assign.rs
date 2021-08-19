@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use std::collections::HashSet;
 use swc_atoms::js_word;
 use swc_common::Span;
@@ -59,37 +60,9 @@ impl LintRule for NoImportAssign {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows reassignment of imported module bindings
-
-ES module import bindings should be treated as read-only since modifying them
-during code execution will likely result in runtime errors.  It also makes for
-poor code readability and difficult maintenance.
-
-### Invalid:
-
-```typescript
-import defaultMod, { namedMod } from './mod.js';
-import * as modNameSpace from './mod2.js';
-
-defaultMod = 0;
-namedMod = true;
-modNameSpace.someExportedMember = "hello";
-modNameSpace = {};
-```
-
-### Valid:
-
-```typescript
-import defaultMod, { namedMod } from './mod.js';
-import * as modNameSpace from './mod2.js';
-
-// properties of bound imports may be set
-defaultMod.prop = 1;
-namedMod.prop = true;
-modNameSpace.someExportedMember.prop = "hello";
-```
-"#
+    include_str!("../../docs/rules/no_import_assign.md")
   }
 }
 

@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
 use swc_common::Span;
@@ -53,28 +54,9 @@ impl LintRule for NoDupeArgs {
     visitor.report_errors();
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows using an argument name more than once in a function signature
-
-If you supply multiple arguments of the same name to a function, the last instance
-will shadow the preceding one(s).  This is most likely an unintentional typo.
-
-### Invalid:
-
-```typescript
-function withDupes(a, b, a) {
-  console.log("I'm the value of the second a:", a);
-}
-```
-
-### Valid:
-
-```typescript
-function withoutDupes(a, b, c) {
-  console.log("I'm the value of the first (and only) a:", a);
-}
-```
-"#
+    include_str!("../../docs/rules/no_dupe_args.md")
   }
 }
 

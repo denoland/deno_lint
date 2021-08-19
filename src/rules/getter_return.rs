@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
+use crate::ProgramRef;
 use derive_more::Display;
 use std::collections::BTreeMap;
 use swc_common::{Span, Spanned};
@@ -58,40 +59,9 @@ impl LintRule for GetterReturn {
     visitor.report();
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Requires all property getter functions to return a value
-
-Getter functions return the value of a property.  If the function returns no
-value then this contract is broken.
-
-### Invalid:
-
-```typescript
-let foo = {
-  get bar() {}
-};
-
-class Person {
-  get name() {}
-}
-```
-
-### Valid:
-
-```typescript
-let foo = {
-  get bar() {
-    return true;
-  }
-};
-
-class Person {
-  get name() {
-    return "alice";
-  }
-}
-```
-"#
+    include_str!("../../docs/rules/getter_return.md")
   }
 }
 

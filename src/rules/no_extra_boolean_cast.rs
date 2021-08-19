@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::{
@@ -55,31 +56,9 @@ impl LintRule for NoExtraBooleanCast {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows unnecessary boolean casts
-
-In certain contexts, such as `if`, `while` or `for` statements, expressions are
-automatically coerced into a boolean.  Therefore, techniques such as double
-negation (`!!foo`) or casting (`Boolean(foo)`) are unnecessary and produce the
-same result as without the negation or casting.
-
-### Invalid:
-
-```typescript
-if (!!foo) {}
-if (Boolean(foo)) {}
-while (!!foo) {}
-for (;Boolean(foo);) {}
-```
-
-### Valid:
-
-```typescript
-if (foo) {}
-while (foo) {}
-for (;foo;) {}
-```
-"#
+    include_str!("../../docs/rules/no_extra_boolean_cast.md")
   }
 }
 

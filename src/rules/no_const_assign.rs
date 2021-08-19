@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::scopes::BindingKind;
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_common::Span;
 use swc_ecmascript::ast::AssignExpr;
@@ -50,31 +51,9 @@ impl LintRule for NoConstAssign {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows modifying a variable declared as `const`.
-
-Modifying a variable declared as `const` will result in a runtime error.
-
-### Invalid:
-
-```typescript
-const a = 0;
-a = 1;
-a += 1;
-a++;
-++a;
-```
-
-### Valid:
-
-```typescript
-const a = 0;
-const b = a + 1;
-
-// `c` is out of scope on each loop iteration, allowing a new assignment
-for (const c in [1,2,3]) {}
-```
-"#
+    include_str!("../../docs/rules/no_const_assign.md")
   }
 }
 

@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef};
+use super::{Context, LintRule};
+use crate::{Program, ProgramRef};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_common::comments::Comment;
@@ -27,7 +28,7 @@ impl LintRule for BanUntaggedTodo {
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,
-    _program: dprint_swc_ecma_ast_view::Program,
+    _program: Program,
   ) {
     let mut violated_comment_spans = Vec::new();
 
@@ -44,43 +45,9 @@ impl LintRule for BanUntaggedTodo {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Requires TODOs to be annotated with either a user tag (`@user`) or an issue reference (`#issue`).
-
-TODOs without reference to a user or an issue become stale with no easy way to get more information.
-
-### Invalid:
-```typescript
-// TODO Improve calc engine
-export function calcValue(): number { }
-```
-```typescript
-// TODO Improve calc engine (@djones)
-export function calcValue(): number { }
-```
-```typescript
-// TODO Improve calc engine (#332)
-export function calcValue(): number { }
-```
-
-### Valid:
-```typescript
-// TODO(djones) Improve calc engine
-export function calcValue(): number { }
-```
-```typescript
-// TODO(@djones) Improve calc engine
-export function calcValue(): number { }
-```
-```typescript
-// TODO(#332)
-export function calcValue(): number { }
-```
-```typescript
-// TODO(#332) Improve calc engine
-export function calcValue(): number { }
-```
-"#
+    include_str!("../../docs/rules/ban_untagged_todo.md")
   }
 }
 

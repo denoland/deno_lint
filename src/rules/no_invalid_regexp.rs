@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
 use crate::js_regex::*;
+use crate::ProgramRef;
 use swc_common::Span;
 use swc_ecmascript::ast::Expr;
 use swc_ecmascript::ast::ExprOrSpread;
@@ -39,25 +40,9 @@ impl LintRule for NoInvalidRegexp {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows specifying invalid regular expressions in RegExp constructors
-
-Specifying an invalid regular expression literal will result in a SyntaxError at
-compile time, however specifying an invalid regular expression string in the RegExp
-constructor will only be discovered at runtime.
-
-### Invalid:
-
-```typescript
-const invalidRegExp = new RegExp(')');
-```
-
-### Valid:
-
-```typescript
-const goodRegExp = new RegExp('.');
-```
-"#
+    include_str!("../../docs/rules/no_invalid_regexp.md")
   }
 }
 

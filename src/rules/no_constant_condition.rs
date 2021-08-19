@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, ProgramRef, DUMMY_NODE};
+use super::{Context, LintRule, DUMMY_NODE};
+use crate::ProgramRef;
 use derive_more::Display;
 use swc_common::Span;
 use swc_common::Spanned;
@@ -49,28 +50,9 @@ impl LintRule for NoConstantCondition {
     }
   }
 
+  #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    r#"Disallows the use of a constant expression in conditional test
-
-Using a constant expression in a conditional test is often either a mistake or a
-temporary situation introduced during development and is not ready for production.
-
-### Invalid:
-
-```typescript
-if (true) {}
-if (2) {}
-do {} while (x = 2);  // infinite loop
-```
-
-### Valid:
-
-```typescript
-if (x) {}
-if (x === 0) {}
-do {} while (x === 2);
-```
-"#
+    include_str!("../../docs/rules/no_constant_condition.md")
   }
 }
 
