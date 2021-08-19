@@ -1,8 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
 use swc_ecmascript::ast::{
-  ComputedPropName, Expr, ExprOrSpread, Ident, Lit, MemberExpr, PatOrExpr,
-  PrivateName, Prop, PropName, PropOrSpread, Str, Tpl,
+  BigInt, Bool, ComputedPropName, Expr, ExprOrSpread, Ident, JSXText, Lit,
+  MemberExpr, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
+  PropOrSpread, Regex, Str, Tpl,
 };
 use swc_ecmascript::utils::{find_ids, ident::IdentLike};
 
@@ -33,6 +34,49 @@ pub(crate) fn extract_regex(
 
 pub(crate) trait StringRepr {
   fn string_repr(&self) -> Option<String>;
+}
+
+impl StringRepr for Str {
+  fn string_repr(&self) -> Option<String> {
+    Some(self.value.to_string())
+  }
+}
+
+impl StringRepr for Bool {
+  fn string_repr(&self) -> Option<String> {
+    let s = if self.value { "true" } else { "false" };
+    Some(s.to_string())
+  }
+}
+
+impl StringRepr for Null {
+  fn string_repr(&self) -> Option<String> {
+    Some("null".to_string())
+  }
+}
+
+impl StringRepr for Number {
+  fn string_repr(&self) -> Option<String> {
+    Some(self.value.to_string())
+  }
+}
+
+impl StringRepr for BigInt {
+  fn string_repr(&self) -> Option<String> {
+    Some(self.value.to_string())
+  }
+}
+
+impl StringRepr for Regex {
+  fn string_repr(&self) -> Option<String> {
+    Some(format!("/{}/", self.exp))
+  }
+}
+
+impl StringRepr for JSXText {
+  fn string_repr(&self) -> Option<String> {
+    Some(self.raw.to_string())
+  }
 }
 
 impl StringRepr for Ident {
@@ -67,22 +111,14 @@ impl StringRepr for Prop {
 
 impl StringRepr for Lit {
   fn string_repr(&self) -> Option<String> {
-    use swc_ecmascript::ast::BigInt;
-    use swc_ecmascript::ast::Bool;
-    use swc_ecmascript::ast::JSXText;
-    use swc_ecmascript::ast::Number;
-    use swc_ecmascript::ast::Regex;
     match self {
-      Lit::Str(Str { ref value, .. }) => Some(value.to_string()),
-      Lit::Bool(Bool { ref value, .. }) => {
-        let str_val = if *value { "true" } else { "false" };
-        Some(str_val.to_string())
-      }
-      Lit::Null(_) => Some("null".to_string()),
-      Lit::Num(Number { ref value, .. }) => Some(value.to_string()),
-      Lit::BigInt(BigInt { ref value, .. }) => Some(value.to_string()),
-      Lit::Regex(Regex { ref exp, .. }) => Some(format!("/{}/", exp)),
-      Lit::JSXText(JSXText { ref raw, .. }) => Some(raw.to_string()),
+      Lit::Str(s) => s.string_repr(),
+      Lit::Bool(b) => b.string_repr(),
+      Lit::Null(n) => n.string_repr(),
+      Lit::Num(n) => n.string_repr(),
+      Lit::BigInt(b) => b.string_repr(),
+      Lit::Regex(r) => r.string_repr(),
+      Lit::JSXText(j) => j.string_repr(),
     }
   }
 }
@@ -90,7 +126,7 @@ impl StringRepr for Lit {
 impl StringRepr for Tpl {
   fn string_repr(&self) -> Option<String> {
     if self.exprs.is_empty() {
-      self.quasis.get(0).map(|q| q.raw.value.to_string())
+      self.quasis.get(0).and_then(|q| q.raw.string_repr())
     } else {
       None
     }
@@ -100,7 +136,7 @@ impl StringRepr for Tpl {
 impl StringRepr for Expr {
   fn string_repr(&self) -> Option<String> {
     match self {
-      Expr::Ident(ident) => Some(ident.sym.to_string()),
+      Expr::Ident(ident) => ident.string_repr(),
       Expr::Lit(lit) => lit.string_repr(),
       Expr::Tpl(tpl) => tpl.string_repr(),
       _ => None,
@@ -111,10 +147,10 @@ impl StringRepr for Expr {
 impl StringRepr for PropName {
   fn string_repr(&self) -> Option<String> {
     match self {
-      PropName::Ident(identifier) => Some(identifier.sym.to_string()),
-      PropName::Str(str) => Some(str.value.to_string()),
-      PropName::Num(num) => Some(num.to_string()),
-      PropName::BigInt(bigint) => Some(bigint.value.to_string()),
+      PropName::Ident(i) => i.string_repr(),
+      PropName::Str(s) => s.string_repr(),
+      PropName::Num(n) => n.string_repr(),
+      PropName::BigInt(b) => b.string_repr(),
       PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
         Expr::Lit(lit) => lit.string_repr(),
         Expr::Tpl(tpl) => tpl.string_repr(),
@@ -126,7 +162,7 @@ impl StringRepr for PropName {
 
 impl StringRepr for PrivateName {
   fn string_repr(&self) -> Option<String> {
-    Some(self.id.sym.to_string())
+    self.id.string_repr()
   }
 }
 
@@ -134,7 +170,7 @@ impl StringRepr for MemberExpr {
   fn string_repr(&self) -> Option<String> {
     if let Expr::Ident(ident) = &*self.prop {
       if !self.computed {
-        return Some(ident.sym.to_string());
+        return ident.string_repr();
       }
     }
 
@@ -145,6 +181,100 @@ impl StringRepr for MemberExpr {
 impl<S: StringRepr> StringRepr for Option<S> {
   fn string_repr(&self) -> Option<String> {
     self.as_ref().and_then(|k| k.string_repr())
+  }
+}
+
+macro_rules! impl_string_repr_for_ast_view {
+  ($($i:ident),* $(,)?) => {
+    $(
+      impl<'view> StringRepr for ast_view::$i<'view> {
+        fn string_repr(&self) -> Option<String> {
+          self.inner.string_repr()
+        }
+      }
+    )*
+  }
+}
+
+impl_string_repr_for_ast_view!(
+  Ident,
+  Tpl,
+  PrivateName,
+  MemberExpr,
+  Str,
+  Bool,
+  Null,
+  Number,
+  BigInt,
+  Regex,
+  JSXText,
+);
+
+impl<'view> StringRepr for ast_view::PropOrSpread<'view> {
+  fn string_repr(&self) -> Option<String> {
+    use ast_view::PropOrSpread::*;
+    match self {
+      Prop(p) => p.string_repr(),
+      Spread(_) => None,
+    }
+  }
+}
+
+impl<'view> StringRepr for ast_view::Prop<'view> {
+  fn string_repr(&self) -> Option<String> {
+    use ast_view::Prop::*;
+    match self {
+      KeyValue(key_value) => key_value.key.string_repr(),
+      Getter(getter) => getter.key.string_repr(),
+      Setter(setter) => setter.key.string_repr(),
+      Method(method) => method.key.string_repr(),
+      Shorthand(_) => None,
+      Assign(_) => None,
+    }
+  }
+}
+
+impl<'view> StringRepr for ast_view::Lit<'view> {
+  fn string_repr(&self) -> Option<String> {
+    use ast_view::Lit::*;
+    match self {
+      Str(s) => s.string_repr(),
+      Bool(b) => b.string_repr(),
+      Null(n) => n.string_repr(),
+      Num(n) => n.string_repr(),
+      BigInt(b) => b.string_repr(),
+      Regex(r) => r.string_repr(),
+      JSXText(j) => j.string_repr(),
+    }
+  }
+}
+
+impl<'view> StringRepr for ast_view::Expr<'view> {
+  fn string_repr(&self) -> Option<String> {
+    use ast_view::Expr::*;
+    match self {
+      Ident(ident) => ident.string_repr(),
+      Lit(lit) => lit.string_repr(),
+      Tpl(tpl) => tpl.string_repr(),
+      _ => None,
+    }
+  }
+}
+
+impl<'view> StringRepr for ast_view::PropName<'view> {
+  fn string_repr(&self) -> Option<String> {
+    use ast_view::PropName::*;
+    match self {
+      Ident(i) => i.string_repr(),
+      Str(s) => s.string_repr(),
+      Num(n) => n.string_repr(),
+      BigInt(b) => b.string_repr(),
+      Computed(ast_view::ComputedPropName { ref expr, .. }) => match expr {
+        ast_view::Expr::Lit(lit) => lit.string_repr(),
+        ast_view::Expr::Tpl(tpl) => tpl.string_repr(),
+        _ => None,
+      },
+    }
   }
 }
 

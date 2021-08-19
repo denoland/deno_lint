@@ -1,23 +1,17 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
+use ast_view::Spanned;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
-use swc_common::{Span, Spanned};
-use swc_ecmascript::ast::{
-  ArrayPat, AssignPat, AssignPatProp, ClassDecl, ClassExpr,
-  ExportNamespaceSpecifier, Expr, FnDecl, FnExpr, GetterProp, Ident,
-  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  KeyValuePatProp, KeyValueProp, MethodProp, ObjectLit, ObjectPat,
-  ObjectPatProp, Param, Pat, Prop, PropName, PropOrSpread, RestPat, SetterProp,
-  TsEnumDecl, TsEnumMemberId, TsInterfaceDecl, TsModuleDecl, TsModuleName,
-  TsNamespaceDecl, TsType, TsTypeAliasDecl, TsTypeElement, VarDecl,
-};
-use swc_ecmascript::visit::{Node, Visit, VisitWith};
+use swc_common::Span;
 
 pub struct Camelcase;
+
+const CODE: &str = "camelcase";
 
 impl LintRule for Camelcase {
   fn new() -> Box<Self> {
@@ -29,20 +23,25 @@ impl LintRule for Camelcase {
   }
 
   fn code(&self) -> &'static str {
-    "camelcase"
+    CODE
   }
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = CamelcaseVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
-    visitor.report_errors();
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: ast_view::Program,
+  ) {
+    let mut handler = CamelcaseHandler::default();
+    handler.traverse(program, context);
+    handler.report_errors(context);
   }
 
   #[cfg(feature = "docs")]
@@ -337,28 +336,21 @@ impl IdentToCheck {
   }
 }
 
-struct CamelcaseVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+#[derive(Default)]
+struct CamelcaseHandler {
+  /// Accumulated errors to report
   errors: BTreeMap<Span, IdentToCheck>,
   /// Already visited identifiers
   visited: BTreeSet<Span>,
 }
 
-impl<'c, 'view> CamelcaseVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self {
-      context,
-      errors: BTreeMap::new(),
-      visited: BTreeSet::new(),
-    }
-  }
-
-  /// Report accumulated errors
-  fn report_errors(&mut self) {
-    for (span, error_ident) in &self.errors {
-      self.context.add_diagnostic_with_hint(
-        *span,
-        "camelcase",
+impl CamelcaseHandler {
+  /// Report accumulated errors, consuming `self`.
+  fn report_errors(self, ctx: &mut Context) {
+    for (span, error_ident) in self.errors {
+      ctx.add_diagnostic_with_hint(
+        span,
+        CODE,
         error_ident.to_message(),
         error_ident.to_hint(),
       );
@@ -373,44 +365,44 @@ impl<'c, 'view> CamelcaseVisitor<'c, 'view> {
     }
   }
 
-  fn check_ts_type(&mut self, ty: &TsType) {
-    if let TsType::TsTypeLit(type_lit) = ty {
+  fn check_ts_type(&mut self, ty: &ast_view::TsType) {
+    if let ast_view::TsType::TsTypeLit(type_lit) = ty {
       for member in &type_lit.members {
         self.check_ts_type_element(member);
       }
     }
   }
 
-  fn check_ts_type_element(&mut self, ty_el: &TsTypeElement) {
-    use swc_ecmascript::ast::TsTypeElement::*;
+  fn check_ts_type_element(&mut self, ty_el: &ast_view::TsTypeElement) {
+    use ast_view::TsTypeElement::*;
     match ty_el {
       TsPropertySignature(prop_sig) => {
-        if let Expr::Ident(ident) = &*prop_sig.key {
-          self.check_ident(ident, IdentToCheck::object_key(ident, false));
+        if let ast_view::Expr::Ident(ident) = prop_sig.key {
+          self.check_ident(ident, IdentToCheck::object_key(ident.inner, false));
         }
         if let Some(type_ann) = &prop_sig.type_ann {
-          self.check_ts_type(&*type_ann.type_ann);
+          self.check_ts_type(&type_ann.type_ann);
         }
       }
       TsMethodSignature(method_sig) => {
-        if let Expr::Ident(ident) = &*method_sig.key {
-          self.check_ident(ident, IdentToCheck::function(ident));
+        if let ast_view::Expr::Ident(ident) = method_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident.inner));
         }
         if let Some(type_ann) = &method_sig.type_ann {
-          self.check_ts_type(&*type_ann.type_ann);
+          self.check_ts_type(&type_ann.type_ann);
         }
       }
       TsGetterSignature(getter_sig) => {
-        if let Expr::Ident(ident) = &*getter_sig.key {
-          self.check_ident(ident, IdentToCheck::function(ident));
+        if let ast_view::Expr::Ident(ident) = getter_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident.inner));
         }
         if let Some(type_ann) = &getter_sig.type_ann {
-          self.check_ts_type(&*type_ann.type_ann);
+          self.check_ts_type(&type_ann.type_ann);
         }
       }
       TsSetterSignature(setter_sig) => {
-        if let Expr::Ident(ident) = &*setter_sig.key {
-          self.check_ident(ident, IdentToCheck::function(ident));
+        if let ast_view::Expr::Ident(ident) = setter_sig.key {
+          self.check_ident(ident, IdentToCheck::function(ident.inner));
         }
       }
       TsIndexSignature(_)
@@ -419,107 +411,123 @@ impl<'c, 'view> CamelcaseVisitor<'c, 'view> {
     }
   }
 
-  fn check_pat(&mut self, pat: &Pat) {
+  fn check_pat(&mut self, pat: &ast_view::Pat) {
     match pat {
-      Pat::Ident(ident) => {
-        self.check_ident(ident, IdentToCheck::variable(&ident.id));
+      ast_view::Pat::Ident(ident) => {
+        self.check_ident(ident, IdentToCheck::variable(&ident.id.inner));
       }
-      Pat::Array(ArrayPat { ref elems, .. }) => {
+      ast_view::Pat::Array(ast_view::ArrayPat { ref elems, .. }) => {
         for pat in elems.iter().flatten() {
           self.check_pat(pat);
         }
       }
-      Pat::Rest(RestPat { ref arg, .. }) => {
-        self.check_pat(&**arg);
+      ast_view::Pat::Rest(ast_view::RestPat { ref arg, .. }) => {
+        self.check_pat(arg);
       }
-      Pat::Object(ObjectPat { ref props, .. }) => {
+      ast_view::Pat::Object(ast_view::ObjectPat { ref props, .. }) => {
         for prop in props {
           match prop {
-            ObjectPatProp::KeyValue(KeyValuePatProp { ref key, ref value }) => {
-              match &**value {
-                Pat::Ident(value_ident) => {
-                  self.check_ident(
-                    value_ident,
-                    IdentToCheck::object_pat(
-                      &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
-                      Some(&value_ident.id),
-                      false,
-                    ),
-                  );
-                }
-                Pat::Assign(AssignPat { ref left, .. }) => {
-                  if let Pat::Ident(value_ident) = &**left {
-                    self.check_ident(
-                      value_ident,
-                      IdentToCheck::object_pat(
-                        &key
-                          .string_repr()
-                          .unwrap_or_else(|| "[KEY]".to_string()),
-                        Some(&value_ident.id),
-                        true,
-                      ),
-                    );
-                  } else {
-                    self.check_pat(&**value);
-                  }
-                }
-                _ => {
-                  self.check_pat(&**value);
-                }
+            ast_view::ObjectPatProp::KeyValue(ast_view::KeyValuePatProp {
+              ref key,
+              ref value,
+              ..
+            }) => match value {
+              ast_view::Pat::Ident(value_ident) => {
+                self.check_ident(
+                  value_ident,
+                  IdentToCheck::object_pat(
+                    &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
+                    Some(&value_ident.id.inner),
+                    false,
+                  ),
+                );
               }
-            }
-            ObjectPatProp::Assign(AssignPatProp {
-              ref key, ref value, ..
+              ast_view::Pat::Assign(ast_view::AssignPat {
+                left: ast_view::Pat::Ident(value_ident),
+                ..
+              }) => {
+                self.check_ident(
+                  value_ident,
+                  IdentToCheck::object_pat(
+                    &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
+                    Some(&value_ident.id.inner),
+                    true,
+                  ),
+                );
+              }
+              _ => {
+                self.check_pat(value);
+              }
+            },
+            ast_view::ObjectPatProp::Assign(ast_view::AssignPatProp {
+              ref key,
+              ref value,
+              ..
             }) => {
               let has_default = value.is_some();
               self.check_ident(
                 key,
-                IdentToCheck::object_pat::<Ident, Ident>(
-                  key,
+                IdentToCheck::object_pat::<&str, &str>(
+                  &key.inner.as_ref(),
                   None,
                   has_default,
                 ),
               );
             }
-            ObjectPatProp::Rest(RestPat { ref arg, .. }) => {
-              self.check_pat(&**arg);
+            ast_view::ObjectPatProp::Rest(ast_view::RestPat {
+              ref arg,
+              ..
+            }) => {
+              self.check_pat(arg);
             }
           }
         }
       }
-      Pat::Assign(AssignPat { ref left, .. }) => {
-        self.check_pat(&**left);
+      ast_view::Pat::Assign(ast_view::AssignPat { ref left, .. }) => {
+        self.check_pat(left);
       }
-      Pat::Expr(expr) => {
-        if let Expr::Ident(ident) = &**expr {
-          self.check_ident(ident, IdentToCheck::variable(ident));
+      ast_view::Pat::Expr(expr) => {
+        if let ast_view::Expr::Ident(ident) = expr {
+          self.check_ident(ident, IdentToCheck::variable(ident.inner));
         }
       }
-      Pat::Invalid(_) => {}
+      ast_view::Pat::Invalid(_) => {}
     }
   }
 }
 
-impl<'c, 'view> Visit for CamelcaseVisitor<'c, 'view> {
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
-    if fn_decl.declare {
+impl Handler for CamelcaseHandler {
+  fn fn_decl(&mut self, fn_decl: &ast_view::FnDecl, ctx: &mut Context) {
+    if fn_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
 
-    self.check_ident(&fn_decl.ident, IdentToCheck::function(&fn_decl.ident));
-    fn_decl.visit_children_with(self);
+    self.check_ident(
+      &fn_decl.ident,
+      IdentToCheck::function(&fn_decl.ident.inner),
+    );
   }
 
-  fn visit_class_decl(&mut self, class_decl: &ClassDecl, _: &dyn Node) {
-    if class_decl.declare {
+  fn class_decl(
+    &mut self,
+    class_decl: &ast_view::ClassDecl,
+    ctx: &mut Context,
+  ) {
+    if class_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
-    self.check_ident(&class_decl.ident, IdentToCheck::class(&class_decl.ident));
-    class_decl.visit_children_with(self);
+
+    self.check_ident(
+      &class_decl.ident,
+      IdentToCheck::class(&class_decl.ident.inner),
+    );
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
-    if var_decl.declare {
+  fn var_decl(&mut self, var_decl: &ast_view::VarDecl, ctx: &mut Context) {
+    if var_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
 
@@ -527,118 +535,141 @@ impl<'c, 'view> Visit for CamelcaseVisitor<'c, 'view> {
       self.check_pat(&decl.name);
 
       if let Some(expr) = &decl.init {
-        match &**expr {
-          Expr::Object(ObjectLit { ref props, .. }) => {
+        match expr {
+          ast_view::Expr::Object(ast_view::ObjectLit { ref props, .. }) => {
             for prop in props {
-              if let PropOrSpread::Prop(prop) = prop {
-                match &**prop {
-                  Prop::Shorthand(ident) => self
-                    .check_ident(ident, IdentToCheck::object_key(ident, true)),
-                  Prop::KeyValue(KeyValueProp { ref key, .. })
-                  | Prop::Getter(GetterProp { ref key, .. })
-                  | Prop::Setter(SetterProp { ref key, .. })
-                  | Prop::Method(MethodProp { ref key, .. }) => {
-                    if let PropName::Ident(ident) = key {
+              if let ast_view::PropOrSpread::Prop(prop) = prop {
+                match prop {
+                  ast_view::Prop::Shorthand(ident) => self.check_ident(
+                    ident,
+                    IdentToCheck::object_key(ident.inner, true),
+                  ),
+                  ast_view::Prop::KeyValue(ast_view::KeyValueProp {
+                    ref key,
+                    ..
+                  })
+                  | ast_view::Prop::Getter(ast_view::GetterProp {
+                    ref key,
+                    ..
+                  })
+                  | ast_view::Prop::Setter(ast_view::SetterProp {
+                    ref key,
+                    ..
+                  })
+                  | ast_view::Prop::Method(ast_view::MethodProp {
+                    ref key,
+                    ..
+                  }) => {
+                    if let ast_view::PropName::Ident(ident) = key {
                       self.check_ident(
                         ident,
-                        IdentToCheck::object_key(ident, false),
+                        IdentToCheck::object_key(ident.inner, false),
                       );
                     }
                   }
-                  Prop::Assign(_) => {}
+                  ast_view::Prop::Assign(_) => {}
                 }
               }
             }
           }
-          Expr::Fn(FnExpr {
+          ast_view::Expr::Fn(ast_view::FnExpr {
             ident: Some(ident), ..
           }) => {
-            self.check_ident(ident, IdentToCheck::function(ident));
+            self.check_ident(ident, IdentToCheck::function(ident.inner));
           }
-          Expr::Class(ClassExpr {
-            ident: Some(ident), ..
+          ast_view::Expr::Class(ast_view::ClassExpr {
+            ident: Some(ident),
+            ..
           }) => {
-            self.check_ident(ident, IdentToCheck::class(ident));
+            self.check_ident(ident, IdentToCheck::class(ident.inner));
           }
           _ => {}
         }
       }
     }
-
-    var_decl.visit_children_with(self);
   }
 
-  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
+  fn param(&mut self, param: &ast_view::Param, _ctx: &mut Context) {
     self.check_pat(&param.pat);
-    param.visit_children_with(self);
   }
 
-  fn visit_import_named_specifier(
+  fn import_named_specifier(
     &mut self,
-    import_named_specifier: &ImportNamedSpecifier,
-    _: &dyn Node,
+    import_named_specifier: &ast_view::ImportNamedSpecifier,
+    _ctx: &mut Context,
   ) {
-    let ImportNamedSpecifier {
+    let ast_view::ImportNamedSpecifier {
       local, imported, ..
     } = import_named_specifier;
-    self
-      .check_ident(local, IdentToCheck::named_import(local, imported.as_ref()));
-    import_named_specifier.visit_children_with(self);
+    self.check_ident(
+      local,
+      IdentToCheck::named_import(
+        local.inner,
+        imported.as_ref().map(|i| i.inner),
+      ),
+    );
   }
 
-  fn visit_import_default_specifier(
+  fn import_default_specifier(
     &mut self,
-    import_default_specifier: &ImportDefaultSpecifier,
-    _: &dyn Node,
+    import_default_specifier: &ast_view::ImportDefaultSpecifier,
+    _ctx: &mut Context,
   ) {
-    let ImportDefaultSpecifier { local, .. } = import_default_specifier;
-    self.check_ident(local, IdentToCheck::variable(local));
-    import_default_specifier.visit_children_with(self);
+    let ast_view::ImportDefaultSpecifier { local, .. } =
+      import_default_specifier;
+    self.check_ident(local, IdentToCheck::variable(local.inner));
   }
 
-  fn visit_import_star_as_specifier(
+  fn import_star_as_specifier(
     &mut self,
-    import_star_as_specifier: &ImportStarAsSpecifier,
-    _: &dyn Node,
+    import_star_as_specifier: &ast_view::ImportStarAsSpecifier,
+    _ctx: &mut Context,
   ) {
-    let ImportStarAsSpecifier { local, .. } = import_star_as_specifier;
-    self.check_ident(local, IdentToCheck::variable(local));
-    import_star_as_specifier.visit_children_with(self);
+    let ast_view::ImportStarAsSpecifier { local, .. } =
+      import_star_as_specifier;
+    self.check_ident(local, IdentToCheck::variable(local.inner));
   }
 
-  fn visit_export_namespace_specifier(
+  fn export_namespace_specifier(
     &mut self,
-    export_namespace_specifier: &ExportNamespaceSpecifier,
-    _: &dyn Node,
+    export_namespace_specifier: &ast_view::ExportNamespaceSpecifier,
+    _ctx: &mut Context,
   ) {
-    let ExportNamespaceSpecifier { name, .. } = export_namespace_specifier;
-    self.check_ident(name, IdentToCheck::variable(name));
-    export_namespace_specifier.visit_children_with(self);
+    let ast_view::ExportNamespaceSpecifier { name, .. } =
+      export_namespace_specifier;
+    self.check_ident(name, IdentToCheck::variable(name.inner));
   }
 
-  fn visit_ts_type_alias_decl(
+  fn ts_type_alias_decl(
     &mut self,
-    type_alias: &TsTypeAliasDecl,
-    _: &dyn Node,
+    type_alias: &ast_view::TsTypeAliasDecl,
+    ctx: &mut Context,
   ) {
-    if type_alias.declare {
+    if type_alias.declare() {
+      ctx.stop_traverse();
       return;
     }
-    self.check_ident(&type_alias.id, IdentToCheck::type_alias(&type_alias.id));
-    self.check_ts_type(&*type_alias.type_ann);
+
+    self.check_ident(
+      &type_alias.id,
+      IdentToCheck::type_alias(&type_alias.id.inner),
+    );
+    self.check_ts_type(&type_alias.type_ann);
   }
 
-  fn visit_ts_interface_decl(
+  fn ts_interface_decl(
     &mut self,
-    interface_decl: &TsInterfaceDecl,
-    _: &dyn Node,
+    interface_decl: &ast_view::TsInterfaceDecl,
+    ctx: &mut Context,
   ) {
-    if interface_decl.declare {
+    if interface_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
+
     self.check_ident(
       &interface_decl.id,
-      IdentToCheck::interface(&interface_decl.id),
+      IdentToCheck::interface(&interface_decl.id.inner),
     );
 
     for ty_el in &interface_decl.body.body {
@@ -646,44 +677,52 @@ impl<'c, 'view> Visit for CamelcaseVisitor<'c, 'view> {
     }
   }
 
-  fn visit_ts_namespace_decl(
+  fn ts_namespace_decl(
     &mut self,
-    namespace_decl: &TsNamespaceDecl,
-    _: &dyn Node,
+    namespace_decl: &ast_view::TsNamespaceDecl,
+    ctx: &mut Context,
   ) {
-    if namespace_decl.declare {
+    if namespace_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
 
     self.check_ident(
       &namespace_decl.id,
-      IdentToCheck::namespace(&namespace_decl.id),
+      IdentToCheck::namespace(&namespace_decl.id.inner),
     );
-
-    namespace_decl.visit_children_with(self);
   }
 
-  fn visit_ts_module_decl(&mut self, module_decl: &TsModuleDecl, _: &dyn Node) {
-    if module_decl.declare {
+  fn ts_module_decl(
+    &mut self,
+    module_decl: &ast_view::TsModuleDecl,
+    ctx: &mut Context,
+  ) {
+    if module_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
 
-    if let TsModuleName::Ident(id) = &module_decl.id {
-      self.check_ident(id, IdentToCheck::module(id));
+    if let ast_view::TsModuleName::Ident(id) = &module_decl.id {
+      self.check_ident(id, IdentToCheck::module(id.inner));
     }
-
-    module_decl.visit_children_with(self);
   }
 
-  fn visit_ts_enum_decl(&mut self, enum_decl: &TsEnumDecl, _: &dyn Node) {
-    if enum_decl.declare {
+  fn ts_enum_decl(
+    &mut self,
+    enum_decl: &ast_view::TsEnumDecl,
+    ctx: &mut Context,
+  ) {
+    if enum_decl.declare() {
+      ctx.stop_traverse();
       return;
     }
 
-    self.check_ident(&enum_decl.id, IdentToCheck::enum_name(&enum_decl.id));
+    self
+      .check_ident(&enum_decl.id, IdentToCheck::enum_name(&enum_decl.id.inner));
     for variant in &enum_decl.members {
-      if let TsEnumMemberId::Ident(id) = &variant.id {
-        self.check_ident(id, IdentToCheck::enum_variant(id));
+      if let ast_view::TsEnumMemberId::Ident(id) = &variant.id {
+        self.check_ident(id, IdentToCheck::enum_variant(id.inner));
       }
     }
   }
