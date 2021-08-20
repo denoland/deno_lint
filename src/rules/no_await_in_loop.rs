@@ -229,6 +229,8 @@ for (let thing in await things) {
   fn no_await_in_loop_invalid() {
     assert_lint_err! {
       NoAwaitInLoop,
+      MESSAGE,
+      HINT,
       r#"
 async function foo(things) {
   const results = [];
@@ -237,57 +239,57 @@ async function foo(things) {
   }
   return baz(results);
 }
-      "#: [{ line: 5, col: 17, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 5, col: 17 }],
       r#"
 for (const thing of things) {
   results.push(await foo(thing));
 }
-      "#: [{ line: 3, col: 15, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 3, col: 15 }],
       r#"
 for (let i = 0; i < await foo(); i++) {
   bar();
 }
-      "#: [{ line: 2, col: 20, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 2, col: 20 }],
       r#"
 for (let i = 0; i < 42; await foo(i)) {
   bar();
 }
-      "#: [{ line: 2, col: 24, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 2, col: 24 }],
       r#"
 for (let i = 0; i < 42; i++) {
   await bar();
 }
-      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 3, col: 2 }],
       r#"
 for (const thing in things) {
   await foo(thing);
 }
-      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 3, col: 2 }],
       r#"
 while (await foo()) {
   bar();
 }
-      "#: [{ line: 2, col: 7, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 2, col: 7 }],
       r#"
 while (true) {
   await foo();
 }
-      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 3, col: 2 }],
       r#"
 while (true) {
   await foo();
 }
-      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 3, col: 2 }],
       r#"
 do {
   foo();
 } while (await bar());
-      "#: [{ line: 4, col: 9, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 4, col: 9 }],
       r#"
 do {
   await foo();
 } while (true);
-      "#: [{ line: 3, col: 2, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 3, col: 2 }],
       r#"
 for await (const thing of things) {
   async function foo() {
@@ -297,7 +299,7 @@ for await (const thing of things) {
   }
   await baz();
 }
-      "#: [{ line: 5, col: 6, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 5, col: 6 }],
 
       r#"
 function foo() {
@@ -307,7 +309,7 @@ function foo() {
     }
   }
 }
-      "#: [{ line: 5, col: 6, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 5, col: 6 }],
       r#"
 async function foo() {
   for (const thing of things) {
@@ -317,7 +319,7 @@ async function foo() {
     }
   }
 }
-      "#: [{ line: 6, col: 6, message: MESSAGE, hint: HINT }],
+      "#: [{ line: 6, col: 6 }]
     }
   }
 }
