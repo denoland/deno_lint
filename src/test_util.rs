@@ -70,7 +70,7 @@ macro_rules! assert_lint_err {
     $($src:literal : $test:tt),+
     $(,)?
   ) => {
-      $(
+    $(
       let errors = parse_err_test!($message, $hint, $test);
       let tester = $crate::test_util::LintErrTester::<$rule>::new(
         $src,
