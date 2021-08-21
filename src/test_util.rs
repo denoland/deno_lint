@@ -87,13 +87,13 @@ macro_rules! assert_lint_err {
     $($src:literal : $test:tt),+
     $(,)?
   ) => {
-      assert_lint_err! {
-        $rule,
-        $message,
-        $hint,
-        filename: "deno_lint_err_test.ts",
-        $($src: $test,)*
-      }
+    assert_lint_err! {
+      $rule,
+      $message,
+      $hint,
+      filename: "deno_lint_err_test.ts",
+      $($src: $test,)*
+    }
   };
 }
 
