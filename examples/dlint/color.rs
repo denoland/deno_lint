@@ -218,15 +218,19 @@ enum Attribute {
   Bold,
   Italic,
   Underline,
+  #[allow(dead_code)]
   Reversed,
   Strikethrough,
+  #[allow(dead_code)]
   Black,
   Red,
   Green,
   Yellow,
+  #[allow(dead_code)]
   Blue,
   Magenta,
   Cyan,
+  #[allow(dead_code)]
   White,
   Gray,
 }
