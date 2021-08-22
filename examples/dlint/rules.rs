@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::color::Colorize;
+use crate::color::colorize_markdown;
 use deno_lint::rules::get_all_rules;
 use serde::Serialize;
 
@@ -74,8 +74,7 @@ impl RuleFormatter for PrettyFormatter {
         };
 
         if atty::is(atty::Stream::Stdout) {
-          let md_tokens = markdown::tokenize(&md);
-          Ok(md_tokens.colorize())
+          Ok(colorize_markdown(&md))
         } else {
           Ok(md)
         }

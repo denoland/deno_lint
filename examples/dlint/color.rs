@@ -1,195 +1,318 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::lexer::{lex, MediaType, TokenOrComment};
+use if_chain::if_chain;
+use pulldown_cmark::{Options, Parser, Tag};
 use std::convert::TryFrom;
 use swc_ecmascript::parser::token::{Token, Word};
 
-pub trait Colorize {
-  fn colorize(self) -> String;
+pub fn colorize_markdown(input: &str) -> String {
+  let mut options = Options::empty();
+  options.insert(Options::ENABLE_STRIKETHROUGH);
+  let parser = Parser::new_ext(input, options);
+  let colorizer = MarkdownColorizer::new();
+  colorizer.run(parser)
 }
 
-impl Colorize for markdown::Block {
-  fn colorize(self) -> String {
-    use markdown::Block::*;
+const RESET_CODE: &str = "\u{001b}[0m";
+
+#[derive(Debug, Clone, Copy)]
+enum CodeBlockLang {
+  Known(MediaType),
+  Unknown,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ListKind {
+  Ordered { current_number: u64 },
+  Unordered,
+}
+
+impl ListKind {
+  fn render(&mut self) -> String {
     match self {
-      Header(spans, 1) => {
-        let style = ansi_term::Style::new()
-          .bold()
-          .underline()
-          .italic()
-          .fg(ansi_term::Color::Purple);
-        style.paint(spans.colorize()).to_string().linebreak()
+      ListKind::Ordered { current_number } => {
+        let ret = format!("  {}. ", *current_number);
+        *current_number += 1;
+        ret
       }
-      Header(spans, 2 | 3) => {
-        let style = ansi_term::Style::new()
-          .bold()
-          .underline()
-          .fg(ansi_term::Color::Purple);
-        style.paint(spans.colorize()).to_string().linebreak()
+      ListKind::Unordered => {
+        format!("  - ")
       }
-      Header(spans, 4) => {
-        let style = ansi_term::Style::new().bold().fg(ansi_term::Color::Purple);
-        style.paint(spans.colorize()).to_string().linebreak()
-      }
-      Header(spans, _level) => {
-        let style = ansi_term::Style::new().fg(ansi_term::Color::Purple);
-        style.paint(spans.colorize()).to_string().linebreak()
-      }
-      Paragraph(spans) => spans.colorize().linebreak(),
-      Blockquote(blocks) => {
-        let style = ansi_term::Style::new().dimmed();
-        style.paint(blocks.colorize()).to_string().linebreak()
-      }
-      CodeBlock(Some(info), content) => {
-        if let Ok(media_type) = MediaType::try_from(info.as_str()) {
-          let mut v = Vec::new();
+    }
+  }
+}
 
-          for line in content.split('\n') {
-            // Ref: https://github.com/denoland/deno/blob/a0c0daac24c496e49e7c0abaae12f34723785a7d/cli/tools/repl.rs#L251-L298
-            let mut out_line = String::from(line);
-            for item in lex(line, media_type) {
-              let offset = out_line.len() - line.len();
-              let span = item.span_as_range();
+struct MarkdownColorizer {
+  attr_stack: Vec<Attribute>,
+  code_block: Option<CodeBlockLang>,
+  list: Option<ListKind>,
+  buffer: String,
+}
 
-              out_line.replace_range(
-                span.start + offset..span.end + offset,
-                &match item.inner {
-                  TokenOrComment::Token(token) => match token {
-                    Token::Str { .. }
-                    | Token::Template { .. }
-                    | Token::BackQuote => {
-                      ansi_term::Color::Green.paint(&line[span]).to_string()
-                    }
-                    Token::Regex(_, _) => {
-                      ansi_term::Color::Red.paint(&line[span]).to_string()
-                    }
-                    Token::Num(_) | Token::BigInt(_) => {
-                      ansi_term::Color::Yellow.paint(&line[span]).to_string()
-                    }
-                    Token::Word(word) => match word {
-                      Word::True | Word::False | Word::Null => {
-                        ansi_term::Color::Yellow.paint(&line[span]).to_string()
-                      }
-                      Word::Keyword(_) => {
-                        ansi_term::Color::Cyan.paint(&line[span]).to_string()
-                      }
-                      Word::Ident(ident) => {
-                        if ident == *"undefined" {
-                          ansi_term::Color::Fixed(8)
-                            .paint(&line[span])
-                            .to_string()
-                        } else if ident == *"Infinity" || ident == *"NaN" {
-                          ansi_term::Color::Yellow
-                            .paint(&line[span])
-                            .to_string()
-                        } else if matches!(
-                          ident.as_ref(),
-                          "async" | "of" | "enum" | "type" | "interface"
-                        ) {
-                          ansi_term::Color::Cyan.paint(&line[span]).to_string()
-                        } else {
-                          line[span].to_string()
-                        }
-                      }
-                    },
-                    _ => line[span].to_string(),
-                  },
-                  TokenOrComment::Comment { .. } => {
-                    ansi_term::Color::Fixed(8).paint(&line[span]).to_string()
-                  }
-                },
-              );
-            }
-            v.push(out_line.indent(4));
+fn trailing_newlines(tag: &Tag) -> String {
+  use Tag::*;
+  let num_newlines = match tag {
+    Paragraph | Heading(_) | BlockQuote | CodeBlock(_) => 2,
+    List(_)
+    | Item
+    | FootnoteDefinition(_)
+    | Table(_)
+    | TableHead
+    | TableRow
+    | TableCell => 1,
+    Emphasis | Strong | Strikethrough | Link(_, _, _) | Image(_, _, _) => 0,
+  };
+  "\n".repeat(num_newlines)
+}
+
+impl MarkdownColorizer {
+  fn new() -> MarkdownColorizer {
+    Self {
+      attr_stack: vec![],
+      code_block: None,
+      list: None,
+      buffer: String::new(),
+    }
+  }
+
+  fn run<'input>(mut self, parser: Parser<'input>) -> String {
+    for event in parser {
+      use pulldown_cmark::Event::*;
+      match event {
+        Start(tag) => {
+          let attrs = self.handle_tag(&tag, true);
+          for attr in &attrs {
+            self.buffer.push_str(attr.as_ansi_code());
           }
-
-          v.join("\n").linebreak()
-        } else {
-          content
-            .split('\n')
-            .map(|line| line.indent(4))
-            .join_by("\n")
-            .linebreak()
+          self.attr_stack.extend(attrs);
+        }
+        End(tag) => {
+          self.buffer.push_str(RESET_CODE);
+          let attrs = self.handle_tag(&tag, false);
+          self
+            .attr_stack
+            .truncate(self.attr_stack.len() - attrs.len());
+          for attr in &self.attr_stack {
+            self.buffer.push_str(attr.as_ansi_code());
+          }
+          self.buffer.push_str(&trailing_newlines(&tag));
+        }
+        Text(text) => {
+          if let Some(lang) = self.code_block {
+            self.buffer.push_str(&colorize_code_block(lang, &text));
+          } else {
+            self.buffer.push_str(&text);
+          }
+        }
+        Html(html) => {
+          self.buffer.push_str(&html);
+        }
+        Code(code) => {
+          let attr = Attribute::Green;
+          self.attr_stack.push(attr);
+          self.buffer.push_str(attr.as_ansi_code());
+          self.buffer.push_str(&code);
+          self.buffer.push_str(RESET_CODE);
+          self.attr_stack.pop();
+          for attr in &self.attr_stack {
+            self.buffer.push_str(attr.as_ansi_code());
+          }
+        }
+        FootnoteReference(_) => {}
+        SoftBreak | HardBreak => {
+          self.buffer.push('\n');
+        }
+        Rule => {
+          self.buffer.push_str(&"-".repeat(80));
+        }
+        TaskListMarker(checked) => {
+          if checked {
+            self.buffer.push_str("[x]");
+          } else {
+            self.buffer.push_str("[ ]");
+          }
         }
       }
-      CodeBlock(None, content) => content
-        .split('\n')
-        .map(|line| line.indent(4))
-        .join_by("\n")
-        .linebreak(),
-      OrderedList(list_items, _list_type) => list_items
-        .into_iter()
-        .enumerate()
-        .map(|(idx, li)| format!("{}. {}", idx, li.colorize()).indent(2))
-        .join_by("\n")
-        .linebreak(),
-      UnorderedList(list_items) => list_items
-        .into_iter()
-        .map(|li| format!("• {}", li.colorize()).indent(2))
-        .join_by("\n")
-        .linebreak(),
-      Raw(content) => content.linebreak(),
-      Hr => ansi_term::Color::Fixed(8)
-        .paint("-".repeat(80))
-        .to_string()
-        .linebreak(),
+    }
+
+    self.buffer.trim_end_matches('\n').to_string()
+  }
+
+  fn handle_tag(&mut self, tag: &Tag, is_start: bool) -> Vec<Attribute> {
+    use pulldown_cmark::{CodeBlockKind, Tag::*};
+    match tag {
+      Paragraph => vec![],
+      Heading(1) => {
+        vec![
+          Attribute::Italic,
+          Attribute::Underline,
+          Attribute::Bold,
+          Attribute::Magenta,
+        ]
+      }
+      Heading(2) => vec![Attribute::Bold, Attribute::Magenta],
+      Heading(3) => vec![Attribute::Magenta],
+      Heading(_) => vec![Attribute::Bold],
+      BlockQuote => vec![Attribute::Gray],
+      CodeBlock(kind) => {
+        if is_start {
+          if_chain! {
+            if let CodeBlockKind::Fenced(info) = kind;
+            if let Ok(media_type) = MediaType::try_from(&**info);
+            then {
+              self.code_block = Some(CodeBlockLang::Known(media_type))
+            } else {
+              self.code_block = Some(CodeBlockLang::Unknown)
+            }
+          }
+        } else {
+          self.code_block = None
+        };
+        vec![]
+      }
+      List(Some(n)) => {
+        self.list = if is_start {
+          Some(ListKind::Ordered { current_number: *n })
+        } else {
+          None
+        };
+        vec![]
+      }
+      List(None) => {
+        self.list = if is_start {
+          Some(ListKind::Unordered)
+        } else {
+          None
+        };
+        vec![]
+      }
+      Item => {
+        if is_start {
+          let list_kind =
+            self.list.as_mut().expect("ListKind should be set, but not");
+          self.buffer.push_str(&list_kind.render());
+        }
+        vec![]
+      }
+      // TODO(magurotuna) we should implement this
+      FootnoteDefinition(_) => vec![],
+      // TODO(magurotuna) we should implement this
+      Table(_) | TableHead | TableRow | TableCell => vec![],
+      Emphasis => vec![Attribute::Italic],
+      Strong => vec![Attribute::Bold],
+      Strikethrough => vec![Attribute::Strikethrough],
+      Link(_link_type, url, _title) => {
+        if !is_start {
+          self.buffer.push_str(&format!("({url})", url = url));
+        }
+        vec![]
+      }
+      // TODO(magurotuna) we should implement this
+      Image(_, _, _) => vec![],
     }
   }
 }
 
-impl Colorize for Vec<markdown::Block> {
-  fn colorize(self) -> String {
-    self.into_iter().map(Colorize::colorize).join_by("\n")
-  }
+#[derive(Debug, Clone, Copy)]
+enum Attribute {
+  Bold,
+  Italic,
+  Underline,
+  Reversed,
+  Strikethrough,
+  Black,
+  Red,
+  Green,
+  Yellow,
+  Blue,
+  Magenta,
+  Cyan,
+  White,
+  Gray,
 }
 
-impl Colorize for markdown::Span {
-  fn colorize(self) -> String {
-    use markdown::Span::*;
-    match self {
-      Break => "\n".to_string(),
-      Text(text) => text,
-      Code(code) => ansi_term::Color::Green.paint(code).to_string(),
-      Link(label, url, _title) => {
-        format!("[{label}]({url})", label = label, url = url)
-      }
-      Image(alt, url, _title) => {
-        format!("![{alt}]({url})", alt = alt, url = url)
-      }
-      Emphasis(spans) => {
-        let style = ansi_term::Style::new().italic();
-        style.paint(spans.colorize()).to_string()
-      }
-      Strong(spans) => {
-        let style = ansi_term::Style::new().bold();
-        style.paint(spans.colorize()).to_string()
-      }
+impl Attribute {
+  fn as_ansi_code(&self) -> &'static str {
+    use Attribute::*;
+    match *self {
+      Bold => "\u{001b}[1m",
+      Italic => "\u{001b}[3m",
+      Underline => "\u{001b}[4m",
+      Reversed => "\u{001b}[7m",
+      Strikethrough => "\u{001b}[9m",
+      Black => "\u{001b}[30m",
+      Red => "\u{001b}[31m",
+      Green => "\u{001b}[32m",
+      Yellow => "\u{001b}[33m",
+      Blue => "\u{001b}[34m",
+      Magenta => "\u{001b}[35m",
+      Cyan => "\u{001b}[36m",
+      White => "\u{001b}[37m",
+      Gray => "\u{001b}[30;1m",
     }
   }
 }
 
-impl Colorize for Vec<markdown::Span> {
-  fn colorize(self) -> String {
-    self.into_iter().map(Colorize::colorize).join_by("")
+fn colorize_code_block(lang: CodeBlockLang, src: &str) -> String {
+  fn decorate(s: &str, attr: Attribute) -> String {
+    format!("{}{}{}", attr.as_ansi_code(), s, RESET_CODE)
   }
-}
 
-impl Colorize for markdown::ListItem {
-  fn colorize(self) -> String {
-    use markdown::ListItem::*;
-    match self {
-      Simple(spans) => spans.colorize(),
-      Paragraph(blocks) => blocks.colorize(),
+  if let CodeBlockLang::Known(media_type) = lang {
+    let mut v = Vec::new();
+
+    for line in src.split('\n') {
+      // Ref: https://github.com/denoland/deno/blob/a0c0daac24c496e49e7c0abaae12f34723785a7d/cli/tools/repl.rs#L251-L298
+      let mut out_line = String::from(line);
+      for item in lex(line, media_type) {
+        let offset = out_line.len() - line.len();
+        let span = item.span_as_range();
+
+        out_line.replace_range(
+          span.start + offset..span.end + offset,
+          &match item.inner {
+            TokenOrComment::Token(token) => match token {
+              Token::Str { .. } | Token::Template { .. } | Token::BackQuote => {
+                decorate(&line[span], Attribute::Green)
+              }
+              Token::Regex(_, _) => decorate(&line[span], Attribute::Red),
+              Token::Num(_) | Token::BigInt(_) => {
+                decorate(&line[span], Attribute::Yellow)
+              }
+              Token::Word(word) => match word {
+                Word::True | Word::False | Word::Null => {
+                  decorate(&line[span], Attribute::Yellow)
+                }
+                Word::Keyword(_) => decorate(&line[span], Attribute::Cyan),
+                Word::Ident(ident) => {
+                  if ident == *"undefined" {
+                    decorate(&line[span], Attribute::Gray)
+                  } else if ident == *"Infinity" || ident == *"NaN" {
+                    decorate(&line[span], Attribute::Yellow)
+                  } else if matches!(
+                    ident.as_ref(),
+                    "async" | "of" | "enum" | "type" | "interface"
+                  ) {
+                    decorate(&line[span], Attribute::Cyan)
+                  } else {
+                    line[span].to_string()
+                  }
+                }
+              },
+              _ => line[span].to_string(),
+            },
+            TokenOrComment::Comment { .. } => {
+              decorate(&line[span], Attribute::Gray)
+            }
+          },
+        );
+      }
+      v.push(out_line.indent(4));
     }
-  }
-}
 
-trait Linebreak {
-  fn linebreak(self) -> String;
-}
-
-impl Linebreak for String {
-  fn linebreak(self) -> String {
-    format!("{}\n", self)
+    v.join("\n")
+  } else {
+    src.split('\n').map(|line| line.indent(4)).join_by("\n")
   }
 }
 
