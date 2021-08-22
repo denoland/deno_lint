@@ -250,7 +250,7 @@ impl Attribute {
       Magenta => "\u{001b}[35m",
       Cyan => "\u{001b}[36m",
       White => "\u{001b}[37m",
-      Gray => "\u{001b}[30;1m",
+      Gray => "\u{001b}[38;5;245m",
     }
   }
 }
