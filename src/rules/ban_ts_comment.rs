@@ -222,7 +222,7 @@ console.log('hello');
         {
           col: 0
         }
-      ] ,
+      ],
       r#"//@ts-ignore"# : [
         {
           col: 0
