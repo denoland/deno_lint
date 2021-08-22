@@ -109,11 +109,9 @@ impl MarkdownColorizer {
         }
         Code(code) => {
           let attr = Attribute::Green;
-          self.attr_stack.push(attr);
           self.buffer.push_str(attr.as_ansi_code());
           self.buffer.push_str(&code);
           self.buffer.push_str(RESET_CODE);
-          self.attr_stack.pop();
           for attr in &self.attr_stack {
             self.buffer.push_str(attr.as_ansi_code());
           }
