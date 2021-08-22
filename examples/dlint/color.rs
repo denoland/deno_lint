@@ -35,9 +35,7 @@ impl ListKind {
         *current_number += 1;
         ret
       }
-      ListKind::Unordered => {
-        format!("  - ")
-      }
+      ListKind::Unordered => "  - ".to_string(),
     }
   }
 }
@@ -75,7 +73,7 @@ impl MarkdownColorizer {
     }
   }
 
-  fn run<'input>(mut self, parser: Parser<'input>) -> String {
+  fn run(mut self, parser: Parser<'_>) -> String {
     for event in parser {
       use pulldown_cmark::Event::*;
       match event {
