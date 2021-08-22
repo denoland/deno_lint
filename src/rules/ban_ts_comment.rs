@@ -195,7 +195,7 @@ console.log('hello');
         {
           col: 0
         }
-      ] ,
+      ],
       r#"/// @ts-expect-error"# : [
         {
           col: 0
