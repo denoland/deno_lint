@@ -249,7 +249,7 @@ console.log('hello');
         {
           col: 0
         }
-      ] ,
+      ],
       r#"//@ts-nocheck"# : [
         {
           col: 0
