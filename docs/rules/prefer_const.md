@@ -8,7 +8,7 @@ immutable; we cannot perform re-assignment to them.
 In general, to make the codebase more robust, maintainable, and readable, it is
 highly recommended to use [`const`] instead of [`let`] wherever possible. The
 fewer mutable variables are, the easier it should be to keep track of the
-variable states while reading through the code, and thus it is less likely to 
+variable states while reading through the code, and thus it is less likely to
 write buggy code. So this lint rule checks if there are [`let`] variables that
 could potentially be declared with [`const`] instead.
 
