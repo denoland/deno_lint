@@ -7,8 +7,8 @@ When declaring a new variable of a primitive literal type, there are three ways:
 2. using normal type assertion (like `as "foo"`, or `<"foo">`)
 3. using const assertion (`as const`)
 
-This lint rule suggests using const assertion, because it will generally lead to
-safer code. For more details about const assertion, see
+This lint rule suggests using const assertion because it will generally lead to
+a safer code. For more details about const assertion, see
 [the official handbook](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions).
 
 ### Invalid:
