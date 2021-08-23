@@ -17,6 +17,10 @@ impl LintRule for NoVar {
     Box::new(NoVar)
   }
 
+  fn tags(&self) -> &'static [&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     CODE
   }
