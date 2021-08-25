@@ -36,6 +36,7 @@ const p3 = await Deno.run({
     "benchmarks/benchmarks.ts",
     "www/pages",
     "docs/rules",
+    "README.md",
   ],
   stdin: "null",
 }).status();

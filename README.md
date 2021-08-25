@@ -2,11 +2,11 @@
 
 A Rust crate for writing fast JavaScript and TypeScript linters.
 
-This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is not Deno specific
-and can be used to write linters for Node as well.
+This crate powers [`deno lint`](https://deno.land/manual/tools/linter), but is
+not Deno specific and can be used to write linters for Node as well.
 
-_Supports `recommended` set of rules from ESLint and `@typescript-eslint` out of the box
-with no config._
+_Supports `recommended` set of rules from ESLint and `@typescript-eslint` out of
+the box with no config._
 
 See [the roadmap](https://github.com/denoland/deno_lint/issues/176)
 
@@ -51,14 +51,21 @@ Blazing fast, see comparison with ESLint:
 ]
 ```
 
-_Benchmarks are run during CI on Ubuntu, using the same set of rules for both linters.
-Test subject is [`oak` server](https://github.com/oakserver/oak) consisting of about 50 files.
-See [`./benchmarks/`](./benchmarks/) directory for more info._
+_Benchmarks are run during CI on Ubuntu, using the same set of rules for both
+linters. Test subject is [`oak` server](https://github.com/oakserver/oak)
+consisting of about 50 files. See [`./benchmarks/`](./benchmarks/) directory for
+more info._
+
+## Node.js bindings
+
+If you want to use `deno_lint` with Node, please refer to
+[`@node-rs/deno-lint`](https://www.npmjs.com/package/@node-rs/deno-lint) package
+which provides programmatic API as well as Webpack loader for `deno_lint`.
 
 ## Example
 
-`examples/dlint/main.rs` provides a minimal standalone binary demonstrating
-how `deno_lint` can be used as a crate.
+`examples/dlint/main.rs` provides a minimal standalone binary demonstrating how
+`deno_lint` can be used as a crate.
 
 ```shell
 # Build standalone binary
@@ -126,7 +133,8 @@ $ ./target/debug/examples/dlint run ../deno/std/http/server.ts ../deno/std/http/
 Found 7 problems
 ```
 
-For more concrete implementation visit [`deno`](https://github.com/denoland/deno/blob/main/cli/tools/lint.rs)
+For more concrete implementation visit
+[`deno`](https://github.com/denoland/deno/blob/main/cli/tools/lint.rs)
 
 ## Developing
 
@@ -148,7 +156,11 @@ $ cargo test
 
 Prerequisites:
 
-- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page), [`stackcollapse-perf`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl), [`c++filt`](https://sourceware.org/binutils/docs/binutils/c_002b_002bfilt.html) and [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
+- Install [`perf`](https://perf.wiki.kernel.org/index.php/Main_Page),
+  [`stackcollapse-perf`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl),
+  [`c++filt`](https://sourceware.org/binutils/docs/binutils/c_002b_002bfilt.html)
+  and
+  [`flamegraph`](https://github.com/brendangregg/FlameGraph/blob/master/flamegraph.pl)
 
 ```shell
 $ RUSTFLAGS='-g' cargo build --release --all-targets # build target
@@ -156,7 +168,9 @@ $ sudo perf record --call-graph dwarf ./target/release/examples/dlint benchmarks
 $ perf script | stackcollapse-perf | c++filt | flamegraph > flame.svg # generate flamegraph
 ```
 
-You can use [rust-unmangle](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle) or [rustfilt](https://github.com/luser/rustfilt) instead of c++filt.
+You can use
+[rust-unmangle](https://github.com/Yamakaky/rust-unmangle/blob/master/rust-unmangle)
+or [rustfilt](https://github.com/luser/rustfilt) instead of c++filt.
 
 These commands can take a few minutes to run.
 
