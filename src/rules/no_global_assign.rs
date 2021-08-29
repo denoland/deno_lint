@@ -194,6 +194,13 @@ mod tests {
       "top = 0;",
       "require = 0;",
       "onmessage = function () {};",
+      "let Array = 0; Array = 42;",
+      r#"
+let Boolean = true;
+function foo() {
+  Boolean = false;
+}
+      "#,
     };
   }
 
@@ -233,6 +240,20 @@ mod tests {
           message: NoGlobalAssignMessage::NotAllowed,
           hint: NoGlobalAssignHint::Remove,
         }
+      ],
+      r#"
+function foo() {
+  let Boolean = false;
+  Boolean = true;
+}
+Boolean = true;
+      "#: [
+        {
+          col: 0,
+          line: 6,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        },
       ],
     };
   }
