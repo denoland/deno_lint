@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
+use crate::scopes::BindingKind;
 use crate::ProgramRef;
 use std::collections::HashSet;
 use swc_atoms::js_word;
@@ -195,7 +196,12 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
 
   fn is_modifier(&self, obj: &Expr, prop: &Expr) -> bool {
     if let Expr::Ident(obj) = obj {
-      if self.other_bindings.contains(&obj.to_id()) {
+      if self
+        .context
+        .scope()
+        .var(&obj.to_id())
+        .map_or(false, |v| v.kind() != BindingKind::Import)
+      {
         return false;
       }
     }
