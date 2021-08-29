@@ -88,8 +88,28 @@ pub enum BindingKind {
   Param,
   Class,
   CatchClause,
-  Import,
+
+  /// This means that the binding comes from `ImportStarAsSpecifier`, like
+  /// `import * as foo from "foo.ts";`
+  /// `foo` effectively represents a namespace.
+  NamespaceImport,
+
+  /// Represents `ImportDefaultSpecifier` or `ImportNamedSpecifier`.
+  /// e.g.
+  ///   - import foo from "foo.ts";
+  ///   - import { foo } from "foo.ts";
+  ValueImport,
+
   TypeAlias,
+}
+
+impl BindingKind {
+  pub fn is_import(&self) -> bool {
+    matches!(
+      *self,
+      BindingKind::ValueImport | BindingKind::NamespaceImport
+    )
+  }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -266,7 +286,7 @@ impl Visit for Analyzer<'_> {
     n: &ImportNamedSpecifier,
     _: &dyn Node,
   ) {
-    self.declare(BindingKind::Import, &n.local);
+    self.declare(BindingKind::ValueImport, &n.local);
   }
 
   fn visit_import_default_specifier(
@@ -274,7 +294,7 @@ impl Visit for Analyzer<'_> {
     n: &ImportDefaultSpecifier,
     _: &dyn Node,
   ) {
-    self.declare(BindingKind::Import, &n.local);
+    self.declare(BindingKind::ValueImport, &n.local);
   }
 
   fn visit_import_star_as_specifier(
@@ -282,7 +302,7 @@ impl Visit for Analyzer<'_> {
     n: &ImportStarAsSpecifier,
     _: &dyn Node,
   ) {
-    self.declare(BindingKind::Import, &n.local);
+    self.declare(BindingKind::NamespaceImport, &n.local);
   }
 
   fn visit_with_stmt(&mut self, n: &WithStmt, _: &dyn Node) {
