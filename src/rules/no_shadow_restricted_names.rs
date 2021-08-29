@@ -77,8 +77,8 @@ impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
       }
       Pat::Array(array_pat) => {
         for el in &array_pat.elems {
-          if el.is_some() {
-            self.check_pat(el.as_ref().unwrap());
+          if let Some(pat) = el.as_ref() {
+            self.check_pat(pat);
           }
         }
       }
@@ -142,8 +142,8 @@ impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
   }
 
   fn visit_fn_expr(&mut self, node: &FnExpr, _: &dyn Node) {
-    if node.ident.is_some() {
-      self.check_shadowing(node.ident.as_ref().unwrap())
+    if let Some(ident) = node.ident.as_ref() {
+      self.check_shadowing(ident)
     }
 
     for param in &node.function.params {
@@ -158,8 +158,8 @@ impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
   }
 
   fn visit_catch_clause(&mut self, node: &CatchClause, _: &dyn Node) {
-    if node.param.is_some() {
-      self.check_pat(node.param.as_ref().unwrap());
+    if let Some(param) = node.param.as_ref() {
+      self.check_pat(param);
     }
   }
 
