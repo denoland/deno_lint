@@ -6,10 +6,7 @@ use swc_ecmascript::ast::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
-use swc_ecmascript::{
-  utils::ident::IdentLike,
-  visit::{noop_visit_type, Node, VisitAll, VisitAllWith},
-};
+use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoShadowRestrictedNames;
 
@@ -68,18 +65,9 @@ impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
     )
   }
 
-  fn check_pat(&mut self, pat: &Pat, check_scope: bool) {
+  fn check_pat(&mut self, pat: &Pat) {
     match pat {
       Pat::Ident(ident) => {
-        // trying to assign `undefined`
-        // Check is scope is valid for current pattern
-        if &ident.id.sym == "undefined" && check_scope {
-          if let Some(_binding) = self.context.scope().var(&ident.to_id()) {
-            self.report_shadowing(&ident.id);
-          }
-          return;
-        }
-
         self.check_shadowing(&ident.id);
       }
       Pat::Expr(expr) => {
@@ -90,7 +78,7 @@ impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
       Pat::Array(array_pat) => {
         for el in &array_pat.elems {
           if el.is_some() {
-            self.check_pat(el.as_ref().unwrap(), false);
+            self.check_pat(el.as_ref().unwrap());
           }
         }
       }
@@ -100,15 +88,15 @@ impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
             ObjectPatProp::Assign(assign) => {
               self.check_shadowing(&assign.key);
             }
-            ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg, false),
+            ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg),
             ObjectPatProp::KeyValue(key_value) => {
-              self.check_pat(&key_value.value, false);
+              self.check_pat(&key_value.value);
             }
           }
         }
       }
       Pat::Rest(rest_pat) => {
-        self.check_pat(&rest_pat.arg, false);
+        self.check_pat(&rest_pat.arg);
       }
       _ => {}
     }
@@ -141,7 +129,7 @@ impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
         }
       }
 
-      self.check_pat(&decl.name, false);
+      self.check_pat(&decl.name);
     }
   }
 
@@ -149,7 +137,7 @@ impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
     self.check_shadowing(&node.ident);
 
     for param in &node.function.params {
-      self.check_pat(&param.pat, false);
+      self.check_pat(&param.pat);
     }
   }
 
@@ -159,25 +147,25 @@ impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
     }
 
     for param in &node.function.params {
-      self.check_pat(&param.pat, false);
+      self.check_pat(&param.pat);
     }
   }
 
   fn visit_arrow_expr(&mut self, node: &ArrowExpr, _: &dyn Node) {
     for param in &node.params {
-      self.check_pat(param, false);
+      self.check_pat(param);
     }
   }
 
   fn visit_catch_clause(&mut self, node: &CatchClause, _: &dyn Node) {
     if node.param.is_some() {
-      self.check_pat(node.param.as_ref().unwrap(), false);
+      self.check_pat(node.param.as_ref().unwrap());
     }
   }
 
   fn visit_assign_expr(&mut self, node: &AssignExpr, _: &dyn Node) {
     if let PatOrExpr::Pat(pat) = &node.left {
-      self.check_pat(pat, true);
+      self.check_pat(pat);
     }
   }
 }
