@@ -195,9 +195,6 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
 
   fn is_modifier(&self, obj: &Expr, prop: &Expr) -> bool {
     if let Expr::Ident(obj) = obj {
-      if self.context.top_level_ctxt() != obj.span.ctxt {
-        return false;
-      }
       if self.other_bindings.contains(&obj.to_id()) {
         return false;
       }
