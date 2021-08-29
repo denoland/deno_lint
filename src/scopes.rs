@@ -6,7 +6,8 @@ use swc_ecmascript::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
   DoWhileStmt, Expr, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt, Function,
   Ident, ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  Invalid, Param, Pat, SwitchStmt, VarDecl, VarDeclKind, WhileStmt, WithStmt,
+  Invalid, Param, Pat, SwitchStmt, TsTypeAliasDecl, VarDecl, VarDeclKind,
+  WhileStmt, WithStmt,
 };
 use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
@@ -88,6 +89,7 @@ pub enum BindingKind {
   Class,
   CatchClause,
   Import,
+  TypeAlias,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -153,7 +155,15 @@ impl Analyzer<'_> {
 
 impl Visit for Analyzer<'_> {
   fn visit_arrow_expr(&mut self, n: &ArrowExpr, _: &dyn Node) {
-    self.with(ScopeKind::Arrow, |a| n.visit_children_with(a))
+    self.with(ScopeKind::Arrow, |a| {
+      // Parameters of `ArrowExpr` are of type `Vec<Pat>`, not `Vec<Param>`,
+      // which means `visit_param` does _not_ handle parameters of `ArrowExpr`.
+      // We need to handle them manually here.
+      for param in &n.params {
+        a.declare_pat(BindingKind::Param, param);
+      }
+      n.visit_children_with(a);
+    });
   }
 
   /// Overriden not to add ScopeKind::Block
@@ -224,6 +234,14 @@ impl Visit for Analyzer<'_> {
 
   fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
     self.declare(BindingKind::Class, &n.ident);
+
+    self.visit_with_path(ScopeKind::Class, &n.class);
+  }
+
+  fn visit_class_expr(&mut self, n: &ClassExpr, _: &dyn Node) {
+    if let Some(class_name) = n.ident.as_ref() {
+      self.declare(BindingKind::Class, class_name);
+    }
 
     self.visit_with_path(ScopeKind::Class, &n.class);
   }
@@ -310,6 +328,12 @@ impl Visit for Analyzer<'_> {
     n.discriminant.visit_with(n, self);
 
     self.visit_with_path(ScopeKind::Switch, &n.cases);
+  }
+
+  fn visit_ts_type_alias_decl(&mut self, n: &TsTypeAliasDecl, _: &dyn Node) {
+    self.declare(BindingKind::TypeAlias, &n.id);
+    n.type_params.visit_with(n, self);
+    n.type_ann.visit_with(n, self);
   }
 }
 
