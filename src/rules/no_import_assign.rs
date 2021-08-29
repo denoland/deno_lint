@@ -1,15 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
+use crate::scopes::BindingKind;
 use crate::ProgramRef;
-use std::collections::HashSet;
 use swc_atoms::js_word;
 use swc_common::Span;
 use swc_common::Spanned;
 use swc_ecmascript::{
   ast::*,
-  utils::find_ids,
   utils::ident::IdentLike,
-  utils::Id,
   visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
@@ -38,22 +36,7 @@ impl LintRule for NoImportAssign {
     context: &mut Context<'view>,
     program: ProgramRef<'view>,
   ) {
-    let mut collector = Collector {
-      imports: Default::default(),
-      ns_imports: Default::default(),
-      other_bindings: Default::default(),
-    };
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut collector),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut collector),
-    }
-
-    let mut visitor = NoImportAssignVisitor::new(
-      context,
-      collector.imports,
-      collector.ns_imports,
-      collector.other_bindings,
-    );
+    let mut visitor = NoImportAssignVisitor::new(context);
     match program {
       ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
       ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
@@ -66,105 +49,27 @@ impl LintRule for NoImportAssign {
   }
 }
 
-struct Collector {
-  imports: HashSet<Id>,
-  ns_imports: HashSet<Id>,
-  other_bindings: HashSet<Id>,
-}
-
-impl Visit for Collector {
-  noop_visit_type!();
-
-  fn visit_import_named_specifier(
-    &mut self,
-    i: &ImportNamedSpecifier,
-    _: &dyn Node,
-  ) {
-    self.imports.insert(i.local.to_id());
-  }
-
-  fn visit_import_default_specifier(
-    &mut self,
-    i: &ImportDefaultSpecifier,
-    _: &dyn Node,
-  ) {
-    self.imports.insert(i.local.to_id());
-  }
-
-  fn visit_import_star_as_specifier(
-    &mut self,
-    i: &ImportStarAsSpecifier,
-    _: &dyn Node,
-  ) {
-    self.ns_imports.insert(i.local.to_id());
-  }
-
-  // Other top level bindings
-
-  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
-    self.other_bindings.insert(n.ident.to_id());
-  }
-
-  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
-    self.other_bindings.insert(n.ident.to_id());
-  }
-
-  fn visit_var_declarator(&mut self, n: &VarDeclarator, _: &dyn Node) {
-    let ids: Vec<Id> = find_ids(&n.name);
-
-    for id in ids {
-      self.other_bindings.insert(id);
-    }
-  }
-
-  fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
-}
-
 struct NoImportAssignVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  /// This hashset only contains top level bindings, so using HashSet<JsWord>
-  /// also can be an option.
-  imports: HashSet<Id>,
-  ns_imports: HashSet<Id>,
-  /// Top level bindings other than import.
-  other_bindings: HashSet<Id>,
 }
 
 impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
-  fn new(
-    context: &'c mut Context<'view>,
-    imports: HashSet<Id>,
-    ns_imports: HashSet<Id>,
-    other_bindings: HashSet<Id>,
-  ) -> Self {
-    Self {
-      context,
-      imports,
-      ns_imports,
-      other_bindings,
-    }
+  fn new(context: &'c mut Context<'view>) -> Self {
+    Self { context }
   }
 
   fn check(&mut self, span: Span, i: &Ident, is_assign_to_prop: bool) {
-    // All imports are top-level and as a result,
-    // if an identifier is not top-level, we are not assigning to import
-    if i.span.ctxt != self.context.top_level_ctxt() {
-      return;
-    }
-
-    // We only care about imports
-    if self.other_bindings.contains(&i.to_id()) {
-      return;
-    }
-
-    if self.ns_imports.contains(&i.to_id()) {
+    let var = self.context.scope().var(&i.to_id());
+    if var.map_or(false, |v| v.kind() == BindingKind::NamespaceImport) {
       self
         .context
         .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
       return;
     }
 
-    if !is_assign_to_prop && self.imports.contains(&i.to_id()) {
+    if !is_assign_to_prop
+      && var.map_or(false, |v| v.kind() == BindingKind::ValueImport)
+    {
       self
         .context
         .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
@@ -195,10 +100,12 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
 
   fn is_modifier(&self, obj: &Expr, prop: &Expr) -> bool {
     if let Expr::Ident(obj) = obj {
-      if self.context.top_level_ctxt() != obj.span.ctxt {
-        return false;
-      }
-      if self.other_bindings.contains(&obj.to_id()) {
+      if self
+        .context
+        .scope()
+        .var(&obj.to_id())
+        .map_or(false, |v| !v.kind().is_import())
+      {
         return false;
       }
     }
