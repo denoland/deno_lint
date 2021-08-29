@@ -3,11 +3,9 @@ use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
 use derive_more::Display;
-use std::collections::HashSet;
 use swc_common::Span;
 use swc_ecmascript::{
   ast::*,
-  utils::find_ids,
   utils::ident::IdentLike,
   utils::Id,
   visit::Node,
@@ -48,15 +46,7 @@ impl LintRule for NoGlobalAssign {
     context: &mut Context<'view>,
     program: ProgramRef<'view>,
   ) {
-    let mut collector = Collector {
-      bindings: Default::default(),
-    };
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut collector),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut collector),
-    }
-
-    let mut visitor = NoGlobalAssignVisitor::new(context, collector.bindings);
+    let mut visitor = NoGlobalAssignVisitor::new(context);
     match program {
       ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
       ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
@@ -69,69 +59,13 @@ impl LintRule for NoGlobalAssign {
   }
 }
 
-struct Collector {
-  bindings: HashSet<Id>,
-}
-
-impl Visit for Collector {
-  noop_visit_type!();
-
-  fn visit_import_named_specifier(
-    &mut self,
-    i: &ImportNamedSpecifier,
-    _: &dyn Node,
-  ) {
-    self.bindings.insert(i.local.to_id());
-  }
-
-  fn visit_import_default_specifier(
-    &mut self,
-    i: &ImportDefaultSpecifier,
-    _: &dyn Node,
-  ) {
-    self.bindings.insert(i.local.to_id());
-  }
-
-  fn visit_import_star_as_specifier(
-    &mut self,
-    i: &ImportStarAsSpecifier,
-    _: &dyn Node,
-  ) {
-    self.bindings.insert(i.local.to_id());
-  }
-
-  // Other top level bindings
-
-  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
-    self.bindings.insert(n.ident.to_id());
-  }
-
-  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
-    self.bindings.insert(n.ident.to_id());
-  }
-
-  fn visit_var_declarator(&mut self, n: &VarDeclarator, _: &dyn Node) {
-    let ids: Vec<Id> = find_ids(&n.name);
-
-    for id in ids {
-      self.bindings.insert(id);
-    }
-  }
-
-  /// No-op, as only top level bindings are relevant to this lint.
-  fn visit_expr(&mut self, _: &Expr, _: &dyn Node) {}
-}
-
 struct NoGlobalAssignVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  /// This hashset only contains top level bindings, so using HashSet<JsWord>
-  /// also can be an option.
-  bindings: HashSet<Id>,
 }
 
 impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>, bindings: HashSet<Id>) -> Self {
-    Self { context, bindings }
+  fn new(context: &'c mut Context<'view>) -> Self {
+    Self { context }
   }
 
   fn check(&mut self, span: Span, id: Id) {
@@ -139,8 +73,7 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
       return;
     }
 
-    // Global is shadowed by top level binding
-    if self.bindings.contains(&id) {
+    if self.context.scope().var(&id).is_some() {
       return;
     }
 
@@ -194,6 +127,13 @@ mod tests {
       "top = 0;",
       "require = 0;",
       "onmessage = function () {};",
+      "let Array = 0; Array = 42;",
+      r#"
+let Boolean = true;
+function foo() {
+  Boolean = false;
+}
+      "#,
     };
   }
 
@@ -233,6 +173,20 @@ mod tests {
           message: NoGlobalAssignMessage::NotAllowed,
           hint: NoGlobalAssignHint::Remove,
         }
+      ],
+      r#"
+function foo() {
+  let Boolean = false;
+  Boolean = true;
+}
+Boolean = true;
+      "#: [
+        {
+          col: 0,
+          line: 6,
+          message: NoGlobalAssignMessage::NotAllowed,
+          hint: NoGlobalAssignHint::Remove,
+        },
       ],
     };
   }
