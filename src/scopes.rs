@@ -59,6 +59,10 @@ impl Scope {
   pub fn var(&self, id: &Id) -> Option<&Var> {
     self.vars.get(id)
   }
+
+  pub fn is_global(&self, id: &Id) -> bool {
+    self.var(id).is_none()
+  }
 }
 
 #[derive(Debug)]

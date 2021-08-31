@@ -79,6 +79,7 @@ pub mod no_unsafe_negation;
 pub mod no_unused_labels;
 pub mod no_unused_vars;
 pub mod no_var;
+pub mod no_window_prefix;
 pub mod no_with;
 pub mod prefer_as_const;
 pub mod prefer_const;
@@ -214,6 +215,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_unused_labels::NoUnusedLabels::new(),
     no_unused_vars::NoUnusedVars::new(),
     no_var::NoVar::new(),
+    no_window_prefix::NoWindowPrefix::new(),
     no_with::NoWith::new(),
     prefer_as_const::PreferAsConst::new(),
     prefer_const::PreferConst::new(),
