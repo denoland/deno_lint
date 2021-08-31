@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::scopes::Scope;
 use crate::{Program, ProgramRef};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 use swc_atoms::JsWord;
 use swc_common::Spanned;
+use swc_ecmascript::utils::ident::IdentLike;
 
 pub struct NoDeprecatedDenoApi;
 
@@ -43,14 +43,6 @@ impl LintRule for NoDeprecatedDenoApi {
   }
 }
 
-/// Checks if the symbol is declared in user-land.
-/// This is meant to be used for determining whether the global `Deno` object is valid at the
-/// point.
-// TODO(@magurotuna): scope analyzer enhancement is required to handle shadowing correctly.
-fn is_shadowed(symbol: &JsWord, scope: &Scope) -> bool {
-  scope.ids_with_symbol(symbol).is_some()
-}
-
 /// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
 /// return `None`).
 fn extract_symbol<'a>(expr: &'a ast_view::Expr) -> Option<&'a JsWord> {
@@ -85,7 +77,7 @@ impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
   /// Converts the given member expression (made up of `obj_symbol` and `prop_symbol`) into
   /// `DeprecatedApi` if it's one of deprecated APIs.
   /// Note that this conversion does not take shadowing into account, so use this after calling
-  /// `is_shadowed`.
+  /// `is_global` method on the scope analyzer.
   fn try_from(
     (obj_symbol, prop_symbol): (&JsWord, &JsWord),
   ) -> Result<Self, Self::Error> {
@@ -181,8 +173,8 @@ impl Handler for NoDeprecatedDenoApiHandler {
     use ast_view::{Expr, ExprOrSuper};
     if_chain! {
       if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
+      if ctx.scope().is_global(&obj.inner.to_id());
       let obj_symbol = obj.sym();
-      if !is_shadowed(obj_symbol, ctx.scope());
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
       then {
@@ -463,15 +455,8 @@ mod tests {
           hint: CustomInspect.hint()
         }
       ],
-    }
-  }
 
-  #[test]
-  #[ignore = "Scope analyzer enhancement is required to deal with this"]
-  fn shadowed_in_unrelated_scope() {
-    use DeprecatedApi::*;
-    assert_lint_err! {
-      NoDeprecatedDenoApi,
+      // `Deno` is shadowed in the other scope
       r#"
 function foo () {
   const Deno = 42;
