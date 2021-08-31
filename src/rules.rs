@@ -352,5 +352,12 @@ mod tests {
       Some(vec!["ban-untagged-todo".to_string()]),
     );
     assert_eq!(rules.len(), 1);
+
+    let rules = get_filtered_rules(
+      Some(vec!["recommended".to_string()]),
+      Some(vec!["ban-ts-comment".to_string()]),
+      Some(vec!["ban-untagged-todo".to_string()]),
+    );
+    assert_eq!(rules.len(), get_recommended_rules().len());
   }
 }
