@@ -12,7 +12,7 @@ use swc_ecmascript::utils::ident::IdentLike;
 pub struct NoWindowPrefix;
 
 const CODE: &str = "no-window-prefix";
-const MESSAGE: &str = "For compatibility between the Window context and the Web Workers, calling Web APIs via `window` is disalloed";
+const MESSAGE: &str = "For compatibility between the Window context and the Web Workers, calling Web APIs via `window` is disallowed";
 const HINT: &str =
   "Instead, call this API via `self`, `globalThis`, or no extra prefix";
 
