@@ -266,12 +266,10 @@ pub fn get_filtered_rules(
     rules = rules
       .into_iter()
       .filter(|rule| {
-        let rule_tags = rule.tags().into_iter().map(|t| t.to_string());
-        let rule_tag_set: HashSet<String> = HashSet::from_iter(rule_tags);
-        !tags_set
-          .intersection(&rule_tag_set)
-          .collect::<Vec<_>>()
-          .is_empty()
+        rule
+          .tags()
+          .iter()
+          .any(|t| tags_set.contains(&t.to_string()))
       })
       .collect();
   }
@@ -323,5 +321,41 @@ mod tests {
     for (sorted, unsorted) in all_rules.into_iter().zip(get_all_rules()) {
       assert_eq!(sorted.code(), unsorted.code());
     }
+  }
+
+  #[test]
+  fn test_get_filtered_rules() {
+    let rules =
+      get_filtered_rules(Some(vec!["recommended".to_string()]), None, None);
+    for (r, rr) in rules.into_iter().zip(get_recommended_rules()) {
+      assert_eq!(r.code(), rr.code());
+    }
+
+    let rules = get_filtered_rules(
+      Some(vec!["recommended".to_string()]),
+      None,
+      Some(vec!["ban-untagged-todo".to_string()]),
+    );
+    assert_eq!(rules.len(), get_recommended_rules().len() + 1);
+
+    let rules = get_filtered_rules(Some(vec![]), None, None);
+    assert!(rules.is_empty());
+
+    let rules = get_filtered_rules(
+      Some(vec![]),
+      None,
+      Some(vec!["ban-untagged-todo".to_string()]),
+    );
+    assert_eq!(rules.len(), 1);
+
+    let rules = get_filtered_rules(
+      Some(vec![]),
+      Some(vec![
+        "ban-untagged-todo".to_string(),
+        "no-const-assign".to_string(),
+      ]),
+      Some(vec!["ban-untagged-todo".to_string()]),
+    );
+    assert_eq!(rules.len(), 1);
   }
 }
