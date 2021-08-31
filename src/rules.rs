@@ -3,7 +3,6 @@ use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
 use std::collections::HashSet;
-use std::iter::FromIterator;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -262,7 +261,7 @@ pub fn get_filtered_rules(
   let mut rules = get_all_rules();
 
   if let Some(tags) = maybe_tags {
-    let tags_set: HashSet<String> = HashSet::from_iter(tags.into_iter());
+    let tags_set = tags.into_iter().collect::<HashSet<_>>();
     rules = rules
       .into_iter()
       .filter(|rule| {
