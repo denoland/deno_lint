@@ -252,47 +252,43 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
 /// - if `maybe_include` is `Some`, rules with matching codes will be added
 ///   to the return list
 ///
-/// Before returning the list will be deduplicated and sorted alphabetically.
+/// Before returning the list will sorted alphabetically.
 pub fn get_filtered_rules(
   maybe_tags: Option<Vec<String>>,
   maybe_exclude: Option<Vec<String>>,
   maybe_include: Option<Vec<String>>,
 ) -> Vec<Box<dyn LintRule>> {
-  let mut rules = get_all_rules();
+  let tags_set =
+    maybe_tags.map(|tags| tags.into_iter().collect::<HashSet<_>>());
 
-  if let Some(tags) = maybe_tags {
-    let tags_set = tags.into_iter().collect::<HashSet<_>>();
-    rules = rules
-      .into_iter()
-      .filter(|rule| {
+  let mut rules = get_all_rules()
+    .into_iter()
+    .filter(|rule| {
+      let mut passes = if let Some(tags_set) = &tags_set {
         rule
           .tags()
           .iter()
           .any(|t| tags_set.contains(&t.to_string()))
-      })
-      .collect();
-  }
+      } else {
+        true
+      };
 
-  if let Some(excludes) = &maybe_exclude {
-    rules = rules
-      .into_iter()
-      .filter(|rule| !excludes.contains(&rule.code().to_owned()))
-      .collect();
-  }
-
-  if let Some(includes) = maybe_include {
-    let mut all_rules = get_all_rules().into_iter();
-
-    for include in includes {
-      let maybe_rule = all_rules.find(|rule| rule.code() == include);
-
-      if let Some(rule) = maybe_rule {
-        rules.push(rule);
+      if let Some(excludes) = &maybe_exclude {
+        if excludes.contains(&rule.code().to_owned()) {
+          passes &= false;
+        }
       }
-    }
-  }
 
-  rules.dedup_by_key(|r| r.code());
+      if let Some(includes) = &maybe_include {
+        if includes.contains(&rule.code().to_owned()) {
+          passes |= true;
+        }
+      }
+
+      passes
+    })
+    .collect::<Vec<_>>();
+
   rules.sort_by_key(|r| r.code());
 
   rules
