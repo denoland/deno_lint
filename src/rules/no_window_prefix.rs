@@ -59,6 +59,7 @@ static ALLOWED_PROPERTIES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     "sessionStorage",
     "window",
     "Navigator",
+    "location",
   ]
   .iter()
   .copied()
@@ -200,6 +201,13 @@ mod tests {
       "window.Navigator;",
       r#"window["Navigator"];"#,
       r#"window[`Navigator`];"#,
+
+      "location;",
+      "self.location;",
+      "globalThis.location;",
+      "window.location;",
+      r#"window["location"];"#,
+      r#"window[`location`];"#,
 
       // `window` is shadowed
       "const window = 42; window.fetch();",

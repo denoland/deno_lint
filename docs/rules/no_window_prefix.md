@@ -20,7 +20,9 @@ Note that the following properties are allowed to call with `window`:
 - `window`
 - `Navigator`
 
-because these APIs are not supported in Workers.
+because these APIs are not supported in Workers. Additionally, `location` is
+also allowed because what it points to in the Window context is different from
+that in Web Workers.
 
 ### Invalid:
 
@@ -43,4 +45,7 @@ const b3 = self.Deno.metrics();
 
 // `alert` is allowed to call with `window` because it's not supported in Workers
 window.alert("🍣");
+
+// `location` is also allowed
+window.location.host;
 ```
