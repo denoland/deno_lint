@@ -2,6 +2,8 @@
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -235,6 +237,68 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
     .into_iter()
     .filter(|r| r.tags().contains(&"recommended"))
     .collect()
+}
+
+/// Returns a list of rules after filtering.
+///
+/// Following rules are applied (in the described order):
+///
+/// - if `maybe_tags` is `None` then all defined rules are returned, otherwise
+///   only rules matching at least one tag will be returned; if provided list
+///   is empty then all rules will be excluded by default
+///
+/// - if `maybe_exclude` is `Some`, all rules with matching codes will
+///   be filtered out
+///
+/// - if `maybe_include` is `Some`, rules with matching codes will be added
+///   to the return list
+///
+/// Before returning the list will be deduplicated and sorted alphabetically.
+pub fn get_filtered_rules(
+  maybe_tags: Option<Vec<String>>,
+  maybe_exclude: Option<Vec<String>>,
+  maybe_include: Option<Vec<String>>,
+) -> Vec<Box<dyn LintRule>> {
+  let mut rules = get_all_rules();
+
+  if let Some(tags) = maybe_tags {
+    let tags_set: HashSet<String> = HashSet::from_iter(tags.into_iter());
+    rules = rules
+      .into_iter()
+      .filter(|rule| {
+        let rule_tags = rule.tags().into_iter().map(|t| t.to_string());
+        let rule_tag_set: HashSet<String> = HashSet::from_iter(rule_tags);
+        !tags_set
+          .intersection(&rule_tag_set)
+          .collect::<Vec<_>>()
+          .is_empty()
+      })
+      .collect();
+  }
+
+  if let Some(excludes) = &maybe_exclude {
+    rules = rules
+      .into_iter()
+      .filter(|rule| !excludes.contains(&rule.code().to_owned()))
+      .collect();
+  }
+
+  if let Some(includes) = maybe_include {
+    let mut all_rules = get_all_rules().into_iter();
+
+    for include in includes {
+      let maybe_rule = all_rules.find(|rule| rule.code() == include);
+
+      if let Some(rule) = maybe_rule {
+        rules.push(rule);
+      }
+    }
+  }
+
+  rules.dedup_by_key(|r| r.code());
+  rules.sort_by_key(|r| r.code());
+
+  rules
 }
 
 #[cfg(test)]
