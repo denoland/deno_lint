@@ -360,4 +360,26 @@ mod tests {
     );
     assert_eq!(rules.len(), get_recommended_rules().len());
   }
+
+  #[test]
+  fn ensure_lint_rules_are_sharable_across_threads() {
+    use std::sync::Arc;
+    use std::thread::spawn;
+
+    let rules = Arc::new(get_recommended_rules());
+    let handles = (0..2)
+      .map(|_| {
+        let rules = Arc::clone(&rules);
+        spawn(move || {
+          for rule in rules.iter() {
+            assert!(rule.tags().contains(&"recommended"));
+          }
+        })
+      })
+      .collect::<Vec<_>>();
+
+    for handle in handles {
+      handle.join().unwrap();
+    }
+  }
 }
