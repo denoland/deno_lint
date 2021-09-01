@@ -10,11 +10,14 @@ if (Deno.args.length !== 1) {
   Deno.exit(1);
 }
 
-const snakeCasedLintName = Deno.args[0].replace("-", "_");
-const kebabCasedLintName = snakeCasedLintName.replace("_", "-");
+const snakeCasedLintName = Deno.args[0].replaceAll("-", "_");
+const kebabCasedLintName = snakeCasedLintName.replaceAll("_", "-");
 const pascalCasedLintName = snakeCasedLintName
   .replace(/^(\w)/, (_match, firstChar) => firstChar.toUpperCase())
-  .replace(/_(\w)/, (_match, afterUnderscore) => afterUnderscore.toUpperCase());
+  .replace(
+    /_(\w)/g,
+    (_match, afterUnderscore) => afterUnderscore.toUpperCase(),
+  );
 const thisPath = fromFileUrl(import.meta.url);
 const mdPath = join(thisPath, "../../docs/rules", `${snakeCasedLintName}.md`);
 const rsPath = join(thisPath, "../../src/rules", `${snakeCasedLintName}.rs`);
