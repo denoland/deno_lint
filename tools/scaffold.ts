@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-write=. --allow-read=.
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 
-import { green, red } from "https://deno.land/std@0.106.0/fmt/colors.ts";
+import { cyan, green, red } from "https://deno.land/std@0.106.0/fmt/colors.ts";
 import { fromFileUrl, join } from "https://deno.land/std@0.106.0/path/mod.ts";
 
 if (Deno.args.length !== 1) {
@@ -31,13 +31,25 @@ await Promise.all([
 
 console.log(
   green("SUCCESS"),
-  `finished to scaffold for \`${kebabCasedLintName}\`!`,
+  `finished to scaffold for ${cyan(kebabCasedLintName)}!`,
 );
 console.log(
-  `Next, open \`docs/rules/${snakeCasedLintName}.md\` and \`src/rules/${snakeCasedLintName}.rs\` in your editor and implement the rule.`,
+  `Next, open ${cyan(`docs/rules/${snakeCasedLintName}.md`)} and ${
+    cyan(
+      `src/rules/${snakeCasedLintName}.rs`,
+    )
+  } in your editor and implement the rule.`,
 );
 console.log(
-  "Also, don't forget to manually add a new lint rule to `get_all_rules` function in `src/rules.rs` so that the rule will get to be run actually.",
+  `Also, don't forget to manually add a new lint rule to ${
+    cyan(
+      "get_all_rules",
+    )
+  } function in ${
+    cyan(
+      "src/rules.rs",
+    )
+  } so that the rule will get to be run actually.`,
 );
 
 async function createMarkdown(mdPath: string) {
