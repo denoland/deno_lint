@@ -230,12 +230,7 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn static_block(
-    &mut self,
-    _n: &ast_view::StaticBlock,
-    _ctx: &mut Context,
-  ) {
-  }
+  fn static_block(&mut self, _n: &ast_view::StaticBlock, _ctx: &mut Context) {}
   fn str(&mut self, _n: &ast_view::Str, _ctx: &mut Context) {}
   // Neither `super` or `r#super` can be used here, so we use `super_` reluctantly
   fn super_(&mut self, _n: &ast_view::Super, _ctx: &mut Context) {}
