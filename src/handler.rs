@@ -230,6 +230,12 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
+  fn static_block(
+    &mut self,
+    _n: &ast_view::StaticBlock,
+    _ctx: &mut Context,
+  ) {
+  }
   fn str(&mut self, _n: &ast_view::Str, _ctx: &mut Context) {}
   // Neither `super` or `r#super` can be used here, so we use `super_` reluctantly
   fn super_(&mut self, _n: &ast_view::Super, _ctx: &mut Context) {}
@@ -606,6 +612,7 @@ pub trait Traverse: Handler {
       SeqExpr(n) => self.seq_expr(n, ctx),
       SetterProp(n) => self.setter_prop(n, ctx),
       SpreadElement(n) => self.spread_element(n, ctx),
+      StaticBlock(n) => self.static_block(n, ctx),
       Str(n) => self.str(n, ctx),
       Super(n) => self.super_(n, ctx),
       SwitchCase(n) => self.switch_case(n, ctx),
