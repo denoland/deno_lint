@@ -95,7 +95,7 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
-pub trait LintRule {
+pub trait LintRule: Send + Sync {
   /// Creates an instance of this rule.
   fn new() -> Box<Self>
   where
