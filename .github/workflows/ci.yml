@@ -70,7 +70,9 @@ jobs:
         run: cargo build --locked --release --all-targets --all-features
 
       - name: Test
-        run: cargo test --locked --release --all-targets --all-features
+        run: |
+          cargo test --locked --release --all-targets --all-features
+          deno test ./tools
 
       - name: Lint
         run: deno run --allow-run ./tools/lint.ts --release
