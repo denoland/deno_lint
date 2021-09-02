@@ -4,56 +4,66 @@
 import { cyan, green, red } from "https://deno.land/std@0.106.0/fmt/colors.ts";
 import { fromFileUrl, join } from "https://deno.land/std@0.106.0/path/mod.ts";
 
-if (Deno.args.length !== 1) {
-  console.error(red("ERROR"), "Lint name is not specified.");
-  console.error("Usage: ./tools/scaffold.ts <new lint name>");
-  Deno.exit(1);
+if (import.meta.main) {
+  if (Deno.args.length !== 1) {
+    console.error(red("ERROR"), "Lint name is not specified.");
+    console.error("Usage: ./tools/scaffold.ts <new lint name>");
+    Deno.exit(1);
+  }
+
+  const { snake, kebab, pascal } = convert(Deno.args[0]);
+
+  const thisPath = fromFileUrl(import.meta.url);
+  const mdPath = join(thisPath, "../../docs/rules", `${snake}.md`);
+  const rsPath = join(thisPath, "../../src/rules", `${snake}.rs`);
+  const rulesRsPath = join(thisPath, "../../src/rules.rs");
+
+  const md = genMarkdownContent(kebab);
+  const rs = genRustContent(new Date(), pascal, kebab, snake);
+  const pubmod = genPubMod(await Deno.readTextFile(rulesRsPath), snake);
+
+  await Promise.all([
+    Deno.writeTextFile(rsPath, rs),
+    Deno.writeTextFile(mdPath, md),
+    Deno.writeTextFile(rulesRsPath, pubmod),
+  ]);
+
+  console.log(green("SUCCESS"), `finished to scaffold for ${cyan(kebab)}!`);
+  console.log(
+    `Next, open ${cyan(`docs/rules/${snake}.md`)} and ${cyan(
+      `src/rules/${snake}.rs`
+    )} in your editor and implement the rule.`
+  );
+  console.log(
+    `Also, don't forget to manually add a new lint rule to ${cyan(
+      "get_all_rules"
+    )} function in ${cyan(
+      "src/rules.rs"
+    )} so that the rule will get to be run actually.`
+  );
 }
 
-const snakeCasedLintName = Deno.args[0].replaceAll("-", "_");
-const kebabCasedLintName = snakeCasedLintName.replaceAll("_", "-");
-const pascalCasedLintName = snakeCasedLintName
-  .replace(/^(\w)/, (_match, firstChar) => firstChar.toUpperCase())
-  .replace(
-    /_(\w)/g,
-    (_match, afterUnderscore) => afterUnderscore.toUpperCase(),
-  );
-const thisPath = fromFileUrl(import.meta.url);
-const mdPath = join(thisPath, "../../docs/rules", `${snakeCasedLintName}.md`);
-const rsPath = join(thisPath, "../../src/rules", `${snakeCasedLintName}.rs`);
-const rulesRsPath = join(thisPath, "../../src/rules.rs");
+export function convert(input: string): {
+  snake: string;
+  kebab: string;
+  pascal: string;
+} {
+  const snake = input.replaceAll("-", "_");
+  const kebab = snake.replaceAll("_", "-");
+  const pascal = snake
+    .replace(/^(\w)/, (_match, firstChar) => firstChar.toUpperCase())
+    .replace(/_(\w)/g, (_match, afterUnderscore) =>
+      afterUnderscore.toUpperCase()
+    );
+  return {
+    snake,
+    kebab,
+    pascal,
+  };
+}
 
-await Promise.all([
-  createMarkdown(mdPath),
-  createRs(rsPath, pascalCasedLintName, kebabCasedLintName, snakeCasedLintName),
-  addPubMod(rulesRsPath, snakeCasedLintName),
-]);
-
-console.log(
-  green("SUCCESS"),
-  `finished to scaffold for ${cyan(kebabCasedLintName)}!`,
-);
-console.log(
-  `Next, open ${cyan(`docs/rules/${snakeCasedLintName}.md`)} and ${
-    cyan(
-      `src/rules/${snakeCasedLintName}.rs`,
-    )
-  } in your editor and implement the rule.`,
-);
-console.log(
-  `Also, don't forget to manually add a new lint rule to ${
-    cyan(
-      "get_all_rules",
-    )
-  } function in ${
-    cyan(
-      "src/rules.rs",
-    )
-  } so that the rule will get to be run actually.`,
-);
-
-async function createMarkdown(mdPath: string) {
-  const md = `[Summary of this lint rule]
+export function genMarkdownContent(kebabCasedLintName: string): string {
+  return `[Summary of ${kebabCasedLintName} rule]
 
 [Detail description of what this lint rule attempts to detect and/or why it's
 considered to be a warning]
@@ -61,27 +71,24 @@ considered to be a warning]
 ### Invalid:
 
 \`\`\`typescript
-// provide examples that trigger the lint
+// provide examples that trigger ${kebabCasedLintName}
 \`\`\`
 
 ### Valid:
 
 \`\`\`typescript
-// provide examples that don't trigger the lint
+// provide examples that don't trigger ${kebabCasedLintName}
 \`\`\`
 `;
-  await Deno.writeTextFile(mdPath, md);
 }
 
-async function createRs(
-  rsPath: string,
+export function genRustContent(
+  now: Date,
   pascalCasedLintName: string,
   kebabCasedLintName: string,
-  snakeCasedLintName: string,
-) {
-  const rs = `// Copyright 2020-${
-    new Date().getFullYear()
-  } the Deno authors. All rights reserved. MIT license.
+  snakeCasedLintName: string
+): string {
+  return `// Copyright 2020-${now.getFullYear()} the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
@@ -155,18 +162,9 @@ mod tests {
   }
 }
 `;
-
-  await Deno.writeTextFile(rsPath, rs);
 }
 
-async function addPubMod(rulesRsPath: string, snakeCasedLintName: string) {
-  const content = await Deno.readTextFile(rulesRsPath);
-  const i = content.indexOf("pub mod");
-  const updated = `${
-    content.slice(
-      0,
-      i,
-    )
-  }pub mod ${snakeCasedLintName};\n${content.slice(i)}`;
-  await Deno.writeTextFile(rulesRsPath, updated);
+export function genPubMod(orig: string, snakeCasedLintName: string): string {
+  const i = orig.indexOf("pub mod");
+  return `${orig.slice(0, i)}pub mod ${snakeCasedLintName};\n${orig.slice(i)}`;
 }
