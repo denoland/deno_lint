@@ -30,16 +30,22 @@ if (import.meta.main) {
 
   console.log(green("SUCCESS"), `finished to scaffold for ${cyan(kebab)}!`);
   console.log(
-    `Next, open ${cyan(`docs/rules/${snake}.md`)} and ${cyan(
-      `src/rules/${snake}.rs`
-    )} in your editor and implement the rule.`
+    `Next, open ${cyan(`docs/rules/${snake}.md`)} and ${
+      cyan(
+        `src/rules/${snake}.rs`,
+      )
+    } in your editor and implement the rule.`,
   );
   console.log(
-    `Also, don't forget to manually add a new lint rule to ${cyan(
-      "get_all_rules"
-    )} function in ${cyan(
-      "src/rules.rs"
-    )} so that the rule will get to be run actually.`
+    `Also, don't forget to manually add a new lint rule to ${
+      cyan(
+        "get_all_rules",
+      )
+    } function in ${
+      cyan(
+        "src/rules.rs",
+      )
+    } so that the rule will get to be run actually.`,
   );
 }
 
@@ -52,8 +58,9 @@ export function convert(input: string): {
   const kebab = snake.replaceAll("_", "-");
   const pascal = snake
     .replace(/^(\w)/, (_match, firstChar) => firstChar.toUpperCase())
-    .replace(/_(\w)/g, (_match, afterUnderscore) =>
-      afterUnderscore.toUpperCase()
+    .replace(
+      /_(\w)/g,
+      (_match, afterUnderscore) => afterUnderscore.toUpperCase(),
     );
   return {
     snake,
@@ -86,7 +93,7 @@ export function genRustContent(
   now: Date,
   pascalCasedLintName: string,
   kebabCasedLintName: string,
-  snakeCasedLintName: string
+  snakeCasedLintName: string,
 ): string {
   return `// Copyright 2020-${now.getFullYear()} the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
