@@ -243,6 +243,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "deno_ast"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae3e65d075338bd10fc21c3be6acf336f6900f971af28bca31011f12ababe741"
+dependencies = [
+ "dprint-swc-ecma-ast-view",
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecmascript",
+ "text_lines",
+]
+
+[[package]]
 name = "deno_core"
 version = "0.96.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -272,9 +286,9 @@ dependencies = [
  "anyhow",
  "atty",
  "clap",
+ "deno_ast",
  "deno_core",
  "derive_more",
- "dprint-swc-ecma-ast-view",
  "env_logger",
  "globwalk",
  "if_chain",
@@ -285,9 +299,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "swc_atoms",
- "swc_common",
- "swc_ecmascript",
 ]
 
 [[package]]
@@ -304,9 +315,9 @@ dependencies = [
 
 [[package]]
 name = "dprint-swc-ecma-ast-view"
-version = "0.33.1"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c44a27f32f2bc9347d08e4b8f47db055f4df9b8d9e1236cc2036a9e95707ba7b"
+checksum = "c640b6856da719d7115bc7dc7d10b17a551e92b77e31455c6d86f7113c23abd2"
 dependencies = [
  "bumpalo",
  "fnv",
@@ -1287,9 +1298,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms"
-version = "0.69.0"
+version = "0.70.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9214e4c1349c7cbdaa364fb9f67c4db3b028425be605e05fb7c387af1e788113"
+checksum = "70beebb62289f0ec34637a28c1db049975dc7283b7d5cbab4b86244e7c8d8565"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -1350,9 +1361,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecmascript"
-version = "0.60.0"
+version = "0.62.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cb79d3e236ce0118e370f75a37a85ccc527338cf8d4697a7d23419711a6169f"
+checksum = "e02533e972700f8d97d293c95d06d83ea353c0ac666ec34b4dc9bef54363568d"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_parser",
@@ -1431,9 +1442,12 @@ dependencies = [
 
 [[package]]
 name = "text_lines"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "116279ecd8fa26fbdcf20c79ee6f85a5ce325a953486e11e71c51670bdaa308f"
+checksum = "3491c6ec3ca2e18d814fad93f2c436c83a0086fefbee851771fc7be28519cbd0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "textwrap"

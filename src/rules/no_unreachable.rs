@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_common::Spanned;
-use swc_ecmascript::ast::{Decl, Stmt, VarDecl, VarDeclKind};
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use deno_ast::swc::ast::{Decl, Stmt, VarDecl, VarDeclKind};
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
+use deno_ast::swc::visit::VisitWith;
 
 pub struct NoUnreachable;
 

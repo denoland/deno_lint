@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::Expr::{Assign, Bin, Paren};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
-use swc_common::Span;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::Expr::{Assign, Bin, Paren};
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCondAssign;
 
@@ -82,7 +82,7 @@ impl<'c, 'view> NoCondAssignVisitor<'c, 'view> {
         self.add_diagnostic(assign.span);
       }
       Bin(bin) => {
-        if bin.op == swc_ecmascript::ast::BinaryOp::LogicalOr {
+        if bin.op == deno_ast::swc::ast::BinaryOp::LogicalOr {
           self.check_condition(&bin.left);
           self.check_condition(&bin.right);
         }
@@ -97,7 +97,7 @@ impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
 
   fn visit_if_stmt(
     &mut self,
-    if_stmt: &swc_ecmascript::ast::IfStmt,
+    if_stmt: &deno_ast::swc::ast::IfStmt,
     _parent: &dyn Node,
   ) {
     self.check_condition(&if_stmt.test);
@@ -105,7 +105,7 @@ impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
 
   fn visit_while_stmt(
     &mut self,
-    while_stmt: &swc_ecmascript::ast::WhileStmt,
+    while_stmt: &deno_ast::swc::ast::WhileStmt,
     _parent: &dyn Node,
   ) {
     self.check_condition(&while_stmt.test);
@@ -113,7 +113,7 @@ impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
 
   fn visit_do_while_stmt(
     &mut self,
-    do_while_stmt: &swc_ecmascript::ast::DoWhileStmt,
+    do_while_stmt: &deno_ast::swc::ast::DoWhileStmt,
     _parent: &dyn Node,
   ) {
     self.check_condition(&do_while_stmt.test);
@@ -121,7 +121,7 @@ impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
 
   fn visit_for_stmt(
     &mut self,
-    for_stmt: &swc_ecmascript::ast::ForStmt,
+    for_stmt: &deno_ast::swc::ast::ForStmt,
     _parent: &dyn Node,
   ) {
     if let Some(for_test) = &for_stmt.test {
@@ -131,7 +131,7 @@ impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
 
   fn visit_cond_expr(
     &mut self,
-    cond_expr: &swc_ecmascript::ast::CondExpr,
+    cond_expr: &deno_ast::swc::ast::CondExpr,
     _parent: &dyn Node,
   ) {
     if let Paren(paren) = &*cond_expr.test {

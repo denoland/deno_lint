@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::TsKeywordType;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::TsKeywordType;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 pub struct NoExplicitAny;
 
@@ -58,7 +58,7 @@ impl<'c, 'view> Visit for NoExplicitAnyVisitor<'c, 'view> {
     ts_keyword_type: &TsKeywordType,
     _parent: &dyn Node,
   ) {
-    use swc_ecmascript::ast::TsKeywordTypeKind::*;
+    use deno_ast::swc::ast::TsKeywordTypeKind::*;
 
     if ts_keyword_type.kind == TsAnyKeyword {
       self.context.add_diagnostic_with_hint(

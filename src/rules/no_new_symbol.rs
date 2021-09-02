@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::{Expr, NewExpr};
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use if_chain::if_chain;
-use swc_ecmascript::ast::{Expr, NewExpr};
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoNewSymbol;
 

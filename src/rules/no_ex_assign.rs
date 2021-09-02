@@ -4,8 +4,8 @@ use crate::ProgramRef;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 use derive_more::Display;
 
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use deno_ast::swc::ast::AssignExpr;
+use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoExAssign;
 

@@ -2,7 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use ast_view::{Span, Spanned};
+use deno_ast::view as ast_view;
+use deno_ast::view::{Span, Spanned};
 use if_chain::if_chain;
 
 pub struct ConstructorSuper;

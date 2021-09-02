@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::Number;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_ecmascript::ast::Number;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct NoOctal;
 

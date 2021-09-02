@@ -1,14 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::BinaryOp::*;
+use deno_ast::swc::ast::Expr::{Lit, Unary};
+use deno_ast::swc::ast::Lit::Num;
+use deno_ast::swc::ast::UnaryExpr;
+use deno_ast::swc::ast::UnaryOp::Minus;
+use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr};
+use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
-use swc_ecmascript::ast::BinaryOp::*;
-use swc_ecmascript::ast::Expr::{Lit, Unary};
-use swc_ecmascript::ast::Lit::Num;
-use swc_ecmascript::ast::UnaryExpr;
-use swc_ecmascript::ast::UnaryOp::Minus;
-use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr};
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoCompareNegZero;
 

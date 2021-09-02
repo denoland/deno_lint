@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::VarDecl;
-use swc_ecmascript::ast::VarDeclKind;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::VarDecl;
+use deno_ast::swc::ast::VarDeclKind;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 pub struct NoVar;
 

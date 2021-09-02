@@ -2,15 +2,17 @@
 
 //! This module is mostly brought from https://github.com/denoland/deno/blob/96d05829002ef065b8fc84fe70de062cff0e95b3/cli/ast/mod.rs
 
-use std::convert::TryFrom;
-use std::ops::Range;
-use swc_common::comments::{Comment, CommentKind, SingleThreadedComments};
-use swc_common::{FileName, SourceMap, Span};
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::token::Token;
-use swc_ecmascript::parser::{
+use deno_ast::swc::common::comments::{
+  Comment, CommentKind, SingleThreadedComments,
+};
+use deno_ast::swc::common::{FileName, SourceMap, Span};
+use deno_ast::swc::parser::lexer::Lexer;
+use deno_ast::swc::parser::token::Token;
+use deno_ast::swc::parser::{
   EsConfig, JscTarget, StringInput, Syntax, TsConfig,
 };
+use std::convert::TryFrom;
+use std::ops::Range;
 
 static TARGET: JscTarget = JscTarget::Es2020;
 

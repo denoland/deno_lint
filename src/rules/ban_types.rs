@@ -2,7 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use ast_view::{Spanned, TsEntityName, TsKeywordTypeKind};
+use deno_ast::view as ast_view;
+use deno_ast::view::{Spanned, TsEntityName, TsKeywordTypeKind};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 

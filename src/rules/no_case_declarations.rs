@@ -1,14 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::Decl;
-use swc_ecmascript::ast::Stmt;
-use swc_ecmascript::ast::SwitchCase;
-use swc_ecmascript::ast::VarDeclKind;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::VisitAll;
-use swc_ecmascript::visit::VisitAllWith;
+use deno_ast::swc::ast::Decl;
+use deno_ast::swc::ast::Stmt;
+use deno_ast::swc::ast::SwitchCase;
+use deno_ast::swc::ast::VarDeclKind;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::VisitAll;
+use deno_ast::swc::visit::VisitAllWith;
 
 pub struct NoCaseDeclarations;
 

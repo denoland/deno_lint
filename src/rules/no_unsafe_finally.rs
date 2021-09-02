@@ -2,9 +2,10 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use ast_view::NodeTrait;
+use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::view as ast_view;
+use deno_ast::view::NodeTrait;
 use derive_more::Display;
-use swc_common::{Span, Spanned};
 
 pub struct NoUnsafeFinally;
 
@@ -147,7 +148,7 @@ fn stmt_inside_finally(
   stmt_kind: StmtKind,
   cur_node: ast_view::Node,
 ) -> bool {
-  use ast_view::Node::*;
+  use deno_ast::view::Node::*;
   match (cur_node, stmt_kind.label()) {
     (Function(_), _) | (ArrowExpr(_), _) => false,
     (LabeledStmt(labeled_stmt), Some(label))

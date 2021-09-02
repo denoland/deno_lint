@@ -1,16 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::ClassMethod;
-use swc_ecmascript::ast::FnDecl;
-use swc_ecmascript::ast::FnExpr;
-use swc_ecmascript::ast::Function;
-use swc_ecmascript::ast::MethodProp;
-use swc_ecmascript::ast::PrivateMethod;
-use swc_ecmascript::ast::YieldExpr;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::ClassMethod;
+use deno_ast::swc::ast::FnDecl;
+use deno_ast::swc::ast::FnExpr;
+use deno_ast::swc::ast::Function;
+use deno_ast::swc::ast::MethodProp;
+use deno_ast::swc::ast::PrivateMethod;
+use deno_ast::swc::ast::YieldExpr;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 pub struct RequireYield;
 
@@ -93,13 +93,13 @@ impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl, parent: &dyn Node) {
     self.enter_function(&fn_decl.function);
-    swc_ecmascript::visit::visit_fn_decl(self, fn_decl, parent);
+    deno_ast::swc::visit::visit_fn_decl(self, fn_decl, parent);
     self.exit_function(&fn_decl.function);
   }
 
   fn visit_fn_expr(&mut self, fn_expr: &FnExpr, parent: &dyn Node) {
     self.enter_function(&fn_expr.function);
-    swc_ecmascript::visit::visit_fn_expr(self, fn_expr, parent);
+    deno_ast::swc::visit::visit_fn_expr(self, fn_expr, parent);
     self.exit_function(&fn_expr.function);
   }
 
@@ -109,7 +109,7 @@ impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
     parent: &dyn Node,
   ) {
     self.enter_function(&class_method.function);
-    swc_ecmascript::visit::visit_class_method(self, class_method, parent);
+    deno_ast::swc::visit::visit_class_method(self, class_method, parent);
     self.exit_function(&class_method.function);
   }
 
@@ -119,13 +119,13 @@ impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
     parent: &dyn Node,
   ) {
     self.enter_function(&private_method.function);
-    swc_ecmascript::visit::visit_private_method(self, private_method, parent);
+    deno_ast::swc::visit::visit_private_method(self, private_method, parent);
     self.exit_function(&private_method.function);
   }
 
   fn visit_method_prop(&mut self, method_prop: &MethodProp, parent: &dyn Node) {
     self.enter_function(&method_prop.function);
-    swc_ecmascript::visit::visit_method_prop(self, method_prop, parent);
+    deno_ast::swc::visit::visit_method_prop(self, method_prop, parent);
     self.exit_function(&method_prop.function);
   }
 }

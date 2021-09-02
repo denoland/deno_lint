@@ -1,13 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::{Expr, SwitchStmt};
+use deno_ast::swc::utils::drop_span;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::HashSet;
-use swc_ecmascript::ast::{Expr, SwitchStmt};
-use swc_ecmascript::utils::drop_span;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoDuplicateCase;
 

@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, SwitchStmt,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
 
 pub struct NoEmpty;
 

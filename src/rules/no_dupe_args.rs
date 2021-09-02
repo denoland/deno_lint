@@ -1,16 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::ArrowExpr;
+use deno_ast::swc::ast::Function;
+use deno_ast::swc::ast::Param;
+use deno_ast::swc::ast::Pat;
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
-use swc_common::Span;
-use swc_ecmascript::ast::ArrowExpr;
-use swc_ecmascript::ast::Function;
-use swc_ecmascript::ast::Param;
-use swc_ecmascript::ast::Pat;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoDupeArgs;
 

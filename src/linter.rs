@@ -1,7 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::get_default_ts_config;
 use crate::ast_parser::AstParser;
-use crate::ast_parser::ParsedData;
 use crate::ast_parser::SwcDiagnostic;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
@@ -11,20 +10,18 @@ use crate::ignore_directives::{
 };
 use crate::rules::LintRule;
 use crate::scopes::Scope;
-use ast_view::ProgramRef;
-use ast_view::SourceFileTextInfo;
+use deno_ast::swc::common::SyntaxContext;
+use deno_ast::swc::parser::Syntax;
+use deno_ast::view::ProgramRef;
+use deno_ast::ParsedSource;
 use std::time::Instant;
-use swc_common::comments::SingleThreadedCommentsMapInner;
-use swc_common::SyntaxContext;
-use swc_ecmascript::parser::token::TokenAndSpan;
-use swc_ecmascript::parser::Syntax;
 
-pub use ast_view::SourceFile;
+pub use deno_ast::view::SourceFile;
 
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  syntax: swc_ecmascript::parser::Syntax,
+  syntax: deno_ast::swc::parser::Syntax,
   rules: Vec<Box<dyn LintRule>>,
   plugins: Vec<Box<dyn Plugin>>,
 }
@@ -107,7 +104,7 @@ impl Linter {
     mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<(SourceFileTextInfo, Vec<LintDiagnostic>), SwcDiagnostic> {
+  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), SwcDiagnostic> {
     let start = Instant::now();
 
     let parse_result =
@@ -119,47 +116,20 @@ impl Linter {
       "ast_parser.parse_program took {:#?}",
       end_parse_program - start
     );
-    let ParsedData {
-      source_file,
-      program,
-      leading_comments,
-      trailing_comments,
-      tokens,
-    } = parse_result?;
-
-    let diagnostics = self.lint_program(
-      file_name,
-      &source_file,
-      (&program).into(),
-      &leading_comments,
-      &trailing_comments,
-      &tokens,
-    );
+    let parsed_source = parse_result?;
+    let diagnostics = self.lint_program(&parsed_source);
 
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    Ok((source_file, diagnostics))
+    Ok((parsed_source, diagnostics))
   }
 
   pub fn lint_with_ast(
     mut self,
-    file_name: String,
-    source_file: &impl SourceFile,
-    ast: ProgramRef,
-    leading_comments: &SingleThreadedCommentsMapInner,
-    trailing_comments: &SingleThreadedCommentsMapInner,
-    tokens: &[TokenAndSpan],
+    parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-    let diagnostics = self.lint_program(
-      file_name,
-      source_file,
-      ast,
-      leading_comments,
-      trailing_comments,
-      tokens,
-    );
-
+    let diagnostics = self.lint_program(parsed_source);
     let end = Instant::now();
     debug!("Linter::lint_with_ast took {:#?}", end - start);
 
@@ -184,32 +154,17 @@ impl Linter {
 
   fn lint_program(
     &mut self,
-    file_name: String,
-    source_file: &impl SourceFile,
-    program: ProgramRef,
-    leading_comments: &SingleThreadedCommentsMapInner,
-    trailing_comments: &SingleThreadedCommentsMapInner,
-    tokens: &[TokenAndSpan],
+    parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
 
-    let control_flow = ControlFlow::analyze(program);
-    let top_level_ctxt = swc_common::GLOBALS
+    let control_flow = ControlFlow::analyze(parsed_source.program_ref().into());
+    let top_level_ctxt = deno_ast::swc::common::GLOBALS
       .set(&self.ast_parser.globals, || {
         SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
       });
 
-    let program_info = ast_view::ProgramInfo {
-      program,
-      source_file: Some(source_file),
-      tokens: Some(tokens),
-      comments: Some(ast_view::Comments {
-        leading: leading_comments,
-        trailing: trailing_comments,
-      }),
-    };
-
-    let diagnostics = ast_view::with_ast_view(program_info, |pg| {
+    let diagnostics = parsed_source.with_view(|pg| {
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ignore_file_directive, pg);
 
@@ -226,8 +181,8 @@ impl Linter {
       let scope = Scope::analyze(pg);
 
       let mut context = Context::new(
-        file_name,
-        source_file,
+        parsed_source.specifier().to_string(),
+        parsed_source.source(),
         pg,
         file_ignore_directive,
         line_ignore_directives,
@@ -244,7 +199,7 @@ impl Linter {
       // Run plugin rules
       for plugin in self.plugins.iter_mut() {
         // Ignore any error
-        let _ = plugin.run(&mut context, program);
+        let _ = plugin.run(&mut context, parsed_source.program_ref().into());
       }
 
       self.filter_diagnostics(context)

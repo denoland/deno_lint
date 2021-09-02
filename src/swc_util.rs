@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   BigInt, Bool, ComputedPropName, Expr, ExprOrSpread, Ident, JSXText, Lit,
   MemberExpr, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
   PropOrSpread, Regex, Str, Tpl,
 };
-use swc_ecmascript::utils::{find_ids, ident::IdentLike};
+use deno_ast::swc::utils::{find_ids, ident::IdentLike};
+use deno_ast::view as ast_view;
 
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
@@ -212,7 +213,7 @@ impl_string_repr_for_ast_view!(
 
 impl<'view> StringRepr for ast_view::PropOrSpread<'view> {
   fn string_repr(&self) -> Option<String> {
-    use ast_view::PropOrSpread::*;
+    use deno_ast::view::PropOrSpread::*;
     match self {
       Prop(p) => p.string_repr(),
       Spread(_) => None,
@@ -222,7 +223,7 @@ impl<'view> StringRepr for ast_view::PropOrSpread<'view> {
 
 impl<'view> StringRepr for ast_view::Prop<'view> {
   fn string_repr(&self) -> Option<String> {
-    use ast_view::Prop::*;
+    use deno_ast::view::Prop::*;
     match self {
       KeyValue(key_value) => key_value.key.string_repr(),
       Getter(getter) => getter.key.string_repr(),
@@ -236,7 +237,7 @@ impl<'view> StringRepr for ast_view::Prop<'view> {
 
 impl<'view> StringRepr for ast_view::Lit<'view> {
   fn string_repr(&self) -> Option<String> {
-    use ast_view::Lit::*;
+    use deno_ast::view::Lit::*;
     match self {
       Str(s) => s.string_repr(),
       Bool(b) => b.string_repr(),
@@ -251,7 +252,7 @@ impl<'view> StringRepr for ast_view::Lit<'view> {
 
 impl<'view> StringRepr for ast_view::Expr<'view> {
   fn string_repr(&self) -> Option<String> {
-    use ast_view::Expr::*;
+    use deno_ast::view::Expr::*;
     match self {
       Ident(ident) => ident.string_repr(),
       Lit(lit) => lit.string_repr(),
@@ -263,7 +264,7 @@ impl<'view> StringRepr for ast_view::Expr<'view> {
 
 impl<'view> StringRepr for ast_view::PropName<'view> {
   fn string_repr(&self) -> Option<String> {
-    use ast_view::PropName::*;
+    use deno_ast::view::PropName::*;
     match self {
       Ident(i) => i.string_repr(),
       Str(s) => s.string_repr(),

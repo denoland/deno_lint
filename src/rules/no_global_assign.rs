@@ -2,15 +2,15 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
-use derive_more::Display;
-use swc_common::Span;
-use swc_ecmascript::{
+use deno_ast::swc::common::Span;
+use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
   utils::Id,
   visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use derive_more::Display;
 
 pub struct NoGlobalAssign;
 

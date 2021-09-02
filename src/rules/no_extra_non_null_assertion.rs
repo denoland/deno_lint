@@ -1,14 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::ExprOrSuper;
+use deno_ast::swc::ast::OptChainExpr;
+use deno_ast::swc::ast::TsNonNullExpr;
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
-use swc_common::Span;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::ExprOrSuper;
-use swc_ecmascript::ast::OptChainExpr;
-use swc_ecmascript::ast::TsNonNullExpr;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoExtraNonNullAssertion;
 

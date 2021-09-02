@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 use derive_more::Display;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct NoSparseArrays;
 
@@ -58,7 +58,7 @@ impl<'c, 'view> Visit for NoSparseArraysVisitor<'c, 'view> {
 
   fn visit_array_lit(
     &mut self,
-    array_lit: &swc_ecmascript::ast::ArrayLit,
+    array_lit: &deno_ast::swc::ast::ArrayLit,
     _parent: &dyn Node,
   ) {
     if array_lit.elems.iter().any(|e| e.is_none()) {

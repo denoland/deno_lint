@@ -1,20 +1,21 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use std::collections::HashMap;
-use swc_atoms::JsWord;
-use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
   DoWhileStmt, Expr, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt, Function,
   Ident, ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   Invalid, Param, Pat, SwitchStmt, TsTypeAliasDecl, VarDecl, VarDeclKind,
   WhileStmt, WithStmt,
 };
-use swc_ecmascript::utils::find_ids;
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::Id;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use deno_ast::swc::atoms::JsWord;
+use deno_ast::swc::common::DUMMY_SP;
+use deno_ast::swc::utils::find_ids;
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::swc::utils::Id;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
+use deno_ast::swc::visit::VisitWith;
+use deno_ast::view as ast_view;
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 pub struct Scope {
@@ -365,7 +366,7 @@ impl Visit for Analyzer<'_> {
 mod tests {
   use super::{BindingKind, Scope, ScopeKind, Var};
   use crate::test_util;
-  use swc_ecmascript::utils::Id;
+  use deno_ast::swc::utils::Id;
 
   fn test_scope(source_code: &str, test: impl Fn(Scope)) {
     test_util::parse_and_then(source_code, |program| {

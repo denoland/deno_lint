@@ -1,27 +1,15 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use ast_view::SourceFile;
-use ast_view::SourceFileTextInfo;
+use deno_ast::swc::common::Globals;
+use deno_ast::swc::common::Mark;
+use deno_ast::swc::parser::EsConfig;
+use deno_ast::swc::parser::Syntax;
+use deno_ast::swc::parser::TsConfig;
+use deno_ast::swc::transforms::resolver::ts_resolver;
+use deno_ast::swc::visit::FoldWith;
+use deno_ast::MediaType;
+use deno_ast::ParsedSource;
 use std::error::Error;
 use std::fmt;
-use std::rc::Rc;
-use swc_common::comments::SingleThreadedComments;
-use swc_common::comments::SingleThreadedCommentsMapInner;
-use swc_common::BytePos;
-use swc_common::Globals;
-use swc_common::Mark;
-use swc_common::Spanned;
-use swc_ecmascript::ast;
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::token::TokenAndSpan;
-use swc_ecmascript::parser::Capturing;
-use swc_ecmascript::parser::EsConfig;
-use swc_ecmascript::parser::JscTarget;
-use swc_ecmascript::parser::Parser;
-use swc_ecmascript::parser::StringInput;
-use swc_ecmascript::parser::Syntax;
-use swc_ecmascript::parser::TsConfig;
-use swc_ecmascript::transforms::resolver::ts_resolver;
-use swc_ecmascript::visit::FoldWith;
 
 #[allow(unused)]
 pub fn get_default_es_config() -> Syntax {
@@ -71,19 +59,12 @@ impl fmt::Display for SwcDiagnostic {
 }
 
 impl SwcDiagnostic {
-  pub(crate) fn from_swc_error(
-    filename: &str,
-    source_file: &impl SourceFile,
-    err: swc_ecmascript::parser::error::Error,
-  ) -> Self {
-    let span = err.span();
-    let line_and_column = source_file.line_and_column_index(span.lo);
-
+  pub(crate) fn from_diagnostic(diagnostic: &deno_ast::Diagnostic) -> Self {
     SwcDiagnostic {
-      line_display: line_and_column.line_index + 1,
-      column_display: line_and_column.column_index + 1,
-      filename: filename.to_string(),
-      message: err.kind().msg().to_string(),
+      line_display: diagnostic.display_position.line_number,
+      column_display: diagnostic.display_position.column_number,
+      filename: diagnostic.specifier.clone(),
+      message: diagnostic.message.clone(),
     }
   }
 }
@@ -103,8 +84,8 @@ pub(crate) struct AstParser {
 impl AstParser {
   pub(crate) fn new() -> Self {
     let globals = Globals::new();
-    let top_level_mark =
-      swc_common::GLOBALS.set(&globals, || Mark::fresh(Mark::root()));
+    let top_level_mark = deno_ast::swc::common::GLOBALS
+      .set(&globals, || Mark::fresh(Mark::root()));
 
     AstParser {
       globals,
@@ -117,47 +98,27 @@ impl AstParser {
     file_name: &str,
     syntax: Syntax,
     source_code: &str,
-  ) -> Result<ParsedData, SwcDiagnostic> {
-    let source_file =
-      SourceFileTextInfo::new(BytePos(0), source_code.to_string());
-    let string_input = StringInput::new(
-      source_code,
-      BytePos(0),
-      BytePos(source_code.len() as u32),
-    );
-
-    let comments = SingleThreadedComments::default();
-    let lexer = Capturing::new(Lexer::new(
-      syntax,
-      JscTarget::Es2019,
-      string_input,
-      Some(&comments),
-    ));
-
-    let mut parser = Parser::new_from(lexer);
-    let program = parser.parse_program().map_err(|err| {
-      SwcDiagnostic::from_swc_error(file_name, &source_file, err)
-    })?;
-
-    let program = swc_common::GLOBALS.set(&self.globals, || {
-      program.fold_with(&mut ts_resolver(self.top_level_mark))
-    });
-
-    let tokens = parser.input().take();
-
-    // take out the comment maps because that's what dprint-swc-ast-view
-    // uses and what we use in deno's language server because it is Sync.
-    let (leading, trailing) = comments.take_all();
-    let leading_comments = Rc::try_unwrap(leading).unwrap().into_inner();
-    let trailing_comments = Rc::try_unwrap(trailing).unwrap().into_inner();
-
-    Ok(ParsedData {
-      source_file,
-      program,
-      leading_comments,
-      trailing_comments,
-      tokens,
-    })
+  ) -> Result<ParsedSource, SwcDiagnostic> {
+    deno_ast::parse_program_with_post_process(
+      deno_ast::ParseParams {
+        specifier: file_name.to_string(),
+        media_type: MediaType::Unknown,
+        source: deno_ast::ParsedSourceTextInfo::from_string(
+          source_code.to_string(),
+        ),
+        capture_tokens: true,
+        maybe_syntax: Some(syntax),
+      },
+      |program| {
+        // This is used to apply proper "syntax context" to all AST elements. When SWC performs
+        // transforms/folding it might change some of those context and "ts_resolver" ensures
+        // that all elements end up in proper lexical scope.
+        deno_ast::swc::common::GLOBALS.set(&self.globals, || {
+          program.fold_with(&mut ts_resolver(self.top_level_mark))
+        })
+      },
+    )
+    .map_err(|diagnostic| SwcDiagnostic::from_diagnostic(&diagnostic))
   }
 }
 
@@ -165,12 +126,4 @@ impl Default for AstParser {
   fn default() -> Self {
     Self::new()
   }
-}
-
-pub(crate) struct ParsedData {
-  pub(crate) source_file: SourceFileTextInfo,
-  pub(crate) program: ast::Program,
-  pub(crate) leading_comments: SingleThreadedCommentsMapInner,
-  pub(crate) trailing_comments: SingleThreadedCommentsMapInner,
-  pub(crate) tokens: Vec<TokenAndSpan>,
 }

@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::lexer::{lex, MediaType, TokenOrComment};
+use deno_ast::swc::parser::token::{Token, Word};
 use if_chain::if_chain;
 use pulldown_cmark::{Options, Parser, Tag};
 use std::convert::TryFrom;
-use swc_ecmascript::parser::token::{Token, Word};
 
 pub fn colorize_markdown(input: &str) -> String {
   let mut options = Options::empty();

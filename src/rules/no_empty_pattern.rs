@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::{ArrayPat, ObjectPat, ObjectPatProp};
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 pub struct NoEmptyPattern;
 
@@ -63,9 +63,9 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
     _parent: &dyn Node,
   ) {
     if let ObjectPatProp::KeyValue(kv_prop) = obj_pat_prop {
-      if let swc_ecmascript::ast::Pat::Object(obj_pat) = &*kv_prop.value {
+      if let deno_ast::swc::ast::Pat::Object(obj_pat) = &*kv_prop.value {
         self.visit_object_pat(obj_pat, _parent);
-      } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = &*kv_prop.value {
+      } else if let deno_ast::swc::ast::Pat::Array(arr_pat) = &*kv_prop.value {
         self.visit_array_pat(arr_pat, _parent);
       }
     }
@@ -92,9 +92,9 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
         .add_diagnostic_with_hint(arr_pat.span, CODE, MESSAGE, HINT)
     } else {
       for element in arr_pat.elems.iter().flatten() {
-        if let swc_ecmascript::ast::Pat::Object(obj_pat) = element {
+        if let deno_ast::swc::ast::Pat::Object(obj_pat) = element {
           self.visit_object_pat(obj_pat, _parent);
-        } else if let swc_ecmascript::ast::Pat::Array(arr_pat) = element {
+        } else if let deno_ast::swc::ast::Pat::Array(arr_pat) = element {
           self.visit_array_pat(arr_pat, _parent);
         }
       }

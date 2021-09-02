@@ -2,16 +2,16 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::scopes::BindingKind;
 use crate::ProgramRef;
+use deno_ast::swc::ast::AssignExpr;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::ObjectPatProp;
+use deno_ast::swc::ast::Pat;
+use deno_ast::swc::ast::PatOrExpr;
+use deno_ast::swc::ast::{Ident, UpdateExpr};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::{utils::ident::IdentLike, visit::Visit};
 use derive_more::Display;
-use swc_common::Span;
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::ObjectPatProp;
-use swc_ecmascript::ast::Pat;
-use swc_ecmascript::ast::PatOrExpr;
-use swc_ecmascript::ast::{Ident, UpdateExpr};
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::{utils::ident::IdentLike, visit::Visit};
 
 pub struct NoConstAssign;
 
@@ -86,7 +86,7 @@ impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
 
   fn check_obj_pat(
     &mut self,
-    object: &swc_ecmascript::ast::ObjectPat,
+    object: &deno_ast::swc::ast::ObjectPat,
     span: Span,
   ) {
     if !object.props.is_empty() {
@@ -102,7 +102,7 @@ impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
 
   fn check_array_pat(
     &mut self,
-    array: &swc_ecmascript::ast::ArrayPat,
+    array: &deno_ast::swc::ast::ArrayPat,
     span: Span,
   ) {
     if !array.elems.is_empty() {

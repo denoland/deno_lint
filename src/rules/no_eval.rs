@@ -2,15 +2,15 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use swc_common::Span;
-use swc_ecmascript::ast::CallExpr;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::ExprOrSuper;
-use swc_ecmascript::ast::ParenExpr;
-use swc_ecmascript::ast::VarDeclarator;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::CallExpr;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::ExprOrSuper;
+use deno_ast::swc::ast::ParenExpr;
+use deno_ast::swc::ast::VarDeclarator;
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 pub struct NoEval;
 
