@@ -3,6 +3,7 @@ use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -231,11 +232,13 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   ]
 }
 
-pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
-  get_all_rules()
-    .into_iter()
-    .filter(|r| r.tags().contains(&"recommended"))
-    .collect()
+pub fn get_recommended_rules() -> Arc<Vec<Box<dyn LintRule>>> {
+  Arc::new(
+    get_all_rules()
+      .into_iter()
+      .filter(|r| r.tags().contains(&"recommended"))
+      .collect(),
+  )
 }
 
 /// Returns a list of rules after filtering.
@@ -298,12 +301,17 @@ pub fn get_filtered_rules(
 mod tests {
   use super::*;
 
+  fn get_unwrapped_recommended_rules() -> Vec<Box<dyn LintRule>> {
+    Arc::try_unwrap(get_recommended_rules()).unwrap()
+  }
+
   #[test]
   fn recommended_rules_sorted_alphabetically() {
-    let mut recommended_rules = get_recommended_rules();
+    let mut recommended_rules = get_unwrapped_recommended_rules();
     recommended_rules.sort_by_key(|r| r.code());
-    for (sorted, unsorted) in
-      recommended_rules.into_iter().zip(get_recommended_rules())
+    for (sorted, unsorted) in recommended_rules
+      .into_iter()
+      .zip(get_unwrapped_recommended_rules())
     {
       assert_eq!(sorted.code(), unsorted.code());
     }

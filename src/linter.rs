@@ -21,11 +21,11 @@ use swc_ecmascript::parser::Syntax;
 
 pub use ast_view::SourceFile;
 
-pub struct LinterBuilder {
+pub struct LinterBuilder<'rules> {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   syntax: swc_ecmascript::parser::Syntax,
-  rules: Vec<Box<dyn LintRule>>,
+  rules: &'rules [Box<dyn LintRule>],
   plugins: Vec<Box<dyn Plugin>>,
 }
 

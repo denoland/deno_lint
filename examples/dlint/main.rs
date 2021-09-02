@@ -151,22 +151,22 @@ fn run_linter(
     diagnostics: Vec<LintDiagnostic>,
   }
 
+  let rules = Arc::new(if let Some(config) = maybe_config.clone() {
+    config.get_rules()
+  } else if let Some(rule_name) = filter_rule_name {
+    get_all_rules()
+      .into_iter()
+      .filter(|r| r.code() == rule_name)
+      .collect()
+  } else {
+    get_recommended_rules()
+  });
+
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
   paths
     .par_iter()
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(&file_path)?;
-
-      let rules = if let Some(config) = maybe_config.clone() {
-        config.get_rules()
-      } else if let Some(rule_name) = filter_rule_name {
-        get_all_rules()
-          .into_iter()
-          .filter(|r| r.code() == rule_name)
-          .collect()
-      } else {
-        get_recommended_rules()
-      };
 
       debug!("Configured rules: {}", rules.len());
 
