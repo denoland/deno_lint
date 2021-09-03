@@ -110,7 +110,7 @@ impl Linter {
     let parse_result =
       self
         .ast_parser
-        .parse_program(&file_name, self.syntax, &source_code);
+        .parse_program(&file_name, self.syntax, source_code);
     let end_parse_program = Instant::now();
     debug!(
       "ast_parser.parse_program took {:#?}",

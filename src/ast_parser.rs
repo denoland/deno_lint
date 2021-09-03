@@ -97,15 +97,13 @@ impl AstParser {
     &self,
     file_name: &str,
     syntax: Syntax,
-    source_code: &str,
+    source_code: String,
   ) -> Result<ParsedSource, SwcDiagnostic> {
     deno_ast::parse_program_with_post_process(
       deno_ast::ParseParams {
         specifier: file_name.to_string(),
         media_type: MediaType::Unknown,
-        source: deno_ast::ParsedSourceTextInfo::from_string(
-          source_code.to_string(),
-        ),
+        source: deno_ast::SourceTextInfo::from_string(source_code),
         capture_tokens: true,
         maybe_syntax: Some(syntax),
       },

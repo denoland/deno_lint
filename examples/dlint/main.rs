@@ -8,7 +8,7 @@ use clap::AppSettings;
 use clap::Arg;
 use clap::SubCommand;
 use deno_ast::swc::parser::{EsConfig, Syntax, TsConfig};
-use deno_ast::ParsedSourceTextInfo;
+use deno_ast::SourceTextInfo;
 use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
@@ -72,7 +72,7 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
 // and adjusted range of diagnostic (ie. original range - start line
 // of sliced source code).
 fn get_slice_source_and_range<'a>(
-  text_info: &'a ParsedSourceTextInfo,
+  text_info: &'a SourceTextInfo,
   range: &Range,
 ) -> (&'a str, (usize, usize)) {
   let first_line_start =
@@ -87,7 +87,7 @@ fn get_slice_source_and_range<'a>(
 
 fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
-  text_info: &ParsedSourceTextInfo,
+  text_info: &SourceTextInfo,
 ) {
   for diagnostic in diagnostics {
     let (slice_source, range) =
@@ -146,7 +146,7 @@ fn run_linter(
   let error_counts = Arc::new(AtomicUsize::new(0));
 
   struct FileDiagnostics {
-    text_info: ParsedSourceTextInfo,
+    text_info: SourceTextInfo,
     diagnostics: Vec<LintDiagnostic>,
   }
 

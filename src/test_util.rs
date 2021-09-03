@@ -398,7 +398,7 @@ pub fn parse(source_code: &str) -> ParsedSource {
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();
   ast_parser
-    .parse_program(TEST_FILE_NAME, syntax, source_code)
+    .parse_program(TEST_FILE_NAME, syntax, source_code.to_string())
     .unwrap()
 }
 
