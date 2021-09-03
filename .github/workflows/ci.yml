@@ -72,7 +72,7 @@ jobs:
       - name: Test
         run: |
           cargo test --locked --release --all-targets --all-features
-          deno test ./tools
+          deno test --unstable --allow-read=. --allow-write=. --allow-run ./tools
 
       - name: Lint
         run: deno run --allow-run ./tools/lint.ts --release
