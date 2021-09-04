@@ -86,6 +86,7 @@ pub mod prefer_as_const;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
+pub mod react_use_jsx_in_jsx;
 pub mod require_await;
 pub mod require_yield;
 pub mod single_var_declarator;
