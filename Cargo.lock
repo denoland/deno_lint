@@ -35,8 +35,7 @@ dependencies = [
 [[package]]
 name = "annotate-snippets"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c96c3d1062ea7101741480185a6a1275eab01cbe8b20e378d1311bc056d2e08"
+source = "git+https://github.com/magurotuna/annotate-snippets-rs?branch=check-display-width#bb47ac0e0eff5d2b9b2694829c477549c36d16ae"
 dependencies = [
  "unicode-width",
  "yansi-term",
