@@ -119,10 +119,10 @@ mod tests {
       end: position(7, &text_info),
     };
 
-    let (slice, displayed) = get_slice_source_and_range(&text_info, &range);
+    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
     assert_eq!(slice, "const a = 42;");
     assert_eq!(
-      displayed,
+      char_range,
       CharRange {
         start_index: 6,
         end_index: 7,
@@ -139,10 +139,10 @@ mod tests {
       end: position(9, &text_info),
     };
 
-    let (slice, displayed) = get_slice_source_and_range(&text_info, &range);
+    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
     assert_eq!(slice, "const あ = 42;");
     assert_eq!(
-      displayed,
+      char_range,
       CharRange {
         start_index: 6,
         end_index: 7,
@@ -159,10 +159,10 @@ mod tests {
       end: position(12, &text_info),
     };
 
-    let (slice, displayed) = get_slice_source_and_range(&text_info, &range);
+    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
     assert_eq!(slice, "const あい = 42;");
     assert_eq!(
-      displayed,
+      char_range,
       CharRange {
         start_index: 7,
         end_index: 8,
@@ -184,14 +184,14 @@ const b = 42;
       end: position(37, &text_info),
     };
 
-    let (slice, displayed) = get_slice_source_and_range(&text_info, &range);
+    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
     assert_eq!(
       slice,
       r#"const a = `あいうえお
 かきくけこ`;"#
     );
     assert_eq!(
-      displayed,
+      char_range,
       CharRange {
         start_index: 14,
         end_index: 20,
