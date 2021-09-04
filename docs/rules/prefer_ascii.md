@@ -10,16 +10,21 @@ are ASCII.
 [`v8::String::ExternalOneByteStringResource`]: https://v8.github.io/api/head/classv8_1_1String_1_1ExternalOneByteStringResource.html
 
 That said, you can also make use of this lint rule for something other than
-Deno's internal JavaScript code. For instance, `-` (an ASCII character, Unicode
-code point is U+002D) and `‐` (_not_ an ASCII character, Unicode code point is
-U+2010) look almost the same to us, but are completely different characters.
-Only the ASCII version is valid as a binary operator in JavaScript. This rule
-will help you avoid such confusion.
+Deno's internal JavaScript code. If you want to make sure your codebase is made
+up of ASCII characters only (e.g. want to disallow non-ASCII identifiers) for
+some reasons, then this rule will be helpful.
 
 ### Invalid:
 
 ```typescript
-const a = 42 ‐ 2; // U+2010
+const π = Math.PI;
+
+// string literals are also checked
+const ninja = "🥷";
+
+function こんにちは(名前: string) {
+  console.log(`こんにちは、${名前}さん`);
+}
 
 // “comments” are also checked
 // ^        ^
@@ -30,7 +35,13 @@ const a = 42 ‐ 2; // U+2010
 ### Valid:
 
 ```typescript
-const a = 42 - 2;
+const pi = Math.PI;
+
+const ninja = "ninja";
+
+function hello(name: string) {
+  console.log(`Hello, ${name}`);
+}
 
 // "comments" are also checked
 ```
