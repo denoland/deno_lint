@@ -91,6 +91,7 @@ Deno.test("the content of .rs", () => {
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use swc_common::Spanned;
 
 pub struct FooBarBaz;
 
@@ -129,6 +130,11 @@ struct FooBarBazHandler;
 
 impl Handler for FooBarBazHandler {
   // implement some methods to achieve the goal of this lint
+
+  // This is an example
+  fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(with_stmt.span(), CODE, MESSAGE, HINT);
+  }
 }
 
 #[cfg(test)]
