@@ -14,6 +14,12 @@ jobs:
       matrix:
         os: [macOS-latest, ubuntu-latest-xl, windows-2019]
 
+    env:
+      - CARGO_INCREMENTAL: 0
+      - GH_ACTIONS: 1
+      - RUST_BACKTRACE: full
+      - RUSTFLAGS: -D warnings
+
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -47,9 +53,6 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - name: Error on warning
-        run: echo "RUSTFLAGS=-D warnings" >> $GITHUB_ENV
-
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -59,11 +62,6 @@ jobs:
             target/
           key: cache2-${{ runner.os }}-${{ github.sha }}
           restore-keys: cache2-${{ runner.os }}-
-
-      - name: Environment
-        run: |
-          echo "GH_ACTIONS=1" >> ${GITHUB_ENV}
-          echo "RUST_BACKTRACE=full" >> ${GITHUB_ENV}
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
