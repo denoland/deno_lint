@@ -53,7 +53,8 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - uses: Swatinem/rust-cache@v1
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v1
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
