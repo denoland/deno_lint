@@ -97,8 +97,8 @@ fn get_slice_source_and_range<'a>(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use deno_lint::diagnostic::{Position, Range};
   use deno_ast::swc::common::BytePos;
+  use deno_lint::diagnostic::{Position, Range};
 
   fn into_text_info(source_code: impl Into<String>) -> SourceTextInfo {
     SourceTextInfo::new(BytePos(0), source_code.into())
