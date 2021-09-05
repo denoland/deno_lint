@@ -53,15 +53,7 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: cache2-${{ runner.os }}-${{ github.sha }}
-          restore-keys: cache2-${{ runner.os }}-
+      - uses: Swatinem/rust-cache@v1
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
