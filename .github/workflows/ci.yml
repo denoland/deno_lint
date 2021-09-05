@@ -47,6 +47,9 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
+      - name: Error on warning
+        run: echo "RUSTFLAGS=-D warnings" >> $GITHUB_ENV
+
       - name: Cache
         uses: actions/cache@v2
         with:
