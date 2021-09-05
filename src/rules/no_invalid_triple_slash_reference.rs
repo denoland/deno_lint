@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::common::comments::{Comment, CommentKind};
+use deno_ast::swc::common::Span;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_common::comments::{Comment, CommentKind};
-use swc_common::Span;
 
 pub struct NoInvalidTripleSlashReference;
 
@@ -167,6 +167,7 @@ fn is_no_default_lib_ref(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use deno_ast::swc::common::DUMMY_SP;
 
   #[test]
   fn test_is_path_ref() {
@@ -244,14 +245,14 @@ mod tests {
   fn line(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Line,
-      span: swc_common::DUMMY_SP,
+      span: DUMMY_SP,
       text: text.to_string(),
     }
   }
   fn block(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Block,
-      span: swc_common::DUMMY_SP,
+      span: DUMMY_SP,
       text: text.to_string(),
     }
   }
@@ -294,7 +295,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, true).unwrap();
-      assert_eq!(report_kind, ReportKind::NotTypesInJs(swc_common::DUMMY_SP))
+      assert_eq!(report_kind, ReportKind::NotTypesInJs(DUMMY_SP))
     }
   }
 
@@ -321,10 +322,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, false).unwrap();
-      assert_eq!(
-        report_kind,
-        ReportKind::InvalidDirective(swc_common::DUMMY_SP)
-      )
+      assert_eq!(report_kind, ReportKind::InvalidDirective(DUMMY_SP))
     }
   }
 
@@ -365,11 +363,11 @@ mod tests {
   #[test]
   fn triple_slash_reference_invalid() {
     let (not_types_in_js_msg, not_types_in_js_hint) = {
-      let r = ReportKind::NotTypesInJs(swc_common::DUMMY_SP);
+      let r = ReportKind::NotTypesInJs(DUMMY_SP);
       (r.as_message(), r.as_hint())
     };
     let (invalid_directive_msg, invalid_directive_hint) = {
-      let r = ReportKind::InvalidDirective(swc_common::DUMMY_SP);
+      let r = ReportKind::InvalidDirective(DUMMY_SP);
       (r.as_message(), r.as_hint())
     };
 

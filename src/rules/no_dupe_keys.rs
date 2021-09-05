@@ -2,15 +2,15 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use derive_more::Display;
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use swc_common::Span;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
   SetterProp,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use derive_more::Display;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 
 pub struct NoDupeKeys;
 

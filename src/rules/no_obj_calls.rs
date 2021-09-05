@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_common::Span;
-use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, Ident, NewExpr};
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSuper, Ident, NewExpr};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
 
 pub struct NoObjCalls;
 

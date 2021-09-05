@@ -4,12 +4,10 @@ use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
-use ast_view::SourceFileTextInfo;
-use ast_view::TokenAndSpan;
+use deno_ast::swc::parser::{Syntax, TsConfig};
+use deno_ast::view as ast_view;
+use deno_ast::ParsedSource;
 use std::marker::PhantomData;
-use swc_common::comments::SingleThreadedCommentsMapInner;
-use swc_ecmascript::ast::Program;
-use swc_ecmascript::parser::{Syntax, TsConfig};
 
 #[macro_export]
 macro_rules! assert_lint_ok {
@@ -396,49 +394,17 @@ pub fn assert_lint_ok<T: LintRule + 'static>(
 
 const TEST_FILE_NAME: &str = "lint_test.ts";
 
-pub fn parse(
-  source_code: &str,
-) -> (
-  SourceFileTextInfo,
-  Program,
-  SingleThreadedCommentsMapInner,
-  SingleThreadedCommentsMapInner,
-  Vec<TokenAndSpan>,
-) {
+pub fn parse(source_code: &str) -> ParsedSource {
   let ast_parser = ast_parser::AstParser::new();
   let syntax = ast_parser::get_default_ts_config();
-  let ast_parser::ParsedData {
-    source_file,
-    program,
-    leading_comments,
-    trailing_comments,
-    tokens,
-  } = ast_parser
-    .parse_program(TEST_FILE_NAME, syntax, source_code)
-    .unwrap();
-  (
-    source_file,
-    program,
-    leading_comments,
-    trailing_comments,
-    tokens,
-  )
+  ast_parser
+    .parse_program(TEST_FILE_NAME, syntax, source_code.to_string())
+    .unwrap()
 }
 
 pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program)) {
-  let (source_file, program, leading_comments, trailing_comments, tokens) =
-    parse(source_code);
-  let program_info = ast_view::ProgramInfo {
-    program: (&program).into(),
-    source_file: Some(&source_file),
-    tokens: Some(&tokens),
-    comments: Some(ast_view::Comments {
-      leading: &leading_comments,
-      trailing: &trailing_comments,
-    }),
-  };
-
-  ast_view::with_ast_view(program_info, |pg| {
+  let parsed_source = parse(source_code);
+  parsed_source.with_view(|pg| {
     test(pg);
   });
 }

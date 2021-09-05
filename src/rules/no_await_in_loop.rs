@@ -2,8 +2,9 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use ast_view::NodeTrait;
-use swc_common::Spanned;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
+use deno_ast::view::NodeTrait;
 
 pub struct NoAwaitInLoop;
 
@@ -50,7 +51,7 @@ impl Handler for NoAwaitInLoopHandler {
       await_expr: &ast_view::AwaitExpr,
       node: ast_view::Node,
     ) -> bool {
-      use ast_view::Node::*;
+      use deno_ast::view::Node::*;
       match node {
         FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
         ForOfStmt(stmt) if stmt.await_token().is_some() => {

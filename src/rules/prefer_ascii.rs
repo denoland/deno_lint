@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use swc_common::{BytePos, Span};
+use deno_ast::swc::common::{BytePos, Span};
 
 pub struct PreferAscii;
 

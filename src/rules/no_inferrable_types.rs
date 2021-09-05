@@ -1,14 +1,15 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
   NewExpr, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use derive_more::Display;
 
 pub struct NoInferrableTypes;
 
@@ -66,7 +67,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn add_diagnostic_helper(&mut self, span: swc_common::Span) {
+  fn add_diagnostic_helper(&mut self, span: Span) {
     self.context.add_diagnostic_with_hint(
       span,
       CODE,
@@ -78,7 +79,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
   fn check_callee(
     &mut self,
     callee: &ExprOrSuper,
-    span: swc_common::Span,
+    span: Span,
     expected_sym: &str,
   ) {
     if let ExprOrSuper::Expr(unboxed) = &callee {
@@ -98,7 +99,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     &mut self,
     value: &Expr,
     ts_type: &TsKeywordType,
-    span: swc_common::Span,
+    span: Span,
   ) {
     use TsKeywordTypeKind::*;
     match ts_type.kind {
@@ -235,12 +236,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn check_ref_type(
-    &mut self,
-    value: &Expr,
-    ts_type: &TsTypeRef,
-    span: swc_common::Span,
-  ) {
+  fn check_ref_type(&mut self, value: &Expr, ts_type: &TsTypeRef, span: Span) {
     if let TsEntityName::Ident(ident) = &ts_type.type_name {
       if ident.sym != *"RegExp" {
         return;
@@ -273,12 +269,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn check_ts_type(
-    &mut self,
-    value: &Expr,
-    ts_type: &TsTypeAnn,
-    span: swc_common::Span,
-  ) {
+  fn check_ts_type(&mut self, value: &Expr, ts_type: &TsTypeAnn, span: Span) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
       self.check_keyword_type(value, ts_type, span);
     } else if let TsType::TsTypeRef(ts_type) = &*ts_type.type_ann {

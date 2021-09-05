@@ -1,13 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::{ArrowExpr, Function, Pat};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::VisitAll;
+use deno_ast::swc::visit::VisitAllWith;
 use derive_more::Display;
-use swc_common::Span;
-use swc_ecmascript::ast::{ArrowExpr, Function, Pat};
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::VisitAll;
-use swc_ecmascript::visit::VisitAllWith;
 
 pub struct DefaultParamLast;
 

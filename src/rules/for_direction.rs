@@ -1,20 +1,20 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::ast::AssignOp;
-use swc_ecmascript::ast::BinaryOp;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::ForStmt;
-use swc_ecmascript::ast::Pat;
-use swc_ecmascript::ast::PatOrExpr;
-use swc_ecmascript::ast::UnaryOp;
-use swc_ecmascript::ast::UpdateExpr;
-use swc_ecmascript::ast::UpdateOp;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::VisitAll;
-use swc_ecmascript::visit::VisitAllWith;
+use deno_ast::swc::ast::AssignExpr;
+use deno_ast::swc::ast::AssignOp;
+use deno_ast::swc::ast::BinaryOp;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::ForStmt;
+use deno_ast::swc::ast::Pat;
+use deno_ast::swc::ast::PatOrExpr;
+use deno_ast::swc::ast::UnaryOp;
+use deno_ast::swc::ast::UpdateExpr;
+use deno_ast::swc::ast::UpdateOp;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::VisitAll;
+use deno_ast::swc::visit::VisitAllWith;
 
 pub struct ForDirection;
 

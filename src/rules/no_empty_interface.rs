@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::TsInterfaceDecl;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 use derive_more::Display;
-use swc_ecmascript::ast::TsInterfaceDecl;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct NoEmptyInterface;
 

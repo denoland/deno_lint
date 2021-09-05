@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::bail;
 use anyhow::Error as AnyError;
-use ast_view::SourceFileTextInfo;
 use clap::App;
 use clap::AppSettings;
 use clap::Arg;
 use clap::SubCommand;
+use deno_ast::swc::parser::{EsConfig, Syntax, TsConfig};
+use deno_ast::SourceTextInfo;
 use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LinterBuilder;
@@ -16,7 +17,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 
 mod color;
 mod config;
@@ -81,7 +81,7 @@ fn run_linter(
   let error_counts = Arc::new(AtomicUsize::new(0));
 
   struct FileDiagnostics {
-    source_file: SourceFileTextInfo,
+    text_info: SourceTextInfo,
     diagnostics: Vec<LintDiagnostic>,
   }
 
@@ -119,7 +119,7 @@ fn run_linter(
 
       let linter = linter_builder.build();
 
-      let (source_file, diagnostics) =
+      let (parsed_source, diagnostics) =
         linter.lint(file_path.to_string_lossy().to_string(), source_code)?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
@@ -130,7 +130,7 @@ fn run_linter(
         file_path,
         FileDiagnostics {
           diagnostics,
-          source_file,
+          text_info: parsed_source.source().to_owned(),
         },
       );
 
@@ -138,7 +138,7 @@ fn run_linter(
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    diagnostics::display_diagnostics(&d.diagnostics, &d.source_file);
+    diagnostics::display_diagnostics(&d.diagnostics, &d.text_info);
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);

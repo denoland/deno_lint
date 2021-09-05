@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::common::comments::Comment;
+use deno_ast::swc::common::comments::CommentKind;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_common::comments::Comment;
-use swc_common::comments::CommentKind;
 
 pub struct BanUntaggedTodo;
 

@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{ControlFlow, End, Metadata};
 use crate::test_util;
-use swc_common::BytePos;
+use deno_ast::swc::common::BytePos;
 
 fn analyze_flow(src: &str) -> ControlFlow {
-  let (_, program, _, _, _) = test_util::parse(src);
-  ControlFlow::analyze((&program).into())
+  let parsed_source = test_util::parse(src);
+  ControlFlow::analyze(parsed_source.program_ref().into())
 }
 
 macro_rules! assert_flow {

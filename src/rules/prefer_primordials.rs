@@ -3,10 +3,11 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::scopes::Scope;
 use crate::{Program, ProgramRef};
-use ast_view::NodeTrait;
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::view as ast_view;
+use deno_ast::view::NodeTrait;
 use if_chain::if_chain;
-use swc_common::Spanned;
-use swc_ecmascript::utils::ident::IdentLike;
 
 pub struct PreferPrimordials;
 
@@ -138,7 +139,7 @@ impl Handler for PreferPrimordialsHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    use ast_view::{Expr, ExprOrSuper};
+    use deno_ast::view::{Expr, ExprOrSuper};
 
     // If `member_expr.obj` is an array literal, access to its properties or
     // methods should be replaced with the one from `primordials`.

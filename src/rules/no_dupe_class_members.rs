@@ -1,15 +1,15 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use swc_common::Span;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
+use derive_more::Display;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
 
 pub struct NoDupeClassMembers;
 

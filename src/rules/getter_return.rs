@@ -2,18 +2,18 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use derive_more::Display;
-use std::collections::BTreeMap;
-use swc_common::{Span, Spanned};
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, CallExpr, ClassMethod, Expr, ExprOrSuper, FnDecl,
   FnExpr, GetterProp, MethodKind, PrivateMethod, Prop, PropName, PropOrSpread,
   ReturnStmt,
 };
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
-use swc_ecmascript::visit::VisitWith;
+use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
+use deno_ast::swc::visit::VisitWith;
+use derive_more::Display;
+use std::collections::BTreeMap;
 
 pub struct GetterReturn;
 

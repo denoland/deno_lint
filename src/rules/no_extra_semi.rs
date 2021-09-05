@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   DoWhileStmt, EmptyStmt, ForInStmt, ForOfStmt, ForStmt, IfStmt, LabeledStmt,
   Stmt, WhileStmt, WithStmt,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
+use derive_more::Display;
 
 pub struct NoExtraSemi;
 

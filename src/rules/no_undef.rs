@@ -2,8 +2,8 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::globals::GLOBALS;
 use crate::ProgramRef;
-use swc_atoms::js_word;
-use swc_ecmascript::{
+use deno_ast::swc::atoms::js_word;
+use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
   visit::Node,

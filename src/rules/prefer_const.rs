@@ -1,24 +1,24 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
-use std::iter;
-use std::mem;
-use std::rc::Rc;
-use swc_atoms::JsWord;
-use swc_common::{Span, Spanned};
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
   Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
   Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp, Pat,
   PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl,
   VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
-use swc_ecmascript::utils::find_ids;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::{Node, Visit, VisitWith};
+use deno_ast::swc::atoms::JsWord;
+use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::swc::utils::find_ids;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::{Node, Visit, VisitWith};
+use derive_more::Display;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashMap};
+use std::iter;
+use std::mem;
+use std::rc::Rc;
 
 pub struct PreferConst;
 
@@ -999,9 +999,9 @@ mod variable_collector_tests {
   use crate::test_util;
 
   fn collect(src: &str) -> VariableCollector {
-    let (_, program, _, _, _) = test_util::parse(src);
+    let parsed_source = test_util::parse(src);
     let mut v = VariableCollector::new();
-    v.visit_program(&program, &program);
+    v.visit_program(parsed_source.program_ref(), parsed_source.program_ref());
     v
   }
 

@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::context::Context;
-use ast_view::NodeTrait;
+use deno_ast::view as ast_view;
+use deno_ast::view::NodeTrait;
 
 pub trait Handler {
   fn on_enter_node(&mut self, _n: ast_view::Node, _ctx: &mut Context) {}
@@ -514,7 +515,7 @@ pub trait Traverse: Handler {
     self.on_enter_node(node, ctx);
 
     // Next, invoke a handler that is specific to the type of node.
-    use ast_view::Node::*;
+    use deno_ast::view::Node::*;
     match node {
       ArrayLit(n) => self.array_lit(n, ctx),
       ArrayPat(n) => self.array_pat(n, ctx),

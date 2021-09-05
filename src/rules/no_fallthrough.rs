@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use swc_common::{comments::Comment, Span, Spanned, DUMMY_SP};
-use swc_ecmascript::{
+use deno_ast::swc::common::{comments::Comment, Span, Spanned, DUMMY_SP};
+use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Node, Visit, VisitWith},
 };
+use derive_more::Display;
 
 pub struct NoFallthrough;
 

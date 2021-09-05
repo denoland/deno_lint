@@ -1,12 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use if_chain::if_chain;
-use std::collections::HashSet;
-use std::iter;
-use swc_atoms::js_word;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, AssignPatProp, CallExpr, CatchClause, ClassDecl, ClassMethod,
   ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
   ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
@@ -16,9 +11,14 @@ use swc_ecmascript::ast::{
   TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
   TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::{find_ids, Id};
-use swc_ecmascript::visit::{Node, Visit, VisitWith};
+use deno_ast::swc::atoms::js_word;
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::swc::utils::{find_ids, Id};
+use deno_ast::swc::visit::{Node, Visit, VisitWith};
+use derive_more::Display;
+use if_chain::if_chain;
+use std::collections::HashSet;
+use std::iter;
 
 pub struct NoUnusedVars;
 

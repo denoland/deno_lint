@@ -3,16 +3,16 @@
 #[cfg(test)]
 mod analyze_test;
 
-use ast_view::ProgramRef;
+use deno_ast::swc::ast::*;
+use deno_ast::swc::common::{BytePos, Spanned, DUMMY_SP};
+use deno_ast::swc::{
+  utils::{ident::IdentLike, ExprExt, Id, Value},
+  visit::{noop_visit_type, Node, Visit, VisitWith},
+};
+use deno_ast::view::ProgramRef;
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,
-};
-use swc_common::{BytePos, Spanned, DUMMY_SP};
-use swc_ecmascript::ast::*;
-use swc_ecmascript::{
-  utils::{ident::IdentLike, ExprExt, Id, Value},
-  visit::{noop_visit_type, Node, Visit, VisitWith},
 };
 
 #[derive(Debug, Clone)]

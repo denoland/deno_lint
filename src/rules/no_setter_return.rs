@@ -2,7 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use ast_view::{NodeTrait, Spanned};
+use deno_ast::view as ast_view;
+use deno_ast::view::{NodeTrait, Spanned};
 
 pub struct NoSetterReturn;
 
@@ -54,7 +55,7 @@ impl Handler for NoSetterReturnHandler {
     }
 
     fn inside_setter(node: ast_view::Node) -> bool {
-      use ast_view::Node::*;
+      use deno_ast::view::Node::*;
       match node {
         SetterProp(_) => true,
         ClassMethod(method) => {

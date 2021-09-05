@@ -1,14 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use annotate_snippets::display_list;
 use annotate_snippets::snippet;
-use ast_view::SourceFile;
-use ast_view::SourceFileTextInfo;
+use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::diagnostic::Range;
 
 pub fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
-  source_file: &SourceFileTextInfo,
+  source_file: &SourceTextInfo,
 ) {
   for diagnostic in diagnostics {
     let (slice_source, char_range) =
@@ -75,13 +74,13 @@ impl CharRange {
 // and adjusted range of diagnostic (ie. original range - start line
 // of sliced source code).
 fn get_slice_source_and_range<'a>(
-  source_file: &'a SourceFileTextInfo,
+  source_file: &'a SourceTextInfo,
   range: &Range,
 ) -> (&'a str, CharRange) {
   let first_line_start =
     source_file.line_start(range.start.line_index).0 as usize;
   let last_line_end = source_file.line_end(range.end.line_index).0 as usize;
-  let text = source_file.text();
+  let text = source_file.text_str();
   let start_index =
     text[first_line_start..range.start.byte_pos].chars().count();
   let end_index = text[first_line_start..range.end.byte_pos].chars().count();
@@ -98,14 +97,14 @@ fn get_slice_source_and_range<'a>(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use deno_ast::swc::common::BytePos;
   use deno_lint::diagnostic::{Position, Range};
-  use swc_common::BytePos;
 
-  fn into_text_info(source_code: impl Into<String>) -> SourceFileTextInfo {
-    SourceFileTextInfo::new(BytePos(0), source_code.into())
+  fn into_text_info(source_code: impl Into<String>) -> SourceTextInfo {
+    SourceTextInfo::from_string(source_code.into())
   }
 
-  fn position(byte: u32, info: &SourceFileTextInfo) -> Position {
+  fn position(byte: u32, info: &SourceTextInfo) -> Position {
     let b = BytePos(byte);
     Position::new(b, info.line_and_column_index(b))
   }

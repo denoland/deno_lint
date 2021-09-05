@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 use derive_more::Display;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct NoNonNullAssertion;
 
@@ -55,7 +55,7 @@ impl<'c, 'view> NoNonNullAssertionVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoNonNullAssertionVisitor<'c, 'view> {
   fn visit_ts_non_null_expr(
     &mut self,
-    non_null_expr: &swc_ecmascript::ast::TsNonNullExpr,
+    non_null_expr: &deno_ast::swc::ast::TsNonNullExpr,
     _parent: &dyn Node,
   ) {
     self.context.add_diagnostic(

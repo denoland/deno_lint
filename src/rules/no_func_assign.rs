@@ -2,11 +2,11 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use deno_ast::swc::ast::AssignExpr;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
-use swc_ecmascript::ast::AssignExpr;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoFuncAssign;
 

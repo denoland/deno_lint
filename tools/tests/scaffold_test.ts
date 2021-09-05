@@ -91,7 +91,8 @@ Deno.test("the content of .rs", () => {
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use swc_common::Spanned;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
 
 pub struct FooBarBaz;
 

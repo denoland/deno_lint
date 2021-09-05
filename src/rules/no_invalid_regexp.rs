@@ -2,12 +2,12 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::js_regex::*;
 use crate::ProgramRef;
-use swc_common::Span;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::ExprOrSpread;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::ExprOrSpread;
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 pub struct NoInvalidRegexp;
 
@@ -47,7 +47,7 @@ impl LintRule for NoInvalidRegexp {
 }
 
 fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {
-  if let Expr::Lit(swc_ecmascript::ast::Lit::Str(pattern_string)) = expr {
+  if let Expr::Lit(deno_ast::swc::ast::Lit::Str(pattern_string)) = expr {
     let s: &str = &pattern_string.value;
     return Some(s.to_owned());
   }
@@ -116,7 +116,7 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
 
   fn visit_regex(
     &mut self,
-    regex: &swc_ecmascript::ast::Regex,
+    regex: &deno_ast::swc::ast::Regex,
     _parent: &dyn Node,
   ) {
     self.check_regex(&regex.exp, &regex.flags, regex.span);
@@ -124,17 +124,17 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
 
   fn visit_call_expr(
     &mut self,
-    call_expr: &swc_ecmascript::ast::CallExpr,
+    call_expr: &deno_ast::swc::ast::CallExpr,
     _paren: &dyn Node,
   ) {
-    if let swc_ecmascript::ast::ExprOrSuper::Expr(expr) = &call_expr.callee {
+    if let deno_ast::swc::ast::ExprOrSuper::Expr(expr) = &call_expr.callee {
       self.handle_call_or_new_expr(&*expr, &call_expr.args, call_expr.span);
     }
   }
 
   fn visit_new_expr(
     &mut self,
-    new_expr: &swc_ecmascript::ast::NewExpr,
+    new_expr: &deno_ast::swc::ast::NewExpr,
     _parent: &dyn Node,
   ) {
     if new_expr.args.is_some() {

@@ -2,8 +2,9 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use ast_view::NodeTrait;
-use swc_common::Spanned;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
+use deno_ast::view::NodeTrait;
 
 pub struct NoNamespace;
 
@@ -57,7 +58,7 @@ impl Handler for NoNamespaceHandler {
     ctx: &mut Context,
   ) {
     fn inside_ambient_context(current_node: ast_view::Node) -> bool {
-      use ast_view::Node::*;
+      use deno_ast::view::Node::*;
       match current_node {
         TsModuleDecl(module_decl) if module_decl.declare() => true,
         _ => match current_node.parent() {
