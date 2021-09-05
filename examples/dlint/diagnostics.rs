@@ -101,7 +101,7 @@ mod tests {
   use deno_lint::diagnostic::{Position, Range};
 
   fn into_text_info(source_code: impl Into<String>) -> SourceTextInfo {
-    SourceTextInfo::new(BytePos(0), source_code.into())
+    SourceTextInfo::from_string(source_code.into())
   }
 
   fn position(byte: u32, info: &SourceTextInfo) -> Position {
