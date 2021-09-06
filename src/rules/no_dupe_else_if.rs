@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
+use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::swc::utils::drop_span;
+use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::HashSet;
-use swc_common::{Span, Spanned};
-use swc_ecmascript::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use swc_ecmascript::utils::drop_span;
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoDupeElseIf;
 
@@ -191,7 +191,7 @@ fn is_subset(arr_a: &[Expr], arr_b: &[Expr]) -> bool {
 /// Determines whether the two given `Expr`s are considered to be equal in if-else condition
 /// context. Note that `expr1` and `expr2` must be span-dropped to be compared properly.
 fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
-  use swc_ecmascript::ast::Expr::*;
+  use deno_ast::swc::ast::Expr::*;
   match (expr1, expr2) {
     (Bin(ref bin1), Bin(ref bin2))
       if matches!(bin1.op, BinaryOp::LogicalOr | BinaryOp::LogicalAnd)

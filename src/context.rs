@@ -6,11 +6,12 @@ use crate::ignore_directives::{
 };
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
-use ast_view::{BytePos, RootNode, SourceFile};
+use deno_ast::swc::common::comments::Comment;
+use deno_ast::swc::common::{Span, SyntaxContext};
+use deno_ast::view as ast_view;
+use deno_ast::view::{BytePos, RootNode, SourceFile};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use swc_common::comments::Comment;
-use swc_common::{Span, SyntaxContext};
 
 /// `Context` stores data needed while performing all lint rules to a file.
 pub struct Context<'view> {

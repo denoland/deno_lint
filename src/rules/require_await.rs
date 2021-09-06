@@ -2,13 +2,13 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use derive_more::Display;
-use swc_common::Spanned;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, ClassMethod, FnDecl,
   FnExpr, ForOfStmt, MethodProp, PrivateMethod,
 };
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit, VisitWith};
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
+use derive_more::Display;
 
 pub struct RequireAwait;
 

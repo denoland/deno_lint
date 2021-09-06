@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 use derive_more::Display;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
 
 pub struct UseIsNaN;
 
@@ -67,7 +67,7 @@ impl<'c, 'view> UseIsNaNVisitor<'c, 'view> {
   }
 }
 
-fn is_nan_identifier(ident: &swc_ecmascript::ast::Ident) -> bool {
+fn is_nan_identifier(ident: &deno_ast::swc::ast::Ident) -> bool {
   ident.sym == *"NaN"
 }
 
@@ -76,19 +76,19 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
 
   fn visit_bin_expr(
     &mut self,
-    bin_expr: &swc_ecmascript::ast::BinExpr,
+    bin_expr: &deno_ast::swc::ast::BinExpr,
     _parent: &dyn Node,
   ) {
-    if bin_expr.op == swc_ecmascript::ast::BinaryOp::EqEq
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::NotEq
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::EqEqEq
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::NotEqEq
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::Lt
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::LtEq
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::Gt
-      || bin_expr.op == swc_ecmascript::ast::BinaryOp::GtEq
+    if bin_expr.op == deno_ast::swc::ast::BinaryOp::EqEq
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::NotEq
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::EqEqEq
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::NotEqEq
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::Lt
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::LtEq
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::Gt
+      || bin_expr.op == deno_ast::swc::ast::BinaryOp::GtEq
     {
-      if let swc_ecmascript::ast::Expr::Ident(ident) = &*bin_expr.left {
+      if let deno_ast::swc::ast::Expr::Ident(ident) = &*bin_expr.left {
         if is_nan_identifier(ident) {
           self.context.add_diagnostic(
             bin_expr.span,
@@ -97,7 +97,7 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
           );
         }
       }
-      if let swc_ecmascript::ast::Expr::Ident(ident) = &*bin_expr.right {
+      if let deno_ast::swc::ast::Expr::Ident(ident) = &*bin_expr.right {
         if is_nan_identifier(ident) {
           self.context.add_diagnostic(
             bin_expr.span,
@@ -111,11 +111,10 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
 
   fn visit_switch_stmt(
     &mut self,
-    switch_stmt: &swc_ecmascript::ast::SwitchStmt,
+    switch_stmt: &deno_ast::swc::ast::SwitchStmt,
     _parent: &dyn Node,
   ) {
-    if let swc_ecmascript::ast::Expr::Ident(ident) = &*switch_stmt.discriminant
-    {
+    if let deno_ast::swc::ast::Expr::Ident(ident) = &*switch_stmt.discriminant {
       if is_nan_identifier(ident) {
         self.context.add_diagnostic(
           switch_stmt.span,
@@ -127,7 +126,7 @@ impl<'c, 'view> Visit for UseIsNaNVisitor<'c, 'view> {
 
     for case in &switch_stmt.cases {
       if let Some(expr) = &case.test {
-        if let swc_ecmascript::ast::Expr::Ident(ident) = &**expr {
+        if let deno_ast::swc::ast::Expr::Ident(ident) = &**expr {
           if is_nan_identifier(ident) {
             self.context.add_diagnostic(
               case.span,

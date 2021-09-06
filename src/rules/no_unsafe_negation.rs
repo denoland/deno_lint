@@ -2,9 +2,10 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
 use derive_more::Display;
 use if_chain::if_chain;
-use swc_common::Spanned;
 
 pub struct NoUnsafeNegation;
 
@@ -53,7 +54,7 @@ struct NoUnsafeNegationHandler;
 
 impl Handler for NoUnsafeNegationHandler {
   fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
-    use ast_view::{BinaryOp, Expr, UnaryOp};
+    use deno_ast::view::{BinaryOp, Expr, UnaryOp};
     if_chain! {
       if matches!(bin_expr.op(), BinaryOp::In | BinaryOp::InstanceOf);
       if let Expr::Unary(unary_expr) = &bin_expr.left;

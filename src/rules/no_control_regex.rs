@@ -2,14 +2,14 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::extract_regex;
 use crate::ProgramRef;
+use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
-use swc_common::Span;
-use swc_ecmascript::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::{VisitAll, VisitAllWith};
 
 pub struct NoControlRegex;
 

@@ -3,11 +3,12 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use ast_view::Spanned;
+use deno_ast::swc::common::Span;
+use deno_ast::view as ast_view;
+use deno_ast::view::Spanned;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
-use swc_common::Span;
 
 pub struct Camelcase;
 
@@ -374,7 +375,7 @@ impl CamelcaseHandler {
   }
 
   fn check_ts_type_element(&mut self, ty_el: &ast_view::TsTypeElement) {
-    use ast_view::TsTypeElement::*;
+    use deno_ast::view::TsTypeElement::*;
     match ty_el {
       TsPropertySignature(prop_sig) => {
         if let ast_view::Expr::Ident(ident) = prop_sig.key {

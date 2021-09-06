@@ -84,6 +84,7 @@ pub mod no_var;
 pub mod no_window_prefix;
 pub mod no_with;
 pub mod prefer_as_const;
+pub mod prefer_ascii;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
@@ -220,6 +221,7 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
     no_window_prefix::NoWindowPrefix::new(),
     no_with::NoWith::new(),
     prefer_as_const::PreferAsConst::new(),
+    prefer_ascii::PreferAscii::new(),
     prefer_const::PreferConst::new(),
     prefer_namespace_keyword::PreferNamespaceKeyword::new(),
     prefer_primordials::PreferPrimordials::new(),

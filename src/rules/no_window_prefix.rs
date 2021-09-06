@@ -2,12 +2,13 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::atoms::JsWord;
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::view as ast_view;
 use if_chain::if_chain;
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
-use swc_atoms::JsWord;
-use swc_common::Spanned;
-use swc_ecmascript::utils::ident::IdentLike;
 
 pub struct NoWindowPrefix;
 
@@ -69,7 +70,7 @@ static ALLOWED_PROPERTIES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 /// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
 /// return `None`).
 fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a JsWord> {
-  use ast_view::{Expr, Lit, Tpl};
+  use deno_ast::view::{Expr, Lit, Tpl};
   match &expr.prop {
     Expr::Lit(Lit::Str(s)) => Some(s.value()),
     // If it's computed, this MemberExpr looks like `foo[bar]`
@@ -96,7 +97,7 @@ impl Handler for NoWindowPrefixHandler {
       return;
     }
 
-    use ast_view::{Expr, ExprOrSuper};
+    use deno_ast::view::{Expr, ExprOrSuper};
     if_chain! {
       if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
       let obj_symbol = obj.sym();

@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
-use swc_common::Span;
-use swc_common::Spanned;
-use swc_ecmascript::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
-use swc_ecmascript::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
 pub struct NoConstantCondition;
 
@@ -163,7 +163,7 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
         }
       }
       Expr::Assign(assign) => {
-        assign.op == swc_ecmascript::ast::AssignOp::Assign
+        assign.op == deno_ast::swc::ast::AssignOp::Assign
           && self.is_constant(&assign.right, Some(node), in_boolean_position)
       }
       Expr::Seq(seq) => self.is_constant(

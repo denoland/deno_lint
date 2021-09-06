@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use ast_view::RootNode;
+use deno_ast::swc::common::{hygiene::SyntaxContext, BytePos, Span};
+use deno_ast::view::RootNode;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
-use swc_common::{hygiene::SyntaxContext, BytePos, Span};
 
 pub struct NoIrregularWhitespace;
 

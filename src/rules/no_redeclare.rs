@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::{
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::{
   ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
   visit::Visit, visit::VisitWith,
 };

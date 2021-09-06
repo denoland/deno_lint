@@ -14,6 +14,12 @@ jobs:
       matrix:
         os: [macOS-latest, ubuntu-latest-xl, windows-2019]
 
+    env:
+      CARGO_INCREMENTAL: 0
+      GH_ACTIONS: 1
+      RUST_BACKTRACE: full
+      RUSTFLAGS: -D warnings
+
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
@@ -47,20 +53,8 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/
-          key: cache2-${{ runner.os }}-${{ github.sha }}
-          restore-keys: cache2-${{ runner.os }}-
-
-      - name: Environment
-        run: |
-          echo "GH_ACTIONS=1" >> ${GITHUB_ENV}
-          echo "RUST_BACKTRACE=full" >> ${GITHUB_ENV}
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v1
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
@@ -70,7 +64,9 @@ jobs:
         run: cargo build --locked --release --all-targets --all-features
 
       - name: Test
-        run: cargo test --locked --release --all-targets --all-features
+        run: |
+          cargo test --locked --release --all-targets --all-features
+          deno test --unstable --allow-read=. --allow-write=. --allow-run ./tools
 
       - name: Lint
         run: deno run --allow-run ./tools/lint.ts --release

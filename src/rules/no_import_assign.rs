@@ -2,10 +2,10 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::scopes::BindingKind;
 use crate::ProgramRef;
-use swc_atoms::js_word;
-use swc_common::Span;
-use swc_common::Spanned;
-use swc_ecmascript::{
+use deno_ast::swc::atoms::js_word;
+use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
   visit::Node,

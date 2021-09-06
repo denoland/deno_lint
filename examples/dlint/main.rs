@@ -1,17 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use annotate_snippets::display_list;
-use annotate_snippets::snippet;
 use anyhow::bail;
 use anyhow::Error as AnyError;
-use ast_view::SourceFile;
-use ast_view::SourceFileTextInfo;
 use clap::App;
 use clap::AppSettings;
 use clap::Arg;
 use clap::SubCommand;
+use deno_ast::swc::parser::{EsConfig, Syntax, TsConfig};
+use deno_ast::SourceTextInfo;
 use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
-use deno_lint::diagnostic::Range;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_all_rules, get_recommended_rules};
 use log::debug;
@@ -20,10 +17,10 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use swc_ecmascript::parser::{EsConfig, Syntax, TsConfig};
 
 mod color;
 mod config;
+mod diagnostics;
 mod js;
 mod lexer;
 mod rules;
@@ -69,69 +66,6 @@ fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
     )
 }
 
-// Return slice of source code covered by diagnostic
-// and adjusted range of diagnostic (ie. original range - start line
-// of sliced source code).
-fn get_slice_source_and_range<'a>(
-  source_file: &'a SourceFileTextInfo,
-  range: &Range,
-) -> (&'a str, (usize, usize)) {
-  let first_line_start =
-    source_file.line_start(range.start.line_index).0 as usize;
-  let last_line_end = source_file.line_end(range.end.line_index).0 as usize;
-  let adjusted_start = range.start.byte_pos - first_line_start;
-  let adjusted_end = range.end.byte_pos - first_line_start;
-  let adjusted_range = (adjusted_start, adjusted_end);
-  let slice_str = &source_file.text()[first_line_start..last_line_end];
-  (slice_str, adjusted_range)
-}
-
-fn display_diagnostics(
-  diagnostics: &[LintDiagnostic],
-  source_file: &SourceFileTextInfo,
-) {
-  for diagnostic in diagnostics {
-    let (slice_source, range) =
-      get_slice_source_and_range(source_file, &diagnostic.range);
-    let footer = if let Some(hint) = &diagnostic.hint {
-      vec![snippet::Annotation {
-        label: Some(hint),
-        id: None,
-        annotation_type: snippet::AnnotationType::Help,
-      }]
-    } else {
-      vec![]
-    };
-
-    let snippet = snippet::Snippet {
-      title: Some(snippet::Annotation {
-        label: Some(&diagnostic.message),
-        id: Some(&diagnostic.code),
-        annotation_type: snippet::AnnotationType::Error,
-      }),
-      footer,
-      slices: vec![snippet::Slice {
-        source: slice_source,
-        line_start: diagnostic.range.start.line_index + 1, // make 1-indexed
-        origin: Some(&diagnostic.filename),
-        fold: false,
-        annotations: vec![snippet::SourceAnnotation {
-          range,
-          label: "",
-          annotation_type: snippet::AnnotationType::Error,
-        }],
-      }],
-      opt: display_list::FormatOptions {
-        color: true,
-        anonymized_line_numbers: false,
-        margin: None,
-      },
-    };
-    let display_list = display_list::DisplayList::from(snippet);
-    eprintln!("{}", display_list);
-  }
-}
-
 fn run_linter(
   paths: Vec<String>,
   filter_rule_name: Option<&str>,
@@ -147,7 +81,7 @@ fn run_linter(
   let error_counts = Arc::new(AtomicUsize::new(0));
 
   struct FileDiagnostics {
-    source_file: SourceFileTextInfo,
+    text_info: SourceTextInfo,
     diagnostics: Vec<LintDiagnostic>,
   }
 
@@ -185,7 +119,7 @@ fn run_linter(
 
       let linter = linter_builder.build();
 
-      let (source_file, diagnostics) =
+      let (parsed_source, diagnostics) =
         linter.lint(file_path.to_string_lossy().to_string(), source_code)?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
@@ -196,7 +130,7 @@ fn run_linter(
         file_path,
         FileDiagnostics {
           diagnostics,
-          source_file,
+          text_info: parsed_source.source().to_owned(),
         },
       );
 
@@ -204,7 +138,7 @@ fn run_linter(
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    display_diagnostics(&d.diagnostics, &d.source_file);
+    diagnostics::display_diagnostics(&d.diagnostics, &d.text_info);
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);

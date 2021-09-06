@@ -2,13 +2,13 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use swc_common::Spanned;
-use swc_ecmascript::ast::BinExpr;
-use swc_ecmascript::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use swc_ecmascript::ast::Expr::{Lit, Tpl, Unary};
-use swc_ecmascript::ast::Lit::Str;
-use swc_ecmascript::ast::UnaryOp::TypeOf;
-use swc_ecmascript::visit::{noop_visit_type, Node, Visit};
+use deno_ast::swc::ast::BinExpr;
+use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
+use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
+use deno_ast::swc::ast::Lit::Str;
+use deno_ast::swc::ast::UnaryOp::TypeOf;
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
 
 pub struct ValidTypeof;
 

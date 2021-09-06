@@ -3,7 +3,8 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
-use ast_view::Spanned;
+use deno_ast::view as ast_view;
+use deno_ast::view::Spanned;
 use derive_more::Display;
 use std::collections::HashSet;
 
@@ -155,7 +156,7 @@ impl<'a> ExtractMethod for ast_view::Stmt<'a> {
 
 impl<'a> ExtractMethod for ast_view::ModuleItem<'a> {
   fn get_method(&self) -> Option<Method> {
-    use ast_view::{ModuleDecl, ModuleItem};
+    use deno_ast::view::{ModuleDecl, ModuleItem};
     match self {
       ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
         export_decl.get_method()
@@ -168,7 +169,7 @@ impl<'a> ExtractMethod for ast_view::ModuleItem<'a> {
 
 impl<'a> ExtractMethod for ast_view::ClassMember<'a> {
   fn get_method(&self) -> Option<Method> {
-    use ast_view::{ClassMember, ClassMethod};
+    use deno_ast::view::{ClassMember, ClassMethod};
     match self {
       ClassMember::Method(ClassMethod { inner, .. }) => {
         inner.key.string_repr().map(|k| {
@@ -189,7 +190,7 @@ impl<'a> ExtractMethod for ast_view::ClassMember<'a> {
 
 impl<'a> ExtractMethod for ast_view::TsTypeElement<'a> {
   fn get_method(&self) -> Option<Method> {
-    use ast_view::{Expr, Lit, TsMethodSignature, TsTypeElement};
+    use deno_ast::view::{Expr, Lit, TsMethodSignature, TsTypeElement};
     match self {
       TsTypeElement::TsMethodSignature(TsMethodSignature {
         ref key, ..

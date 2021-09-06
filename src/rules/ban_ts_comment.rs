@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::common::comments::Comment;
+use deno_ast::swc::common::comments::CommentKind;
+use deno_ast::swc::common::Span;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use swc_common::comments::Comment;
-use swc_common::comments::CommentKind;
-use swc_common::Span;
 
 /// This rule differs from typescript-eslint. In typescript-eslint the following
 /// defaults apply:

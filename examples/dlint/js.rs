@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::Context as _;
-use ast_view::ProgramRef;
+use deno_ast::swc::common::Span;
+use deno_ast::view::ProgramRef;
 use deno_core::error::AnyError;
 use deno_core::resolve_url_or_path;
 use deno_core::FsModuleLoader;
@@ -15,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use swc_common::Span;
 
 #[derive(Deserialize)]
 struct DiagnosticsFromJs {

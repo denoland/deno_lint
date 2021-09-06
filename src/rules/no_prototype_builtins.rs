@@ -2,12 +2,12 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
 
-use swc_ecmascript::ast::CallExpr;
-use swc_ecmascript::ast::Expr;
-use swc_ecmascript::ast::ExprOrSuper;
-use swc_ecmascript::visit::noop_visit_type;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::CallExpr;
+use deno_ast::swc::ast::Expr;
+use deno_ast::swc::ast::ExprOrSuper;
+use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
 const BANNED_PROPERTIES: &[&str] =
   &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];

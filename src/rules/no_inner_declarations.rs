@@ -1,17 +1,17 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use derive_more::Display;
-use std::collections::HashSet;
-use swc_common::Span;
-use swc_common::Spanned;
-use swc_ecmascript::ast::{
+use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Decl, DefaultDecl, FnDecl, FnExpr, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
-use swc_ecmascript::visit::{
+use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
+use deno_ast::swc::visit::{
   noop_visit_type, Node, Visit, VisitAll, VisitAllWith, VisitWith,
 };
+use derive_more::Display;
+use std::collections::HashSet;
 
 pub struct NoInnerDeclarations;
 

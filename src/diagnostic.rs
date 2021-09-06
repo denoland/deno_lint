@@ -17,8 +17,8 @@ pub struct Position {
 
 impl Position {
   pub fn new(
-    byte_pos: swc_common::BytePos,
-    loc: ast_view::LineAndColumnIndex,
+    byte_pos: deno_ast::swc::common::BytePos,
+    loc: deno_ast::LineAndColumnIndex,
   ) -> Self {
     Position {
       line_index: loc.line_index,
