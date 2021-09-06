@@ -109,7 +109,7 @@ pub struct PluginRunner {
 }
 
 impl PluginRunner {
-  pub fn new(plugin_path: &str) -> Box<dyn Plugin> {
+  pub fn new(plugin_path: &str) -> Box<Self> {
     Box::new(Self {
       plugin_path: plugin_path.to_string(),
     })

@@ -85,7 +85,7 @@ fn run_linter(
     diagnostics: Vec<LintDiagnostic>,
   }
 
-  let rules = if let Some(config) = maybe_config.clone() {
+  let rules = if let Some(config) = maybe_config {
     config.get_rules()
   } else if let Some(rule_name) = filter_rule_name {
     let include = vec![rule_name.to_string()];
@@ -96,8 +96,8 @@ fn run_linter(
   let plugins = Arc::new(
     plugin_paths
       .into_iter()
-      .map(js::PluginRunner::new)
-      .collect::<Vec<Box<dyn Plugin>>>(),
+      .map(|p| js::PluginRunner::new(p) as Box<dyn Plugin>)
+      .collect::<Vec<_>>(),
   );
 
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
