@@ -31,8 +31,14 @@ Deno.test(
 
       // Check if `cargo check` passes
       console.log("Run `cargo check`");
+      const args = ["check", "--all-targets", "--all-features", "--locked"];
+      if (Deno.env.get("GH_ACTIONS") === "1") {
+        // do a release build on GitHub actions since the other
+        // cargo builds are also release
+        args.push("--release");
+      }
       const p2 = Deno.run({
-        cmd: ["cargo", "check", "--all-targets", "--all-features"],
+        cmd: ["cargo", ...args],
       });
       const s2 = await p2.status();
       p2.close();
