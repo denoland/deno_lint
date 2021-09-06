@@ -8,6 +8,7 @@ use deno_ast::swc::parser::{Syntax, TsConfig};
 use deno_ast::view as ast_view;
 use deno_ast::ParsedSource;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 #[macro_export]
 macro_rules! assert_lint_ok {
@@ -298,7 +299,7 @@ fn lint(
     } else {
       ast_parser::get_default_ts_config()
     })
-    .rules(vec![rule])
+    .rules(Arc::new(vec![rule]))
     .build();
 
   match linter.lint(filename.to_string(), source.to_string()) {

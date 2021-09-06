@@ -9,6 +9,7 @@ use deno_ast::swc::visit::VisitAll;
 use deno_ast::swc::visit::VisitAllWith;
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct DefaultParamLast;
 
 const CODE: &str = "default-param-last";

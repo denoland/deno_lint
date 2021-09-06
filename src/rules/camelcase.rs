@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[derive(Debug)]
 pub struct Camelcase;
 
 const CODE: &str = "camelcase";

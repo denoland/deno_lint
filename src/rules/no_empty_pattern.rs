@@ -6,6 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 
+#[derive(Debug)]
 pub struct NoEmptyPattern;
 
 const CODE: &str = "no-empty-pattern";

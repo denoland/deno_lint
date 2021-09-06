@@ -7,6 +7,7 @@ use deno_ast::view::{Spanned, TsEntityName, TsKeywordTypeKind};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 
+#[derive(Debug)]
 pub struct BanTypes;
 
 const CODE: &str = "ban-types";

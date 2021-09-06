@@ -7,6 +7,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use if_chain::if_chain;
 
+#[derive(Debug)]
 pub struct NoThisAlias;
 
 const CODE: &str = "no-this-alias";

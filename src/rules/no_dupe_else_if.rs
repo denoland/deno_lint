@@ -8,6 +8,7 @@ use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::HashSet;
 
+#[derive(Debug)]
 pub struct NoDupeElseIf;
 
 const CODE: &str = "no-dupe-else-if";

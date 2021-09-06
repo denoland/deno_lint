@@ -13,6 +13,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::{utils::ident::IdentLike, visit::Visit};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoConstAssign;
 
 const CODE: &str = "no-const-assign";

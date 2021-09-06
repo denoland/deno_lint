@@ -9,6 +9,7 @@ use deno_ast::view as ast_view;
 use if_chain::if_chain;
 use std::convert::TryFrom;
 
+#[derive(Debug)]
 pub struct NoDeprecatedDenoApi;
 
 const CODE: &str = "no-deprecated-deno-api";

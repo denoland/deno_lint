@@ -9,8 +9,8 @@ use deno_ast::swc::parser::{EsConfig, Syntax, TsConfig};
 use deno_ast::SourceTextInfo;
 use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
-use deno_lint::linter::LinterBuilder;
-use deno_lint::rules::{get_all_rules, get_recommended_rules};
+use deno_lint::linter::{LinterBuilder, Plugin};
+use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -85,22 +85,26 @@ fn run_linter(
     diagnostics: Vec<LintDiagnostic>,
   }
 
+  let rules = if let Some(config) = maybe_config {
+    config.get_rules()
+  } else if let Some(rule_name) = filter_rule_name {
+    let include = vec![rule_name.to_string()];
+    get_filtered_rules(None, None, Some(include))
+  } else {
+    get_recommended_rules()
+  };
+  let plugins = Arc::new(
+    plugin_paths
+      .into_iter()
+      .map(|p| js::PluginRunner::new(p) as Box<dyn Plugin>)
+      .collect::<Vec<_>>(),
+  );
+
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
   paths
     .par_iter()
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(&file_path)?;
-
-      let rules = if let Some(config) = maybe_config.clone() {
-        config.get_rules()
-      } else if let Some(rule_name) = filter_rule_name {
-        get_all_rules()
-          .into_iter()
-          .filter(|r| r.code() == rule_name)
-          .collect()
-      } else {
-        get_recommended_rules()
-      };
 
       debug!("Configured rules: {}", rules.len());
 
@@ -108,14 +112,10 @@ fn run_linter(
         bail!("There's no rule to be run!");
       }
 
-      let mut linter_builder = LinterBuilder::default()
-        .rules(rules)
+      let linter_builder = LinterBuilder::default()
+        .rules(Arc::clone(&rules))
+        .plugins(Arc::clone(&plugins))
         .syntax(determine_syntax(file_path));
-
-      for plugin_path in &plugin_paths {
-        let js_runner = js::JsRuleRunner::new(plugin_path);
-        linter_builder = linter_builder.add_plugin(js_runner);
-      }
 
       let linter = linter_builder.build();
 

@@ -8,6 +8,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoExtraSemi;
 
 const CODE: &str = "no-extra-semi";

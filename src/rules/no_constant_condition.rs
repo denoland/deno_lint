@@ -7,6 +7,7 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoConstantCondition;
 
 const CODE: &str = "no-constant-condition";

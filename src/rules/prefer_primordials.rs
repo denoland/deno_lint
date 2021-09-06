@@ -9,6 +9,7 @@ use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
 use if_chain::if_chain;
 
+#[derive(Debug)]
 pub struct PreferPrimordials;
 
 const CODE: &str = "prefer-primordials";

@@ -7,6 +7,7 @@ use deno_ast::view as ast_view;
 use derive_more::Display;
 use if_chain::if_chain;
 
+#[derive(Debug)]
 pub struct NoUnsafeNegation;
 
 const CODE: &str = "no-unsafe-negation";

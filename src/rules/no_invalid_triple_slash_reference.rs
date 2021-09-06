@@ -6,6 +6,7 @@ use deno_ast::swc::common::Span;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[derive(Debug)]
 pub struct NoInvalidTripleSlashReference;
 
 const CODE: &str = "no-invalid-triple-slash-reference";

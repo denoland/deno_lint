@@ -6,6 +6,7 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
 
+#[derive(Debug)]
 pub struct NoEmpty;
 
 const CODE: &str = "no-empty";

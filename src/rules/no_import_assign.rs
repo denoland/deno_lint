@@ -12,6 +12,7 @@ use deno_ast::swc::{
   visit::{noop_visit_type, Visit, VisitWith},
 };
 
+#[derive(Debug)]
 pub struct NoImportAssign;
 
 const CODE: &str = "no-import-assign";

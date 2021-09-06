@@ -8,6 +8,7 @@ use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[derive(Debug)]
 pub struct TripleSlashReference;
 
 const CODE: &str = "triple-slash-reference";

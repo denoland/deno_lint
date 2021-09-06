@@ -6,6 +6,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
 
+#[derive(Debug)]
 pub struct NoObjCalls;
 
 const CODE: &str = "no-obj-calls";

@@ -12,6 +12,7 @@ use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct NoDupeKeys;
 
 const CODE: &str = "no-dupe-keys";

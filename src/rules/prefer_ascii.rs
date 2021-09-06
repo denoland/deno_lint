@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::{BytePos, Span};
 
+#[derive(Debug)]
 pub struct PreferAscii;
 
 const CODE: &str = "prefer-ascii";

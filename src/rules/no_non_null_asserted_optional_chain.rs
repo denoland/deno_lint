@@ -8,6 +8,7 @@ use derive_more::Display;
 
 use deno_ast::swc::common::Span;
 
+#[derive(Debug)]
 pub struct NoNonNullAssertedOptionalChain;
 
 const CODE: &str = "no-non-null-asserted-optional-chain";

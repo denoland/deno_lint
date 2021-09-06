@@ -11,6 +11,7 @@ use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
 
+#[derive(Debug)]
 pub struct NoControlRegex;
 
 const CODE: &str = "no-control-regex";

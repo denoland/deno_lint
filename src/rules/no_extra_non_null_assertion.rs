@@ -10,6 +10,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoExtraNonNullAssertion;
 
 const CODE: &str = "no-extra-non-null-assertion";

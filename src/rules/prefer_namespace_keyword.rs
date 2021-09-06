@@ -7,6 +7,7 @@ use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[derive(Debug)]
 pub struct PreferNamespaceKeyword;
 
 const CODE: &str = "prefer-namespace-keyword";

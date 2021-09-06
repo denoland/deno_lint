@@ -7,6 +7,7 @@ use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoUnsafeFinally;
 
 const CODE: &str = "no-unsafe-finally";

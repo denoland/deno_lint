@@ -7,6 +7,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 
+#[derive(Debug)]
 pub struct NoUnreachable;
 
 const CODE: &str = "no-unreachable";

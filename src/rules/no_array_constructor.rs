@@ -8,6 +8,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::VisitAll;
 use deno_ast::swc::visit::VisitAllWith;
 
+#[derive(Debug)]
 pub struct NoArrayConstructor;
 
 const CODE: &str = "no-array-constructor";

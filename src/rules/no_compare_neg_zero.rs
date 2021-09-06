@@ -10,6 +10,7 @@ use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr};
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoCompareNegZero;
 
 const CODE: &str = "no-compare-neg-zero";

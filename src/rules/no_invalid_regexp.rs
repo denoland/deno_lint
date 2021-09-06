@@ -9,6 +9,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 
+#[derive(Debug)]
 pub struct NoInvalidRegexp;
 
 const CODE: &str = "no-invalid-regexp";

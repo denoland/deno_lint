@@ -7,6 +7,7 @@ use deno_ast::view as ast_view;
 use derive_more::Display;
 use if_chain::if_chain;
 
+#[derive(Debug)]
 pub struct NoUnusedLabels;
 
 const CODE: &str = "no-unused-labels";

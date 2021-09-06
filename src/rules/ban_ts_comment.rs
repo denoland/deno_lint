@@ -17,6 +17,7 @@ use regex::Regex;
 /// - ts-expect-error: allowed with comment
 /// - ts-ignore: allowed with comment
 /// - ts-nocheck: allowed with comment
+#[derive(Debug)]
 pub struct BanTsComment;
 
 const CODE: &str = "ban-ts-comment";

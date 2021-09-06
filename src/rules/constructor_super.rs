@@ -6,6 +6,7 @@ use deno_ast::view as ast_view;
 use deno_ast::view::{Span, Spanned};
 use if_chain::if_chain;
 
+#[derive(Debug)]
 pub struct ConstructorSuper;
 
 const CODE: &str = "constructor-super";

@@ -7,6 +7,7 @@ use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
 
+#[derive(Debug)]
 pub struct NoIrregularWhitespace;
 
 const CODE: &str = "no-irregular-whitespace";

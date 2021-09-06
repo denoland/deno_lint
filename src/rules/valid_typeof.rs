@@ -10,6 +10,7 @@ use deno_ast::swc::ast::UnaryOp::TypeOf;
 use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
 
+#[derive(Debug)]
 pub struct ValidTypeof;
 
 const CODE: &str = "valid-typeof";

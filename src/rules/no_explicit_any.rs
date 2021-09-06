@@ -5,6 +5,7 @@ use deno_ast::swc::ast::TsKeywordType;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 
+#[derive(Debug)]
 pub struct NoExplicitAny;
 
 const CODE: &str = "no-explicit-any";

@@ -12,6 +12,7 @@ use deno_ast::swc::ast::{
   Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
 };
 
+#[derive(Debug)]
 pub struct ExplicitModuleBoundaryTypes;
 
 const CODE: &str = "explicit-module-boundary-types";
