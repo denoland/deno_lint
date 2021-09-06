@@ -69,6 +69,7 @@ jobs:
           deno test --unstable --allow-read=. --allow-write=. --allow-run ./tools
 
       - name: Lint
+        if: contains(matrix.os, 'ubuntu')
         run: deno run --allow-run ./tools/lint.ts --release
 
       - name: Benchmarks
