@@ -66,9 +66,10 @@ jobs:
       - name: Test
         run: |
           cargo test --locked --release --all-targets --all-features
-          deno test --unstable --allow-read=. --allow-write=. --allow-run ./tools
+          deno test --unstable --allow-read=. --allow-write=. --allow-run --allow-env ./tools
 
       - name: Lint
+        if: contains(matrix.os, 'ubuntu')
         run: deno run --allow-run ./tools/lint.ts --release
 
       - name: Benchmarks
