@@ -35,7 +35,7 @@ Deno.test(
       if (Deno.env.get("GH_ACTIONS") === "1") {
         // do a release build on GitHub actions since the other
         // cargo builds are also release
-        args.push("--release")
+        args.push("--release");
       }
       const p2 = Deno.run({
         cmd: ["cargo", ...args],
