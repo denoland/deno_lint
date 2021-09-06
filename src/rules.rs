@@ -209,7 +209,7 @@ pub fn get_filtered_rules(
   Arc::new(rules)
 }
 
-pub(crate) fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
+fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
@@ -378,7 +378,6 @@ mod tests {
 
   #[test]
   fn ensure_lint_rules_are_sharable_across_threads() {
-    use std::sync::Arc;
     use std::thread::spawn;
 
     let rules = Arc::new(get_recommended_rules());

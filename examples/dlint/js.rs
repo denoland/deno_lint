@@ -276,4 +276,25 @@ registerRule(Plugin);
 "#
     );
   }
+
+  #[test]
+  fn ensure_plugins_are_sharable_across_threads() {
+    use std::sync::Arc;
+    use std::thread::spawn;
+
+    const PLUGIN_PATH: &str = "./dummy.js";
+    let plugin = Arc::new(PluginRunner::new(PLUGIN_PATH));
+    let handles = (0..2)
+      .map(|_| {
+        let plugin = Arc::clone(&plugin);
+        spawn(move || {
+          assert_eq!(&plugin.plugin_path, PLUGIN_PATH);
+        })
+      })
+      .collect::<Vec<_>>();
+
+    for handle in handles {
+      handle.join().unwrap();
+    }
+  }
 }
