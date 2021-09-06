@@ -8,6 +8,8 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct BanUnknownRuleCode;
 
+pub(crate) const CODE: &str = "ban-unknown-rule-code";
+
 impl LintRule for BanUnknownRuleCode {
   fn new() -> Arc<Self> {
     Arc::new(BanUnknownRuleCode)
@@ -18,7 +20,7 @@ impl LintRule for BanUnknownRuleCode {
   }
 
   fn code(&self) -> &'static str {
-    "ban-unknown-rule-code"
+    CODE
   }
 
   fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {

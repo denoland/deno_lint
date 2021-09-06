@@ -4,7 +4,7 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
-use crate::rules::{get_all_rules, LintRule};
+use crate::rules::{self, get_all_rules, LintRule};
 use crate::scopes::Scope;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::BytePos;
@@ -56,6 +56,9 @@ pub struct Context<'view> {
 
   /// A value to control whether the node's children will be traversed or not.
   traverse_flow: TraverseFlow,
+
+  /// Whether to check unknown rules
+  check_unknown_rules: bool,
 }
 
 impl<'view> Context<'view> {
@@ -70,6 +73,7 @@ impl<'view> Context<'view> {
     scope: Scope,
     control_flow: ControlFlow,
     top_level_ctxt: SyntaxContext,
+    check_unknown_rules: bool,
   ) -> Self {
     Self {
       file_name,
@@ -84,6 +88,7 @@ impl<'view> Context<'view> {
       diagnostics: Vec::new(),
       plugin_codes: HashSet::new(),
       traverse_flow: TraverseFlow::default(),
+      check_unknown_rules,
     }
   }
   pub fn file_name(&self) -> &str {
@@ -271,7 +276,7 @@ impl<'view> Context<'view> {
   /// This should be run after all normal rules have been finished because
   /// currently we collect the rule codes of plugins as they are run and thus
   /// there's no way of knowing what are the "known" rule codes beforehand.
-  pub(crate) fn ban_unknown_rule_code(&self) -> Vec<LintDiagnostic> {
+  pub(crate) fn ban_unknown_rule_code(&mut self) -> Vec<LintDiagnostic> {
     let builtin_all_rule_codes: HashSet<&'static str> =
       get_all_rules().iter().map(|r| r.code()).collect();
     let is_unknown_rule = |code: &&String| {
@@ -287,7 +292,7 @@ impl<'view> Context<'view> {
       {
         let d = self.create_diagnostic(
           file_ignore.span(),
-          "ban-unknown-rule-code",
+          rules::ban_unknown_rule_code::CODE,
           format!("Unknown rule for code \"{}\"", unknown_rule_code),
           None,
         );
@@ -301,7 +306,7 @@ impl<'view> Context<'view> {
       {
         let d = self.create_diagnostic(
           line_ignore.span(),
-          "ban-unknown-rule-code",
+          rules::ban_unknown_rule_code::CODE,
           format!("Unknown rule for code \"{}\"", unknown_rule_code),
           None,
         );
@@ -309,7 +314,22 @@ impl<'view> Context<'view> {
       }
     }
 
-    diagnostics
+    if !diagnostics.is_empty() {
+      if let Some(f) = self.file_ignore_directive.as_mut() {
+        f.check_used(rules::ban_unknown_rule_code::CODE);
+      }
+    }
+
+    if self.check_unknown_rules
+      && !self
+        .file_ignore_directive()
+        .map(|f| f.has_code(rules::ban_unknown_rule_code::CODE))
+        .unwrap_or(false)
+    {
+      diagnostics
+    } else {
+      vec![]
+    }
   }
 
   pub fn add_diagnostic(
