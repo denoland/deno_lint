@@ -4,6 +4,7 @@ use crate::{Program, ProgramRef};
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
+#[derive(Debug)]
 pub struct BanUnknownRuleCode;
 
 impl LintRule for BanUnknownRuleCode {

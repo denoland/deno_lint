@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 
+#[derive(Debug)]
 pub struct BanUntaggedIgnore;
 
 const CODE: &str = "ban-untagged-ignore";

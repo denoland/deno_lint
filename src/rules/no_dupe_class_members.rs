@@ -11,6 +11,7 @@ use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
 pub struct NoDupeClassMembers;
 
 const CODE: &str = "no-dupe-class-members";

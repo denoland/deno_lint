@@ -103,14 +103,26 @@ fn op_query_control_flow_by_span(
   .map_err(Into::into)
 }
 
-pub struct JsRuleRunner {
+#[derive(Debug)]
+pub struct PluginRunner {
+  plugin_path: String,
+}
+
+impl PluginRunner {
+  pub fn new(plugin_path: &str) -> Box<dyn Plugin> {
+    Box::new(Self {
+      plugin_path: plugin_path.to_string(),
+    })
+  }
+}
+
+struct JsRunner {
   runtime: JsRuntime,
   module_id: i32,
 }
 
-impl JsRuleRunner {
-  /// Create new JsRuntime for running plugin rules.
-  pub fn new(plugin_path: &str) -> Box<Self> {
+impl JsRunner {
+  fn new(plugin_path: &str) -> Self {
     let mut runtime = JsRuntime::new(RuntimeOptions {
       module_loader: Some(Rc::new(FsModuleLoader)),
       ..Default::default()
@@ -141,27 +153,30 @@ impl JsRuleRunner {
       ))
       .unwrap();
 
-    Box::new(Self { runtime, module_id })
+    Self { runtime, module_id }
   }
 }
 
-impl Plugin for JsRuleRunner {
+impl Plugin for PluginRunner {
   fn run(
-    &mut self,
+    &self,
     context: &mut Context,
     program: ProgramRef,
   ) -> Result<(), AnyError> {
-    self
+    let mut runner = JsRunner::new(&self.plugin_path);
+    runner
       .runtime
       .op_state()
       .borrow_mut()
       .put(context.control_flow().clone());
 
-    let _ = self.runtime.mod_evaluate(self.module_id);
-    deno_core::futures::executor::block_on(self.runtime.run_event_loop(false))
-      .unwrap();
+    let _ = runner.runtime.mod_evaluate(runner.module_id);
+    deno_core::futures::executor::block_on(
+      runner.runtime.run_event_loop(false),
+    )
+    .unwrap();
 
-    let codes = self
+    let codes = runner
       .runtime
       .op_state()
       .borrow_mut()
@@ -170,7 +185,7 @@ impl Plugin for JsRuleRunner {
 
     context.set_plugin_codes(codes.clone());
 
-    self.runtime.execute_script(
+    runner.runtime.execute_script(
       "runPlugins",
       &format!(
         "runPlugins({ast}, {rule_codes});",
@@ -183,7 +198,7 @@ impl Plugin for JsRuleRunner {
       ),
     )?;
 
-    let diagnostic_map = self
+    let diagnostic_map = runner
       .runtime
       .op_state()
       .borrow_mut()

@@ -97,7 +97,7 @@ pub mod valid_typeof;
 
 const DUMMY_NODE: () = ();
 
-pub trait LintRule: Send + Sync {
+pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Creates an instance of this rule.
   fn new() -> Box<Self>
   where
@@ -140,7 +140,76 @@ pub trait LintRule: Send + Sync {
   fn docs(&self) -> &'static str;
 }
 
-pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_all_rules() -> Arc<Vec<Box<dyn LintRule>>> {
+  Arc::new(get_all_rules_raw())
+}
+
+pub fn get_recommended_rules() -> Arc<Vec<Box<dyn LintRule>>> {
+  Arc::new(
+    get_all_rules_raw()
+      .into_iter()
+      .filter(|r| r.tags().contains(&"recommended"))
+      .collect(),
+  )
+}
+
+/// Returns a list of rules after filtering.
+///
+/// Following rules are applied (in the described order):
+///
+/// - if `maybe_tags` is `None` then all defined rules are returned, otherwise
+///   only rules matching at least one tag will be returned; if provided list
+///   is empty then all rules will be excluded by default
+///
+/// - if `maybe_exclude` is `Some`, all rules with matching codes will
+///   be filtered out
+///
+/// - if `maybe_include` is `Some`, rules with matching codes will be added
+///   to the return list
+///
+/// Before returning the list will sorted alphabetically.
+pub fn get_filtered_rules(
+  maybe_tags: Option<Vec<String>>,
+  maybe_exclude: Option<Vec<String>>,
+  maybe_include: Option<Vec<String>>,
+) -> Arc<Vec<Box<dyn LintRule>>> {
+  let tags_set =
+    maybe_tags.map(|tags| tags.into_iter().collect::<HashSet<_>>());
+
+  let mut rules = get_all_rules_raw()
+    .into_iter()
+    .filter(|rule| {
+      let mut passes = if let Some(tags_set) = &tags_set {
+        rule
+          .tags()
+          .iter()
+          .any(|t| tags_set.contains(&t.to_string()))
+      } else {
+        true
+      };
+
+      if let Some(excludes) = &maybe_exclude {
+        if excludes.contains(&rule.code().to_owned()) {
+          passes &= false;
+        }
+      }
+
+      if let Some(includes) = &maybe_include {
+        if includes.contains(&rule.code().to_owned()) {
+          passes |= true;
+        }
+      }
+
+      passes
+    })
+    .collect::<Vec<_>>();
+
+  rules.sort_by_key(|r| r.code());
+
+  Arc::new(rules)
+}
+
+pub(crate) fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
@@ -234,86 +303,22 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   ]
 }
 
-pub fn get_recommended_rules() -> Arc<Vec<Box<dyn LintRule>>> {
-  Arc::new(
-    get_all_rules()
-      .into_iter()
-      .filter(|r| r.tags().contains(&"recommended"))
-      .collect(),
-  )
-}
-
-/// Returns a list of rules after filtering.
-///
-/// Following rules are applied (in the described order):
-///
-/// - if `maybe_tags` is `None` then all defined rules are returned, otherwise
-///   only rules matching at least one tag will be returned; if provided list
-///   is empty then all rules will be excluded by default
-///
-/// - if `maybe_exclude` is `Some`, all rules with matching codes will
-///   be filtered out
-///
-/// - if `maybe_include` is `Some`, rules with matching codes will be added
-///   to the return list
-///
-/// Before returning the list will sorted alphabetically.
-pub fn get_filtered_rules(
-  maybe_tags: Option<Vec<String>>,
-  maybe_exclude: Option<Vec<String>>,
-  maybe_include: Option<Vec<String>>,
-) -> Vec<Box<dyn LintRule>> {
-  let tags_set =
-    maybe_tags.map(|tags| tags.into_iter().collect::<HashSet<_>>());
-
-  let mut rules = get_all_rules()
-    .into_iter()
-    .filter(|rule| {
-      let mut passes = if let Some(tags_set) = &tags_set {
-        rule
-          .tags()
-          .iter()
-          .any(|t| tags_set.contains(&t.to_string()))
-      } else {
-        true
-      };
-
-      if let Some(excludes) = &maybe_exclude {
-        if excludes.contains(&rule.code().to_owned()) {
-          passes &= false;
-        }
-      }
-
-      if let Some(includes) = &maybe_include {
-        if includes.contains(&rule.code().to_owned()) {
-          passes |= true;
-        }
-      }
-
-      passes
-    })
-    .collect::<Vec<_>>();
-
-  rules.sort_by_key(|r| r.code());
-
-  rules
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
 
-  fn get_unwrapped_recommended_rules() -> Vec<Box<dyn LintRule>> {
-    Arc::try_unwrap(get_recommended_rules()).unwrap()
-  }
-
   #[test]
   fn recommended_rules_sorted_alphabetically() {
-    let mut recommended_rules = get_unwrapped_recommended_rules();
-    recommended_rules.sort_by_key(|r| r.code());
-    for (sorted, unsorted) in recommended_rules
-      .into_iter()
-      .zip(get_unwrapped_recommended_rules())
+    let sorted_recommended_rules = {
+      let mut recommended_rules =
+        Arc::try_unwrap(get_recommended_rules()).unwrap();
+      recommended_rules.sort_by_key(|r| r.code());
+      Arc::new(recommended_rules)
+    };
+
+    for (sorted, unsorted) in sorted_recommended_rules
+      .iter()
+      .zip(get_recommended_rules().iter())
     {
       assert_eq!(sorted.code(), unsorted.code());
     }
@@ -321,9 +326,9 @@ mod tests {
 
   #[test]
   fn all_rules_sorted_alphabetically() {
-    let mut all_rules = get_all_rules();
+    let mut all_rules = get_all_rules_raw();
     all_rules.sort_by_key(|r| r.code());
-    for (sorted, unsorted) in all_rules.into_iter().zip(get_all_rules()) {
+    for (sorted, unsorted) in all_rules.iter().zip(get_all_rules_raw()) {
       assert_eq!(sorted.code(), unsorted.code());
     }
   }
@@ -332,7 +337,7 @@ mod tests {
   fn test_get_filtered_rules() {
     let rules =
       get_filtered_rules(Some(vec!["recommended".to_string()]), None, None);
-    for (r, rr) in rules.into_iter().zip(get_recommended_rules()) {
+    for (r, rr) in rules.iter().zip(get_recommended_rules().iter()) {
       assert_eq!(r.code(), rr.code());
     }
 

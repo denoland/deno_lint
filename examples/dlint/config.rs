@@ -5,6 +5,7 @@ use deno_lint::rules::{get_filtered_rules, LintRule};
 use serde::Deserialize;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
@@ -29,7 +30,7 @@ pub struct Config {
 }
 
 impl Config {
-  pub fn get_rules(&self) -> Vec<Box<dyn LintRule>> {
+  pub fn get_rules(&self) -> Arc<Vec<Box<dyn LintRule>>> {
     get_filtered_rules(
       Some(self.rules.tags.clone()),
       Some(self.rules.exclude.clone()),
@@ -157,7 +158,7 @@ mod tests {
     }}
   }
 
-  fn into_codes(rules: Vec<Box<dyn LintRule>>) -> HashSet<&'static str> {
+  fn into_codes(rules: Arc<Vec<Box<dyn LintRule>>>) -> HashSet<&'static str> {
     rules.iter().map(|rule| rule.code()).collect()
   }
 

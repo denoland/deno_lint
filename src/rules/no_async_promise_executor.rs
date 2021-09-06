@@ -7,6 +7,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::VisitAll;
 use deno_ast::swc::visit::VisitAllWith;
 
+#[derive(Debug)]
 pub struct NoAsyncPromiseExecutor;
 
 const CODE: &str = "no-async-promise-executor";

@@ -12,6 +12,7 @@ use deno_ast::swc::{
 };
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoGlobalAssign;
 
 const CODE: &str = "no-global-assign";

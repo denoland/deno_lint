@@ -10,6 +10,7 @@ use if_chain::if_chain;
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
 
+#[derive(Debug)]
 pub struct NoWindowPrefix;
 
 const CODE: &str = "no-window-prefix";

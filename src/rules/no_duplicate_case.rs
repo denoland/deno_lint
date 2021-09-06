@@ -9,6 +9,7 @@ use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::HashSet;
 
+#[derive(Debug)]
 pub struct NoDuplicateCase;
 
 const CODE: &str = "no-duplicate-case";

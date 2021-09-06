@@ -6,6 +6,7 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
 
+#[derive(Debug)]
 pub struct NoAwaitInLoop;
 
 const CODE: &str = "no-await-in-loop";

@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::view as ast_view;
 use deno_ast::view::{NodeTrait, Spanned};
 
+#[derive(Debug)]
 pub struct NoSetterReturn;
 
 const CODE: &str = "no-setter-return";

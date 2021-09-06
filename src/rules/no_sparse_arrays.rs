@@ -6,6 +6,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoSparseArrays;
 
 const CODE: &str = "no-sparse-arrays";

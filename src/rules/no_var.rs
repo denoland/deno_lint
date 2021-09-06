@@ -7,6 +7,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 
+#[derive(Debug)]
 pub struct NoVar;
 
 const MESSAGE: &str = "`var` keyword is not allowed.";

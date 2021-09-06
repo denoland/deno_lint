@@ -7,6 +7,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoCondAssign;
 
 const CODE: &str = "no-cond-assign";

@@ -7,6 +7,7 @@ use derive_more::Display;
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 
+#[derive(Debug)]
 pub struct NoExAssign;
 
 const CODE: &str = "no-ex-assign";

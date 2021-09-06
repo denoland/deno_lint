@@ -6,6 +6,7 @@ use deno_ast::swc::common::comments::CommentKind;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[derive(Debug)]
 pub struct BanUntaggedTodo;
 
 const CODE: &str = "ban-untagged-todo";

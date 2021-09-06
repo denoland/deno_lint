@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::view as ast_view;
 use deno_ast::view::{NodeTrait, Span, Spanned};
 
+#[derive(Debug)]
 pub struct NoThisBeforeSuper;
 
 const CODE: &str = "no-this-before-super";

@@ -20,6 +20,7 @@ use std::iter;
 use std::mem;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct PreferConst;
 
 const CODE: &str = "prefer-const";

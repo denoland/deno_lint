@@ -12,7 +12,7 @@ pub struct Rule {
 
 pub fn get_all_rules_metadata() -> Vec<Rule> {
   get_all_rules()
-    .into_iter()
+    .iter()
     .map(|rule| Rule {
       code: rule.code(),
       docs: rule.docs(),

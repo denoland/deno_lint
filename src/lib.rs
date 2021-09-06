@@ -32,8 +32,12 @@ mod lint_tests {
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
   use deno_ast::ParsedSource;
+  use std::sync::Arc;
 
-  fn lint(source: &str, rules: Vec<Box<dyn LintRule>>) -> Vec<LintDiagnostic> {
+  fn lint(
+    source: &str,
+    rules: Arc<Vec<Box<dyn LintRule>>>,
+  ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
     let (_, diagnostics) = linter
@@ -44,7 +48,7 @@ mod lint_tests {
 
   fn lint_with_ast(
     parsed_source: &ParsedSource,
-    rules: Vec<Box<dyn LintRule>>,
+    rules: Arc<Vec<Box<dyn LintRule>>>,
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
@@ -64,7 +68,7 @@ mod lint_tests {
   fn lint_specified_rule<T: LintRule + 'static>(
     source: &str,
   ) -> Vec<LintDiagnostic> {
-    lint(source, vec![T::new()])
+    lint(source, Arc::new(vec![T::new()]))
   }
 
   #[test]

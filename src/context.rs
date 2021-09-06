@@ -4,7 +4,7 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
-use crate::rules::{get_all_rules, LintRule};
+use crate::rules::{get_all_rules_raw, LintRule};
 use crate::scopes::Scope;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::{Span, SyntaxContext};
@@ -264,7 +264,7 @@ impl<'view> Context<'view> {
   /// there's no way of knowing what are the "known" rule codes beforehand.
   pub(crate) fn ban_unknown_rule_code(&self) -> Vec<LintDiagnostic> {
     let builtin_all_rule_codes: HashSet<&'static str> =
-      get_all_rules().into_iter().map(|r| r.code()).collect();
+      get_all_rules_raw().into_iter().map(|r| r.code()).collect();
     let is_unknown_rule = |code: &&String| {
       !builtin_all_rule_codes.contains(code.as_str())
         && !self.plugin_codes.contains(code.as_str())

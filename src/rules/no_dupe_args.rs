@@ -12,6 +12,7 @@ use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
 
+#[derive(Debug)]
 pub struct NoDupeArgs;
 
 const CODE: &str = "no-dupe-args";

@@ -7,6 +7,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
 
+#[derive(Debug)]
 pub struct NoEmptyCharacterClass;
 
 const CODE: &str = "no-empty-character-class";

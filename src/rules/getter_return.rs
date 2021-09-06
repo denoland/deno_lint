@@ -15,6 +15,7 @@ use deno_ast::swc::visit::VisitWith;
 use derive_more::Display;
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
 pub struct GetterReturn;
 
 const CODE: &str = "getter-return";

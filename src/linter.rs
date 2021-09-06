@@ -14,16 +14,18 @@ use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::parser::Syntax;
 use deno_ast::view::ProgramRef;
 use deno_ast::ParsedSource;
+use std::sync::Arc;
 use std::time::Instant;
 
 pub use deno_ast::view::SourceFile;
 
-pub struct LinterBuilder<'rules> {
+#[derive(Default)]
+pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   syntax: deno_ast::swc::parser::Syntax,
-  rules: &'rules [Box<dyn LintRule>],
-  plugins: Vec<Box<dyn Plugin>>,
+  rules: Arc<Vec<Box<dyn LintRule>>>,
+  plugins: Arc<Vec<Box<dyn Plugin>>>,
 }
 
 impl LinterBuilder {
@@ -32,8 +34,7 @@ impl LinterBuilder {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
       syntax: get_default_ts_config(),
-      rules: vec![],
-      plugins: vec![],
+      ..Default::default()
     }
   }
 
@@ -62,13 +63,13 @@ impl LinterBuilder {
     self
   }
 
-  pub fn rules(mut self, rules: Vec<Box<dyn LintRule>>) -> Self {
+  pub fn rules(mut self, rules: Arc<Vec<Box<dyn LintRule>>>) -> Self {
     self.rules = rules;
     self
   }
 
-  pub fn add_plugin(mut self, plugin: Box<dyn Plugin>) -> Self {
-    self.plugins.push(plugin);
+  pub fn plugins(mut self, plugins: Arc<Vec<Box<dyn Plugin>>>) -> Self {
+    self.plugins = plugins;
     self
   }
 }
@@ -78,8 +79,8 @@ pub struct Linter {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   syntax: Syntax,
-  rules: Vec<Box<dyn LintRule>>,
-  plugins: Vec<Box<dyn Plugin>>,
+  rules: Arc<Vec<Box<dyn LintRule>>>,
+  plugins: Arc<Vec<Box<dyn Plugin>>>,
 }
 
 impl Linter {
@@ -87,8 +88,8 @@ impl Linter {
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
     syntax: Syntax,
-    rules: Vec<Box<dyn LintRule>>,
-    plugins: Vec<Box<dyn Plugin>>,
+    rules: Arc<Vec<Box<dyn LintRule>>>,
+    plugins: Arc<Vec<Box<dyn Plugin>>>,
   ) -> Self {
     Linter {
       ast_parser: AstParser::new(),
@@ -192,12 +193,12 @@ impl Linter {
       );
 
       // Run builtin rules
-      for rule in &self.rules {
+      for rule in self.rules.iter() {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
 
       // Run plugin rules
-      for plugin in self.plugins.iter_mut() {
+      for plugin in self.plugins.iter() {
         // Ignore any error
         let _ = plugin.run(&mut context, parsed_source.program_ref().into());
       }
@@ -212,9 +213,9 @@ impl Linter {
   }
 }
 
-pub trait Plugin {
+pub trait Plugin: std::fmt::Debug + Send + Sync {
   fn run(
-    &mut self,
+    &self,
     context: &mut Context,
     program: ProgramRef,
   ) -> anyhow::Result<()>;

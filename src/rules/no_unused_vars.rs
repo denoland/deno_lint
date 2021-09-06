@@ -20,6 +20,7 @@ use if_chain::if_chain;
 use std::collections::HashSet;
 use std::iter;
 
+#[derive(Debug)]
 pub struct NoUnusedVars;
 
 const CODE: &str = "no-unused-vars";

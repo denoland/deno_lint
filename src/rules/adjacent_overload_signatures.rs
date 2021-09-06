@@ -8,6 +8,7 @@ use deno_ast::view::Spanned;
 use derive_more::Display;
 use std::collections::HashSet;
 
+#[derive(Debug)]
 pub struct AdjacentOverloadSignatures;
 
 const CODE: &str = "adjacent-overload-signatures";

@@ -10,6 +10,7 @@ use deno_ast::swc::{
   visit::{noop_visit_type, Visit, VisitWith},
 };
 
+#[derive(Debug)]
 pub struct NoUndef;
 
 impl LintRule for NoUndef {

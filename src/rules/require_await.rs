@@ -10,6 +10,7 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct RequireAwait;
 
 const CODE: &str = "require-await";

@@ -8,6 +8,7 @@ use deno_ast::swc::{
 };
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoFallthrough;
 
 const CODE: &str = "no-fallthrough";

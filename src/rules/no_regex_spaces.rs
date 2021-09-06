@@ -9,6 +9,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use once_cell::sync::Lazy;
 
+#[derive(Debug)]
 pub struct NoRegexSpaces;
 
 const CODE: &str = "no-regex-spaces";

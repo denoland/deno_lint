@@ -12,6 +12,7 @@ use deno_ast::swc::visit::Visit;
 const BANNED_PROPERTIES: &[&str] =
   &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
 
+#[derive(Debug)]
 pub struct NoPrototypeBuiltins;
 
 const CODE: &str = "no-prototype-builtins";

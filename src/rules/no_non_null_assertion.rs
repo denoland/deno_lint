@@ -5,6 +5,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoNonNullAssertion;
 
 const CODE: &str = "no-non-null-assertion";

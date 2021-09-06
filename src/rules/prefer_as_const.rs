@@ -26,6 +26,7 @@ enum PreferAsConstHint {
   AddAsConst,
 }
 
+#[derive(Debug)]
 pub struct PreferAsConst;
 
 impl LintRule for PreferAsConst {

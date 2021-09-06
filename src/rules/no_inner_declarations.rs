@@ -13,6 +13,7 @@ use deno_ast::swc::visit::{
 use derive_more::Display;
 use std::collections::HashSet;
 
+#[derive(Debug)]
 pub struct NoInnerDeclarations;
 
 const CODE: &str = "no-inner-declarations";

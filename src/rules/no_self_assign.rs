@@ -21,6 +21,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 
+#[derive(Debug)]
 pub struct NoSelfAssign;
 
 const CODE: &str = "no-self-assign";
