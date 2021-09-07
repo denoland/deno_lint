@@ -1,10 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
-use swc_ecmascript::ast::TsEnumDecl;
-use swc_ecmascript::visit::Node;
-use swc_ecmascript::visit::Visit;
+use deno_ast::swc::ast::TsEnumDecl;
+use deno_ast::swc::visit::Node;
+use deno_ast::swc::visit::Visit;
 
+#[derive(Debug)]
 pub struct NoEmptyEnum;
 
 const CODE: &str = "no-empty-enum";
