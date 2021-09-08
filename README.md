@@ -1,6 +1,7 @@
 # `deno_lint`
 
-[![](https://img.shields.io/crates/v/deno_lint.svg)](https://crates.io/crates/deno_lint) [![Discord Chat](https://img.shields.io/discord/684898665143206084?logo=discord&style=social)](https://discord.gg/deno)
+[![](https://img.shields.io/crates/v/deno_lint.svg)](https://crates.io/crates/deno_lint)
+[![Discord Chat](https://img.shields.io/discord/684898665143206084?logo=discord&style=social)](https://discord.gg/deno)
 
 A Rust crate for writing fast JavaScript and TypeScript linters.
 
