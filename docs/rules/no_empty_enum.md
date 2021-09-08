@@ -7,7 +7,6 @@ these situations as either unnecessary code or a mistaken empty implementation.
 
 ```typescript
 enum Foo {}
-const enum Foo {}
 ```
 
 ### Valid:
@@ -15,9 +14,5 @@ const enum Foo {}
 ```typescript
 enum Foo {
   ONE = 'ONE'
-}
-
-const enum Bar {
-  TWO = 'TWO'
 }
 ```

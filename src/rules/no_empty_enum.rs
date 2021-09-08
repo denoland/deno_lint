@@ -59,7 +59,7 @@ impl<'c, 'view> Visit for NoEmptyEnumVisitor<'c, 'view> {
     enum_decl: &TsEnumDecl,
     _parent: &dyn Node,
   ) {
-    if enum_decl.members.len() < 1 {
+    if enum_decl.members.is_empty() {
       self.context.add_diagnostic_with_hint(
         enum_decl.span,
         CODE,
