@@ -7,22 +7,11 @@ available, but instead `self`, `globalThis`, or no prefix work fine. Therefore,
 for compatibility between Web Workers and other contexts, it's highly
 recommended to not access global properties via `window`.
 
-Note that the following properties are allowed to call with `window`:
-
-- `onload`
-- `onunload`
-- `closed`
-- `alert`
-- `confirm`
-- `prompt`
-- `localStorage`
-- `sessionStorage`
-- `window`
-- `Navigator`
-
-because these APIs are not supported in Workers. Additionally, `location` is
-also allowed because what it points to in the Window context is different from
-that in Web Workers.
+Some APIs, including `window.alert`, `window.location` and `window.history`, are
+allowed to call with `window` because these APIs are not supported or have
+different meanings in Workers. In other words, this lint rule complains about
+the use of `window` only if it's completely replaceable with `self`,
+`globalThis`, or no prefix.
 
 ### Invalid:
 
