@@ -2,17 +2,17 @@
 import { doc } from "https://deno.land/x/deno_doc@v0.13.0/mod.ts";
 
 const windowDoc = await doc(
-  "https://raw.githubusercontent.com/denoland/deno/main/cli/dts/lib.dom.d.ts"
+  "https://raw.githubusercontent.com/denoland/deno/main/cli/dts/lib.dom.d.ts",
 );
 const workerDoc = await doc(
-  "https://raw.githubusercontent.com/denoland/deno/main/cli/dts/lib.webworker.d.ts"
+  "https://raw.githubusercontent.com/denoland/deno/main/cli/dts/lib.webworker.d.ts",
 );
 
 const windowItems = new Set(windowDoc.map((item) => item.name));
 const workerItems = new Set(workerDoc.map((item) => item.name));
 
 const intersection = new Set(
-  [...windowItems].filter((x) => workerItems.has(x))
+  [...windowItems].filter((x) => workerItems.has(x)),
 );
 intersection.add("Deno");
 
