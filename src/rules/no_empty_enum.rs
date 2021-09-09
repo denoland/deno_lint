@@ -1,16 +1,15 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::TsEnumDecl;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view as ast_view;
+use deno_ast::swc::common::Spanned;
 
 #[derive(Debug)]
 pub struct NoEmptyEnum;
 
 const CODE: &str = "no-empty-enum";
-const MESSAGE: &str = "An empty enum is equivalent to `{{}}`.";
-const HINT: &str = "Remove this enum or add members to this enum.";
+const MESSAGE: &str = "An empty enum is equivalent to `{}`. Remove this enum or add members to this enum.";
 
 impl LintRule for NoEmptyEnum {
   fn new() -> Box<Self> {
@@ -27,14 +26,18 @@ impl LintRule for NoEmptyEnum {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = NoEmptyEnumVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program<'_>,
+  ) {
+    NoEmptyEnumHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -43,29 +46,16 @@ impl LintRule for NoEmptyEnum {
   }
 }
 
-struct NoEmptyEnumVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoEmptyEnumHandler;
 
-impl<'c, 'view> NoEmptyEnumVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoEmptyEnumVisitor<'c, 'view> {
-  fn visit_ts_enum_decl(
+impl Handler for NoEmptyEnumHandler {
+  fn ts_enum_decl(
     &mut self,
-    enum_decl: &TsEnumDecl,
-    _parent: &dyn Node,
+    enum_decl: &ast_view::TsEnumDecl,
+    ctx: &mut Context,
   ) {
     if enum_decl.members.is_empty() {
-      self.context.add_diagnostic_with_hint(
-        enum_decl.span,
-        CODE,
-        MESSAGE,
-        HINT,
-      );
+      ctx.add_diagnostic(enum_decl.span(), CODE, MESSAGE);
     }
   }
 }
@@ -91,28 +81,39 @@ mod tests {
         {
           col: 0,
           message: MESSAGE,
-          hint: HINT,
         }
       ],
       "const enum Foo {}": [
         {
           col: 0,
           message: MESSAGE,
-          hint: HINT,
+        }
+      ],
+      r#"
+enum Foo {
+  One = 1,
+  Two = (() => {
+    enum Bar {}
+    return 42;
+  })(),
+}
+"#: [
+        {
+          line: 5,
+          col: 4,
+          message: MESSAGE,
         }
       ],
       "export enum Foo {}": [
         {
           col: 7,
           message: MESSAGE,
-          hint: HINT,
         }
       ],
       "export const enum Foo {}": [
         {
           col: 7,
           message: MESSAGE,
-          hint: HINT,
         }
       ]
     };
