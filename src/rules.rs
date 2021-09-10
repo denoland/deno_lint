@@ -40,6 +40,7 @@ pub mod no_dupe_keys;
 pub mod no_duplicate_case;
 pub mod no_empty;
 pub mod no_empty_character_class;
+pub mod no_empty_enum;
 pub mod no_empty_interface;
 pub mod no_empty_pattern;
 pub mod no_eval;
@@ -246,6 +247,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     no_duplicate_case::NoDuplicateCase::new(),
     no_empty::NoEmpty::new(),
     no_empty_character_class::NoEmptyCharacterClass::new(),
+    no_empty_enum::NoEmptyEnum::new(),
     no_empty_interface::NoEmptyInterface::new(),
     no_empty_pattern::NoEmptyPattern::new(),
     no_eval::NoEval::new(),
