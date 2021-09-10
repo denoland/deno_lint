@@ -23,7 +23,6 @@ the `types` directive.
 
 ```javascript
 /// <reference path="./mod.d.ts" />
-/// <reference lib="es2017.string" />
 /// <reference no-default-lib="true" />
 /// <reference foo="bar" />
 
@@ -44,6 +43,7 @@ the `types` directive.
 
 ```javascript
 /// <reference types="./mod.d.ts" />
+/// <reference lib="es2017.string" />
 
 // ... the rest of the JavaScript ...
 ```

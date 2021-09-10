@@ -65,9 +65,9 @@ fn is_js_or_jsx(filename: &str) -> bool {
 
 #[derive(Debug, Eq, PartialEq)]
 enum ReportKind {
-  /// In JavaScript files, the directives other than `types` are not allowed. This variant
+  /// In JavaScript files, the directives other than `types` and `lib` are not allowed. This variant
   /// represents such invalid directives in JavaScript.
-  NotTypesInJs(Span),
+  InvalidDirectiveInJs(Span),
 
   /// Represents an unsupported or badly-formed directive
   InvalidDirective(Span),
@@ -77,7 +77,7 @@ impl ReportKind {
   fn as_message(&self) -> &'static str {
     use ReportKind::*;
     match *self {
-      NotTypesInJs(_) => {
+      InvalidDirectiveInJs(_) => {
         "This triple-slash reference directive is not allowed in JavaScript"
       }
       InvalidDirective(_) => {
@@ -89,8 +89,8 @@ impl ReportKind {
   fn as_hint(&self) -> &'static str {
     use ReportKind::*;
     match *self {
-      NotTypesInJs(_) => {
-        r#"In JavaScript only the `types` directive is allowed, like `/// <reference types="..." />`"#
+      InvalidDirectiveInJs(_) => {
+        r#"In JavaScript only the `lib` and `types` directives are allowed, like `/// <reference lib="..." />` or `/// <reference types="..." />`"#
       }
       InvalidDirective(_) => {
         r#"Correct format is `/// <reference xxx="some_value" />` where `xxx` is one of `types`, `path`, `lib`, or `no-default-lib`"#
@@ -101,7 +101,7 @@ impl ReportKind {
   fn span(&self) -> Span {
     use ReportKind::*;
     match *self {
-      NotTypesInJs(span) => span,
+      InvalidDirectiveInJs(span) => span,
       InvalidDirective(span) => span,
     }
   }
@@ -133,10 +133,10 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
 
   if is_js_like {
     // In JavaScript, only the `types` directives are allowed
-    if is_types_ref(&comment.text) {
+    if is_types_ref(&comment.text) || is_lib_ref(&comment.text) {
       None
     } else {
-      Some(ReportKind::NotTypesInJs(comment.span))
+      Some(ReportKind::InvalidDirectiveInJs(comment.span))
     }
   } else if is_path_ref(&comment.text)
     || is_types_ref(&comment.text)
@@ -264,6 +264,7 @@ mod tests {
       line(r#"/ <reference types="./mod.d.ts" />"#),
       line(r#"/<reference types="./mod.d.ts" />"#),
       line(r#"/      <reference types="./mod.d.ts"     />           foo bar "#),
+      line(r#"/ <reference lib="./mod.d.ts" />"#),
       // normal comment because of inserted "foo"
       line(r#"/ foo <reference path="./mod.d.ts" />"#),
       // normal comment because of inserted "foo"
@@ -287,7 +288,6 @@ mod tests {
 
     let invalid_comments = [
       line(r#"/ <reference path="./mod.d.ts" />"#),
-      line(r#"/ <reference lib="./mod.d.ts" />"#),
       line(r#"/ <reference no-default-lib="true" />"#),
       line(r#"/<reference path="./mod.d.ts" />"#),
       line(r#"/      <reference path="./mod.d.ts"     />           foo bar "#),
@@ -296,7 +296,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, true).unwrap();
-      assert_eq!(report_kind, ReportKind::NotTypesInJs(DUMMY_SP))
+      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(DUMMY_SP))
     }
   }
 
@@ -334,6 +334,7 @@ mod tests {
       NoInvalidTripleSlashReference,
       filename: "foo.js",
       r#"/// <reference types="./mod.d.ts" />"#,
+      r#"/// <reference lib="lib" />"#,
       r#"// <reference path="path" />"#,
       r#"// <reference lib="lib" />"#,
       r#"/* <reference path="path" /> */"#,
@@ -364,7 +365,7 @@ mod tests {
   #[test]
   fn triple_slash_reference_invalid() {
     let (not_types_in_js_msg, not_types_in_js_hint) = {
-      let r = ReportKind::NotTypesInJs(DUMMY_SP);
+      let r = ReportKind::InvalidDirectiveInJs(DUMMY_SP);
       (r.as_message(), r.as_hint())
     };
     let (invalid_directive_msg, invalid_directive_hint) = {
@@ -377,14 +378,6 @@ mod tests {
       NoInvalidTripleSlashReference,
       filename: "foo.js",
       r#"/// <reference path="foo" />"#: [
-        {
-          line: 1,
-          col: 0,
-          message: not_types_in_js_msg,
-          hint: not_types_in_js_hint,
-        },
-      ],
-      r#"/// <reference lib="foo" />"#: [
         {
           line: 1,
           col: 0,
