@@ -10,7 +10,10 @@ const CODE: &str = "prefer-ascii";
 const MESSAGE: &str = "Non-ASCII characters are not allowed";
 
 fn hint(c: char) -> String {
-  format!("`{}` is not an ASCII. Consider replacing it", c)
+  format!(
+    "`{}` is \\u{{{:04x}}} and this is not an ASCII. Consider replacing it with an ASCII character",
+    c, c as u32
+  )
 }
 
 impl LintRule for PreferAscii {
