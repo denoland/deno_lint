@@ -132,7 +132,7 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
   }
 
   if is_js_like {
-    // In JavaScript, only the `types` directives are allowed
+    // In JavaScript, only the `lib` and `types` directives are allowed
     if is_types_ref(&comment.text) || is_lib_ref(&comment.text) {
       None
     } else {
