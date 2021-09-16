@@ -7,8 +7,8 @@ well as making the code less clean.
 
 ```typescript
 const x = 5;
-
-function foo() {}
+;
+function foo() {};
 ```
 
 ### Valid:
