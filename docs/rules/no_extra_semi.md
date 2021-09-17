@@ -6,9 +6,9 @@ well as making the code less clean.
 ### Invalid:
 
 ```typescript
-const x = 5;
+const x = 5;;
 
-function foo() {}
+function foo() {};
 ```
 
 ### Valid:
