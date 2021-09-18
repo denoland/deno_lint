@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view as ast_view;
+use deno_ast::view::{Span, Spanned};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -32,16 +32,16 @@ impl LintRule for ExplicitFunctionReturnType {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = ExplicitFunctionReturnTypeVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    ExplicitFunctionReturnTypeHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -50,34 +50,17 @@ impl LintRule for ExplicitFunctionReturnType {
   }
 }
 
-struct ExplicitFunctionReturnTypeVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct ExplicitFunctionReturnTypeHandler;
 
-impl<'c, 'view> ExplicitFunctionReturnTypeVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for ExplicitFunctionReturnTypeVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_function(
-    &mut self,
-    function: &deno_ast::swc::ast::Function,
-    _parent: &dyn Node,
-  ) {
+impl Handler for ExplicitFunctionReturnTypeHandler {
+  fn function(&mut self, function: &ast_view::Function, context: &mut Context) {
     if function.return_type.is_none() {
-      self.context.add_diagnostic_with_hint(
-        function.span,
+      context.add_diagnostic_with_hint(
+        function.span(),
         CODE,
         ExplicitFunctionReturnTypeMessage::MissingRetType,
         ExplicitFunctionReturnTypeHint::AddRetType,
       );
-    }
-    for stmt in &function.body {
-      self.visit_block_stmt(stmt, _parent);
     }
   }
 }
