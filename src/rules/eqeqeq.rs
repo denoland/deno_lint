@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{BinExpr, BinaryOp};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::ast::BinaryOp;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -39,14 +39,18 @@ impl LintRule for Eqeqeq {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = EqeqeqVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    EqeqeqHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -55,31 +59,18 @@ impl LintRule for Eqeqeq {
   }
 }
 
-struct EqeqeqVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct EqeqeqHandler;
 
-impl<'c, 'view> EqeqeqVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for EqeqeqVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_bin_expr(&mut self, bin_expr: &BinExpr, parent: &dyn Node) {
-    if matches!(bin_expr.op, BinaryOp::EqEq | BinaryOp::NotEq) {
-      let (message, hint) = if bin_expr.op == BinaryOp::EqEq {
+impl Handler for EqeqeqHandler {
+  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, context: &mut Context) {
+    if matches!(bin_expr.op(), BinaryOp::EqEq | BinaryOp::NotEq) {
+      let (message, hint) = if bin_expr.op() == BinaryOp::EqEq {
         (EqeqeqMessage::ExpectedEqual, EqeqeqHint::UseEqeqeq)
       } else {
         (EqeqeqMessage::ExpectedNotEqual, EqeqeqHint::UseNoteqeq)
       };
-      self
-        .context
-        .add_diagnostic_with_hint(bin_expr.span, CODE, message, hint)
+      context.add_diagnostic_with_hint(bin_expr.span(), CODE, message, hint)
     }
-    deno_ast::swc::visit::visit_bin_expr(self, bin_expr, parent);
   }
 }
 
