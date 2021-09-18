@@ -72,7 +72,6 @@ impl Handler for EqeqeqHandler {
       context
         .add_diagnostic_with_hint(bin_expr.span(), CODE, message, hint)
     }
-    // deno_ast::swc::visit::visit_bin_expr(self, bin_expr, parent);
   }
 }
 
