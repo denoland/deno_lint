@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::{Program, ProgramRef};
-use deno_ast::swc::ast::{BinaryOp};
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::ast::BinaryOp;
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
 use derive_more::Display;
@@ -69,8 +69,7 @@ impl Handler for EqeqeqHandler {
       } else {
         (EqeqeqMessage::ExpectedNotEqual, EqeqeqHint::UseNoteqeq)
       };
-      context
-        .add_diagnostic_with_hint(bin_expr.span(), CODE, message, hint)
+      context.add_diagnostic_with_hint(bin_expr.span(), CODE, message, hint)
     }
   }
 }
