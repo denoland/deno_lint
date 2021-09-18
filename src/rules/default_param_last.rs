@@ -1,12 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{ArrowExpr, Function, Pat};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::VisitAll;
-use deno_ast::swc::visit::VisitAllWith;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -39,14 +36,18 @@ impl LintRule for DefaultParamLast {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = DefaultParamLastVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    DefaultParamLastHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -55,54 +56,44 @@ impl LintRule for DefaultParamLast {
   }
 }
 
-struct DefaultParamLastVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct DefaultParamLastHandler;
+
+impl Handler for DefaultParamLastHandler {
+  fn function(&mut self, function: &ast_view::Function, ctx: &mut Context) {
+    check_params(function.params.iter().rev().map(|p| &p.pat), ctx);
+  }
+
+  fn arrow_expr(
+    &mut self,
+    arrow_expr: &ast_view::ArrowExpr,
+    ctx: &mut Context,
+  ) {
+    check_params(arrow_expr.params.iter().rev(), ctx);
+  }
 }
 
-impl<'c, 'view> DefaultParamLastVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn report(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      DefaultParamLastMessage::DefaultLast,
-      DefaultParamLastHint::MoveToEnd,
-    );
-  }
-
-  fn check_params<'a, 'b, I>(&'a mut self, params: I)
-  where
-    I: Iterator<Item = &'b Pat>,
-  {
-    let mut has_seen_normal_param = false;
-    for param in params {
-      match param {
-        Pat::Assign(pat) => {
-          if has_seen_normal_param {
-            self.report(pat.span);
-          }
-        }
-        Pat::Rest(_) => {}
-        _ => {
-          has_seen_normal_param = true;
+fn check_params<'a, 'b, I>(params: I, ctx: &mut Context)
+where
+  I: Iterator<Item = &'b ast_view::Pat<'b>>,
+{
+  let mut has_seen_normal_param = false;
+  for param in params {
+    match param {
+      ast_view::Pat::Assign(pat) => {
+        if has_seen_normal_param {
+          ctx.add_diagnostic_with_hint(
+            pat.span(),
+            CODE,
+            DefaultParamLastMessage::DefaultLast,
+            DefaultParamLastHint::MoveToEnd,
+          );
         }
       }
+      ast_view::Pat::Rest(_) => {}
+      _ => {
+        has_seen_normal_param = true;
+      }
     }
-  }
-}
-
-impl<'c, 'view> VisitAll for DefaultParamLastVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    self.check_params(function.params.iter().rev().map(|p| &p.pat));
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.check_params(arrow_expr.params.iter().rev());
   }
 }
 
