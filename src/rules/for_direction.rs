@@ -125,38 +125,36 @@ impl Handler for ForDirectionHandler {
       return;
     }
 
-    if let Some(test) = &for_stmt.test {
-      if let Expr::Bin(bin_expr) = test {
-        let counter_name = match &bin_expr.left {
-          Expr::Ident(ident) => ident.inner.as_ref(),
-          _ => return,
-        };
+    if let Some(Expr::Bin(bin_expr)) = &for_stmt.test {
+      let counter_name = match &bin_expr.left {
+        Expr::Ident(ident) => ident.inner.as_ref(),
+        _ => return,
+      };
 
-        let wrong_direction = match &bin_expr.op() {
-          BinaryOp::Lt | BinaryOp::LtEq => -1,
-          BinaryOp::Gt | BinaryOp::GtEq => 1,
-          _ => return,
-        };
+      let wrong_direction = match &bin_expr.op() {
+        BinaryOp::Lt | BinaryOp::LtEq => -1,
+        BinaryOp::Gt | BinaryOp::GtEq => 1,
+        _ => return,
+      };
 
-        let update = for_stmt.update.as_ref().unwrap();
-        let update_direction = match &update {
-          Expr::Update(update_expr) => {
-            check_update_direction(&**update_expr, counter_name)
-          }
-          Expr::Assign(assign_expr) => {
-            check_assign_direction(&**assign_expr, counter_name)
-          }
-          _ => return,
-        };
-
-        if update_direction == wrong_direction {
-          context.add_diagnostic_with_hint(
-            for_stmt.span(),
-            "for-direction",
-            MESSAGE,
-            HINT,
-          );
+      let update = for_stmt.update.as_ref().unwrap();
+      let update_direction = match &update {
+        Expr::Update(update_expr) => {
+          check_update_direction(&**update_expr, counter_name)
         }
+        Expr::Assign(assign_expr) => {
+          check_assign_direction(&**assign_expr, counter_name)
+        }
+        _ => return,
+      };
+
+      if update_direction == wrong_direction {
+        context.add_diagnostic_with_hint(
+          for_stmt.span(),
+          "for-direction",
+          MESSAGE,
+          HINT,
+        );
       }
     }
   }
