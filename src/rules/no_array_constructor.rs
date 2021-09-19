@@ -1,12 +1,10 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use super::{Context, LintRule};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::VisitAll;
-use deno_ast::swc::visit::VisitAllWith;
+use deno_ast::view::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
 
 #[derive(Debug)]
 pub struct NoArrayConstructor;
@@ -30,14 +28,18 @@ impl LintRule for NoArrayConstructor {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = NoArrayConstructorVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    NoArrayConstructorHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -46,30 +48,19 @@ impl LintRule for NoArrayConstructor {
   }
 }
 
-struct NoArrayConstructorVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
-
-impl<'c, 'view> NoArrayConstructorVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn check_args(&mut self, args: Vec<ExprOrSpread>, span: Span) {
-    if args.len() != 1 {
-      self
-        .context
-        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
-    }
+fn check_args(args: Vec<&ExprOrSpread>, span: Span, context: &mut Context) {
+  if args.len() != 1 {
+    context
+      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 }
 
-impl<'c, 'view> VisitAll for NoArrayConstructorVisitor<'c, 'view> {
-  noop_visit_type!();
+struct NoArrayConstructorHandler;
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
-    if let Expr::Ident(ident) = &*new_expr.callee {
-      let name = ident.sym.as_ref();
+impl Handler for NoArrayConstructorHandler {
+    fn new_expr(&mut self, new_expr: &NewExpr, context: &mut Context) {
+    if let Expr::Ident(ident) = &new_expr.callee {
+      let name = ident.inner.as_ref();
       if name != "Array" {
         return;
       }
@@ -78,17 +69,17 @@ impl<'c, 'view> VisitAll for NoArrayConstructorVisitor<'c, 'view> {
       }
       match &new_expr.args {
         Some(args) => {
-          self.check_args(args.to_vec(), new_expr.span);
+          check_args(args.to_vec(), new_expr.span(), context);
         }
-        None => self.check_args(vec![], new_expr.span),
+        None => check_args(vec![], new_expr.span(), context),
       };
     }
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+  fn call_expr(&mut self, call_expr: &CallExpr, context: &mut Context) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr.as_ref() {
-        let name = ident.sym.as_ref();
+      if let Expr::Ident(ident) = expr {
+        let name = ident.inner.as_ref();
         if name != "Array" {
           return;
         }
@@ -96,7 +87,7 @@ impl<'c, 'view> VisitAll for NoArrayConstructorVisitor<'c, 'view> {
           return;
         }
 
-        self.check_args((&*call_expr.args).to_vec(), call_expr.span);
+        check_args((&*call_expr.args).to_vec(), call_expr.span(), context);
       }
     }
   }
