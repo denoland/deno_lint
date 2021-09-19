@@ -10,6 +10,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoInferrableTypes;
@@ -29,8 +30,8 @@ enum NoInferrableTypesHint {
 }
 
 impl LintRule for NoInferrableTypes {
-  fn new() -> Box<Self> {
-    Box::new(NoInferrableTypes)
+  fn new() -> Arc<Self> {
+    Arc::new(NoInferrableTypes)
   }
 
   fn tags(&self) -> &'static [&'static str] {

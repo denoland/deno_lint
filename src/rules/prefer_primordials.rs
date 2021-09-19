@@ -8,6 +8,7 @@ use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
 use if_chain::if_chain;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PreferPrimordials;
@@ -17,8 +18,8 @@ const MESSAGE: &str = "Don't use the global intrinsic";
 const HINT: &str = "Instead use the equivalent from the `primordials` object";
 
 impl LintRule for PreferPrimordials {
-  fn new() -> Box<Self> {
-    Box::new(PreferPrimordials)
+  fn new() -> Arc<Self> {
+    Arc::new(PreferPrimordials)
   }
 
   fn tags(&self) -> &'static [&'static str] {

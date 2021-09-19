@@ -5,6 +5,7 @@ use deno_ast::swc::ast::{Expr, ExprOrSuper};
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 use deno_ast::swc::common::Span;
 
@@ -22,8 +23,8 @@ enum NoNonNullAssertedOptionalChainMessage {
 }
 
 impl LintRule for NoNonNullAssertedOptionalChain {
-  fn new() -> Box<Self> {
-    Box::new(NoNonNullAssertedOptionalChain)
+  fn new() -> Arc<Self> {
+    Arc::new(NoNonNullAssertedOptionalChain)
   }
 
   fn code(&self) -> &'static str {

@@ -6,6 +6,7 @@ use deno_ast::view as ast_view;
 use deno_ast::view::{Spanned, TsEntityName, TsKeywordTypeKind};
 use if_chain::if_chain;
 use std::convert::TryFrom;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct BanTypes;
@@ -74,8 +75,8 @@ impl TryFrom<&str> for BannedType {
 }
 
 impl LintRule for BanTypes {
-  fn new() -> Box<Self> {
-    Box::new(BanTypes)
+  fn new() -> Arc<Self> {
+    Arc::new(BanTypes)
   }
 
   fn tags(&self) -> &'static [&'static str] {

@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoNamespace;
@@ -16,8 +17,8 @@ const HINT: &str = "Use ES2015 module syntax (`import`/`export`) to organize
 the code instead";
 
 impl LintRule for NoNamespace {
-  fn new() -> Box<Self> {
-    Box::new(NoNamespace)
+  fn new() -> Arc<Self> {
+    Arc::new(NoNamespace)
   }
 
   fn tags(&self) -> &'static [&'static str] {

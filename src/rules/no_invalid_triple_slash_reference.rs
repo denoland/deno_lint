@@ -5,6 +5,7 @@ use deno_ast::swc::common::comments::{Comment, CommentKind};
 use deno_ast::swc::common::Span;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoInvalidTripleSlashReference;
@@ -12,8 +13,8 @@ pub struct NoInvalidTripleSlashReference;
 const CODE: &str = "no-invalid-triple-slash-reference";
 
 impl LintRule for NoInvalidTripleSlashReference {
-  fn new() -> Box<Self> {
-    Box::new(NoInvalidTripleSlashReference)
+  fn new() -> Arc<Self> {
+    Arc::new(NoInvalidTripleSlashReference)
   }
 
   fn tags(&self) -> &'static [&'static str] {

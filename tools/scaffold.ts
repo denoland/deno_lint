@@ -110,8 +110,8 @@ const MESSAGE: &str = "";
 const HINT: &str = "";
 
 impl LintRule for ${pascalCasedLintName} {
-  fn new() -> Box<Self> {
-    Box::new(${pascalCasedLintName})
+  fn new() -> Arc<Self> {
+    Arc::new(${pascalCasedLintName})
   }
 
   fn code(&self) -> &'static str {

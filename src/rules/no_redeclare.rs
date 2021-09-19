@@ -6,6 +6,7 @@ use deno_ast::swc::{
   ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
   visit::Visit, visit::VisitWith,
 };
+use std::sync::Arc;
 
 use std::collections::HashSet;
 
@@ -16,8 +17,8 @@ const CODE: &str = "no-redeclare";
 const MESSAGE: &str = "Redeclaration is not allowed";
 
 impl LintRule for NoRedeclare {
-  fn new() -> Box<Self> {
-    Box::new(NoRedeclare)
+  fn new() -> Arc<Self> {
+    Arc::new(NoRedeclare)
   }
 
   fn tags(&self) -> &'static [&'static str] {

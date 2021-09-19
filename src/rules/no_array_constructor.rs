@@ -1,10 +1,11 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.use super::{Context, LintRule};
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoArrayConstructor;
@@ -14,8 +15,8 @@ const MESSAGE: &str = "Array Constructor is not allowed";
 const HINT: &str = "Use array literal notation (e.g. []) or single argument specifying array size only (e.g. new Array(5)";
 
 impl LintRule for NoArrayConstructor {
-  fn new() -> Box<Self> {
-    Box::new(NoArrayConstructor)
+  fn new() -> Arc<Self> {
+    Arc::new(NoArrayConstructor)
   }
 
   fn tags(&self) -> &'static [&'static str] {

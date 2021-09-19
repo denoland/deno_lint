@@ -11,6 +11,7 @@ use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeKeys;
@@ -30,8 +31,8 @@ enum NoDupeKeysHint {
 }
 
 impl LintRule for NoDupeKeys {
-  fn new() -> Box<Self> {
-    Box::new(NoDupeKeys)
+  fn new() -> Arc<Self> {
+    Arc::new(NoDupeKeys)
   }
 
   fn tags(&self) -> &'static [&'static str] {

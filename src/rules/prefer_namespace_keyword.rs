@@ -6,6 +6,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PreferNamespaceKeyword;
@@ -14,8 +15,8 @@ const CODE: &str = "prefer-namespace-keyword";
 const MESSAGE: &str = "`module` keyword in module decleration is not allowed";
 
 impl LintRule for PreferNamespaceKeyword {
-  fn new() -> Box<Self> {
-    Box::new(PreferNamespaceKeyword)
+  fn new() -> Arc<Self> {
+    Arc::new(PreferNamespaceKeyword)
   }
 
   fn tags(&self) -> &'static [&'static str] {

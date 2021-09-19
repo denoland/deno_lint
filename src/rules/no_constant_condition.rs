@@ -6,6 +6,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoConstantCondition;
@@ -27,8 +28,8 @@ enum NoConstantConditionHint {
 }
 
 impl LintRule for NoConstantCondition {
-  fn new() -> Box<Self> {
-    Box::new(NoConstantCondition)
+  fn new() -> Arc<Self> {
+    Arc::new(NoConstantCondition)
   }
 
   fn tags(&self) -> &'static [&'static str] {

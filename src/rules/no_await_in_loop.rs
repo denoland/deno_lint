@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoAwaitInLoop;
@@ -14,8 +15,8 @@ const MESSAGE: &str = "Unexpected `await` inside a loop.";
 const HINT: &str = "Remove `await` in loop body, store all promises generated and then `await Promise.all(storedPromises)` after the loop";
 
 impl LintRule for NoAwaitInLoop {
-  fn new() -> Box<Self> {
-    Box::new(NoAwaitInLoop)
+  fn new() -> Arc<Self> {
+    Arc::new(NoAwaitInLoop)
   }
 
   fn code(&self) -> &'static str {

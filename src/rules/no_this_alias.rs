@@ -6,6 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use if_chain::if_chain;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoThisAlias;
@@ -14,8 +15,8 @@ const CODE: &str = "no-this-alias";
 const MESSAGE: &str = "assign `this` to declare a value is not allowed";
 
 impl LintRule for NoThisAlias {
-  fn new() -> Box<Self> {
-    Box::new(NoThisAlias)
+  fn new() -> Arc<Self> {
+    Arc::new(NoThisAlias)
   }
 
   fn tags(&self) -> &'static [&'static str] {

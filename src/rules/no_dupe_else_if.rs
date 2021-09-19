@@ -7,6 +7,7 @@ use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeElseIf;
@@ -30,8 +31,8 @@ enum NoDupeElseIfHint {
 }
 
 impl LintRule for NoDupeElseIf {
-  fn new() -> Box<Self> {
-    Box::new(NoDupeElseIf)
+  fn new() -> Arc<Self> {
+    Arc::new(NoDupeElseIf)
   }
 
   fn tags(&self) -> &'static [&'static str] {

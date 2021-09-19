@@ -5,6 +5,7 @@ use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSuper, Ident, NewExpr};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoObjCalls;
@@ -16,8 +17,8 @@ fn get_message(callee_name: &str) -> String {
 }
 
 impl LintRule for NoObjCalls {
-  fn new() -> Box<Self> {
-    Box::new(NoObjCalls)
+  fn new() -> Arc<Self> {
+    Arc::new(NoObjCalls)
   }
 
   fn tags(&self) -> &'static [&'static str] {

@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::view as ast_view;
 use deno_ast::view::{Span, Spanned};
 use if_chain::if_chain;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ConstructorSuper;
@@ -14,8 +15,8 @@ const CODE: &str = "constructor-super";
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
 impl LintRule for ConstructorSuper {
-  fn new() -> Box<Self> {
-    Box::new(ConstructorSuper)
+  fn new() -> Arc<Self> {
+    Arc::new(ConstructorSuper)
   }
 
   fn tags(&self) -> &'static [&'static str] {

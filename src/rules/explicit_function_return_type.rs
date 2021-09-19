@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::view as ast_view;
 use deno_ast::view::Spanned;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ExplicitFunctionReturnType;
@@ -24,8 +25,8 @@ enum ExplicitFunctionReturnTypeHint {
 }
 
 impl LintRule for ExplicitFunctionReturnType {
-  fn new() -> Box<Self> {
-    Box::new(ExplicitFunctionReturnType)
+  fn new() -> Arc<Self> {
+    Arc::new(ExplicitFunctionReturnType)
   }
 
   fn code(&self) -> &'static str {

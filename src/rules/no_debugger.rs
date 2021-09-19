@@ -6,6 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDebugger;
@@ -25,8 +26,8 @@ enum NoDebuggerHint {
 }
 
 impl LintRule for NoDebugger {
-  fn new() -> Box<Self> {
-    Box::new(NoDebugger)
+  fn new() -> Arc<Self> {
+    Arc::new(NoDebugger)
   }
 
   fn tags(&self) -> &'static [&'static str] {

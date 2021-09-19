@@ -11,6 +11,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeArgs;
@@ -30,8 +31,8 @@ enum NoDupeArgsHint {
 }
 
 impl LintRule for NoDupeArgs {
-  fn new() -> Box<Self> {
-    Box::new(NoDupeArgs)
+  fn new() -> Arc<Self> {
+    Arc::new(NoDupeArgs)
   }
 
   fn tags(&self) -> &'static [&'static str] {

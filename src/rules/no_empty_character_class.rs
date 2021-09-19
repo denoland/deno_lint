@@ -6,6 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmptyCharacterClass;
@@ -16,8 +17,8 @@ const HINT: &str =
   "Remove or rework the empty character class (`[]`) in the RegExp";
 
 impl LintRule for NoEmptyCharacterClass {
-  fn new() -> Box<Self> {
-    Box::new(NoEmptyCharacterClass)
+  fn new() -> Arc<Self> {
+    Arc::new(NoEmptyCharacterClass)
   }
 
   fn tags(&self) -> &'static [&'static str] {

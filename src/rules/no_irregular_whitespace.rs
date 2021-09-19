@@ -6,6 +6,7 @@ use deno_ast::view::RootNode;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoIrregularWhitespace;
@@ -39,8 +40,8 @@ fn test_for_whitespace(value: &str) -> Vec<Matches> {
 }
 
 impl LintRule for NoIrregularWhitespace {
-  fn new() -> Box<Self> {
-    Box::new(NoIrregularWhitespace)
+  fn new() -> Arc<Self> {
+    Arc::new(NoIrregularWhitespace)
   }
 
   fn tags(&self) -> &'static [&'static str] {

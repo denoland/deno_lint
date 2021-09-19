@@ -5,6 +5,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct UseIsNaN;
@@ -28,8 +29,8 @@ enum UseIsNaNMessage {
 }
 
 impl LintRule for UseIsNaN {
-  fn new() -> Box<Self> {
-    Box::new(UseIsNaN)
+  fn new() -> Arc<Self> {
+    Arc::new(UseIsNaN)
   }
 
   fn tags(&self) -> &'static [&'static str] {

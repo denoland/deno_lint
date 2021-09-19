@@ -7,6 +7,7 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoShadowRestrictedNames;
@@ -20,8 +21,8 @@ enum NoShadowRestrictedNamesMessage {
 }
 
 impl LintRule for NoShadowRestrictedNames {
-  fn new() -> Box<Self> {
-    Box::new(NoShadowRestrictedNames)
+  fn new() -> Arc<Self> {
+    Arc::new(NoShadowRestrictedNames)
   }
 
   fn lint_program<'view>(

@@ -6,6 +6,7 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnreachable;
@@ -14,8 +15,8 @@ const CODE: &str = "no-unreachable";
 const MESSAGE: &str = "This statement is unreachable";
 
 impl LintRule for NoUnreachable {
-  fn new() -> Box<Self> {
-    Box::new(NoUnreachable)
+  fn new() -> Arc<Self> {
+    Arc::new(NoUnreachable)
   }
 
   fn tags(&self) -> &'static [&'static str] {

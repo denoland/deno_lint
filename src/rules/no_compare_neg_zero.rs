@@ -9,6 +9,7 @@ use deno_ast::swc::ast::UnaryOp::Minus;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr};
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoCompareNegZero;
@@ -30,8 +31,8 @@ enum NoCompareNegZeroHint {
 }
 
 impl LintRule for NoCompareNegZero {
-  fn new() -> Box<Self> {
-    Box::new(NoCompareNegZero)
+  fn new() -> Arc<Self> {
+    Arc::new(NoCompareNegZero)
   }
 
   fn tags(&self) -> &'static [&'static str] {

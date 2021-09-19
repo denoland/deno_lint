@@ -12,6 +12,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::{utils::ident::IdentLike, visit::Visit};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoConstAssign;
@@ -32,8 +33,8 @@ enum NoConstantAssignHint {
   Remove,
 }
 impl LintRule for NoConstAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoConstAssign)
+  fn new() -> Arc<Self> {
+    Arc::new(NoConstAssign)
   }
 
   fn code(&self) -> &'static str {

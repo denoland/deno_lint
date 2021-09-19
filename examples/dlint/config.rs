@@ -30,7 +30,7 @@ pub struct Config {
 }
 
 impl Config {
-  pub fn get_rules(&self) -> Arc<Vec<Box<dyn LintRule>>> {
+  pub fn get_rules(&self) -> Vec<Arc<dyn LintRule>> {
     get_filtered_rules(
       Some(self.rules.tags.clone()),
       Some(self.rules.exclude.clone()),
@@ -158,7 +158,7 @@ mod tests {
     }}
   }
 
-  fn into_codes(rules: Arc<Vec<Box<dyn LintRule>>>) -> HashSet<&'static str> {
+  fn into_codes(rules: Vec<Arc<dyn LintRule>>) -> HashSet<&'static str> {
     rules.iter().map(|rule| rule.code()).collect()
   }
 

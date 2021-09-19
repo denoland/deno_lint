@@ -2,6 +2,7 @@
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::{BytePos, Span};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PreferAscii;
@@ -17,8 +18,8 @@ fn hint(c: char) -> String {
 }
 
 impl LintRule for PreferAscii {
-  fn new() -> Box<Self> {
-    Box::new(PreferAscii)
+  fn new() -> Arc<Self> {
+    Arc::new(PreferAscii)
   }
 
   fn code(&self) -> &'static str {

@@ -102,8 +102,8 @@ const MESSAGE: &str = "";
 const HINT: &str = "";
 
 impl LintRule for FooBarBaz {
-  fn new() -> Box<Self> {
-    Box::new(FooBarBaz)
+  fn new() -> Arc<Self> {
+    Arc::new(FooBarBaz)
   }
 
   fn code(&self) -> &'static str {
@@ -193,7 +193,7 @@ pub mod default_param_last;
 
 pub trait LintRule {}
 
-pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
   vec![]
 }
 
@@ -227,7 +227,7 @@ pub mod default_param_last;
 
 pub trait LintRule {}
 
-pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
   vec![]
 }
 

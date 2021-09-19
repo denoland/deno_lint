@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Deserialize)]
 struct DiagnosticsFromJs {
@@ -109,8 +110,8 @@ pub struct PluginRunner {
 }
 
 impl PluginRunner {
-  pub fn new(plugin_path: &str) -> Box<Self> {
-    Box::new(Self {
+  pub fn new(plugin_path: &str) -> Arc<Self> {
+    Arc::new(Self {
       plugin_path: plugin_path.to_string(),
     })
   }

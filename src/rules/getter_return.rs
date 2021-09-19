@@ -14,6 +14,7 @@ use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 use derive_more::Display;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct GetterReturn;
@@ -35,8 +36,8 @@ enum GetterReturnHint {
 }
 
 impl LintRule for GetterReturn {
-  fn new() -> Box<Self> {
-    Box::new(GetterReturn)
+  fn new() -> Arc<Self> {
+    Arc::new(GetterReturn)
   }
 
   fn tags(&self) -> &'static [&'static str] {

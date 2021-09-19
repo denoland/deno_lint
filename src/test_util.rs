@@ -289,7 +289,7 @@ fn get_ts_config_with_tsx() -> Syntax {
 }
 
 fn lint(
-  rule: Box<dyn LintRule>,
+  rule: Arc<dyn LintRule>,
   source: &str,
   filename: &str,
 ) -> Vec<LintDiagnostic> {
@@ -299,7 +299,7 @@ fn lint(
     } else {
       ast_parser::get_default_ts_config()
     })
-    .rules(Arc::new(vec![rule]))
+    .rules(vec![rule])
     .build();
 
   match linter.lint(filename.to_string(), source.to_string()) {

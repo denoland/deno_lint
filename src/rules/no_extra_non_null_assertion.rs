@@ -9,6 +9,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExtraNonNullAssertion;
@@ -28,8 +29,8 @@ enum NoExtraNonNullAssertionHint {
 }
 
 impl LintRule for NoExtraNonNullAssertion {
-  fn new() -> Box<Self> {
-    Box::new(NoExtraNonNullAssertion)
+  fn new() -> Arc<Self> {
+    Arc::new(NoExtraNonNullAssertion)
   }
 
   fn tags(&self) -> &'static [&'static str] {

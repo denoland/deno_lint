@@ -6,6 +6,7 @@ use deno_ast::swc::ast::Expr::{Assign, Bin, Paren};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoCondAssign;
@@ -29,8 +30,8 @@ enum NoCondAssignHint {
 }
 
 impl LintRule for NoCondAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoCondAssign)
+  fn new() -> Arc<Self> {
+    Arc::new(NoCondAssign)
   }
 
   fn tags(&self) -> &'static [&'static str] {
