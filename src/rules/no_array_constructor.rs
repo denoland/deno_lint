@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.use super::{Context, LintRule};
+use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use super::{Context, LintRule};
 use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
 
 #[derive(Debug)]
@@ -50,15 +50,14 @@ impl LintRule for NoArrayConstructor {
 
 fn check_args(args: Vec<&ExprOrSpread>, span: Span, context: &mut Context) {
   if args.len() != 1 {
-    context
-      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+    context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 }
 
 struct NoArrayConstructorHandler;
 
 impl Handler for NoArrayConstructorHandler {
-    fn new_expr(&mut self, new_expr: &NewExpr, context: &mut Context) {
+  fn new_expr(&mut self, new_expr: &NewExpr, context: &mut Context) {
     if let Expr::Ident(ident) = &new_expr.callee {
       let name = ident.inner.as_ref();
       if name != "Array" {
