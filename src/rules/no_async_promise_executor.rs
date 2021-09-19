@@ -1,11 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{Expr, NewExpr, ParenExpr};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::VisitAll;
-use deno_ast::swc::visit::VisitAllWith;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, NewExpr, ParenExpr};
 
 #[derive(Debug)]
 pub struct NoAsyncPromiseExecutor;
@@ -30,14 +28,18 @@ impl LintRule for NoAsyncPromiseExecutor {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = NoAsyncPromiseExecutorVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    NoAsyncPromiseExecutorHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -46,40 +48,30 @@ impl LintRule for NoAsyncPromiseExecutor {
   }
 }
 
-struct NoAsyncPromiseExecutorVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
-
-impl<'c, 'view> NoAsyncPromiseExecutorVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
 fn is_async_function(expr: &Expr) -> bool {
   match expr {
-    Expr::Fn(fn_expr) => fn_expr.function.is_async,
-    Expr::Arrow(arrow_expr) => arrow_expr.is_async,
-    Expr::Paren(ParenExpr { ref expr, .. }) => is_async_function(&**expr),
+    Expr::Fn(fn_expr) => fn_expr.function.is_async(),
+    Expr::Arrow(arrow_expr) => arrow_expr.is_async(),
+    Expr::Paren(ParenExpr { ref expr, .. }) => is_async_function(expr),
     _ => false,
   }
 }
 
-impl<'c, 'view> VisitAll for NoAsyncPromiseExecutorVisitor<'c, 'view> {
-  noop_visit_type!();
+struct NoAsyncPromiseExecutorHandler;
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
-    if let Expr::Ident(ident) = &*new_expr.callee {
-      let name = ident.sym.as_ref();
+impl Handler for NoAsyncPromiseExecutorHandler {
+  fn new_expr(&mut self, new_expr: &NewExpr, context: &mut Context) {
+    if let Expr::Ident(ident) = &new_expr.callee {
+      let name = ident.inner.as_ref();
       if name != "Promise" {
         return;
       }
 
       if let Some(args) = &new_expr.args {
         if let Some(first_arg) = args.get(0) {
-          if is_async_function(&*first_arg.expr) {
-            self.context.add_diagnostic_with_hint(
-              new_expr.span,
+          if is_async_function(&first_arg.expr) {
+            context.add_diagnostic_with_hint(
+              new_expr.span(),
               CODE,
               MESSAGE,
               HINT,
