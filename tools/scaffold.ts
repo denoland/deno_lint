@@ -101,6 +101,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ${pascalCasedLintName};
