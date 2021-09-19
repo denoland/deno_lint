@@ -1,20 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::AssignExpr;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::BinaryOp;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::ForStmt;
-use deno_ast::swc::ast::Pat;
-use deno_ast::swc::ast::PatOrExpr;
-use deno_ast::swc::ast::UnaryOp;
-use deno_ast::swc::ast::UpdateExpr;
 use deno_ast::swc::ast::UpdateOp;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::VisitAll;
-use deno_ast::swc::visit::VisitAllWith;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view as ast_view;
+use deno_ast::view::{AssignExpr, Expr, Pat, PatOrExpr, UnaryOp, UpdateExpr};
 
 #[derive(Debug)]
 pub struct ForDirection;
@@ -34,14 +27,18 @@ impl LintRule for ForDirection {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = ForDirectionVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    ForDirectionHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -54,129 +51,110 @@ const MESSAGE: &str = "Update clause moves variable in the wrong direction";
 const HINT: &str =
   "Flip the update clause logic or change the continuation step condition";
 
-struct ForDirectionVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct ForDirectionHandler;
 
-impl<'c, 'view> ForDirectionVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
+fn check_update_direction(
+  update_expr: &UpdateExpr,
+  counter_name: impl AsRef<str>,
+) -> i32 {
+  let mut update_direction = 0;
 
-  fn check_update_direction(
-    &self,
-    update_expr: &UpdateExpr,
-    counter_name: impl AsRef<str>,
-  ) -> i32 {
-    let mut update_direction = 0;
-
-    if let Expr::Ident(ident) = &*update_expr.arg {
-      if ident.sym.as_ref() == counter_name.as_ref() {
-        match update_expr.op {
-          UpdateOp::PlusPlus => {
-            update_direction = 1;
-          }
-          UpdateOp::MinusMinus => {
-            update_direction = -1;
-          }
+  if let Expr::Ident(ident) = update_expr.arg {
+    if ident.inner.as_ref() == counter_name.as_ref() {
+      match update_expr.op() {
+        UpdateOp::PlusPlus => {
+          update_direction = 1;
+        }
+        UpdateOp::MinusMinus => {
+          update_direction = -1;
         }
       }
     }
-
-    update_direction
   }
 
-  fn check_assign_direction(
-    &self,
-    assign_expr: &AssignExpr,
-    counter_name: impl AsRef<str>,
-  ) -> i32 {
-    let update_direction = 0;
+  update_direction
+}
 
-    let name = match &assign_expr.left {
-      PatOrExpr::Expr(boxed_expr) => match &**boxed_expr {
-        Expr::Ident(ident) => ident.sym.as_ref(),
-        _ => return update_direction,
-      },
-      PatOrExpr::Pat(boxed_pat) => match &**boxed_pat {
-        Pat::Ident(ident) => ident.id.sym.as_ref(),
-        _ => return update_direction,
-      },
+fn check_assign_direction(
+  assign_expr: &AssignExpr,
+  counter_name: impl AsRef<str>,
+) -> i32 {
+  let update_direction = 0;
+
+  let name = match &assign_expr.left {
+    PatOrExpr::Expr(boxed_expr) => match &*boxed_expr {
+      Expr::Ident(ident) => ident.inner.as_ref(),
+      _ => return update_direction,
+    },
+    PatOrExpr::Pat(boxed_pat) => match &*boxed_pat {
+      Pat::Ident(ident) => ident.id.inner.as_ref(),
+      _ => return update_direction,
+    },
+  };
+
+  if name == counter_name.as_ref() {
+    return match assign_expr.op() {
+      AssignOp::AddAssign => check_assign_right_direction(assign_expr, 1),
+      AssignOp::SubAssign => check_assign_right_direction(assign_expr, -1),
+      _ => update_direction,
     };
-
-    if name == counter_name.as_ref() {
-      return match assign_expr.op {
-        AssignOp::AddAssign => {
-          self.check_assign_right_direction(assign_expr, 1)
-        }
-        AssignOp::SubAssign => {
-          self.check_assign_right_direction(assign_expr, -1)
-        }
-        _ => update_direction,
-      };
-    }
-    update_direction
   }
+  update_direction
+}
 
-  fn check_assign_right_direction(
-    &self,
-    assign_expr: &AssignExpr,
-    direction: i32,
-  ) -> i32 {
-    match &*assign_expr.right {
-      Expr::Unary(unary_expr) => {
-        if unary_expr.op == UnaryOp::Minus {
-          -direction
-        } else {
-          direction
-        }
+fn check_assign_right_direction(
+  assign_expr: &AssignExpr,
+  direction: i32,
+) -> i32 {
+  match &assign_expr.right {
+    Expr::Unary(unary_expr) => {
+      if unary_expr.op() == UnaryOp::Minus {
+        -direction
+      } else {
+        direction
       }
-      Expr::Ident(_) => 0,
-      _ => direction,
     }
+    Expr::Ident(_) => 0,
+    _ => direction,
   }
 }
 
-impl<'c, 'view> VisitAll for ForDirectionVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _parent: &dyn Node) {
+impl Handler for ForDirectionHandler {
+  fn for_stmt(&mut self, for_stmt: &ast_view::ForStmt, context: &mut Context) {
     if for_stmt.update.is_none() {
       return;
     }
 
-    if let Some(test) = &for_stmt.test {
-      if let Expr::Bin(bin_expr) = &**test {
-        let counter_name = match &*bin_expr.left {
-          Expr::Ident(ident) => ident.sym.as_ref(),
-          _ => return,
-        };
+    if let Some(Expr::Bin(bin_expr)) = &for_stmt.test {
+      let counter_name = match &bin_expr.left {
+        Expr::Ident(ident) => ident.inner.as_ref(),
+        _ => return,
+      };
 
-        let wrong_direction = match &bin_expr.op {
-          BinaryOp::Lt | BinaryOp::LtEq => -1,
-          BinaryOp::Gt | BinaryOp::GtEq => 1,
-          _ => return,
-        };
+      let wrong_direction = match &bin_expr.op() {
+        BinaryOp::Lt | BinaryOp::LtEq => -1,
+        BinaryOp::Gt | BinaryOp::GtEq => 1,
+        _ => return,
+      };
 
-        let update = for_stmt.update.as_ref().unwrap();
-        let update_direction = match &**update {
-          Expr::Update(update_expr) => {
-            self.check_update_direction(update_expr, counter_name)
-          }
-          Expr::Assign(assign_expr) => {
-            self.check_assign_direction(assign_expr, counter_name)
-          }
-          _ => return,
-        };
-
-        if update_direction == wrong_direction {
-          self.context.add_diagnostic_with_hint(
-            for_stmt.span,
-            "for-direction",
-            MESSAGE,
-            HINT,
-          );
+      let update = for_stmt.update.as_ref().unwrap();
+      let update_direction = match &update {
+        Expr::Update(update_expr) => {
+          check_update_direction(&**update_expr, counter_name)
         }
+        Expr::Assign(assign_expr) => {
+          check_assign_direction(&**assign_expr, counter_name)
+        }
+        _ => return,
+      };
+
+      if update_direction == wrong_direction {
+        context.add_diagnostic_with_hint(
+          for_stmt.span(),
+          "for-direction",
+          MESSAGE,
+          HINT,
+        );
       }
     }
   }
