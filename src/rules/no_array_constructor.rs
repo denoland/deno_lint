@@ -76,18 +76,16 @@ impl Handler for NoArrayConstructorHandler {
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, context: &mut Context) {
-    if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr {
-        let name = ident.inner.as_ref();
-        if name != "Array" {
-          return;
-        }
-        if call_expr.type_args.is_some() {
-          return;
-        }
-
-        check_args((&*call_expr.args).to_vec(), call_expr.span(), context);
+    if let ExprOrSuper::Expr(Expr::Ident(ident)) = &call_expr.callee {
+      let name = ident.inner.as_ref();
+      if name != "Array" {
+        return;
       }
+      if call_expr.type_args.is_some() {
+        return;
+      }
+
+      check_args((&*call_expr.args).to_vec(), call_expr.span(), context);
     }
   }
 }
