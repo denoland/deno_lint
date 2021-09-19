@@ -52,7 +52,7 @@ fn is_async_function(expr: &Expr) -> bool {
   match expr {
     Expr::Fn(fn_expr) => fn_expr.function.is_async(),
     Expr::Arrow(arrow_expr) => arrow_expr.is_async(),
-    Expr::Paren(ParenExpr { ref expr, .. }) => is_async_function(&expr),
+    Expr::Paren(ParenExpr { ref expr, .. }) => is_async_function(expr),
     _ => false,
   }
 }
