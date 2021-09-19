@@ -93,6 +93,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct FooBarBaz;
@@ -179,6 +180,7 @@ use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -212,6 +214,7 @@ use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub mod foo_bar_baz;
 pub mod adjacent_overload_signatures;
