@@ -1,14 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::Decl;
-use deno_ast::swc::ast::Stmt;
-use deno_ast::swc::ast::SwitchCase;
-use deno_ast::swc::ast::VarDeclKind;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::VisitAll;
-use deno_ast::swc::visit::VisitAllWith;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Decl, Stmt, SwitchCase, VarDeclKind};
 
 #[derive(Debug)]
 pub struct NoCaseDeclarations;
@@ -32,14 +27,18 @@ impl LintRule for NoCaseDeclarations {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = NoCaseDeclarationsVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    NoCaseDeclarationsHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -48,38 +47,24 @@ impl LintRule for NoCaseDeclarations {
   }
 }
 
-struct NoCaseDeclarationsVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoCaseDeclarationsHandler;
 
-impl<'c, 'view> NoCaseDeclarationsVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> VisitAll for NoCaseDeclarationsVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_switch_case(
-    &mut self,
-    switch_case: &SwitchCase,
-    _parent: &dyn Node,
-  ) {
+impl Handler for NoCaseDeclarationsHandler {
+  fn switch_case(&mut self, switch_case: &SwitchCase, context: &mut Context) {
     for stmt in &switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {
           Decl::Fn(_) => true,
           Decl::Class(_) => true,
-          Decl::Var(var_decl) => var_decl.kind != VarDeclKind::Var,
+          Decl::Var(var_decl) => var_decl.decl_kind() != VarDeclKind::Var,
           _ => false,
         },
         _ => false,
       };
 
       if is_lexical_decl {
-        self.context.add_diagnostic_with_hint(
-          switch_case.span,
+        context.add_diagnostic_with_hint(
+          switch_case.span(),
           CODE,
           MESSAGE,
           HINT,
