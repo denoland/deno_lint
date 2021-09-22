@@ -2,6 +2,7 @@
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -216,6 +217,19 @@ pub fn get_filtered_rules(
   rules
 }
 
+/// Sort lint rules by priority and alphabetically.
+pub(crate) fn sort_rules_by_priority(rules: &mut Vec<Arc<dyn LintRule>>) {
+  rules.sort_by(|rule1, rule2| {
+    let priority_cmp = rule1.priority().cmp(&rule2.priority());
+
+    if priority_cmp == Ordering::Equal {
+      return rule1.code().cmp(rule2.code());
+    }
+
+    priority_cmp
+  });
+}
+
 fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
@@ -399,5 +413,22 @@ mod tests {
     for handle in handles {
       handle.join().unwrap();
     }
+  }
+
+  #[test]
+  fn sort_by_priority() {
+    let mut rules: Vec<Arc<dyn LintRule>> = vec![
+      ban_unknown_rule_code::BanUnknownRuleCode::new(),
+      ban_unused_ignore::BanUnusedIgnore::new(),
+      no_redeclare::NoRedeclare::new(),
+      eqeqeq::Eqeqeq::new(),
+    ];
+
+    sort_rules_by_priority(&mut rules);
+
+    assert_eq!(rules[0].code(), "eqeqeq");
+    assert_eq!(rules[1].code(), "no-redeclare");
+    assert_eq!(rules[2].code(), "ban-unknown-rule-code");
+    assert_eq!(rules[3].code(), "ban-unused-ignore");
   }
 }

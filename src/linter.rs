@@ -14,7 +14,6 @@ use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::parser::Syntax;
 use deno_ast::view::ProgramRef;
 use deno_ast::ParsedSource;
-use std::cmp::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -193,17 +192,8 @@ impl Linter {
         top_level_ctxt,
       );
 
-      // First sort lint rules by priority and alphabetically.
       let mut sorted_rules = self.rules.clone();
-      sorted_rules.sort_by(|rule1, rule2| {
-        let priority_cmp = rule1.priority().cmp(&rule2.priority());
-
-        if priority_cmp == Ordering::Equal {
-          return rule1.code().cmp(rule2.code());
-        }
-
-        priority_cmp
-      });
+      crate::rules::sort_rules_by_priority(&mut sorted_rules);
 
       // Run builtin rules
       for rule in sorted_rules.iter() {
