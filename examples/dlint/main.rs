@@ -5,16 +5,15 @@ use clap::App;
 use clap::AppSettings;
 use clap::Arg;
 use clap::SubCommand;
-use deno_ast::swc::parser::{EsConfig, Syntax, TsConfig};
+use deno_ast::MediaType;
 use deno_ast::SourceTextInfo;
-use deno_lint::ast_parser::{get_default_es_config, get_default_ts_config};
 use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::{LinterBuilder, Plugin};
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -113,7 +112,7 @@ fn run_linter(
       let linter_builder = LinterBuilder::default()
         .rules(rules.clone())
         .plugins(plugins.clone())
-        .syntax(determine_syntax(file_path));
+        .media_type(MediaType::from_path(file_path));
 
       let linter = linter_builder.build();
 
@@ -150,39 +149,6 @@ fn run_linter(
   }
 
   Ok(())
-}
-
-/// Determine what syntax should be used as parse config from the file path.
-fn determine_syntax(path: &Path) -> Syntax {
-  match path.extension() {
-    Some(os_str) => match os_str.to_str() {
-      Some("ts") => get_default_ts_config(),
-      Some("js") | Some("mjs") | Some("cjs") => get_default_es_config(),
-      Some("tsx") => Syntax::Typescript(TsConfig {
-        tsx: true,
-        dynamic_import: true,
-        decorators: true,
-        ..Default::default()
-      }),
-      Some("jsx") => Syntax::Es(EsConfig {
-        jsx: true,
-        num_sep: true,
-        class_private_props: false,
-        class_private_methods: false,
-        class_props: false,
-        export_default_from: true,
-        export_namespace_from: true,
-        dynamic_import: true,
-        nullish_coalescing: true,
-        optional_chaining: true,
-        import_meta: true,
-        top_level_await: true,
-        ..Default::default()
-      }),
-      _ => get_default_ts_config(),
-    },
-    None => get_default_ts_config(),
-  }
 }
 
 fn main() -> Result<(), AnyError> {

@@ -1,43 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use deno_ast::swc::common::Globals;
 use deno_ast::swc::common::Mark;
-use deno_ast::swc::parser::EsConfig;
 use deno_ast::swc::parser::Syntax;
-use deno_ast::swc::parser::TsConfig;
 use deno_ast::swc::transforms::resolver::ts_resolver;
 use deno_ast::swc::visit::FoldWith;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use std::error::Error;
 use std::fmt;
-
-#[allow(unused)]
-pub fn get_default_es_config() -> Syntax {
-  let config = EsConfig {
-    num_sep: true,
-    class_private_props: false,
-    class_private_methods: false,
-    class_props: false,
-    export_default_from: true,
-    export_namespace_from: true,
-    dynamic_import: true,
-    nullish_coalescing: true,
-    optional_chaining: true,
-    import_meta: true,
-    top_level_await: true,
-    ..Default::default()
-  };
-  Syntax::Es(config)
-}
-
-pub fn get_default_ts_config() -> Syntax {
-  let ts_config = TsConfig {
-    dynamic_import: true,
-    decorators: true,
-    ..Default::default()
-  };
-  Syntax::Typescript(ts_config)
-}
 
 #[derive(Clone, Debug)]
 pub struct SwcDiagnostic {

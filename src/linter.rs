@@ -1,5 +1,4 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::ast_parser::get_default_ts_config;
 use crate::ast_parser::AstParser;
 use crate::ast_parser::SwcDiagnostic;
 use crate::context::Context;
@@ -11,8 +10,8 @@ use crate::ignore_directives::{
 use crate::rules::LintRule;
 use crate::scopes::Scope;
 use deno_ast::swc::common::SyntaxContext;
-use deno_ast::swc::parser::Syntax;
 use deno_ast::view::ProgramRef;
+use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use std::sync::Arc;
 use std::time::Instant;
@@ -23,7 +22,7 @@ pub use deno_ast::view::SourceFile;
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  syntax: deno_ast::swc::parser::Syntax,
+  media_type: MediaType,
   rules: Vec<Arc<dyn LintRule>>,
   plugins: Vec<Arc<dyn Plugin>>,
 }
@@ -33,7 +32,7 @@ impl LinterBuilder {
     Self {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
-      syntax: get_default_ts_config(),
+      media_type: MediaType::TypeScript,
       ..Default::default()
     }
   }
@@ -42,32 +41,47 @@ impl LinterBuilder {
     Linter::new(
       self.ignore_file_directive,
       self.ignore_diagnostic_directive,
-      self.syntax,
+      self.media_type,
       self.rules,
       self.plugins,
     )
   }
 
+  /// Set name for directive that can be used to skip linting file.
+  ///
+  /// Defaults to "deno-lint-ignore-file".
   pub fn ignore_file_directive(mut self, directive: &str) -> Self {
     self.ignore_file_directive = directive.to_owned();
     self
   }
 
+  /// Set name for directive that can be used to ignore next line.
+  ///
+  /// Defaults to "deno-lint-ignore".
   pub fn ignore_diagnostic_directive(mut self, directive: &str) -> Self {
     self.ignore_diagnostic_directive = directive.to_owned();
     self
   }
 
-  pub fn syntax(mut self, syntax: Syntax) -> Self {
-    self.syntax = syntax;
+  /// Set media type of a file to be linted.
+  ///
+  /// Defaults to `MediaType::TypeScript`
+  pub fn media_type(mut self, media_type: MediaType) -> Self {
+    self.media_type = media_type;
     self
   }
 
+  /// Set a list of rules that will be used for linting.
+  ///
+  /// Defaults to empty list (no rules will be run by default).
   pub fn rules(mut self, rules: Vec<Arc<dyn LintRule>>) -> Self {
     self.rules = rules;
     self
   }
 
+  /// Set a list of plugins that will executed.
+  ///
+  /// Defaults to empty list (no plugins will be loaded).
   pub fn plugins(mut self, plugins: Vec<Arc<dyn Plugin>>) -> Self {
     self.plugins = plugins;
     self
@@ -78,7 +92,7 @@ pub struct Linter {
   ast_parser: AstParser,
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  syntax: Syntax,
+  media_type: MediaType,
   rules: Vec<Arc<dyn LintRule>>,
   plugins: Vec<Arc<dyn Plugin>>,
 }
@@ -87,7 +101,7 @@ impl Linter {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    syntax: Syntax,
+    media_type: MediaType,
     rules: Vec<Arc<dyn LintRule>>,
     plugins: Vec<Arc<dyn Plugin>>,
   ) -> Self {
@@ -95,7 +109,7 @@ impl Linter {
       ast_parser: AstParser::new(),
       ignore_file_directive,
       ignore_diagnostic_directive,
-      syntax,
+      media_type,
       rules,
       plugins,
     }
@@ -108,10 +122,12 @@ impl Linter {
   ) -> Result<(ParsedSource, Vec<LintDiagnostic>), SwcDiagnostic> {
     let start = Instant::now();
 
+    let syntax = deno_ast::get_syntax(self.media_type);
+
     let parse_result =
       self
         .ast_parser
-        .parse_program(&file_name, self.syntax, source_code);
+        .parse_program(&file_name, syntax, source_code);
     let end_parse_program = Instant::now();
     debug!(
       "ast_parser.parse_program took {:#?}",
@@ -183,6 +199,7 @@ impl Linter {
 
       let mut context = Context::new(
         parsed_source.specifier().to_string(),
+        self.media_type,
         parsed_source.source(),
         pg,
         file_ignore_directive,
