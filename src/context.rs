@@ -10,6 +10,7 @@ use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::{Span, SyntaxContext};
 use deno_ast::view as ast_view;
 use deno_ast::view::{BytePos, RootNode, SourceFile};
+use deno_ast::MediaType;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
@@ -18,6 +19,10 @@ use std::time::Instant;
 pub struct Context<'view> {
   /// File name on which the lint rule is run
   file_name: String,
+
+  /// The media type which linter was configured with. Can be used
+  /// to skip checking some rules.
+  media_type: MediaType,
 
   /// Stores diagnostics that are generated while linting
   diagnostics: Vec<LintDiagnostic>,
@@ -56,6 +61,7 @@ impl<'view> Context<'view> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
     file_name: String,
+    media_type: MediaType,
     source_file: &'view impl SourceFile,
     program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
@@ -66,6 +72,7 @@ impl<'view> Context<'view> {
   ) -> Self {
     Self {
       file_name,
+      media_type,
       source_file,
       program,
       file_ignore_directive,
@@ -80,6 +87,10 @@ impl<'view> Context<'view> {
   }
   pub fn file_name(&self) -> &str {
     &self.file_name
+  }
+
+  pub fn media_type(&self) -> MediaType {
+    self.media_type
   }
 
   pub fn diagnostics(&self) -> &[LintDiagnostic] {

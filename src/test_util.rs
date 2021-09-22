@@ -4,10 +4,11 @@ use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
-use deno_ast::swc::parser::{Syntax, TsConfig};
 use deno_ast::view as ast_view;
+use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use std::marker::PhantomData;
+use std::path::Path;
 use std::sync::Arc;
 
 #[macro_export]
@@ -278,27 +279,13 @@ impl LintErrBuilder {
   }
 }
 
-fn get_ts_config_with_tsx() -> Syntax {
-  let ts_config = TsConfig {
-    dynamic_import: true,
-    decorators: true,
-    tsx: true,
-    ..Default::default()
-  };
-  Syntax::Typescript(ts_config)
-}
-
 fn lint(
   rule: Arc<dyn LintRule>,
   source: &str,
   filename: &str,
 ) -> Vec<LintDiagnostic> {
   let linter = LinterBuilder::default()
-    .syntax(if filename.ends_with(".tsx") {
-      get_ts_config_with_tsx()
-    } else {
-      ast_parser::get_default_ts_config()
-    })
+    .media_type(MediaType::from(Path::new(filename)))
     .rules(vec![rule])
     .build();
 
@@ -397,9 +384,12 @@ const TEST_FILE_NAME: &str = "lint_test.ts";
 
 pub fn parse(source_code: &str) -> ParsedSource {
   let ast_parser = ast_parser::AstParser::new();
-  let syntax = ast_parser::get_default_ts_config();
   ast_parser
-    .parse_program(TEST_FILE_NAME, syntax, source_code.to_string())
+    .parse_program(
+      TEST_FILE_NAME,
+      deno_ast::get_syntax(MediaType::TypeScript),
+      source_code.to_string(),
+    )
     .unwrap()
 }
 
