@@ -199,7 +199,7 @@ impl Linter {
         let priority_cmp = rule1.priority().cmp(&rule2.priority());
 
         if priority_cmp == Ordering::Equal {
-          return rule1.code().cmp(&rule2.code());
+          return rule1.code().cmp(rule2.code());
         }
 
         priority_cmp
