@@ -192,11 +192,10 @@ impl Linter {
         top_level_ctxt,
       );
 
-      let mut sorted_rules = self.rules.clone();
-      crate::rules::sort_rules_by_priority(&mut sorted_rules);
+      crate::rules::sort_rules_by_priority(&mut self.rules);
 
       // Run builtin rules
-      for rule in sorted_rules.iter() {
+      for rule in self.rules.iter() {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
 
