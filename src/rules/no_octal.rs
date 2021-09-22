@@ -6,6 +6,7 @@ use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoOctal;
@@ -15,8 +16,8 @@ const MESSAGE: &str = "Numeric literals beginning with `0` are not allowed";
 const HINT: &str = "To express octal numbers, use `0o` as a prefix instead";
 
 impl LintRule for NoOctal {
-  fn new() -> Box<Self> {
-    Box::new(NoOctal)
+  fn new() -> Arc<Self> {
+    Arc::new(NoOctal)
   }
 
   fn tags(&self) -> &'static [&'static str] {

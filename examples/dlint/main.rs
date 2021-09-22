@@ -93,12 +93,10 @@ fn run_linter(
   } else {
     get_recommended_rules()
   };
-  let plugins = Arc::new(
-    plugin_paths
-      .into_iter()
-      .map(|p| js::PluginRunner::new(p) as Box<dyn Plugin>)
-      .collect::<Vec<_>>(),
-  );
+  let plugins = plugin_paths
+    .into_iter()
+    .map(|p| js::PluginRunner::new(p) as Arc<dyn Plugin>)
+    .collect::<Vec<_>>();
 
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
   paths
@@ -113,8 +111,8 @@ fn run_linter(
       }
 
       let linter_builder = LinterBuilder::default()
-        .rules(Arc::clone(&rules))
-        .plugins(Arc::clone(&plugins))
+        .rules(rules.clone())
+        .plugins(plugins.clone())
         .syntax(determine_syntax(file_path));
 
       let linter = linter_builder.build();

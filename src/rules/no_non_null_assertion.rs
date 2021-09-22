@@ -4,6 +4,7 @@ use crate::ProgramRef;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoNonNullAssertion;
@@ -17,8 +18,8 @@ enum NoNonNullAssertionMessage {
 }
 
 impl LintRule for NoNonNullAssertion {
-  fn new() -> Box<Self> {
-    Box::new(NoNonNullAssertion)
+  fn new() -> Arc<Self> {
+    Arc::new(NoNonNullAssertion)
   }
 
   fn code(&self) -> &'static str {

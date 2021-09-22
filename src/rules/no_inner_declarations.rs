@@ -12,6 +12,7 @@ use deno_ast::swc::visit::{
 };
 use derive_more::Display;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoInnerDeclarations;
@@ -31,8 +32,8 @@ enum NoInnerDeclarationsHint {
 }
 
 impl LintRule for NoInnerDeclarations {
-  fn new() -> Box<Self> {
-    Box::new(NoInnerDeclarations)
+  fn new() -> Arc<Self> {
+    Arc::new(NoInnerDeclarations)
   }
 
   fn tags(&self) -> &'static [&'static str] {

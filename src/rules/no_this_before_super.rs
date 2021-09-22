@@ -4,6 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::view as ast_view;
 use deno_ast::view::{NodeTrait, Span, Spanned};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoThisBeforeSuper;
@@ -13,8 +14,8 @@ const MESSAGE: &str = "In the constructor of derived classes, `this` / `super` a
 const HINT: &str = "Call `super()` before using `this` or `super` keyword.";
 
 impl LintRule for NoThisBeforeSuper {
-  fn new() -> Box<Self> {
-    Box::new(NoThisBeforeSuper)
+  fn new() -> Arc<Self> {
+    Arc::new(NoThisBeforeSuper)
   }
 
   fn tags(&self) -> &'static [&'static str] {

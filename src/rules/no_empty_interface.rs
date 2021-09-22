@@ -5,6 +5,7 @@ use deno_ast::swc::ast::TsInterfaceDecl;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmptyInterface;
@@ -32,8 +33,8 @@ enum NoEmptyInterfaceHint {
 }
 
 impl LintRule for NoEmptyInterface {
-  fn new() -> Box<Self> {
-    Box::new(NoEmptyInterface)
+  fn new() -> Arc<Self> {
+    Arc::new(NoEmptyInterface)
   }
 
   fn tags(&self) -> &'static [&'static str] {

@@ -7,6 +7,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use if_chain::if_chain;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoNewSymbol;
@@ -15,8 +16,8 @@ const CODE: &str = "no-new-symbol";
 const MESSAGE: &str = "`Symbol` cannot be called as a constructor.";
 
 impl LintRule for NoNewSymbol {
-  fn new() -> Box<Self> {
-    Box::new(NoNewSymbol)
+  fn new() -> Arc<Self> {
+    Arc::new(NoNewSymbol)
   }
 
   fn tags(&self) -> &'static [&'static str] {

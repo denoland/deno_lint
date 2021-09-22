@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
+use std::sync::Arc;
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
@@ -8,8 +9,8 @@ use crate::{Program, ProgramRef};
 pub struct BanUnusedIgnore;
 
 impl LintRule for BanUnusedIgnore {
-  fn new() -> Box<Self> {
-    Box::new(BanUnusedIgnore)
+  fn new() -> Arc<Self> {
+    Arc::new(BanUnusedIgnore)
   }
 
   fn tags(&self) -> &'static [&'static str] {

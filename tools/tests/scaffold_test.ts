@@ -93,6 +93,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct FooBarBaz;
@@ -102,8 +103,8 @@ const MESSAGE: &str = "";
 const HINT: &str = "";
 
 impl LintRule for FooBarBaz {
-  fn new() -> Box<Self> {
-    Box::new(FooBarBaz)
+  fn new() -> Arc<Self> {
+    Arc::new(FooBarBaz)
   }
 
   fn code(&self) -> &'static str {
@@ -179,6 +180,7 @@ use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -193,7 +195,7 @@ pub mod default_param_last;
 
 pub trait LintRule {}
 
-pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
   vec![]
 }
 
@@ -212,6 +214,7 @@ use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub mod foo_bar_baz;
 pub mod adjacent_overload_signatures;
@@ -227,7 +230,7 @@ pub mod default_param_last;
 
 pub trait LintRule {}
 
-pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
+pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
   vec![]
 }
 

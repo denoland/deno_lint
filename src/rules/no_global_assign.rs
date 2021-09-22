@@ -11,6 +11,7 @@ use deno_ast::swc::{
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoGlobalAssign;
@@ -30,8 +31,8 @@ enum NoGlobalAssignHint {
 }
 
 impl LintRule for NoGlobalAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoGlobalAssign)
+  fn new() -> Arc<Self> {
+    Arc::new(NoGlobalAssign)
   }
 
   fn tags(&self) -> &'static [&'static str] {

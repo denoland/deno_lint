@@ -6,6 +6,7 @@ use deno_ast::swc::ast::VarDeclKind;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoVar;
@@ -14,8 +15,8 @@ const MESSAGE: &str = "`var` keyword is not allowed.";
 const CODE: &str = "no-var";
 
 impl LintRule for NoVar {
-  fn new() -> Box<Self> {
-    Box::new(NoVar)
+  fn new() -> Arc<Self> {
+    Arc::new(NoVar)
   }
 
   fn tags(&self) -> &'static [&'static str] {

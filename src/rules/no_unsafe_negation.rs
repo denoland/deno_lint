@@ -6,6 +6,7 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
 use derive_more::Display;
 use if_chain::if_chain;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnsafeNegation;
@@ -21,8 +22,8 @@ enum NoUnsafeNegationMessage {
 const HINT: &str = "Add parentheses to clarify which range the negation operator should be applied to";
 
 impl LintRule for NoUnsafeNegation {
-  fn new() -> Box<Self> {
-    Box::new(NoUnsafeNegation)
+  fn new() -> Arc<Self> {
+    Arc::new(NoUnsafeNegation)
   }
 
   fn tags(&self) -> &'static [&'static str] {

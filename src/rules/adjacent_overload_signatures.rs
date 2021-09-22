@@ -7,6 +7,7 @@ use deno_ast::view as ast_view;
 use deno_ast::view::Spanned;
 use derive_more::Display;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct AdjacentOverloadSignatures;
@@ -26,8 +27,8 @@ enum AdjacentOverloadSignaturesHint {
 }
 
 impl LintRule for AdjacentOverloadSignatures {
-  fn new() -> Box<Self> {
-    Box::new(AdjacentOverloadSignatures)
+  fn new() -> Arc<Self> {
+    Arc::new(AdjacentOverloadSignatures)
   }
 
   fn tags(&self) -> &'static [&'static str] {

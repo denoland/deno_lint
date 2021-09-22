@@ -2,6 +2,7 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
+use std::sync::Arc;
 
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::ast::AssignOp;
@@ -41,8 +42,8 @@ enum NoSelfAssignHint {
 }
 
 impl LintRule for NoSelfAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoSelfAssign)
+  fn new() -> Arc<Self> {
+    Arc::new(NoSelfAssign)
   }
 
   fn tags(&self) -> &'static [&'static str] {

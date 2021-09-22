@@ -6,6 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 use deno_ast::swc::ast::{
   ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, ModuleDecl,
@@ -36,8 +37,8 @@ enum ExplicitModuleBoundaryTypesHint {
 }
 
 impl LintRule for ExplicitModuleBoundaryTypes {
-  fn new() -> Box<Self> {
-    Box::new(ExplicitModuleBoundaryTypes)
+  fn new() -> Arc<Self> {
+    Arc::new(ExplicitModuleBoundaryTypes)
   }
 
   fn code(&self) -> &'static str {

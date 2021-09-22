@@ -24,8 +24,8 @@ pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   syntax: deno_ast::swc::parser::Syntax,
-  rules: Arc<Vec<Box<dyn LintRule>>>,
-  plugins: Arc<Vec<Box<dyn Plugin>>>,
+  rules: Vec<Arc<dyn LintRule>>,
+  plugins: Vec<Arc<dyn Plugin>>,
 }
 
 impl LinterBuilder {
@@ -63,12 +63,12 @@ impl LinterBuilder {
     self
   }
 
-  pub fn rules(mut self, rules: Arc<Vec<Box<dyn LintRule>>>) -> Self {
+  pub fn rules(mut self, rules: Vec<Arc<dyn LintRule>>) -> Self {
     self.rules = rules;
     self
   }
 
-  pub fn plugins(mut self, plugins: Arc<Vec<Box<dyn Plugin>>>) -> Self {
+  pub fn plugins(mut self, plugins: Vec<Arc<dyn Plugin>>) -> Self {
     self.plugins = plugins;
     self
   }
@@ -79,8 +79,8 @@ pub struct Linter {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   syntax: Syntax,
-  rules: Arc<Vec<Box<dyn LintRule>>>,
-  plugins: Arc<Vec<Box<dyn Plugin>>>,
+  rules: Vec<Arc<dyn LintRule>>,
+  plugins: Vec<Arc<dyn Plugin>>,
 }
 
 impl Linter {
@@ -88,8 +88,8 @@ impl Linter {
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
     syntax: Syntax,
-    rules: Arc<Vec<Box<dyn LintRule>>>,
-    plugins: Arc<Vec<Box<dyn Plugin>>>,
+    rules: Vec<Arc<dyn LintRule>>,
+    plugins: Vec<Arc<dyn Plugin>>,
   ) -> Self {
     Linter {
       ast_parser: AstParser::new(),

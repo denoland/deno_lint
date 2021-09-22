@@ -4,6 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmptyEnum;
@@ -12,8 +13,8 @@ const CODE: &str = "no-empty-enum";
 const MESSAGE: &str = "An empty enum is equivalent to `{}`. Remove this enum or add members to this enum.";
 
 impl LintRule for NoEmptyEnum {
-  fn new() -> Box<Self> {
-    Box::new(NoEmptyEnum)
+  fn new() -> Arc<Self> {
+    Arc::new(NoEmptyEnum)
   }
 
   fn tags(&self) -> &'static [&'static str] {

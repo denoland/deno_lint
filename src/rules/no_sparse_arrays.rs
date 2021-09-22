@@ -5,6 +5,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoSparseArrays;
@@ -18,8 +19,8 @@ enum NoSparseArraysMessage {
 }
 
 impl LintRule for NoSparseArrays {
-  fn new() -> Box<Self> {
-    Box::new(NoSparseArrays)
+  fn new() -> Arc<Self> {
+    Arc::new(NoSparseArrays)
   }
 
   fn code(&self) -> &'static str {

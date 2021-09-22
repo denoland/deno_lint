@@ -6,6 +6,7 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
 use derive_more::Display;
 use if_chain::if_chain;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnusedLabels;
@@ -19,8 +20,8 @@ enum NoUnusedLabelsMessage {
 }
 
 impl LintRule for NoUnusedLabels {
-  fn new() -> Box<Self> {
-    Box::new(NoUnusedLabels)
+  fn new() -> Arc<Self> {
+    Arc::new(NoUnusedLabels)
   }
 
   fn tags(&self) -> &'static [&'static str] {

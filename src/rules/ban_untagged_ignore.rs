@@ -2,6 +2,7 @@
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct BanUntaggedIgnore;
@@ -9,8 +10,8 @@ pub struct BanUntaggedIgnore;
 const CODE: &str = "ban-untagged-ignore";
 
 impl LintRule for BanUntaggedIgnore {
-  fn new() -> Box<Self> {
-    Box::new(BanUntaggedIgnore)
+  fn new() -> Arc<Self> {
+    Arc::new(BanUntaggedIgnore)
   }
 
   fn tags(&self) -> &'static [&'static str] {

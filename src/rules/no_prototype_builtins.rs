@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
+use std::sync::Arc;
 
 use deno_ast::swc::ast::CallExpr;
 use deno_ast::swc::ast::Expr;
@@ -25,8 +26,8 @@ fn get_message(prop: &str) -> String {
 }
 
 impl LintRule for NoPrototypeBuiltins {
-  fn new() -> Box<Self> {
-    Box::new(NoPrototypeBuiltins)
+  fn new() -> Arc<Self> {
+    Arc::new(NoPrototypeBuiltins)
   }
 
   fn tags(&self) -> &'static [&'static str] {

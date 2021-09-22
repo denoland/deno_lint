@@ -6,6 +6,7 @@ use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnsafeFinally;
@@ -38,8 +39,8 @@ impl From<StmtKind<'_>> for NoUnsafeFinallyMessage {
 }
 
 impl LintRule for NoUnsafeFinally {
-  fn new() -> Box<Self> {
-    Box::new(NoUnsafeFinally)
+  fn new() -> Arc<Self> {
+    Arc::new(NoUnsafeFinally)
   }
 
   fn tags(&self) -> &'static [&'static str] {

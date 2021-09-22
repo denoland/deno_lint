@@ -7,6 +7,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::VisitAll;
 use deno_ast::swc::visit::VisitAllWith;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoClassAssign;
@@ -16,8 +17,8 @@ const MESSAGE: &str = "Reassigning class declaration is not allowed";
 const HINT: &str = "Do you have the right variable here?";
 
 impl LintRule for NoClassAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoClassAssign)
+  fn new() -> Arc<Self> {
+    Arc::new(NoClassAssign)
   }
 
   fn tags(&self) -> &'static [&'static str] {

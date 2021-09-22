@@ -10,6 +10,7 @@ use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoControlRegex;
@@ -34,8 +35,8 @@ enum NoControlRegexHint {
 }
 
 impl LintRule for NoControlRegex {
-  fn new() -> Box<Self> {
-    Box::new(NoControlRegex)
+  fn new() -> Arc<Self> {
+    Arc::new(NoControlRegex)
   }
 
   fn tags(&self) -> &'static [&'static str] {

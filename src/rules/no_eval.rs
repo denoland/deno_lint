@@ -11,6 +11,7 @@ use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEval;
@@ -20,8 +21,8 @@ const MESSAGE: &str = "`eval` call is not allowed";
 const HINT: &str = "Remove the use of `eval`";
 
 impl LintRule for NoEval {
-  fn new() -> Box<Self> {
-    Box::new(NoEval)
+  fn new() -> Arc<Self> {
+    Arc::new(NoEval)
   }
 
   fn code(&self) -> &'static str {

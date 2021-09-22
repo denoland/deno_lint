@@ -3,6 +3,7 @@ use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 use derive_more::Display;
+use std::sync::Arc;
 
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
@@ -25,8 +26,8 @@ enum NoExAssignHint {
 }
 
 impl LintRule for NoExAssign {
-  fn new() -> Box<Self> {
-    Box::new(NoExAssign)
+  fn new() -> Arc<Self> {
+    Arc::new(NoExAssign)
   }
 
   fn tags(&self) -> &'static [&'static str] {

@@ -9,6 +9,7 @@ use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 const CODE: &str = "prefer-as-const";
 
@@ -30,8 +31,8 @@ enum PreferAsConstHint {
 pub struct PreferAsConst;
 
 impl LintRule for PreferAsConst {
-  fn new() -> Box<Self> {
-    Box::new(PreferAsConst)
+  fn new() -> Arc<Self> {
+    Arc::new(PreferAsConst)
   }
 
   fn tags(&self) -> &'static [&'static str] {

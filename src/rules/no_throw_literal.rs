@@ -6,6 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoThrowLiteral;
@@ -22,8 +23,8 @@ enum NoThrowLiteralMessage {
 }
 
 impl LintRule for NoThrowLiteral {
-  fn new() -> Box<Self> {
-    Box::new(NoThrowLiteral)
+  fn new() -> Arc<Self> {
+    Arc::new(NoThrowLiteral)
   }
 
   fn code(&self) -> &'static str {

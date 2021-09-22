@@ -5,6 +5,7 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, SwitchStmt,
 };
 use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmpty;
@@ -12,8 +13,8 @@ pub struct NoEmpty;
 const CODE: &str = "no-empty";
 
 impl LintRule for NoEmpty {
-  fn new() -> Box<Self> {
-    Box::new(NoEmpty)
+  fn new() -> Arc<Self> {
+    Arc::new(NoEmpty)
   }
 
   fn tags(&self) -> &'static [&'static str] {

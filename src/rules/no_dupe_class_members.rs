@@ -10,6 +10,7 @@ use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
 use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeClassMembers;
@@ -29,8 +30,8 @@ enum NoDupeClassMembersHint {
 }
 
 impl LintRule for NoDupeClassMembers {
-  fn new() -> Box<Self> {
-    Box::new(NoDupeClassMembers)
+  fn new() -> Arc<Self> {
+    Arc::new(NoDupeClassMembers)
   }
 
   fn tags(&self) -> &'static [&'static str] {

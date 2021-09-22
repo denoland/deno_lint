@@ -4,6 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Decl, Stmt, SwitchCase, VarDeclKind};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoCaseDeclarations;
@@ -13,8 +14,8 @@ const MESSAGE: &str = "Unexpected declaration in case";
 const HINT: &str = "Wrap switch case and default blocks in brackets";
 
 impl LintRule for NoCaseDeclarations {
-  fn new() -> Box<Self> {
-    Box::new(NoCaseDeclarations)
+  fn new() -> Arc<Self> {
+    Arc::new(NoCaseDeclarations)
   }
 
   fn tags(&self) -> &'static [&'static str] {

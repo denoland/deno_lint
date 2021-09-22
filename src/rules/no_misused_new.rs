@@ -9,6 +9,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoMisusedNew;
@@ -36,8 +37,8 @@ enum NoMisusedNewHint {
 }
 
 impl LintRule for NoMisusedNew {
-  fn new() -> Box<Self> {
-    Box::new(NoMisusedNew)
+  fn new() -> Arc<Self> {
+    Arc::new(NoMisusedNew)
   }
 
   fn lint_program<'view>(

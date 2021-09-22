@@ -8,6 +8,7 @@ use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::view as ast_view;
 use if_chain::if_chain;
 use std::convert::TryFrom;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDeprecatedDenoApi;
@@ -15,8 +16,8 @@ pub struct NoDeprecatedDenoApi;
 const CODE: &str = "no-deprecated-deno-api";
 
 impl LintRule for NoDeprecatedDenoApi {
-  fn new() -> Box<Self> {
-    Box::new(NoDeprecatedDenoApi)
+  fn new() -> Arc<Self> {
+    Arc::new(NoDeprecatedDenoApi)
   }
 
   fn tags(&self) -> &'static [&'static str] {

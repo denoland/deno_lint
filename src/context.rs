@@ -11,6 +11,7 @@ use deno_ast::swc::common::{Span, SyntaxContext};
 use deno_ast::view as ast_view;
 use deno_ast::view::{BytePos, RootNode, SourceFile};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Instant;
 
 /// `Context` stores data needed while performing all lint rules to a file.
@@ -199,7 +200,7 @@ impl<'view> Context<'view> {
   /// works for diagnostics reported by other rules.
   pub(crate) fn ban_unused_ignore(
     &self,
-    specified_rules: &[Box<dyn LintRule>],
+    specified_rules: &[Arc<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     const CODE: &str = "ban-unused-ignore";
 

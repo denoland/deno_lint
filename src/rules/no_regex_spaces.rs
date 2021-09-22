@@ -8,6 +8,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use once_cell::sync::Lazy;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoRegexSpaces;
@@ -17,8 +18,8 @@ const MESSAGE: &str =
   "more than one consecutive spaces in RegExp is not allowed";
 
 impl LintRule for NoRegexSpaces {
-  fn new() -> Box<Self> {
-    Box::new(NoRegexSpaces)
+  fn new() -> Arc<Self> {
+    Arc::new(NoRegexSpaces)
   }
 
   fn tags(&self) -> &'static [&'static str] {

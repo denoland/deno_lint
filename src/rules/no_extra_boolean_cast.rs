@@ -10,6 +10,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExtraBooleanCast;
@@ -33,8 +34,8 @@ enum NoExtraBooleanCastHint {
 }
 
 impl LintRule for NoExtraBooleanCast {
-  fn new() -> Box<Self> {
-    Box::new(NoExtraBooleanCast)
+  fn new() -> Arc<Self> {
+    Arc::new(NoExtraBooleanCast)
   }
 
   fn tags(&self) -> &'static [&'static str] {

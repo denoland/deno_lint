@@ -9,13 +9,14 @@ use deno_ast::swc::{
   visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUndef;
 
 impl LintRule for NoUndef {
-  fn new() -> Box<Self> {
-    Box::new(NoUndef)
+  fn new() -> Arc<Self> {
+    Arc::new(NoUndef)
   }
 
   fn code(&self) -> &'static str {

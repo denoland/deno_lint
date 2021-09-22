@@ -100,7 +100,7 @@ const DUMMY_NODE: () = ();
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Creates an instance of this rule.
-  fn new() -> Box<Self>
+  fn new() -> Arc<Self>
   where
     Self: Sized;
 
@@ -141,17 +141,15 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   fn docs(&self) -> &'static str;
 }
 
-pub fn get_all_rules() -> Arc<Vec<Box<dyn LintRule>>> {
-  Arc::new(get_all_rules_raw())
+pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
+  get_all_rules_raw()
 }
 
-pub fn get_recommended_rules() -> Arc<Vec<Box<dyn LintRule>>> {
-  Arc::new(
-    get_all_rules_raw()
-      .into_iter()
-      .filter(|r| r.tags().contains(&"recommended"))
-      .collect(),
-  )
+pub fn get_recommended_rules() -> Vec<Arc<dyn LintRule>> {
+  get_all_rules_raw()
+    .into_iter()
+    .filter(|r| r.tags().contains(&"recommended"))
+    .collect()
 }
 
 /// Returns a list of rules after filtering.
@@ -173,7 +171,7 @@ pub fn get_filtered_rules(
   maybe_tags: Option<Vec<String>>,
   maybe_exclude: Option<Vec<String>>,
   maybe_include: Option<Vec<String>>,
-) -> Arc<Vec<Box<dyn LintRule>>> {
+) -> Vec<Arc<dyn LintRule>> {
   let tags_set =
     maybe_tags.map(|tags| tags.into_iter().collect::<HashSet<_>>());
 
@@ -207,10 +205,10 @@ pub fn get_filtered_rules(
 
   rules.sort_by_key(|r| r.code());
 
-  Arc::new(rules)
+  rules
 }
 
-fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
+fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
     ban_ts_comment::BanTsComment::new(),
@@ -311,12 +309,8 @@ mod tests {
 
   #[test]
   fn recommended_rules_sorted_alphabetically() {
-    let sorted_recommended_rules = {
-      let mut recommended_rules =
-        Arc::try_unwrap(get_recommended_rules()).unwrap();
-      recommended_rules.sort_by_key(|r| r.code());
-      Arc::new(recommended_rules)
-    };
+    let mut sorted_recommended_rules = get_recommended_rules();
+    sorted_recommended_rules.sort_by_key(|r| r.code());
 
     for (sorted, unsorted) in sorted_recommended_rules
       .iter()
