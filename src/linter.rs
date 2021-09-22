@@ -192,11 +192,14 @@ impl Linter {
         top_level_ctxt,
       );
 
+      crate::rules::sort_rules_by_priority(&mut self.rules);
+
       // Run builtin rules
       for rule in self.rules.iter() {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
 
+      // TODO(bartlomieju): plugins rules should be sorted by priority as well.
       // Run plugin rules
       for plugin in self.plugins.iter() {
         // Ignore any error
