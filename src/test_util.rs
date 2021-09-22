@@ -285,7 +285,7 @@ fn lint(
   filename: &str,
 ) -> Vec<LintDiagnostic> {
   let linter = LinterBuilder::default()
-    .media_type(MediaType::from_path(Path::new(filename)))
+    .media_type(MediaType::from(Path::new(filename)))
     .rules(vec![rule])
     .build();
 
