@@ -19,8 +19,7 @@ interface RuleData {
 }
 
 function IndexPage() {
-  const url = new URL("../public/docs.json", import.meta.url).href;
-  const jsonData = JSON.parse(useData(url, fetcher));
+  const jsonData = JSON.parse(useData("www/public/docs.json", fetcher));
   // @ts-ignore missing types
   const md = new MarkdownIt();
 

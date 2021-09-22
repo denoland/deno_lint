@@ -3,8 +3,7 @@ import { h, MarkdownIt, tw, useData, useEffect, useRef } from "../deps.ts";
 import { Header } from "../components/Header.tsx";
 
 function IgnoringRulesPage() {
-  const url = new URL("../public/ignoring-rules.md", import.meta.url).href;
-  const raw = useData(url, fetcher);
+  const raw = useData("www/public/ignoring-rules.md", fetcher);
   // @ts-ignore missing types
   const md = new MarkdownIt();
   const html = md.render(raw);
