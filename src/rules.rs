@@ -139,6 +139,14 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// examples.
   #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str;
+
+  /// The lower the return value is, the earlier this rule will be run.
+  ///
+  /// By default it is 0. Some rules might want to defer being run to the end
+  /// and they might override this value.
+  fn priority(&self) -> u32 {
+    0
+  }
 }
 
 pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
