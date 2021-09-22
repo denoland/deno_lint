@@ -2,16 +2,15 @@
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
-  CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
+  FileIgnoreDirective, LineIgnoreDirective,
 };
-use crate::rules::{get_all_rules, LintRule};
+use crate::rules::get_all_rules;
 use crate::scopes::Scope;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::{Span, SyntaxContext};
 use deno_ast::view as ast_view;
 use deno_ast::view::{BytePos, RootNode, SourceFile};
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::time::Instant;
 
 /// `Context` stores data needed while performing all lint rules to a file.
@@ -50,6 +49,9 @@ pub struct Context<'view> {
 
   /// A value to control whether the node's children will be traversed or not.
   traverse_flow: TraverseFlow,
+
+  /// A list of rule codes that were registered with this context.
+  rule_codes: HashSet<&'static str>,
 }
 
 impl<'view> Context<'view> {
@@ -63,6 +65,7 @@ impl<'view> Context<'view> {
     scope: Scope,
     control_flow: ControlFlow,
     top_level_ctxt: SyntaxContext,
+    rule_codes: HashSet<&'static str>,
   ) -> Self {
     Self {
       file_name,
@@ -76,6 +79,7 @@ impl<'view> Context<'view> {
       diagnostics: Vec::new(),
       plugin_codes: HashSet::new(),
       traverse_flow: TraverseFlow::default(),
+      rule_codes,
     }
   }
   pub fn file_name(&self) -> &str {
@@ -88,6 +92,10 @@ impl<'view> Context<'view> {
 
   pub fn plugin_codes(&self) -> &HashSet<String> {
     &self.plugin_codes
+  }
+
+  pub fn rule_codes(&self) -> &HashSet<&'static str> {
+    &self.rule_codes
   }
 
   pub fn source_file(&self) -> &dyn SourceFile {
@@ -193,70 +201,6 @@ impl<'view> Context<'view> {
     }
 
     filtered
-  }
-
-  /// Lint rule implementation for `ban-unused-ignore`.
-  /// This should be run after all normal rules have been finished because this
-  /// works for diagnostics reported by other rules.
-  pub(crate) fn ban_unused_ignore(
-    &self,
-    specified_rules: &[Arc<dyn LintRule>],
-  ) -> Vec<LintDiagnostic> {
-    const CODE: &str = "ban-unused-ignore";
-
-    // If there's a file-level ignore directive containing `ban-unused-ignore`,
-    // exit without running this rule.
-    if self
-      .file_ignore_directive
-      .as_ref()
-      .map_or(false, |file_ignore| file_ignore.has_code(CODE))
-    {
-      return vec![];
-    }
-
-    let executed_builtin_codes: HashSet<&'static str> =
-      specified_rules.iter().map(|r| r.code()).collect();
-    let is_unused_code = |&(code, status): &(&String, &CodeStatus)| {
-      let is_unknown = !executed_builtin_codes.contains(code.as_str())
-        && !self.plugin_codes.contains(code.as_str());
-      !status.used && !is_unknown
-    };
-
-    let mut diagnostics = Vec::new();
-
-    if let Some(file_ignore) = self.file_ignore_directive.as_ref() {
-      for (unused_code, _status) in
-        file_ignore.codes().iter().filter(is_unused_code)
-      {
-        let d = self.create_diagnostic(
-          file_ignore.span(),
-          CODE,
-          format!("Ignore for code \"{}\" was not used.", unused_code),
-          None,
-        );
-        diagnostics.push(d);
-      }
-    }
-
-    for line_ignore in self.line_ignore_directives.values() {
-      // We do nothing special even if the line-level ignore directive contains
-      // `ban-unused-ignore`. `ban-unused-ignore` can be ignored only via the
-      // file-level directive.
-
-      for (unused_code, _status) in
-        line_ignore.codes().iter().filter(is_unused_code)
-      {
-        let d = self.create_diagnostic(
-          line_ignore.span(),
-          CODE,
-          format!("Ignore for code \"{}\" was not used.", unused_code),
-          None,
-        );
-        diagnostics.push(d);
-      }
-    }
-
-    diagnostics
   }
 
   /// Lint rule implementation for `ban-unknown-rule-code`.

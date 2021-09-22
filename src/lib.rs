@@ -206,6 +206,7 @@ const _foo = 42;
       "#;
     let diagnostics = lint_recommended_rules(src);
 
+    eprintln!("diags {:#?}", diagnostics);
     assert_eq!(diagnostics.len(), 1);
     assert_diagnostic(&diagnostics[0], "ban-unused-ignore", 4, 1, src);
   }

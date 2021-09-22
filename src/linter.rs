@@ -14,6 +14,7 @@ use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::parser::Syntax;
 use deno_ast::view::ProgramRef;
 use deno_ast::ParsedSource;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -141,8 +142,6 @@ impl Linter {
     let start = Instant::now();
 
     let mut filtered_diagnostics = context.check_ignore_directive_usage();
-    // Run `ban-unused-ignore`
-    filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
     // Run `ban-unknown-rule-code`
     filtered_diagnostics.extend(context.ban_unknown_rule_code());
     filtered_diagnostics.sort_by_key(|d| d.range.start.line_index);
@@ -181,6 +180,10 @@ impl Linter {
 
       let scope = Scope::analyze(pg);
 
+      crate::rules::sort_rules_by_priority(&mut self.rules);
+
+      let rule_codes: HashSet<&'static str> = self.rules.iter().map(|r| r.code()).collect();
+
       let mut context = Context::new(
         parsed_source.specifier().to_string(),
         parsed_source.source(),
@@ -190,9 +193,8 @@ impl Linter {
         scope,
         control_flow,
         top_level_ctxt,
+        rule_codes,
       );
-
-      crate::rules::sort_rules_by_priority(&mut self.rules);
 
       // Run builtin rules
       for rule in self.rules.iter() {

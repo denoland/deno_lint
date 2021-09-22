@@ -11,9 +11,14 @@ use std::collections::HashMap;
 pub type LineIgnoreDirective = IgnoreDirective<Line>;
 pub type FileIgnoreDirective = IgnoreDirective<File>;
 
+#[derive(Clone)]
 pub enum Line {}
+
+#[derive(Clone)]
 pub enum File {}
+
 pub trait DirectiveKind {}
+
 impl DirectiveKind for Line {}
 impl DirectiveKind for File {}
 
