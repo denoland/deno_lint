@@ -1,17 +1,30 @@
-export { Fragment, h } from "https://x.lcas.dev/preact@10.5.12/mod.js";
-export {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "https://x.lcas.dev/preact@10.5.12/hooks.js";
-export type {
-  AppProps,
-  DocumentProps,
-  GetStaticData,
-  GetStaticDataContext,
-  GetStaticPaths,
-  PageProps,
-} from "https://deno.land/x/dext@0.10.3/mod.ts";
+export * from "https://raw.githubusercontent.com/lucacasonato/fresh/main/runtime.ts";
 import MarkdownIt from "https://dev.jspm.io/markdown-it@12.0.4";
 export { MarkdownIt };
+import { IS_BROWSER } from "https://raw.githubusercontent.com/lucacasonato/fresh/main/runtime.ts";
+import { setup, tw } from "https://esm.sh/twind";
+
+export { setup, tw };
+if (IS_BROWSER) {
+  setup({
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: [
+            "-apple-system",
+            "BlinkMacSystemFont",
+            '"Segoe UI"',
+            '"Roboto"',
+            '"Oxygen"',
+            '"Ubuntu"',
+            '"Cantarell"',
+            '"Fira Sans"',
+            '"Droid Sans"',
+            '"Helvetica Neue"',
+            "sans-serif",
+          ],
+        },
+      },
+    },
+  });
+}
