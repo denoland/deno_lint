@@ -245,7 +245,7 @@ dependencies = [
 [[package]]
 name = "deno_ast"
 version = "0.2.0"
-source = "git+https://github.com/bartlomieju/deno_ast?branch=media_type_from_path#a01fa1b7946b09eae56c016eedf3a7e3ab7b7dc6"
+source = "git+https://github.com/denoland/deno_ast#a0e8a45467fcf377541dad3c313b2527edf5a154"
 dependencies = [
  "dprint-swc-ecma-ast-view",
  "serde",
