@@ -1,18 +1,14 @@
-import {
-  GetStaticData,
-  h,
-  MarkdownIt,
-  PageProps,
-  useEffect,
-  useRef,
-} from "../deps.ts";
+/** @jsx h */
+import { h, MarkdownIt, tw, useData, useEffect, useRef } from "../deps.ts";
 import { Header } from "../components/Header.tsx";
 
-interface Data {
-  html: string;
-}
+function IgnoringRulesPage() {
+  const raw = useData("www/public/ignoring-rules.md", fetcher);
+  // @ts-ignore missing types
+  const md = new MarkdownIt();
+  const html = md.render(raw);
 
-function IgnoringRulesPage(props: PageProps<Data>) {
+  // TODO: figure out.
   const ref = useRef<HTMLDivElement>();
 
   useEffect(() => {
@@ -25,30 +21,19 @@ function IgnoringRulesPage(props: PageProps<Data>) {
   }, [ref]);
 
   return (
-    <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
+    <div class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8`}>
       <Header />
       <main
-        dangerouslySetInnerHTML={{ __html: props.data.html }}
+        dangerouslySetInnerHTML={{ __html: html }}
         ref={ref}
-        class="prose my-8"
+        class={tw`prose my-8`}
       />
     </div>
   );
 }
 
-export const getStaticData = async (): Promise<GetStaticData<Data>> => {
-  const raw = await Deno.readTextFile("./public/ignoring-rules.md");
-
-  // @ts-expect-error doesn't have types
-  const md = new MarkdownIt();
-
-  const html = md.render(raw);
-
-  return {
-    data: {
-      html,
-    },
-  };
-};
+async function fetcher(path: string) {
+  return await Deno.readTextFile(path);
+}
 
 export default IgnoringRulesPage;
