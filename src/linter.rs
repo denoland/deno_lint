@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::ast_parser::AstParser;
+use crate::ast_parser::parse_program;
 use crate::ast_parser::SwcDiagnostic;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
@@ -9,7 +9,6 @@ use crate::ignore_directives::{
 };
 use crate::rules::LintRule;
 use crate::scopes::Scope;
-use deno_ast::swc::common::SyntaxContext;
 use deno_ast::view::ProgramRef;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
@@ -89,7 +88,6 @@ impl LinterBuilder {
 }
 
 pub struct Linter {
-  ast_parser: AstParser,
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   media_type: MediaType,
@@ -106,7 +104,6 @@ impl Linter {
     plugins: Vec<Arc<dyn Plugin>>,
   ) -> Self {
     Linter {
-      ast_parser: AstParser::new(),
       ignore_file_directive,
       ignore_diagnostic_directive,
       media_type,
@@ -123,16 +120,14 @@ impl Linter {
     let start = Instant::now();
 
     let syntax = deno_ast::get_syntax(self.media_type);
+    let parse_result = parse_program(&file_name, syntax, source_code);
 
-    let parse_result =
-      self
-        .ast_parser
-        .parse_program(&file_name, syntax, source_code);
     let end_parse_program = Instant::now();
     debug!(
       "ast_parser.parse_program took {:#?}",
       end_parse_program - start
     );
+
     let parsed_source = parse_result?;
     let diagnostics = self.lint_program(&parsed_source);
 
@@ -176,11 +171,6 @@ impl Linter {
     let start = Instant::now();
 
     let control_flow = ControlFlow::analyze(parsed_source.program_ref().into());
-    let top_level_ctxt = deno_ast::swc::common::GLOBALS
-      .set(&self.ast_parser.globals, || {
-        SyntaxContext::empty().apply_mark(self.ast_parser.top_level_mark)
-      });
-
     let diagnostics = parsed_source.with_view(|pg| {
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ignore_file_directive, pg);
@@ -206,7 +196,7 @@ impl Linter {
         line_ignore_directives,
         scope,
         control_flow,
-        top_level_ctxt,
+        parsed_source.top_level_context(),
       );
 
       crate::rules::sort_rules_by_priority(&mut self.rules);
