@@ -1,17 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::ProgramRef;
-use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::view as ast_view;
 use derive_more::Display;
 use std::sync::Arc;
-
-use deno_ast::swc::ast::{
-  ArrowExpr, Class, ClassMember, Decl, DefaultDecl, Expr, Function, ModuleDecl,
-  Pat, TsKeywordTypeKind, TsType, TsTypeAnn, VarDecl,
-};
 
 #[derive(Debug)]
 pub struct ExplicitModuleBoundaryTypes;
@@ -47,14 +41,18 @@ impl LintRule for ExplicitModuleBoundaryTypes {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = ExplicitModuleBoundaryTypesVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: ast_view::Program,
+  ) {
+    ExplicitModuleBoundaryTypesHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -63,117 +61,118 @@ impl LintRule for ExplicitModuleBoundaryTypes {
   }
 }
 
-struct ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct ExplicitModuleBoundaryTypesHandler;
 
-impl<'c, 'view> ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn check_class(&mut self, class: &Class) {
-    for member in &class.body {
-      if let ClassMember::Method(method) = member {
-        self.check_fn(&method.function);
-      }
-    }
-  }
-
-  fn check_fn(&mut self, function: &Function) {
-    if function.return_type.is_none() {
-      self.context.add_diagnostic_with_hint(
-        function.span,
-        CODE,
-        ExplicitModuleBoundaryTypesMessage::MissingRetType,
-        ExplicitModuleBoundaryTypesHint::AddRetType,
-      );
-    }
-    for param in &function.params {
-      self.check_pat(&param.pat);
-    }
-  }
-
-  fn check_arrow(&mut self, arrow: &ArrowExpr) {
-    if arrow.return_type.is_none() {
-      self.context.add_diagnostic_with_hint(
-        arrow.span,
-        CODE,
-        ExplicitModuleBoundaryTypesMessage::MissingRetType,
-        ExplicitModuleBoundaryTypesHint::AddRetType,
-      );
-    }
-    for pat in &arrow.params {
-      self.check_pat(pat);
-    }
-  }
-
-  fn check_ann(&mut self, ann: &Option<TsTypeAnn>, span: Span) {
-    if let Some(ann) = ann {
-      let ts_type = ann.type_ann.as_ref();
-      if let TsType::TsKeywordType(keyword_type) = ts_type {
-        if TsKeywordTypeKind::TsAnyKeyword == keyword_type.kind {
-          self.context.add_diagnostic_with_hint(
-            span,
-            CODE,
-            ExplicitModuleBoundaryTypesMessage::MissingArgType,
-            ExplicitModuleBoundaryTypesHint::AddArgTypes,
-          );
-        }
-      }
-    } else {
-      self.context.add_diagnostic_with_hint(
-        span,
-        CODE,
-        ExplicitModuleBoundaryTypesMessage::MissingArgType,
-        ExplicitModuleBoundaryTypesHint::AddArgTypes,
-      );
-    }
-  }
-
-  fn check_pat(&mut self, pat: &Pat) {
-    match pat {
-      Pat::Ident(ident) => self.check_ann(&ident.type_ann, ident.id.span),
-      Pat::Array(array) => self.check_ann(&array.type_ann, array.span),
-      Pat::Rest(rest) => self.check_ann(&rest.type_ann, rest.span),
-      Pat::Object(object) => self.check_ann(&object.type_ann, object.span),
-      Pat::Assign(assign) => self.check_ann(&assign.type_ann, assign.span),
-      _ => {}
-    };
-  }
-
-  fn check_var_decl(&mut self, var: &VarDecl) {
-    for declarator in &var.decls {
-      if let Some(expr) = &declarator.init {
-        if let Expr::Arrow(arrow) = expr.as_ref() {
-          self.check_arrow(arrow);
-        }
-      }
-    }
-  }
-}
-
-impl<'c, 'view> Visit for ExplicitModuleBoundaryTypesVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_module_decl(
+impl Handler for ExplicitModuleBoundaryTypesHandler {
+  fn export_decl(
     &mut self,
-    module_decl: &ModuleDecl,
-    _parent: &dyn Node,
+    export_decl: &ast_view::ExportDecl,
+    ctx: &mut Context,
   ) {
-    match module_decl {
-      ModuleDecl::ExportDecl(export) => match &export.decl {
-        Decl::Class(decl) => self.check_class(&decl.class),
-        Decl::Fn(decl) => self.check_fn(&decl.function),
-        Decl::Var(var) => self.check_var_decl(var),
-        _ => {}
-      },
-      ModuleDecl::ExportDefaultDecl(export) => match &export.decl {
-        DefaultDecl::Class(expr) => self.check_class(&expr.class),
-        DefaultDecl::Fn(expr) => self.check_fn(&expr.function),
-        _ => {}
-      },
+    use ast_view::Decl;
+    match &export_decl.decl {
+      Decl::Class(decl) => check_class(decl.class, ctx),
+      Decl::Fn(decl) => check_fn(decl.function, ctx),
+      Decl::Var(var) => check_var_decl(var, ctx),
       _ => {}
+    }
+  }
+
+  fn export_default_decl(
+    &mut self,
+    export_default_decl: &ast_view::ExportDefaultDecl,
+    ctx: &mut Context,
+  ) {
+    use ast_view::DefaultDecl;
+    match &export_default_decl.decl {
+      DefaultDecl::Class(expr) => check_class(expr.class, ctx),
+      DefaultDecl::Fn(expr) => check_fn(expr.function, ctx),
+      _ => {}
+    }
+  }
+}
+
+fn check_class(class: &ast_view::Class, ctx: &mut Context) {
+  for member in &class.body {
+    if let ast_view::ClassMember::Method(method) = member {
+      check_fn(method.function, ctx);
+    }
+  }
+}
+
+fn check_fn(function: &ast_view::Function, ctx: &mut Context) {
+  if function.return_type.is_none() {
+    ctx.add_diagnostic_with_hint(
+      function.span(),
+      CODE,
+      ExplicitModuleBoundaryTypesMessage::MissingRetType,
+      ExplicitModuleBoundaryTypesHint::AddRetType,
+    );
+  }
+  for param in &function.params {
+    check_pat(&param.pat, ctx);
+  }
+}
+
+fn check_arrow(arrow: &ast_view::ArrowExpr, ctx: &mut Context) {
+  if arrow.return_type.is_none() {
+    ctx.add_diagnostic_with_hint(
+      arrow.span(),
+      CODE,
+      ExplicitModuleBoundaryTypesMessage::MissingRetType,
+      ExplicitModuleBoundaryTypesHint::AddRetType,
+    );
+  }
+  for pat in &arrow.params {
+    check_pat(pat, ctx);
+  }
+}
+
+fn check_ann(ann: Option<&ast_view::TsTypeAnn>, span: Span, ctx: &mut Context) {
+  if let Some(ann) = ann {
+    if let ast_view::TsType::TsKeywordType(keyword_type) = ann.type_ann {
+      if ast_view::TsKeywordTypeKind::TsAnyKeyword
+        == keyword_type.keyword_kind()
+      {
+        ctx.add_diagnostic_with_hint(
+          span,
+          CODE,
+          ExplicitModuleBoundaryTypesMessage::MissingArgType,
+          ExplicitModuleBoundaryTypesHint::AddArgTypes,
+        );
+      }
+    }
+  } else {
+    ctx.add_diagnostic_with_hint(
+      span,
+      CODE,
+      ExplicitModuleBoundaryTypesMessage::MissingArgType,
+      ExplicitModuleBoundaryTypesHint::AddArgTypes,
+    );
+  }
+}
+
+fn check_pat(pat: &ast_view::Pat, ctx: &mut Context) {
+  match pat {
+    ast_view::Pat::Ident(ident) => {
+      check_ann(ident.type_ann, ident.id.span(), ctx)
+    }
+    ast_view::Pat::Array(array) => check_ann(array.type_ann, array.span(), ctx),
+    ast_view::Pat::Rest(rest) => check_ann(rest.type_ann, rest.span(), ctx),
+    ast_view::Pat::Object(object) => {
+      check_ann(object.type_ann, object.span(), ctx)
+    }
+    ast_view::Pat::Assign(assign) => {
+      check_ann(assign.type_ann, assign.span(), ctx)
+    }
+    _ => {}
+  };
+}
+
+fn check_var_decl(var: &ast_view::VarDecl, ctx: &mut Context) {
+  for declarator in &var.decls {
+    if let Some(ast_view::Expr::Arrow(arrow)) = &declarator.init {
+      check_arrow(arrow, ctx);
     }
   }
 }
