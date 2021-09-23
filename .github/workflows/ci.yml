@@ -76,38 +76,6 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts
 
-      - name: Generate rules json
-        if: contains(matrix.os, 'ubuntu')
-        run: target/release/examples/dlint rules --json > docs.json
-
-      - name: Build website
-        if: contains(matrix.os, 'ubuntu')
-        run: |
-          yarn
-          yarn build
-          deno run --allow-read --allow-write --allow-env --allow-net --allow-run --unstable --no-check https://deno.land/x/dext@0.10.3/cli.ts build
-        working-directory: ./www
-
-      - name: Upload website to Github Actions Artifacts
-        if: contains(matrix.os, 'ubuntu')
-        uses: actions/upload-artifact@v2
-        with:
-          name: www
-          path: ./www/.dext/static
-
-      - name: Deploy website
-        if: |
-          contains(matrix.os, 'ubuntu') &&
-          github.repository == 'denoland/deno_lint' &&
-          github.ref == 'refs/heads/main'
-        env:
-          NETLIFY_SITE_ID: def7a3c7-172e-4e2a-bc4f-601a5301403f
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: |
-          yarn global add netlify-cli
-          netlify status --auth=$NETLIFY_AUTH_TOKEN
-          netlify deploy --dir=./www/.dext/static --auth=$NETLIFY_AUTH_TOKEN --prod
-
       - name: Pre-release (linux)
         if: |
           contains(matrix.os, 'ubuntu')
