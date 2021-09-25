@@ -1,13 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::ast::BinaryOp::*;
-use deno_ast::swc::ast::Expr::{Lit, Unary};
+use deno_ast::swc::ast::Expr::Lit;
 use deno_ast::swc::ast::Lit::Num;
 use deno_ast::swc::ast::UnaryExpr;
 use deno_ast::swc::ast::UnaryOp::Minus;
-use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr};
-use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{BinExpr, BinaryOp, Expr};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -43,16 +44,16 @@ impl LintRule for NoCompareNegZero {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program<'_>,
   ) {
-    let mut visitor = NoCompareNegZeroVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoCompareNegZeroHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -61,27 +62,17 @@ impl LintRule for NoCompareNegZero {
   }
 }
 
-struct NoCompareNegZeroVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoCompareNegZeroHandler;
 
-impl<'c, 'view> NoCompareNegZeroVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> VisitAll for NoCompareNegZeroVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
-    if !bin_expr.op.is_comparator() {
+impl Handler for NoCompareNegZeroHandler {
+  fn bin_expr(&mut self, bin_expr: &BinExpr, context: &mut Context) {
+    if !bin_expr.op().is_comparator() {
       return;
     }
 
     if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
-      self.context.add_diagnostic_with_hint(
-        bin_expr.span,
+      context.add_diagnostic_with_hint(
+        bin_expr.span(),
         CODE,
         NoCompareNegZeroMessage::Unexpected,
         NoCompareNegZeroHint::ObjectIs,
@@ -107,10 +98,10 @@ trait NegZero {
   fn is_neg_zero(&self) -> bool;
 }
 
-impl NegZero for Expr {
+impl NegZero for Expr<'_> {
   fn is_neg_zero(&self) -> bool {
     match self {
-      Unary(unary) => unary.is_neg_zero(),
+      Expr::Unary(unary) => unary.inner.is_neg_zero(),
       _ => false,
     }
   }
