@@ -1,17 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::scopes::BindingKind;
+use crate::{Program, ProgramRef};
+use deno_ast::swc::ast::Ident;
 use deno_ast::swc::ast::ObjectPatProp;
 use deno_ast::swc::ast::Pat;
-use deno_ast::swc::ast::{Ident};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::{utils::ident::IdentLike, visit::Visit};
+use deno_ast::swc::utils::ident::IdentLike;
+use deno_ast::view::{AssignExpr, Expr, PatOrExpr, UpdateExpr};
 use derive_more::Display;
 use std::sync::Arc;
-use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
-use deno_ast::view::{UpdateExpr, AssignExpr, PatOrExpr, Expr};
 
 #[derive(Debug)]
 pub struct NoConstAssign;
@@ -82,12 +81,17 @@ impl NoConstAssignHandler {
   fn check_obj_pat(
     &mut self,
     object: &deno_ast::swc::ast::ObjectPat,
-    span: Span, ctx: &mut Context
+    span: Span,
+    ctx: &mut Context,
   ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
-          self.check_scope_for_const(assign_prop.key.span, &assign_prop.key, ctx);
+          self.check_scope_for_const(
+            assign_prop.key.span,
+            &assign_prop.key,
+            ctx,
+          );
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
           self.check_pat(&kv_prop.value, span, ctx);
         }
@@ -107,7 +111,12 @@ impl NoConstAssignHandler {
     }
   }
 
-  fn check_scope_for_const(&mut self, span: Span, name: &Ident, ctx: &mut Context) {
+  fn check_scope_for_const(
+    &mut self,
+    span: Span,
+    name: &Ident,
+    ctx: &mut Context,
+  ) {
     let id = name.to_id();
     if let Some(v) = ctx.scope().var(&id) {
       if let BindingKind::Const = v.kind() {
@@ -130,7 +139,9 @@ impl Handler for NoConstAssignHandler {
           self.check_scope_for_const(assign_expr.span(), ident, ctx);
         }
       }
-      PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span, ctx),
+      PatOrExpr::Pat(boxed_pat) => {
+        self.check_pat(boxed_pat, assign_expr.span, ctx)
+      }
     };
   }
 
