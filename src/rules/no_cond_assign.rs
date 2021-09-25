@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::Expr::{Assign, Bin, Paren};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{CondExpr, DoWhileStmt, Expr, ForStmt, IfStmt, WhileStmt};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -42,16 +42,16 @@ impl LintRule for NoCondAssign {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program<'_>,
   ) {
-    let mut visitor = NoCondAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoCondAssignHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -60,17 +60,11 @@ impl LintRule for NoCondAssign {
   }
 }
 
-struct NoCondAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoCondAssignHandler;
 
-impl<'c, 'view> NoCondAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
+impl NoCondAssignHandler {
+  fn add_diagnostic(&mut self, span: Span, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(
       span,
       CODE,
       NoCondAssignMessage::Unexpected,
@@ -78,15 +72,15 @@ impl<'c, 'view> NoCondAssignVisitor<'c, 'view> {
     );
   }
 
-  fn check_condition(&mut self, condition: &Expr) {
+  fn check_condition(&mut self, condition: &Expr, ctx: &mut Context) {
     match condition {
-      Assign(assign) => {
-        self.add_diagnostic(assign.span);
+      Expr::Assign(assign) => {
+        self.add_diagnostic(assign.span(), ctx);
       }
-      Bin(bin) => {
-        if bin.op == deno_ast::swc::ast::BinaryOp::LogicalOr {
-          self.check_condition(&bin.left);
-          self.check_condition(&bin.right);
+      Expr::Bin(bin) => {
+        if bin.op() == deno_ast::swc::ast::BinaryOp::LogicalOr {
+          self.check_condition(&bin.left, ctx);
+          self.check_condition(&bin.right, ctx);
         }
       }
       _ => {}
@@ -94,50 +88,28 @@ impl<'c, 'view> NoCondAssignVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoCondAssignVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_if_stmt(
-    &mut self,
-    if_stmt: &deno_ast::swc::ast::IfStmt,
-    _parent: &dyn Node,
-  ) {
-    self.check_condition(&if_stmt.test);
+impl Handler for NoCondAssignHandler {
+  fn if_stmt(&mut self, if_stmt: &IfStmt, ctx: &mut Context) {
+    self.check_condition(&if_stmt.test, ctx);
   }
 
-  fn visit_while_stmt(
-    &mut self,
-    while_stmt: &deno_ast::swc::ast::WhileStmt,
-    _parent: &dyn Node,
-  ) {
-    self.check_condition(&while_stmt.test);
+  fn while_stmt(&mut self, while_stmt: &WhileStmt, ctx: &mut Context) {
+    self.check_condition(&while_stmt.test, ctx);
   }
 
-  fn visit_do_while_stmt(
-    &mut self,
-    do_while_stmt: &deno_ast::swc::ast::DoWhileStmt,
-    _parent: &dyn Node,
-  ) {
-    self.check_condition(&do_while_stmt.test);
+  fn do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, ctx: &mut Context) {
+    self.check_condition(&do_while_stmt.test, ctx);
   }
 
-  fn visit_for_stmt(
-    &mut self,
-    for_stmt: &deno_ast::swc::ast::ForStmt,
-    _parent: &dyn Node,
-  ) {
+  fn for_stmt(&mut self, for_stmt: &ForStmt, ctx: &mut Context) {
     if let Some(for_test) = &for_stmt.test {
-      self.check_condition(for_test);
+      self.check_condition(for_test, ctx);
     }
   }
 
-  fn visit_cond_expr(
-    &mut self,
-    cond_expr: &deno_ast::swc::ast::CondExpr,
-    _parent: &dyn Node,
-  ) {
-    if let Paren(paren) = &*cond_expr.test {
-      self.check_condition(&paren.expr);
+  fn cond_expr(&mut self, cond_expr: &CondExpr, ctx: &mut Context) {
+    if let Expr::Paren(paren) = cond_expr.test {
+      self.check_condition(&paren.expr, ctx);
     }
   }
 }
