@@ -1,18 +1,17 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::scopes::BindingKind;
-use crate::ProgramRef;
-use deno_ast::swc::ast::AssignExpr;
-use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ObjectPatProp;
 use deno_ast::swc::ast::Pat;
-use deno_ast::swc::ast::PatOrExpr;
-use deno_ast::swc::ast::{Ident, UpdateExpr};
+use deno_ast::swc::ast::{Ident};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::Node;
 use deno_ast::swc::{utils::ident::IdentLike, visit::Visit};
 use derive_more::Display;
 use std::sync::Arc;
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view::{UpdateExpr, AssignExpr, PatOrExpr, Expr};
 
 #[derive(Debug)]
 pub struct NoConstAssign;
@@ -41,16 +40,16 @@ impl LintRule for NoConstAssign {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program<'_>,
   ) {
-    let mut visitor = NoConstAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoConstAssignHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -59,28 +58,22 @@ impl LintRule for NoConstAssign {
   }
 }
 
-struct NoConstAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoConstAssignHandler;
 
-impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn check_pat(&mut self, pat: &Pat, span: Span) {
+impl NoConstAssignHandler {
+  fn check_pat(&mut self, pat: &Pat, span: Span, ctx: &mut Context) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_scope_for_const(span, &ident.id);
+        self.check_scope_for_const(span, &ident.id, ctx);
       }
       Pat::Assign(assign) => {
-        self.check_pat(&assign.left, span);
+        self.check_pat(&assign.left, span, ctx);
       }
       Pat::Array(array) => {
         self.check_array_pat(array, span);
       }
       Pat::Object(object) => {
-        self.check_obj_pat(object, span);
+        self.check_obj_pat(object, span, ctx);
       }
       _ => {}
     }
@@ -89,14 +82,14 @@ impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
   fn check_obj_pat(
     &mut self,
     object: &deno_ast::swc::ast::ObjectPat,
-    span: Span,
+    span: Span, ctx: &mut Context
   ) {
     if !object.props.is_empty() {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
-          self.check_scope_for_const(assign_prop.key.span, &assign_prop.key);
+          self.check_scope_for_const(assign_prop.key.span, &assign_prop.key, ctx);
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
-          self.check_pat(&kv_prop.value, span);
+          self.check_pat(&kv_prop.value, span, ctx);
         }
       }
     }
@@ -109,16 +102,16 @@ impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
   ) {
     if !array.elems.is_empty() {
       for elem in array.elems.iter().flatten() {
-        self.check_pat(elem, span);
+        self.check_pat(elem, span, ctx);
       }
     }
   }
 
-  fn check_scope_for_const(&mut self, span: Span, name: &Ident) {
+  fn check_scope_for_const(&mut self, span: Span, name: &Ident, ctx: &mut Context) {
     let id = name.to_id();
-    if let Some(v) = self.context.scope().var(&id) {
+    if let Some(v) = ctx.scope().var(&id) {
       if let BindingKind::Const = v.kind() {
-        self.context.add_diagnostic_with_hint(
+        ctx.add_diagnostic_with_hint(
           span,
           CODE,
           NoConstantAssignMessage::Unexpected,
@@ -129,21 +122,21 @@ impl<'c, 'view> NoConstAssignVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoConstAssignVisitor<'c, 'view> {
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
+impl Handler for NoConstAssignHandler {
+  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
         if let Expr::Ident(ident) = &**pat_expr {
-          self.check_scope_for_const(assign_expr.span, ident);
+          self.check_scope_for_const(assign_expr.span(), ident, ctx);
         }
       }
-      PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span),
+      PatOrExpr::Pat(boxed_pat) => self.check_pat(boxed_pat, assign_expr.span, ctx),
     };
   }
 
-  fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _node: &dyn Node) {
+  fn update_expr(&mut self, update_expr: &UpdateExpr, ctx: &mut Context) {
     if let Expr::Ident(ident) = &*update_expr.arg {
-      self.check_scope_for_const(update_expr.span, ident);
+      self.check_scope_for_const(update_expr.span(), ident, ctx);
     }
   }
 }
