@@ -63,7 +63,7 @@ impl NoConstAssignHandler {
   fn check_pat(&mut self, pat: &Pat, span: Span, ctx: &mut Context) {
     match pat {
       Pat::Ident(ident) => {
-        self.check_scope_for_const(span, &ident.id, ctx);
+        self.check_scope_for_const(span, ident.id, ctx);
       }
       Pat::Assign(assign) => {
         self.check_pat(&assign.left, span, ctx);
@@ -89,7 +89,7 @@ impl NoConstAssignHandler {
         if let ObjectPatProp::Assign(assign_prop) = prop {
           self.check_scope_for_const(
             assign_prop.key.span(),
-            &assign_prop.key,
+            assign_prop.key,
             ctx,
           );
         } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
