@@ -3,12 +3,12 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::scopes::BindingKind;
 use crate::{Program, ProgramRef};
-use deno_ast::swc::ast::Ident;
-use deno_ast::swc::ast::ObjectPatProp;
-use deno_ast::swc::ast::Pat;
 use deno_ast::swc::common::Span;
-use deno_ast::swc::utils::ident::IdentLike;
-use deno_ast::view::{AssignExpr, Expr, PatOrExpr, UpdateExpr};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{
+  ArrayPat, AssignExpr, Expr, Ident, ObjectPat, ObjectPatProp, Pat, PatOrExpr,
+  UpdateExpr,
+};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -69,7 +69,7 @@ impl NoConstAssignHandler {
         self.check_pat(&assign.left, span, ctx);
       }
       Pat::Array(array) => {
-        self.check_array_pat(array, span);
+        self.check_array_pat(array, span, ctx);
       }
       Pat::Object(object) => {
         self.check_obj_pat(object, span, ctx);
@@ -80,7 +80,7 @@ impl NoConstAssignHandler {
 
   fn check_obj_pat(
     &mut self,
-    object: &deno_ast::swc::ast::ObjectPat,
+    object: &ObjectPat,
     span: Span,
     ctx: &mut Context,
   ) {
@@ -88,7 +88,7 @@ impl NoConstAssignHandler {
       for prop in object.props.iter() {
         if let ObjectPatProp::Assign(assign_prop) = prop {
           self.check_scope_for_const(
-            assign_prop.key.span,
+            assign_prop.key.span(),
             &assign_prop.key,
             ctx,
           );
@@ -101,8 +101,9 @@ impl NoConstAssignHandler {
 
   fn check_array_pat(
     &mut self,
-    array: &deno_ast::swc::ast::ArrayPat,
+    array: &ArrayPat,
     span: Span,
+    ctx: &mut Context,
   ) {
     if !array.elems.is_empty() {
       for elem in array.elems.iter().flatten() {
@@ -117,8 +118,7 @@ impl NoConstAssignHandler {
     name: &Ident,
     ctx: &mut Context,
   ) {
-    let id = name.to_id();
-    if let Some(v) = ctx.scope().var(&id) {
+    if let Some(v) = ctx.scope().var_by_ident(name) {
       if let BindingKind::Const = v.kind() {
         ctx.add_diagnostic_with_hint(
           span,
@@ -135,18 +135,18 @@ impl Handler for NoConstAssignHandler {
   fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
-        if let Expr::Ident(ident) = &**pat_expr {
+        if let Expr::Ident(ident) = pat_expr {
           self.check_scope_for_const(assign_expr.span(), ident, ctx);
         }
       }
       PatOrExpr::Pat(boxed_pat) => {
-        self.check_pat(boxed_pat, assign_expr.span, ctx)
+        self.check_pat(boxed_pat, assign_expr.span(), ctx)
       }
     };
   }
 
   fn update_expr(&mut self, update_expr: &UpdateExpr, ctx: &mut Context) {
-    if let Expr::Ident(ident) = &*update_expr.arg {
+    if let Expr::Ident(ident) = update_expr.arg {
       self.check_scope_for_const(update_expr.span(), ident, ctx);
     }
   }

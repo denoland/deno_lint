@@ -61,6 +61,12 @@ impl Scope {
     self.vars.get(id)
   }
 
+  pub fn var_by_ident(&self, ident: &ast_view::Ident) -> Option<&Var> {
+    self
+      .vars
+      .get(&(ident.inner.sym.clone(), ident.inner.span.ctxt()))
+  }
+
   pub fn is_global(&self, id: &Id) -> bool {
     self.var(id).is_none()
   }
