@@ -1,16 +1,15 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::swc_util::extract_regex;
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
 use std::sync::Arc;
+use deno_ast::swc::common::Spanned;
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::view::{ CallExpr, Expr, ExprOrSuper, NewExpr, Regex, Spanned, TsEntityName, TsKeywordTypeKind };
+use deno_ast::view::{ CallExpr, Expr, ExprOrSuper, NewExpr, Regex };
 
 #[derive(Debug)]
 pub struct NoControlRegex;
@@ -56,7 +55,7 @@ impl LintRule for NoControlRegex {
     context: &mut Context,
     program: Program,
   ) {
-    NoControlRegexVisitor.traverse(program, context);
+    NoControlRegexHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -65,48 +64,47 @@ impl LintRule for NoControlRegex {
   }
 }
 
-struct NoControlRegexVisitor;
+struct NoControlRegexHandler;
 
-impl NoControlRegexVisitor {
-  fn add_diagnostic(&mut self, span: Span, cp: u64) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      NoControlRegexMessage::Unexpected(cp),
-      NoControlRegexHint::DisableOrRework,
-    );
-  }
 
-  fn check_regex(&mut self, regex: &str, span: Span) {
-    let mut iter = regex.chars().peekable();
-    while let Some(ch) = iter.next() {
-      if ch != '\\' {
-        continue;
-      }
-      match iter.next() {
-        Some('x') => {
-          if let Some(cp) = read_hex_n(&mut iter, 2) {
-            if cp <= 31 {
-              self.add_diagnostic(span, cp);
-              return;
-            }
+fn add_diagnostic(span: Span, cp: u64, ctx: &mut Context) {
+  ctx.add_diagnostic_with_hint(
+    span,
+    CODE,
+    NoControlRegexMessage::Unexpected(cp),
+    NoControlRegexHint::DisableOrRework,
+  );
+}
+
+fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
+  let mut iter = regex.chars().peekable();
+  while let Some(ch) = iter.next() {
+    if ch != '\\' {
+      continue;
+    }
+    match iter.next() {
+      Some('x') => {
+        if let Some(cp) = read_hex_n(&mut iter, 2) {
+          if cp <= 31 {
+            add_diagnostic(span, cp, ctx);
+            return;
           }
         }
-        Some('u') => {
-          let cp = match iter.peek() {
-            Some(&'{') => read_hex_until_brace(&mut iter),
-            Some(_) => read_hex_n(&mut iter, 4),
-            _ => None,
-          };
-          if let Some(cp) = cp {
-            if cp <= 31 {
-              self.add_diagnostic(span, cp);
-              return;
-            }
+      }
+      Some('u') => {
+        let cp = match iter.peek() {
+          Some(&'{') => read_hex_until_brace(&mut iter),
+          Some(_) => read_hex_n(&mut iter, 4),
+          _ => None,
+        };
+        if let Some(cp) = cp {
+          if cp <= 31 {
+            add_diagnostic(span, cp, ctx);
+            return;
           }
         }
-        _ => continue,
       }
+      _ => continue,
     }
   }
 }
@@ -135,29 +133,28 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   u64::from_str_radix(s.as_str(), 16).ok()
 }
 
-impl Handler for NoControlRegexVisitor {
-
-  fn regex(&mut self, regex: &Regex, _ctx: &mut Context) {
-    self.check_regex(regex.exp.to_string().as_str(), regex.span);
+impl Handler for NoControlRegexHandler {
+  fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
+    check_regex(regex.inner.exp.to_string().as_str(), regex.span(), ctx);
   }
 
-  fn new_expr(&mut self, new_expr: &NewExpr, _ctx: &mut Context) {
-    if let Expr::Ident(ident) = &*new_expr.callee {
+  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
+    if let Expr::Ident(ident) = new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
-          self.check_regex(regex.as_str(), new_expr.span);
+          check_regex(regex.as_str(), new_expr.span(), ctx);
         }
       }
     }
   }
 
-  fn call_expr(&mut self, call_expr: &ast_view::CallExpr, ctx: &mut Context) {
+  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr.as_ref() {
+      if let Expr::Ident(ident) = expr {
         if let Some(regex) =
           extract_regex(ctx.scope(), ident, &call_expr.args)
         {
-          self.check_regex(regex.as_str(), call_expr.span);
+          check_regex(regex.as_str(), call_expr.span(), ctx);
         }
       }
     }
