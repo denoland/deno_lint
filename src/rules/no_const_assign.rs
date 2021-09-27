@@ -59,74 +59,53 @@ impl LintRule for NoConstAssign {
 
 struct NoConstAssignHandler;
 
-impl NoConstAssignHandler {
-  fn check_pat(&mut self, pat: &Pat, span: Span, ctx: &mut Context) {
-    match pat {
-      Pat::Ident(ident) => {
-        self.check_scope_for_const(span, ident.id, ctx);
-      }
-      Pat::Assign(assign) => {
-        self.check_pat(&assign.left, span, ctx);
-      }
-      Pat::Array(array) => {
-        self.check_array_pat(array, span, ctx);
-      }
-      Pat::Object(object) => {
-        self.check_obj_pat(object, span, ctx);
-      }
-      _ => {}
+fn check_pat(pat: &Pat, span: Span, ctx: &mut Context) {
+  match pat {
+    Pat::Ident(ident) => {
+      check_scope_for_const(span, ident.id, ctx);
     }
+    Pat::Assign(assign) => {
+      check_pat(&assign.left, span, ctx);
+    }
+    Pat::Array(array) => {
+      check_array_pat(array, span, ctx);
+    }
+    Pat::Object(object) => {
+      check_obj_pat(object, span, ctx);
+    }
+    _ => {}
   }
+}
 
-  fn check_obj_pat(
-    &mut self,
-    object: &ObjectPat,
-    span: Span,
-    ctx: &mut Context,
-  ) {
-    if !object.props.is_empty() {
-      for prop in object.props.iter() {
-        if let ObjectPatProp::Assign(assign_prop) = prop {
-          self.check_scope_for_const(
-            assign_prop.key.span(),
-            assign_prop.key,
-            ctx,
-          );
-        } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
-          self.check_pat(&kv_prop.value, span, ctx);
-        }
+fn check_obj_pat(object: &ObjectPat, span: Span, ctx: &mut Context) {
+  if !object.props.is_empty() {
+    for prop in object.props.iter() {
+      if let ObjectPatProp::Assign(assign_prop) = prop {
+        check_scope_for_const(assign_prop.key.span(), assign_prop.key, ctx);
+      } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
+        check_pat(&kv_prop.value, span, ctx);
       }
     }
   }
+}
 
-  fn check_array_pat(
-    &mut self,
-    array: &ArrayPat,
-    span: Span,
-    ctx: &mut Context,
-  ) {
-    if !array.elems.is_empty() {
-      for elem in array.elems.iter().flatten() {
-        self.check_pat(elem, span, ctx);
-      }
+fn check_array_pat(array: &ArrayPat, span: Span, ctx: &mut Context) {
+  if !array.elems.is_empty() {
+    for elem in array.elems.iter().flatten() {
+      check_pat(elem, span, ctx);
     }
   }
+}
 
-  fn check_scope_for_const(
-    &mut self,
-    span: Span,
-    name: &Ident,
-    ctx: &mut Context,
-  ) {
-    if let Some(v) = ctx.scope().var_by_ident(name) {
-      if let BindingKind::Const = v.kind() {
-        ctx.add_diagnostic_with_hint(
-          span,
-          CODE,
-          NoConstantAssignMessage::Unexpected,
-          NoConstantAssignHint::Remove,
-        );
-      }
+fn check_scope_for_const(span: Span, name: &Ident, ctx: &mut Context) {
+  if let Some(v) = ctx.scope().var_by_ident(name) {
+    if let BindingKind::Const = v.kind() {
+      ctx.add_diagnostic_with_hint(
+        span,
+        CODE,
+        NoConstantAssignMessage::Unexpected,
+        NoConstantAssignHint::Remove,
+      );
     }
   }
 }
@@ -136,18 +115,18 @@ impl Handler for NoConstAssignHandler {
     match &assign_expr.left {
       PatOrExpr::Expr(pat_expr) => {
         if let Expr::Ident(ident) = pat_expr {
-          self.check_scope_for_const(assign_expr.span(), ident, ctx);
+          check_scope_for_const(assign_expr.span(), ident, ctx);
         }
       }
       PatOrExpr::Pat(boxed_pat) => {
-        self.check_pat(boxed_pat, assign_expr.span(), ctx)
+        check_pat(boxed_pat, assign_expr.span(), ctx)
       }
     };
   }
 
   fn update_expr(&mut self, update_expr: &UpdateExpr, ctx: &mut Context) {
     if let Expr::Ident(ident) = update_expr.arg {
-      self.check_scope_for_const(update_expr.span(), ident, ctx);
+      check_scope_for_const(update_expr.span(), ident, ctx);
     }
   }
 }
