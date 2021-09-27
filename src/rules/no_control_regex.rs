@@ -1,16 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
 use crate::swc_util::extract_regex;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
 use std::sync::Arc;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view::{ CallExpr, Expr, ExprOrSuper, NewExpr, Regex, Spanned, TsEntityName, TsKeywordTypeKind };
 
 #[derive(Debug)]
 pub struct NoControlRegex;
@@ -47,16 +47,16 @@ impl LintRule for NoControlRegex {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoControlRegexVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoControlRegexVisitor.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -65,15 +65,9 @@ impl LintRule for NoControlRegex {
   }
 }
 
-struct NoControlRegexVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoControlRegexVisitor;
 
-impl<'c, 'view> NoControlRegexVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
+impl NoControlRegexVisitor {
   fn add_diagnostic(&mut self, span: Span, cp: u64) {
     self.context.add_diagnostic_with_hint(
       span,
@@ -141,28 +135,27 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   u64::from_str_radix(s.as_str(), 16).ok()
 }
 
-impl<'c, 'view> VisitAll for NoControlRegexVisitor<'c, 'view> {
-  noop_visit_type!();
+impl Handler for NoControlRegexVisitor {
 
-  fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {
+  fn regex(&mut self, regex: &Regex, _ctx: &mut Context) {
     self.check_regex(regex.exp.to_string().as_str(), regex.span);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
+  fn new_expr(&mut self, new_expr: &NewExpr, _ctx: &mut Context) {
     if let Expr::Ident(ident) = &*new_expr.callee {
       if let Some(args) = &new_expr.args {
-        if let Some(regex) = extract_regex(self.context.scope(), ident, args) {
+        if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
           self.check_regex(regex.as_str(), new_expr.span);
         }
       }
     }
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
+  fn call_expr(&mut self, call_expr: &ast_view::CallExpr, ctx: &mut Context) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr.as_ref() {
         if let Some(regex) =
-          extract_regex(self.context.scope(), ident, &call_expr.args)
+          extract_regex(ctx.scope(), ident, &call_expr.args)
         {
           self.check_regex(regex.as_str(), call_expr.span);
         }

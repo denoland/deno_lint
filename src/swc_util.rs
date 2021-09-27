@@ -33,6 +33,31 @@ pub(crate) fn extract_regex(
   }
 }
 
+/// Extracts regex string from an expression, using ScopeManager.
+/// If the passed expression is not regular expression, this will return `None`.
+pub(crate) fn extract_regex_ast_view(
+  scope: &Scope,
+  expr_ident: &ast_view::Ident,
+  expr_args: &[ast_view::ExprOrSpread],
+) -> Option<String> {
+  if expr_ident.inner.sym != *"RegExp" {
+    return None;
+  }
+
+  if scope.var(&expr_ident.to_id()).is_some() {
+    return None;
+  }
+
+  match expr_args.get(0) {
+    Some(first_arg) => match &*first_arg.expr {
+      Expr::Lit(Lit::Str(literal)) => Some(literal.value.to_string()),
+      Expr::Lit(Lit::Regex(regex)) => Some(regex.exp.to_string()),
+      _ => None,
+    },
+    None => None,
+  }
+}
+
 pub(crate) trait StringRepr {
   fn string_repr(&self) -> Option<String>;
 }
