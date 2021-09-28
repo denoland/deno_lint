@@ -1,10 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::DebuggerStmt;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view::{DebuggerStmt, Spanned};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -38,16 +36,16 @@ impl LintRule for NoDebugger {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoDebuggerVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoDebuggerHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -55,26 +53,13 @@ impl LintRule for NoDebugger {
     include_str!("../../docs/rules/no_debugger.md")
   }
 }
-struct NoDebuggerVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
 
-impl<'c, 'view> NoDebuggerVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
+struct NoDebuggerHandler;
 
-impl<'c, 'view> Visit for NoDebuggerVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_debugger_stmt(
-    &mut self,
-    debugger_stmt: &DebuggerStmt,
-    _parent: &dyn Node,
-  ) {
-    self.context.add_diagnostic_with_hint(
-      debugger_stmt.span,
+impl Handler for NoDebuggerHandler {
+  fn debugger_stmt(&mut self, debugger_stmt: &DebuggerStmt, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(
+      debugger_stmt.span(),
       CODE,
       NoDebuggerMessage::Unexpected,
       NoDebuggerHint::Remove,
