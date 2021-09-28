@@ -31,6 +31,10 @@ function IgnoringRulesPage() {
   return (
     <div class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8`}>
       <Header />
+      <script
+        src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/highlight.min.js"
+      >
+      </script>
       <main
         dangerouslySetInnerHTML={{ __html: html }}
         ref={ref}

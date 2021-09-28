@@ -11,6 +11,7 @@ import {
   useState,
 } from "../deps.ts";
 import { Header } from "../components/Header.tsx";
+import "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@10.2.1/build/highlight.min.js";
 
 interface RuleData {
   code: string;

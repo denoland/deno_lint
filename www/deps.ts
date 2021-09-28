@@ -3,6 +3,10 @@ import MarkdownIt from "https://dev.jspm.io/markdown-it@12.0.4";
 export { MarkdownIt };
 import { IS_BROWSER } from "https://raw.githubusercontent.com/lucacasonato/fresh/5bc35b8b955c143654d22936ad5618274cbe2a28/runtime.ts";
 import { setup, tw } from "https://esm.sh/twind";
+export {
+  getStyleTagProperties,
+  virtualSheet,
+} from "https://cdn.esm.sh/v53/twind@0.16.16/es2021/sheets.js";
 
 export { setup, tw };
 if (IS_BROWSER) {
