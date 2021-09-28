@@ -1,15 +1,15 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
 use std::sync::Arc;
-use deno_ast::swc::common::Spanned;
-use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
-use deno_ast::view::{ CallExpr, Expr, ExprOrSuper, NewExpr, Regex };
 
 #[derive(Debug)]
 pub struct NoControlRegex;
@@ -65,7 +65,6 @@ impl LintRule for NoControlRegex {
 }
 
 struct NoControlRegexHandler;
-
 
 fn add_diagnostic(span: Span, cp: u64, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
@@ -151,8 +150,7 @@ impl Handler for NoControlRegexHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
       if let Expr::Ident(ident) = expr {
-        if let Some(regex) =
-          extract_regex(ctx.scope(), ident, &call_expr.args)
+        if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args)
         {
           check_regex(regex.as_str(), call_expr.span(), ctx);
         }

@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
 use deno_ast::swc::ast::{
-  BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit,
-  MemberExpr, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
-  PropOrSpread, Regex, Str, Tpl,
+  BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr, Null,
+  Number, PatOrExpr, PrivateName, Prop, PropName, PropOrSpread, Regex, Str,
+  Tpl,
 };
 use deno_ast::swc::utils::{find_ids, ident::IdentLike};
 use deno_ast::view as ast_view;
@@ -25,8 +25,12 @@ pub(crate) fn extract_regex(
 
   match expr_args.get(0) {
     Some(first_arg) => match first_arg.expr {
-      ast_view::Expr::Lit(ast_view::Lit::Str(literal)) => Some(literal.inner.value.to_string()),
-      ast_view::Expr::Lit(ast_view::Lit::Regex(regex)) => Some(regex.inner.exp.to_string()),
+      ast_view::Expr::Lit(ast_view::Lit::Str(literal)) => {
+        Some(literal.inner.value.to_string())
+      }
+      ast_view::Expr::Lit(ast_view::Lit::Regex(regex)) => {
+        Some(regex.inner.exp.to_string())
+      }
       _ => None,
     },
     None => None,
