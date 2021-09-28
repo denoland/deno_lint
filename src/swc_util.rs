@@ -13,7 +13,7 @@ use deno_ast::view as ast_view;
 pub(crate) fn extract_regex(
   scope: &Scope,
   expr_ident: &ast_view::Ident,
-  expr_args: &Vec<&ast_view::ExprOrSpread>,
+  expr_args: &[&ast_view::ExprOrSpread],
 ) -> Option<String> {
   if expr_ident.inner.sym != *"RegExp" {
     return None;
