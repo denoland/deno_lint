@@ -1,12 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::UnaryExpr;
-use deno_ast::swc::ast::UnaryOp;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, UnaryExpr, UnaryOp};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -42,14 +39,18 @@ impl LintRule for NoDeleteVar {
 
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
   ) {
-    let mut visitor = NoDeleteVarVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    NoDeleteVarHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -58,27 +59,17 @@ impl LintRule for NoDeleteVar {
   }
 }
 
-struct NoDeleteVarVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoDeleteVarHandler;
 
-impl<'c, 'view> NoDeleteVarVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoDeleteVarVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _parent: &dyn Node) {
-    if unary_expr.op != UnaryOp::Delete {
+impl Handler for NoDeleteVarHandler {
+  fn unary_expr(&mut self, unary_expr: &UnaryExpr, ctx: &mut Context) {
+    if unary_expr.op() != UnaryOp::Delete {
       return;
     }
 
-    if let Expr::Ident(_) = *unary_expr.arg {
-      self.context.add_diagnostic_with_hint(
-        unary_expr.span,
+    if let Expr::Ident(_) = unary_expr.arg {
+      ctx.add_diagnostic_with_hint(
+        unary_expr.span(),
         CODE,
         NoDeleteVarMessage::Unexpected,
         NoDeleteVarHint::Remove,
