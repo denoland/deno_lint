@@ -2,6 +2,7 @@
 import {
   h,
   MarkdownIt,
+  PageConfig,
   tw,
   useData,
   useEffect,
@@ -179,5 +180,7 @@ function Rule(props: { rule: RuleData }) {
 async function fetcher(path: string) {
   return await Deno.readTextFile(path);
 }
+
+export const config: PageConfig = { runtimeJS: true };
 
 export default IndexPage;

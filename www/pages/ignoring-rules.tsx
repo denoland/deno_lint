@@ -1,5 +1,13 @@
 /** @jsx h */
-import { h, MarkdownIt, tw, useData, useEffect, useRef } from "../deps.ts";
+import {
+  h,
+  MarkdownIt,
+  PageConfig,
+  tw,
+  useData,
+  useEffect,
+  useRef,
+} from "../deps.ts";
 import { Header } from "../components/Header.tsx";
 
 function IgnoringRulesPage() {
@@ -35,5 +43,7 @@ function IgnoringRulesPage() {
 async function fetcher(path: string) {
   return await Deno.readTextFile(path);
 }
+
+export const config: PageConfig = { runtimeJS: true };
 
 export default IgnoringRulesPage;
