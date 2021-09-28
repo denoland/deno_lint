@@ -94,12 +94,9 @@ impl Handler for NoRegexSpacesHandler {
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr {
-        if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args)
-        {
-          check_regex(regex.as_str(), call_expr.span(), ctx);
-        }
+    if let ExprOrSuper::Expr(Expr::Ident(ident)) = &call_expr.callee {
+      if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
+        check_regex(regex.as_str(), call_expr.span(), ctx);
       }
     }
   }
