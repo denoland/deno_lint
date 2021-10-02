@@ -1,10 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::Regex;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view::{Regex, Spanned};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
@@ -29,16 +27,16 @@ impl LintRule for NoEmptyCharacterClass {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoEmptyCharacterClassVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoEmptyCharacterClassVisitor.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -47,21 +45,11 @@ impl LintRule for NoEmptyCharacterClass {
   }
 }
 
-struct NoEmptyCharacterClassVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoEmptyCharacterClassVisitor;
 
-impl<'c, 'view> NoEmptyCharacterClassVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_regex(&mut self, regex: &Regex, _parent: &dyn Node) {
-    let raw_regex = self.context.file_text_substring(&regex.span);
+impl Handler for NoEmptyCharacterClassVisitor {
+  fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
+    let raw_regex = ctx.file_text_substring(&regex.span());
 
     static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
@@ -81,9 +69,7 @@ impl<'c, 'view> Visit for NoEmptyCharacterClassVisitor<'c, 'view> {
     });
 
     if !RULE_REGEX.is_match(raw_regex) {
-      self
-        .context
-        .add_diagnostic_with_hint(regex.span, CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(regex.span(), CODE, MESSAGE, HINT);
     }
   }
 }
