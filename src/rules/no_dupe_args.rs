@@ -1,14 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::ArrowExpr;
-use deno_ast::swc::ast::Function;
-use deno_ast::swc::ast::Param;
-use deno_ast::swc::ast::Pat;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{ArrowExpr, Function, Param, Pat};
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
@@ -43,17 +39,18 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoDupeArgsVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
-    visitor.report_errors();
+    let mut handler = NoDupeArgsHandler::default();
+    handler.traverse(program, context);
+    handler.report_errors(context);
   }
 
   #[cfg(feature = "docs")]
@@ -62,22 +59,16 @@ impl LintRule for NoDupeArgs {
   }
 }
 
-struct NoDupeArgsVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+#[derive(Default)]
+struct NoDupeArgsHandler {
+  /// Accumulated errors to report
   error_spans: BTreeSet<Span>,
 }
 
-impl<'c, 'view> NoDupeArgsVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self {
-      context,
-      error_spans: BTreeSet::new(),
-    }
-  }
-
-  fn report_errors(&mut self) {
+impl NoDupeArgsHandler {
+  fn report_errors(self, ctx: &mut Context) {
     for span in &self.error_spans {
-      self.context.add_diagnostic_with_hint(
+      ctx.add_diagnostic_with_hint(
         *span,
         CODE,
         NoDupeArgsMessage::Unexpected,
@@ -88,14 +79,14 @@ impl<'c, 'view> NoDupeArgsVisitor<'c, 'view> {
 
   fn check_pats<'a, 'b, I>(&'a mut self, span: Span, pats: I)
   where
-    I: Iterator<Item = &'b Pat>,
+    I: Iterator<Item = &'b Pat<'b>>,
   {
     let mut seen: HashSet<&str> = HashSet::new();
 
     for pat in pats {
       match &pat {
         Pat::Ident(ident) => {
-          if !seen.insert(ident.id.as_ref()) {
+          if !seen.insert(ident.id.inner.as_ref()) {
             self.error_spans.insert(span);
           }
         }
@@ -106,22 +97,20 @@ impl<'c, 'view> NoDupeArgsVisitor<'c, 'view> {
 
   fn check_params<'a, 'b, I>(&'a mut self, span: Span, params: I)
   where
-    I: Iterator<Item = &'b Param>,
+    I: Iterator<Item = &'b &'b Param<'b>>,
   {
     let pats = params.map(|param| &param.pat);
     self.check_pats(span, pats);
   }
 }
 
-impl<'ctx, 'view> VisitAll for NoDupeArgsVisitor<'ctx, 'view> {
-  noop_visit_type!();
-
-  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
-    self.check_params(function.span, function.params.iter());
+impl Handler for NoDupeArgsHandler {
+  fn function(&mut self, function: &Function, _ctx: &mut Context) {
+    self.check_params(function.span(), function.params.iter());
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    self.check_pats(arrow_expr.span, arrow_expr.params.iter());
+  fn arrow_expr(&mut self, arrow_expr: &ArrowExpr, _ctx: &mut Context) {
+    self.check_pats(arrow_expr.span(), arrow_expr.params.iter());
   }
 }
 
