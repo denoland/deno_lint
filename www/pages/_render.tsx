@@ -1,15 +1,12 @@
 // This module adds twind support.
 
-import { h, setup, twTypography, virtualSheet } from "../deps.ts";
+import { setup, virtualSheet } from "../deps.ts";
 import { RenderContext, RenderFn } from "../server_deps.ts";
 
 const sheet = virtualSheet();
 sheet.reset();
 setup({
   sheet,
-  plugins: {
-    ...twTypography(),
-  },
   darkMode: "media",
   theme: {
     extend: {
