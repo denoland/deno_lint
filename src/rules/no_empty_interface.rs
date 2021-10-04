@@ -1,9 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::TsInterfaceDecl;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view::{Spanned, TsInterfaceDecl};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -45,16 +44,16 @@ impl LintRule for NoEmptyInterface {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoEmptyInterfaceVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoEmptyInterfaceHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -63,26 +62,18 @@ impl LintRule for NoEmptyInterface {
   }
 }
 
-struct NoEmptyInterfaceVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoEmptyInterfaceHandler;
 
-impl<'c, 'view> NoEmptyInterfaceVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoEmptyInterfaceVisitor<'c, 'view> {
-  fn visit_ts_interface_decl(
+impl Handler for NoEmptyInterfaceHandler {
+  fn ts_interface_decl(
     &mut self,
     interface_decl: &TsInterfaceDecl,
-    _parent: &dyn Node,
+    ctx: &mut Context,
   ) {
     if interface_decl.extends.len() <= 1 && interface_decl.body.body.is_empty()
     {
-      self.context.add_diagnostic_with_hint(
-        interface_decl.span,
+      ctx.add_diagnostic_with_hint(
+        interface_decl.span(),
         CODE,
         if interface_decl.extends.is_empty() {
           NoEmptyInterfaceMessage::EmptyObject

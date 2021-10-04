@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
 use deno_ast::swc::ast::{
-  BigInt, Bool, ComputedPropName, Expr, ExprOrSpread, Ident, JSXText, Lit,
-  MemberExpr, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
-  PropOrSpread, Regex, Str, Tpl,
+  BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr, Null,
+  Number, PatOrExpr, PrivateName, Prop, PropName, PropOrSpread, Regex, Str,
+  Tpl,
 };
 use deno_ast::swc::utils::{find_ids, ident::IdentLike};
 use deno_ast::view as ast_view;
@@ -12,21 +12,25 @@ use deno_ast::view as ast_view;
 /// If the passed expression is not regular expression, this will return `None`.
 pub(crate) fn extract_regex(
   scope: &Scope,
-  expr_ident: &Ident,
-  expr_args: &[ExprOrSpread],
+  expr_ident: &ast_view::Ident,
+  expr_args: &[&ast_view::ExprOrSpread],
 ) -> Option<String> {
-  if expr_ident.sym != *"RegExp" {
+  if expr_ident.inner.sym != *"RegExp" {
     return None;
   }
 
-  if scope.var(&expr_ident.to_id()).is_some() {
+  if scope.var(&expr_ident.inner.to_id()).is_some() {
     return None;
   }
 
   match expr_args.get(0) {
-    Some(first_arg) => match &*first_arg.expr {
-      Expr::Lit(Lit::Str(literal)) => Some(literal.value.to_string()),
-      Expr::Lit(Lit::Regex(regex)) => Some(regex.exp.to_string()),
+    Some(first_arg) => match first_arg.expr {
+      ast_view::Expr::Lit(ast_view::Lit::Str(literal)) => {
+        Some(literal.inner.value.to_string())
+      }
+      ast_view::Expr::Lit(ast_view::Lit::Regex(regex)) => {
+        Some(regex.inner.exp.to_string())
+      }
       _ => None,
     },
     None => None,
