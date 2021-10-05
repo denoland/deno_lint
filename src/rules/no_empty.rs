@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrowExpr, BlockStmt, BlockStmtOrExpr, Constructor, Function, SwitchStmt,
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::view::{
+  ArrowExpr, BlockStmt, Constructor, Function, Spanned, SwitchStmt,
 };
-use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -25,16 +25,16 @@ impl LintRule for NoEmpty {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoEmptyVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoEmptyHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -43,68 +43,38 @@ impl LintRule for NoEmpty {
   }
 }
 
-struct NoEmptyVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoEmptyHandler;
 
-impl<'c, 'view> NoEmptyVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoEmptyVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_function(&mut self, function: &Function, _parent: &dyn Node) {
+impl Handler for NoEmptyHandler {
+  fn block_stmt(&mut self, block_stmt: &BlockStmt, ctx: &mut Context) {
     // Empty functions shouldn't be caught by this rule.
     // Because function's body is a block statement, we're gonna
     // manually visit each member; otherwise rule would produce errors
-    // for empty function body.
-    if let Some(body) = &function.body {
-      body.visit_children_with(self);
+    // for empty function or arrow body or constructor.
+    if block_stmt.stmts.is_empty()
+      && !block_stmt.parent().is::<Function>()
+      && !block_stmt.parent().is::<ArrowExpr>()
+      && !block_stmt.parent().is::<Constructor>()
+      && !block_stmt.contains_comments(ctx)
+    {
+      ctx.add_diagnostic_with_hint(
+        block_stmt.span(),
+        CODE,
+        "Empty block statement",
+        "Add code or comment to the empty block",
+      );
     }
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _parent: &dyn Node) {
-    // Similar to the above, empty arrow expressions shouldn't be caught.
-    if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body {
-      block_stmt.visit_children_with(self);
-    }
-  }
-
-  fn visit_constructor(&mut self, cons: &Constructor, _parent: &dyn Node) {
-    // Similar to the above, empty constructors shouldn't be caught.
-    if let Some(body) = &cons.body {
-      body.visit_children_with(self);
-    }
-  }
-
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _parent: &dyn Node) {
-    if block_stmt.stmts.is_empty() {
-      if !block_stmt.contains_comments(self.context) {
-        self.context.add_diagnostic_with_hint(
-          block_stmt.span,
-          CODE,
-          "Empty block statement",
-          "Add code or comment to the empty block",
-        );
-      }
-    } else {
-      block_stmt.visit_children_with(self);
-    }
-  }
-
-  fn visit_switch_stmt(&mut self, switch: &SwitchStmt, _parent: &dyn Node) {
+  fn switch_stmt(&mut self, switch: &SwitchStmt, ctx: &mut Context) {
     if switch.cases.is_empty() {
-      self.context.add_diagnostic_with_hint(
-        switch.span,
+      ctx.add_diagnostic_with_hint(
+        switch.span(),
         CODE,
         "Empty switch statement",
         "Add case statement(s) to the empty switch, or remove",
       );
     }
-    switch.visit_children_with(self);
   }
 }
 
@@ -112,11 +82,11 @@ trait ContainsComments {
   fn contains_comments(&self, context: &Context) -> bool;
 }
 
-impl ContainsComments for BlockStmt {
+impl ContainsComments for BlockStmt<'_> {
   fn contains_comments(&self, context: &Context) -> bool {
     context
       .all_comments()
-      .any(|comment| self.span.contains(comment.span))
+      .any(|comment| self.span().contains(comment.span))
   }
 }
 
