@@ -96,6 +96,7 @@ pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
+pub mod ban_array_length_minus_one;
 
 const DUMMY_NODE: () = ();
 
@@ -233,6 +234,7 @@ pub(crate) fn sort_rules_by_priority(rules: &mut Vec<Arc<dyn LintRule>>) {
 fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
   vec![
     adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
+    ban_array_length_minus_one::BanArrayLengthMinusOne::new(),
     ban_ts_comment::BanTsComment::new(),
     ban_types::BanTypes::new(),
     ban_unknown_rule_code::BanUnknownRuleCode::new(),
