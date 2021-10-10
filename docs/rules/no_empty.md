@@ -3,7 +3,7 @@ Disallows the use of empty block statements.
 Empty block statements are legal but often represent that something was missed
 and can make code less readable. This rule ignores block statements that only
 contain comments. This rule also ignores empty constructors and function bodies
-(including arrow functions), which are covered by the `no-empty-function` rule.
+(including arrow functions).
 
 ### Invalid:
 
