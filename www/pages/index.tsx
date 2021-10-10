@@ -1,15 +1,8 @@
 /** @jsx h */
-import {
-  h,
-  MarkdownIt,
-  tw,
-  useData,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "../deps.ts";
+/** @jsxFrag Fragment */
+import { Fragment, h, Head, PageProps, tw, useData } from "../deps.ts";
 import { Header } from "../components/Header.tsx";
+import { diskFetcher, renderMarkdown } from "../components/utils.ts";
 
 interface RuleData {
   code: string;
@@ -18,77 +11,77 @@ interface RuleData {
   tags: string[];
 }
 
-function IndexPage() {
-  const jsonData = JSON.parse(useData("www/public/docs.json", fetcher));
-  // @ts-ignore missing types
-  const md = new MarkdownIt();
+function IndexPage(props: PageProps) {
+  const jsonData: any[] = JSON.parse(
+    useData("www/public/docs.json", diskFetcher),
+  );
 
-  const rules = jsonData.map((rule: any) => ({
+  const rules = jsonData.map<RuleData>((rule) => ({
     code: rule.code,
-    snippet: md.render(rule.docs.split("\n")[0]),
-    docs: md.render(rule.docs),
+    snippet: renderMarkdown(rule.docs.split("\n")[0]),
+    docs: renderMarkdown(rule.docs.split("\n").slice(1).join("\n")),
     tags: rule.tags,
   }));
 
-  const [search, setSearch] = useState("");
-  const [filterRecommended, setFilterRecommended] = useState(true);
+  const search = props.url.searchParams.get("q") ?? "";
+  const allRules = props.url.searchParams.has("all");
 
-  const searchResults = useMemo(() => {
-    return rules
-      .filter((rule: RuleData) => {
-        if (filterRecommended) {
-          return rule.tags.includes("recommended");
-        } else {
-          return true;
-        }
-      })
-      .filter((rule: RuleData) => rule.code.includes(search));
-  }, [search, filterRecommended]);
+  const searchResults = rules
+    .filter((rule: RuleData) => {
+      if (allRules) {
+        return true;
+      } else {
+        return rule.tags.includes("recommended");
+      }
+    })
+    .filter((rule: RuleData) => rule.code.includes(search));
 
   return (
     <div class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8`}>
+      <Head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@www/www/static/markdown.css"
+          crossOrigin="anonymous"
+        />
+      </Head>
       <Header />
       <main class={tw`my-8`}>
         <label for="search" class={tw`sr-only`}>Search</label>
-        <div class={tw`flex flex-wrap items-stretch w-full relative`}>
+        <form id="search_form">
           <input
             type="text"
-            id="search"
+            name="q"
             class={tw
-              `flex-shrink flex-grow leading-normal w-px flex-1 border h-10 border-grey-light rounded rounded-r-none px-3 relative`}
+              `w-full border h-10 border-grey-light rounded rounded-r-none px-3 relative`}
             placeholder="Search"
             value={search}
-            onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
           />
-          <div class={tw`flex -mr-px`}>
-            <button
-              class={tw
-                `flex items-center leading-normal bg-grey-lighter rounded rounded-l-none border border-l-0 border-grey-light px-3 whitespace-no-wrap text-grey-dark text-sm`}
-              onClick={() => setSearch("")}
-            >
-              Clear
-            </button>
+          <div class={tw`mt-2`}>
+            <input
+              type="checkbox"
+              id="all_rules"
+              name="all"
+              checked={allRules}
+            />
+            <label htmlFor="all_rules" class={tw`ml-2`}>
+              Show all rules
+            </label>
           </div>
-        </div>
-        <div class={tw`mt-2`}>
-          <input
-            type="checkbox"
-            id="only_recommended"
-            checked={filterRecommended}
-            onInput={(e) => {
-              setFilterRecommended(e.currentTarget.checked);
-            }}
-          />
-          <label htmlFor="only_recommended" class={tw`ml-2`}>
-            Show only recommended rules
-          </label>
-        </div>
+        </form>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "document.getElementById('all_rules').oninput = () => document.getElementById('search_form').submit();",
+          }}
+        >
+        </script>
         <div class={tw`mt-6 text-gray-600`}>
           Showing {searchResults.length} out of {rules.length} rules
         </div>
         <div>
           {searchResults
-            .map((rule: RuleData) => <Rule rule={rule} />)}
+            .map((rule: RuleData) => <Rule key={rule.code} rule={rule} />)}
         </div>
       </main>
     </div>
@@ -96,19 +89,7 @@ function IndexPage() {
 }
 
 function Rule(props: { rule: RuleData }) {
-  const [extended, setExtended] = useState(false);
-
-  const ref = useRef<HTMLDivElement>();
   const { rule } = props;
-
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.querySelectorAll("pre code").forEach((block) => {
-        // @ts-expect-error because typescript is not aware of hljs
-        hljs.highlightBlock(block);
-      });
-    }
-  }, [ref, extended]);
 
   return (
     <section
@@ -120,7 +101,7 @@ function Rule(props: { rule: RuleData }) {
           `p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white`}
       >
         <h1 class={tw`text-xl font-bold`}>
-          <a href={`/#${rule.code}`} class={tw`hover:underline`}>
+          <a href={`#${rule.code}`} class={tw`hover:underline`}>
             {rule.code}
           </a>
         </h1>
@@ -133,51 +114,30 @@ function Rule(props: { rule: RuleData }) {
           </span>
         )}
       </div>
-      <div class={tw`relative bg-gray-50 p-3`}>
+      <div
+        class={tw`relative bg-gray-50 dark:bg-[#0d1117] dark:text-white p-3`}
+      >
         {rule.docs.length > 0
           ? (
-            extended
-              ? (
-                <div>
-                  <div
-                    dangerouslySetInnerHTML={{ __html: rule.docs }}
-                    ref={ref}
-                    class={tw`prose max-w-none`}
-                  />
-                  <a
-                    class={tw
-                      `mt-4 block cursor-pointer text-blue-600 hover:underline`}
-                    onClick={() => setExtended(false)}
-                  >
-                    View Less
-                  </a>
-                </div>
-              )
-              : (
-                <div>
+            <>
+              <details>
+                <summary>
                   <div
                     dangerouslySetInnerHTML={{ __html: rule.snippet }}
-                    ref={ref}
-                    class={tw`prose max-w-none`}
+                    class="markdown-body"
                   />
-                  <a
-                    class={tw
-                      `mt-4 block cursor-pointer text-blue-600 hover:underline`}
-                    onClick={() => setExtended(true)}
-                  >
-                    View More
-                  </a>
-                </div>
-              )
+                </summary>
+                <div
+                  dangerouslySetInnerHTML={{ __html: rule.docs }}
+                  class={"markdown-body " + tw`mt-4`}
+                />
+              </details>
+            </>
           )
           : <div class={tw`text-gray-500 italic`}>no docs available</div>}
       </div>
     </section>
   );
-}
-
-async function fetcher(path: string) {
-  return await Deno.readTextFile(path);
 }
 
 export default IndexPage;
