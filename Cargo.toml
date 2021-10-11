@@ -21,7 +21,7 @@ default = []
 docs = []
 
 [dependencies]
-deno_ast = { version = "0.2.0", features = ["transforms", "utils", "visit", "view"], path = "../deno_ast" }
+deno_ast = { version = "0.3.0", features = ["transforms", "utils", "visit", "view"] }
 log = "0.4.14"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"

@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::view::{
-  ArrowExpr, BlockStmt, Constructor, Function, Spanned, SwitchStmt,
-};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
 use std::sync::Arc;
 
 #[derive(Debug)]

@@ -7,9 +7,10 @@ use crate::ignore_directives::{
 use crate::rules::{get_all_rules, LintRule};
 use crate::scopes::Scope;
 use deno_ast::swc::common::comments::Comment;
+use deno_ast::swc::common::BytePos;
 use deno_ast::swc::common::{Span, SyntaxContext};
 use deno_ast::view as ast_view;
-use deno_ast::view::{BytePos, RootNode, SourceFile};
+use deno_ast::view::{RootNode, SourceFile};
 use deno_ast::MediaType;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -146,11 +147,7 @@ impl<'view> Context<'view> {
   }
 
   pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
-    self
-      .program
-      .comments()
-      .expect("Program should have information about comments, but doesn't")
-      .all_comments()
+    self.program.comment_container().unwrap().all_comments()
   }
 
   pub fn leading_comments_at(
@@ -159,8 +156,8 @@ impl<'view> Context<'view> {
   ) -> impl Iterator<Item = &'view Comment> {
     self
       .program
-      .comments()
-      .expect("Program should have information about comments, but doesn't")
+      .comment_container()
+      .unwrap()
       .leading_comments(lo)
   }
 
@@ -170,8 +167,8 @@ impl<'view> Context<'view> {
   ) -> impl Iterator<Item = &'view Comment> {
     self
       .program
-      .comments()
-      .expect("Program should have information about comments, but doesn't")
+      .comment_container()
+      .unwrap()
       .trailing_comments(hi)
   }
 
