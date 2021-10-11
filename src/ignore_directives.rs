@@ -2,8 +2,9 @@
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
 use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
-use deno_ast::view::{RootNode, Spanned};
+use deno_ast::view::RootNode;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -69,7 +70,7 @@ pub fn parse_line_ignore_directives(
   program: ast_view::Program,
 ) -> HashMap<usize, LineIgnoreDirective> {
   program
-    .comments()
+    .comment_container()
     .unwrap()
     .all_comments()
     .filter_map(|comment| {
@@ -90,7 +91,7 @@ pub fn parse_file_ignore_directives(
   program: ast_view::Program,
 ) -> Option<FileIgnoreDirective> {
   program
-    .comments()
+    .comment_container()
     .unwrap()
     .leading_comments(program.span().lo())
     .find_map(|comment| parse_ignore_comment(ignore_global_directive, comment))

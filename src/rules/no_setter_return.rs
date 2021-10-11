@@ -2,8 +2,9 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
-use deno_ast::view::{NodeTrait, Spanned};
+use deno_ast::view::NodeTrait;
 use std::sync::Arc;
 
 #[derive(Debug)]

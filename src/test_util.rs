@@ -383,14 +383,12 @@ pub fn assert_lint_ok<T: LintRule + 'static>(
 const TEST_FILE_NAME: &str = "lint_test.ts";
 
 pub fn parse(source_code: &str) -> ParsedSource {
-  let ast_parser = ast_parser::AstParser::new();
-  ast_parser
-    .parse_program(
-      TEST_FILE_NAME,
-      deno_ast::get_syntax(MediaType::TypeScript),
-      source_code.to_string(),
-    )
-    .unwrap()
+  ast_parser::parse_program(
+    TEST_FILE_NAME,
+    deno_ast::get_syntax(MediaType::TypeScript),
+    source_code.to_string(),
+  )
+  .unwrap()
 }
 
 pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program)) {

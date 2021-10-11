@@ -87,7 +87,7 @@ impl LintRule for NoIrregularWhitespace {
     };
     let mut last_end = BytePos(0);
 
-    for token in program.tokens().unwrap().tokens {
+    for token in program.token_container().unwrap().tokens {
       check_span(Span::new(last_end, token.span.lo(), Default::default()));
       last_end = token.span.hi();
     }

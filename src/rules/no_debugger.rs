@@ -2,7 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::view::{DebuggerStmt, Spanned};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::DebuggerStmt;
 use derive_more::Display;
 use std::sync::Arc;
 
