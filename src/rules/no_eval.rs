@@ -1,16 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
-use crate::ProgramRef;
-use deno_ast::swc::ast::CallExpr;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::ExprOrSuper;
-use deno_ast::swc::ast::ParenExpr;
-use deno_ast::swc::ast::VarDeclarator;
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use deno_ast::view::{
+  CallExpr, Expr, ExprOrSuper, ParenExpr, Spanned, VarDeclarator,
+};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -29,16 +25,16 @@ impl LintRule for NoEval {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoEvalVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoEvalHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -47,38 +43,35 @@ impl LintRule for NoEval {
   }
 }
 
-struct NoEvalVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoEvalHandler;
 
-impl<'c, 'view> NoEvalVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn maybe_add_diagnostic(&mut self, source: &dyn StringRepr, span: Span) {
+impl NoEvalHandler {
+  fn maybe_add_diagnostic(
+    &mut self,
+    source: &dyn StringRepr,
+    span: Span,
+    ctx: &mut Context,
+  ) {
     if source.string_repr().as_deref() == Some("eval") {
-      self.add_diagnostic(span);
+      self.add_diagnostic(span, ctx);
     }
   }
 
-  fn add_diagnostic(&mut self, span: Span) {
-    self
-      .context
-      .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+  fn add_diagnostic(&mut self, span: Span, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 
-  fn handle_paren_callee(&mut self, p: &ParenExpr) {
-    match p.expr.as_ref() {
+  fn handle_paren_callee(&mut self, p: &ParenExpr, ctx: &mut Context) {
+    match p.expr {
       // Nested paren callee ((eval))('var foo = 0;')
-      Expr::Paren(paren) => self.handle_paren_callee(paren),
+      Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
       // Single argument callee: (eval)('var foo = 0;')
-      Expr::Ident(ident) => self.maybe_add_diagnostic(ident, ident.span),
+      Expr::Ident(ident) => self.maybe_add_diagnostic(ident, ident.span(), ctx),
       // Multiple arguments callee: (0, eval)('var foo = 0;')
       Expr::Seq(seq) => {
         for expr in &seq.exprs {
-          if let Expr::Ident(ident) = expr.as_ref() {
-            self.maybe_add_diagnostic(ident, ident.span)
+          if let Expr::Ident(ident) = expr {
+            self.maybe_add_diagnostic(*ident, ident.span(), ctx)
           }
         }
       }
@@ -87,22 +80,20 @@ impl<'c, 'view> NoEvalVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoEvalVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
-    if let Some(expr) = &v.init {
-      if let Expr::Ident(ident) = expr.as_ref() {
-        self.maybe_add_diagnostic(ident, v.span);
-      }
+impl Handler for NoEvalHandler {
+  fn var_declarator(&mut self, v: &VarDeclarator, ctx: &mut Context) {
+    if let Some(Expr::Ident(ident)) = &v.init {
+      self.maybe_add_diagnostic(*ident, v.span(), ctx);
     }
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      match expr.as_ref() {
-        Expr::Ident(ident) => self.maybe_add_diagnostic(ident, call_expr.span),
-        Expr::Paren(paren) => self.handle_paren_callee(paren),
+      match expr {
+        Expr::Ident(ident) => {
+          self.maybe_add_diagnostic(*ident, call_expr.span(), ctx)
+        }
+        Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
         _ => {}
       }
     }

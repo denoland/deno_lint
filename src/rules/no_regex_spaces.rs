@@ -1,12 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
@@ -30,16 +29,16 @@ impl LintRule for NoRegexSpaces {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoRegexSpacesVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoRegexSpacesHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -48,70 +47,56 @@ impl LintRule for NoRegexSpaces {
   }
 }
 
-struct NoRegexSpacesVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoRegexSpacesHandler;
 
-impl<'c, 'view> NoRegexSpacesVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
+fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
+  static DOUBLE_SPACE: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
+  static BRACKETS: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"\[.*?[^\\]\]").unwrap());
+  static SPACES: Lazy<regex::Regex> = Lazy::new(|| {
+    regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap()
+  });
+
+  if !DOUBLE_SPACE.is_match(regex) {
+    return;
   }
 
-  fn check_regex(&mut self, regex: &str, span: Span) {
-    static DOUBLE_SPACE: Lazy<regex::Regex> =
-      Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
-    static BRACKETS: Lazy<regex::Regex> =
-      Lazy::new(|| regex::Regex::new(r"\[.*?[^\\]\]").unwrap());
-    static SPACES: Lazy<regex::Regex> = Lazy::new(|| {
-      regex::Regex::new(r#"(?u)( {2,})(?: [+*{?]|[^+*{?]|$)"#).unwrap()
-    });
+  let mut character_classes = vec![];
+  for mtch in BRACKETS.find_iter(regex) {
+    character_classes.push((mtch.start(), mtch.end()));
+  }
 
-    if !DOUBLE_SPACE.is_match(regex) {
+  for mtch in SPACES.find_iter(regex) {
+    let not_in_classes = &character_classes
+      .iter()
+      .all(|v| mtch.start() < v.0 || v.1 <= mtch.start());
+    if *not_in_classes {
+      ctx.add_diagnostic(span, CODE, MESSAGE);
       return;
     }
-
-    let mut character_classes = vec![];
-    for mtch in BRACKETS.find_iter(regex) {
-      character_classes.push((mtch.start(), mtch.end()));
-    }
-
-    for mtch in SPACES.find_iter(regex) {
-      let not_in_classes = &character_classes
-        .iter()
-        .all(|v| mtch.start() < v.0 || v.1 <= mtch.start());
-      if *not_in_classes {
-        self.context.add_diagnostic(span, CODE, MESSAGE);
-        return;
-      }
-    }
   }
 }
 
-impl<'c, 'view> VisitAll for NoRegexSpacesVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_regex(&mut self, regex: &Regex, _: &dyn Node) {
-    self.check_regex(regex.exp.to_string().as_str(), regex.span);
+impl Handler for NoRegexSpacesHandler {
+  fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
+    check_regex(regex.inner.exp.to_string().as_str(), regex.span(), ctx);
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
-    if let Expr::Ident(ident) = &*new_expr.callee {
+  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
+    if let Expr::Ident(ident) = new_expr.callee {
       if let Some(args) = &new_expr.args {
-        if let Some(regex) = extract_regex(self.context.scope(), ident, args) {
-          self.check_regex(regex.as_str(), new_expr.span);
+        if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
+          check_regex(regex.as_str(), new_expr.span(), ctx);
         }
       }
     }
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
-    if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr.as_ref() {
-        if let Some(regex) =
-          extract_regex(self.context.scope(), ident, &call_expr.args)
-        {
-          self.check_regex(regex.as_str(), call_expr.span);
-        }
+  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
+    if let ExprOrSuper::Expr(Expr::Ident(ident)) = &call_expr.callee {
+      if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
+        check_regex(regex.as_str(), call_expr.span(), ctx);
       }
     }
   }

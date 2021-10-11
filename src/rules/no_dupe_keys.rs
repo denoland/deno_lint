@@ -1,13 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
-  SetterProp,
-};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use deno_ast::view::{
+  GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
+  SetterProp, Spanned,
+};
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -43,16 +43,16 @@ impl LintRule for NoDupeKeys {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoDupeKeysVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoDupeKeysHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -61,17 +61,11 @@ impl LintRule for NoDupeKeys {
   }
 }
 
-struct NoDupeKeysVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoDupeKeysHandler;
 
-impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn report(&mut self, span: Span, key: impl Into<String>) {
-    self.context.add_diagnostic_with_hint(
+impl NoDupeKeysHandler {
+  fn report(&mut self, span: Span, key: impl Into<String>, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(
       span,
       CODE,
       NoDupeKeysMessage::Duplicate(key.into()),
@@ -84,13 +78,14 @@ impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
     obj_span: Span,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
+    ctx: &mut Context,
   ) {
     if let Some(key) = key {
       let key = key.into();
 
       match keys.entry(key) {
         Entry::Occupied(occupied) => {
-          self.report(obj_span, occupied.key());
+          self.report(obj_span, occupied.key(), ctx);
         }
         Entry::Vacant(vacant) => {
           vacant.insert(PropertyInfo::default());
@@ -104,6 +99,7 @@ impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
     obj_span: Span,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
+    ctx: &mut Context,
   ) {
     if let Some(key) = key {
       let key = key.into();
@@ -113,7 +109,7 @@ impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
           if occupied.get().setter_only() {
             occupied.get_mut().getter = true;
           } else {
-            self.report(obj_span, occupied.key());
+            self.report(obj_span, occupied.key(), ctx);
           }
         }
         Entry::Vacant(vacant) => {
@@ -131,6 +127,7 @@ impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
     obj_span: Span,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
+    ctx: &mut Context,
   ) {
     if let Some(key) = key {
       let key = key.into();
@@ -140,7 +137,7 @@ impl<'c, 'view> NoDupeKeysVisitor<'c, 'view> {
           if occupied.get().getter_only() {
             occupied.get_mut().setter = true;
           } else {
-            self.report(obj_span, occupied.key());
+            self.report(obj_span, occupied.key(), ctx);
           }
         }
         Entry::Vacant(vacant) => {
@@ -170,31 +167,29 @@ impl PropertyInfo {
   }
 }
 
-impl<'c, 'view> VisitAll for NoDupeKeysVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_object_lit(&mut self, obj_lit: &ObjectLit, _parent: &dyn Node) {
-    let span = obj_lit.span;
+impl Handler for NoDupeKeysHandler {
+  fn object_lit(&mut self, obj_lit: &ObjectLit, ctx: &mut Context) {
+    let span = obj_lit.span();
     let mut keys: HashMap<String, PropertyInfo> = HashMap::new();
 
     for prop in &obj_lit.props {
       if let PropOrSpread::Prop(prop) = prop {
-        match &**prop {
+        match prop {
           Prop::Shorthand(ident) => {
-            self.check_key(span, Some(ident.as_ref()), &mut keys);
+            self.check_key(span, Some(ident.inner.as_ref()), &mut keys, ctx);
           }
           Prop::KeyValue(KeyValueProp { key, .. }) => {
-            self.check_key(span, key.string_repr(), &mut keys);
+            self.check_key(span, key.string_repr(), &mut keys, ctx);
           }
           Prop::Assign(_) => {}
           Prop::Getter(GetterProp { key, .. }) => {
-            self.check_getter(span, key.string_repr(), &mut keys);
+            self.check_getter(span, key.string_repr(), &mut keys, ctx);
           }
           Prop::Setter(SetterProp { key, .. }) => {
-            self.check_setter(span, key.string_repr(), &mut keys);
+            self.check_setter(span, key.string_repr(), &mut keys, ctx);
           }
           Prop::Method(MethodProp { key, .. }) => {
-            self.check_key(span, key.string_repr(), &mut keys);
+            self.check_key(span, key.string_repr(), &mut keys, ctx);
           }
         }
       }

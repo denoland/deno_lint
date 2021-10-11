@@ -147,6 +147,40 @@ mod tests {
   use super::*;
 
   #[test]
+  fn use_isnan_valid() {
+    assert_lint_ok! {
+      UseIsNaN,
+      "var x = NaN;",
+      "isNaN(NaN) === true;",
+      "isNaN(123) !== true;",
+      "Number.isNaN(NaN) === true;",
+      "Number.isNaN(123) !== true;",
+      "foo(NaN + 1);",
+      "foo(1 + NaN);",
+      "foo(NaN - 1)",
+      "foo(1 - NaN)",
+      "foo(NaN * 2)",
+      "foo(2 * NaN)",
+      "foo(NaN / 2)",
+      "foo(2 / NaN)",
+      "var x; if (x = NaN) { }",
+      "var x = Number.NaN;",
+      "isNaN(Number.NaN) === true;",
+      "Number.isNaN(Number.NaN) === true;",
+      "foo(Number.NaN + 1);",
+      "foo(1 + Number.NaN);",
+      "foo(Number.NaN - 1)",
+      "foo(1 - Number.NaN)",
+      "foo(Number.NaN * 2)",
+      "foo(2 * Number.NaN)",
+      "foo(Number.NaN / 2)",
+      "foo(2 / Number.NaN)",
+      "var x; if (x = Number.NaN) { }",
+      "x === Number[NaN];",
+    };
+  }
+
+  #[test]
   fn use_isnan_invalid() {
     assert_lint_err! {
       UseIsNaN,
