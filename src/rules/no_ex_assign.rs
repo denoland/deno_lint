@@ -6,9 +6,10 @@ use std::sync::Arc;
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
   ArrayPat, AssignExpr, Expr, Ident, ObjectPat, ObjectPatProp, Pat, PatOrExpr,
-  Span, Spanned,
 };
 
 #[derive(Debug)]

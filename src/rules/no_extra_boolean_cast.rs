@@ -3,9 +3,10 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
   CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
-  Ident, IfStmt, NewExpr, ParenExpr, Spanned, UnaryExpr, UnaryOp, WhileStmt,
+  Ident, IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
 use derive_more::Display;
 use std::sync::Arc;
