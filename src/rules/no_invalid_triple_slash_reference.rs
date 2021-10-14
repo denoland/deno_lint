@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::comments::{Comment, CommentKind};
 use deno_ast::swc::common::Span;
+use deno_ast::MediaType;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;
@@ -34,7 +35,8 @@ impl LintRule for NoInvalidTripleSlashReference {
     context: &mut Context,
     _program: Program<'_>,
   ) {
-    let is_js_like = is_js_or_jsx(context.file_name());
+    let is_js_like =
+      matches!(context.media_type(), MediaType::JavaScript | MediaType::Jsx);
 
     for report_kind in context
       .all_comments()
@@ -53,15 +55,6 @@ impl LintRule for NoInvalidTripleSlashReference {
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_invalid_triple_slash_reference.md")
   }
-}
-
-// TODO(@magurotuna): use MediaType instead
-// https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/media_type.rs#L15-L26
-fn is_js_or_jsx(filename: &str) -> bool {
-  filename.ends_with(".js")
-    || filename.ends_with(".mjs")
-    || filename.ends_with(".cjs")
-    || filename.ends_with(".jsx")
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -133,8 +126,11 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
   }
 
   if is_js_like {
-    // In JavaScript, only the `lib` and `types` directives are allowed
-    if is_types_ref(&comment.text) || is_lib_ref(&comment.text) {
+    // In JavaScript, only the `lib`, `no-default-lib` and `types` directives are allowed
+    if is_types_ref(&comment.text)
+      || is_lib_ref(&comment.text)
+      || is_no_default_lib_ref(&comment.text)
+    {
       None
     } else {
       Some(ReportKind::InvalidDirectiveInJs(comment.span))
@@ -227,23 +223,6 @@ mod tests {
     }
   }
 
-  #[test]
-  fn test_is_js_or_jsx() {
-    let testcases = [
-      ("foo.js", true),
-      ("foo.jsx", true),
-      ("foo.mjs", true),
-      ("foo.cjs", true),
-      ("foo.bar.js", true),
-      ("foo.ts", false),
-      ("foo.tsx", false),
-    ];
-
-    for (input, expected) in &testcases {
-      assert_eq!(*expected, is_js_or_jsx(input));
-    }
-  }
-
   fn line(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Line,
@@ -289,7 +268,6 @@ mod tests {
 
     let invalid_comments = [
       line(r#"/ <reference path="./mod.d.ts" />"#),
-      line(r#"/ <reference no-default-lib="true" />"#),
       line(r#"/<reference path="./mod.d.ts" />"#),
       line(r#"/      <reference path="./mod.d.ts"     />           foo bar "#),
       line(r#"/ <reference foo="./mod.d.ts" />"#),
@@ -338,6 +316,7 @@ mod tests {
       r#"/// <reference lib="lib" />"#,
       r#"// <reference path="path" />"#,
       r#"// <reference lib="lib" />"#,
+      r#"/// <reference no-default-lib="true" />"#,
       r#"/* <reference path="path" /> */"#,
       r#"/* <reference lib="lib" /> */"#,
       r#"/* <reference no-default-lib="true" /> */"#,
@@ -379,14 +358,6 @@ mod tests {
       NoInvalidTripleSlashReference,
       filename: "foo.js",
       r#"/// <reference path="foo" />"#: [
-        {
-          line: 1,
-          col: 0,
-          message: not_types_in_js_msg,
-          hint: not_types_in_js_hint,
-        },
-      ],
-      r#"/// <reference no-default-lib="true" />"#: [
         {
           line: 1,
           col: 0,
