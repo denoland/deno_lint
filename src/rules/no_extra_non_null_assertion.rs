@@ -1,13 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::ExprOrSuper;
-use deno_ast::swc::ast::OptChainExpr;
-use deno_ast::swc::ast::TsNonNullExpr;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, ExprOrSuper, OptChainExpr, TsNonNullExpr};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -41,16 +38,16 @@ impl LintRule for NoExtraNonNullAssertion {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoExtraNonNullAssertionVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoExtraNonNullAssertionHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -59,60 +56,57 @@ impl LintRule for NoExtraNonNullAssertion {
   }
 }
 
-struct NoExtraNonNullAssertionVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct NoExtraNonNullAssertionHandler;
+
+fn add_diagnostic(span: Span, ctx: &mut Context) {
+  ctx.add_diagnostic_with_hint(
+    span,
+    CODE,
+    NoExtraNonNullAssertionMessage::Unexpected,
+    NoExtraNonNullAssertionHint::Remove,
+  );
 }
 
-impl<'c, 'view> NoExtraNonNullAssertionVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      NoExtraNonNullAssertionMessage::Unexpected,
-      NoExtraNonNullAssertionHint::Remove,
-    );
-  }
-
-  fn check_expr_for_nested_non_null_assert(&mut self, span: Span, expr: &Expr) {
-    match expr {
-      Expr::TsNonNull(_) => self.add_diagnostic(span),
-      Expr::Paren(paren_expr) => {
-        self.check_expr_for_nested_non_null_assert(span, &*paren_expr.expr)
-      }
-      _ => {}
+fn check_expr_for_nested_non_null_assert(
+  span: Span,
+  expr: &Expr,
+  ctx: &mut Context,
+) {
+  match expr {
+    Expr::TsNonNull(_) => add_diagnostic(span, ctx),
+    Expr::Paren(paren_expr) => {
+      check_expr_for_nested_non_null_assert(span, &paren_expr.expr, ctx)
     }
+    _ => {}
   }
 }
 
-impl<'c, 'view> VisitAll for NoExtraNonNullAssertionVisitor<'c, 'view> {
-  fn visit_ts_non_null_expr(
+impl Handler for NoExtraNonNullAssertionHandler {
+  fn ts_non_null_expr(
     &mut self,
     ts_non_null_expr: &TsNonNullExpr,
-    _: &dyn Node,
+    ctx: &mut Context,
   ) {
-    self.check_expr_for_nested_non_null_assert(
-      ts_non_null_expr.span,
-      &*ts_non_null_expr.expr,
+    check_expr_for_nested_non_null_assert(
+      ts_non_null_expr.span(),
+      &ts_non_null_expr.expr,
+      ctx,
     );
   }
 
-  fn visit_opt_chain_expr(
+  fn opt_chain_expr(
     &mut self,
     opt_chain_expr: &OptChainExpr,
-    _: &dyn Node,
+    ctx: &mut Context,
   ) {
-    let maybe_expr_or_super = match &*opt_chain_expr.expr {
+    let maybe_expr_or_super = match opt_chain_expr.expr {
       Expr::Member(member_expr) => Some(&member_expr.obj),
       Expr::Call(call_expr) => Some(&call_expr.callee),
       _ => None,
     };
 
     if let Some(ExprOrSuper::Expr(expr)) = maybe_expr_or_super {
-      self.check_expr_for_nested_non_null_assert(opt_chain_expr.span, expr);
+      check_expr_for_nested_non_null_assert(opt_chain_expr.span(), expr, ctx);
     }
   }
 }
