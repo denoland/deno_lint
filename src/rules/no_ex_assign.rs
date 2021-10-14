@@ -1,12 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
+use crate::scopes::BindingKind;
 use derive_more::Display;
 use std::sync::Arc;
 
-use deno_ast::swc::ast::AssignExpr;
-use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{
+  ArrayPat, AssignExpr, Expr, Ident, ObjectPat, ObjectPatProp, Pat, PatOrExpr,
+};
 
 #[derive(Debug)]
 pub struct NoExAssign;
@@ -38,16 +42,16 @@ impl LintRule for NoExAssign {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoExAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoExAssignHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -56,36 +60,71 @@ impl LintRule for NoExAssign {
   }
 }
 
-struct NoExAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoExAssignHandler;
 
-impl<'c, 'view> NoExAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
+fn check_pat(pat: &Pat, span: Span, ctx: &mut Context) {
+  match pat {
+    Pat::Ident(ident) => {
+      check_scope_for_const(span, ident.id, ctx);
+    }
+    Pat::Assign(assign) => {
+      check_pat(&assign.left, span, ctx);
+    }
+    Pat::Array(array) => {
+      check_array_pat(array, span, ctx);
+    }
+    Pat::Object(object) => {
+      check_obj_pat(object, span, ctx);
+    }
+    _ => {}
   }
 }
 
-impl<'c, 'view> VisitAll for NoExAssignVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
-    let ids = find_lhs_ids(&assign_expr.left);
-
-    for id in ids {
-      let var = self.context.scope().var(&id);
-
-      if let Some(var) = var {
-        if let BindingKind::CatchClause = var.kind() {
-          self.context.add_diagnostic_with_hint(
-            assign_expr.span,
-            CODE,
-            NoExAssignMessage::NotAllowed,
-            NoExAssignHint::UseDifferent,
-          );
-        }
+fn check_obj_pat(object: &ObjectPat, span: Span, ctx: &mut Context) {
+  if !object.props.is_empty() {
+    for prop in object.props.iter() {
+      if let ObjectPatProp::Assign(assign_prop) = prop {
+        check_scope_for_const(assign_prop.key.span(), assign_prop.key, ctx);
+      } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
+        check_pat(&kv_prop.value, span, ctx);
       }
     }
+  }
+}
+
+fn check_array_pat(array: &ArrayPat, span: Span, ctx: &mut Context) {
+  if !array.elems.is_empty() {
+    for elem in array.elems.iter().flatten() {
+      check_pat(elem, span, ctx);
+    }
+  }
+}
+
+fn check_scope_for_const(span: Span, name: &Ident, ctx: &mut Context) {
+  if let Some(v) = ctx.scope().var_by_ident(name) {
+    if let BindingKind::CatchClause = v.kind() {
+      ctx.add_diagnostic_with_hint(
+        span,
+        CODE,
+        NoExAssignMessage::NotAllowed,
+        NoExAssignHint::UseDifferent,
+      );
+    }
+  }
+}
+
+impl Handler for NoExAssignHandler {
+  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
+    match &assign_expr.left {
+      PatOrExpr::Expr(pat_expr) => {
+        if let Expr::Ident(ident) = pat_expr {
+          check_scope_for_const(assign_expr.span(), ident, ctx);
+        }
+      }
+      PatOrExpr::Pat(boxed_pat) => {
+        check_pat(boxed_pat, assign_expr.span(), ctx)
+      }
+    };
   }
 }
 

@@ -1,14 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Span;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{
   CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
   Ident, IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
-use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -46,16 +45,16 @@ impl LintRule for NoExtraBooleanCast {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoExtraBooleanCastVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoExtraBooleanCastHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -64,146 +63,128 @@ impl LintRule for NoExtraBooleanCast {
   }
 }
 
-struct NoExtraBooleanCastVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct NoExtraBooleanCastHandler;
+
+fn unexpected_call(span: Span, ctx: &mut Context) {
+  ctx.add_diagnostic_with_hint(
+    span,
+    CODE,
+    NoExtraBooleanCastMessage::BooleanCall,
+    NoExtraBooleanCastHint::BooleanCall,
+  );
 }
 
-impl<'c, 'view> NoExtraBooleanCastVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
+fn unexpected_negation(span: Span, ctx: &mut Context) {
+  ctx.add_diagnostic_with_hint(
+    span,
+    CODE,
+    NoExtraBooleanCastMessage::DoubleNegation,
+    NoExtraBooleanCastHint::DoubleNegation,
+  );
+}
 
-  fn unexpected_call(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      NoExtraBooleanCastMessage::BooleanCall,
-      NoExtraBooleanCastHint::BooleanCall,
-    );
-  }
-
-  fn unexpected_negation(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      NoExtraBooleanCastMessage::DoubleNegation,
-      NoExtraBooleanCastHint::DoubleNegation,
-    );
-  }
-
-  fn check_condition(&mut self, expr: &Expr) {
-    match expr {
-      Expr::Call(CallExpr {
-        ref callee, span, ..
-      }) => {
-        if expr_or_super_callee_is_boolean(callee) {
-          self.unexpected_call(*span);
-        }
+fn check_condition(expr: &Expr, ctx: &mut Context) {
+  match expr {
+    Expr::Call(CallExpr {
+      ref callee, inner, ..
+    }) => {
+      if expr_or_super_callee_is_boolean(callee) {
+        unexpected_call(inner.span, ctx);
       }
-      Expr::Unary(UnaryExpr {
-        span,
-        op: UnaryOp::Bang,
-        ref arg,
-      }) if has_n_bang(arg, 1) => {
-        self.unexpected_negation(*span);
-      }
-      Expr::Paren(ParenExpr { ref expr, .. }) => {
-        self.check_condition(expr);
-      }
-      _ => (),
     }
-  }
-
-  fn check_unary_expr(&mut self, unary_expr: &UnaryExpr) {
-    if unary_expr.op == UnaryOp::Bang {
-      let expr = &*unary_expr.arg;
-      self.check_unary_expr_internal(unary_expr.span, expr);
+    Expr::Unary(UnaryExpr { inner, ref arg, .. }) if has_n_bang(arg, 1) => {
+      unexpected_negation(inner.span, ctx);
     }
-  }
-
-  fn check_unary_expr_internal(
-    &mut self,
-    unary_expr_span: Span,
-    internal_expr: &Expr,
-  ) {
-    match internal_expr {
-      Expr::Call(CallExpr { ref callee, .. }) => {
-        if expr_or_super_callee_is_boolean(callee) {
-          self.unexpected_call(unary_expr_span);
-        }
-      }
-      Expr::Unary(UnaryExpr {
-        op: UnaryOp::Bang,
-        ref arg,
-        ..
-      }) if has_n_bang(arg, 1) => {
-        self.unexpected_negation(unary_expr_span);
-      }
-      Expr::Paren(ParenExpr { ref expr, .. }) => {
-        self.check_unary_expr_internal(unary_expr_span, expr);
-      }
-      _ => (),
+    Expr::Paren(ParenExpr { ref expr, .. }) => {
+      check_condition(expr, ctx);
     }
+    _ => (),
   }
 }
 
-impl<'c, 'view> VisitAll for NoExtraBooleanCastVisitor<'c, 'view> {
-  noop_visit_type!();
+fn check_unary_expr(unary_expr: &UnaryExpr, ctx: &mut Context) {
+  if unary_expr.op() == UnaryOp::Bang {
+    let expr = &unary_expr.arg;
+    check_unary_expr_internal(unary_expr.span(), expr, ctx);
+  }
+}
 
-  fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _: &dyn Node) {
-    self.check_condition(&*cond_expr.test);
+fn check_unary_expr_internal(
+  unary_expr_span: Span,
+  internal_expr: &Expr,
+  ctx: &mut Context,
+) {
+  match internal_expr {
+    Expr::Call(CallExpr { ref callee, .. }) => {
+      if expr_or_super_callee_is_boolean(callee) {
+        unexpected_call(unary_expr_span, ctx);
+      }
+    }
+    Expr::Unary(UnaryExpr { ref arg, .. }) if has_n_bang(arg, 1) => {
+      unexpected_negation(unary_expr_span, ctx);
+    }
+    Expr::Paren(ParenExpr { ref expr, .. }) => {
+      check_unary_expr_internal(unary_expr_span, expr, ctx);
+    }
+    _ => (),
+  }
+}
+
+impl Handler for NoExtraBooleanCastHandler {
+  fn cond_expr(&mut self, cond_expr: &CondExpr, ctx: &mut Context) {
+    check_condition(&cond_expr.test, ctx);
   }
 
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
+  fn for_stmt(&mut self, for_stmt: &ForStmt, ctx: &mut Context) {
     if let Some(ref test_expr) = for_stmt.test {
-      self.check_condition(&**test_expr);
+      check_condition(test_expr, ctx);
     }
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
-    self.check_condition(&*if_stmt.test);
+  fn if_stmt(&mut self, if_stmt: &IfStmt, ctx: &mut Context) {
+    check_condition(&if_stmt.test, ctx);
   }
 
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
-    self.check_condition(&*while_stmt.test);
+  fn while_stmt(&mut self, while_stmt: &WhileStmt, ctx: &mut Context) {
+    check_condition(&while_stmt.test, ctx);
   }
 
-  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
-    self.check_condition(&*do_while_stmt.test);
+  fn do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, ctx: &mut Context) {
+    check_condition(&do_while_stmt.test, ctx);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
+  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if expr_or_super_callee_is_boolean(&call_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) = call_expr.args.get(0) {
-        self.check_condition(&*expr);
+        check_condition(&*expr, ctx);
       }
     }
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _: &dyn Node) {
+  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
     if expr_callee_is_boolean(&new_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) =
         new_expr.args.as_ref().and_then(|a| a.get(0))
       {
-        self.check_condition(&*expr);
+        check_condition(&*expr, ctx);
       }
     }
   }
 
-  fn visit_unary_expr(&mut self, unary_expr: &UnaryExpr, _: &dyn Node) {
-    self.check_unary_expr(unary_expr);
+  fn unary_expr(&mut self, unary_expr: &UnaryExpr, ctx: &mut Context) {
+    check_unary_expr(unary_expr, ctx);
   }
 }
 
 fn expr_or_super_callee_is_boolean(expr_or_super: &ExprOrSuper) -> bool {
   match expr_or_super {
-    ExprOrSuper::Expr(ref callee) => expr_callee_is_boolean(&**callee),
+    ExprOrSuper::Expr(ref callee) => expr_callee_is_boolean(callee),
     _ => false,
   }
 }
 
 fn expr_callee_is_boolean(expr: &Expr) -> bool {
-  matches!(expr, Expr::Ident(Ident { ref sym, .. }) if sym == "Boolean")
+  matches!(expr, Expr::Ident(Ident { inner, .. }) if inner.sym == *"Boolean")
 }
 
 /// Checks if `expr` has `n` continuous bang operators at the beginning, ignoring parentheses.
@@ -213,11 +194,13 @@ fn has_n_bang(expr: &Expr, n: usize) -> bool {
   }
 
   match expr {
-    Expr::Unary(UnaryExpr {
-      op: UnaryOp::Bang,
-      ref arg,
-      ..
-    }) => has_n_bang(arg, n - 1),
+    Expr::Unary(UnaryExpr { ref arg, inner, .. }) => {
+      if inner.op == UnaryOp::Bang {
+        has_n_bang(arg, n - 1)
+      } else {
+        false
+      }
+    }
     Expr::Paren(ParenExpr { ref expr, .. }) => has_n_bang(expr, n),
     _ => false,
   }

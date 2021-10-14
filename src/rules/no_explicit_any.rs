@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::TsKeywordType;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::ast::TsKeywordTypeKind::TsAnyKeyword;
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::TsKeywordType;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -26,16 +27,16 @@ impl LintRule for NoExplicitAny {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoExplicitAnyVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoExplicitAnyHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -44,31 +45,16 @@ impl LintRule for NoExplicitAny {
   }
 }
 
-struct NoExplicitAnyVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoExplicitAnyHandler;
 
-impl<'c, 'view> NoExplicitAnyVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoExplicitAnyVisitor<'c, 'view> {
-  fn visit_ts_keyword_type(
+impl Handler for NoExplicitAnyHandler {
+  fn ts_keyword_type(
     &mut self,
     ts_keyword_type: &TsKeywordType,
-    _parent: &dyn Node,
+    ctx: &mut Context,
   ) {
-    use deno_ast::swc::ast::TsKeywordTypeKind::*;
-
-    if ts_keyword_type.kind == TsAnyKeyword {
-      self.context.add_diagnostic_with_hint(
-        ts_keyword_type.span,
-        CODE,
-        MESSAGE,
-        HINT,
-      );
+    if ts_keyword_type.keyword_kind() == TsAnyKeyword {
+      ctx.add_diagnostic_with_hint(ts_keyword_type.span(), CODE, MESSAGE, HINT);
     }
   }
 }
