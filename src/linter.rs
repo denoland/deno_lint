@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::parse_program;
-use crate::ast_parser::SwcDiagnostic;
 use crate::context::Context;
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
@@ -10,6 +9,7 @@ use crate::ignore_directives::{
 use crate::rules::LintRule;
 use crate::scopes::Scope;
 use deno_ast::view::ProgramRef;
+use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use std::sync::Arc;
@@ -116,7 +116,7 @@ impl Linter {
     mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), SwcDiagnostic> {
+  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
     let start = Instant::now();
 
     let syntax = deno_ast::get_syntax(self.media_type);
