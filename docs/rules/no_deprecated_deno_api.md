@@ -14,8 +14,8 @@ removed from the namespace in the future.
 - `Deno.iterSync`
 - `Deno.copy`
 
-The IO APIs are already available in `std/io`, so replace these deprecated ones
-with alternatives from `std/io`. For more detail, see
+The IO APIs are already available in `std/io` or `std/streams`, so replace these
+deprecated ones with alternatives from `std`. For more detail, see
 [the tracking issue](https://github.com/denoland/deno/issues/9795).
 
 **Custom Inspector API**
