@@ -142,19 +142,19 @@ impl DeprecatedApi {
 
   fn get_replacement(&self) -> Replacement {
     const BUFFER_TS: &str = "https://deno.land/std/io/buffer.ts";
-    const UTIL_TS: &str = "https://deno.land/std/io/util.ts";
+    const STREAMS_TS: &str = "https://deno.land/std/streams/conversion.ts";
 
     use DeprecatedApi::*;
     use Replacement::*;
     match *self {
       Buffer => NameAndUrl("Buffer", BUFFER_TS),
-      ReadAll => NameAndUrl("readAll", UTIL_TS),
-      ReadAllSync => NameAndUrl("readAllSync", UTIL_TS),
-      WriteAll => NameAndUrl("writeAll", UTIL_TS),
-      WriteAllSync => NameAndUrl("writeAllSync", UTIL_TS),
-      Iter => NameAndUrl("iter", UTIL_TS),
-      IterSync => NameAndUrl("iterSync", UTIL_TS),
-      Copy => NameAndUrl("copy", UTIL_TS),
+      ReadAll => NameAndUrl("readAll", STREAMS_TS),
+      ReadAllSync => NameAndUrl("readAllSync", STREAMS_TS),
+      WriteAll => NameAndUrl("writeAll", STREAMS_TS),
+      WriteAllSync => NameAndUrl("writeAllSync", STREAMS_TS),
+      Iter => NameAndUrl("iter", STREAMS_TS),
+      IterSync => NameAndUrl("iterSync", STREAMS_TS),
+      Copy => NameAndUrl("copy", STREAMS_TS),
       CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
     }
   }
