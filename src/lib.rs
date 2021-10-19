@@ -90,6 +90,33 @@ mod lint_tests {
   }
 
   #[test]
+  fn dont_run_ban_unknown_rule_code_when_no_rules_provided() {
+    let src = r#"
+ // deno-lint-ignore some-rule
+ function _foo() {
+   // deno-lint-ignore some-rule-2 some-rule-3
+   let _bar_foo = true
+ }
+      "#;
+    let diagnostics = lint(src, vec![]);
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
+  fn global_ignore_ban_unknown_rule_code() {
+    let src = r#"
+// deno-lint-ignore-file ban-unknown-rule-code
+
+// deno-lint-ignore some-rule
+export function foo() {
+  return true
+}
+      "#;
+    let diagnostics = lint_recommended_rules(src);
+    assert!(diagnostics.is_empty());
+  }
+
+  #[test]
   fn unknown_rules_always_know_available_rules() {
     use crate::rules::camelcase::Camelcase;
     let diagnostics = lint_specified_rule::<Camelcase>(

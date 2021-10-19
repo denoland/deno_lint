@@ -6,7 +6,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::{
   parse_file_ignore_directives, parse_line_ignore_directives,
 };
-use crate::rules::LintRule;
+use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
 use crate::scopes::Scope;
 use deno_ast::view::ProgramRef;
 use deno_ast::Diagnostic;
@@ -152,10 +152,10 @@ impl Linter {
     let start = Instant::now();
 
     let mut filtered_diagnostics = context.check_ignore_directive_usage();
-    // Run `ban-unused-ignore`
-    filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
     // Run `ban-unknown-rule-code`
     filtered_diagnostics.extend(context.ban_unknown_rule_code());
+    // Run `ban-unused-ignore`
+    filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
     filtered_diagnostics.sort_by_key(|d| d.range.start.line_index);
 
     let end = Instant::now();
@@ -169,7 +169,10 @@ impl Linter {
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
     let start = Instant::now();
-
+    let check_unknown_rules = self
+      .rules
+      .iter()
+      .any(|a| a.code() == (BanUnknownRuleCode).code());
     let control_flow = ControlFlow::analyze(parsed_source.program_ref().into());
     let diagnostics = parsed_source.with_view(|pg| {
       let file_ignore_directive =
@@ -197,6 +200,7 @@ impl Linter {
         scope,
         control_flow,
         parsed_source.top_level_context(),
+        check_unknown_rules,
       );
 
       crate::rules::sort_rules_by_priority(&mut self.rules);
