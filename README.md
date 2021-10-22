@@ -141,12 +141,12 @@ For more concrete implementation visit
 
 ## Developing
 
-Make sure to have latest stable version of Rust installed (1.55.0).
+Make sure to have latest stable version of Rust installed (1.56.0).
 
 ```shell
 // check version
 $ rustc --version
-rustc 1.55.0 (c8dfcfe04 2021-09-06)
+rustc 1.56.0 (09c42c458 2021-10-18)
 
 // build all targets
 $ cargo build --all-targets
