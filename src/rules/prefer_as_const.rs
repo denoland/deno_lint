@@ -94,7 +94,7 @@ impl<'c, 'view> PreferAsConstVisitor<'c, 'view> {
               self.add_diagnostic_helper(span)
             }
           }
-          _ => return,
+          _ => {},
         }
       }
     }
