@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::ArrayLit;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -27,16 +27,16 @@ impl LintRule for NoSparseArrays {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoSparseArraysVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoSparseArraysHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -45,27 +45,13 @@ impl LintRule for NoSparseArrays {
   }
 }
 
-struct NoSparseArraysVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoSparseArraysHandler;
 
-impl<'c, 'view> NoSparseArraysVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoSparseArraysVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_array_lit(
-    &mut self,
-    array_lit: &deno_ast::swc::ast::ArrayLit,
-    _parent: &dyn Node,
-  ) {
+impl Handler for NoSparseArraysHandler {
+  fn array_lit(&mut self, array_lit: &ArrayLit, ctx: &mut Context) {
     if array_lit.elems.iter().any(|e| e.is_none()) {
-      self.context.add_diagnostic(
-        array_lit.span,
+      ctx.add_diagnostic(
+        array_lit.span(),
         CODE,
         NoSparseArraysMessage::Disallowed,
       );
