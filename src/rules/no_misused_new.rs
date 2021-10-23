@@ -1,13 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{
   ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
   TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -41,16 +41,16 @@ impl LintRule for NoMisusedNew {
     Arc::new(NoMisusedNew)
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoMisusedNewVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoMisusedNewHandler.traverse(program, context);
   }
 
   fn tags(&self) -> &'static [&'static str] {
@@ -67,39 +67,31 @@ impl LintRule for NoMisusedNew {
   }
 }
 
-struct NoMisusedNewVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoMisusedNewHandler;
 
-impl<'c, 'view> NoMisusedNewVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn match_parent_type(&self, parent: &Ident, return_type: &TsTypeAnn) -> bool {
-    if let TsType::TsTypeRef(type_ref) = &*return_type.type_ann {
-      if let TsEntityName::Ident(ident) = &type_ref.type_name {
-        return ident.sym == parent.sym;
-      }
+fn match_parent_type(parent: &Ident, return_type: &TsTypeAnn) -> bool {
+  if let TsType::TsTypeRef(type_ref) = return_type.type_ann {
+    if let TsEntityName::Ident(ident) = &type_ref.type_name {
+      return ident.sym() == parent.sym();
     }
-
-    false
   }
 
-  fn is_constructor_keyword(&self, ident: &Ident) -> bool {
-    *"constructor" == ident.sym
-  }
+  false
 }
 
-impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
-  fn visit_ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, _: &dyn Node) {
-    if let TsType::TsTypeLit(lit) = &*t.type_ann {
+fn is_constructor_keyword(ident: &Ident) -> bool {
+  *"constructor" == *ident.sym()
+}
+
+impl Handler for NoMisusedNewHandler {
+  fn ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, ctx: &mut Context) {
+    if let TsType::TsTypeLit(lit) = t.type_ann {
       for member in &lit.members {
         if let TsMethodSignature(signature) = &member {
-          if let Expr::Ident(ident) = &*signature.key {
-            if self.is_constructor_keyword(ident) {
-              self.context.add_diagnostic_with_hint(
-                ident.span,
+          if let Expr::Ident(ident) = signature.key {
+            if is_constructor_keyword(ident) {
+              ctx.add_diagnostic_with_hint(
+                ident.span(),
                 CODE,
                 NoMisusedNewMessage::TypeAlias,
                 NoMisusedNewHint::NotType,
@@ -111,15 +103,15 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
     }
   }
 
-  fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl, _: &dyn Node) {
+  fn ts_interface_decl(&mut self, n: &TsInterfaceDecl, ctx: &mut Context) {
     for member in &n.body.body {
       match &member {
         TsMethodSignature(signature) => {
-          if let Expr::Ident(ident) = &*signature.key {
-            if self.is_constructor_keyword(ident) {
+          if let Expr::Ident(ident) = signature.key {
+            if is_constructor_keyword(ident) {
               // constructor
-              self.context.add_diagnostic_with_hint(
-                signature.span,
+              ctx.add_diagnostic_with_hint(
+                signature.span(),
                 CODE,
                 NoMisusedNewMessage::Interface,
                 NoMisusedNewHint::NotInterface,
@@ -129,11 +121,10 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
         }
         TsConstructSignatureDecl(signature) => {
           if signature.type_ann.is_some()
-            && self
-              .match_parent_type(&n.id, signature.type_ann.as_ref().unwrap())
+            && match_parent_type(n.id, signature.type_ann.as_ref().unwrap())
           {
-            self.context.add_diagnostic_with_hint(
-              signature.span,
+            ctx.add_diagnostic_with_hint(
+              signature.span(),
               CODE,
               NoMisusedNewMessage::Interface,
               NoMisusedNewHint::NotInterface,
@@ -145,12 +136,12 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
     }
   }
 
-  fn visit_class_decl(&mut self, expr: &ClassDecl, _: &dyn Node) {
+  fn class_decl(&mut self, expr: &ClassDecl, ctx: &mut Context) {
     for member in &expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
-          PropName::Ident(ident) => ident.sym.as_ref(),
-          PropName::Str(str_) => str_.value.as_ref(),
+          PropName::Ident(ident) => ident.sym().as_ref(),
+          PropName::Str(str_) => str_.value().as_ref(),
           _ => continue,
         };
 
@@ -159,14 +150,14 @@ impl<'c, 'view> VisitAll for NoMisusedNewVisitor<'c, 'view> {
         }
 
         if method.function.return_type.is_some()
-          && self.match_parent_type(
-            &expr.ident,
+          && match_parent_type(
+            expr.ident,
             method.function.return_type.as_ref().unwrap(),
           )
         {
           // new
-          self.context.add_diagnostic_with_hint(
-            method.span,
+          ctx.add_diagnostic_with_hint(
+            method.span(),
             CODE,
             NoMisusedNewMessage::NewMethod,
             NoMisusedNewHint::RenameMethod,
