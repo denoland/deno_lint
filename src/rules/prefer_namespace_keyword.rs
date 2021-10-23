@@ -1,11 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use once_cell::sync::Lazy;
-use regex::Regex;
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{TsModuleDecl, TsModuleName};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::sync::Arc;
 #[derive(Debug)]
 pub struct PreferNamespaceKeyword;
@@ -47,11 +47,7 @@ impl LintRule for PreferNamespaceKeyword {
 struct PreferNamespaceKeywordHandler;
 
 impl Handler for PreferNamespaceKeywordHandler {
-  fn ts_module_decl(
-    &mut self,
-    mod_decl: &TsModuleDecl,
-    ctx: &mut Context,
-  ) {
+  fn ts_module_decl(&mut self, mod_decl: &TsModuleDecl, ctx: &mut Context) {
     if let TsModuleName::Str(_) = &mod_decl.id {
       return;
     }
