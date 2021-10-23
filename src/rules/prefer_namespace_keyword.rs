@@ -1,13 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{TsModuleDecl, TsModuleName};
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{TsModuleDecl, TsModuleName};
 use std::sync::Arc;
-
 #[derive(Debug)]
 pub struct PreferNamespaceKeyword;
 
@@ -27,16 +26,16 @@ impl LintRule for PreferNamespaceKeyword {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = PreferNamespaceKeywordVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    PreferNamespaceKeywordHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -45,21 +44,13 @@ impl LintRule for PreferNamespaceKeyword {
   }
 }
 
-struct PreferNamespaceKeywordVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct PreferNamespaceKeywordHandler;
 
-impl<'c, 'view> PreferNamespaceKeywordVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for PreferNamespaceKeywordVisitor<'c, 'view> {
-  fn visit_ts_module_decl(
+impl Handler for PreferNamespaceKeywordHandler {
+  fn ts_module_decl(
     &mut self,
     mod_decl: &TsModuleDecl,
-    parent: &dyn Node,
+    ctx: &mut Context,
   ) {
     if let TsModuleName::Str(_) = &mod_decl.id {
       return;
@@ -67,15 +58,12 @@ impl<'c, 'view> Visit for PreferNamespaceKeywordVisitor<'c, 'view> {
     static KEYWORD: Lazy<Regex> =
       Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
 
-    let snippet = self.context.file_text_substring(&mod_decl.span);
+    let snippet = ctx.file_text_substring(&mod_decl.span());
     if let Some(capt) = KEYWORD.captures(snippet) {
       let keyword = capt.name("keyword").unwrap().as_str();
-      if keyword == "module" && !mod_decl.global {
-        self.context.add_diagnostic(mod_decl.span, CODE, MESSAGE)
+      if keyword == "module" && !mod_decl.global() {
+        ctx.add_diagnostic(mod_decl.span(), CODE, MESSAGE)
       }
-    }
-    for stmt in &mod_decl.body {
-      self.visit_ts_namespace_body(stmt, parent)
     }
   }
 }
