@@ -1,10 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{Expr, Pat, VarDecl};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, Pat, VarDecl};
 use if_chain::if_chain;
 use std::sync::Arc;
 
@@ -27,16 +26,16 @@ impl LintRule for NoThisAlias {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoThisAliasVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoThisAliasHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -45,27 +44,17 @@ impl LintRule for NoThisAlias {
   }
 }
 
-struct NoThisAliasVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoThisAliasHandler;
 
-impl<'c, 'view> NoThisAliasVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> VisitAll for NoThisAliasVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
+impl Handler for NoThisAliasHandler {
+  fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
     for decl in &var_decl.decls {
       if_chain! {
         if let Some(init) = &decl.init;
-        if matches!(&**init, Expr::This(_));
+        if matches!(&init, Expr::This(_));
         if matches!(&decl.name, Pat::Ident(_));
         then {
-          self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
+          ctx.add_diagnostic(var_decl.span(), CODE, MESSAGE);
         }
       }
     }
