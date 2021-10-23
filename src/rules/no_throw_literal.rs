@@ -1,10 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{Expr, ThrowStmt};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, ThrowStmt};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -31,16 +30,16 @@ impl LintRule for NoThrowLiteral {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoThrowLiteralVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoThrowLiteralHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -49,33 +48,21 @@ impl LintRule for NoThrowLiteral {
   }
 }
 
-struct NoThrowLiteralVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoThrowLiteralHandler;
 
-impl<'c, 'view> NoThrowLiteralVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoThrowLiteralVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_throw_stmt(&mut self, throw_stmt: &ThrowStmt, _parent: &dyn Node) {
-    match &*throw_stmt.arg {
-      Expr::Lit(_) => self.context.add_diagnostic(
-        throw_stmt.span,
+impl Handler for NoThrowLiteralHandler {
+  fn throw_stmt(&mut self, throw_stmt: &ThrowStmt, ctx: &mut Context) {
+    match throw_stmt.arg {
+      Expr::Lit(_) => ctx.add_diagnostic(
+        throw_stmt.span(),
         CODE,
         NoThrowLiteralMessage::ErrObjectExpected,
       ),
-      Expr::Ident(ident) if ident.sym == *"undefined" => {
-        self.context.add_diagnostic(
-          throw_stmt.span,
-          CODE,
-          NoThrowLiteralMessage::Undefined,
-        )
-      }
+      Expr::Ident(ident) if *ident.sym() == *"undefined" => ctx.add_diagnostic(
+        throw_stmt.span(),
+        CODE,
+        NoThrowLiteralMessage::Undefined,
+      ),
       _ => {}
     }
   }
