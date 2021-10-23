@@ -1,8 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::TsNonNullExpr;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -26,16 +27,16 @@ impl LintRule for NoNonNullAssertion {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoNonNullAssertionVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoNonNullAssertionHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -44,27 +45,21 @@ impl LintRule for NoNonNullAssertion {
   }
 }
 
-struct NoNonNullAssertionVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoNonNullAssertionHandler;
 
-impl<'c, 'view> NoNonNullAssertionVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoNonNullAssertionVisitor<'c, 'view> {
-  fn visit_ts_non_null_expr(
+impl Handler for NoNonNullAssertionHandler {
+  fn ts_non_null_expr(
     &mut self,
-    non_null_expr: &deno_ast::swc::ast::TsNonNullExpr,
-    _parent: &dyn Node,
+    non_null_expr: &TsNonNullExpr,
+    ctx: &mut Context,
   ) {
-    self.context.add_diagnostic(
-      non_null_expr.span,
-      CODE,
-      NoNonNullAssertionMessage::Unexpected,
-    );
+    if !non_null_expr.parent().is::<TsNonNullExpr>() {
+      ctx.add_diagnostic(
+        non_null_expr.span(),
+        CODE,
+        NoNonNullAssertionMessage::Unexpected,
+      );
+    }
   }
 }
 
