@@ -112,26 +112,26 @@ mod tests {
         col: 0,
         message: NoNonNullAssertionMessage::Unexpected,
       }],
-      // r#"x.y.z!!();"#: [
-      // {
-      //   col: 0,
-      //   message: NoNonNullAssertionMessage::Unexpected,
-      // }],
-      // r#"x.y!!;"#: [
-      // {
-      //   col: 0,
-      //   message: NoNonNullAssertionMessage::Unexpected,
-      // }],
-      // r#"x!!.y;"#: [
-      // {
-      //   col: 0,
-      //   message: NoNonNullAssertionMessage::Unexpected,
-      // }],
-      // r#"x!!!;"#: [
-      // {
-      //   col: 0,
-      //   message: NoNonNullAssertionMessage::Unexpected,
-      // }],
+      r#"x.y.z!!();"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x.y!!;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!!.y;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
+      r#"x!!!;"#: [
+      {
+        col: 0,
+        message: NoNonNullAssertionMessage::Unexpected,
+      }],
       r#"x.y?.z!();"#: [
       {
         col: 0,
