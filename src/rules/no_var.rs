@@ -1,13 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::VarDecl;
-use deno_ast::swc::ast::VarDeclKind;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{VarDecl, VarDeclKind};
 use std::sync::Arc;
-
 #[derive(Debug)]
 pub struct NoVar;
 
@@ -27,16 +24,16 @@ impl LintRule for NoVar {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoVarVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoVarHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -45,22 +42,12 @@ impl LintRule for NoVar {
   }
 }
 
-struct NoVarVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoVarHandler;
 
-impl<'c, 'view> NoVarVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoVarVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
-    if var_decl.kind == VarDeclKind::Var {
-      self.context.add_diagnostic(var_decl.span, CODE, MESSAGE);
+impl Handler for NoVarHandler {
+  fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
+    if var_decl.decl_kind() == VarDeclKind::Var {
+      ctx.add_diagnostic(var_decl.span(), CODE, MESSAGE);
     }
   }
 }
