@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::Number;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::Number;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;
@@ -28,16 +28,16 @@ impl LintRule for NoOctal {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoOctalVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoOctalHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -46,29 +46,16 @@ impl LintRule for NoOctal {
   }
 }
 
-struct NoOctalVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoOctalHandler;
 
-impl<'c, 'view> NoOctalVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoOctalVisitor<'c, 'view> {
-  fn visit_number(&mut self, literal_num: &Number, _parent: &dyn Node) {
+impl Handler for NoOctalHandler {
+  fn number(&mut self, literal_num: &Number, ctx: &mut Context) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
-    let raw_number = self.context.file_text_substring(&literal_num.span);
+    let raw_number = ctx.file_text_substring(&literal_num.span());
 
     if OCTAL.is_match(raw_number) {
-      self.context.add_diagnostic_with_hint(
-        literal_num.span,
-        CODE,
-        MESSAGE,
-        HINT,
-      );
+      ctx.add_diagnostic_with_hint(literal_num.span(), CODE, MESSAGE, HINT);
     }
   }
 }
