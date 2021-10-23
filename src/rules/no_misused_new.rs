@@ -1,6 +1,4 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use derive_more::Display;
-use std::sync::Arc;
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
@@ -10,6 +8,8 @@ use deno_ast::view::{
   TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
+use derive_more::Display;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoMisusedNew;
@@ -69,7 +69,6 @@ impl LintRule for NoMisusedNew {
 
 struct NoMisusedNewHandler;
 
-
 fn match_parent_type(parent: &Ident, return_type: &TsTypeAnn) -> bool {
   if let TsType::TsTypeRef(type_ref) = return_type.type_ann {
     if let TsEntityName::Ident(ident) = &type_ref.type_name {
@@ -85,11 +84,7 @@ fn is_constructor_keyword(ident: &Ident) -> bool {
 }
 
 impl Handler for NoMisusedNewHandler {
-  fn ts_type_alias_decl(
-    &mut self,
-    t: &TsTypeAliasDecl,
-    ctx: &mut Context,
-  ) {
+  fn ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, ctx: &mut Context) {
     if let TsType::TsTypeLit(lit) = t.type_ann {
       for member in &lit.members {
         if let TsMethodSignature(signature) = &member {
@@ -108,11 +103,7 @@ impl Handler for NoMisusedNewHandler {
     }
   }
 
-  fn ts_interface_decl(
-    &mut self,
-    n: &TsInterfaceDecl,
-    ctx: &mut Context,
-  ) {
+  fn ts_interface_decl(&mut self, n: &TsInterfaceDecl, ctx: &mut Context) {
     for member in &n.body.body {
       match &member {
         TsMethodSignature(signature) => {
@@ -130,7 +121,7 @@ impl Handler for NoMisusedNewHandler {
         }
         TsConstructSignatureDecl(signature) => {
           if signature.type_ann.is_some()
-            && match_parent_type(&n.id, signature.type_ann.as_ref().unwrap())
+            && match_parent_type(n.id, signature.type_ann.as_ref().unwrap())
           {
             ctx.add_diagnostic_with_hint(
               signature.span(),
@@ -160,7 +151,7 @@ impl Handler for NoMisusedNewHandler {
 
         if method.function.return_type.is_some()
           && match_parent_type(
-            &expr.ident,
+            expr.ident,
             method.function.return_type.as_ref().unwrap(),
           )
         {
