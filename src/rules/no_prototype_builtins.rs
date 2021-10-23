@@ -1,14 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{CallExpr, Expr, ExprOrSuper};
 use std::sync::Arc;
-
-use deno_ast::swc::ast::CallExpr;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::ExprOrSuper;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
 
 const BANNED_PROPERTIES: &[&str] =
   &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
@@ -38,16 +34,16 @@ impl LintRule for NoPrototypeBuiltins {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoPrototypeBuiltinsVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoPrototypeBuiltinsHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -56,24 +52,14 @@ impl LintRule for NoPrototypeBuiltins {
   }
 }
 
-struct NoPrototypeBuiltinsVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoPrototypeBuiltinsHandler;
 
-impl<'c, 'view> NoPrototypeBuiltinsVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> Visit for NoPrototypeBuiltinsVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
-    let member_expr = match &call_expr.callee {
-      ExprOrSuper::Expr(boxed_expr) => match &**boxed_expr {
+impl Handler for NoPrototypeBuiltinsHandler {
+  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
+    let member_expr = match call_expr.callee {
+      ExprOrSuper::Expr(boxed_expr) => match boxed_expr {
         Expr::Member(member_expr) => {
-          if member_expr.computed {
+          if member_expr.computed() {
             return;
           }
           member_expr
@@ -83,14 +69,10 @@ impl<'c, 'view> Visit for NoPrototypeBuiltinsVisitor<'c, 'view> {
       ExprOrSuper::Super(_) => return,
     };
 
-    if let Expr::Ident(ident) = &*member_expr.prop {
-      let prop_name = ident.sym.as_ref();
+    if let Expr::Ident(ident) = member_expr.prop {
+      let prop_name = ident.sym().as_ref();
       if BANNED_PROPERTIES.contains(&prop_name) {
-        self.context.add_diagnostic(
-          call_expr.span,
-          CODE,
-          get_message(prop_name),
-        );
+        ctx.add_diagnostic(call_expr.span(), CODE, get_message(prop_name));
       }
     }
   }
