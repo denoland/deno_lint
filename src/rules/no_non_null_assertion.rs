@@ -53,15 +53,13 @@ impl Handler for NoNonNullAssertionHandler {
     non_null_expr: &TsNonNullExpr,
     ctx: &mut Context,
   ) {
-    dbg!(&non_null_expr.span());
-    if non_null_expr.parent().is::<TsNonNullExpr>() {
-      return;
+    if !non_null_expr.parent().is::<TsNonNullExpr>() {
+      ctx.add_diagnostic(
+        non_null_expr.span(),
+        CODE,
+        NoNonNullAssertionMessage::Unexpected,
+      );
     }
-    ctx.add_diagnostic(
-      non_null_expr.span(),
-      CODE,
-      NoNonNullAssertionMessage::Unexpected,
-    );
   }
 }
 
