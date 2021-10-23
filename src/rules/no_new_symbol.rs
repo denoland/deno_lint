@@ -1,11 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{Expr, NewExpr};
-use deno_ast::swc::utils::ident::IdentLike;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, NewExpr};
 use if_chain::if_chain;
 use std::sync::Arc;
 
@@ -28,16 +26,16 @@ impl LintRule for NoNewSymbol {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoNewSymbolVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+    NoNewSymbolHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -46,26 +44,16 @@ impl LintRule for NoNewSymbol {
   }
 }
 
-struct NoNewSymbolVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoNewSymbolHandler;
 
-impl<'c, 'view> NoNewSymbolVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> VisitAll for NoNewSymbolVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
+impl Handler for NoNewSymbolHandler {
+  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
     if_chain! {
-      if let Expr::Ident(ident) = &*new_expr.callee;
-      if ident.sym == *"Symbol";
-      if self.context.scope().var(&ident.to_id()).is_none();
+      if let Expr::Ident(ident) = new_expr.callee;
+      if *ident.sym() == *"Symbol";
+      if ctx.scope().var(&ident.to_id()).is_none();
       then {
-        self.context.add_diagnostic(new_expr.span, CODE, MESSAGE);
+        ctx.add_diagnostic(new_expr.span(), CODE, MESSAGE);
       }
     }
   }
