@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
-use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -25,18 +26,6 @@ impl LintRule for NoShadowRestrictedNames {
     Arc::new(NoShadowRestrictedNames)
   }
 
-  fn lint_program<'view>(
-    &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  ) {
-    let mut visitor = NoShadowRestrictedNamesVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
@@ -45,129 +34,129 @@ impl LintRule for NoShadowRestrictedNames {
     CODE
   }
 
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    NoShadowRestrictedNamesHandler.traverse(program, context);
+  }
+
   #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/no_shadow_restricted_names.md")
   }
 }
 
-struct NoShadowRestrictedNamesVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct NoShadowRestrictedNamesHandler;
+
+fn is_restricted_names(ident: &Ident) -> bool {
+  matches!(
+    ident.sym().as_ref(),
+    "undefined" | "NaN" | "Infinity" | "arguments" | "eval"
+  )
 }
 
-impl<'c, 'view> NoShadowRestrictedNamesVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn is_restricted_names(&self, ident: &Ident) -> bool {
-    matches!(
-      ident.sym.as_ref(),
-      "undefined" | "NaN" | "Infinity" | "arguments" | "eval"
-    )
-  }
-
-  fn check_pat(&mut self, pat: &Pat) {
-    match pat {
-      Pat::Ident(ident) => {
-        self.check_shadowing(&ident.id);
-      }
-      Pat::Expr(expr) => {
-        if let Expr::Ident(ident) = expr.as_ref() {
-          self.check_shadowing(ident);
+fn check_pat(pat: &Pat, ctx: &mut Context) {
+  match pat {
+    Pat::Ident(ident) => {
+      check_shadowing(ident.id, ctx);
+    }
+    Pat::Expr(Expr::Ident(ident)) => {
+      check_shadowing(ident, ctx);
+    }
+    Pat::Array(array_pat) => {
+      for el in &array_pat.elems {
+        if let Some(pat) = el.as_ref() {
+          check_pat(pat, ctx);
         }
       }
-      Pat::Array(array_pat) => {
-        for el in &array_pat.elems {
-          if let Some(pat) = el.as_ref() {
-            self.check_pat(pat);
+    }
+    Pat::Object(object_pat) => {
+      for prop in &object_pat.props {
+        match prop {
+          ObjectPatProp::Assign(assign) => {
+            check_shadowing(assign.key, ctx);
+          }
+          ObjectPatProp::Rest(rest) => check_pat(&rest.arg, ctx),
+          ObjectPatProp::KeyValue(key_value) => {
+            check_pat(&key_value.value, ctx);
           }
         }
       }
-      Pat::Object(object_pat) => {
-        for prop in &object_pat.props {
-          match prop {
-            ObjectPatProp::Assign(assign) => {
-              self.check_shadowing(&assign.key);
-            }
-            ObjectPatProp::Rest(rest) => self.check_pat(&rest.arg),
-            ObjectPatProp::KeyValue(key_value) => {
-              self.check_pat(&key_value.value);
-            }
-          }
-        }
-      }
-      Pat::Rest(rest_pat) => {
-        self.check_pat(&rest_pat.arg);
-      }
-      _ => {}
     }
-  }
-
-  fn check_shadowing(&mut self, ident: &Ident) {
-    if self.is_restricted_names(ident) {
-      self.report_shadowing(ident);
+    Pat::Rest(rest_pat) => {
+      check_pat(&rest_pat.arg, ctx);
     }
-  }
-
-  fn report_shadowing(&mut self, ident: &Ident) {
-    self.context.add_diagnostic(
-      ident.span,
-      CODE,
-      NoShadowRestrictedNamesMessage::Shadowing(ident.sym.to_string()),
-    );
+    _ => {}
   }
 }
 
-impl<'c, 'view> VisitAll for NoShadowRestrictedNamesVisitor<'c, 'view> {
-  noop_visit_type!();
+fn check_shadowing(ident: &Ident, ctx: &mut Context) {
+  if is_restricted_names(ident) {
+    report_shadowing(ident, ctx);
+  }
+}
 
-  fn visit_var_decl(&mut self, node: &VarDecl, _: &dyn Node) {
+fn report_shadowing(ident: &Ident, ctx: &mut Context) {
+  ctx.add_diagnostic(
+    ident.span(),
+    CODE,
+    NoShadowRestrictedNamesMessage::Shadowing(ident.sym().to_string()),
+  );
+}
+
+impl Handler for NoShadowRestrictedNamesHandler {
+  fn var_decl(&mut self, node: &VarDecl, ctx: &mut Context) {
     for decl in &node.decls {
       if let Pat::Ident(ident) = &decl.name {
         // `undefined` variable declaration without init is have same meaning
-        if decl.init.is_none() && &ident.id.sym == "undefined" {
+        if decl.init.is_none() && *ident.id.sym() == *"undefined" {
           continue;
         }
       }
 
-      self.check_pat(&decl.name);
+      check_pat(&decl.name, ctx);
     }
   }
 
-  fn visit_fn_decl(&mut self, node: &FnDecl, _: &dyn Node) {
-    self.check_shadowing(&node.ident);
+  fn fn_decl(&mut self, node: &FnDecl, ctx: &mut Context) {
+    check_shadowing(node.ident, ctx);
 
     for param in &node.function.params {
-      self.check_pat(&param.pat);
+      check_pat(&param.pat, ctx);
     }
   }
 
-  fn visit_fn_expr(&mut self, node: &FnExpr, _: &dyn Node) {
+  fn fn_expr(&mut self, node: &FnExpr, ctx: &mut Context) {
     if let Some(ident) = node.ident.as_ref() {
-      self.check_shadowing(ident)
+      check_shadowing(ident, ctx)
     }
 
     for param in &node.function.params {
-      self.check_pat(&param.pat);
+      check_pat(&param.pat, ctx);
     }
   }
 
-  fn visit_arrow_expr(&mut self, node: &ArrowExpr, _: &dyn Node) {
+  fn arrow_expr(&mut self, node: &ArrowExpr, ctx: &mut Context) {
     for param in &node.params {
-      self.check_pat(param);
+      check_pat(param, ctx);
     }
   }
 
-  fn visit_catch_clause(&mut self, node: &CatchClause, _: &dyn Node) {
+  fn catch_clause(&mut self, node: &CatchClause, ctx: &mut Context) {
     if let Some(param) = node.param.as_ref() {
-      self.check_pat(param);
+      check_pat(param, ctx);
     }
   }
 
-  fn visit_assign_expr(&mut self, node: &AssignExpr, _: &dyn Node) {
+  fn assign_expr(&mut self, node: &AssignExpr, ctx: &mut Context) {
     if let PatOrExpr::Pat(pat) = &node.left {
-      self.check_pat(pat);
+      check_pat(pat, ctx);
     }
   }
 }
