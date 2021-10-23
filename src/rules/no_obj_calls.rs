@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{CallExpr, Expr, ExprOrSuper, Ident, NewExpr};
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::utils::ident::IdentLike;
-use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{CallExpr, Expr, ExprOrSuper, Ident, NewExpr};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -29,16 +29,16 @@ impl LintRule for NoObjCalls {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoObjCallsVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoObjCallsHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -47,42 +47,32 @@ impl LintRule for NoObjCalls {
   }
 }
 
-struct NoObjCallsVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoObjCallsHandler;
 
-impl<'c, 'view> NoObjCallsVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn check_callee(&mut self, callee: &Ident, span: Span) {
-    if matches!(callee.sym.as_ref(), "Math" | "JSON" | "Reflect" | "Atomics")
-      && self.context.scope().var(&callee.to_id()).is_none()
-    {
-      self.context.add_diagnostic(
-        span,
-        "no-obj-calls",
-        get_message(callee.sym.as_ref()),
-      );
-    }
+fn check_callee(callee: &Ident, span: Span, ctx: &mut Context) {
+  if matches!(
+    callee.sym().as_ref(),
+    "Math" | "JSON" | "Reflect" | "Atomics"
+  ) && ctx.scope().var(&callee.to_id()).is_none()
+  {
+    ctx.add_diagnostic(
+      span,
+      "no-obj-calls",
+      get_message(callee.sym().as_ref()),
+    );
   }
 }
 
-impl<'c, 'view> Visit for NoObjCallsVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
-    if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-      if let Expr::Ident(ident) = expr.as_ref() {
-        self.check_callee(ident, call_expr.span);
-      }
+impl Handler for NoObjCallsHandler {
+  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
+    if let ExprOrSuper::Expr(Expr::Ident(ident)) = call_expr.callee {
+      check_callee(ident, call_expr.span(), ctx);
     }
   }
 
-  fn visit_new_expr(&mut self, new_expr: &NewExpr, _parent: &dyn Node) {
-    if let Expr::Ident(ident) = &*new_expr.callee {
-      self.check_callee(ident, new_expr.span);
+  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
+    if let Expr::Ident(ident) = new_expr.callee {
+      check_callee(ident, new_expr.span(), ctx);
     }
   }
 }
