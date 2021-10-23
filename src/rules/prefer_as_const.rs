@@ -1,13 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::view::{
   ArrayPat, BindingIdent, Expr, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAnn, TsTypeAssertion, VarDecl,
 };
-use deno_ast::swc::common::{Span, Spanned};
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -43,17 +42,16 @@ impl LintRule for PreferAsConst {
     CODE
   }
 
-  fn lint_program<'view>(
-    &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  ) {
-    let mut visitor = PreferAsConstVisitor::new(context);
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
 
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
-    }
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    PreferAsConstHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -62,63 +60,62 @@ impl LintRule for PreferAsConst {
   }
 }
 
-struct PreferAsConstVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct PreferAsConstHandler;
+
+fn add_diagnostic_helper(span: Span, ctx: &mut Context) {
+  ctx.add_diagnostic_with_hint(
+    span,
+    CODE,
+    PreferAsConstMessage::ExpectedConstAssertion,
+    PreferAsConstHint::AddAsConst,
+  );
 }
 
-impl<'c, 'view> PreferAsConstVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic_helper(&mut self, span: Span) {
-    self.context.add_diagnostic_with_hint(
-      span,
-      CODE,
-      PreferAsConstMessage::ExpectedConstAssertion,
-      PreferAsConstHint::AddAsConst,
-    );
-  }
-
-  fn compare(&mut self, type_ann: &TsType, expr: &Expr, span: Span) {
-    if let TsType::TsLitType(lit_type) = &*type_ann {
-      if let Expr::Lit(expr_lit) = &*expr {
-        match (expr_lit, &lit_type.lit) {
-          (Lit::Str(value_literal), TsLit::Str(type_literal)) => {
-            if value_literal.value == type_literal.value {
-              self.add_diagnostic_helper(span)
-            }
+fn compare(type_ann: &TsType, expr: &Expr, span: Span, ctx: &mut Context) {
+  if let TsType::TsLitType(lit_type) = &*type_ann {
+    if let Expr::Lit(expr_lit) = &*expr {
+      match (expr_lit, &lit_type.lit) {
+        (Lit::Str(value_literal), TsLit::Str(type_literal)) => {
+          if value_literal.value() == type_literal.value() {
+            add_diagnostic_helper(span, ctx)
           }
-          (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
-            if (value_literal.value - type_literal.value).abs() < f64::EPSILON {
-              self.add_diagnostic_helper(span)
-            }
-          }
-          _ => {}
         }
+        (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
+          if (value_literal.value() - type_literal.value()).abs() < f64::EPSILON
+          {
+            add_diagnostic_helper(span, ctx)
+          }
+        }
+        _ => {}
       }
     }
   }
 }
 
-impl<'c, 'view> VisitAll for PreferAsConstVisitor<'c, 'view> {
-  fn visit_ts_as_expr(&mut self, as_expr: &TsAsExpr, _: &dyn Node) {
-    self.compare(&as_expr.type_ann, &as_expr.expr, as_expr.type_ann.span());
-  }
-
-  fn visit_ts_type_assertion(
-    &mut self,
-    type_assertion: &TsTypeAssertion,
-    _: &dyn Node,
-  ) {
-    self.compare(
-      &type_assertion.type_ann,
-      &type_assertion.expr,
-      type_assertion.type_ann.span(),
+impl Handler for PreferAsConstHandler {
+  fn ts_as_expr(&mut self, as_expr: &TsAsExpr, ctx: &mut Context) {
+    compare(
+      &as_expr.type_ann,
+      &as_expr.expr,
+      as_expr.type_ann.span(),
+      ctx,
     );
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+  fn ts_type_assertion(
+    &mut self,
+    type_assertion: &TsTypeAssertion,
+    ctx: &mut Context,
+  ) {
+    compare(
+      &type_assertion.type_ann,
+      &type_assertion.expr,
+      type_assertion.type_ann.span(),
+      ctx,
+    );
+  }
+
+  fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
     for decl in &var_decl.decls {
       if let Some(init) = &decl.init {
         if let Pat::Array(ArrayPat { type_ann, .. })
@@ -126,7 +123,7 @@ impl<'c, 'view> VisitAll for PreferAsConstVisitor<'c, 'view> {
         | Pat::Ident(BindingIdent { type_ann, .. }) = &decl.name
         {
           if let Some(TsTypeAnn { type_ann, .. }) = &type_ann {
-            self.compare(type_ann, init, type_ann.span());
+            compare(type_ann, init, type_ann.span(), ctx);
           }
         }
       }
