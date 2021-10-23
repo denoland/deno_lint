@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
-use crate::ProgramRef;
-use deno_ast::swc::ast::{Expr, ExprOrSuper};
-use deno_ast::swc::visit::Node;
-use deno_ast::swc::visit::Visit;
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::{Expr, ExprOrSuper, TsNonNullExpr};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -31,16 +31,16 @@ impl LintRule for NoNonNullAssertedOptionalChain {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = NoNonNullAssertedOptionalChainVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
-    }
+    NoNonNullAssertedOptionalChainHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -49,59 +49,59 @@ impl LintRule for NoNonNullAssertedOptionalChain {
   }
 }
 
-struct NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoNonNullAssertedOptionalChainHandler;
 
-impl<'c, 'view> NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, span: Span) {
-    self.context.add_diagnostic(
+fn check_expr_for_nested_optional_assert(
+  span: Span,
+  expr: &Expr,
+  ctx: &mut Context,
+) {
+  if let Expr::OptChain(_) = expr {
+    ctx.add_diagnostic(
       span,
       CODE,
       NoNonNullAssertedOptionalChainMessage::WrongAssertion,
     );
   }
-
-  fn check_expr_for_nested_optional_assert(&mut self, span: Span, expr: &Expr) {
-    if let Expr::OptChain(_) = expr {
-      self.add_diagnostic(span)
-    }
-  }
 }
 
-impl<'c, 'view> Visit for NoNonNullAssertedOptionalChainVisitor<'c, 'view> {
-  fn visit_ts_non_null_expr(
+impl Handler for NoNonNullAssertedOptionalChainHandler {
+  fn ts_non_null_expr(
     &mut self,
-    ts_non_null_expr: &deno_ast::swc::ast::TsNonNullExpr,
-    _parent: &dyn Node,
+    ts_non_null_expr: &TsNonNullExpr,
+    ctx: &mut Context,
   ) {
-    match &*ts_non_null_expr.expr {
+    match ts_non_null_expr.expr {
       Expr::Member(member_expr) => {
         if let ExprOrSuper::Expr(expr) = &member_expr.obj {
-          self
-            .check_expr_for_nested_optional_assert(ts_non_null_expr.span, expr);
+          check_expr_for_nested_optional_assert(
+            ts_non_null_expr.span(),
+            expr,
+            ctx,
+          );
         }
       }
       Expr::Call(call_expr) => {
         if let ExprOrSuper::Expr(expr) = &call_expr.callee {
-          self
-            .check_expr_for_nested_optional_assert(ts_non_null_expr.span, expr);
+          check_expr_for_nested_optional_assert(
+            ts_non_null_expr.span(),
+            expr,
+            ctx,
+          );
         }
       }
-      Expr::Paren(paren_expr) => self.check_expr_for_nested_optional_assert(
-        ts_non_null_expr.span,
-        &*paren_expr.expr,
+      Expr::Paren(paren_expr) => check_expr_for_nested_optional_assert(
+        ts_non_null_expr.span(),
+        &paren_expr.expr,
+        ctx,
       ),
       _ => {}
     };
 
-    self.check_expr_for_nested_optional_assert(
-      ts_non_null_expr.span,
-      &*ts_non_null_expr.expr,
+    check_expr_for_nested_optional_assert(
+      ts_non_null_expr.span(),
+      &ts_non_null_expr.expr,
+      ctx,
     );
   }
 }
