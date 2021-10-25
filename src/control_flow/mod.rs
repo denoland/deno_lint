@@ -262,10 +262,19 @@ impl Analyzer<'_> {
 
     // Preserve information about visited ast nodes.
     self.scope.may_throw |= may_throw;
-    if self.scope.found_break.is_none() {
-      self.scope.found_break = found_break;
-    }
+
     self.scope.found_continue |= found_continue;
+
+    match kind {
+      BlockKind::Case => {}
+      BlockKind::Function => {}
+      BlockKind::Loop => {}
+      _ => {
+        if self.scope.found_break.is_none() {
+          self.scope.found_break = found_break;
+        }
+      }
+    };
 
     if let Some(end) = end {
       match kind {

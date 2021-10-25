@@ -843,6 +843,32 @@ throw err;
   assert_flow!(flow, 70, false, Some(End::forced_throw())); // throw stmt
 }
 
+// https://github.com/denoland/deno_lint/issues/823
+#[test]
+fn issue_823() {
+  let src = r#"
+switch (foo) {
+  case 1:
+    switch (bar) {
+      case 1:
+        break;
+    }
+    return 0;
+  default: {
+    return 0;
+  }
+}"#;
+  let flow = analyze_flow(src);
+  assert_flow!(flow, 1, false, Some(End::forced_return())); // switch foo stmt
+  assert_flow!(flow, 18, false, Some(End::forced_return())); // `switch foo case 1`
+  assert_flow!(flow, 30, false, Some(End::Continue)); // `switch bar stmt`
+  assert_flow!(flow, 51, false, Some(End::Break)); // `switch bar case1`
+  assert_flow!(flow, 67, false, Some(End::Break)); // `break stmt`
+  assert_flow!(flow, 84, false, Some(End::forced_return())); // `return stmt`
+  assert_flow!(flow, 96, false, Some(End::forced_return())); // `default`
+  assert_flow!(flow, 111, false, Some(End::forced_return())); // `return stmt`
+}
+
 // https://github.com/denoland/deno_lint/issues/644
 #[test]
 fn issue_644() {
