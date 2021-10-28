@@ -86,7 +86,7 @@ impl ValidDeclsVisitor {
 }
 
 impl ValidDeclsVisitor {
-  fn check_stmts(&mut self, stmts: &Vec<Stmt>) {
+  fn check_stmts(&mut self, stmts: &[Stmt]) {
     for stmt in stmts {
       if let Stmt::Decl(decl) = stmt {
         self.check_decl(decl);
