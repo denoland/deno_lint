@@ -2,7 +2,7 @@
 use super::{Context, LintRule, DUMMY_NODE};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
-  ArrowExpr, BlockStmtOrExpr, Decl, DefaultDecl, FnDecl, FnExpr, Function,
+  ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
 use deno_ast::swc::common::Span;
@@ -86,6 +86,14 @@ impl ValidDeclsVisitor {
 }
 
 impl ValidDeclsVisitor {
+  fn check_stmts(&mut self, stmts: &Vec<Stmt>) {
+    for stmt in stmts {
+      if let Stmt::Decl(decl) = stmt {
+        self.check_decl(decl);
+      }
+    }
+  }
+
   fn check_decl(&mut self, decl: &Decl) {
     match decl {
       Decl::Fn(fn_decl) => {
@@ -135,41 +143,19 @@ impl VisitAll for ValidDeclsVisitor {
 
   fn visit_function(&mut self, function: &Function, _: &dyn Node) {
     if let Some(block) = &function.body {
-      for stmt in &block.stmts {
-        if let Stmt::Decl(decl) = stmt {
-          self.check_decl(decl);
-        }
-      }
+      self.check_stmts(&block.stmts);
     }
   }
 
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
-    if let Some(block) = &fn_decl.function.body {
-      for stmt in &block.stmts {
-        if let Stmt::Decl(decl) = stmt {
-          self.check_decl(decl);
-        }
-      }
-    }
-  }
-
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
-    if let Some(block) = &fn_expr.function.body {
-      for stmt in &block.stmts {
-        if let Stmt::Decl(decl) = stmt {
-          self.check_decl(decl);
-        }
-      }
+  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+    if let Some(block) = &constructor.body {
+      self.check_stmts(&block.stmts);
     }
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
     if let BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
-      for stmt in &block.stmts {
-        if let Stmt::Decl(decl) = stmt {
-          self.check_decl(decl);
-        }
-      }
+      self.check_stmts(&block.stmts);
     }
   }
 }
@@ -276,6 +262,8 @@ mod tests {
       "exports.foo = () => {}",
       "exports.foo = function(){}",
       "module.exports = function foo(){}",
+      "class Test { constructor() { function test() {} } }",
+      "class Test { method() { function test() {} } }",
     };
   }
 
