@@ -1,6 +1,6 @@
 [package]
 name = "deno_lint"
-version = "0.18.1"
+version = "0.19.0"
 edition = "2021"
 description = "lint for deno"
 authors = ["the Deno authors"]
@@ -21,7 +21,7 @@ default = []
 docs = []
 
 [dependencies]
-deno_ast = { version = "0.4.1", features = ["transforms", "utils", "visit", "view"] }
+deno_ast = { version = "0.5.0", features = ["transforms", "utils", "visit", "view"] }
 log = "0.4.14"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"
