@@ -44,13 +44,10 @@ struct RequireJsdocHandler;
 
 impl Handler for RequireJsdocHandler {
   fn export_decl(&mut self, _n: &ast_view::ExportDecl, _ctx: &mut Context) {
-    match _n.decl {
-      Decl::Fn(_) => {
-        if !check_jsdoc_exsit(_ctx.leading_comments_at(_n.span().lo)) {
-          _ctx.add_diagnostic(_n.span(), CODE, MESSAGE);
-        }
+    if let Decl::Fn(_) = _n.decl {
+      if !check_jsdoc_exsit(_ctx.leading_comments_at(_n.span().lo)) {
+        _ctx.add_diagnostic(_n.span(), CODE, MESSAGE);
       }
-      _ => {}
     }
   }
 
@@ -59,13 +56,10 @@ impl Handler for RequireJsdocHandler {
     _n: &ast_view::ExportDefaultDecl,
     _ctx: &mut Context,
   ) {
-    match _n.decl {
-      DefaultDecl::Fn(_) => {
-        if !check_jsdoc_exsit(_ctx.leading_comments_at(_n.span().lo)) {
-          _ctx.add_diagnostic(_n.span(), CODE, MESSAGE);
-        }
+    if let DefaultDecl::Fn(_) = _n.decl {
+      if !check_jsdoc_exsit(_ctx.leading_comments_at(_n.span().lo)) {
+        _ctx.add_diagnostic(_n.span(), CODE, MESSAGE);
       }
-      _ => {}
     }
   }
 }
@@ -74,7 +68,7 @@ fn check_jsdoc_exsit<'c>(
   mut comments: impl Iterator<Item = &'c Comment>,
 ) -> bool {
   comments.any(|comment| match comment.kind {
-    CommentKind::Block => comment.text.chars().next() == Some('*'),
+    CommentKind::Block => comment.text.starts_with('*'),
     _ => false,
   })
 }
