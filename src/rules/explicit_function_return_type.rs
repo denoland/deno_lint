@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{self as ast_view, MethodKind};
+use deno_ast::view as ast_view;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -60,7 +60,7 @@ impl Handler for ExplicitFunctionReturnTypeHandler {
         .parent()
         .to::<ast_view::ClassMethod>()
         .map(|m| m.method_kind()),
-      Some(MethodKind::Setter)
+      Some(ast_view::MethodKind::Setter)
     );
 
     if function.return_type.is_none() && !is_method_setter {
