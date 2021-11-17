@@ -55,7 +55,15 @@ struct ExplicitFunctionReturnTypeHandler;
 
 impl Handler for ExplicitFunctionReturnTypeHandler {
   fn function(&mut self, function: &ast_view::Function, context: &mut Context) {
-    if function.return_type.is_none() {
+    let is_method_setter = matches!(
+      function
+        .parent()
+        .to::<ast_view::ClassMethod>()
+        .map(|m| m.method_kind()),
+      Some(ast_view::MethodKind::Setter)
+    );
+
+    if function.return_type.is_none() && !is_method_setter {
       context.add_diagnostic_with_hint(
         function.span(),
         CODE,
@@ -77,6 +85,8 @@ mod tests {
       "function fooTyped(): void { }",
       "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
+      "class Test { set test(value: string) {} }",
+      "const obj = { set test(value: string) {} };",
     };
   }
 
