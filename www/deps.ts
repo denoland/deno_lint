@@ -5,9 +5,9 @@ export * from "https://raw.githubusercontent.com/lucacasonato/fresh/d1076b0ad1b4
 export { default as marked } from "https://esm.sh/marked@3.0.4";
 
 // prism
-export * as Prism from "https://esm.sh/prismjs@1.25.0";
-import "https://esm.sh/prismjs@1.25.0/components/prism-javascript.js?no-check";
-import "https://esm.sh/prismjs@1.25.0/components/prism-typescript.js?no-check";
+export { default as Prism } from "https://esm.sh/prismjs@1.25.0?pin=v57";
+import "https://esm.sh/prismjs@1.25.0/components/prism-javascript.js?no-check&pin=v57"
+import "https://esm.sh/prismjs@1.25.0/components/prism-typescript.js?no-check&pin=v57";
 
 // twind
 import { setup, tw } from "https://esm.sh/twind@0.16.16";
