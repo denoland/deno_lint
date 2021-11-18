@@ -53,7 +53,7 @@ function IndexPage(props: PageProps) {
             type="text"
             name="q"
             class={tw
-              `w-full border h-10 border-grey-light rounded rounded-r-none px-3 relative`}
+              `w-full border h-10 border-gray-200 rounded rounded-r-none px-3 relative`}
             placeholder="Search"
             value={search}
           />
