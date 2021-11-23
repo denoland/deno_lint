@@ -24,6 +24,7 @@ pub mod getter_return;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
+pub mod no_boolean_literal_args;
 pub mod no_case_declarations;
 pub mod no_class_assign;
 pub mod no_compare_neg_zero;
@@ -250,6 +251,7 @@ fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
     no_array_constructor::NoArrayConstructor::new(),
     no_async_promise_executor::NoAsyncPromiseExecutor::new(),
     no_await_in_loop::NoAwaitInLoop::new(),
+    no_boolean_literal_args::NoBooleanLiteralArgs::new(),
     no_case_declarations::NoCaseDeclarations::new(),
     no_class_assign::NoClassAssign::new(),
     no_compare_neg_zero::NoCompareNegZero::new(),
