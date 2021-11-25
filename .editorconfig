@@ -1,5 +1,5 @@
 root = true
-
+/// depois de muitos anos ainda consigo editar código da VTEX - que legal - bem próximo de completar 10 anos que saí da empresa
 [*]
 end_of_line = lf
 insert_final_newline = true
