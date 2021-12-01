@@ -9,7 +9,7 @@ export function renderMarkdown(markdown: string): string {
     highlight(code, lang) {
       return Prism.highlight(
         code,
-        lang == "ts" ? Prism.languages.ts : Prism.languages.ts,
+        Prism.languages.ts,
         lang,
       );
     },
