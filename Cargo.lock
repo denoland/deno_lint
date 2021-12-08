@@ -238,9 +238,9 @@ dependencies = [
 
 [[package]]
 name = "deno_ast"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f56c2ab6a21352f3ec33bf45ad01a3f739d4b2dc05357fe04ab22ca83f0067a9"
+checksum = "0f1c58caca74265d1c63a5c26069e037846f8bdf6a3e2dde3da66c6f6f51297d"
 dependencies = [
  "dprint-swc-ecma-ast-view",
  "serde",
