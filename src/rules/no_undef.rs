@@ -1,12 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::globals::GLOBALS;
 use crate::ProgramRef;
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
-  visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use std::sync::Arc;
@@ -30,8 +29,8 @@ impl LintRule for NoUndef {
   ) {
     let mut visitor = NoUndefVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -85,14 +84,14 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
-    e.obj.visit_with(e, self);
+  fn visit_member_expr(&mut self, e: &MemberExpr) {
+    e.obj.visit_with(self);
     if e.computed {
-      e.prop.visit_with(e, self);
+      e.prop.visit_with(self);
     }
   }
 
-  fn visit_unary_expr(&mut self, e: &UnaryExpr, _: &dyn Node) {
+  fn visit_unary_expr(&mut self, e: &UnaryExpr) {
     if e.op == UnaryOp::TypeOf {
       return;
     }
@@ -100,7 +99,7 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
     e.visit_children_with(self);
   }
 
-  fn visit_expr(&mut self, e: &Expr, _: &dyn Node) {
+  fn visit_expr(&mut self, e: &Expr) {
     e.visit_children_with(self);
 
     if let Expr::Ident(ident) = e {
@@ -108,11 +107,11 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
     }
   }
 
-  fn visit_class_prop(&mut self, p: &ClassProp, _: &dyn Node) {
-    p.value.visit_with(p, self)
+  fn visit_class_prop(&mut self, p: &ClassProp) {
+    p.value.visit_with(self)
   }
 
-  fn visit_prop(&mut self, p: &Prop, _: &dyn Node) {
+  fn visit_prop(&mut self, p: &Prop) {
     p.visit_children_with(self);
 
     if let Prop::Shorthand(i) = &p {
@@ -120,7 +119,7 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
     }
   }
 
-  fn visit_pat(&mut self, p: &Pat, _: &dyn Node) {
+  fn visit_pat(&mut self, p: &Pat) {
     if let Pat::Ident(i) = p {
       self.check(&i.id);
     } else {
@@ -128,12 +127,12 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
     }
   }
 
-  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp, _: &dyn Node) {
+  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp) {
     self.check(&p.key);
-    p.value.visit_with(p, self);
+    p.value.visit_with(self);
   }
 
-  fn visit_call_expr(&mut self, e: &CallExpr, _: &dyn Node) {
+  fn visit_call_expr(&mut self, e: &CallExpr) {
     if let ExprOrSuper::Expr(callee) = &e.callee {
       if let Expr::Ident(i) = &**callee {
         if i.sym == js_word!("import") {

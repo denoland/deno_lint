@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use deno_ast::swc::ast::BinExpr;
@@ -8,7 +8,7 @@ use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
 use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
 use deno_ast::swc::common::Spanned;
-use deno_ast::swc::visit::{noop_visit_type, Node, Visit};
+use deno_ast::swc::visit::{noop_visit_type, Visit};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -33,8 +33,8 @@ impl LintRule for ValidTypeof {
   fn lint_program(&self, context: &mut Context, program: ProgramRef) {
     let mut visitor = ValidTypeofVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -57,7 +57,7 @@ impl<'c, 'view> ValidTypeofVisitor<'c, 'view> {
 impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_bin_expr(&mut self, bin_expr: &BinExpr, _parent: &dyn Node) {
+  fn visit_bin_expr(&mut self, bin_expr: &BinExpr) {
     if !bin_expr.is_eq_expr() {
       return;
     }

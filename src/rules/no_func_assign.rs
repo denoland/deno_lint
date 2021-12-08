@@ -1,10 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
@@ -48,8 +47,8 @@ impl LintRule for NoFuncAssign {
   ) {
     let mut visitor = NoFuncAssignVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
     }
   }
 
@@ -72,7 +71,7 @@ impl<'c, 'view> NoFuncAssignVisitor<'c, 'view> {
 impl<'c, 'view> VisitAll for NoFuncAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _node: &dyn Node) {
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) {
     let ids = find_lhs_ids(&assign_expr.left);
 
     for id in ids {

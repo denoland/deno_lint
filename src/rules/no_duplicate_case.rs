@@ -1,10 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Expr, SwitchStmt};
 use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::collections::HashSet;
@@ -47,8 +46,8 @@ impl LintRule for NoDuplicateCase {
   ) {
     let mut visitor = NoDuplicateCaseVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
     }
   }
 
@@ -71,7 +70,7 @@ impl<'c, 'view> NoDuplicateCaseVisitor<'c, 'view> {
 impl<'c, 'view> VisitAll for NoDuplicateCaseVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
+  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
     // Check if there are duplicates by comparing span dropped expressions
     let mut seen: HashSet<Box<Expr>> = HashSet::new();
 

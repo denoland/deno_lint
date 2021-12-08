@@ -3,15 +3,13 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
   DoWhileStmt, Expr, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt, Function,
   Ident, ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  Invalid, Param, Pat, SwitchStmt, TsTypeAliasDecl, VarDecl, VarDeclKind,
-  WhileStmt, WithStmt,
+  Param, Pat, SwitchStmt, TsTypeAliasDecl, VarDecl, VarDeclKind, WhileStmt,
+  WithStmt,
 };
 use deno_ast::swc::atoms::JsWord;
-use deno_ast::swc::common::DUMMY_SP;
 use deno_ast::swc::utils::find_ids;
 use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::swc::utils::Id;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 use deno_ast::view as ast_view;
@@ -30,22 +28,16 @@ impl Scope {
 
     match program {
       ast_view::Program::Module(module) => {
-        module.inner.visit_with(
-          &Invalid { span: DUMMY_SP },
-          &mut Analyzer {
-            scope: &mut scope,
-            path: &mut path,
-          },
-        );
+        module.inner.visit_with(&mut Analyzer {
+          scope: &mut scope,
+          path: &mut path,
+        });
       }
       ast_view::Program::Script(script) => {
-        script.inner.visit_with(
-          &Invalid { span: DUMMY_SP },
-          &mut Analyzer {
-            scope: &mut scope,
-            path: &mut path,
-          },
-        );
+        script.inner.visit_with(&mut Analyzer {
+          scope: &mut scope,
+          path: &mut path,
+        });
       }
     };
 
@@ -168,7 +160,7 @@ impl Analyzer<'_> {
     T: 'static + for<'any> VisitWith<Analyzer<'any>>,
   {
     self.path.push(kind);
-    node.visit_with(node, self);
+    node.visit_with(self);
     self.path.pop();
   }
 
@@ -183,7 +175,7 @@ impl Analyzer<'_> {
 }
 
 impl Visit for Analyzer<'_> {
-  fn visit_arrow_expr(&mut self, n: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, n: &ArrowExpr) {
     self.with(ScopeKind::Arrow, |a| {
       // Parameters of `ArrowExpr` are of type `Vec<Pat>`, not `Vec<Param>`,
       // which means `visit_param` does _not_ handle parameters of `ArrowExpr`.
@@ -196,16 +188,16 @@ impl Visit for Analyzer<'_> {
   }
 
   /// Overriden not to add ScopeKind::Block
-  fn visit_block_stmt_or_expr(&mut self, n: &BlockStmtOrExpr, _: &dyn Node) {
+  fn visit_block_stmt_or_expr(&mut self, n: &BlockStmtOrExpr) {
     match n {
-      BlockStmtOrExpr::BlockStmt(s) => s.stmts.visit_with(n, self),
-      BlockStmtOrExpr::Expr(e) => e.visit_with(n, self),
+      BlockStmtOrExpr::BlockStmt(s) => s.stmts.visit_with(self),
+      BlockStmtOrExpr::Expr(e) => e.visit_with(self),
     }
   }
 
-  fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
+  fn visit_var_decl(&mut self, n: &VarDecl) {
     n.decls.iter().for_each(|v| {
-      v.init.visit_with(n, self);
+      v.init.visit_with(self);
 
       // If the class name and the variable name are the same like `let Foo = class Foo {}`,
       // this binding should be treated as `BindingKind::Class`.
@@ -236,24 +228,24 @@ impl Visit for Analyzer<'_> {
   }
 
   /// Overriden not to add ScopeKind::Block
-  fn visit_function(&mut self, n: &Function, _: &dyn Node) {
-    n.decorators.visit_with(n, self);
-    n.params.visit_with(n, self);
+  fn visit_function(&mut self, n: &Function) {
+    n.decorators.visit_with(self);
+    n.params.visit_with(self);
 
     // Don't add ScopeKind::Block
     match &n.body {
-      Some(s) => s.stmts.visit_with(n, self),
+      Some(s) => s.stmts.visit_with(self),
       None => {}
     }
   }
 
-  fn visit_fn_decl(&mut self, n: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, n: &FnDecl) {
     self.declare(BindingKind::Function, &n.ident);
 
     self.visit_with_path(ScopeKind::Function, &n.function);
   }
 
-  fn visit_fn_expr(&mut self, n: &FnExpr, _: &dyn Node) {
+  fn visit_fn_expr(&mut self, n: &FnExpr) {
     if let Some(ident) = &n.ident {
       self.declare(BindingKind::Function, ident);
     }
@@ -261,13 +253,13 @@ impl Visit for Analyzer<'_> {
     self.visit_with_path(ScopeKind::Function, &n.function);
   }
 
-  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
+  fn visit_class_decl(&mut self, n: &ClassDecl) {
     self.declare(BindingKind::Class, &n.ident);
 
     self.visit_with_path(ScopeKind::Class, &n.class);
   }
 
-  fn visit_class_expr(&mut self, n: &ClassExpr, _: &dyn Node) {
+  fn visit_class_expr(&mut self, n: &ClassExpr) {
     if let Some(class_name) = n.ident.as_ref() {
       self.declare(BindingKind::Class, class_name);
     }
@@ -275,94 +267,82 @@ impl Visit for Analyzer<'_> {
     self.visit_with_path(ScopeKind::Class, &n.class);
   }
 
-  fn visit_block_stmt(&mut self, n: &BlockStmt, _: &dyn Node) {
+  fn visit_block_stmt(&mut self, n: &BlockStmt) {
     self.visit_with_path(ScopeKind::Block, &n.stmts)
   }
 
-  fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
+  fn visit_catch_clause(&mut self, n: &CatchClause) {
     if let Some(pat) = &n.param {
       self.declare_pat(BindingKind::CatchClause, pat);
     }
     self.visit_with_path(ScopeKind::Catch, &n.body)
   }
 
-  fn visit_param(&mut self, n: &Param, _: &dyn Node) {
+  fn visit_param(&mut self, n: &Param) {
     self.declare_pat(BindingKind::Param, &n.pat);
   }
 
-  fn visit_import_named_specifier(
-    &mut self,
-    n: &ImportNamedSpecifier,
-    _: &dyn Node,
-  ) {
+  fn visit_import_named_specifier(&mut self, n: &ImportNamedSpecifier) {
     self.declare(BindingKind::ValueImport, &n.local);
   }
 
-  fn visit_import_default_specifier(
-    &mut self,
-    n: &ImportDefaultSpecifier,
-    _: &dyn Node,
-  ) {
+  fn visit_import_default_specifier(&mut self, n: &ImportDefaultSpecifier) {
     self.declare(BindingKind::ValueImport, &n.local);
   }
 
-  fn visit_import_star_as_specifier(
-    &mut self,
-    n: &ImportStarAsSpecifier,
-    _: &dyn Node,
-  ) {
+  fn visit_import_star_as_specifier(&mut self, n: &ImportStarAsSpecifier) {
     self.declare(BindingKind::NamespaceImport, &n.local);
   }
 
-  fn visit_with_stmt(&mut self, n: &WithStmt, _: &dyn Node) {
-    n.obj.visit_with(n, self);
+  fn visit_with_stmt(&mut self, n: &WithStmt) {
+    n.obj.visit_with(self);
     self.with(ScopeKind::With, |a| n.body.visit_children_with(a))
   }
 
-  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {
-    n.init.visit_with(n, self);
-    n.update.visit_with(n, self);
-    n.test.visit_with(n, self);
+  fn visit_for_stmt(&mut self, n: &ForStmt) {
+    n.init.visit_with(self);
+    n.update.visit_with(self);
+    n.test.visit_with(self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
   }
 
-  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
-    n.left.visit_with(n, self);
-    n.right.visit_with(n, self);
+  fn visit_for_of_stmt(&mut self, n: &ForOfStmt) {
+    n.left.visit_with(self);
+    n.right.visit_with(self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
   }
 
-  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
-    n.left.visit_with(n, self);
-    n.right.visit_with(n, self);
+  fn visit_for_in_stmt(&mut self, n: &ForInStmt) {
+    n.left.visit_with(self);
+    n.right.visit_with(self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
   }
 
-  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
-    n.test.visit_with(n, self);
+  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt) {
+    n.test.visit_with(self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
   }
 
-  fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
-    n.test.visit_with(n, self);
+  fn visit_while_stmt(&mut self, n: &WhileStmt) {
+    n.test.visit_with(self);
 
     self.visit_with_path(ScopeKind::Loop, &n.body);
   }
 
-  fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
-    n.discriminant.visit_with(n, self);
+  fn visit_switch_stmt(&mut self, n: &SwitchStmt) {
+    n.discriminant.visit_with(self);
 
     self.visit_with_path(ScopeKind::Switch, &n.cases);
   }
 
-  fn visit_ts_type_alias_decl(&mut self, n: &TsTypeAliasDecl, _: &dyn Node) {
+  fn visit_ts_type_alias_decl(&mut self, n: &TsTypeAliasDecl) {
     self.declare(BindingKind::TypeAlias, &n.id);
-    n.type_params.visit_with(n, self);
-    n.type_ann.visit_with(n, self);
+    n.type_params.visit_with(self);
+    n.type_ann.visit_with(self);
   }
 }
 

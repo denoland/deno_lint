@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::common::{comments::Comment, Span, Spanned, DUMMY_SP};
 use deno_ast::swc::{
   ast::*,
-  visit::{noop_visit_type, Node, Visit, VisitWith},
+  visit::{noop_visit_type, Visit, VisitWith},
 };
 use derive_more::Display;
 use std::sync::Arc;
@@ -48,8 +48,8 @@ impl LintRule for NoFallthrough {
   ) {
     let mut visitor = NoFallthroughVisitor { context };
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -66,12 +66,12 @@ struct NoFallthroughVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_switch_cases(&mut self, cases: &[SwitchCase], parent: &dyn Node) {
+  fn visit_switch_cases(&mut self, cases: &[SwitchCase]) {
     let mut should_emit_err = false;
     let mut prev_span = DUMMY_SP;
 
     'cases: for (case_idx, case) in cases.iter().enumerate() {
-      case.visit_with(parent, self);
+      case.visit_with(self);
 
       if should_emit_err {
         let comments = self.context.leading_comments_at(case.span.lo);

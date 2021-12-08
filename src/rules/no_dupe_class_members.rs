@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
+use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -49,8 +49,8 @@ impl LintRule for NoDupeClassMembers {
   ) {
     let mut visitor = NoDupeClassMembersVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -82,7 +82,7 @@ impl<'c, 'view> NoDupeClassMembersVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoDupeClassMembersVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+  fn visit_class(&mut self, class: &Class) {
     let mut visitor = ClassVisitor::new(self);
     class.visit_children_with(&mut visitor);
     visitor.aggregate_dupes();
@@ -119,13 +119,13 @@ impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
 impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
   noop_visit_type!();
 
-  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+  fn visit_class(&mut self, class: &Class) {
     let mut visitor = ClassVisitor::new(self.root_visitor);
     class.visit_children_with(&mut visitor);
     visitor.aggregate_dupes();
   }
 
-  fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
+  fn visit_class_method(&mut self, class_method: &ClassMethod) {
     if class_method.function.body.is_some() {
       if let Some(m) = MethodToCheck::new(
         &class_method.key,

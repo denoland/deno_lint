@@ -1,9 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use std::sync::Arc;
 
@@ -35,8 +34,8 @@ impl LintRule for NoEmptyPattern {
   ) {
     let mut visitor = NoEmptyPatternVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -59,21 +58,17 @@ impl<'c, 'view> NoEmptyPatternVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_object_pat_prop(
-    &mut self,
-    obj_pat_prop: &ObjectPatProp,
-    _parent: &dyn Node,
-  ) {
+  fn visit_object_pat_prop(&mut self, obj_pat_prop: &ObjectPatProp) {
     if let ObjectPatProp::KeyValue(kv_prop) = obj_pat_prop {
       if let deno_ast::swc::ast::Pat::Object(obj_pat) = &*kv_prop.value {
-        self.visit_object_pat(obj_pat, _parent);
+        self.visit_object_pat(obj_pat);
       } else if let deno_ast::swc::ast::Pat::Array(arr_pat) = &*kv_prop.value {
-        self.visit_array_pat(arr_pat, _parent);
+        self.visit_array_pat(arr_pat);
       }
     }
   }
 
-  fn visit_object_pat(&mut self, obj_pat: &ObjectPat, _parent: &dyn Node) {
+  fn visit_object_pat(&mut self, obj_pat: &ObjectPat) {
     if obj_pat.props.is_empty() {
       if obj_pat.type_ann.is_none() {
         self
@@ -82,12 +77,12 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
       }
     } else {
       for prop in &obj_pat.props {
-        self.visit_object_pat_prop(prop, _parent)
+        self.visit_object_pat_prop(prop)
       }
     }
   }
 
-  fn visit_array_pat(&mut self, arr_pat: &ArrayPat, _parent: &dyn Node) {
+  fn visit_array_pat(&mut self, arr_pat: &ArrayPat) {
     if arr_pat.elems.is_empty() {
       self
         .context
@@ -95,9 +90,9 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
     } else {
       for element in arr_pat.elems.iter().flatten() {
         if let deno_ast::swc::ast::Pat::Object(obj_pat) = element {
-          self.visit_object_pat(obj_pat, _parent);
+          self.visit_object_pat(obj_pat);
         } else if let deno_ast::swc::ast::Pat::Array(arr_pat) = element {
-          self.visit_array_pat(arr_pat, _parent);
+          self.visit_array_pat(arr_pat);
         }
       }
     }

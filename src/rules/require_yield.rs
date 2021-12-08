@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::ClassMethod;
 use deno_ast::swc::ast::FnDecl;
@@ -9,7 +9,6 @@ use deno_ast::swc::ast::MethodProp;
 use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use std::sync::Arc;
 
@@ -39,8 +38,8 @@ impl LintRule for RequireYield {
   ) {
     let mut visitor = RequireYieldVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -87,47 +86,39 @@ impl<'c, 'view> RequireYieldVisitor<'c, 'view> {
 impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr, _parent: &dyn Node) {
+  fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr) {
     if let Some(last) = self.yield_stack.last_mut() {
       *last += 1;
     }
   }
 
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, parent: &dyn Node) {
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
     self.enter_function(&fn_decl.function);
-    deno_ast::swc::visit::visit_fn_decl(self, fn_decl, parent);
+    deno_ast::swc::visit::visit_fn_decl(self, fn_decl);
     self.exit_function(&fn_decl.function);
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, parent: &dyn Node) {
+  fn visit_fn_expr(&mut self, fn_expr: &FnExpr) {
     self.enter_function(&fn_expr.function);
-    deno_ast::swc::visit::visit_fn_expr(self, fn_expr, parent);
+    deno_ast::swc::visit::visit_fn_expr(self, fn_expr);
     self.exit_function(&fn_expr.function);
   }
 
-  fn visit_class_method(
-    &mut self,
-    class_method: &ClassMethod,
-    parent: &dyn Node,
-  ) {
+  fn visit_class_method(&mut self, class_method: &ClassMethod) {
     self.enter_function(&class_method.function);
-    deno_ast::swc::visit::visit_class_method(self, class_method, parent);
+    deno_ast::swc::visit::visit_class_method(self, class_method);
     self.exit_function(&class_method.function);
   }
 
-  fn visit_private_method(
-    &mut self,
-    private_method: &PrivateMethod,
-    parent: &dyn Node,
-  ) {
+  fn visit_private_method(&mut self, private_method: &PrivateMethod) {
     self.enter_function(&private_method.function);
-    deno_ast::swc::visit::visit_private_method(self, private_method, parent);
+    deno_ast::swc::visit::visit_private_method(self, private_method);
     self.exit_function(&private_method.function);
   }
 
-  fn visit_method_prop(&mut self, method_prop: &MethodProp, parent: &dyn Node) {
+  fn visit_method_prop(&mut self, method_prop: &MethodProp) {
     self.enter_function(&method_prop.function);
-    deno_ast::swc::visit::visit_method_prop(self, method_prop, parent);
+    deno_ast::swc::visit::visit_method_prop(self, method_prop);
     self.exit_function(&method_prop.function);
   }
 }

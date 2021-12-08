@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::swc::visit::{noop_visit_type, Node, VisitAll, VisitAllWith};
+use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -47,8 +47,8 @@ impl LintRule for NoConstantCondition {
   ) {
     let mut visitor = NoConstantConditionVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
     }
   }
 
@@ -188,11 +188,11 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
 impl<'c, 'view> VisitAll for NoConstantConditionVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_cond_expr(&mut self, cond_expr: &CondExpr, _parent: &dyn Node) {
+  fn visit_cond_expr(&mut self, cond_expr: &CondExpr) {
     self.report(&cond_expr.test);
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _parent: &dyn Node) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
     self.report(&if_stmt.test);
   }
 
@@ -201,7 +201,7 @@ impl<'c, 'view> VisitAll for NoConstantConditionVisitor<'c, 'view> {
   fn visit_while_stmt(
     &mut self,
     while_stmt: &WhileStmt,
-    _parent: &dyn Node,
+
   ) {
     self.report(&while_stmt.test)
     while_stmt.visit_children_with(self);
@@ -210,7 +210,7 @@ impl<'c, 'view> VisitAll for NoConstantConditionVisitor<'c, 'view> {
   fn visit_do_while_stmt(
     &mut self,
     do_while_stmt: &DoWhileStmt,
-    _parent: &dyn Node,
+
   ) {
     self.report(&do_while_stmt.test)
     do_while_stmt.visit_children_with(self);
@@ -219,7 +219,7 @@ impl<'c, 'view> VisitAll for NoConstantConditionVisitor<'c, 'view> {
   fn visit_for_stmt(
     &mut self,
     for_stmt: &ForStmt,
-    _parent: &dyn Node,
+
   ) {
     if let Some(cond) = for_stmt.test.as_ref() {
       self.report(cond)

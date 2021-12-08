@@ -1,9 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Decl, Stmt, VarDecl, VarDeclKind};
 use deno_ast::swc::common::Spanned;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 use std::sync::Arc;
@@ -34,8 +33,8 @@ impl LintRule for NoUnreachable {
   ) {
     let mut visitor = NoUnreachableVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -56,7 +55,7 @@ impl<'c, 'view> NoUnreachableVisitor<'c, 'view> {
 }
 
 impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
-  fn visit_stmt(&mut self, stmt: &Stmt, _: &dyn Node) {
+  fn visit_stmt(&mut self, stmt: &Stmt) {
     stmt.visit_children_with(self);
 
     match stmt {

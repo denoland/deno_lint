@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignPatProp, CallExpr, CatchClause, ClassDecl, ClassMethod,
@@ -14,7 +14,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::swc::utils::{find_ids, Id};
-use deno_ast::swc::visit::{Node, Visit, VisitWith};
+use deno_ast::swc::visit::{Visit, VisitWith};
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
@@ -74,8 +74,8 @@ impl LintRule for NoUnusedVars {
 
     let mut collector = Collector::default();
     match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut collector),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut collector),
+      ProgramRef::Module(m) => m.visit_with(&mut collector),
+      ProgramRef::Script(s) => s.visit_with(&mut collector),
     }
 
     let mut visitor = NoUnusedVarVisitor::new(
@@ -84,8 +84,8 @@ impl LintRule for NoUnusedVars {
       collector.used_types,
     );
     match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -196,50 +196,42 @@ impl Collector {
 }
 
 impl Visit for Collector {
-  fn visit_class_prop(&mut self, n: &ClassProp, _: &dyn Node) {
-    n.decorators.visit_with(n, self);
+  fn visit_class_prop(&mut self, n: &ClassProp) {
+    n.decorators.visit_with(self);
 
     if n.computed {
-      n.key.visit_with(n, self);
+      n.key.visit_with(self);
     }
 
-    n.value.visit_with(n, self);
-    n.type_ann.visit_with(n, self);
+    n.value.visit_with(self);
+    n.type_ann.visit_with(self);
   }
 
-  fn visit_ts_property_signature(
-    &mut self,
-    n: &TsPropertySignature,
-    _: &dyn Node,
-  ) {
+  fn visit_ts_property_signature(&mut self, n: &TsPropertySignature) {
     if n.computed {
-      n.key.visit_with(n, self);
+      n.key.visit_with(self);
     }
 
-    n.type_params.visit_with(n, self);
-    n.type_ann.visit_with(n, self);
-    n.params.visit_with(n, self);
-    n.init.visit_with(n, self);
+    n.type_params.visit_with(self);
+    n.type_ann.visit_with(self);
+    n.params.visit_with(self);
+    n.init.visit_with(self);
   }
 
-  fn visit_ts_type_ref(&mut self, ty: &TsTypeRef, _: &dyn Node) {
-    ty.type_params.visit_with(ty, self);
+  fn visit_ts_type_ref(&mut self, ty: &TsTypeRef) {
+    ty.type_params.visit_with(self);
 
     let id = get_id(&ty.type_name);
     self.used_types.insert(id);
   }
 
-  fn visit_ts_expr_with_type_args(
-    &mut self,
-    n: &TsExprWithTypeArgs,
-    _: &dyn Node,
-  ) {
+  fn visit_ts_expr_with_type_args(&mut self, n: &TsExprWithTypeArgs) {
     let id = get_id(&n.expr);
     self.used_vars.insert(id);
-    n.type_args.visit_with(n, self);
+    n.type_args.visit_with(self);
   }
 
-  fn visit_ts_type_query_expr(&mut self, n: &TsTypeQueryExpr, _: &dyn Node) {
+  fn visit_ts_type_query_expr(&mut self, n: &TsTypeQueryExpr) {
     if let TsTypeQueryExpr::TsEntityName(e) = n {
       let id = get_id(e);
       self.used_vars.insert(id);
@@ -247,32 +239,32 @@ impl Visit for Collector {
     n.visit_children_with(self);
   }
 
-  fn visit_prop(&mut self, n: &Prop, _: &dyn Node) {
+  fn visit_prop(&mut self, n: &Prop) {
     match n {
       Prop::Shorthand(i) => self.mark_as_usage(i),
       _ => n.visit_children_with(self),
     }
   }
 
-  fn visit_prop_name(&mut self, n: &PropName, _: &dyn Node) {
+  fn visit_prop_name(&mut self, n: &PropName) {
     if let PropName::Computed(computed) = n {
       computed.visit_children_with(self);
     }
     // Don't check Ident, Str, Num and BigInt
   }
 
-  fn visit_expr(&mut self, expr: &Expr, _: &dyn Node) {
+  fn visit_expr(&mut self, expr: &Expr) {
     match expr {
       Expr::Ident(i) => self.mark_as_usage(i),
       _ => expr.visit_children_with(self),
     }
   }
 
-  fn visit_pat(&mut self, pat: &Pat, _: &dyn Node) {
+  fn visit_pat(&mut self, pat: &Pat) {
     match pat {
       // Ignore patterns
       Pat::Ident(i) => {
-        i.type_ann.visit_with(pat, self);
+        i.type_ann.visit_with(self);
       }
       Pat::Invalid(..) => {}
       //
@@ -280,47 +272,39 @@ impl Visit for Collector {
     }
   }
 
-  fn visit_assign_pat_prop(
-    &mut self,
-    assign_pat_prop: &AssignPatProp,
-    _: &dyn Node,
-  ) {
+  fn visit_assign_pat_prop(&mut self, assign_pat_prop: &AssignPatProp) {
     // handle codes like `const { foo, bar = foo } = { foo: 42 };`
     self.without_cur_defining(|a| {
       assign_pat_prop.value.visit_children_with(a);
     });
   }
 
-  fn visit_member_expr(&mut self, member_expr: &MemberExpr, _: &dyn Node) {
-    member_expr.obj.visit_with(member_expr, self);
+  fn visit_member_expr(&mut self, member_expr: &MemberExpr) {
+    member_expr.obj.visit_with(self);
     if member_expr.computed {
-      member_expr.prop.visit_with(member_expr, self);
+      member_expr.prop.visit_with(self);
     }
   }
 
   /// export is kind of usage
-  fn visit_export_named_specifier(
-    &mut self,
-    export: &ExportNamedSpecifier,
-    _: &dyn Node,
-  ) {
+  fn visit_export_named_specifier(&mut self, export: &ExportNamedSpecifier) {
     self.used_vars.insert(export.orig.to_id());
   }
 
-  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, decl: &FnDecl) {
     let id = decl.ident.to_id();
     self.with_cur_defining(iter::once(id), |a| {
-      decl.function.visit_with(decl, a);
+      decl.function.visit_with(a);
     });
   }
 
-  fn visit_fn_expr(&mut self, expr: &FnExpr, _: &dyn Node) {
+  fn visit_fn_expr(&mut self, expr: &FnExpr) {
     // We have to do nothing special for identifiers of FnExprs (if any), because they are allowed
     // to be not-used.
-    expr.function.visit_with(expr, self);
+    expr.function.visit_with(self);
   }
 
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function) {
     if_chain! {
       if let Some(first_param) = function.params.get(0);
       if let Pat::Ident(ident) = &first_param.pat;
@@ -339,7 +323,7 @@ impl Visit for Collector {
     function.visit_children_with(self);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr) {
     call_expr.callee.visit_children_with(self);
 
     for arg in &call_expr.args {
@@ -351,46 +335,46 @@ impl Visit for Collector {
     call_expr.type_args.visit_children_with(self);
   }
 
-  fn visit_class_decl(&mut self, decl: &ClassDecl, _: &dyn Node) {
+  fn visit_class_decl(&mut self, decl: &ClassDecl) {
     let id = decl.ident.to_id();
     self.with_cur_defining(iter::once(id), |a| {
-      decl.class.visit_with(decl, a);
+      decl.class.visit_with(a);
     });
   }
 
-  fn visit_ts_interface_decl(&mut self, decl: &TsInterfaceDecl, _: &dyn Node) {
+  fn visit_ts_interface_decl(&mut self, decl: &TsInterfaceDecl) {
     let id = decl.id.to_id();
     self.with_cur_defining(iter::once(id), |a| {
-      decl.extends.visit_with(decl, a);
-      decl.body.visit_with(decl, a);
+      decl.extends.visit_with(a);
+      decl.body.visit_with(a);
       if let Some(type_params) = &decl.type_params {
-        type_params.visit_with(decl, a);
+        type_params.visit_with(a);
       }
     });
   }
 
-  fn visit_ts_type_alias_decl(&mut self, decl: &TsTypeAliasDecl, _: &dyn Node) {
+  fn visit_ts_type_alias_decl(&mut self, decl: &TsTypeAliasDecl) {
     let id = decl.id.to_id();
     self.with_cur_defining(iter::once(id), |a| {
-      decl.type_ann.visit_with(decl, a);
+      decl.type_ann.visit_with(a);
       if let Some(type_params) = &decl.type_params {
-        type_params.visit_with(decl, a);
+        type_params.visit_with(a);
       }
     });
   }
 
-  fn visit_ts_enum_decl(&mut self, decl: &TsEnumDecl, _: &dyn Node) {
+  fn visit_ts_enum_decl(&mut self, decl: &TsEnumDecl) {
     let id = decl.id.to_id();
     self.with_cur_defining(iter::once(id), |a| {
-      decl.members.visit_with(decl, a);
+      decl.members.visit_with(a);
     });
   }
 
-  fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
+  fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
     let declaring_ids: Vec<Id> = find_ids(&declarator.name);
     self.with_cur_defining(declaring_ids, |a| {
-      declarator.name.visit_with(declarator, a);
-      declarator.init.visit_with(declarator, a);
+      declarator.name.visit_with(a);
+      declarator.init.visit_with(a);
     });
   }
 }
@@ -476,16 +460,16 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
 }
 
 impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
-  fn visit_arrow_expr(&mut self, expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
     let declared_idents: Vec<Ident> = find_ids(&expr.params);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));
     }
-    expr.body.visit_with(expr, self)
+    expr.body.visit_with(self)
   }
 
-  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, decl: &FnDecl) {
     if decl.declare {
       return;
     }
@@ -494,29 +478,29 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
 
     // If function body is not present, it's an overload definition
     if decl.function.body.is_some() {
-      decl.function.visit_with(decl, self);
+      decl.function.visit_with(self);
     }
   }
 
-  fn visit_var_decl(&mut self, n: &VarDecl, _: &dyn Node) {
+  fn visit_var_decl(&mut self, n: &VarDecl) {
     if n.declare {
       return;
     }
 
-    n.decls.visit_with(n, self);
+    n.decls.visit_with(self);
   }
 
-  fn visit_var_declarator(&mut self, declarator: &VarDeclarator, _: &dyn Node) {
+  fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
     let declared_idents: Vec<Ident> = find_ids(&declarator.name);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));
     }
-    declarator.name.visit_with(declarator, self);
-    declarator.init.visit_with(declarator, self);
+    declarator.name.visit_with(self);
+    declarator.init.visit_with(self);
   }
 
-  fn visit_class_decl(&mut self, n: &ClassDecl, _: &dyn Node) {
+  fn visit_class_decl(&mut self, n: &ClassDecl) {
     if n.declare {
       return;
     }
@@ -525,22 +509,22 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     n.visit_children_with(self);
   }
 
-  fn visit_catch_clause(&mut self, clause: &CatchClause, _: &dyn Node) {
+  fn visit_catch_clause(&mut self, clause: &CatchClause) {
     let declared_idents: Vec<Ident> = find_ids(&clause.param);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));
     }
 
-    clause.body.visit_with(clause, self);
+    clause.body.visit_with(self);
   }
 
-  fn visit_setter_prop(&mut self, prop: &SetterProp, _: &dyn Node) {
-    prop.key.visit_with(prop, self);
-    prop.body.visit_with(prop, self);
+  fn visit_setter_prop(&mut self, prop: &SetterProp) {
+    prop.key.visit_with(self);
+    prop.body.visit_with(self);
   }
 
-  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+  fn visit_constructor(&mut self, constructor: &Constructor) {
     // If function body is not present, it's an overload definition
     if constructor.body.is_none() {
       return;
@@ -549,9 +533,9 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     constructor.visit_children_with(self);
   }
 
-  fn visit_class_method(&mut self, method: &ClassMethod, _: &dyn Node) {
-    method.function.decorators.visit_with(method, self);
-    method.key.visit_with(method, self);
+  fn visit_class_method(&mut self, method: &ClassMethod) {
+    method.function.decorators.visit_with(self);
+    method.key.visit_with(self);
 
     // If method body is not present, it's an overload definition
     if matches!(method.kind, MethodKind::Method if method.function.body.is_some())
@@ -559,22 +543,22 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
       method.function.params.visit_children_with(self);
     }
 
-    method.function.body.visit_with(method, self);
+    method.function.body.visit_with(self);
   }
 
-  fn visit_private_method(&mut self, method: &PrivateMethod, _: &dyn Node) {
-    method.function.decorators.visit_with(method, self);
-    method.key.visit_with(method, self);
+  fn visit_private_method(&mut self, method: &PrivateMethod) {
+    method.function.decorators.visit_with(self);
+    method.key.visit_with(self);
 
     // If method body is not present, it's an overload definition
     if method.function.body.is_some() {
       method.function.params.visit_children_with(self);
     }
 
-    method.function.body.visit_with(method, self);
+    method.function.body.visit_with(self);
   }
 
-  fn visit_param(&mut self, param: &Param, _: &dyn Node) {
+  fn visit_param(&mut self, param: &Param) {
     let declared_idents: Vec<Ident> = find_ids(&param.pat);
 
     for ident in declared_idents {
@@ -583,11 +567,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     param.visit_children_with(self);
   }
 
-  fn visit_import_named_specifier(
-    &mut self,
-    import: &ImportNamedSpecifier,
-    _: &dyn Node,
-  ) {
+  fn visit_import_named_specifier(&mut self, import: &ImportNamedSpecifier) {
     if self.used_types.contains(&import.local.to_id()) {
       return;
     }
@@ -597,7 +577,6 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   fn visit_import_default_specifier(
     &mut self,
     import: &ImportDefaultSpecifier,
-    _: &dyn Node,
   ) {
     if self.used_types.contains(&import.local.to_id()) {
       return;
@@ -606,11 +585,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     self.handle_id(IdentKind::DefaultImport(&import.local));
   }
 
-  fn visit_import_star_as_specifier(
-    &mut self,
-    import: &ImportStarAsSpecifier,
-    _: &dyn Node,
-  ) {
+  fn visit_import_star_as_specifier(&mut self, import: &ImportStarAsSpecifier) {
     if self.used_types.contains(&import.local.to_id()) {
       return;
     }
@@ -618,40 +593,36 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   }
 
   /// No error as export is kind of usage
-  fn visit_export_decl(&mut self, export: &ExportDecl, _: &dyn Node) {
+  fn visit_export_decl(&mut self, export: &ExportDecl) {
     match &export.decl {
       Decl::Class(c) if !c.declare => {
-        c.class.visit_with(c, self);
+        c.class.visit_with(self);
       }
       Decl::Fn(f) if !f.declare => {
         // If function body is not present, it's an overload definition
         if f.function.body.is_some() {
-          f.function.visit_with(f, self);
+          f.function.visit_with(self);
         }
       }
       Decl::Var(v) if !v.declare => {
         for decl in &v.decls {
-          decl.name.visit_with(decl, self);
-          decl.init.visit_with(decl, self);
+          decl.name.visit_with(self);
+          decl.init.visit_with(self);
         }
       }
       _ => {}
     }
   }
 
-  fn visit_export_default_decl(
-    &mut self,
-    export: &ExportDefaultDecl,
-    _: &dyn Node,
-  ) {
+  fn visit_export_default_decl(&mut self, export: &ExportDefaultDecl) {
     match &export.decl {
       DefaultDecl::Class(c) => {
-        c.class.visit_with(c, self);
+        c.class.visit_with(self);
       }
       DefaultDecl::Fn(f) => {
         // If function body is not present, it's an overload definition
         if f.function.body.is_some() {
-          f.function.visit_with(f, self);
+          f.function.visit_with(self);
         }
       }
       DefaultDecl::TsInterfaceDecl(i) => {
@@ -660,21 +631,19 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     }
   }
 
-  fn visit_params(&mut self, params: &[Param], parent: &dyn Node) {
+  fn visit_params(&mut self, params: &[Param]) {
     match params.first() {
       Some(Param {
         pat: Pat::Ident(i), ..
       }) if i.id.sym == *"this" => params
         .iter()
         .skip(1)
-        .for_each(|param| param.visit_with(parent, self)),
-      _ => params
-        .iter()
-        .for_each(|param| param.visit_with(parent, self)),
+        .for_each(|param| param.visit_with(self)),
+      _ => params.iter().for_each(|param| param.visit_with(self)),
     }
   }
 
-  fn visit_ts_enum_decl(&mut self, n: &TsEnumDecl, _: &dyn Node) {
+  fn visit_ts_enum_decl(&mut self, n: &TsEnumDecl) {
     if n.declare {
       return;
     }
@@ -685,24 +654,24 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
     self.handle_id(IdentKind::Other(&n.id));
   }
 
-  fn visit_ts_module_decl(&mut self, n: &TsModuleDecl, _: &dyn Node) {
+  fn visit_ts_module_decl(&mut self, n: &TsModuleDecl) {
     if n.declare {
       return;
     }
 
-    n.body.visit_with(n, self);
+    n.body.visit_with(self);
   }
 
-  fn visit_ts_namespace_decl(&mut self, n: &TsNamespaceDecl, _: &dyn Node) {
+  fn visit_ts_namespace_decl(&mut self, n: &TsNamespaceDecl) {
     if n.declare {
       return;
     }
 
-    n.body.visit_with(n, self);
+    n.body.visit_with(self);
   }
 
   /// no-op as export is kind of usage
-  fn visit_named_export(&mut self, _: &NamedExport, _: &dyn Node) {}
+  fn visit_named_export(&mut self, _: &NamedExport) {}
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -9,7 +9,6 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 use derive_more::Display;
@@ -55,8 +54,8 @@ impl LintRule for GetterReturn {
   ) {
     let mut visitor = GetterReturnVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
     visitor.report();
   }
@@ -165,7 +164,7 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
 impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
     // `self.has_return` should be reset because return statements inside the `fn_decl` don't have
     // effect on outside of it
     self.visit_getter_or_function(|a| {
@@ -173,7 +172,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
+  fn visit_fn_expr(&mut self, fn_expr: &FnExpr) {
     // `self.has_return` should be reset because return statements inside the `fn_expr` don't have
     // effect on outside of it
     self.visit_getter_or_function(|a| {
@@ -181,7 +180,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     // `self.has_return` should be reset because return statements inside the `arrow_expr` don't
     // have effect on outside of it
     self.visit_getter_or_function(|a| {
@@ -189,7 +188,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
-  fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
+  fn visit_class_method(&mut self, class_method: &ClassMethod) {
     self.visit_getter_or_function(|a| {
       if class_method.kind == MethodKind::Getter {
         a.set_getter_name(&class_method.key);
@@ -202,11 +201,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
-  fn visit_private_method(
-    &mut self,
-    private_method: &PrivateMethod,
-    _: &dyn Node,
-  ) {
+  fn visit_private_method(&mut self, private_method: &PrivateMethod) {
     self.visit_getter_or_function(|a| {
       if private_method.kind == MethodKind::Getter {
         a.set_getter_name(&private_method.key);
@@ -219,7 +214,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
-  fn visit_getter_prop(&mut self, getter_prop: &GetterProp, _: &dyn Node) {
+  fn visit_getter_prop(&mut self, getter_prop: &GetterProp) {
     self.visit_getter_or_function(|a| {
       a.set_getter_name(&getter_prop.key);
       getter_prop.visit_children_with(a);
@@ -230,7 +225,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr, _parent: &dyn Node) {
+  fn visit_call_expr(&mut self, call_expr: &CallExpr) {
     call_expr.visit_children_with(self);
 
     if call_expr.args.len() != 3 {
@@ -302,7 +297,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     }
   }
 
-  fn visit_return_stmt(&mut self, return_stmt: &ReturnStmt, _: &dyn Node) {
+  fn visit_return_stmt(&mut self, return_stmt: &ReturnStmt) {
     if self.getter_name.is_some() {
       self.has_return = true;
       if return_stmt.arg.is_none() {

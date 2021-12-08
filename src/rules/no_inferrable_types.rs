@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
@@ -7,7 +7,6 @@ use deno_ast::swc::ast::{
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use deno_ast::swc::common::Span;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;
@@ -49,8 +48,8 @@ impl LintRule for NoInferrableTypes {
   ) {
     let mut visitor = NoInferrableTypesVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
     }
   }
 
@@ -281,7 +280,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
 }
 
 impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function) {
     for param in &function.params {
       if let Pat::Assign(assign_pat) = &param.pat {
         if let Pat::Ident(ident) = &*assign_pat.left {
@@ -293,7 +292,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr) {
     for param in &arr_expr.params {
       if let Pat::Assign(assign_pat) = &param {
         if let Pat::Ident(ident) = &*assign_pat.left {
@@ -309,7 +308,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn visit_class_prop(&mut self, prop: &ClassProp, _: &dyn Node) {
+  fn visit_class_prop(&mut self, prop: &ClassProp) {
     if prop.readonly || prop.is_optional {
       return;
     }
@@ -322,7 +321,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn visit_private_prop(&mut self, prop: &PrivateProp, _: &dyn Node) {
+  fn visit_private_prop(&mut self, prop: &PrivateProp) {
     if prop.readonly || prop.is_optional {
       return;
     }
@@ -333,7 +332,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+  fn visit_var_decl(&mut self, var_decl: &VarDecl) {
     for decl in &var_decl.decls {
       if let Some(init) = &decl.init {
         if let Pat::Ident(ident) = &decl.name {
