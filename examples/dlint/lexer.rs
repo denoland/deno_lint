@@ -2,16 +2,14 @@
 
 //! This module is mostly brought from https://github.com/denoland/deno/blob/96d05829002ef065b8fc84fe70de062cff0e95b3/cli/ast/mod.rs
 
+use deno_ast::swc::ast::EsVersion;
 use deno_ast::swc::common::comments::{
   Comment, CommentKind, SingleThreadedComments,
 };
 use deno_ast::swc::common::{FileName, SourceMap, Span};
 use deno_ast::swc::parser::lexer::Lexer;
 use deno_ast::swc::parser::token::Token;
-use deno_ast::swc::ast::EsVersion;
-use deno_ast::swc::parser::{
-  EsConfig, StringInput, Syntax, TsConfig,
-};
+use deno_ast::swc::parser::{EsConfig, StringInput, Syntax, TsConfig};
 use std::convert::TryFrom;
 use std::ops::Range;
 
