@@ -4,10 +4,10 @@
 mod analyze_test;
 
 use deno_ast::swc::ast::*;
-use deno_ast::swc::common::{BytePos, Spanned, DUMMY_SP};
+use deno_ast::swc::common::{BytePos, Spanned};
 use deno_ast::swc::{
   utils::{ident::IdentLike, ExprExt, Id, Value},
-  visit::{noop_visit_type, Node, Visit, VisitWith},
+  visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::view::ProgramRef;
 use std::{
@@ -27,12 +27,8 @@ impl ControlFlow {
       info: Default::default(),
     };
     match program {
-      ProgramRef::Module(module) => {
-        module.visit_with(&Invalid { span: DUMMY_SP }, &mut v)
-      }
-      ProgramRef::Script(script) => {
-        script.visit_with(&Invalid { span: DUMMY_SP }, &mut v)
-      }
+      ProgramRef::Module(module) => module.visit_with(&mut v),
+      ProgramRef::Script(script) => script.visit_with(&mut v),
     }
     ControlFlow { meta: v.info }
   }
@@ -351,7 +347,7 @@ impl Analyzer<'_> {
   /// This cannot be done in visit_stmt of Visit because
   ///  this operation is very opinionated.
   fn visit_stmt_or_block(&mut self, s: &Stmt) {
-    s.visit_with(&Invalid { span: DUMMY_SP }, self);
+    s.visit_with(self);
 
     // break, continue **may** make execution end
     match s {
@@ -366,17 +362,17 @@ impl Analyzer<'_> {
 impl Visit for Analyzer<'_> {
   noop_visit_type!();
 
-  fn visit_return_stmt(&mut self, n: &ReturnStmt, _: &dyn Node) {
+  fn visit_return_stmt(&mut self, n: &ReturnStmt) {
     n.visit_children_with(self);
     self.mark_as_end(n.span().lo, End::forced_return());
   }
 
-  fn visit_throw_stmt(&mut self, n: &ThrowStmt, _: &dyn Node) {
+  fn visit_throw_stmt(&mut self, n: &ThrowStmt) {
     n.visit_children_with(self);
     self.mark_as_end(n.span().lo, End::forced_throw());
   }
 
-  fn visit_break_stmt(&mut self, n: &BreakStmt, _: &dyn Node) {
+  fn visit_break_stmt(&mut self, n: &BreakStmt) {
     if let Some(label) = &n.label {
       let label = label.to_id();
       self.scope.found_break = Some(Some(label));
@@ -385,11 +381,11 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_continue_stmt(&mut self, _: &ContinueStmt, _: &dyn Node) {
+  fn visit_continue_stmt(&mut self, _: &ContinueStmt) {
     self.scope.found_continue = true;
   }
 
-  fn visit_block_stmt(&mut self, s: &BlockStmt, _: &dyn Node) {
+  fn visit_block_stmt(&mut self, s: &BlockStmt) {
     s.visit_children_with(self);
 
     if let Some(end) = self.scope.end {
@@ -399,13 +395,13 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_stmts(&mut self, stmts: &[Stmt], _: &dyn Node) {
+  fn visit_stmts(&mut self, stmts: &[Stmt]) {
     for stmt in stmts {
       self.visit_stmt_or_block(stmt);
     }
   }
 
-  fn visit_expr(&mut self, n: &Expr, _: &dyn Node) {
+  fn visit_expr(&mut self, n: &Expr) {
     n.visit_children_with(self);
 
     if matches!(self.scope.end, None | Some(End::Continue)) {
@@ -421,50 +417,50 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_member_expr(&mut self, n: &MemberExpr, _: &dyn Node) {
-    n.obj.visit_with(n, self);
+  fn visit_member_expr(&mut self, n: &MemberExpr) {
+    n.obj.visit_with(self);
     if n.computed {
-      n.prop.visit_with(n, self);
+      n.prop.visit_with(self);
     }
   }
 
-  fn visit_arrow_expr(&mut self, n: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, n: &ArrowExpr) {
     self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
       n.visit_children_with(a);
     })
   }
 
-  fn visit_function(&mut self, n: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, n: &Function) {
     self.with_child_scope(BlockKind::Function, n.span().lo, |a| {
       n.visit_children_with(a);
     })
   }
 
-  fn visit_catch_clause(&mut self, n: &CatchClause, _: &dyn Node) {
+  fn visit_catch_clause(&mut self, n: &CatchClause) {
     self.with_child_scope(BlockKind::Catch, n.span().lo, |a| {
       n.visit_children_with(a);
     });
   }
 
-  fn visit_constructor(&mut self, n: &Constructor, _: &dyn Node) {
+  fn visit_constructor(&mut self, n: &Constructor) {
     self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
       n.visit_children_with(a);
     });
   }
 
-  fn visit_getter_prop(&mut self, n: &GetterProp, _: &dyn Node) {
+  fn visit_getter_prop(&mut self, n: &GetterProp) {
     self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
       n.visit_children_with(a);
     })
   }
 
-  fn visit_setter_prop(&mut self, n: &SetterProp, _: &dyn Node) {
+  fn visit_setter_prop(&mut self, n: &SetterProp) {
     self.with_child_scope(BlockKind::Function, n.span.lo, |a| {
       n.visit_children_with(a);
     })
   }
 
-  fn visit_switch_stmt(&mut self, n: &SwitchStmt, _: &dyn Node) {
+  fn visit_switch_stmt(&mut self, n: &SwitchStmt) {
     let prev_end = self.scope.end;
     n.visit_children_with(self);
 
@@ -502,12 +498,12 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_switch_case(&mut self, n: &SwitchCase, _: &dyn Node) {
+  fn visit_switch_case(&mut self, n: &SwitchCase) {
     let prev_end = self.scope.end;
     let mut case_end = None;
 
     self.with_child_scope(BlockKind::Case, n.span.lo, |a| {
-      n.cons.visit_with(n, a);
+      n.cons.visit_with(a);
 
       if a.scope.found_break.is_some() {
         case_end = Some(End::Break);
@@ -525,8 +521,8 @@ impl Visit for Analyzer<'_> {
     self.scope.end = prev_end;
   }
 
-  fn visit_if_stmt(&mut self, n: &IfStmt, _: &dyn Node) {
-    n.test.visit_with(n, self);
+  fn visit_if_stmt(&mut self, n: &IfStmt) {
+    n.test.visit_with(self);
 
     let prev_end = self.scope.end;
 
@@ -567,7 +563,7 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_stmt(&mut self, n: &Stmt, _: &dyn Node) {
+  fn visit_stmt(&mut self, n: &Stmt) {
     let scope_end = self
       .scope
       .end
@@ -605,15 +601,15 @@ impl Visit for Analyzer<'_> {
 
   // loops
 
-  fn visit_for_stmt(&mut self, n: &ForStmt, _: &dyn Node) {
-    n.init.visit_with(n, self);
-    n.update.visit_with(n, self);
-    n.test.visit_with(n, self);
+  fn visit_for_stmt(&mut self, n: &ForStmt) {
+    n.init.visit_with(self);
+    n.update.visit_with(self);
+    n.test.visit_with(self);
 
     let mut forced_end = None;
 
     self.with_child_scope(BlockKind::Loop, n.body.span().lo, |a| {
-      n.body.visit_with(n, a);
+      n.body.visit_with(a);
 
       let has_break = matches!(a.scope.found_break, Some(None));
 
@@ -643,13 +639,13 @@ impl Visit for Analyzer<'_> {
     });
   }
 
-  fn visit_for_of_stmt(&mut self, n: &ForOfStmt, _: &dyn Node) {
+  fn visit_for_of_stmt(&mut self, n: &ForOfStmt) {
     let body_lo = n.body.span().lo;
 
-    n.right.visit_with(n, self);
+    n.right.visit_with(self);
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(n, a);
+      n.body.visit_with(a);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
       // it as `End::Continue`.
@@ -658,13 +654,13 @@ impl Visit for Analyzer<'_> {
     });
   }
 
-  fn visit_for_in_stmt(&mut self, n: &ForInStmt, _: &dyn Node) {
+  fn visit_for_in_stmt(&mut self, n: &ForInStmt) {
     let body_lo = n.body.span().lo;
 
-    n.right.visit_with(n, self);
+    n.right.visit_with(self);
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(n, a);
+      n.body.visit_with(a);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
       // it as `End::Continue`.
@@ -673,11 +669,11 @@ impl Visit for Analyzer<'_> {
     });
   }
 
-  fn visit_while_stmt(&mut self, n: &WhileStmt, _: &dyn Node) {
+  fn visit_while_stmt(&mut self, n: &WhileStmt) {
     let body_lo = n.body.span().lo;
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(n, a);
+      n.body.visit_with(a);
 
       let unconditionally_enter =
         matches!(n.test.as_bool(), (_, Value::Known(true)));
@@ -700,14 +696,14 @@ impl Visit for Analyzer<'_> {
       }
     });
 
-    n.test.visit_with(n, self);
+    n.test.visit_with(self);
   }
 
-  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt, _: &dyn Node) {
+  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt) {
     let body_lo = n.body.span().lo;
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(n, a);
+      n.body.visit_with(a);
 
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
@@ -737,13 +733,13 @@ impl Visit for Analyzer<'_> {
       _ => {}
     }
 
-    n.test.visit_with(n, self);
+    n.test.visit_with(self);
   }
 
-  fn visit_try_stmt(&mut self, n: &TryStmt, _: &dyn Node) {
+  fn visit_try_stmt(&mut self, n: &TryStmt) {
     if let Some(finalizer) = &n.finalizer {
       self.with_child_scope(BlockKind::Finally, finalizer.span.lo, |a| {
-        n.finalizer.visit_with(n, a);
+        n.finalizer.visit_with(a);
       });
     }
     let old_throw = self.scope.may_throw;
@@ -751,7 +747,7 @@ impl Visit for Analyzer<'_> {
     let prev_end = self.scope.end;
 
     self.scope.may_throw = false;
-    n.block.visit_with(n, self);
+    n.block.visit_with(self);
 
     let mut try_block_end = None;
 
@@ -767,7 +763,7 @@ impl Visit for Analyzer<'_> {
 
     if let Some(handler) = &n.handler {
       self.scope.may_throw = false;
-      handler.visit_with(n, self);
+      handler.visit_with(self);
 
       match (try_block_end, self.scope.end) {
         (Some(x), Some(y)) if x.is_forced() && y.is_forced() => {
@@ -802,7 +798,7 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_labeled_stmt(&mut self, n: &LabeledStmt, _: &dyn Node) {
+  fn visit_labeled_stmt(&mut self, n: &LabeledStmt) {
     self.with_child_scope(BlockKind::Label(n.label.to_id()), n.span.lo, |a| {
       a.visit_stmt_or_block(&n.body);
     });

@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::scopes::BindingKind;
 use crate::ProgramRef;
 use deno_ast::swc::atoms::js_word;
@@ -8,7 +8,6 @@ use deno_ast::swc::common::Spanned;
 use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
-  visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use std::sync::Arc;
@@ -40,8 +39,8 @@ impl LintRule for NoImportAssign {
   ) {
     let mut visitor = NoImportAssignVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -186,7 +185,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_pat(&mut self, n: &Pat, _: &dyn Node) {
+  fn visit_pat(&mut self, n: &Pat) {
     match n {
       Pat::Ident(i) => {
         self.check(i.id.span, &i.id, false);
@@ -200,7 +199,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
     }
   }
 
-  fn visit_rest_pat(&mut self, n: &RestPat, _: &dyn Node) {
+  fn visit_rest_pat(&mut self, n: &RestPat) {
     if let Pat::Expr(e) = &*n.arg {
       match &**e {
         Expr::Ident(i) => {
@@ -215,37 +214,37 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
     }
   }
 
-  fn visit_assign_expr(&mut self, n: &AssignExpr, _: &dyn Node) {
+  fn visit_assign_expr(&mut self, n: &AssignExpr) {
     match &n.left {
       PatOrExpr::Expr(e) => {
         self.check_expr(n.span, e);
       }
       PatOrExpr::Pat(p) => {
-        p.visit_with(n, self);
+        p.visit_with(self);
       }
     };
-    n.right.visit_with(n, self);
+    n.right.visit_with(self);
   }
 
-  fn visit_assign_pat_prop(&mut self, n: &AssignPatProp, _: &dyn Node) {
+  fn visit_assign_pat_prop(&mut self, n: &AssignPatProp) {
     self.check(n.key.span, &n.key, false);
 
     n.value.visit_children_with(self);
   }
 
-  fn visit_update_expr(&mut self, n: &UpdateExpr, _: &dyn Node) {
+  fn visit_update_expr(&mut self, n: &UpdateExpr) {
     self.check_expr(n.span, &n.arg);
   }
 
-  fn visit_unary_expr(&mut self, n: &UnaryExpr, _: &dyn Node) {
+  fn visit_unary_expr(&mut self, n: &UnaryExpr) {
     if let UnaryOp::Delete = n.op {
       self.check_expr(n.span, &n.arg);
     } else {
-      n.arg.visit_with(n, self);
+      n.arg.visit_with(self);
     }
   }
 
-  fn visit_call_expr(&mut self, n: &CallExpr, _: &dyn Node) {
+  fn visit_call_expr(&mut self, n: &CallExpr) {
     n.visit_children_with(self);
 
     if let ExprOrSuper::Expr(callee) = &n.callee {

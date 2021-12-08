@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
 use deno_ast::swc::common::Span;
@@ -7,7 +7,6 @@ use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
   utils::Id,
-  visit::Node,
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use derive_more::Display;
@@ -50,8 +49,8 @@ impl LintRule for NoGlobalAssign {
   ) {
     let mut visitor = NoGlobalAssignVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -99,7 +98,7 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoGlobalAssignVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_assign_expr(&mut self, e: &AssignExpr, _: &dyn Node) {
+  fn visit_assign_expr(&mut self, e: &AssignExpr) {
     let idents: Vec<Ident> = find_lhs_ids(&e.left);
 
     for ident in idents {
@@ -107,7 +106,7 @@ impl<'c, 'view> Visit for NoGlobalAssignVisitor<'c, 'view> {
     }
   }
 
-  fn visit_update_expr(&mut self, e: &UpdateExpr, _: &dyn Node) {
+  fn visit_update_expr(&mut self, e: &UpdateExpr) {
     if let Expr::Ident(i) = &*e.arg {
       self.check(e.span, i.to_id());
     } else {

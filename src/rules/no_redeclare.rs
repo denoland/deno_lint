@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::{
-  ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Node,
-  visit::Visit, visit::VisitWith,
+  ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Visit,
+  visit::VisitWith,
 };
 use std::sync::Arc;
 
@@ -39,8 +39,8 @@ impl LintRule for NoRedeclare {
       bindings: Default::default(),
     };
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -69,7 +69,7 @@ impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_fn_decl(&mut self, f: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, f: &FnDecl) {
     if f.function.body.is_none() {
       return;
     }
@@ -79,7 +79,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
     f.visit_children_with(self);
   }
 
-  fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
+  fn visit_var_declarator(&mut self, v: &VarDeclarator) {
     let ids: Vec<Ident> = find_ids(&v.name);
 
     for id in ids {
@@ -87,7 +87,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
     }
   }
 
-  fn visit_param(&mut self, p: &Param, _: &dyn Node) {
+  fn visit_param(&mut self, p: &Param) {
     let ids: Vec<Ident> = find_ids(&p.pat);
 
     for id in ids {
@@ -95,12 +95,12 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
     }
   }
 
-  fn visit_class_prop(&mut self, p: &ClassProp, _: &dyn Node) {
+  fn visit_class_prop(&mut self, p: &ClassProp) {
     if p.computed {
-      p.key.visit_with(p, self);
+      p.key.visit_with(self);
     }
 
-    p.value.visit_with(p, self);
+    p.value.visit_with(self);
   }
 }
 

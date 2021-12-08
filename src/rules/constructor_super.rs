@@ -87,7 +87,7 @@ fn super_call_spans(constructor: &ast_view::Constructor) -> Vec<Span> {
     block_stmt
       .stmts
       .iter()
-      .filter_map(|stmt| extract_super_span(stmt))
+      .filter_map(extract_super_span)
       .collect()
   } else {
     vec![]

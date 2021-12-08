@@ -97,8 +97,6 @@ pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
 
-const DUMMY_NODE: () = ();
-
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Creates an instance of this rule.
   fn new() -> Arc<Self>

@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
@@ -8,7 +8,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{
-  noop_visit_type, Node, Visit, VisitAll, VisitAllWith, VisitWith,
+  noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith,
 };
 use derive_more::Display;
 use std::collections::HashSet;
@@ -51,19 +51,15 @@ impl LintRule for NoInnerDeclarations {
   ) {
     let mut valid_visitor = ValidDeclsVisitor::new();
     match program {
-      ProgramRef::Module(m) => {
-        m.visit_all_with(&DUMMY_NODE, &mut valid_visitor)
-      }
-      ProgramRef::Script(s) => {
-        s.visit_all_with(&DUMMY_NODE, &mut valid_visitor)
-      }
+      ProgramRef::Module(m) => m.visit_all_with(&mut valid_visitor),
+      ProgramRef::Script(s) => s.visit_all_with(&mut valid_visitor),
     }
 
     let mut visitor =
       NoInnerDeclarationsVisitor::new(context, valid_visitor.valid_decls);
     match program {
-      ProgramRef::Module(m) => m.visit_with(&DUMMY_NODE, &mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&DUMMY_NODE, &mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -112,7 +108,7 @@ impl ValidDeclsVisitor {
 impl VisitAll for ValidDeclsVisitor {
   noop_visit_type!();
 
-  fn visit_script(&mut self, item: &Script, _: &dyn Node) {
+  fn visit_script(&mut self, item: &Script) {
     for stmt in &item.body {
       if let Stmt::Decl(decl) = stmt {
         self.check_decl(decl)
@@ -120,7 +116,7 @@ impl VisitAll for ValidDeclsVisitor {
     }
   }
 
-  fn visit_module_item(&mut self, item: &ModuleItem, _: &dyn Node) {
+  fn visit_module_item(&mut self, item: &ModuleItem) {
     match item {
       ModuleItem::ModuleDecl(module_decl) => match module_decl {
         ModuleDecl::ExportDecl(decl_export) => {
@@ -141,19 +137,19 @@ impl VisitAll for ValidDeclsVisitor {
     }
   }
 
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function) {
     if let Some(block) = &function.body {
       self.check_stmts(&block.stmts);
     }
   }
 
-  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+  fn visit_constructor(&mut self, constructor: &Constructor) {
     if let Some(block) = &constructor.body {
       self.check_stmts(&block.stmts);
     }
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     if let BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
       self.check_stmts(&block.stmts);
     }
@@ -196,21 +192,21 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     let old = self.in_function;
     self.in_function = true;
     arrow_expr.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function) {
     let old = self.in_function;
     self.in_function = true;
     function.visit_children_with(self);
     self.in_function = old;
   }
 
-  fn visit_fn_decl(&mut self, decl: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, decl: &FnDecl) {
     let span = decl.span();
 
     if !self.valid_decls.contains(&span) {
@@ -220,7 +216,7 @@ impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
     decl.visit_children_with(self);
   }
 
-  fn visit_var_decl(&mut self, decl: &VarDecl, _: &dyn Node) {
+  fn visit_var_decl(&mut self, decl: &VarDecl) {
     let span = decl.span();
 
     if decl.kind == VarDeclKind::Var && !self.valid_decls.contains(&span) {

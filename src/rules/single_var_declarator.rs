@@ -1,9 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::VarDecl;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use derive_more::Display;
 use std::sync::Arc;
@@ -35,8 +34,8 @@ impl LintRule for SingleVarDeclarator {
   ) {
     let mut visitor = SingleVarDeclaratorVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -59,7 +58,7 @@ impl<'c, 'view> SingleVarDeclaratorVisitor<'c, 'view> {
 impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _parent: &dyn Node) {
+  fn visit_var_decl(&mut self, var_decl: &VarDecl) {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
         var_decl.span,

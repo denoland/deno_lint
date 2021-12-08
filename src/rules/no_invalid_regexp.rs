@@ -1,12 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::js_regex::*;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Node;
 use deno_ast::swc::visit::Visit;
 use std::sync::Arc;
 
@@ -37,8 +36,8 @@ impl LintRule for NoInvalidRegexp {
   ) {
     let mut visitor = NoInvalidRegexpVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -116,29 +115,17 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
 impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_regex(
-    &mut self,
-    regex: &deno_ast::swc::ast::Regex,
-    _parent: &dyn Node,
-  ) {
+  fn visit_regex(&mut self, regex: &deno_ast::swc::ast::Regex) {
     self.check_regex(&regex.exp, &regex.flags, regex.span);
   }
 
-  fn visit_call_expr(
-    &mut self,
-    call_expr: &deno_ast::swc::ast::CallExpr,
-    _paren: &dyn Node,
-  ) {
+  fn visit_call_expr(&mut self, call_expr: &deno_ast::swc::ast::CallExpr) {
     if let deno_ast::swc::ast::ExprOrSuper::Expr(expr) = &call_expr.callee {
       self.handle_call_or_new_expr(&*expr, &call_expr.args, call_expr.span);
     }
   }
 
-  fn visit_new_expr(
-    &mut self,
-    new_expr: &deno_ast::swc::ast::NewExpr,
-    _parent: &dyn Node,
-  ) {
+  fn visit_new_expr(&mut self, new_expr: &deno_ast::swc::ast::NewExpr) {
     if new_expr.args.is_some() {
       self.handle_call_or_new_expr(
         &*new_expr.callee,

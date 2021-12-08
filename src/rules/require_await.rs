@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -7,7 +7,7 @@ use deno_ast::swc::ast::{
   FnExpr, ForOfStmt, MethodProp, PrivateMethod,
 };
 use deno_ast::swc::common::Spanned;
-use deno_ast::swc::visit::{noop_visit_type, Node, Visit, VisitWith};
+use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -58,8 +58,8 @@ impl LintRule for RequireAwait {
   ) {
     let mut visitor = RequireAwaitVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -165,7 +165,7 @@ fn is_body_empty(maybe_body: Option<&BlockStmt>) -> bool {
 impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl, _: &dyn Node) {
+  fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
     let function_info = FunctionInfo {
       kind: FunctionKind::Function(Some(
         fn_decl.ident.sym.as_ref().to_string(),
@@ -180,7 +180,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     self.process_function(fn_decl, Box::new(function_info));
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr, _: &dyn Node) {
+  fn visit_fn_expr(&mut self, fn_expr: &FnExpr) {
     let function_info = FunctionInfo {
       kind: FunctionKind::Function(
         fn_expr.ident.as_ref().map(|i| i.sym.as_ref().to_string()),
@@ -195,7 +195,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     self.process_function(fn_expr, Box::new(function_info));
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     let function_info = FunctionInfo {
       kind: FunctionKind::ArrowFunction,
       is_async: arrow_expr.is_async,
@@ -211,7 +211,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     self.process_function(arrow_expr, Box::new(function_info));
   }
 
-  fn visit_method_prop(&mut self, method_prop: &MethodProp, _: &dyn Node) {
+  fn visit_method_prop(&mut self, method_prop: &MethodProp) {
     let function_info = FunctionInfo {
       kind: FunctionKind::Method(method_prop.key.string_repr()),
       is_async: method_prop.function.is_async,
@@ -224,7 +224,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     self.process_function(method_prop, Box::new(function_info));
   }
 
-  fn visit_class_method(&mut self, class_method: &ClassMethod, _: &dyn Node) {
+  fn visit_class_method(&mut self, class_method: &ClassMethod) {
     let function_info = FunctionInfo {
       kind: FunctionKind::Method(class_method.key.string_repr()),
       is_async: class_method.function.is_async,
@@ -237,11 +237,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     self.process_function(class_method, Box::new(function_info));
   }
 
-  fn visit_private_method(
-    &mut self,
-    private_method: &PrivateMethod,
-    _: &dyn Node,
-  ) {
+  fn visit_private_method(&mut self, private_method: &PrivateMethod) {
     let function_info = FunctionInfo {
       kind: FunctionKind::Method(private_method.key.string_repr()),
       is_async: private_method.function.is_async,
@@ -254,7 +250,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     self.process_function(private_method, Box::new(function_info));
   }
 
-  fn visit_await_expr(&mut self, await_expr: &AwaitExpr, _: &dyn Node) {
+  fn visit_await_expr(&mut self, await_expr: &AwaitExpr) {
     if let Some(info) = self.function_info.as_mut() {
       info.has_await = true;
     }
@@ -262,7 +258,7 @@ impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
     await_expr.visit_children_with(self);
   }
 
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
     if for_of_stmt.await_token.is_some() {
       if let Some(info) = self.function_info.as_mut() {
         info.has_await = true;

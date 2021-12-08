@@ -1,5 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule, DUMMY_NODE};
+use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
@@ -12,7 +12,7 @@ use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::utils::find_ids;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::{Node, Visit, VisitWith};
+use deno_ast::swc::visit::{Visit, VisitWith};
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -58,8 +58,8 @@ impl LintRule for PreferConst {
   ) {
     let mut collector = VariableCollector::new();
     match program {
-      ProgramRef::Module(m) => collector.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => collector.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => collector.visit_module(m),
+      ProgramRef::Script(s) => collector.visit_script(s),
     }
 
     let mut visitor = PreferConstVisitor::new(
@@ -68,8 +68,8 @@ impl LintRule for PreferConst {
       mem::take(&mut collector.var_groups),
     );
     match program {
-      ProgramRef::Module(m) => visitor.visit_module(m, &DUMMY_NODE),
-      ProgramRef::Script(s) => visitor.visit_script(s, &DUMMY_NODE),
+      ProgramRef::Module(m) => visitor.visit_module(m),
+      ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
 
@@ -327,7 +327,7 @@ impl VariableCollector {
 impl Visit for VariableCollector {
   noop_visit_type!();
 
-  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
+  fn visit_module(&mut self, module: &Module) {
     let scope = RawScope::new(None);
     self
       .scopes
@@ -335,7 +335,7 @@ impl Visit for VariableCollector {
     module.visit_children_with(self);
   }
 
-  fn visit_script(&mut self, script: &Script, _: &dyn Node) {
+  fn visit_script(&mut self, script: &Script) {
     let scope = RawScope::new(None);
     self
       .scopes
@@ -343,7 +343,7 @@ impl Visit for VariableCollector {
     script.visit_children_with(self);
   }
 
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function) {
     self.with_child_scope(function, |a| {
       for param in &function.params {
         param.visit_children_with(a);
@@ -358,7 +358,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     self.with_child_scope(arrow_expr, |a| {
       for param in &arrow_expr.params {
         param.visit_children_with(a);
@@ -378,13 +378,13 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
+  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt) {
     self.with_child_scope(block_stmt, |a| {
       block_stmt.visit_children_with(a);
     });
   }
 
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
+  fn visit_for_stmt(&mut self, for_stmt: &ForStmt) {
     self.with_child_scope(for_stmt, |a| {
       match &for_stmt.init {
         Some(VarDeclOrExpr::VarDecl(var_decl)) => {
@@ -425,7 +425,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
     self.with_child_scope(for_of_stmt, |a| {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
@@ -445,7 +445,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt) {
     self.with_child_scope(for_in_stmt, |a| {
       if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
@@ -465,7 +465,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
     self.with_child_scope(if_stmt, |a| {
       if_stmt.test.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
@@ -483,14 +483,14 @@ impl Visit for VariableCollector {
     }
   }
 
-  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
+  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
     self.with_child_scope(switch_stmt, |a| {
       switch_stmt.discriminant.visit_children_with(a);
       switch_stmt.cases.visit_children_with(a);
     });
   }
 
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
+  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt) {
     self.with_child_scope(while_stmt, |a| {
       while_stmt.test.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
@@ -502,7 +502,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
+  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt) {
     self.with_child_scope(do_while_stmt, |a| {
       // BlockStmt needs special handling to avoid creating a duplicate scope
       if let Stmt::Block(body) = &*do_while_stmt.body {
@@ -514,7 +514,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
+  fn visit_with_stmt(&mut self, with_stmt: &WithStmt) {
     self.with_child_scope(with_stmt, |a| {
       with_stmt.obj.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
@@ -526,7 +526,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause) {
     self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
         let idents: Vec<Ident> = find_ids(param);
@@ -538,7 +538,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+  fn visit_class(&mut self, class: &Class) {
     for decorator in &class.decorators {
       decorator.visit_children_with(self);
     }
@@ -552,7 +552,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+  fn visit_constructor(&mut self, constructor: &Constructor) {
     self.with_child_scope(constructor, |a| {
       for param in &constructor.params {
         match param {
@@ -589,7 +589,7 @@ impl Visit for VariableCollector {
     });
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl, _: &dyn Node) {
+  fn visit_var_decl(&mut self, var_decl: &VarDecl) {
     var_decl.visit_children_with(self);
     if var_decl.kind == VarDeclKind::Let {
       for decl in &var_decl.decls {
@@ -747,7 +747,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
 impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   noop_visit_type!();
 
-  fn visit_module(&mut self, module: &Module, _: &dyn Node) {
+  fn visit_module(&mut self, module: &Module) {
     module.visit_children_with(self);
     // After visiting all nodes, reports errors.
     for span in self.var_groups.dump() {
@@ -755,7 +755,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn visit_script(&mut self, script: &Script, _: &dyn Node) {
+  fn visit_script(&mut self, script: &Script) {
     script.visit_children_with(self);
     // After visiting all nodes, reports errors.
     for span in self.var_groups.dump() {
@@ -763,7 +763,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr, _: &dyn Node) {
+  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) {
     // This only handles _nested_ `AssignmentExpression` since not nested `AssignExpression` (i.e. the direct child of
     // `ExpressionStatement`) is already handled by `visit_expr_stmt`. The variables within nested
     // `AssignmentExpression` should be marked as "reassigned" even if it's not been yet initialized, otherwise it
@@ -783,7 +783,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     self.process_var_status(idents.iter(), true);
   }
 
-  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt, _: &dyn Node) {
+  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt) {
     let mut expr = &*expr_stmt.expr;
 
     // Unwrap parentheses
@@ -810,7 +810,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn visit_update_expr(&mut self, update_expr: &UpdateExpr, _: &dyn Node) {
+  fn visit_update_expr(&mut self, update_expr: &UpdateExpr) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
         self.process_var_status(iter::once(ident), false);
@@ -819,7 +819,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn visit_function(&mut self, function: &Function, _: &dyn Node) {
+  fn visit_function(&mut self, function: &Function) {
     self.with_child_scope(function, |a| {
       if let Some(body) = &function.body {
         body.visit_children_with(a);
@@ -827,7 +827,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr, _: &dyn Node) {
+  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     self.with_child_scope(arrow_expr, |a| match &arrow_expr.body {
       BlockStmtOrExpr::BlockStmt(block_stmt) => {
         block_stmt.visit_children_with(a);
@@ -838,11 +838,11 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt, _: &dyn Node) {
+  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt) {
     self.with_child_scope(block_stmt, |a| block_stmt.visit_children_with(a));
   }
 
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt, _: &dyn Node) {
+  fn visit_for_stmt(&mut self, for_stmt: &ForStmt) {
     self.with_child_scope(for_stmt, |a| {
       for_stmt.init.visit_children_with(a);
       for_stmt.test.visit_children_with(a);
@@ -856,11 +856,11 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt, _: &dyn Node) {
+  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
     self.with_child_scope(for_of_stmt, |a| {
       match &for_of_stmt.left {
         VarDeclOrPat::VarDecl(var_decl) => {
-          var_decl.visit_with(&for_of_stmt.left, a);
+          var_decl.visit_with(a);
         }
         VarDeclOrPat::Pat(pat) => {
           a.extract_assign_idents(pat);
@@ -877,11 +877,11 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt, _: &dyn Node) {
+  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt) {
     self.with_child_scope(for_in_stmt, |a| {
       match &for_in_stmt.left {
         VarDeclOrPat::VarDecl(var_decl) => {
-          var_decl.visit_with(&for_in_stmt.left, a);
+          var_decl.visit_with(a);
         }
         VarDeclOrPat::Pat(pat) => {
           a.extract_assign_idents(pat);
@@ -898,7 +898,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt, _: &dyn Node) {
+  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
     self.with_child_scope(if_stmt, |a| {
       if_stmt.test.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
@@ -916,14 +916,14 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt, _: &dyn Node) {
+  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
     self.with_child_scope(switch_stmt, |a| {
       switch_stmt.discriminant.visit_children_with(a);
       switch_stmt.cases.visit_children_with(a);
     });
   }
 
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt, _: &dyn Node) {
+  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt) {
     self.with_child_scope(while_stmt, |a| {
       while_stmt.test.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
@@ -935,7 +935,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, _: &dyn Node) {
+  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt) {
     self.with_child_scope(do_while_stmt, |a| {
       // BlockStmt needs special handling to avoid creating a duplicate scope
       if let Stmt::Block(body) = &*do_while_stmt.body {
@@ -947,7 +947,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt, _: &dyn Node) {
+  fn visit_with_stmt(&mut self, with_stmt: &WithStmt) {
     self.with_child_scope(with_stmt, |a| {
       with_stmt.obj.visit_children_with(a);
       // BlockStmt needs special handling to avoid creating a duplicate scope
@@ -959,7 +959,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_catch_clause(&mut self, catch_clause: &CatchClause, _: &dyn Node) {
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause) {
     self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
         param.visit_children_with(a);
@@ -968,7 +968,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_class(&mut self, class: &Class, _: &dyn Node) {
+  fn visit_class(&mut self, class: &Class) {
     for decorator in &class.decorators {
       decorator.visit_children_with(self);
     }
@@ -982,7 +982,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     });
   }
 
-  fn visit_constructor(&mut self, constructor: &Constructor, _: &dyn Node) {
+  fn visit_constructor(&mut self, constructor: &Constructor) {
     self.with_child_scope(constructor, |a| {
       for param in &constructor.params {
         param.visit_children_with(a);
@@ -1003,7 +1003,7 @@ mod variable_collector_tests {
   fn collect(src: &str) -> VariableCollector {
     let parsed_source = test_util::parse(src);
     let mut v = VariableCollector::new();
-    v.visit_program(parsed_source.program_ref(), parsed_source.program_ref());
+    v.visit_program(parsed_source.program_ref());
     v
   }
 
