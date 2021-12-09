@@ -88,7 +88,7 @@ fn run_linter(
     config.get_rules()
   } else if let Some(rule_name) = filter_rule_name {
     let include = vec![rule_name.to_string()];
-    get_filtered_rules(None, None, Some(include))
+    get_filtered_rules(Some(vec![]), None, Some(include))
   } else {
     get_recommended_rules()
   };
