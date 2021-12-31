@@ -95,6 +95,7 @@ mod tests {
     const foo = /[\-\[\]\/\{\}\(\)\*\+\?\.\\^\$\|]/g;
     const foo = /\[/g;
     const foo = /\]/i;
+    const foo = /\]/d;
     "#,
     };
   }
