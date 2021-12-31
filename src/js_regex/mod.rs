@@ -12,7 +12,7 @@ mod tests {
 
   #[test]
   fn valid_flags() {
-    let validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
+    let validator = EcmaRegexValidator::new(EcmaVersion::Es2022);
     assert_eq!(validator.validate_flags("gimuys"), Ok(()));
     assert_eq!(validator.validate_flags("gimuy"), Ok(()));
     assert_eq!(validator.validate_flags("gim"), Ok(()));
@@ -22,6 +22,7 @@ mod tests {
     assert_eq!(validator.validate_flags("s"), Ok(()));
     assert_eq!(validator.validate_flags("u"), Ok(()));
     assert_eq!(validator.validate_flags("y"), Ok(()));
+    assert_eq!(validator.validate_flags("d"), Ok(()));
 
     assert_eq!(validator.validate_flags("gy"), Ok(()));
     assert_eq!(validator.validate_flags("iy"), Ok(()));

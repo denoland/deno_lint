@@ -65,7 +65,7 @@ impl Handler for NoEmptyCharacterClassVisitor {
        * 4. `[gimuy]*`: optional regexp flags
        * 5. `$`: fix the match at the end of the string
        */
-      regex::Regex::new(r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[gimuys]*$")
+      regex::Regex::new(r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[gimuysd]*$")
         .unwrap()
     });
 

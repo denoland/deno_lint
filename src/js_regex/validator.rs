@@ -102,6 +102,7 @@ pub enum EcmaVersion {
   Es2019,
   Es2020,
   Es2021,
+  Es2022,
 }
 
 #[derive(Debug)]
@@ -174,6 +175,7 @@ impl EcmaRegexValidator {
         || (flag == 'u' && self.ecma_version >= EcmaVersion::Es2015)
         || (flag == 'y' && self.ecma_version >= EcmaVersion::Es2015)
         || (flag == 's' && self.ecma_version >= EcmaVersion::Es2018)
+        || (flag == 'd' && self.ecma_version >= EcmaVersion::Es2022)
       {
         // do nothing
       } else {
