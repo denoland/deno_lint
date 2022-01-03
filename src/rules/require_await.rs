@@ -7,7 +7,7 @@ use deno_ast::swc::ast::{
   FnExpr, ForOfStmt, MethodProp, PrivateMethod,
 };
 use deno_ast::swc::common::Spanned;
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::visit::{Visit, VisitWith};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -163,7 +163,7 @@ fn is_body_empty(maybe_body: Option<&BlockStmt>) -> bool {
 }
 
 impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
-  noop_visit_type!();
+  // noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
     let function_info = FunctionInfo {
@@ -289,6 +289,7 @@ mod tests {
       "class A { async foo() { await doSomething() } }",
       "(class { async foo() { await doSomething() } })",
       "async function foo() { await (async () => { await doSomething() }) }",
+      "async function foo() { const a = <number>await doSomething() }",
 
       // empty functions are ok.
       "async function foo() {}",
