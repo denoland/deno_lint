@@ -163,8 +163,6 @@ fn is_body_empty(maybe_body: Option<&BlockStmt>) -> bool {
 }
 
 impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
-  // noop_visit_type!();
-
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
     let function_info = FunctionInfo {
       kind: FunctionKind::Function(Some(
