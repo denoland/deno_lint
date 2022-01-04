@@ -6,10 +6,11 @@ use deno_ast::swc::ast::{
   ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
   ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  MemberExpr, MethodKind, NamedExport, Param, Pat, PrivateMethod, Prop,
-  PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
-  TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
-  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator, ModuleExportName,
+  MemberExpr, MethodKind, ModuleExportName, NamedExport, Param, Pat,
+  PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
+  TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl,
+  TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
+  VarDeclarator,
 };
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::ident::IdentLike;

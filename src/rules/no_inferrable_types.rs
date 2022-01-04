@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::swc::ast::PropName;
 use deno_ast::swc::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
   NewExpr, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
@@ -8,7 +9,6 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
-use deno_ast::swc::ast::PropName;
 use derive_more::Display;
 use std::sync::Arc;
 
