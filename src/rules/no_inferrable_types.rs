@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::swc::ast::PropName;
 use deno_ast::swc::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
   NewExpr, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
@@ -313,7 +314,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
       return;
     }
     if let Some(init) = &prop.value {
-      if let Expr::Ident(_) = &*prop.key {
+      if let PropName::Ident(_) = &prop.key {
         if let Some(ident_type_ann) = &prop.type_ann {
           self.check_ts_type(init, ident_type_ann, prop.span);
         }
