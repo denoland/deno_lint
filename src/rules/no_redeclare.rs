@@ -96,7 +96,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   }
 
   fn visit_class_prop(&mut self, p: &ClassProp) {
-    if p.computed {
+    if let PropName::Computed(_) = &p.key {
       p.key.visit_with(self);
     }
 

@@ -9,7 +9,7 @@ use deno_ast::swc::ast::{
   MemberExpr, MethodKind, NamedExport, Param, Pat, PrivateMethod, Prop,
   PropName, SetterProp, TsEntityName, TsEnumDecl, TsExprWithTypeArgs,
   TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl, TsPropertySignature,
-  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
+  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator, ModuleExportName,
 };
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::ident::IdentLike;
@@ -199,7 +199,7 @@ impl Visit for Collector {
   fn visit_class_prop(&mut self, n: &ClassProp) {
     n.decorators.visit_with(self);
 
-    if n.computed {
+    if let PropName::Computed(_) = &n.key {
       n.key.visit_with(self);
     }
 
@@ -288,7 +288,9 @@ impl Visit for Collector {
 
   /// export is kind of usage
   fn visit_export_named_specifier(&mut self, export: &ExportNamedSpecifier) {
-    self.used_vars.insert(export.orig.to_id());
+    if let ModuleExportName::Ident(ident) = &export.orig {
+      self.used_vars.insert(ident.to_id());
+    }
   }
 
   fn visit_fn_decl(&mut self, decl: &FnDecl) {

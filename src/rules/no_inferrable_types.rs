@@ -8,6 +8,7 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::ast::PropName;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -313,7 +314,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
       return;
     }
     if let Some(init) = &prop.value {
-      if let Expr::Ident(_) = &*prop.key {
+      if let PropName::Ident(_) = &prop.key {
         if let Some(ident_type_ann) = &prop.type_ann {
           self.check_ts_type(init, ident_type_ann, prop.span);
         }
