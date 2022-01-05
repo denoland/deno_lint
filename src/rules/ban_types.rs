@@ -116,6 +116,8 @@ impl Handler for BanTypesHandler {
   ) {
     if_chain! {
       if let TsEntityName::Ident(ident) = &ts_type_ref.type_name;
+      if ident.span().ctxt == ctx.top_level_ctxt();
+      if ctx.scope().is_global(&ident.to_id());
       if let Ok(banned_type) = BannedType::try_from(ident.sym().as_ref());
       then {
         ctx.add_diagnostic_with_hint(
@@ -173,6 +175,8 @@ mod tests {
       "let g = Object.create(null);",
       "let h = String(false);",
       "let e: foo.String;",
+      "export interface Symbol {} let f: Symbol;",
+      "function test() { interface Symbol {} let f: Symbol; }",
     };
   }
 

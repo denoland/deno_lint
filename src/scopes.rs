@@ -3,8 +3,8 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmt, BlockStmtOrExpr, CatchClause, ClassDecl, ClassExpr,
   DoWhileStmt, Expr, FnDecl, FnExpr, ForInStmt, ForOfStmt, ForStmt, Function,
   Ident, ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  Param, Pat, SwitchStmt, TsTypeAliasDecl, VarDecl, VarDeclKind, WhileStmt,
-  WithStmt,
+  Param, Pat, SwitchStmt, TsInterfaceDecl, TsTypeAliasDecl, VarDecl,
+  VarDeclKind, WhileStmt, WithStmt,
 };
 use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::utils::find_ids;
@@ -101,7 +101,7 @@ pub enum BindingKind {
   ///   - import { foo } from "foo.ts";
   ValueImport,
 
-  TypeAlias,
+  Type,
 }
 
 impl BindingKind {
@@ -340,9 +340,11 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_ts_type_alias_decl(&mut self, n: &TsTypeAliasDecl) {
-    self.declare(BindingKind::TypeAlias, &n.id);
-    n.type_params.visit_with(self);
-    n.type_ann.visit_with(self);
+    self.declare(BindingKind::Type, &n.id);
+  }
+
+  fn visit_ts_interface_decl(&mut self, n: &TsInterfaceDecl) {
+    self.declare(BindingKind::Type, &n.id);
   }
 }
 
