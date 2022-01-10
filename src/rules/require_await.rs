@@ -1,13 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrowExpr, AwaitExpr, BlockStmt, BlockStmtOrExpr, ClassMethod, FnDecl,
-  FnExpr, ForOfStmt, MethodProp, PrivateMethod,
-};
+
 use deno_ast::swc::common::Spanned;
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::view::{NodeTrait, Program};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -51,16 +49,16 @@ impl LintRule for RequireAwait {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    context: &mut Context,
+    program: Program,
   ) {
-    let mut visitor = RequireAwaitVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    RequireAwaitHandler.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -99,7 +97,6 @@ struct FunctionInfo {
   is_generator: bool,
   is_empty: bool,
   has_await: bool,
-  upper: Option<Box<FunctionInfo>>,
 }
 
 impl FunctionInfo {
@@ -113,160 +110,190 @@ impl FunctionInfo {
   }
 }
 
-struct RequireAwaitVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct RequireAwaitHandler;
+
+impl Handler for RequireAwaitHandler {
+  fn fn_decl(&mut self, fn_decl: &deno_ast::view::FnDecl, ctx: &mut Context) {
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Function(Some(
+        fn_decl.ident.sym().as_ref().to_string(),
+      )),
+      is_async: fn_decl.function.is_async(),
+      is_generator: fn_decl.function.is_generator(),
+      is_empty: is_body_empty(fn_decl.function.body),
+      has_await: false,
+    };
+
+    process_function(fn_decl.as_node(), function_info, ctx);
+  }
+
+  fn fn_expr(&mut self, fn_expr: &deno_ast::view::FnExpr, ctx: &mut Context) {
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Function(
+        fn_expr.ident.as_ref().map(|i| i.sym().as_ref().to_string()),
+      ),
+      is_async: fn_expr.function.is_async(),
+      is_generator: fn_expr.function.is_generator(),
+      is_empty: is_body_empty(fn_expr.function.body),
+      has_await: false,
+    };
+    process_function(fn_expr.as_node(), function_info, ctx);
+  }
+
+  fn arrow_expr(
+    &mut self,
+    arrow_expr: &deno_ast::view::ArrowExpr,
+    ctx: &mut Context,
+  ) {
+    let function_info = FunctionInfo {
+      kind: FunctionKind::ArrowFunction,
+      is_async: arrow_expr.is_async(),
+      is_generator: arrow_expr.is_generator(),
+      is_empty: matches!(
+        &arrow_expr.body,
+        deno_ast::view::BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
+      ),
+      has_await: false,
+    };
+    process_function(arrow_expr.as_node(), function_info, ctx);
+  }
+
+  fn method_prop(
+    &mut self,
+    method_prop: &deno_ast::view::MethodProp,
+    ctx: &mut Context,
+  ) {
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Method(method_prop.key.string_repr()),
+      is_async: method_prop.function.is_async(),
+      is_generator: method_prop.function.is_generator(),
+      is_empty: is_body_empty(method_prop.function.body),
+      has_await: false,
+    };
+
+    process_function(method_prop.as_node(), function_info, ctx);
+  }
+
+  fn class_method(
+    &mut self,
+    class_method: &deno_ast::view::ClassMethod,
+    ctx: &mut Context,
+  ) {
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Method(class_method.key.string_repr()),
+      is_async: class_method.function.is_async(),
+      is_generator: class_method.function.is_generator(),
+      is_empty: is_body_empty(class_method.function.body),
+      has_await: false,
+    };
+
+    process_function(class_method.as_node(), function_info, ctx);
+  }
+
+  fn private_method(
+    &mut self,
+    private_method: &deno_ast::view::PrivateMethod,
+    ctx: &mut Context,
+  ) {
+    let function_info = FunctionInfo {
+      kind: FunctionKind::Method(private_method.key.string_repr()),
+      is_async: private_method.function.is_async(),
+      is_generator: private_method.function.is_generator(),
+      is_empty: is_body_empty(private_method.function.body),
+      has_await: false,
+    };
+    process_function(private_method.as_node(), function_info, ctx);
+  }
+}
+
+struct FunctionHandler {
   function_info: Option<Box<FunctionInfo>>,
 }
 
-impl<'c, 'view> RequireAwaitVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self {
-      context,
-      function_info: None,
-    }
+impl Handler for FunctionHandler {
+  fn fn_decl(&mut self, _n: &deno_ast::view::FnDecl, ctx: &mut Context) {
+    ctx.stop_traverse();
   }
 
-  fn process_function<F>(
+  fn fn_expr(&mut self, _n: &deno_ast::view::FnExpr, ctx: &mut Context) {
+    ctx.stop_traverse();
+  }
+
+  fn arrow_expr(&mut self, _n: &deno_ast::view::ArrowExpr, ctx: &mut Context) {
+    ctx.stop_traverse();
+  }
+
+  fn method_prop(
     &mut self,
-    func: &F,
-    new_function_info: Box<FunctionInfo>,
-  ) where
-    F: VisitWith<Self> + Spanned,
-  {
-    // Set the current function's info
-    self.function_info = Some(new_function_info);
-
-    // Visit the function's inside
-    func.visit_children_with(self);
-
-    let mut function_info = self.function_info.take().unwrap();
-
-    let upper = function_info.upper.take();
-
-    // Check if the function should be reported
-    if let Some(message) = function_info.should_report() {
-      self.context.add_diagnostic_with_hint(
-        func.span(),
-        CODE,
-        message,
-        RequireAwaitHint::RemoveOrUse,
-      );
-    }
-
-    // Restore upper function info
-    self.function_info = upper;
-  }
-}
-
-fn is_body_empty(maybe_body: Option<&BlockStmt>) -> bool {
-  maybe_body.map_or(true, |body| body.stmts.is_empty())
-}
-
-impl<'c, 'view> Visit for RequireAwaitVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Function(Some(
-        fn_decl.ident.sym.as_ref().to_string(),
-      )),
-      is_async: fn_decl.function.is_async,
-      is_generator: fn_decl.function.is_generator,
-      is_empty: is_body_empty(fn_decl.function.body.as_ref()),
-      upper: self.function_info.take(),
-      has_await: false,
-    };
-
-    self.process_function(fn_decl, Box::new(function_info));
+    _n: &deno_ast::view::MethodProp,
+    ctx: &mut Context,
+  ) {
+    ctx.stop_traverse();
   }
 
-  fn visit_fn_expr(&mut self, fn_expr: &FnExpr) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Function(
-        fn_expr.ident.as_ref().map(|i| i.sym.as_ref().to_string()),
-      ),
-      is_async: fn_expr.function.is_async,
-      is_generator: fn_expr.function.is_generator,
-      is_empty: is_body_empty(fn_expr.function.body.as_ref()),
-      upper: self.function_info.take(),
-      has_await: false,
-    };
-
-    self.process_function(fn_expr, Box::new(function_info));
+  fn class_method(
+    &mut self,
+    _n: &deno_ast::view::ClassMethod,
+    ctx: &mut Context,
+  ) {
+    ctx.stop_traverse();
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::ArrowFunction,
-      is_async: arrow_expr.is_async,
-      is_generator: arrow_expr.is_generator,
-      is_empty: matches!(
-        &arrow_expr.body,
-        BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
-      ),
-      upper: self.function_info.take(),
-      has_await: false,
-    };
-
-    self.process_function(arrow_expr, Box::new(function_info));
+  fn private_method(
+    &mut self,
+    _n: &deno_ast::view::PrivateMethod,
+    ctx: &mut Context,
+  ) {
+    ctx.stop_traverse();
   }
 
-  fn visit_method_prop(&mut self, method_prop: &MethodProp) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Method(method_prop.key.string_repr()),
-      is_async: method_prop.function.is_async,
-      is_generator: method_prop.function.is_generator,
-      is_empty: is_body_empty(method_prop.function.body.as_ref()),
-      upper: self.function_info.take(),
-      has_await: false,
-    };
-
-    self.process_function(method_prop, Box::new(function_info));
-  }
-
-  fn visit_class_method(&mut self, class_method: &ClassMethod) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Method(class_method.key.string_repr()),
-      is_async: class_method.function.is_async,
-      is_generator: class_method.function.is_generator,
-      is_empty: is_body_empty(class_method.function.body.as_ref()),
-      upper: self.function_info.take(),
-      has_await: false,
-    };
-
-    self.process_function(class_method, Box::new(function_info));
-  }
-
-  fn visit_private_method(&mut self, private_method: &PrivateMethod) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Method(private_method.key.string_repr()),
-      is_async: private_method.function.is_async,
-      is_generator: private_method.function.is_generator,
-      is_empty: is_body_empty(private_method.function.body.as_ref()),
-      upper: self.function_info.take(),
-      has_await: false,
-    };
-
-    self.process_function(private_method, Box::new(function_info));
-  }
-
-  fn visit_await_expr(&mut self, await_expr: &AwaitExpr) {
+  fn await_expr(&mut self, _n: &deno_ast::view::AwaitExpr, _ctx: &mut Context) {
     if let Some(info) = self.function_info.as_mut() {
       info.has_await = true;
     }
-
-    await_expr.visit_children_with(self);
   }
-
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
-    if for_of_stmt.await_token.is_some() {
+  fn for_of_stmt(
+    &mut self,
+    for_of_stmt: &deno_ast::view::ForOfStmt,
+    _ctx: &mut Context,
+  ) {
+    if for_of_stmt.await_token().is_some() {
       if let Some(info) = self.function_info.as_mut() {
         info.has_await = true;
       }
     }
-
-    for_of_stmt.visit_children_with(self);
   }
+}
+
+fn process_function<'a, N>(
+  node: N,
+  function_info: FunctionInfo,
+  ctx: &mut Context,
+) where
+  N: NodeTrait<'a> + Spanned,
+{
+  let mut function_handler = FunctionHandler {
+    function_info: Some(Box::new(function_info)),
+  };
+
+  for child in node.children() {
+    function_handler.traverse(child, ctx)
+  }
+
+  let function_info = function_handler.function_info.take().unwrap();
+
+  if let Some(message) = function_info.should_report() {
+    ctx.add_diagnostic_with_hint(
+      node.span(),
+      CODE,
+      message,
+      RequireAwaitHint::RemoveOrUse,
+    );
+  }
+}
+
+fn is_body_empty(maybe_body: Option<&deno_ast::view::BlockStmt>) -> bool {
+  maybe_body.map_or(true, |body| body.stmts.is_empty())
 }
 
 #[cfg(test)]
@@ -289,6 +316,7 @@ mod tests {
       "class A { async foo() { await doSomething() } }",
       "(class { async foo() { await doSomething() } })",
       "async function foo() { await (async () => { await doSomething() }) }",
+      "async function foo() { const bar = <number>await doSomething() }",
 
       // empty functions are ok.
       "async function foo() {}",
