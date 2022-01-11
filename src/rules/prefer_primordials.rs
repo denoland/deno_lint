@@ -273,6 +273,18 @@ const parseInt = () => {};
 parseInt();
       "#,
       r#"const foo = { Error: 1 };"#,
+      r#"
+const { SafeArrayIterator } = primordials;
+[1, 2, ...new SafeArrayIterator(arr)];
+foo(1, 2, ...new SafeArrayIterator(arr));
+new Foo(1, 2, ...new SafeArrayIterator(arr));
+      "#,
+      r#"
+const { SafeArrayIterator } = primordials;
+[1, 2, ...new SafeArrayIterator([1, 2, 3])];
+foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
+new Foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
+      "#,
     };
   }
 
@@ -429,6 +441,48 @@ const noop = Function.prototype;
         },
       ],
       r#"a instanceof A"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"[1, 2, ...arr];"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"foo(1, 2, ...arr);"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"new Foo(1, 2, ...arr);"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"[1, 2, ...[3]];"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"foo(1, 2, ...[3]);"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"new Foo(1, 2, ...[3]);"#: [
         {
           col: 0,
           message: MESSAGE,
