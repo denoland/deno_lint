@@ -215,17 +215,23 @@ static PROPERTY_DENY_LIST: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 /// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
 /// return `None`).
 fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a JsWord> {
-  use deno_ast::view::{Expr, Lit, Tpl};
+  use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match &expr.prop {
-    Expr::Lit(Lit::Str(s)) => Some(s.value()),
-    // If it's computed, this MemberExpr looks like `foo[bar]`
-    Expr::Ident(ident) if !expr.computed() => Some(ident.sym()),
-    Expr::Tpl(Tpl {
-      ref exprs,
-      ref quasis,
-      ..
-    }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw.value()),
-    _ => None,
+    MemberProp::Ident(ident) => Some(ident.sym()),
+    MemberProp::PrivateName(name) => Some(name.id.sym()),
+    MemberProp::Computed(prop) => match &prop.expr {
+      Expr::Lit(Lit::Str(s)) => Some(s.value()),
+      // If it's computed, this MemberExpr looks like `foo[bar]`
+      Expr::Ident(_) => None,
+      Expr::Tpl(Tpl {
+        ref exprs,
+        ref quasis,
+        ..
+      }) if exprs.is_empty() && quasis.len() == 1 => {
+        Some(quasis[0].raw.value())
+      }
+      _ => None,
+    },
   }
 }
 
@@ -242,9 +248,9 @@ impl Handler for NoWindowPrefixHandler {
       return;
     }
 
-    use deno_ast::view::{Expr, ExprOrSuper};
+    use deno_ast::view::Expr;
     if_chain! {
-      if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
+      if let Expr::Ident(obj) = &member_expr.obj;
       let obj_symbol = obj.sym();
       if obj_symbol == "window";
       if ctx.scope().is_global(&obj.inner.to_id());

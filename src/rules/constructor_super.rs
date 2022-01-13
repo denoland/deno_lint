@@ -98,7 +98,7 @@ fn extract_super_span(stmt: &ast_view::Stmt) -> Option<Span> {
   if_chain! {
     if let ast_view::Stmt::Expr(expr) = stmt;
     if let ast_view::Expr::Call(call) = expr.expr;
-    if matches!(&call.callee, ast_view::ExprOrSuper::Super(_));
+    if matches!(&call.callee, ast_view::Callee::Super(_));
     then {
       Some(call.span())
     } else {

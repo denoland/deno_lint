@@ -4,7 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{CallExpr, Expr, ExprOrSuper, Ident, NewExpr};
+use deno_ast::view::{CallExpr, Callee, Expr, Ident, NewExpr};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ fn check_callee(callee: &Ident, span: Span, ctx: &mut Context) {
 
 impl Handler for NoObjCallsHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let ExprOrSuper::Expr(Expr::Ident(ident)) = call_expr.callee {
+    if let Callee::Expr(Expr::Ident(ident)) = call_expr.callee {
       check_callee(ident, call_expr.span(), ctx);
     }
   }

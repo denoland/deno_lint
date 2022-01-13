@@ -5,7 +5,7 @@ use crate::swc_util::extract_regex;
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{CallExpr, Expr, ExprOrSuper, NewExpr, Regex};
+use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -148,7 +148,7 @@ impl Handler for NoControlRegexHandler {
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let ExprOrSuper::Expr(Expr::Ident(ident)) = &call_expr.callee {
+    if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
       if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
         check_regex(regex.as_str(), call_expr.span(), ctx);
       }

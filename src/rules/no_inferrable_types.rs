@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::swc::ast::PropName;
 use deno_ast::swc::ast::{
-  ArrowExpr, CallExpr, ClassProp, Expr, ExprOrSuper, Function, Ident, Lit,
-  NewExpr, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
+  ArrowExpr, CallExpr, ClassProp, Expr, Function, Ident, Lit, NewExpr,
+  OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
+use deno_ast::swc::ast::{Callee, PropName};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
@@ -78,13 +78,8 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     )
   }
 
-  fn check_callee(
-    &mut self,
-    callee: &ExprOrSuper,
-    span: Span,
-    expected_sym: &str,
-  ) {
-    if let ExprOrSuper::Expr(unboxed) = &callee {
+  fn check_callee(&mut self, callee: &Callee, span: Span, expected_sym: &str) {
+    if let Callee::Expr(unboxed) = &callee {
       if let Expr::Ident(value) = &**unboxed {
         if value.sym == *expected_sym {
           self.add_diagnostic_helper(span);

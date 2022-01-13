@@ -1,9 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::scopes::Scope;
 use deno_ast::swc::ast::{
-  BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr, Null,
-  Number, PatOrExpr, PrivateName, Prop, PropName, PropOrSpread, Regex, Str,
-  Tpl,
+  BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr,
+  MemberProp, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
+  PropOrSpread, Regex, Str, Tpl,
 };
 use deno_ast::swc::utils::{find_ids, ident::IdentLike};
 use deno_ast::view as ast_view;
@@ -173,13 +173,17 @@ impl StringRepr for PrivateName {
 
 impl StringRepr for MemberExpr {
   fn string_repr(&self) -> Option<String> {
-    if let Expr::Ident(ident) = &*self.prop {
-      if !self.computed {
-        return ident.string_repr();
-      }
-    }
+    self.prop.string_repr()
+  }
+}
 
-    (&*self.prop).string_repr()
+impl StringRepr for MemberProp {
+  fn string_repr(&self) -> Option<String> {
+    match self {
+      MemberProp::Ident(ident) => ident.string_repr(),
+      MemberProp::PrivateName(name) => name.string_repr(),
+      MemberProp::Computed(_) => None,
+    }
   }
 }
 

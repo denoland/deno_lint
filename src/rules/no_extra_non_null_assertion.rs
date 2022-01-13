@@ -4,7 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{Expr, ExprOrSuper, OptChainExpr, TsNonNullExpr};
+use deno_ast::view::{Callee, Expr, OptChainExpr, TsNonNullExpr};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -99,13 +99,16 @@ impl Handler for NoExtraNonNullAssertionHandler {
     opt_chain_expr: &OptChainExpr,
     ctx: &mut Context,
   ) {
-    let maybe_expr_or_super = match opt_chain_expr.expr {
+    let maybe_expr = match opt_chain_expr.expr {
       Expr::Member(member_expr) => Some(&member_expr.obj),
-      Expr::Call(call_expr) => Some(&call_expr.callee),
+      Expr::Call(call_expr) => match &call_expr.callee {
+        Callee::Expr(expr) => Some(expr),
+        _ => None,
+      },
       _ => None,
     };
 
-    if let Some(ExprOrSuper::Expr(expr)) = maybe_expr_or_super {
+    if let Some(expr) = maybe_expr {
       check_expr_for_nested_non_null_assert(opt_chain_expr.span(), expr, ctx);
     }
   }

@@ -141,7 +141,7 @@ impl Handler for PreferPrimordialsHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    use deno_ast::view::{Expr, ExprOrSuper};
+    use deno_ast::view::Expr;
 
     // If `member_expr.obj` is an array literal, access to its properties or
     // methods should be replaced with the one from `primordials`.
@@ -156,7 +156,7 @@ impl Handler for PreferPrimordialsHandler {
     // ```js
     // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
     // ```
-    if let ExprOrSuper::Expr(Expr::Array(_)) = &member_expr.obj {
+    if let Expr::Array(_) = &member_expr.obj {
       ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
       return;
     }
@@ -168,7 +168,7 @@ impl Handler for PreferPrimordialsHandler {
     }
 
     if_chain! {
-      if let ExprOrSuper::Expr(Expr::Ident(ident)) = &member_expr.obj;
+      if let Expr::Ident(ident) = &member_expr.obj;
       if TARGETS.contains(&ident.sym().as_ref());
       then {
         ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);

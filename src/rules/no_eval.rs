@@ -5,7 +5,7 @@ use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{CallExpr, Expr, ExprOrSuper, ParenExpr, VarDeclarator};
+use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -87,7 +87,7 @@ impl Handler for NoEvalHandler {
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let ExprOrSuper::Expr(expr) = &call_expr.callee {
+    if let Callee::Expr(expr) = &call_expr.callee {
       match expr {
         Expr::Ident(ident) => {
           self.maybe_add_diagnostic(*ident, call_expr.span(), ctx)

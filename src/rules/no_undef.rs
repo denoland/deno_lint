@@ -2,7 +2,6 @@
 use super::{Context, LintRule};
 use crate::globals::GLOBALS;
 use crate::ProgramRef;
-use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
@@ -86,8 +85,8 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
 
   fn visit_member_expr(&mut self, e: &MemberExpr) {
     e.obj.visit_with(self);
-    if e.computed {
-      e.prop.visit_with(self);
+    if let MemberProp::Computed(prop) = &e.prop {
+      prop.visit_with(self);
     }
   }
 
@@ -133,12 +132,8 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
   }
 
   fn visit_call_expr(&mut self, e: &CallExpr) {
-    if let ExprOrSuper::Expr(callee) = &e.callee {
-      if let Expr::Ident(i) = &**callee {
-        if i.sym == js_word!("import") {
-          return;
-        }
-      }
+    if let Callee::Import(_) = &e.callee {
+      return;
     }
 
     e.visit_children_with(self)

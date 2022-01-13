@@ -3,9 +3,9 @@ use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
-  ArrowExpr, BlockStmtOrExpr, CallExpr, ClassMethod, Expr, ExprOrSuper, FnDecl,
-  FnExpr, GetterProp, MethodKind, PrivateMethod, Prop, PropName, PropOrSpread,
-  ReturnStmt,
+  ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr, FnDecl,
+  FnExpr, GetterProp, MemberProp, MethodKind, PrivateMethod, Prop, PropName,
+  PropOrSpread, ReturnStmt,
 };
 use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::visit::noop_visit_type;
@@ -231,16 +231,14 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     if call_expr.args.len() != 3 {
       return;
     }
-    if let ExprOrSuper::Expr(callee_expr) = &call_expr.callee {
+    if let Callee::Expr(callee_expr) = &call_expr.callee {
       if let Expr::Member(member) = &**callee_expr {
-        if let ExprOrSuper::Expr(member_obj) = &member.obj {
-          if let Expr::Ident(ident) = &**member_obj {
-            if ident.sym != *"Object" {
-              return;
-            }
+        if let Expr::Ident(ident) = &*member.obj {
+          if ident.sym != *"Object" {
+            return;
           }
         }
-        if let Expr::Ident(ident) = &*member.prop {
+        if let MemberProp::Ident(ident) = &member.prop {
           if ident.sym != *"defineProperty" {
             return;
           }
