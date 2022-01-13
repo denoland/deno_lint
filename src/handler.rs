@@ -97,6 +97,7 @@ pub trait Handler {
   fn getter_prop(&mut self, _n: &ast_view::GetterProp, _ctx: &mut Context) {}
   fn ident(&mut self, _n: &ast_view::Ident, _ctx: &mut Context) {}
   fn if_stmt(&mut self, _n: &ast_view::IfStmt, _ctx: &mut Context) {}
+  fn import(&mut self, _n: &ast_view::Import, _ctx: &mut Context) {}
   fn import_decl(&mut self, _n: &ast_view::ImportDecl, _ctx: &mut Context) {}
   fn import_default_specifier(
     &mut self,
@@ -235,6 +236,12 @@ pub trait Handler {
   fn str(&mut self, _n: &ast_view::Str, _ctx: &mut Context) {}
   // Neither `super` or `r#super` can be used here, so we use `super_` reluctantly
   fn super_(&mut self, _n: &ast_view::Super, _ctx: &mut Context) {}
+  fn super_prop_expr(
+    &mut self,
+    _n: &ast_view::SuperPropExpr,
+    _ctx: &mut Context,
+  ) {
+  }
   fn switch_case(&mut self, _n: &ast_view::SwitchCase, _ctx: &mut Context) {}
   fn switch_stmt(&mut self, _n: &ast_view::SwitchStmt, _ctx: &mut Context) {}
   fn tagged_tpl(&mut self, _n: &ast_view::TaggedTpl, _ctx: &mut Context) {}
@@ -564,6 +571,7 @@ pub trait Traverse: Handler {
       GetterProp(n) => self.getter_prop(n, ctx),
       Ident(n) => self.ident(n, ctx),
       IfStmt(n) => self.if_stmt(n, ctx),
+      Import(n) => self.import(n, ctx),
       ImportDecl(n) => self.import_decl(n, ctx),
       ImportDefaultSpecifier(n) => self.import_default_specifier(n, ctx),
       ImportNamedSpecifier(n) => self.import_named_specifier(n, ctx),
@@ -611,6 +619,7 @@ pub trait Traverse: Handler {
       StaticBlock(n) => self.static_block(n, ctx),
       Str(n) => self.str(n, ctx),
       Super(n) => self.super_(n, ctx),
+      SuperPropExpr(n) => self.super_prop_expr(n, ctx),
       SwitchCase(n) => self.switch_case(n, ctx),
       SwitchStmt(n) => self.switch_stmt(n, ctx),
       TaggedTpl(n) => self.tagged_tpl(n, ctx),

@@ -2,7 +2,6 @@
 use super::{Context, LintRule};
 use crate::scopes::BindingKind;
 use crate::ProgramRef;
-use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::swc::{
@@ -88,83 +87,54 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
       Expr::Ident(i) => {
         self.check(span, i, false);
       }
-      Expr::Member(e) => {
-        if let ExprOrSuper::Expr(obj) = &e.obj {
-          self.check_assign(span, obj, true)
-        }
-      }
+      Expr::Member(e) => self.check_assign(span, &e.obj, true),
       Expr::OptChain(e) => self.check_expr(span, &e.expr),
       Expr::Paren(e) => self.check_expr(span, &e.expr),
       _ => e.visit_children_with(self),
     }
   }
 
-  fn is_modifier(&self, obj: &Expr, prop: &Expr) -> bool {
-    if let Expr::Ident(obj) = obj {
-      if self
-        .context
-        .scope()
-        .var(&obj.to_id())
-        .map_or(false, |v| !v.kind().is_import())
-      {
-        return false;
-      }
+  fn is_modifier(&self, obj: &Expr, prop: &Ident) -> bool {
+    let obj = if let Expr::Ident(obj) = obj {
+      obj
+    } else {
+      return false;
+    };
+
+    if self
+      .context
+      .scope()
+      .var(&obj.to_id())
+      .map_or(false, |v| !v.kind().is_import())
+    {
+      return false;
     }
 
-    match &*obj {
-      Expr::Ident(Ident {
-        sym: js_word!("Object"),
-        ..
-      }) => {
+    match &*obj.sym {
+      "Object" => {
         // Check for Object.defineProperty and Object.assign
-
-        match prop {
-          Expr::Ident(Ident { sym, .. })
-            if *sym == *"defineProperty"
-              || *sym == *"assign"
-              || *sym == *"setPrototypeOf"
-              || *sym == *"freeze" =>
-          {
-            // It's now property assignment.
-            return true;
-          }
-          _ => {}
-        }
+        *prop.sym == *"defineProperty"
+          || *prop.sym == *"assign"
+          || *prop.sym == *"setPrototypeOf"
+          || *prop.sym == *"freeze"
       }
 
-      Expr::Ident(Ident {
-        sym: js_word!("Reflect"),
-        ..
-      }) => {
-        match prop {
-          Expr::Ident(Ident { sym, .. })
-            if *sym == *"defineProperty"
-              || *sym == *"deleteProperty"
-              || *sym == *"set"
-              || *sym == *"setPrototypeOf" =>
-          {
-            // It's now property assignment.
-            return true;
-          }
-          _ => {}
-        }
+      "Reflect" => {
+        *prop.sym == *"defineProperty"
+          || *prop.sym == *"deleteProperty"
+          || *prop.sym == *"set"
+          || *prop.sym == *"setPrototypeOf"
       }
-      _ => {}
+      _ => false,
     }
-
-    false
   }
 
   /// Returns true for callees like `Object.assign`
   fn modifies_first(&self, callee: &Expr) -> bool {
     match callee {
-      Expr::Member(
-        callee @ MemberExpr {
-          computed: false, ..
-        },
-      ) => {
-        if let ExprOrSuper::Expr(obj) = &callee.obj {
-          if self.is_modifier(obj, &callee.prop) {
+      Expr::Member(member_expr) => {
+        if let MemberProp::Ident(ident) = &member_expr.prop {
+          if self.is_modifier(&member_expr.obj, ident) {
             return true;
           }
         }
@@ -247,7 +217,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
   fn visit_call_expr(&mut self, n: &CallExpr) {
     n.visit_children_with(self);
 
-    if let ExprOrSuper::Expr(callee) = &n.callee {
+    if let Callee::Expr(callee) = &n.callee {
       if let Some(arg) = n.args.first() {
         if self.modifies_first(callee) {
           self.check_assign(n.span, &arg.expr, true);

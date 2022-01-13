@@ -6,8 +6,8 @@ use deno_ast::swc::ast::{
   ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
   ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  MemberExpr, MethodKind, ModuleExportName, NamedExport, Param, Pat,
-  PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
+  MemberExpr, MemberProp, MethodKind, ModuleExportName, NamedExport, Param,
+  Pat, PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
   TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl,
   TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
   VarDeclarator,
@@ -282,8 +282,8 @@ impl Visit for Collector {
 
   fn visit_member_expr(&mut self, member_expr: &MemberExpr) {
     member_expr.obj.visit_with(self);
-    if member_expr.computed {
-      member_expr.prop.visit_with(self);
+    if let MemberProp::Computed(prop) = &member_expr.prop {
+      prop.visit_with(self);
     }
   }
 

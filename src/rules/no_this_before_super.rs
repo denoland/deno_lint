@@ -196,7 +196,7 @@ impl Handler for SuperCallChecker {
     }
 
     if self.yet_appeared()
-      && matches!(call_expr.callee, ast_view::ExprOrSuper::Super(_))
+      && matches!(call_expr.callee, ast_view::Callee::Super(_))
     {
       self.first_appeared = Some(FirstAppeared::SuperCalled);
     }

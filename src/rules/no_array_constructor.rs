@@ -4,7 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{CallExpr, Expr, ExprOrSpread, ExprOrSuper, NewExpr};
+use deno_ast::view::{CallExpr, Callee, Expr, ExprOrSpread, NewExpr};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -77,7 +77,7 @@ impl Handler for NoArrayConstructorHandler {
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, context: &mut Context) {
-    if let ExprOrSuper::Expr(Expr::Ident(ident)) = &call_expr.callee {
+    if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
       let name = ident.inner.as_ref();
       if name != "Array" {
         return;

@@ -419,8 +419,8 @@ impl Visit for Analyzer<'_> {
 
   fn visit_member_expr(&mut self, n: &MemberExpr) {
     n.obj.visit_with(self);
-    if n.computed {
-      n.prop.visit_with(self);
+    if let MemberProp::Computed(computed_prop) = &n.prop {
+      computed_prop.visit_with(self);
     }
   }
 

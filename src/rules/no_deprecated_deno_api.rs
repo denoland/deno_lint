@@ -46,19 +46,27 @@ impl LintRule for NoDeprecatedDenoApi {
   }
 }
 
-/// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
+/// Extracts a symbol from the given member prop if the symbol is statically determined (otherwise,
 /// return `None`).
-fn extract_symbol<'a>(expr: &'a ast_view::Expr) -> Option<&'a JsWord> {
-  use deno_ast::view::{Expr, Lit, Tpl};
-  match expr {
-    Expr::Lit(Lit::Str(s)) => Some(s.value()),
-    Expr::Ident(ident) => Some(ident.sym()),
-    Expr::Tpl(Tpl {
-      ref exprs,
-      ref quasis,
-      ..
-    }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw.value()),
-    _ => None,
+fn extract_symbol<'a>(
+  member_prop: &'a ast_view::MemberProp,
+) -> Option<&'a JsWord> {
+  use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
+  match member_prop {
+    MemberProp::Ident(ident) => Some(ident.sym()),
+    MemberProp::PrivateName(ident) => Some(ident.id.sym()),
+    MemberProp::Computed(prop) => match &prop.expr {
+      Expr::Lit(Lit::Str(s)) => Some(s.value()),
+      Expr::Ident(ident) => Some(ident.sym()),
+      Expr::Tpl(Tpl {
+        ref exprs,
+        ref quasis,
+        ..
+      }) if exprs.is_empty() && quasis.len() == 1 => {
+        Some(quasis[0].raw.value())
+      }
+      _ => None,
+    },
   }
 }
 
@@ -173,9 +181,9 @@ impl Handler for NoDeprecatedDenoApiHandler {
       return;
     }
 
-    use deno_ast::view::{Expr, ExprOrSuper};
+    use deno_ast::view::Expr;
     if_chain! {
-      if let ExprOrSuper::Expr(Expr::Ident(obj)) = &member_expr.obj;
+      if let Expr::Ident(obj) = &member_expr.obj;
       if ctx.scope().is_global(&obj.inner.to_id());
       let obj_symbol = obj.sym();
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);

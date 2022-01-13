@@ -643,7 +643,9 @@ impl Handler for CamelcaseHandler {
   ) {
     let ast_view::ExportNamespaceSpecifier { name, .. } =
       export_namespace_specifier;
-    self.check_ident(name, IdentToCheck::variable(name.inner));
+    if let ast_view::ModuleExportName::Ident(name) = name {
+      self.check_ident(name, IdentToCheck::variable(name.inner));
+    }
   }
 
   fn ts_type_alias_decl(

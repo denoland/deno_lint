@@ -8,9 +8,9 @@ use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::ast::ExprOrSuper;
 use deno_ast::swc::ast::Ident;
 use deno_ast::swc::ast::MemberExpr;
+use deno_ast::swc::ast::MemberProp;
 use deno_ast::swc::ast::ObjectPatProp;
 use deno_ast::swc::ast::Pat;
 use deno_ast::swc::ast::PatOrExpr;
@@ -94,8 +94,12 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     left: &MemberExpr,
     right: &MemberExpr,
   ) -> bool {
-    if left.computed == right.computed {
-      match (&*left.prop, &*right.prop) {
+    if let (
+      MemberProp::Computed(l_computed),
+      MemberProp::Computed(r_computed),
+    ) = (&left.prop, &right.prop)
+    {
+      match (&*l_computed.expr, &*r_computed.expr) {
         (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
           if self.is_same_ident(l_ident, r_ident) {
             return true;
@@ -107,15 +111,15 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
           }
         }
         _ => {}
-      };
+      }
     }
 
-    let left_name = if left.computed {
+    let left_name = if matches!(left.prop, MemberProp::Computed(_)) {
       None
     } else {
       left.string_repr()
     };
-    let right_name = if right.computed {
+    let right_name = if matches!(right.prop, MemberProp::Computed(_)) {
       None
     } else {
       right.string_repr()
@@ -136,22 +140,13 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
       return false;
     }
 
-    if left.obj.is_super_() || right.obj.is_super_() {
-      return false;
-    }
-
-    match (&left.obj, &right.obj) {
-      (ExprOrSuper::Expr(l_boxed_expr), ExprOrSuper::Expr(r_boxed_expr)) => {
-        match (&**l_boxed_expr, &**r_boxed_expr) {
-          (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
-            self.is_same_member(l_member_expr, r_member_expr)
-          }
-          (Expr::This(_), Expr::This(_)) => true,
-          (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-            self.is_same_ident(l_ident, r_ident)
-          }
-          _ => false,
-        }
+    match (&*left.obj, &*right.obj) {
+      (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
+        self.is_same_member(l_member_expr, r_member_expr)
+      }
+      (Expr::This(_), Expr::This(_)) => true,
+      (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
+        self.is_same_ident(l_ident, r_ident)
       }
       _ => false,
     }
@@ -159,7 +154,12 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
 
   fn check_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) {
     if self.is_same_member(left, right) {
-      let name = (&*right.prop).string_repr().expect("Should be identifier");
+      let name = match &right.prop {
+        MemberProp::Ident(ident) => ident.string_repr(),
+        MemberProp::Computed(computed) => computed.expr.string_repr(),
+        MemberProp::PrivateName(name) => name.string_repr(),
+      }
+      .expect("Should be identifier");
       self.add_diagnostic(right.span, name);
     }
   }

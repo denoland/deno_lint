@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{CallExpr, Expr, ExprOrSuper};
+use deno_ast::view::{CallExpr, Callee, Expr, MemberProp};
 use std::sync::Arc;
 
 const BANNED_PROPERTIES: &[&str] =
@@ -57,19 +57,14 @@ struct NoPrototypeBuiltinsHandler;
 impl Handler for NoPrototypeBuiltinsHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     let member_expr = match call_expr.callee {
-      ExprOrSuper::Expr(boxed_expr) => match boxed_expr {
-        Expr::Member(member_expr) => {
-          if member_expr.computed() {
-            return;
-          }
-          member_expr
-        }
+      Callee::Expr(boxed_expr) => match boxed_expr {
+        Expr::Member(member_expr) => member_expr,
         _ => return,
       },
-      ExprOrSuper::Super(_) => return,
+      Callee::Super(_) | Callee::Import(_) => return,
     };
 
-    if let Expr::Ident(ident) = member_expr.prop {
+    if let MemberProp::Ident(ident) = member_expr.prop {
       let prop_name = ident.sym().as_ref();
       if BANNED_PROPERTIES.contains(&prop_name) {
         ctx.add_diagnostic(call_expr.span(), CODE, get_message(prop_name));

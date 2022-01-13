@@ -5,8 +5,8 @@ use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
-  CallExpr, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ExprOrSuper, ForStmt,
-  Ident, IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
+  CallExpr, Callee, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ForStmt, Ident,
+  IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
 use derive_more::Display;
 use std::sync::Arc;
@@ -88,7 +88,7 @@ fn check_condition(expr: &Expr, ctx: &mut Context) {
     Expr::Call(CallExpr {
       ref callee, inner, ..
     }) => {
-      if expr_or_super_callee_is_boolean(callee) {
+      if callee_is_boolean(callee) {
         unexpected_call(inner.span, ctx);
       }
     }
@@ -116,7 +116,7 @@ fn check_unary_expr_internal(
 ) {
   match internal_expr {
     Expr::Call(CallExpr { ref callee, .. }) => {
-      if expr_or_super_callee_is_boolean(callee) {
+      if callee_is_boolean(callee) {
         unexpected_call(unary_expr_span, ctx);
       }
     }
@@ -154,7 +154,7 @@ impl Handler for NoExtraBooleanCastHandler {
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if expr_or_super_callee_is_boolean(&call_expr.callee) {
+    if callee_is_boolean(&call_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) = call_expr.args.get(0) {
         check_condition(&*expr, ctx);
       }
@@ -176,9 +176,9 @@ impl Handler for NoExtraBooleanCastHandler {
   }
 }
 
-fn expr_or_super_callee_is_boolean(expr_or_super: &ExprOrSuper) -> bool {
-  match expr_or_super {
-    ExprOrSuper::Expr(ref callee) => expr_callee_is_boolean(callee),
+fn callee_is_boolean(callee: &Callee) -> bool {
+  match callee {
+    Callee::Expr(ref callee) => expr_callee_is_boolean(callee),
     _ => false,
   }
 }

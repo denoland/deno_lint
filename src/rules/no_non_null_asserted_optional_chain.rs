@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{Expr, ExprOrSuper, TsNonNullExpr};
+use deno_ast::view::{Callee, Expr, TsNonNullExpr};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -73,16 +73,14 @@ impl Handler for NoNonNullAssertedOptionalChainHandler {
   ) {
     match ts_non_null_expr.expr {
       Expr::Member(member_expr) => {
-        if let ExprOrSuper::Expr(expr) = &member_expr.obj {
-          check_expr_for_nested_optional_assert(
-            ts_non_null_expr.span(),
-            expr,
-            ctx,
-          );
-        }
+        check_expr_for_nested_optional_assert(
+          ts_non_null_expr.span(),
+          &member_expr.obj,
+          ctx,
+        );
       }
       Expr::Call(call_expr) => {
-        if let ExprOrSuper::Expr(expr) = &call_expr.callee {
+        if let Callee::Expr(expr) = &call_expr.callee {
           check_expr_for_nested_optional_assert(
             ts_non_null_expr.span(),
             expr,
