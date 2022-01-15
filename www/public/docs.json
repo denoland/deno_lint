@@ -56,9 +56,7 @@
   {
     "code": "constructor-super",
     "docs": "Verifies the correct usage of constructors and calls to `super()`.\n\nDefined constructors of derived classes (e.g. `class A extends B`) must always\ncall `super()`. Classes which extend non-constructors (e.g.\n`class A extends null`) must not have a constructor.\n\n### Invalid:\n\n```typescript\nclass A {}\nclass Z {\n  constructor() {}\n}\n\nclass B extends Z {\n  constructor() {} // missing super() call\n}\nclass C {\n  constructor() {\n    super(); // Syntax error\n  }\n}\nclass D extends null {\n  constructor() {} // illegal constructor\n}\nclass E extends null {\n  constructor() { // illegal constructor\n    super();\n  }\n}\n```\n\n### Valid:\n\n```typescript\nclass A {}\nclass B extends A {}\nclass C extends A {\n  constructor() {\n    super();\n  }\n}\nclass D extends null {}\n```\n",
-    "tags": [
-      "recommended"
-    ]
+    "tags": []
   },
   {
     "code": "default-param-last",
