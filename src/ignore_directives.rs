@@ -90,10 +90,33 @@ pub fn parse_file_ignore_directives(
   ignore_global_directive: &str,
   program: ast_view::Program,
 ) -> Option<FileIgnoreDirective> {
-  program
-    .comment_container()
-    .unwrap()
-    .leading_comments(program.span().lo())
+  // We want to get a file's leading comments, even if they come after a
+  // shebang. There are three cases:
+  // 1. No shebang. The file's leading comments are the program's leading
+  //    comments.
+  // 2. Shebang, and the program has statements or declarations. The file's
+  //    leading comments are really the first statment/declaration's leading
+  //    comments.
+  // 3. Shebang, and the program is empty. The file's leading comments are the
+  //    program's trailing comments.
+  let (has_shebang, first_item_span) = match program {
+    ast_view::Program::Module(module) => (
+      module.shebang().is_some(),
+      module.body.get(0).map(Spanned::span),
+    ),
+    ast_view::Program::Script(script) => (
+      script.shebang().is_some(),
+      script.body.get(0).map(Spanned::span),
+    ),
+  };
+
+  let comments = program.comment_container().unwrap();
+  let mut initial_comments = match (has_shebang, first_item_span) {
+    (false, _) => comments.leading_comments(program.span().lo()),
+    (true, Some(span)) => comments.leading_comments(span.lo()),
+    (true, None) => comments.trailing_comments(program.span().hi()),
+  };
+  initial_comments
     .find_map(|comment| parse_ignore_comment(ignore_global_directive, comment))
 }
 
@@ -248,6 +271,26 @@ const x = 42;
           parse_file_ignore_directives("deno-lint-ignore-file", program);
 
         assert!(file_directive.is_none());
+      },
+    );
+
+    test_util::parse_and_then(
+      "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
+    test_util::parse_and_then(
+      "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file\nconst a = 42;",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+        assert!(file_directive.codes.is_empty());
       },
     );
   }
