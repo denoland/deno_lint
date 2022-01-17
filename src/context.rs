@@ -5,13 +5,13 @@ use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
 use crate::rules::{self, get_all_rules, LintRule};
-use crate::scopes::Scope;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::BytePos;
 use deno_ast::swc::common::{Span, SyntaxContext};
 use deno_ast::view as ast_view;
 use deno_ast::view::{RootNode, SourceFile};
 use deno_ast::MediaType;
+use deno_ast::Scope;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;

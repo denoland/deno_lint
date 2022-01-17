@@ -1,5 +1,4 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::scopes::Scope;
 use deno_ast::swc::ast::{
   BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr,
   MemberProp, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
@@ -7,6 +6,7 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::utils::{find_ids, ident::IdentLike};
 use deno_ast::view as ast_view;
+use deno_ast::Scope;
 
 /// Extracts regex string from an expression, using ScopeManager.
 /// If the passed expression is not regular expression, this will return `None`.
