@@ -19,7 +19,6 @@ mod ignore_directives;
 mod js_regex;
 pub mod linter;
 pub mod rules;
-mod scopes;
 pub mod swc_util;
 
 pub use deno_ast::view::Program;

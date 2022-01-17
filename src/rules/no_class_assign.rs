@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
+use crate::swc_util::find_lhs_ids;
 use crate::ProgramRef;
-use crate::{scopes::BindingKind, swc_util::find_lhs_ids};
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::VisitAll;
 use deno_ast::swc::visit::VisitAllWith;
+use deno_ast::BindingKind;
 use std::sync::Arc;
 
 #[derive(Debug)]

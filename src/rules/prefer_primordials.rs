@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::scopes::Scope;
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::swc::utils::ident::IdentLike;
 use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
+use deno_ast::Scope;
 use if_chain::if_chain;
 use std::sync::Arc;
 

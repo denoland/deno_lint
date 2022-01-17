@@ -1,6 +1,5 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::scopes::BindingKind;
 use crate::ProgramRef;
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
@@ -9,6 +8,7 @@ use deno_ast::swc::{
   utils::ident::IdentLike,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::BindingKind;
 use std::sync::Arc;
 
 #[derive(Debug)]

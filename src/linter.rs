@@ -7,11 +7,11 @@ use crate::ignore_directives::{
   parse_file_ignore_directives, parse_line_ignore_directives,
 };
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
-use crate::scopes::Scope;
 use deno_ast::view::ProgramRef;
 use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
+use deno_ast::Scope;
 use std::sync::Arc;
 use std::time::Instant;
 
