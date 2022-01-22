@@ -136,7 +136,11 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn expr_or_spread(&mut self, expr_or_spread: &ast_view::ExprOrSpread, ctx: &mut Context) {
+  fn expr_or_spread(
+    &mut self,
+    expr_or_spread: &ast_view::ExprOrSpread,
+    ctx: &mut Context
+  ) {
     if_chain! {
       if expr_or_spread.inner.spread.is_some();
       if !expr_or_spread.inner.expr.is_new();
@@ -151,7 +155,7 @@ impl Handler for PreferPrimordialsHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    use deno_ast::view::Expr;
+    use ast_view::Expr;
 
     // If `member_expr.obj` is an array literal, access to its properties or
     // methods should be replaced with the one from `primordials`.
@@ -294,6 +298,9 @@ const { SafeArrayIterator } = primordials;
 [1, 2, ...new SafeArrayIterator([1, 2, 3])];
 foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
 new Foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
+      "#,
+      r#"
+({ ...{} });
       "#,
     };
   }
