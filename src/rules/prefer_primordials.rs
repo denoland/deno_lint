@@ -136,6 +136,16 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
+  fn expr_or_spread(&mut self, expr_or_spread: &ast_view::ExprOrSpread, ctx: &mut Context) {
+    if_chain! {
+      if expr_or_spread.inner.spread.is_some();
+      if !expr_or_spread.inner.expr.is_new();
+      then {
+        ctx.add_diagnostic_with_hint(expr_or_spread.span(), CODE, MESSAGE, HINT);
+      }
+    }
+  }
+
   fn member_expr(
     &mut self,
     member_expr: &ast_view::MemberExpr,
@@ -449,42 +459,42 @@ const noop = Function.prototype;
       ],
       r#"[1, 2, ...arr];"#: [
         {
-          col: 0,
+          col: 7,
           message: MESSAGE,
           hint: HINT,
         },
       ],
       r#"foo(1, 2, ...arr);"#: [
         {
-          col: 0,
+          col: 10,
           message: MESSAGE,
           hint: HINT,
         },
       ],
       r#"new Foo(1, 2, ...arr);"#: [
         {
-          col: 0,
+          col: 14,
           message: MESSAGE,
           hint: HINT,
         },
       ],
       r#"[1, 2, ...[3]];"#: [
         {
-          col: 0,
+          col: 7,
           message: MESSAGE,
           hint: HINT,
         },
       ],
       r#"foo(1, 2, ...[3]);"#: [
         {
-          col: 0,
+          col: 10,
           message: MESSAGE,
           hint: HINT,
         },
       ],
       r#"new Foo(1, 2, ...[3]);"#: [
         {
-          col: 0,
+          col: 14,
           message: MESSAGE,
           hint: HINT,
         },
