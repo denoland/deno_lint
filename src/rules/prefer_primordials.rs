@@ -139,7 +139,7 @@ impl Handler for PreferPrimordialsHandler {
   fn expr_or_spread(
     &mut self,
     expr_or_spread: &ast_view::ExprOrSpread,
-    ctx: &mut Context
+    ctx: &mut Context,
   ) {
     if_chain! {
       if expr_or_spread.inner.spread.is_some();
