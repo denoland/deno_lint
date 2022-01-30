@@ -11,7 +11,7 @@ use std::sync::Arc;
 pub struct PreferNamespaceKeyword;
 
 const CODE: &str = "prefer-namespace-keyword";
-const MESSAGE: &str = "`module` keyword in module decleration is not allowed";
+const MESSAGE: &str = "`module` keyword in module declaration is not allowed";
 
 impl LintRule for PreferNamespaceKeyword {
   fn new() -> Arc<Self> {
