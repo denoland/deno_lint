@@ -191,8 +191,10 @@ impl Handler for PreferPrimordialsHandler {
   }
 
   fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
-    use deno_ast::view::BinaryOp;
-    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
+    use ast_view::BinaryOp;
+    if matches!(bin_expr.op(), BinaryOp::InstanceOf)
+      || matches!(bin_expr.op(), BinaryOp::In)
+    {
       ctx.add_diagnostic_with_hint(bin_expr.span(), CODE, MESSAGE, HINT);
     }
   }
@@ -451,6 +453,13 @@ const noop = Function.prototype;
         },
       ],
       r#"[1, 2, 3].map(val => val * 2);"#: [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#""a" in A"#: [
         {
           col: 0,
           message: MESSAGE,
