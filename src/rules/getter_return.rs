@@ -4,8 +4,8 @@ use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr, FnDecl,
-  FnExpr, GetterProp, MemberProp, MethodKind, PrivateMethod, Prop, PropName,
-  PropOrSpread, ReturnStmt,
+  FnExpr, GetterProp, MemberProp, MethodKind, MethodProp, PrivateMethod, Prop,
+  PropName, PropOrSpread, ReturnStmt,
 };
 use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::visit::noop_visit_type;
@@ -188,6 +188,13 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
+  fn visit_method_prop(&mut self, method_prop: &MethodProp) {
+    // `self.has_return` should be reset because return statements inside the `method_prop` don't
+    // have effect on outside of it
+    self.visit_getter_or_function(|a| {
+      method_prop.visit_children_with(a);
+    });
+  }
   fn visit_class_method(&mut self, class_method: &ClassMethod) {
     self.visit_getter_or_function(|a| {
       if class_method.kind == MethodKind::Getter {
@@ -434,7 +441,19 @@ const obj = {
     return this._stream;
   }
 };
-      "#
+      "#,
+      r#"
+class _Test {
+  get foo() {
+    const target = {
+      asd() {
+        asd;
+        return;
+      },
+    };
+    return target;
+  }
+}"#
     };
   }
 
