@@ -72,14 +72,15 @@ fn extract_symbol<'a>(
 
 enum DeprecatedApi {
   Buffer,
+  Copy,
+  CustomInspect,
+  File,
+  Iter,
+  IterSync,
   ReadAll,
   ReadAllSync,
   WriteAll,
   WriteAllSync,
-  Iter,
-  IterSync,
-  Copy,
-  CustomInspect,
 }
 
 impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
@@ -98,14 +99,15 @@ impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
 
     match prop_symbol.as_ref() {
       "Buffer" => Ok(DeprecatedApi::Buffer),
+      "copy" => Ok(DeprecatedApi::Copy),
+      "customInspect" => Ok(DeprecatedApi::CustomInspect),
+      "iter" => Ok(DeprecatedApi::Iter),
+      "iterSync" => Ok(DeprecatedApi::IterSync),
+      "File" => Ok(DeprecatedApi::File),
       "readAll" => Ok(DeprecatedApi::ReadAll),
       "readAllSync" => Ok(DeprecatedApi::ReadAllSync),
       "writeAll" => Ok(DeprecatedApi::WriteAll),
       "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
-      "iter" => Ok(DeprecatedApi::Iter),
-      "iterSync" => Ok(DeprecatedApi::IterSync),
-      "copy" => Ok(DeprecatedApi::Copy),
-      "customInspect" => Ok(DeprecatedApi::CustomInspect),
       _ => Err(()),
     }
   }
@@ -137,14 +139,15 @@ impl DeprecatedApi {
     use DeprecatedApi::*;
     match *self {
       Buffer => "Deno.Buffer",
+      Copy => "Deno.copy",
+      CustomInspect => "Deno.customInspect",
+      Iter => "Deno.iter",
+      IterSync => "Deno.iterSync",
+      File => "Deno.File",
       ReadAll => "Deno.readAll",
       ReadAllSync => "Deno.readAllSync",
       WriteAll => "Deno.writeAll",
       WriteAllSync => "Deno.writeAllSync",
-      Iter => "Deno.iter",
-      IterSync => "Deno.iterSync",
-      Copy => "Deno.copy",
-      CustomInspect => "Deno.customInspect",
     }
   }
 
@@ -156,14 +159,15 @@ impl DeprecatedApi {
     use Replacement::*;
     match *self {
       Buffer => NameAndUrl("Buffer", BUFFER_TS),
+      Copy => NameAndUrl("copy", STREAMS_TS),
+      CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
+      Iter => NameAndUrl("iter", STREAMS_TS),
+      IterSync => NameAndUrl("iterSync", STREAMS_TS),
+      File => Name("Deno.FsFile"),
       ReadAll => NameAndUrl("readAll", STREAMS_TS),
       ReadAllSync => NameAndUrl("readAllSync", STREAMS_TS),
       WriteAll => NameAndUrl("writeAll", STREAMS_TS),
       WriteAllSync => NameAndUrl("writeAllSync", STREAMS_TS),
-      Iter => NameAndUrl("iter", STREAMS_TS),
-      IterSync => NameAndUrl("iterSync", STREAMS_TS),
-      Copy => NameAndUrl("copy", STREAMS_TS),
-      CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
     }
   }
 }
@@ -336,6 +340,13 @@ mod tests {
           hint: CustomInspect.hint()
         }
       ],
+      "Deno.File;": [
+        {
+          col: 0,
+          message: File.message(),
+          hint: File.hint()
+        }
+      ],
 
       // access property with string literal
       r#"new Deno["Buffer"]();"#: [
@@ -464,6 +475,13 @@ mod tests {
           col: 0,
           message: CustomInspect.message(),
           hint: CustomInspect.hint()
+        }
+      ],
+      r#"Deno[`File`];"#: [
+        {
+          col: 0,
+          message: File.message(),
+          hint: File.hint()
         }
       ],
 
