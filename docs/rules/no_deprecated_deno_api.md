@@ -6,13 +6,13 @@ removed from the namespace in the future.
 **IO APIs**
 
 - `Deno.Buffer`
+- `Deno.copy`
+- `Deno.iter`
+- `Deno.iterSync`
 - `Deno.readAll`
 - `Deno.readAllSync`
 - `Deno.writeAll`
 - `Deno.writeAllSync`
-- `Deno.iter`
-- `Deno.iterSync`
-- `Deno.copy`
 
 The IO APIs are already available in `std/io` or `std/streams`, so replace these
 deprecated ones with alternatives from `std`. For more detail, see
@@ -26,6 +26,13 @@ deprecated ones with alternatives from `std`. For more detail, see
 `Symbol.for("Deno.customInspect")`. Replace the usages with this symbol
 expression. See [deno#9294](https://github.com/denoland/deno/issues/9294) for
 more details.
+
+**File system API"
+
+- `Deno.File`
+
+`Deno.File` was deprecated in favor of `Deno.FsFile`. Replace the usages with
+new class name.
 
 ### Invalid:
 
@@ -53,6 +60,10 @@ class A {
   [Deno.customInspect]() {
     return "This is A";
   }
+}
+
+function foo(file: Deno.File) {
+  // ...
 }
 ```
 
@@ -87,5 +98,9 @@ class A {
   [Symbol.for("Deno.customInspect")]() {
     return "This is A";
   }
+}
+
+function foo(file: Deno.FsFile) {
+  // ...
 }
 ```
