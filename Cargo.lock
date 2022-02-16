@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "annotate-snippets",
  "ansi_term 0.12.1",
