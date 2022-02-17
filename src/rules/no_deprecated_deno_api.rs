@@ -202,6 +202,28 @@ impl Handler for NoDeprecatedDenoApiHandler {
       }
     }
   }
+
+  fn ts_type_ref(
+    &mut self,
+    ts_type_ref: &ast_view::TsTypeRef,
+    ctx: &mut Context,
+  ) {
+    if_chain! {
+      if let ast_view::TsEntityName::TsQualifiedName(qualified_name) = ts_type_ref.type_name;
+      if let ast_view::TsEntityName::Ident(ident) = qualified_name.left;
+      if ident.sym() == "Deno";
+      if qualified_name.right.sym() == "File";
+      then {
+        let deprecated_api = DeprecatedApi::File;
+        ctx.add_diagnostic_with_hint(
+          ts_type_ref.span(),
+          CODE,
+          deprecated_api.message(),
+          deprecated_api.hint(),
+        );
+      }
+    }
+  }
 }
 
 #[cfg(test)]
@@ -343,6 +365,13 @@ mod tests {
       "Deno.File;": [
         {
           col: 0,
+          message: File.message(),
+          hint: File.hint()
+        }
+      ],
+      "let file: Deno.File;": [
+        {
+          col: 10,
           message: File.message(),
           hint: File.hint()
         }
