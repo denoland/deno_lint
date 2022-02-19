@@ -21,9 +21,7 @@ enum NoExternalImportMessage {
 
 #[derive(Display)]
 enum NoExternalImportHint {
-  #[display(
-    fmt = "Create a dependency file and import the resource from there"
-  )]
+  #[display(fmt = "Create a mod.ts file and use import maps there")]
   CreateDependencyFile,
 }
 
@@ -37,7 +35,7 @@ impl LintRule for NoExternalImport {
   }
 
   fn code(&self) -> &'static str {
-    "no-external-import"
+    CODE
   }
 
   fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
@@ -63,7 +61,7 @@ impl LintRule for NoExternalImport {
 struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
-  fn check_import_path<'a>(&'a mut self, decl: &ImportDecl, ctx: &mut Context) {
+  fn check_import_path<'a>(&'a self, decl: &ImportDecl, ctx: &mut Context) {
     let parsed_src = Url::parse(decl.src.value());
     if parsed_src.is_ok() {
       ctx.add_diagnostic_with_hint(
@@ -95,15 +93,21 @@ mod tests {
     assert_lint_ok! {
       NoExternalImport,
       "import { assertEquals } from './deps.ts'",
-      "import { assertEquals } from 'deps.ts'"
+      "import { assertEquals } from 'deps.ts'",
+      "import Foo from './deps.ts';",
+      "import type { Foo } from './deps.ts';",
+      "import type Foo from './deps.ts';",
+      "import * as Foo from './deps.ts';",
+      "import './deps.ts';",
+      "const foo = await import('https://example.com');"
     };
   }
 
   #[test]
   fn no_external_import_invalid() {
     assert_lint_err! {
-        NoExternalImport,
-        "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'": [
+      NoExternalImport,
+      "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'": [
         {
           col: 0,
           message: NoExternalImportMessage::Unexpected,
