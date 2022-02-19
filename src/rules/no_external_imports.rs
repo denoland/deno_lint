@@ -5,6 +5,8 @@ use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::ImportDecl;
 use derive_more::Display;
+use std::ffi::OsStr;
+use std::path::Path;
 use std::sync::Arc;
 use url::Url;
 
@@ -21,7 +23,7 @@ enum NoExternalImportMessage {
 
 #[derive(Display)]
 enum NoExternalImportHint {
-  #[display(fmt = "Create a mod.ts file and use import maps there")]
+  #[display(fmt = "Create a deps.ts file and use import maps there")]
   CreateDependencyFile,
 }
 
@@ -63,7 +65,12 @@ struct NoExternalImportHandler;
 impl NoExternalImportHandler {
   fn check_import_path<'a>(&'a self, decl: &ImportDecl, ctx: &mut Context) {
     let parsed_src = Url::parse(decl.src.value());
-    if parsed_src.is_ok() {
+    let file_name = Path::new(ctx.file_name())
+      .file_stem()
+      .and_then(OsStr::to_str)
+      .unwrap();
+
+    if parsed_src.is_ok() && !file_name.eq("deps") {
       ctx.add_diagnostic_with_hint(
         decl.span(),
         CODE,
@@ -101,6 +108,12 @@ mod tests {
       "import './deps.ts';",
       "const foo = await import('https://example.com');"
     };
+
+    assert_lint_ok! {
+      NoExternalImport,
+      filename: "deps.ts",
+      "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'"
+    };
   }
 
   #[test]
@@ -108,6 +121,17 @@ mod tests {
     assert_lint_err! {
       NoExternalImport,
       "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+    };
+
+    assert_lint_err! {
+      NoExternalImport,
+      "import assertEquals from 'http://deno.land/std@0.126.0/testing/asserts.ts'": [
         {
           col: 0,
           message: NoExternalImportMessage::Unexpected,
