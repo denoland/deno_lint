@@ -23,7 +23,7 @@ enum NoExternalImportMessage {
 
 #[derive(Display)]
 enum NoExternalImportHint {
-  #[display(fmt = "Create a deps.ts file and use import maps there")]
+  #[display(fmt = "Create a deps.ts file or use import maps")]
   CreateDependencyFile,
 }
 
