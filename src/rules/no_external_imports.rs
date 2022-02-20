@@ -67,10 +67,9 @@ impl NoExternalImportHandler {
     let parsed_src = Url::parse(decl.src.value());
     let file_name = Path::new(ctx.file_name())
       .file_stem()
-      .and_then(OsStr::to_str)
-      .unwrap();
+      .and_then(OsStr::to_str);
 
-    if parsed_src.is_ok() && !file_name.eq("deps") {
+    if parsed_src.is_ok() && file_name != Some("deps") {
       ctx.add_diagnostic_with_hint(
         decl.span(),
         CODE,
