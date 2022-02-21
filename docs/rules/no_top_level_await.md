@@ -6,7 +6,6 @@ Top level await cannot be used when distributing CommonJS/UMD via dnt.
 
 ```typescript
 await foo();
-
 for await (item of items) {}
 ```
 
@@ -16,7 +15,6 @@ for await (item of items) {}
 async function foo() {
   await task();
 }
-
 async function foo() {
   for await (item of items) {}
 }
