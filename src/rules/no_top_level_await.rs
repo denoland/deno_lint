@@ -100,7 +100,6 @@ mod tests {
         private async bar(){ await task(); }
       }"#,
       r#"const foo = { bar : async () => { await task()} }"#,
-      r#"const foo = { bar : async () => { await task()} }"#,
     };
   }
 
