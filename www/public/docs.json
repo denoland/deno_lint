@@ -464,6 +464,11 @@
     "tags": []
   },
   {
+    "code": "no-top-level-await",
+    "docs": "Disallows the use of top level await expressions.\n\nTop level await cannot be used when distributing CommonJS/UMD via dnt.\n\n### Invalid:\n\n```typescript\nawait foo();\n\nfor await (item of items) {}\n```\n\n### Valid:\n\n```typescript\nasync function foo() {\n  await task();\n}\n\nasync function foo() {\n  for await (item of items) {}\n}\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-undef",
     "docs": "",
     "tags": []
