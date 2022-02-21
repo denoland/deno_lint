@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::NodeTrait;
 use deno_ast::view::{self as ast_view};
+use if_chain::if_chain;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -58,8 +59,12 @@ impl Handler for NoTopLevelAwaitHandler {
     for_of_stmt: &ast_view::ForOfStmt,
     ctx: &mut Context,
   ) {
-    if !is_node_inside_function(for_of_stmt) {
-      ctx.add_diagnostic(for_of_stmt.span(), CODE, MESSAGE);
+    if_chain! {
+      if for_of_stmt.await_token().is_some();
+      if !is_node_inside_function(for_of_stmt);
+      then {
+        ctx.add_diagnostic(for_of_stmt.span(), CODE, MESSAGE)
+      }
     }
   }
 }
@@ -94,6 +99,7 @@ mod tests {
         async foo() { await task(); }
         private async bar(){ await task(); }
       }"#,
+      r#"const foo = { bar : async () => { await task()} }"#,
       r#"const foo = { bar : async () => { await task()} }"#,
     };
   }
