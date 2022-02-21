@@ -237,6 +237,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-url"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a30bfce702bcfa94e906ef82421f2c0e61c076ad76030c16ee5d2e9a32fe193"
+dependencies = [
+ "matches",
+]
+
+[[package]]
 name = "debug_unreachable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -251,12 +260,14 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "efd88c9bfcb036294da03e7bf8b5d7f1276b0ad522b0b057ca2b839ee9325a33"
 dependencies = [
+ "data-url",
  "dprint-swc-ecma-ast-view",
  "serde",
  "swc_atoms",
  "swc_common",
  "swc_ecmascript",
  "text_lines",
+ "url",
 ]
 
 [[package]]
@@ -302,7 +313,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "url",
 ]
 
 [[package]]

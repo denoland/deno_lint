@@ -8,7 +8,7 @@ use derive_more::Display;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::Arc;
-use url::Url;
+use deno_ast::ModuleSpecifier;
 
 #[derive(Debug)]
 pub struct NoExternalImport;
@@ -64,7 +64,7 @@ struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
   fn check_import_path<'a>(&'a self, decl: &ImportDecl, ctx: &mut Context) {
-    let parsed_src = Url::parse(decl.src.value());
+    let parsed_src = ModuleSpecifier::parse(decl.src.value());
     let file_name = Path::new(ctx.file_name())
       .file_stem()
       .and_then(OsStr::to_str);
@@ -126,11 +126,35 @@ mod tests {
           hint: NoExternalImportHint::CreateDependencyFile,
         },
       ],
-    };
-
-    assert_lint_err! {
-      NoExternalImport,
       "import assertEquals from 'http://deno.land/std@0.126.0/testing/asserts.ts'": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import type { Foo } from 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import type Foo from 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import * as Foo from 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import 'https://example.com';": [
         {
           col: 0,
           message: NoExternalImportMessage::Unexpected,
