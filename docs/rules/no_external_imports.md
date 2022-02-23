@@ -27,5 +27,15 @@ import { assertEquals } from "https://deno.land/std@0.126.0/testing/asserts.ts";
 import { assertEquals } from "deps.ts";
 ```
 
+```typescript
+// deps.ts
+
+export {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+} from "https://deno.land/std@0.126.0/testing/asserts.ts";
+```
+
 you can refer to the explanation of this convention here
 https://deno.land/manual/linking_to_external_code#it-seems-unwieldy-to-import-urls-everywhere
