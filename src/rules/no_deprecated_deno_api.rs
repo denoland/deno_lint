@@ -202,6 +202,28 @@ impl Handler for NoDeprecatedDenoApiHandler {
       }
     }
   }
+
+  fn ts_qualified_name(
+    &mut self,
+    qualified_name: &ast_view::TsQualifiedName,
+    ctx: &mut Context,
+  ) {
+    if_chain! {
+      if let ast_view::TsEntityName::Ident(ident) = qualified_name.left;
+      if ident.sym() == "Deno";
+      if qualified_name.right.sym() == "File";
+      if ctx.scope().is_global(&ident.inner.to_id());
+      then {
+        let deprecated_api = DeprecatedApi::File;
+        ctx.add_diagnostic_with_hint(
+          qualified_name.span(),
+          CODE,
+          deprecated_api.message(),
+          deprecated_api.hint(),
+        );
+      }
+    }
+  }
 }
 
 #[cfg(test)]
@@ -268,6 +290,9 @@ mod tests {
 
       // Ignore template literals that include expressions
       r#"const read = "read"; Deno[`${read}All`](reader);"#,
+
+      // types
+      r#"interface Deno {} let file: Deno.File;"#,
     };
   }
 
@@ -343,6 +368,13 @@ mod tests {
       "Deno.File;": [
         {
           col: 0,
+          message: File.message(),
+          hint: File.hint()
+        }
+      ],
+      "let file: Deno.File;": [
+        {
+          col: 10,
           message: File.message(),
           hint: File.hint()
         }
