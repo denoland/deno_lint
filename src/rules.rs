@@ -77,6 +77,7 @@ pub mod no_sparse_arrays;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
+pub mod no_top_level_await;
 pub mod no_undef;
 pub mod no_unreachable;
 pub mod no_unsafe_finally;
@@ -302,6 +303,7 @@ fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
     no_this_alias::NoThisAlias::new(),
     no_this_before_super::NoThisBeforeSuper::new(),
     no_throw_literal::NoThrowLiteral::new(),
+    no_top_level_await::NoTopLevelAwait::new(),
     no_undef::NoUndef::new(),
     no_unreachable::NoUnreachable::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),

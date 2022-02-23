@@ -59,7 +59,7 @@ impl LintRule for NoInvalidTripleSlashReference {
 
 #[derive(Debug, Eq, PartialEq)]
 enum ReportKind {
-  /// In JavaScript files, the directives other than `types` and `lib` are not allowed. This variant
+  /// In JavaScript files, the directives other than `types`, `path` and `lib` are not allowed. This variant
   /// represents such invalid directives in JavaScript.
   InvalidDirectiveInJs(Span),
 
@@ -84,7 +84,7 @@ impl ReportKind {
     use ReportKind::*;
     match *self {
       InvalidDirectiveInJs(_) => {
-        r#"In JavaScript only the `lib` and `types` directives are allowed, like `/// <reference lib="..." />` or `/// <reference types="..." />`"#
+        r#"In JavaScript only the `lib`, `path` and `types` directives are allowed, like `/// <reference lib="..." />` or `/// <reference path="..." />` or `/// <reference types="..." />`"#
       }
       InvalidDirective(_) => {
         r#"Correct format is `/// <reference xxx="some_value" />` where `xxx` is one of `types`, `path`, `lib`, or `no-default-lib`"#
@@ -126,9 +126,10 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
   }
 
   if is_js_like {
-    // In JavaScript, only the `lib`, `no-default-lib` and `types` directives are allowed
+    // In JavaScript, only the `lib`, `no-default-lib`, `path` and `types` directives are allowed
     if is_types_ref(&comment.text)
       || is_lib_ref(&comment.text)
+      || is_path_ref(&comment.text)
       || is_no_default_lib_ref(&comment.text)
     {
       None
@@ -267,9 +268,6 @@ mod tests {
     }
 
     let invalid_comments = [
-      line(r#"/ <reference path="./mod.d.ts" />"#),
-      line(r#"/<reference path="./mod.d.ts" />"#),
-      line(r#"/      <reference path="./mod.d.ts"     />           foo bar "#),
       line(r#"/ <reference foo="./mod.d.ts" />"#),
       line(r#"/<reference bar />"#),
     ];
@@ -314,16 +312,17 @@ mod tests {
       filename: "foo.js",
       r#"/// <reference types="./mod.d.ts" />"#,
       r#"/// <reference lib="lib" />"#,
+      r#"/// <reference path="path" />"#,
       r#"// <reference path="path" />"#,
       r#"// <reference lib="lib" />"#,
       r#"/// <reference no-default-lib="true" />"#,
       r#"/* <reference path="path" /> */"#,
       r#"/* <reference lib="lib" /> */"#,
       r#"/* <reference no-default-lib="true" /> */"#,
-      r#"/// hello <reference path="./mod.d.ts" />"#,
+      r#"/// hello <reference foo="./mod.d.ts" />"#,
       r#"
         /*
-        /// <reference path="foo" />
+        /// <reference foo="foo" />
         */
       "#,
     }
@@ -357,14 +356,6 @@ mod tests {
     assert_lint_err! {
       NoInvalidTripleSlashReference,
       filename: "foo.js",
-      r#"/// <reference path="foo" />"#: [
-        {
-          line: 1,
-          col: 0,
-          message: not_types_in_js_msg,
-          hint: not_types_in_js_hint,
-        },
-      ],
       r#"/// <reference foo />"#: [
         {
           line: 1,
