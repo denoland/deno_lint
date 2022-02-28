@@ -4,11 +4,11 @@ use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::ImportDecl;
+use deno_ast::ModuleSpecifier;
 use derive_more::Display;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::Arc;
-use deno_ast::ModuleSpecifier;
 
 #[derive(Debug)]
 pub struct NoExternalImport;
