@@ -1,0 +1,166 @@
+// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
+use crate::{Program, ProgramRef};
+use deno_ast::swc::common::Spanned;
+use deno_ast::view::ImportDecl;
+use deno_ast::ModuleSpecifier;
+use derive_more::Display;
+use std::ffi::OsStr;
+use std::path::Path;
+use std::sync::Arc;
+
+#[derive(Debug)]
+pub struct NoExternalImport;
+
+const CODE: &str = "no-external-import";
+
+#[derive(Display)]
+enum NoExternalImportMessage {
+  #[display(fmt = "Not allowed to import external resources")]
+  Unexpected,
+}
+
+#[derive(Display)]
+enum NoExternalImportHint {
+  #[display(fmt = "Create a deps.ts file or use import maps")]
+  CreateDependencyFile,
+}
+
+impl LintRule for NoExternalImport {
+  fn new() -> Arc<Self> {
+    Arc::new(NoExternalImport)
+  }
+
+  fn tags(&self) -> &'static [&'static str] {
+    &[]
+  }
+
+  fn code(&self) -> &'static str {
+    CODE
+  }
+
+  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
+    unreachable!();
+  }
+
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    let mut handler = NoExternalImportHandler::default();
+    handler.traverse(program, context);
+  }
+
+  #[cfg(feature = "docs")]
+  fn docs(&self) -> &'static str {
+    include_str!("../../docs/rules/no_external_imports.md")
+  }
+}
+
+#[derive(Default)]
+struct NoExternalImportHandler;
+
+impl NoExternalImportHandler {
+  fn check_import_path<'a>(&'a self, decl: &ImportDecl, ctx: &mut Context) {
+    let parsed_src = ModuleSpecifier::parse(decl.src.value());
+    let file_name = Path::new(ctx.file_name())
+      .file_stem()
+      .and_then(OsStr::to_str);
+
+    if parsed_src.is_ok() && file_name != Some("deps") {
+      ctx.add_diagnostic_with_hint(
+        decl.span(),
+        CODE,
+        NoExternalImportMessage::Unexpected,
+        NoExternalImportHint::CreateDependencyFile,
+      );
+    }
+  }
+}
+
+impl Handler for NoExternalImportHandler {
+  fn import_decl(
+    &mut self,
+    decl: &deno_ast::view::ImportDecl,
+    ctx: &mut Context,
+  ) {
+    self.check_import_path(decl, ctx);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn no_external_import_valid() {
+    assert_lint_ok! {
+      NoExternalImport,
+      "import { assertEquals } from './deps.ts'",
+      "import { assertEquals } from 'deps.ts'",
+      "import Foo from './deps.ts';",
+      "import type { Foo } from './deps.ts';",
+      "import type Foo from './deps.ts';",
+      "import * as Foo from './deps.ts';",
+      "import './deps.ts';",
+      "const foo = await import('https://example.com');"
+    };
+
+    assert_lint_ok! {
+      NoExternalImport,
+      filename: "deps.ts",
+      "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'"
+    };
+  }
+
+  #[test]
+  fn no_external_import_invalid() {
+    assert_lint_err! {
+      NoExternalImport,
+      "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import assertEquals from 'http://deno.land/std@0.126.0/testing/asserts.ts'": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import type { Foo } from 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import type Foo from 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import * as Foo from 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+      "import 'https://example.com';": [
+        {
+          col: 0,
+          message: NoExternalImportMessage::Unexpected,
+          hint: NoExternalImportHint::CreateDependencyFile,
+        },
+      ],
+    };
+  }
+}
