@@ -131,7 +131,7 @@ fn glob(
   };
 
   let mut file_paths = Vec::new();
-  for result in walker.into_iter() {
+  for result in walker {
     match result {
       Ok(result) => file_paths.push(result.into_path()),
       Err(err) => bail!("Error walking files: {}", err),

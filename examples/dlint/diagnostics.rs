@@ -73,11 +73,11 @@ impl miette::Diagnostic for MietteDiagnostic<'_> {
       miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_pos);
     let len = miette::SourceOffset::from(len);
     let span = miette::SourceSpan::new(start, len);
-    let text = if let Some(help) = &self.lint_diagnostic.hint {
-      Some(help.to_string())
-    } else {
-      None
-    };
+    let text = self
+      .lint_diagnostic
+      .hint
+      .as_ref()
+      .map(|help| help.to_string());
     let labels = vec![miette::LabeledSpan::new_with_span(text, span)];
     Some(Box::new(labels.into_iter()))
   }
