@@ -211,6 +211,7 @@ impl<'a> ExtractMethod for ast_view::TsTypeElement<'a> {
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Display)]
+#[allow(clippy::enum_variant_names)]
 enum Method {
   #[display(fmt = "{}", _0)]
   Method(String),
