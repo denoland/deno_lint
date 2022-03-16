@@ -321,7 +321,7 @@ impl Analyzer<'_> {
   }
 
   fn get_end_reason(&self, lo: BytePos) -> Option<End> {
-    self.info.get(&lo).map(|md| md.end).flatten()
+    self.info.get(&lo).and_then(|md| md.end)
   }
 
   /// Mark a statement as finisher - finishes execution - and expose it.
