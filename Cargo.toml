@@ -32,7 +32,6 @@ anyhow = "1.0.40"
 if_chain = "1.0.1"
 
 [dev-dependencies]
-annotate-snippets = { version = "0.9.1", features = ["color"] }
 ansi_term = "0.12.1"
 atty = "0.2.14"
 clap = "2.33.3"

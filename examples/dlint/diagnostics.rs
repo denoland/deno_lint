@@ -1,6 +1,4 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-// use annotate_snippets::display_list;
-// use annotate_snippets::snippet;
 use deno_ast::swc::common::BytePos;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
