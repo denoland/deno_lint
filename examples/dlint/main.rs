@@ -80,6 +80,7 @@ fn run_linter(
   let error_counts = Arc::new(AtomicUsize::new(0));
 
   struct FileDiagnostics {
+    filename: String,
     text_info: SourceTextInfo,
     diagnostics: Vec<LintDiagnostic>,
   }
@@ -126,6 +127,7 @@ fn run_linter(
       lock.insert(
         file_path,
         FileDiagnostics {
+          filename: file_path.to_string_lossy().to_string(),
           diagnostics,
           text_info: parsed_source.source().to_owned(),
         },
@@ -135,7 +137,7 @@ fn run_linter(
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    diagnostics::display_diagnostics(&d.diagnostics, &d.text_info);
+    diagnostics::display_diagnostics(&d.diagnostics, &d.text_info, &d.filename);
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);
