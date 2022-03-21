@@ -227,9 +227,8 @@ impl Visit for Collector {
   }
 
   fn visit_ts_expr_with_type_args(&mut self, n: &TsExprWithTypeArgs) {
-    let id = get_id(&n.expr);
-    self.used_vars.insert(id);
-    n.type_args.visit_with(self);
+    n.expr.visit_with(self);
+    n.type_args.visit_children_with(self);
   }
 
   fn visit_ts_type_query_expr(&mut self, n: &TsTypeQueryExpr) {
@@ -687,6 +686,8 @@ mod tests {
       NoUnusedVars,
       "var a = 1; console.log(a)",
       "var a = 1; const arrow = () => a; console.log(arrow)",
+      "var a = 1; console.log?.(a)",
+      "var a = 1; a?.()",
       // Hoisting. This code is wrong, but it's not related with unused-vars
       "console.log(a); var a = 1;",
       "var foo = 5;\n\nlabel: while (true) {\n  console.log(foo);\n  break label;\n}",

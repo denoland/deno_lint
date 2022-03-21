@@ -210,6 +210,12 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
+  fn opt_call(
+    &mut self,
+    _n: &ast_view::OptCall,
+    _ctx: &mut Context,
+  ) {
+  }
   fn param(&mut self, _n: &ast_view::Param, _ctx: &mut Context) {}
   fn paren_expr(&mut self, _n: &ast_view::ParenExpr, _ctx: &mut Context) {}
   fn private_method(
@@ -339,6 +345,7 @@ pub trait Handler {
   ) {
   }
   fn ts_infer_type(&mut self, _n: &ast_view::TsInferType, _ctx: &mut Context) {}
+  fn ts_instantiation(&mut self, _n: &ast_view::TsInstantiation, _ctx: &mut Context) {}
   fn ts_interface_body(
     &mut self,
     _n: &ast_view::TsInterfaceBody,
@@ -604,6 +611,7 @@ pub trait Traverse: Handler {
       ObjectLit(n) => self.object_lit(n, ctx),
       ObjectPat(n) => self.object_pat(n, ctx),
       OptChainExpr(n) => self.opt_chain_expr(n, ctx),
+      OptCall(n) => self.opt_call(n, ctx),
       Param(n) => self.param(n, ctx),
       ParenExpr(n) => self.paren_expr(n, ctx),
       PrivateMethod(n) => self.private_method(n, ctx),
@@ -647,6 +655,7 @@ pub trait Traverse: Handler {
       TsIndexSignature(n) => self.ts_index_signature(n, ctx),
       TsIndexedAccessType(n) => self.ts_indexed_access_type(n, ctx),
       TsInferType(n) => self.ts_infer_type(n, ctx),
+      TsInstantiation(n) => self.ts_instantiation(n, ctx),
       TsInterfaceBody(n) => self.ts_interface_body(n, ctx),
       TsInterfaceDecl(n) => self.ts_interface_decl(n, ctx),
       TsIntersectionType(n) => self.ts_intersection_type(n, ctx),

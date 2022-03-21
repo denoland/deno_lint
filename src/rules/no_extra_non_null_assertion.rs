@@ -1,10 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
+use super::Context;
+use super::LintRule;
+use crate::handler::Handler;
+use crate::handler::Traverse;
+use crate::Program;
+use crate::ProgramRef;
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
-use deno_ast::view::{Callee, Expr, OptChainExpr, TsNonNullExpr};
+use deno_ast::view::Expr;
+use deno_ast::view::OptChainBase;
+use deno_ast::view::OptChainExpr;
+use deno_ast::view::TsNonNullExpr;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -99,18 +105,11 @@ impl Handler for NoExtraNonNullAssertionHandler {
     opt_chain_expr: &OptChainExpr,
     ctx: &mut Context,
   ) {
-    let maybe_expr = match opt_chain_expr.expr {
-      Expr::Member(member_expr) => Some(&member_expr.obj),
-      Expr::Call(call_expr) => match &call_expr.callee {
-        Callee::Expr(expr) => Some(expr),
-        _ => None,
-      },
-      _ => None,
+    let expr = match &opt_chain_expr.base {
+      OptChainBase::Member(member_expr) => &member_expr.obj,
+      OptChainBase::Call(call_expr) => &call_expr.callee,
     };
-
-    if let Some(expr) = maybe_expr {
-      check_expr_for_nested_non_null_assert(opt_chain_expr.span(), expr, ctx);
-    }
+    check_expr_for_nested_non_null_assert(opt_chain_expr.span(), &expr, ctx);
   }
 }
 
