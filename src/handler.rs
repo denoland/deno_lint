@@ -210,12 +210,7 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
-  fn opt_call(
-    &mut self,
-    _n: &ast_view::OptCall,
-    _ctx: &mut Context,
-  ) {
-  }
+  fn opt_call(&mut self, _n: &ast_view::OptCall, _ctx: &mut Context) {}
   fn param(&mut self, _n: &ast_view::Param, _ctx: &mut Context) {}
   fn paren_expr(&mut self, _n: &ast_view::ParenExpr, _ctx: &mut Context) {}
   fn private_method(
@@ -345,7 +340,12 @@ pub trait Handler {
   ) {
   }
   fn ts_infer_type(&mut self, _n: &ast_view::TsInferType, _ctx: &mut Context) {}
-  fn ts_instantiation(&mut self, _n: &ast_view::TsInstantiation, _ctx: &mut Context) {}
+  fn ts_instantiation(
+    &mut self,
+    _n: &ast_view::TsInstantiation,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_interface_body(
     &mut self,
     _n: &ast_view::TsInterfaceBody,

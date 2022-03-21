@@ -144,9 +144,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
         return self.member_expr_modifies_first(member_expr);
       }
 
-      Expr::Paren(ParenExpr { expr, .. }) => {
-        return self.modifies_first(expr)
-      }
+      Expr::Paren(ParenExpr { expr, .. }) => return self.modifies_first(expr),
 
       _ => {}
     }

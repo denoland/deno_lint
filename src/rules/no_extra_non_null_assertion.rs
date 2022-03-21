@@ -109,7 +109,7 @@ impl Handler for NoExtraNonNullAssertionHandler {
       OptChainBase::Member(member_expr) => &member_expr.obj,
       OptChainBase::Call(call_expr) => &call_expr.callee,
     };
-    check_expr_for_nested_non_null_assert(opt_chain_expr.span(), &expr, ctx);
+    check_expr_for_nested_non_null_assert(opt_chain_expr.span(), expr, ctx);
   }
 }
 
