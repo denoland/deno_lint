@@ -38,6 +38,6 @@ clap = "2.33.3"
 deno_core = "0.96.0"
 env_logger = "0.8.3"
 globwalk = "0.8.1"
-miette = { version = "4.2.1", features = ["fancy"] }
+miette = { version = "4.3.0", features = ["fancy-no-backtrace"] }
 pulldown-cmark = "0.8.0"
 rayon = "1.5.0"
