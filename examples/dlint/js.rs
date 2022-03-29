@@ -46,7 +46,7 @@ fn op_add_diagnostics(
 ) -> Result<(), AnyError> {
   let DiagnosticsFromJs { code, diagnostics } = diagnostics;
 
-  let mut stored = state.try_take::<Diagnostics>().unwrap_or_else(HashMap::new);
+  let mut stored = state.try_take::<Diagnostics>().unwrap_or_default();
   // TODO(magurotuna): should add some prefix to `code` to prevent from conflicting with builtin
   // rules
   stored.insert(code, diagnostics);
@@ -59,7 +59,7 @@ fn op_add_diagnostics(
 fn op_add_rule_code(state: &mut OpState, args: Value) -> Result<(), AnyError> {
   let code_from_js: Code = serde_json::from_value(args).unwrap();
 
-  let mut stored = state.try_take::<Codes>().unwrap_or_else(HashSet::new);
+  let mut stored = state.try_take::<Codes>().unwrap_or_default();
   stored.insert(code_from_js.code);
   state.put::<Codes>(stored);
 
@@ -174,7 +174,7 @@ impl Plugin for PluginRunner {
       .op_state()
       .borrow_mut()
       .try_take::<Codes>()
-      .unwrap_or_else(HashSet::new);
+      .unwrap_or_default();
 
     context.set_plugin_codes(codes.clone());
 
