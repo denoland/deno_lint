@@ -115,7 +115,7 @@ impl miette::SourceCode for MietteSourceCode<'_> {
       .source
       .line_end(end_line_column.line_index + context_lines_after)
       .0 as usize;
-    let src_end = std::cmp::min(src_end, line_count);
+    let src_end = std::cmp::min(src_end, self.source.text().len());
     let src = &self.source.text_str()[src_start..src_end];
     let name = Some(self.filename.to_string());
     let start = miette::SourceOffset::from(src_start);
