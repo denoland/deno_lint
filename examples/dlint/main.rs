@@ -1,10 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use anyhow::bail;
 use anyhow::Error as AnyError;
-use clap::App;
-use clap::AppSettings;
 use clap::Arg;
-use clap::SubCommand;
+use clap::Command;
 use deno_ast::MediaType;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
@@ -24,42 +22,42 @@ mod js;
 mod lexer;
 mod rules;
 
-fn create_cli_app<'a, 'b>() -> App<'a, 'b> {
-  App::new("dlint")
+fn create_cli_app<'a>() -> Command<'a> {
+  Command::new("dlint")
     .version(clap::crate_version!())
-    .setting(AppSettings::SubcommandRequiredElseHelp)
+    .subcommand_required(true)
     .subcommand(
-      SubCommand::with_name("rules")
+      Command::new("rules")
         .arg(
-          Arg::with_name("RULE_NAME")
+          Arg::new("RULE_NAME")
             .help("Show detailed information about rule. If omitted, show the list of all rules."),
         )
-        .arg(Arg::with_name("json").long("json")),
+        .arg(Arg::new("json").long("json")),
     )
     .subcommand(
-      SubCommand::with_name("run")
+      Command::new("run")
         .arg(
-          Arg::with_name("FILES")
+          Arg::new("FILES")
             .help("Set the input file to use")
-            .multiple(true),
+            .multiple_occurrences(true),
         )
         .arg(
-          Arg::with_name("RULE_CODE")
+          Arg::new("RULE_CODE")
             .long("rule")
             .help("Run a certain rule")
             .takes_value(true),
         )
         .arg(
-          Arg::with_name("CONFIG")
+          Arg::new("CONFIG")
             .long("config")
             .help("Load config from file")
             .takes_value(true),
         )
         .arg(
-          Arg::with_name("PLUGIN")
+          Arg::new("PLUGIN")
             .long("plugin")
             .help("Specify plugin paths")
-            .multiple(true)
+            .multiple_occurrences(true)
             .takes_value(true),
         ),
     )
@@ -158,7 +156,7 @@ fn main() -> Result<(), AnyError> {
   let matches = cli_app.get_matches();
 
   match matches.subcommand() {
-    ("run", Some(run_matches)) => {
+    Some(("run", run_matches)) => {
       let maybe_config = if let Some(p) = run_matches.value_of("CONFIG") {
         let path = PathBuf::from(p);
 
@@ -190,7 +188,7 @@ fn main() -> Result<(), AnyError> {
         plugins,
       )?;
     }
-    ("rules", Some(rules_matches)) => {
+    Some(("rules", rules_matches)) => {
       let rules = if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
         rules::get_specific_rule_metadata(rule_name)
       } else {
