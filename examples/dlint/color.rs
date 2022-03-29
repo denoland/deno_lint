@@ -50,7 +50,7 @@ struct MarkdownColorizer {
 fn trailing_newlines(tag: &Tag) -> String {
   use Tag::*;
   let num_newlines = match tag {
-    Paragraph | Heading(_) | BlockQuote | CodeBlock(_) => 2,
+    Paragraph | Heading(_, _, _) | BlockQuote | CodeBlock(_) => 2,
     List(_)
     | Item
     | FootnoteDefinition(_)
@@ -73,7 +73,7 @@ impl MarkdownColorizer {
     }
   }
 
-  fn run(mut self, parser: Parser<'_>) -> String {
+  fn run(mut self, parser: Parser<'_, '_>) -> String {
     for event in parser {
       use pulldown_cmark::Event::*;
       match event {
@@ -135,10 +135,10 @@ impl MarkdownColorizer {
   }
 
   fn handle_tag(&mut self, tag: &Tag, is_start: bool) -> Vec<Attribute> {
-    use pulldown_cmark::{CodeBlockKind, Tag::*};
+    use pulldown_cmark::{CodeBlockKind, HeadingLevel, Tag::*};
     match tag {
       Paragraph => vec![],
-      Heading(1) => {
+      Heading(HeadingLevel::H1, _, _) => {
         vec![
           Attribute::Italic,
           Attribute::Underline,
@@ -146,9 +146,11 @@ impl MarkdownColorizer {
           Attribute::Magenta,
         ]
       }
-      Heading(2) => vec![Attribute::Bold, Attribute::Magenta],
-      Heading(3) => vec![Attribute::Magenta],
-      Heading(_) => vec![Attribute::Bold],
+      Heading(HeadingLevel::H2, _, _) => {
+        vec![Attribute::Bold, Attribute::Magenta]
+      }
+      Heading(HeadingLevel::H3, _, _) => vec![Attribute::Magenta],
+      Heading(_, _, _) => vec![Attribute::Bold],
       BlockQuote => vec![Attribute::Gray],
       CodeBlock(kind) => {
         if is_start {
