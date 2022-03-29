@@ -3,12 +3,12 @@ use anyhow::Context as _;
 use deno_ast::swc::common::Span;
 use deno_ast::view::ProgramRef;
 use deno_core::error::AnyError;
+use deno_core::op;
 use deno_core::resolve_url_or_path;
 use deno_core::FsModuleLoader;
 use deno_core::JsRuntime;
 use deno_core::OpState;
 use deno_core::RuntimeOptions;
-use deno_core::ZeroCopyBuf;
 use deno_lint::context::Context;
 use deno_lint::control_flow::ControlFlow;
 use deno_lint::linter::Plugin;
@@ -39,14 +39,12 @@ struct Code {
 type Diagnostics = HashMap<String, Vec<InnerDiagnostics>>;
 type Codes = HashSet<String>;
 
-#[allow(clippy::unnecessary_wraps)]
+#[op]
 fn op_add_diagnostics(
   state: &mut OpState,
-  args: Value,
-  _maybe_buf: Option<ZeroCopyBuf>,
-) -> anyhow::Result<Value> {
-  let DiagnosticsFromJs { code, diagnostics } =
-    serde_json::from_value(args).unwrap();
+  diagnostics: DiagnosticsFromJs,
+) -> Result<(), AnyError> {
+  let DiagnosticsFromJs { code, diagnostics } = diagnostics;
 
   let mut stored = state.try_take::<Diagnostics>().unwrap_or_else(HashMap::new);
   // TODO(magurotuna): should add some prefix to `code` to prevent from conflicting with builtin
@@ -54,54 +52,50 @@ fn op_add_diagnostics(
   stored.insert(code, diagnostics);
   state.put::<Diagnostics>(stored);
 
-  Ok(serde_json::json!({}))
+  Ok(())
 }
 
-#[allow(clippy::unnecessary_wraps)]
-fn op_add_rule_code(
-  state: &mut OpState,
-  args: Value,
-  _maybe_buf: Option<ZeroCopyBuf>,
-) -> Result<Value, AnyError> {
+#[op]
+fn op_add_rule_code(state: &mut OpState, args: Value) -> Result<(), AnyError> {
   let code_from_js: Code = serde_json::from_value(args).unwrap();
 
   let mut stored = state.try_take::<Codes>().unwrap_or_else(HashSet::new);
   stored.insert(code_from_js.code);
   state.put::<Codes>(stored);
 
-  Ok(serde_json::json!({}))
+  Ok(())
 }
 
+#[derive(Deserialize)]
+struct SpanFromJs {
+  span: Span,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReturnValue {
+  is_reachable: Option<bool>,
+  stops_execution: Option<bool>,
+}
+
+#[op]
 fn op_query_control_flow_by_span(
   state: &mut OpState,
-  args: Value,
-  _maybe_buf: Option<ZeroCopyBuf>,
-) -> Result<Value, AnyError> {
+  span_from_js: SpanFromJs,
+) -> Result<ReturnValue, AnyError> {
   let control_flow = state
     .try_borrow::<ControlFlow>()
     .context("ControlFlow is not set")?;
 
-  #[derive(Deserialize)]
-  struct SpanFromJs {
-    span: Span,
-  }
-  let span_from_js: SpanFromJs = serde_json::from_value(args).unwrap();
   let meta = control_flow.meta(span_from_js.span.lo());
 
   let is_reachable = meta.map(|m| !m.unreachable);
   let stops_execution = meta.map(|m| m.stops_execution());
 
-  #[derive(Serialize)]
-  #[serde(rename_all = "camelCase")]
-  struct ReturnValue {
-    is_reachable: Option<bool>,
-    stops_execution: Option<bool>,
-  }
-  serde_json::to_value(ReturnValue {
+  Ok(ReturnValue {
     is_reachable,
     stops_execution,
   })
-  .map_err(Into::into)
 }
 
 #[derive(Debug)]
@@ -124,8 +118,17 @@ struct JsRunner {
 
 impl JsRunner {
   fn new(plugin_path: &str) -> Self {
+    let extension = deno_core::Extension::builder()
+      .ops(vec![
+        op_add_diagnostics::decl(),
+        op_add_rule_code::decl(),
+        op_query_control_flow_by_span::decl(),
+      ])
+      .build();
+
     let mut runtime = JsRuntime::new(RuntimeOptions {
       module_loader: Some(Rc::new(FsModuleLoader)),
+      extensions: vec![extension],
       ..Default::default()
     });
 
@@ -135,20 +138,9 @@ impl JsRunner {
     runtime
       .execute_script("control-flow.js", include_str!("control-flow.js"))
       .unwrap();
-    runtime.register_op(
-      "op_add_diagnostics",
-      deno_core::op_sync(op_add_diagnostics),
-    );
-    runtime
-      .register_op("op_add_rule_code", deno_core::op_sync(op_add_rule_code));
-    runtime.register_op(
-      "op_query_control_flow_by_span",
-      deno_core::op_sync(op_query_control_flow_by_span),
-    );
-    runtime.sync_ops_cache();
 
     let module_id =
-      deno_core::futures::executor::block_on(runtime.load_module(
+      deno_core::futures::executor::block_on(runtime.load_main_module(
         &resolve_url_or_path("dummy.js").unwrap(),
         Some(create_dummy_source(plugin_path)),
       ))
