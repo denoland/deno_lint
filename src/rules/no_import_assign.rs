@@ -88,8 +88,11 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
         self.check(span, i, false);
       }
       Expr::Member(e) => self.check_assign(span, &e.obj, true),
-      Expr::OptChain(e) => self.check_expr(span, &e.expr),
       Expr::Paren(e) => self.check_expr(span, &e.expr),
+      Expr::OptChain(e) => match &e.base {
+        OptChainBase::Call(e) => self.visit_opt_call(e),
+        OptChainBase::Member(e) => self.check_expr(span, &e.obj),
+      },
       _ => e.visit_children_with(self),
     }
   }
@@ -132,22 +135,29 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
   /// Returns true for callees like `Object.assign`
   fn modifies_first(&self, callee: &Expr) -> bool {
     match callee {
-      Expr::Member(member_expr) => {
-        if let MemberProp::Ident(ident) = &member_expr.prop {
-          if self.is_modifier(&member_expr.obj, ident) {
-            return true;
-          }
+      Expr::OptChain(opt_chain) => {
+        if let OptChainBase::Member(member_expr) = &opt_chain.base {
+          return self.member_expr_modifies_first(member_expr);
         }
       }
-
-      Expr::Paren(ParenExpr { expr, .. })
-      | Expr::OptChain(OptChainExpr { expr, .. }) => {
-        return self.modifies_first(expr)
+      Expr::Member(member_expr) => {
+        return self.member_expr_modifies_first(member_expr);
       }
+
+      Expr::Paren(ParenExpr { expr, .. }) => return self.modifies_first(expr),
 
       _ => {}
     }
 
+    false
+  }
+
+  fn member_expr_modifies_first(&self, member_expr: &MemberExpr) -> bool {
+    if let MemberProp::Ident(ident) = &member_expr.prop {
+      if self.is_modifier(&member_expr.obj, ident) {
+        return true;
+      }
+    }
     false
   }
 }
@@ -222,6 +232,16 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
         if self.modifies_first(callee) {
           self.check_assign(n.span, &arg.expr, true);
         }
+      }
+    }
+  }
+
+  fn visit_opt_call(&mut self, n: &OptCall) {
+    n.visit_children_with(self);
+
+    if let Some(arg) = n.args.first() {
+      if self.modifies_first(&*n.callee) {
+        self.check_assign(n.span, &arg.expr, true);
       }
     }
   }
