@@ -474,6 +474,11 @@
     "tags": []
   },
   {
+    "code": "no-unneeded-ternary",
+    "docs": "Disallows ternary operators when simpler alternatives exist.\n\nIt's a common mistake to use a conditional expression to select between two\nBoolean values instead of using ! to convert the test to a Boolean.\n\n### Invalid:\n\n```typescript\nconst foo = condition ? true : false;\n```\n\n### Valid:\n\n```typescript\nconst foo = condition ? x : y;\nconst foo = condition ? x : false;\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-unreachable",
     "docs": "Disallows the unreachable code after the control flow statements.\n\nBecause the control flow statements (`return`, `throw`, `break` and `continue`)\nunconditionally exit a block of code, any statements after them cannot be\nexecuted.\n\n### Invalid:\n\n```typescript\nfunction foo() {\n  return true;\n  console.log(\"done\");\n}\n```\n\n```typescript\nfunction bar() {\n  throw new Error(\"Oops!\");\n  console.log(\"done\");\n}\n```\n\n```typescript\nwhile (value) {\n  break;\n  console.log(\"done\");\n}\n```\n\n```typescript\nthrow new Error(\"Oops!\");\nconsole.log(\"done\");\n```\n\n```typescript\nfunction baz() {\n  if (Math.random() < 0.5) {\n    return;\n  } else {\n    throw new Error();\n  }\n  console.log(\"done\");\n}\n```\n\n```typescript\nfor (;;) {}\nconsole.log(\"done\");\n```\n\n### Valid\n\n```typescript\nfunction foo() {\n  return bar();\n  function bar() {\n    return 1;\n  }\n}\n```\n",
     "tags": [
