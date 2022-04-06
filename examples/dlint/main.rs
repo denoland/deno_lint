@@ -210,14 +210,14 @@ fn main() -> Result<(), AnyError> {
 
 #[cfg(test)]
 mod tests {
-  use std::path::PathBuf;
-  use os_pipe::pipe;
-  use std::process::Stdio;
-  use std::process::Command;
-  use std::io::Write;
-  use std::io::Read;
   use lazy_static::lazy_static;
+  use os_pipe::pipe;
   use regex::Regex;
+  use std::io::Read;
+  use std::io::Write;
+  use std::path::PathBuf;
+  use std::process::Command;
+  use std::process::Stdio;
 
   // TODO(bartlomieju): this code is copy-pasted from `deno/test_util/src/lib.rs`
 
@@ -238,7 +238,7 @@ mod tests {
     let target_dir = current_exe.parent().unwrap().parent().unwrap();
     target_dir.into()
   }
-  
+
   fn dlint_exe_path() -> PathBuf {
     // Something like /Users/src/deno_lint/target/debug/examples/dlint
     let mut p = target_dir().join("examples").join("dlint");
@@ -261,7 +261,7 @@ mod tests {
     assert!(exe_path.exists());
     Command::new(exe_path)
   }
-  
+
   #[derive(Debug, Default)]
   struct CheckOutputIntegrationTest {
     pub args: &'static str,
