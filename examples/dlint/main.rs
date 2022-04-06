@@ -207,3 +207,236 @@ fn main() -> Result<(), AnyError> {
 
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+  use os_pipe::pipe;
+  use std::process::Stdio;
+  use std::process::Command;
+  use std::io::Write;
+  use std::io::Read;
+  use lazy_static::lazy_static;
+  use regex::Regex;
+
+  // TODO(bartlomieju): this code is copy-pasted from `deno/test_util/src/lib.rs`
+
+  lazy_static! {
+    // STRIP_ANSI_RE and strip_ansi_codes are lifted from the "console" crate.
+    // Copyright 2017 Armin Ronacher <armin.ronacher@active-4.com>. MIT License.
+    static ref STRIP_ANSI_RE: Regex = Regex::new(
+            r"[\x1b\x9b][\[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PRZcf-nqry=><]"
+    ).unwrap();
+  }
+
+  pub fn strip_ansi_codes(s: &str) -> std::borrow::Cow<str> {
+    STRIP_ANSI_RE.replace_all(s, "")
+  }
+
+  fn target_dir() -> PathBuf {
+    let current_exe = std::env::current_exe().unwrap();
+    let target_dir = current_exe.parent().unwrap().parent().unwrap();
+    target_dir.into()
+  }
+  
+  fn dlint_exe_path() -> PathBuf {
+    // Something like /Users/src/deno_lint/target/debug/examples/dlint
+    let mut p = target_dir().join("examples").join("dlint");
+    if cfg!(windows) {
+      p.set_extension("exe");
+    }
+    p
+  }
+
+  fn root_path() -> PathBuf {
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR")))
+  }
+
+  fn testdata_path() -> PathBuf {
+    root_path().join("examples").join("dlint").join("testdata")
+  }
+
+  fn dlint_cmd() -> Command {
+    let exe_path = dlint_exe_path();
+    assert!(exe_path.exists());
+    Command::new(exe_path)
+  }
+  
+  #[derive(Debug, Default)]
+  struct CheckOutputIntegrationTest {
+    pub args: &'static str,
+    pub args_vec: Vec<&'static str>,
+    pub output: &'static str,
+    pub input: Option<&'static str>,
+    pub output_str: Option<&'static str>,
+    pub exit_code: i32,
+    pub envs: Vec<(String, String)>,
+  }
+
+  impl CheckOutputIntegrationTest {
+    pub fn run(&self) {
+      let args = if self.args_vec.is_empty() {
+        std::borrow::Cow::Owned(
+          self.args.split_whitespace().collect::<Vec<_>>(),
+        )
+      } else {
+        assert!(
+          self.args.is_empty(),
+          "Do not provide args when providing args_vec."
+        );
+        std::borrow::Cow::Borrowed(&self.args_vec)
+      };
+      let dlint_exe = dlint_exe_path();
+      println!("dlint_exe path {}", dlint_exe.display());
+
+      let (mut reader, writer) = pipe().unwrap();
+      let testdata_dir = testdata_path();
+      let mut command = dlint_cmd();
+      println!("dlint_exe args {}", self.args);
+      println!("dlint_exe testdata path {:?}", &testdata_dir);
+      command.args(args.iter());
+      command.envs(self.envs.clone());
+      command.current_dir(&testdata_dir);
+      command.stdin(Stdio::piped());
+      let writer_clone = writer.try_clone().unwrap();
+      command.stderr(writer_clone);
+      command.stdout(writer);
+
+      let mut process = command.spawn().expect("failed to execute process");
+
+      if let Some(input) = self.input {
+        let mut p_stdin = process.stdin.take().unwrap();
+        write!(p_stdin, "{}", input).unwrap();
+      }
+
+      // Very important when using pipes: This parent process is still
+      // holding its copies of the write ends, and we have to close them
+      // before we read, otherwise the read end will never report EOF. The
+      // Command object owns the writers now, and dropping it closes them.
+      drop(command);
+
+      let mut actual = String::new();
+      reader.read_to_string(&mut actual).unwrap();
+
+      let status = process.wait().expect("failed to finish process");
+
+      if let Some(exit_code) = status.code() {
+        if self.exit_code != exit_code {
+          println!("OUTPUT\n{}\nOUTPUT", actual);
+          panic!(
+            "bad exit code, expected: {:?}, actual: {:?}",
+            self.exit_code, exit_code
+          );
+        }
+      } else {
+        #[cfg(unix)]
+        {
+          use std::os::unix::process::ExitStatusExt;
+          let signal = status.signal().unwrap();
+          println!("OUTPUT\n{}\nOUTPUT", actual);
+          panic!(
+          "process terminated by signal, expected exit code: {:?}, actual signal: {:?}",
+          self.exit_code, signal
+        );
+        }
+        #[cfg(not(unix))]
+        {
+          println!("OUTPUT\n{}\nOUTPUT", actual);
+          panic!("process terminated without status code on non unix platform, expected exit code: {:?}", self.exit_code);
+        }
+      }
+
+      actual = strip_ansi_codes(&actual).to_string();
+
+      let expected = if let Some(s) = self.output_str {
+        s.to_owned()
+      } else {
+        let output_path = testdata_dir.join(self.output);
+        println!("output path {}", output_path.display());
+        std::fs::read_to_string(output_path).expect("cannot read output")
+      };
+
+      if !expected.contains("[WILDCARD]") {
+        assert_eq!(actual, expected)
+      } else if !wildcard_match(&expected, &actual) {
+        println!("OUTPUT\n{}\nOUTPUT", actual);
+        println!("EXPECTED\n{}\nEXPECTED", expected);
+        panic!("pattern match failed");
+      }
+    }
+  }
+
+  fn wildcard_match(pattern: &str, s: &str) -> bool {
+    pattern_match(pattern, s, "[WILDCARD]")
+  }
+
+  fn pattern_match(pattern: &str, s: &str, wildcard: &str) -> bool {
+    // Normalize line endings
+    let mut s = s.replace("\r\n", "\n");
+    let pattern = pattern.replace("\r\n", "\n");
+
+    if pattern == wildcard {
+      return true;
+    }
+
+    let parts = pattern.split(wildcard).collect::<Vec<&str>>();
+    if parts.len() == 1 {
+      return pattern == s;
+    }
+
+    if !s.starts_with(parts[0]) {
+      return false;
+    }
+
+    // If the first line of the pattern is just a wildcard the newline character
+    // needs to be pre-pended so it can safely match anything or nothing and
+    // continue matching.
+    if pattern.lines().next() == Some(wildcard) {
+      s.insert(0, '\n');
+    }
+
+    let mut t = s.split_at(parts[0].len());
+
+    for (i, part) in parts.iter().enumerate() {
+      if i == 0 {
+        continue;
+      }
+      dbg!(part, i);
+      if i == parts.len() - 1 && (part.is_empty() || *part == "\n") {
+        dbg!("exit 1 true", i);
+        return true;
+      }
+      if let Some(found) = t.1.find(*part) {
+        dbg!("found ", found);
+        t = t.1.split_at(found + part.len());
+      } else {
+        dbg!("exit false ", i);
+        return false;
+      }
+    }
+
+    dbg!("end ", t.1.len());
+    t.1.is_empty()
+  }
+
+  #[macro_export]
+  macro_rules! itest(
+  ($name:ident {$( $key:ident: $value:expr,)*})  => {
+    #[test]
+    fn $name() {
+      (CheckOutputIntegrationTest {
+        $(
+          $key: $value,
+        )*
+        .. Default::default()
+      }).run()
+    }
+  }
+  );
+
+  itest!(foo_test {
+    args: "run foo.ts",
+    output: "foo.out",
+    exit_code: 1,
+  });
+}
