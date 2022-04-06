@@ -475,7 +475,7 @@
   },
   {
     "code": "no-unneeded-ternary",
-    "docs": "Disallows ternary operators when simpler alternatives exist.\n\nIt's a common mistake to use a conditional expression to select between two\nBoolean values instead of using ! to convert the test to a Boolean.\n\n### Invalid:\n\n```typescript\nconst foo = condition ? true : false;\n```\n\n### Valid:\n\n```typescript\nconst foo = condition ? x : y;\nconst foo = condition ? x : false;\n```\n",
+    "docs": "Disallows ternary operators when simpler alternatives exist.\n\nIt's a common mistake to use a conditional expression to select between two\nBoolean values instead of using ! to convert the test to a Boolean.\n\n### Invalid:\n\n```typescript\n// You don't need a ternary when a simple `const foo = !condition` will do\nconst foo = condition ? false : true;\n// use `const foo = condition` instead\nconst foo = condition ? true : false;\n```\n\n### Valid:\n\n```typescript\nconst foo = x === 2 ? \"Yes\" : \"No\";\nconst foo = x === 2 ? \"Yes\" : false;\nconst foo = x === 2 ? true : \"No\";\n```\n",
     "tags": []
   },
   {
