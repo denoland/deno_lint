@@ -434,9 +434,9 @@ mod tests {
   }
   );
 
-  itest!(foo_test {
-    args: "run foo.ts",
-    output: "foo.out",
+  itest!(simple_test {
+    args: "run simple.ts",
+    output: "simple.out",
     exit_code: 1,
   });
 }

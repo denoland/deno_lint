@@ -1,12 +1,12 @@
 error[no-explicit-any]: `any` type is not allowed
- --> foo.ts:1:19
+ --> simple.ts:1:19
   |
 1 | function hello(): any {
   |                   ^^^
   |
   = help: Use a specific type other than `any`
 error[no-unused-vars]: `hello` is never used
- --> foo.ts:1:10
+ --> simple.ts:1:10
   |
 1 | function hello(): any {
   |          ^^^^^
