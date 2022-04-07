@@ -227,9 +227,7 @@ fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a JsWord> {
         ref exprs,
         ref quasis,
         ..
-      }) if exprs.is_empty() && quasis.len() == 1 => {
-        Some(quasis[0].raw.value())
-      }
+      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
       _ => None,
     },
   }
