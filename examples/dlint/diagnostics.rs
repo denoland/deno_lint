@@ -102,8 +102,13 @@ impl miette::SourceCode for MietteSourceCode<'_> {
     let start_line_column = self
       .source
       .line_and_column_index(BytePos(lo.try_into().unwrap()));
+
     let start_line_index =
-      std::cmp::max(0, start_line_column.line_index - context_lines_before);
+      if context_lines_before > start_line_column.line_index {
+        0
+      } else {
+        start_line_column.line_index - context_lines_before
+      };
     let src_start = self.source.line_start(start_line_index).0 as usize;
     let end_line_column = self
       .source
