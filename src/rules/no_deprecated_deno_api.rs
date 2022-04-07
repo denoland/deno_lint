@@ -63,7 +63,7 @@ fn extract_symbol<'a>(
         ref quasis,
         ..
       }) if exprs.is_empty() && quasis.len() == 1 => {
-        Some(quasis[0].raw.value())
+        Some(quasis[0].raw())
       }
       _ => None,
     },
