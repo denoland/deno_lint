@@ -131,7 +131,7 @@ impl StringRepr for Lit {
 impl StringRepr for Tpl {
   fn string_repr(&self) -> Option<String> {
     if self.exprs.is_empty() {
-      self.quasis.get(0).and_then(|q| Some(q.raw.to_string()))
+      self.quasis.get(0).map(|q| q.raw.to_string())
     } else {
       None
     }
