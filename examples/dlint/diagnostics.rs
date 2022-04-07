@@ -102,20 +102,18 @@ impl miette::SourceCode for MietteSourceCode<'_> {
     let start_line_column = self
       .source
       .line_and_column_index(BytePos(lo.try_into().unwrap()));
-    let src_start = self
-      .source
-      .line_start(start_line_column.line_index - context_lines_before)
-      .0 as usize;
-    let src_start = std::cmp::max(0, src_start);
+    let start_line_index =
+      std::cmp::max(0, start_line_column.line_index - context_lines_before);
+    let src_start = self.source.line_start(start_line_index).0 as usize;
     let end_line_column = self
       .source
       .line_and_column_index(BytePos(hi.try_into().unwrap()));
     let line_count = self.source.lines_count();
-    let src_end = self
-      .source
-      .line_end(end_line_column.line_index + context_lines_after)
-      .0 as usize;
-    let src_end = std::cmp::min(src_end, self.source.text().len());
+    let end_line_index = std::cmp::min(
+      end_line_column.line_index + context_lines_after,
+      self.source.text().len(),
+    );
+    let src_end = self.source.line_end(end_line_index).0 as usize;
     let src = &self.source.text_str()[src_start..src_end];
     let name = Some(self.filename.to_string());
     let start = miette::SourceOffset::from(src_start);
