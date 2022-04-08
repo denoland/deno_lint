@@ -278,7 +278,7 @@ fn colorize_code_block(lang: CodeBlockLang, src: &str) -> String {
                 decorate(&line[span], Attribute::Green)
               }
               Token::Regex(_, _) => decorate(&line[span], Attribute::Red),
-              Token::Num(_) | Token::BigInt(_) => {
+              Token::Num { .. } | Token::BigInt { .. } => {
                 decorate(&line[span], Attribute::Yellow)
               }
               Token::Word(word) => match word {

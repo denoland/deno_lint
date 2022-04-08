@@ -161,7 +161,7 @@ fn normalize_prop_name(name: &PropName) -> Option<String> {
         ref exprs,
         ..
       }) if exprs.is_empty() => {
-        quasis.iter().next().map(|q| q.raw.value.to_string())?
+        quasis.iter().next().map(|q| q.raw.to_string())?
       }
       _ => return None,
     },
