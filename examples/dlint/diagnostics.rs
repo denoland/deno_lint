@@ -9,7 +9,11 @@ pub fn display_diagnostics(
   source_file: &SourceTextInfo,
   filename: &str,
 ) {
-  let reporter = miette::GraphicalReportHandler::new();
+  let mut reporter = miette::GraphicalReportHandler::new();
+  if cfg!(test) {
+    reporter = reporter.with_links(false);
+  }
+
   let miette_source_code = MietteSourceCode {
     source: source_file,
     filename,
