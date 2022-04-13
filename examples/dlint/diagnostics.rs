@@ -9,11 +9,7 @@ pub fn display_diagnostics(
   source_file: &SourceTextInfo,
   filename: &str,
 ) {
-  let mut reporter = miette::GraphicalReportHandler::new();
-  if cfg!(test) {
-    reporter = reporter.with_links(false);
-  }
-
+  let reporter = miette::GraphicalReportHandler::new();
   let miette_source_code = MietteSourceCode {
     source: source_file,
     filename,
@@ -49,15 +45,7 @@ impl miette::Diagnostic for MietteDiagnostic<'_> {
     Some(Box::new(self.lint_diagnostic.code.to_string()))
   }
 
-  fn severity(&self) -> Option<miette::Severity> {
-    None
-  }
-
   fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
-    None
-  }
-
-  fn url<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
     Some(Box::new(format!(
       "https://lint.deno.land/#{}",
       self.lint_diagnostic.code

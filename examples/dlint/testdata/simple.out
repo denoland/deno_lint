@@ -1,15 +1,23 @@
-error[no-explicit-any]: `any` type is not allowed
- --> simple.ts:1:19
-  |
-1 | function hello(): any {
-  |                   ^^^
-  |
-  = help: Use a specific type other than `any`
-error[no-unused-vars]: `hello` is never used
- --> simple.ts:1:10
-  |
-1 | function hello(): any {
-  |          ^^^^^
-  |
-  = help: If this is intentional, prefix it with an underscore like `_hello`
+no-explicit-any
+
+  x `any` type is not allowed
+   ,-[simple.ts:1:19]
+ 1 | function hello(): any {
+   :                   ^|^
+   :                    `-- Use a specific type other than `any`
+ 2 |     
+   `----
+  help: https://lint.deno.land/#no-explicit-any
+
+no-unused-vars
+
+  x `hello` is never used
+   ,-[simple.ts:1:10]
+ 1 | function hello(): any {
+   :          ^^|^^
+   :            `-- If this is intentional, prefix it with an underscore like `_hello`
+ 2 |     
+   `----
+  help: https://lint.deno.land/#no-unused-vars
+
 Found 2 problems
