@@ -15,6 +15,7 @@ name = "deno_lint"
 [[example]]
 name = "dlint"
 required-features = ["docs"]
+test = true
 
 [features]
 default = []
@@ -32,12 +33,14 @@ anyhow = "1.0.56"
 if_chain = "1.0.2"
 
 [dev-dependencies]
-annotate-snippets = { version = "0.9.1", features = ["color"] }
 ansi_term = "0.12.1"
 atty = "0.2.14"
 clap = { version = "3", features = ["cargo"] }
 deno_core = "0.126.0"
 env_logger = "0.9.0"
+lazy_static = "1.4.0"
 globwalk = "0.8.1"
+miette = { version = "4.3.0", features = ["fancy-no-backtrace"] }
+os_pipe = "1.0.1"
 pulldown-cmark = "0.9.1"
 rayon = "1.5.1"

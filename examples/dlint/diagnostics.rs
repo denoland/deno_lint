@@ -1,200 +1,164 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use annotate_snippets::display_list;
-use annotate_snippets::snippet;
+use deno_ast::swc::common::BytePos;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
-use deno_lint::diagnostic::Range;
+use std::fmt::Display;
 
 pub fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
   source_file: &SourceTextInfo,
+  filename: &str,
 ) {
+  let reporter = miette::GraphicalReportHandler::new();
+  let miette_source_code = MietteSourceCode {
+    source: source_file,
+    filename,
+  };
+
   for diagnostic in diagnostics {
-    let (slice_source, char_range) =
-      get_slice_source_and_range(source_file, &diagnostic.range);
-    let footer = if let Some(hint) = &diagnostic.hint {
-      vec![snippet::Annotation {
-        label: Some(hint),
-        id: None,
-        annotation_type: snippet::AnnotationType::Help,
-      }]
-    } else {
-      vec![]
+    let mut s = String::new();
+    let miette_diag = MietteDiagnostic {
+      source_code: &miette_source_code,
+      lint_diagnostic: diagnostic,
     };
-
-    let snippet = snippet::Snippet {
-      title: Some(snippet::Annotation {
-        label: Some(&diagnostic.message),
-        id: Some(&diagnostic.code),
-        annotation_type: snippet::AnnotationType::Error,
-      }),
-      footer,
-      slices: vec![snippet::Slice {
-        source: slice_source,
-        line_start: diagnostic.range.start.line_index + 1, // make 1-indexed
-        origin: Some(&diagnostic.filename),
-        fold: false,
-        annotations: vec![snippet::SourceAnnotation {
-          range: char_range.as_tuple(),
-          label: "",
-          annotation_type: snippet::AnnotationType::Error,
-        }],
-      }],
-      opt: display_list::FormatOptions {
-        color: true,
-        anonymized_line_numbers: false,
-        margin: None,
-      },
-    };
-    let display_list = display_list::DisplayList::from(snippet);
-    eprintln!("{}", display_list);
+    reporter.render_report(&mut s, &miette_diag).unwrap();
+    eprintln!("{}", s);
   }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct CharRange {
-  /// 0-indexed number that represents what index this range starts at in the
-  /// snippet.
-  /// Counted on a character basis, not UTF-8 bytes.
-  start_index: usize,
-
-  /// 0-indexed number that represents what index this range ends at in the
-  /// snippet.
-  /// Counted on a character basis, not UTF-8 bytes.
-  end_index: usize,
+#[derive(Debug)]
+struct MietteDiagnostic<'a> {
+  source_code: &'a MietteSourceCode<'a>,
+  lint_diagnostic: &'a LintDiagnostic,
 }
 
-impl CharRange {
-  fn as_tuple(&self) -> (usize, usize) {
-    (self.start_index, self.end_index)
+impl std::error::Error for MietteDiagnostic<'_> {}
+
+impl Display for MietteDiagnostic<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.write_str(&self.lint_diagnostic.message)
   }
 }
 
-// Return slice of source code covered by diagnostic
-// and adjusted range of diagnostic (ie. original range - start line
-// of sliced source code).
-fn get_slice_source_and_range<'a>(
-  source_file: &'a SourceTextInfo,
-  range: &Range,
-) -> (&'a str, CharRange) {
-  let first_line_start =
-    source_file.line_start(range.start.line_index).0 as usize;
-  let last_line_end = source_file.line_end(range.end.line_index).0 as usize;
-  let text = source_file.text_str();
-  let start_index =
-    text[first_line_start..range.start.byte_pos].chars().count();
-  let end_index = text[first_line_start..range.end.byte_pos].chars().count();
-  let slice_str = &text[first_line_start..last_line_end];
-  (
-    slice_str,
-    CharRange {
-      start_index,
-      end_index,
-    },
-  )
+impl miette::Diagnostic for MietteDiagnostic<'_> {
+  fn code<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+    Some(Box::new(self.lint_diagnostic.code.to_string()))
+  }
+
+  fn help<'a>(&'a self) -> Option<Box<dyn Display + 'a>> {
+    Some(Box::new(format!(
+      "https://lint.deno.land/#{}",
+      self.lint_diagnostic.code
+    )))
+  }
+
+  fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+    Some(self.source_code)
+  }
+
+  fn labels(
+    &self,
+  ) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
+    let len = self.lint_diagnostic.range.end.byte_pos
+      - self.lint_diagnostic.range.start.byte_pos;
+    let start =
+      miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_pos);
+    let len = miette::SourceOffset::from(len);
+    let span = miette::SourceSpan::new(start, len);
+    let text = self
+      .lint_diagnostic
+      .hint
+      .as_ref()
+      .map(|help| help.to_string());
+    let labels = vec![miette::LabeledSpan::new_with_span(text, span)];
+    Some(Box::new(labels.into_iter()))
+  }
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use deno_ast::swc::common::BytePos;
-  use deno_lint::diagnostic::{Position, Range};
+#[derive(Debug)]
+struct MietteSourceCode<'a> {
+  source: &'a SourceTextInfo,
+  filename: &'a str,
+}
 
-  fn into_text_info(source_code: impl Into<String>) -> SourceTextInfo {
-    SourceTextInfo::from_string(source_code.into())
+impl miette::SourceCode for MietteSourceCode<'_> {
+  fn read_span<'a>(
+    &'a self,
+    span: &miette::SourceSpan,
+    context_lines_before: usize,
+    context_lines_after: usize,
+  ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+    let lo = span.offset();
+    let hi = lo + span.len();
+
+    let start_line_column = self
+      .source
+      .line_and_column_index(BytePos(lo.try_into().unwrap()));
+
+    let start_line_index =
+      if context_lines_before > start_line_column.line_index {
+        0
+      } else {
+        start_line_column.line_index - context_lines_before
+      };
+    let src_start = self.source.line_start(start_line_index).0 as usize;
+    let end_line_column = self
+      .source
+      .line_and_column_index(BytePos(hi.try_into().unwrap()));
+    let line_count = self.source.lines_count();
+    let end_line_index = std::cmp::min(
+      end_line_column.line_index + context_lines_after,
+      self.source.text().len(),
+    );
+    let src_end = self.source.line_end(end_line_index).0 as usize;
+    let src = &self.source.text_str()[src_start..src_end];
+    let name = Some(self.filename.to_string());
+    let start = miette::SourceOffset::from(src_start);
+    let len = miette::SourceOffset::from(src_end - src_start);
+    let span = miette::SourceSpan::new(start, len);
+
+    Ok(Box::new(SpanContentsImpl {
+      data: src,
+      span,
+      line: start_line_column.line_index,
+      column: start_line_column.column_index,
+      line_count,
+      name,
+    }))
+  }
+}
+
+struct SpanContentsImpl<'a> {
+  data: &'a str,
+  span: miette::SourceSpan,
+  line: usize,
+  column: usize,
+  line_count: usize,
+  name: Option<String>,
+}
+
+impl<'a> miette::SpanContents<'a> for SpanContentsImpl<'a> {
+  fn data(&self) -> &'a [u8] {
+    self.data.as_bytes()
   }
 
-  fn position(byte: u32, info: &SourceTextInfo) -> Position {
-    let b = BytePos(byte);
-    Position::new(b, info.line_and_column_index(b))
+  fn span(&self) -> &miette::SourceSpan {
+    &self.span
   }
 
-  #[test]
-  fn slice_range_a() {
-    let text_info = into_text_info("const a = 42;");
-    // 'a'
-    let range = Range {
-      start: position(6, &text_info),
-      end: position(7, &text_info),
-    };
-
-    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
-    assert_eq!(slice, "const a = 42;");
-    assert_eq!(
-      char_range,
-      CharRange {
-        start_index: 6,
-        end_index: 7,
-      }
-    );
+  fn line(&self) -> usize {
+    self.line
   }
 
-  #[test]
-  fn slice_range_あ() {
-    let text_info = into_text_info("const あ = 42;");
-    // 'あ', which takes up three bytes
-    let range = Range {
-      start: position(6, &text_info),
-      end: position(9, &text_info),
-    };
-
-    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
-    assert_eq!(slice, "const あ = 42;");
-    assert_eq!(
-      char_range,
-      CharRange {
-        start_index: 6,
-        end_index: 7,
-      }
-    );
+  fn column(&self) -> usize {
+    self.column
   }
 
-  #[test]
-  fn slice_range_あい() {
-    let text_info = into_text_info("const あい = 42;");
-    // 'い', which takes up three bytes
-    let range = Range {
-      start: position(9, &text_info),
-      end: position(12, &text_info),
-    };
-
-    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
-    assert_eq!(slice, "const あい = 42;");
-    assert_eq!(
-      char_range,
-      CharRange {
-        start_index: 7,
-        end_index: 8,
-      }
-    );
+  fn line_count(&self) -> usize {
+    self.line_count
   }
 
-  #[test]
-  fn slice_range_across_lines() {
-    let src = r#"
-const a = `あいうえお
-かきくけこ`;
-const b = 42;
-"#;
-    let text_info = into_text_info(src);
-    // "えお\nかきく"
-    let range = Range {
-      start: position(21, &text_info),
-      end: position(37, &text_info),
-    };
-
-    let (slice, char_range) = get_slice_source_and_range(&text_info, &range);
-    assert_eq!(
-      slice,
-      r#"const a = `あいうえお
-かきくけこ`;"#
-    );
-    assert_eq!(
-      char_range,
-      CharRange {
-        start_index: 14,
-        end_index: 20,
-      }
-    );
+  fn name(&self) -> Option<&str> {
+    self.name.as_deref()
   }
 }
