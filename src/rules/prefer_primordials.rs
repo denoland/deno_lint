@@ -150,6 +150,16 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
+  fn for_of_stmt(
+    &mut self,
+    for_of_stmt: &ast_view::ForOfStmt,
+    ctx: &mut Context,
+  ) {
+    if !for_of_stmt.right.is::<ast_view::NewExpr>() {
+      ctx.add_diagnostic_with_hint(for_of_stmt.right.span(), CODE, MESSAGE, HINT);
+    }
+  }
+
   fn member_expr(
     &mut self,
     member_expr: &ast_view::MemberExpr,
@@ -303,6 +313,11 @@ new Foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
       "#,
       r#"
 ({ ...{} });
+      "#,
+      r#"
+const { SafeArrayIterator } = primordials;
+for (const val of new SafeArrayIterator(arr)) {}
+for (const val of new SafeArrayIterator([1, 2, 3])) {}
       "#,
     };
   }
@@ -511,6 +526,20 @@ const noop = Function.prototype;
       r#"new Foo(1, 2, ...[3]);"#: [
         {
           col: 14,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"for (const val of arr) {}"#: [
+        {
+          col: 18,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"for (const val of [1, 2, 3]) {}"#: [
+        {
+          col: 18,
           message: MESSAGE,
           hint: HINT,
         },
