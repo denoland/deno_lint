@@ -156,7 +156,12 @@ impl Handler for PreferPrimordialsHandler {
     ctx: &mut Context,
   ) {
     if !for_of_stmt.right.is::<ast_view::NewExpr>() {
-      ctx.add_diagnostic_with_hint(for_of_stmt.right.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(
+        for_of_stmt.right.span(),
+        CODE,
+        MESSAGE,
+        HINT,
+      );
     }
   }
 
