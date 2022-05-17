@@ -7,7 +7,6 @@ use crate::ignore_directives::{
   parse_file_ignore_directives, parse_line_ignore_directives,
 };
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
-use deno_ast::view::ProgramRef;
 use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
@@ -23,7 +22,6 @@ pub struct LinterBuilder {
   ignore_diagnostic_directive: String,
   media_type: MediaType,
   rules: Vec<Arc<dyn LintRule>>,
-  plugins: Vec<Arc<dyn Plugin>>,
 }
 
 impl LinterBuilder {
@@ -42,7 +40,6 @@ impl LinterBuilder {
       self.ignore_diagnostic_directive,
       self.media_type,
       self.rules,
-      self.plugins,
     )
   }
 
@@ -77,14 +74,6 @@ impl LinterBuilder {
     self.rules = rules;
     self
   }
-
-  /// Set a list of plugins that will executed.
-  ///
-  /// Defaults to empty list (no plugins will be loaded).
-  pub fn plugins(mut self, plugins: Vec<Arc<dyn Plugin>>) -> Self {
-    self.plugins = plugins;
-    self
-  }
 }
 
 pub struct Linter {
@@ -92,7 +81,6 @@ pub struct Linter {
   ignore_diagnostic_directive: String,
   media_type: MediaType,
   rules: Vec<Arc<dyn LintRule>>,
-  plugins: Vec<Arc<dyn Plugin>>,
 }
 
 impl Linter {
@@ -101,14 +89,12 @@ impl Linter {
     ignore_diagnostic_directive: String,
     media_type: MediaType,
     rules: Vec<Arc<dyn LintRule>>,
-    plugins: Vec<Arc<dyn Plugin>>,
   ) -> Self {
     Linter {
       ignore_file_directive,
       ignore_diagnostic_directive,
       media_type,
       rules,
-      plugins,
     }
   }
 
@@ -210,13 +196,6 @@ impl Linter {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
 
-      // TODO(bartlomieju): plugins rules should be sorted by priority as well.
-      // Run plugin rules
-      for plugin in self.plugins.iter() {
-        // Ignore any error
-        let _ = plugin.run(&mut context, parsed_source.program_ref().into());
-      }
-
       self.filter_diagnostics(context)
     });
 
@@ -225,12 +204,4 @@ impl Linter {
 
     diagnostics
   }
-}
-
-pub trait Plugin: std::fmt::Debug + Send + Sync {
-  fn run(
-    &self,
-    context: &mut Context,
-    program: ProgramRef,
-  ) -> anyhow::Result<()>;
 }

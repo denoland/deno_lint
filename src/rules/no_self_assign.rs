@@ -89,7 +89,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     );
   }
 
-  fn is_same_property(
+  fn are_same_property(
     &mut self,
     left: &MemberExpr,
     right: &MemberExpr,
@@ -101,7 +101,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     {
       match (&*l_computed.expr, &*r_computed.expr) {
         (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-          if self.is_same_ident(l_ident, r_ident) {
+          if self.are_same_ident(l_ident, r_ident) {
             return true;
           }
         }
@@ -134,26 +134,26 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     false
   }
 
-  fn is_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) -> bool {
-    let same_prop = self.is_same_property(left, right);
+  fn are_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) -> bool {
+    let same_prop = self.are_same_property(left, right);
     if !same_prop {
       return false;
     }
 
     match (&*left.obj, &*right.obj) {
       (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
-        self.is_same_member(l_member_expr, r_member_expr)
+        self.are_same_member(l_member_expr, r_member_expr)
       }
       (Expr::This(_), Expr::This(_)) => true,
       (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.is_same_ident(l_ident, r_ident)
+        self.are_same_ident(l_ident, r_ident)
       }
       _ => false,
     }
   }
 
   fn check_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) {
-    if self.is_same_member(left, right) {
+    if self.are_same_member(left, right) {
       let name = match &right.prop {
         MemberProp::Ident(ident) => ident.string_repr(),
         MemberProp::Computed(computed) => computed.expr.string_repr(),
@@ -164,12 +164,12 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     }
   }
 
-  fn is_same_ident(&mut self, left: &Ident, right: &Ident) -> bool {
+  fn are_same_ident(&mut self, left: &Ident, right: &Ident) -> bool {
     left.sym == right.sym
   }
 
   fn check_same_ident(&mut self, left: &Ident, right: &Ident) {
-    if self.is_same_ident(left, right) {
+    if self.are_same_ident(left, right) {
       self.add_diagnostic(right.span, &right.sym);
     }
   }

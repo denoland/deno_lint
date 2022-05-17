@@ -28,9 +28,6 @@ pub struct Context<'view> {
   /// Stores diagnostics that are generated while linting
   diagnostics: Vec<LintDiagnostic>,
 
-  /// Stores codes of plugin (user-defined) rules
-  plugin_codes: HashSet<String>,
-
   /// Information about the file text.
   source_file: &'view dyn SourceFile,
 
@@ -86,7 +83,6 @@ impl<'view> Context<'view> {
       control_flow,
       top_level_ctxt,
       diagnostics: Vec::new(),
-      plugin_codes: HashSet::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules,
     }
@@ -101,10 +97,6 @@ impl<'view> Context<'view> {
 
   pub fn diagnostics(&self) -> &[LintDiagnostic] {
     &self.diagnostics
-  }
-
-  pub fn plugin_codes(&self) -> &HashSet<String> {
-    &self.plugin_codes
   }
 
   pub fn source_file(&self) -> &dyn SourceFile {
@@ -230,8 +222,7 @@ impl<'view> Context<'view> {
     let executed_builtin_codes: HashSet<&'static str> =
       specified_rules.iter().map(|r| r.code()).collect();
     let is_unused_code = |&(code, status): &(&String, &CodeStatus)| {
-      let is_unknown = !executed_builtin_codes.contains(code.as_str())
-        && !self.plugin_codes.contains(code.as_str());
+      let is_unknown = !executed_builtin_codes.contains(code.as_str());
       !status.used && !is_unknown
     };
 
@@ -273,16 +264,12 @@ impl<'view> Context<'view> {
   }
 
   /// Lint rule implementation for `ban-unknown-rule-code`.
-  /// This should be run after all normal rules have been finished because
-  /// currently we collect the rule codes of plugins as they are run and thus
-  /// there's no way of knowing what are the "known" rule codes beforehand.
+  /// This should be run after all normal rules.
   pub(crate) fn ban_unknown_rule_code(&mut self) -> Vec<LintDiagnostic> {
     let builtin_all_rule_codes: HashSet<&'static str> =
       get_all_rules().iter().map(|r| r.code()).collect();
-    let is_unknown_rule = |code: &&String| {
-      !builtin_all_rule_codes.contains(code.as_str())
-        && !self.plugin_codes.contains(code.as_str())
-    };
+    let is_unknown_rule =
+      |code: &&String| !builtin_all_rule_codes.contains(code.as_str());
 
     let mut diagnostics = Vec::new();
 
@@ -386,10 +373,6 @@ impl<'view> Context<'view> {
       time_end - time_start
     );
     diagnostic
-  }
-
-  pub fn set_plugin_codes(&mut self, codes: HashSet<String>) {
-    self.plugin_codes = codes;
   }
 }
 
