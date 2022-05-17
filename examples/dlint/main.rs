@@ -6,7 +6,7 @@ use clap::Command;
 use deno_ast::MediaType;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
-use deno_lint::linter::{LinterBuilder, Plugin};
+use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
@@ -18,7 +18,6 @@ use std::sync::{Arc, Mutex};
 mod color;
 mod config;
 mod diagnostics;
-mod js;
 mod lexer;
 mod rules;
 
@@ -53,13 +52,6 @@ fn create_cli_app<'a>() -> Command<'a> {
             .help("Load config from file")
             .takes_value(true),
         )
-        .arg(
-          Arg::new("PLUGIN")
-            .long("plugin")
-            .help("Specify plugin paths")
-            .multiple_occurrences(true)
-            .takes_value(true),
-        ),
     )
 }
 
@@ -67,7 +59,6 @@ fn run_linter(
   paths: Vec<String>,
   filter_rule_name: Option<&str>,
   maybe_config: Option<Arc<config::Config>>,
-  plugin_paths: Vec<&str>,
 ) -> Result<(), AnyError> {
   let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
 
@@ -91,11 +82,6 @@ fn run_linter(
   } else {
     get_recommended_rules()
   };
-  let plugins = plugin_paths
-    .into_iter()
-    .map(|p| js::PluginRunner::new(p) as Arc<dyn Plugin>)
-    .collect::<Vec<_>>();
-
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
   paths
     .par_iter()
@@ -110,7 +96,6 @@ fn run_linter(
 
       let linter_builder = LinterBuilder::default()
         .rules(rules.clone())
-        .plugins(plugins.clone())
         .media_type(MediaType::from(file_path));
 
       let linter = linter_builder.build();
@@ -173,22 +158,12 @@ fn main() -> Result<(), AnyError> {
 
       debug!("Config: {:#?}", maybe_config);
 
-      let plugins: Vec<&str> = run_matches
-        .values_of("PLUGIN")
-        .unwrap_or_default()
-        .collect();
-
       let paths: Vec<String> = run_matches
         .values_of("FILES")
         .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
-      run_linter(
-        paths,
-        run_matches.value_of("RULE_CODE"),
-        maybe_config,
-        plugins,
-      )?;
+      run_linter(paths, run_matches.value_of("RULE_CODE"), maybe_config)?;
     }
     Some(("rules", rules_matches)) => {
       let rules = if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {

@@ -218,7 +218,7 @@ pub fn get_filtered_rules(
 }
 
 /// Sort lint rules by priority and alphabetically.
-pub(crate) fn sort_rules_by_priority(rules: &mut Vec<Arc<dyn LintRule>>) {
+pub(crate) fn sort_rules_by_priority(rules: &mut [Arc<dyn LintRule>]) {
   rules.sort_by(|rule1, rule2| {
     let priority_cmp = rule1.priority().cmp(&rule2.priority());
 
