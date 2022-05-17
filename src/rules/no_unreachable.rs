@@ -2,9 +2,9 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Decl, Stmt, VarDecl, VarDeclKind};
-use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
+use deno_ast::SwcSourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -79,9 +79,9 @@ impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
       _ => {}
     }
 
-    if let Some(meta) = self.context.control_flow().meta(stmt.span().lo) {
+    if let Some(meta) = self.context.control_flow().meta(stmt.start()) {
       if meta.unreachable {
-        self.context.add_diagnostic(stmt.span(), CODE, MESSAGE)
+        self.context.add_diagnostic(stmt.range(), CODE, MESSAGE)
       }
     }
   }

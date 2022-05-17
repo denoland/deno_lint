@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Expr, NewExpr, ParenExpr};
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -72,7 +72,7 @@ impl Handler for NoAsyncPromiseExecutorHandler {
         if let Some(first_arg) = args.get(0) {
           if is_async_function(&first_arg.expr) {
             context.add_diagnostic_with_hint(
-              new_expr.span(),
+              new_expr.range(),
               CODE,
               MESSAGE,
               HINT,

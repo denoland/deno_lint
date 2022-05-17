@@ -3,8 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -100,7 +99,7 @@ impl Handler for AdjacentOverloadSignaturesHandler {
 fn check<'a, T, U>(items: T, ctx: &'a mut Context)
 where
   T: IntoIterator<Item = &'a U>,
-  U: ExtractMethod + Spanned + 'a,
+  U: ExtractMethod + SourceRanged + 'a,
 {
   let mut seen_methods = HashSet::new();
   let mut last_method = None;
@@ -109,7 +108,7 @@ where
       if seen_methods.contains(&method) && last_method.as_ref() != Some(&method)
       {
         ctx.add_diagnostic_with_hint(
-          item.span(),
+          item.range(),
           CODE,
           AdjacentOverloadSignaturesMessage::ShouldBeAdjacent(
             method.to_string(),

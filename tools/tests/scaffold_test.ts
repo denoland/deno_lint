@@ -136,7 +136,7 @@ impl Handler for FooBarBazHandler {
 
   // This is an example
   fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
-    ctx.add_diagnostic_with_hint(with_stmt.span(), CODE, MESSAGE, HINT);
+    ctx.add_diagnostic_with_hint(with_stmt.range(), CODE, MESSAGE, HINT);
   }
 }
 

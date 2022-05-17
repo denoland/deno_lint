@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{ArrowExpr, Function, Param, Pat};
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
@@ -62,14 +62,14 @@ impl LintRule for NoDupeArgs {
 #[derive(Default)]
 struct NoDupeArgsHandler {
   /// Accumulated errors to report
-  error_spans: BTreeSet<Span>,
+  error_ranges: BTreeSet<SourceRange>,
 }
 
 impl NoDupeArgsHandler {
   fn report_errors(self, ctx: &mut Context) {
-    for span in &self.error_spans {
+    for range in &self.error_ranges {
       ctx.add_diagnostic_with_hint(
-        *span,
+        *range,
         CODE,
         NoDupeArgsMessage::Unexpected,
         NoDupeArgsHint::RenameOrRemove,
@@ -77,7 +77,7 @@ impl NoDupeArgsHandler {
     }
   }
 
-  fn check_pats<'a, 'b, I>(&'a mut self, span: Span, pats: I)
+  fn check_pats<'a, 'b, I>(&'a mut self, range: SourceRange, pats: I)
   where
     I: Iterator<Item = &'b Pat<'b>>,
   {
@@ -87,7 +87,7 @@ impl NoDupeArgsHandler {
       match &pat {
         Pat::Ident(ident) => {
           if !seen.insert(ident.id.inner.as_ref()) {
-            self.error_spans.insert(span);
+            self.error_ranges.insert(range);
           }
         }
         _ => continue,
@@ -95,22 +95,22 @@ impl NoDupeArgsHandler {
     }
   }
 
-  fn check_params<'a, 'b, I>(&'a mut self, span: Span, params: I)
+  fn check_params<'a, 'b, I>(&'a mut self, range: SourceRange, params: I)
   where
     I: Iterator<Item = &'b &'b Param<'b>>,
   {
     let pats = params.map(|param| &param.pat);
-    self.check_pats(span, pats);
+    self.check_pats(range, pats);
   }
 }
 
 impl Handler for NoDupeArgsHandler {
   fn function(&mut self, function: &Function, _ctx: &mut Context) {
-    self.check_params(function.span(), function.params.iter());
+    self.check_params(function.range(), function.params.iter());
   }
 
   fn arrow_expr(&mut self, arrow_expr: &ArrowExpr, _ctx: &mut Context) {
-    self.check_pats(arrow_expr.span(), arrow_expr.params.iter());
+    self.check_pats(arrow_expr.range(), arrow_expr.params.iter());
   }
 }
 

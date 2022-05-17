@@ -110,7 +110,7 @@ impl Handler for NoUnusedLabelsHandler {
       if !label.used;
       then {
         ctx.add_diagnostic(
-          labeled_stmt.span(),
+          labeled_stmt.range(),
           CODE,
           NoUnusedLabelsMessage::Unused(label.name),
         );

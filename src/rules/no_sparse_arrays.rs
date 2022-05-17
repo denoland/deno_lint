@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRanged;
 use deno_ast::view::ArrayLit;
 use derive_more::Display;
 use std::sync::Arc;
@@ -51,7 +51,7 @@ impl Handler for NoSparseArraysHandler {
   fn array_lit(&mut self, array_lit: &ArrayLit, ctx: &mut Context) {
     if array_lit.elems.iter().any(|e| e.is_none()) {
       ctx.add_diagnostic(
-        array_lit.span(),
+        array_lit.range(),
         CODE,
         NoSparseArraysMessage::Disallowed,
       );

@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::SourceRange;
 use deno_ast::swc::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use deno_ast::swc::common::Span;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use derive_more::Display;
 use std::cmp::Ordering;
@@ -69,9 +70,9 @@ impl<'c, 'view> NoDupeClassMembersVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn add_diagnostic(&mut self, span: Span, name: &str) {
+  fn add_diagnostic(&mut self, range: SourceRange, name: &str) {
     self.context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoDupeClassMembersMessage::Duplicate(name.to_string()),
       NoDupeClassMembersHint::RenameOrRemove,
@@ -91,7 +92,7 @@ impl<'c, 'view> Visit for NoDupeClassMembersVisitor<'c, 'view> {
 
 struct ClassVisitor<'a, 'b, 'view> {
   root_visitor: &'b mut NoDupeClassMembersVisitor<'a, 'view>,
-  appeared_methods: BTreeMap<MethodToCheck, Vec<(Span, String)>>,
+  appeared_methods: BTreeMap<MethodToCheck, Vec<(SourceRange, String)>>,
 }
 
 impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
@@ -110,8 +111,8 @@ impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
       .values()
       .filter(|m| m.len() >= 2)
       .flatten()
-      .for_each(|(span, name)| {
-        root_visitor.add_diagnostic(*span, name);
+      .for_each(|(range, name)| {
+        root_visitor.add_diagnostic(*range, name);
       });
   }
 }
@@ -137,7 +138,7 @@ impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
           .appeared_methods
           .entry(m)
           .or_insert_with(Vec::new)
-          .push((class_method.span, name));
+          .push((class_method.range(), name));
       }
     }
     class_method.visit_children_with(self);

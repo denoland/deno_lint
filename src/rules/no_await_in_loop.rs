@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use deno_ast::view::NodeTrait;
 use std::sync::Arc;
 
@@ -66,7 +65,7 @@ impl Handler for NoAwaitInLoopHandler {
           // except for the case where the given `await_expr` is contained in the `right` part.
           // e.g. for (const x of await xs) { ... }
           //                      ^^^^^^^^ <-------- `right` part
-          !right.span().contains(await_expr.span())
+          !right.range().contains(&await_expr.range())
         }
         ForStmt(stmt) => {
           // When it encounters `ForStmt`, we should treat it as `inside_loop = true`
@@ -76,7 +75,7 @@ impl Handler for NoAwaitInLoopHandler {
           stmt
             .init
             .as_ref()
-            .map_or(true, |init| !init.span().contains(await_expr.span()))
+            .map_or(true, |init| !init.range().contains(&await_expr.range()))
         }
         WhileStmt(_) | DoWhileStmt(_) => true,
         _ => {
@@ -90,7 +89,7 @@ impl Handler for NoAwaitInLoopHandler {
     }
 
     if inside_loop(await_expr, await_expr.as_node()) {
-      ctx.add_diagnostic_with_hint(await_expr.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(await_expr.range(), CODE, MESSAGE, HINT);
     }
   }
 }

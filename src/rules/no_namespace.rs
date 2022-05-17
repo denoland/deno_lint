@@ -71,7 +71,7 @@ impl Handler for NoNamespaceHandler {
     }
 
     if !inside_ambient_context(module_decl.as_node()) {
-      ctx.add_diagnostic_with_hint(module_decl.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(module_decl.range(), CODE, MESSAGE, HINT);
     }
   }
 }

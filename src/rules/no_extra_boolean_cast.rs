@@ -65,7 +65,7 @@ impl LintRule for NoExtraBooleanCast {
 
 struct NoExtraBooleanCastHandler;
 
-fn unexpected_call(span: Span, ctx: &mut Context) {
+fn unexpected_call(span: SourceRange, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
     span,
     CODE,
@@ -74,7 +74,7 @@ fn unexpected_call(span: Span, ctx: &mut Context) {
   );
 }
 
-fn unexpected_negation(span: Span, ctx: &mut Context) {
+fn unexpected_negation(span: SourceRange, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
     span,
     CODE,
@@ -105,12 +105,12 @@ fn check_condition(expr: &Expr, ctx: &mut Context) {
 fn check_unary_expr(unary_expr: &UnaryExpr, ctx: &mut Context) {
   if unary_expr.op() == UnaryOp::Bang {
     let expr = &unary_expr.arg;
-    check_unary_expr_internal(unary_expr.span(), expr, ctx);
+    check_unary_expr_internal(unary_expr.range(), expr, ctx);
   }
 }
 
 fn check_unary_expr_internal(
-  unary_expr_span: Span,
+  unary_expr_span: SourceRange,
   internal_expr: &Expr,
   ctx: &mut Context,
 ) {

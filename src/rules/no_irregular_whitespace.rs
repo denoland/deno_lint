@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::{hygiene::SyntaxContext, BytePos, Span};
-use deno_ast::view::RootNode;
+use deno_ast::{swc::common::hygiene::SyntaxContext, SourceRange};
+use deno_ast::RootNode;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
@@ -61,20 +61,19 @@ impl LintRule for NoIrregularWhitespace {
     context: &mut Context,
     program: Program,
   ) {
-    let file_span = context.source_file().span();
-    let mut check_span = |span: Span| {
-      let whitespace_text = context.source_file().text()
-        [span.lo().0 as usize..span.hi().0 as usize]
+    let file_span = context.text_info().span();
+    let mut check_span = |range: SourceRange| {
+      let whitespace_text = context.text_info().text()
+        [range.lo().0 as usize..range.hi().0 as usize]
         .to_string();
       for whitespace_matches in
         test_for_whitespace(&whitespace_text).into_iter()
       {
         for whitespace_match in whitespace_matches {
           let range = whitespace_match.range();
-          let span = Span::new(
-            span.lo() + BytePos(range.start as u32),
-            span.lo() + BytePos(range.end as u32),
-            SyntaxContext::empty(),
+          let span = SourceRange::new(
+            range.start() + range.start,
+            range.start() + range.end,
           );
           context.add_diagnostic_with_hint(
             span,

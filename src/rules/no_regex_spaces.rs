@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
 use crate::{Program, ProgramRef};
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
@@ -49,7 +50,7 @@ impl LintRule for NoRegexSpaces {
 
 struct NoRegexSpacesHandler;
 
-fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
+fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
   static DOUBLE_SPACE: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
   static BRACKETS: Lazy<regex::Regex> =
@@ -72,7 +73,7 @@ fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
       .iter()
       .all(|v| mtch.start() < v.0 || v.1 <= mtch.start());
     if *not_in_classes {
-      ctx.add_diagnostic(span, CODE, MESSAGE);
+      ctx.add_diagnostic(range, CODE, MESSAGE);
       return;
     }
   }
@@ -80,14 +81,14 @@ fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
 
 impl Handler for NoRegexSpacesHandler {
   fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    check_regex(regex.inner.exp.to_string().as_str(), regex.span(), ctx);
+    check_regex(regex.inner.exp.to_string().as_str(), regex.range(), ctx);
   }
 
   fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
     if let Expr::Ident(ident) = new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
-          check_regex(regex.as_str(), new_expr.span(), ctx);
+          check_regex(regex.as_str(), new_expr.range(), ctx);
         }
       }
     }
@@ -96,7 +97,7 @@ impl Handler for NoRegexSpacesHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
       if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
-        check_regex(regex.as_str(), call_expr.span(), ctx);
+        check_regex(regex.as_str(), call_expr.range(), ctx);
       }
     }
   }

@@ -59,10 +59,10 @@ impl miette::Diagnostic for MietteDiagnostic<'_> {
   fn labels(
     &self,
   ) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-    let len = self.lint_diagnostic.range.end.byte_pos
-      - self.lint_diagnostic.range.start.byte_pos;
+    let len = self.lint_diagnostic.range.end.byte_index
+      - self.lint_diagnostic.range.start.byte_index;
     let start =
-      miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_pos);
+      miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_index);
     let len = miette::SourceOffset::from(len);
     let span = miette::SourceSpan::new(start, len);
     let text = self

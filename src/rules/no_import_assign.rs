@@ -58,7 +58,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn check(&mut self, span: Span, i: &Ident, is_assign_to_prop: bool) {
+  fn check(&mut self, span: SourceRange, i: &Ident, is_assign_to_prop: bool) {
     let var = self.context.scope().var(&i.to_id());
     if var.map_or(false, |v| v.kind() == BindingKind::NamespaceImport) {
       self
@@ -76,13 +76,13 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     }
   }
 
-  fn check_assign(&mut self, span: Span, lhs: &Expr, is_assign_to_prop: bool) {
+  fn check_assign(&mut self, span: SourceRange, lhs: &Expr, is_assign_to_prop: bool) {
     if let Expr::Ident(lhs) = &lhs {
       self.check(span, lhs, is_assign_to_prop);
     }
   }
 
-  fn check_expr(&mut self, span: Span, e: &Expr) {
+  fn check_expr(&mut self, span: SourceRange, e: &Expr) {
     match e {
       Expr::Ident(i) => {
         self.check(span, i, false);
@@ -171,7 +171,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
         self.check(i.id.span, &i.id, false);
       }
       Pat::Expr(e) => {
-        self.check_expr(n.span(), e);
+        self.check_expr(n.range(), e);
       }
       _ => {
         n.visit_children_with(self);
@@ -186,7 +186,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
           self.check(i.span, i, true);
         }
         _ => {
-          self.check_expr(e.span(), e);
+          self.check_expr(e.range(), e);
         }
       }
     } else {

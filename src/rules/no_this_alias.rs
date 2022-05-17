@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRanged;
 use deno_ast::view::{Expr, Pat, VarDecl};
 use if_chain::if_chain;
 use std::sync::Arc;
@@ -54,7 +54,7 @@ impl Handler for NoThisAliasHandler {
         if matches!(&init, Expr::This(_));
         if matches!(&decl.name, Pat::Ident(_));
         then {
-          ctx.add_diagnostic(var_decl.span(), CODE, MESSAGE);
+          ctx.add_diagnostic(var_decl.range(), CODE, MESSAGE);
         }
       }
     }

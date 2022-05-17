@@ -52,7 +52,7 @@ impl LintRule for NoNonNullAssertedOptionalChain {
 struct NoNonNullAssertedOptionalChainHandler;
 
 fn check_expr_for_nested_optional_assert(
-  span: Span,
+  span: SourceRange,
   expr: &Expr,
   ctx: &mut Context,
 ) {
@@ -74,7 +74,7 @@ impl Handler for NoNonNullAssertedOptionalChainHandler {
     match ts_non_null_expr.expr {
       Expr::Member(member_expr) => {
         check_expr_for_nested_optional_assert(
-          ts_non_null_expr.span(),
+          ts_non_null_expr.range(),
           &member_expr.obj,
           ctx,
         );
@@ -82,14 +82,14 @@ impl Handler for NoNonNullAssertedOptionalChainHandler {
       Expr::Call(call_expr) => {
         if let Callee::Expr(expr) = &call_expr.callee {
           check_expr_for_nested_optional_assert(
-            ts_non_null_expr.span(),
+            ts_non_null_expr.range(),
             expr,
             ctx,
           );
         }
       }
       Expr::Paren(paren_expr) => check_expr_for_nested_optional_assert(
-        ts_non_null_expr.span(),
+        ts_non_null_expr.range(),
         &paren_expr.expr,
         ctx,
       ),
@@ -97,7 +97,7 @@ impl Handler for NoNonNullAssertedOptionalChainHandler {
     };
 
     check_expr_for_nested_optional_assert(
-      ts_non_null_expr.span(),
+      ts_non_null_expr.range(),
       &ts_non_null_expr.expr,
       ctx,
     );

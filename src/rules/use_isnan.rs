@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRanged;
 use deno_ast::view::{BinExpr, BinaryOp, Expr, Ident, SwitchStmt};
 use derive_more::Display;
 use std::sync::Arc;
@@ -79,7 +79,7 @@ impl Handler for UseIsNaNHandler {
       if let Expr::Ident(ident) = bin_expr.left {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(
-            bin_expr.span(),
+            bin_expr.range(),
             CODE,
             UseIsNaNMessage::Comparison,
           );
@@ -88,7 +88,7 @@ impl Handler for UseIsNaNHandler {
       if let Expr::Ident(ident) = bin_expr.right {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(
-            bin_expr.span(),
+            bin_expr.range(),
             CODE,
             UseIsNaNMessage::Comparison,
           );
@@ -101,7 +101,7 @@ impl Handler for UseIsNaNHandler {
     if let Expr::Ident(ident) = switch_stmt.discriminant {
       if is_nan_identifier(ident) {
         ctx.add_diagnostic(
-          switch_stmt.span(),
+          switch_stmt.range(),
           CODE,
           UseIsNaNMessage::SwitchUnmatched,
         );
@@ -111,7 +111,7 @@ impl Handler for UseIsNaNHandler {
     for case in &switch_stmt.cases {
       if let Some(Expr::Ident(ident)) = &case.test {
         if is_nan_identifier(ident) {
-          ctx.add_diagnostic(case.span(), CODE, UseIsNaNMessage::CaseUnmatched);
+          ctx.add_diagnostic(case.range(), CODE, UseIsNaNMessage::CaseUnmatched);
         }
       }
     }

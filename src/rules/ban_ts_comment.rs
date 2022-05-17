@@ -1,9 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::swc::common::Span;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;
@@ -51,9 +52,9 @@ impl DirectiveKind {
 }
 
 impl BanTsComment {
-  fn report(&self, context: &mut Context, span: Span, kind: DirectiveKind) {
+  fn report(&self, context: &mut Context, range: SourceRange, kind: DirectiveKind) {
     context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       kind.as_message(),
       kind.as_hint(),
@@ -83,15 +84,15 @@ impl LintRule for BanTsComment {
     context: &mut Context,
     _program: Program,
   ) {
-    let mut violated_comment_spans = Vec::new();
+    let mut violated_comment_ranges = Vec::new();
 
-    violated_comment_spans.extend(context.all_comments().filter_map(|c| {
+    violated_comment_ranges.extend(context.all_comments().filter_map(|c| {
       let kind = check_comment(c)?;
-      Some((c.span, kind))
+      Some((c.range(), kind))
     }));
 
-    for (span, kind) in violated_comment_spans {
-      self.report(context, span, kind);
+    for (range, kind) in violated_comment_ranges {
+      self.report(context, range, kind);
     }
   }
 

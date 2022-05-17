@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
 use once_cell::sync::Lazy;
@@ -32,18 +33,18 @@ impl LintRule for BanUntaggedTodo {
     context: &mut Context,
     _program: Program,
   ) {
-    let mut violated_comment_spans = Vec::new();
+    let mut violated_comment_ranges = Vec::new();
 
-    violated_comment_spans.extend(context.all_comments().filter_map(|c| {
+    violated_comment_ranges.extend(context.all_comments().filter_map(|c| {
       if check_comment(c) {
-        Some(c.span)
+        Some(c.range())
       } else {
         None
       }
     }));
 
-    for span in violated_comment_spans {
-      context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+    for range in violated_comment_ranges {
+      context.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
     }
   }
 

@@ -55,7 +55,7 @@ impl Handler for NoOctalHandler {
     let raw_number = ctx.file_text_substring(&literal_num.span());
 
     if OCTAL.is_match(raw_number) {
-      ctx.add_diagnostic_with_hint(literal_num.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(literal_num.range(), CODE, MESSAGE, HINT);
     }
   }
 }

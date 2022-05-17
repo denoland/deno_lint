@@ -284,7 +284,7 @@ fn process_function<'a, N>(
 
   if let Some(message) = function_info.should_report() {
     ctx.add_diagnostic_with_hint(
-      node.span(),
+      node.range(),
       CODE,
       message,
       RequireAwaitHint::RemoveOrUse,

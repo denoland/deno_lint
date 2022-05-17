@@ -1,8 +1,9 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::SourceRange;
 use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
-use deno_ast::swc::common::Span;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
 use derive_more::Display;
@@ -67,9 +68,9 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn add_diagnostic(&mut self, span: Span) {
+  fn add_diagnostic(&mut self, range: SourceRange) {
     self.context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoConstantConditionMessage::Unexpected,
       NoConstantConditionHint::Remove,
@@ -179,8 +180,8 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
 
   fn report(&mut self, condition: &Expr) {
     if self.is_constant(condition, None, true) {
-      let span = condition.span();
-      self.add_diagnostic(span);
+      let range = condition.range();
+      self.add_diagnostic(range);
     }
   }
 }

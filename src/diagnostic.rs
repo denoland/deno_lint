@@ -12,18 +12,18 @@ pub struct Position {
   /// The 0-indexed column index.
   #[serde(rename(serialize = "col"))]
   pub column_index: usize,
-  pub byte_pos: usize,
+  pub byte_index: usize,
 }
 
 impl Position {
   pub fn new(
-    byte_pos: deno_ast::swc::common::BytePos,
+    byte_index: usize,
     loc: deno_ast::LineAndColumnIndex,
   ) -> Self {
     Position {
       line_index: loc.line_index,
       column_index: loc.column_index,
-      byte_pos: byte_pos.0 as usize,
+      byte_index,
     }
   }
 }

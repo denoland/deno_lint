@@ -2,9 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::swc::utils::ident::IdentLike;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use deno_ast::view::NodeTrait;
 use deno_ast::Scope;
 use if_chain::if_chain;
@@ -108,10 +106,10 @@ impl Handler for PreferPrimordialsHandler {
         return true;
       }
       if let Some(decl) = node.to::<ast_view::VarDeclarator>() {
-        return decl.name.span().contains(orig.span());
+        return decl.name.range().contains(orig.range());
       }
       if let Some(kv) = node.to::<ast_view::KeyValueProp>() {
-        return kv.key.span().contains(orig.span());
+        return kv.key.range().contains(orig.range());
       }
 
       match node.parent() {
@@ -132,7 +130,7 @@ impl Handler for PreferPrimordialsHandler {
     if TARGETS.contains(&ident.sym().as_ref())
       && !is_shadowed(ident, ctx.scope())
     {
-      ctx.add_diagnostic_with_hint(ident.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(ident.range(), CODE, MESSAGE, HINT);
     }
   }
 
@@ -145,7 +143,7 @@ impl Handler for PreferPrimordialsHandler {
       if expr_or_spread.inner.spread.is_some();
       if !expr_or_spread.inner.expr.is_new();
       then {
-        ctx.add_diagnostic_with_hint(expr_or_spread.span(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(expr_or_spread.range(), CODE, MESSAGE, HINT);
       }
     }
   }
@@ -157,7 +155,7 @@ impl Handler for PreferPrimordialsHandler {
   ) {
     if !for_of_stmt.right.is::<ast_view::NewExpr>() {
       ctx.add_diagnostic_with_hint(
-        for_of_stmt.right.span(),
+        for_of_stmt.right.range(),
         CODE,
         MESSAGE,
         HINT,
@@ -186,7 +184,7 @@ impl Handler for PreferPrimordialsHandler {
     // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
     // ```
     if let Expr::Array(_) = &member_expr.obj {
-      ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(member_expr.range(), CODE, MESSAGE, HINT);
       return;
     }
 
@@ -200,7 +198,7 @@ impl Handler for PreferPrimordialsHandler {
       if let Expr::Ident(ident) = &member_expr.obj;
       if TARGETS.contains(&ident.sym().as_ref());
       then {
-        ctx.add_diagnostic_with_hint(member_expr.span(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(member_expr.range(), CODE, MESSAGE, HINT);
       }
     }
   }
@@ -210,7 +208,7 @@ impl Handler for PreferPrimordialsHandler {
     if matches!(bin_expr.op(), BinaryOp::InstanceOf)
       || matches!(bin_expr.op(), BinaryOp::In)
     {
-      ctx.add_diagnostic_with_hint(bin_expr.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(bin_expr.range(), CODE, MESSAGE, HINT);
     }
   }
 }

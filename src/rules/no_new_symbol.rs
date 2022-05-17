@@ -53,7 +53,7 @@ impl Handler for NoNewSymbolHandler {
       if *ident.sym() == *"Symbol";
       if ctx.scope().var(&ident.to_id()).is_none();
       then {
-        ctx.add_diagnostic(new_expr.span(), CODE, MESSAGE);
+        ctx.add_diagnostic(new_expr.range(), CODE, MESSAGE);
       }
     }
   }

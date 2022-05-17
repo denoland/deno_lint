@@ -18,7 +18,6 @@ use std::sync::{Arc, Mutex};
 mod color;
 mod config;
 mod diagnostics;
-mod lexer;
 mod rules;
 
 fn create_cli_app<'a>() -> Command<'a> {

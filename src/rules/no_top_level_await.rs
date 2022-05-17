@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRanged;
 use deno_ast::view::NodeTrait;
 use deno_ast::view::{self as ast_view};
 use if_chain::if_chain;
@@ -50,7 +50,7 @@ impl Handler for NoTopLevelAwaitHandler {
     ctx: &mut Context,
   ) {
     if !is_node_inside_function(await_expr) {
-      ctx.add_diagnostic(await_expr.span(), CODE, MESSAGE);
+      ctx.add_diagnostic(await_expr.range(), CODE, MESSAGE);
     }
   }
 
@@ -63,7 +63,7 @@ impl Handler for NoTopLevelAwaitHandler {
       if for_of_stmt.await_token().is_some();
       if !is_node_inside_function(for_of_stmt);
       then {
-        ctx.add_diagnostic(for_of_stmt.span(), CODE, MESSAGE)
+        ctx.add_diagnostic(for_of_stmt.range(), CODE, MESSAGE)
       }
     }
   }

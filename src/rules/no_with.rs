@@ -47,7 +47,7 @@ struct NoWithHandler;
 
 impl Handler for NoWithHandler {
   fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
-    ctx.add_diagnostic(with_stmt.span(), CODE, MESSAGE);
+    ctx.add_diagnostic(with_stmt.range(), CODE, MESSAGE);
   }
 }
 

@@ -90,14 +90,14 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
       // Handle return / throw / break / continue
       for (idx, stmt) in case.cons.iter().enumerate() {
         let last = idx + 1 == case.cons.len();
-        let metadata = self.context.control_flow().meta(stmt.span().lo);
+        let metadata = self.context.control_flow().meta(stmt.start());
         stops_exec |= metadata.map(|v| v.stops_execution()).unwrap_or(false);
         if stops_exec {
           should_emit_err = false;
         }
 
         if last {
-          let comments = self.context.trailing_comments_at(stmt.span().hi);
+          let comments = self.context.trailing_comments_at(stmt.end());
           if allow_fall_through(comments) {
             should_emit_err = false;
             // User comment beats everything

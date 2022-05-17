@@ -2,9 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use deno_ast::view::NodeTrait;
 use std::sync::Arc;
 
@@ -101,14 +99,14 @@ impl Handler for NoThisBeforeSuperHandler {
 
     if let Some(body) = cons.body {
       for stmt in &body.stmts {
-        let mut checker = SuperCallChecker::new(stmt.span());
+        let mut checker = SuperCallChecker::new(stmt.range());
         checker.traverse(*stmt, ctx);
         match checker.result() {
           None => (),
           Some(FirstAppeared::SuperCalled) => break,
-          Some(FirstAppeared::ThisAccessed(span))
-          | Some(FirstAppeared::SuperAccessed(span)) => {
-            ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+          Some(FirstAppeared::ThisAccessed(range))
+          | Some(FirstAppeared::SuperAccessed(range)) => {
+            ctx.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
           }
         }
       }
@@ -118,20 +116,20 @@ impl Handler for NoThisBeforeSuperHandler {
 
 enum FirstAppeared {
   SuperCalled,
-  SuperAccessed(Span),
-  ThisAccessed(Span),
+  SuperAccessed(SourceRange),
+  ThisAccessed(SourceRange),
 }
 
 struct SuperCallChecker {
   first_appeared: Option<FirstAppeared>,
-  root_span: Span,
+  root_range: SourceRange,
 }
 
 impl SuperCallChecker {
-  fn new(root_span: Span) -> Self {
+  fn new(root_range: SourceRange) -> Self {
     Self {
       first_appeared: None,
-      root_span,
+      root_range,
     }
   }
 
@@ -144,9 +142,9 @@ impl SuperCallChecker {
   }
 
   fn node_is_inside_function(&self, node: ast_view::Node) -> bool {
-    fn inside_function(root_span: Span, cur_node: ast_view::Node) -> bool {
+    fn inside_function(root_span: SourceRange, cur_node: ast_view::Node) -> bool {
       // Stop recursion if the current node gets out of root_node.
-      if !root_span.contains(cur_node.span()) {
+      if !root_span.contains(&cur_node.range()) {
         return false;
       }
 
@@ -160,7 +158,7 @@ impl SuperCallChecker {
       inside_function(root_span, cur_node.parent().unwrap())
     }
 
-    inside_function(self.root_span, node)
+    inside_function(self.root_range, node)
   }
 }
 
@@ -171,7 +169,7 @@ impl Handler for SuperCallChecker {
     }
 
     if self.yet_appeared() {
-      self.first_appeared = Some(FirstAppeared::ThisAccessed(this_expr.span()));
+      self.first_appeared = Some(FirstAppeared::ThisAccessed(this_expr.range()));
     }
   }
 
@@ -181,7 +179,7 @@ impl Handler for SuperCallChecker {
     }
 
     if self.yet_appeared() {
-      self.first_appeared = Some(FirstAppeared::SuperAccessed(super_.span()));
+      self.first_appeared = Some(FirstAppeared::SuperAccessed(super_.range()));
     }
   }
 

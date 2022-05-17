@@ -4,6 +4,7 @@ use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use std::sync::Arc;
 
+use deno_ast::SourceRange;
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::Expr;
@@ -16,7 +17,7 @@ use deno_ast::swc::ast::Pat;
 use deno_ast::swc::ast::PatOrExpr;
 use deno_ast::swc::ast::Prop;
 use deno_ast::swc::ast::PropOrSpread;
-use deno_ast::swc::common::Span;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use derive_more::Display;
@@ -80,9 +81,9 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn add_diagnostic(&mut self, span: Span, name: impl ToString) {
+  fn add_diagnostic(&mut self, range: SourceRange, name: impl ToString) {
     self.context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoSelfAssignMessage::Invalid(name.to_string()),
       NoSelfAssignHint::Mistake,
@@ -160,7 +161,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
         MemberProp::PrivateName(name) => name.string_repr(),
       }
       .expect("Should be identifier");
-      self.add_diagnostic(right.span, name);
+      self.add_diagnostic(right.range(), name);
     }
   }
 
@@ -170,7 +171,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
 
   fn check_same_ident(&mut self, left: &Ident, right: &Ident) {
     if self.are_same_ident(left, right) {
-      self.add_diagnostic(right.span, &right.sym);
+      self.add_diagnostic(right.range(), &right.sym);
     }
   }
 

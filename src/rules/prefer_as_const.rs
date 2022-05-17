@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::{Span, Spanned};
+use deno_ast::SourceRange;
 use deno_ast::view::{
   ArrayPat, BindingIdent, Expr, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAnn, TsTypeAssertion, VarDecl,
@@ -62,28 +62,28 @@ impl LintRule for PreferAsConst {
 
 struct PreferAsConstHandler;
 
-fn add_diagnostic_helper(span: Span, ctx: &mut Context) {
+fn add_diagnostic_helper(range: SourceRange, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    span,
+    range,
     CODE,
     PreferAsConstMessage::ExpectedConstAssertion,
     PreferAsConstHint::AddAsConst,
   );
 }
 
-fn compare(type_ann: &TsType, expr: &Expr, span: Span, ctx: &mut Context) {
+fn compare(type_ann: &TsType, expr: &Expr, range: SourceRange, ctx: &mut Context) {
   if let TsType::TsLitType(lit_type) = &*type_ann {
     if let Expr::Lit(expr_lit) = &*expr {
       match (expr_lit, &lit_type.lit) {
         (Lit::Str(value_literal), TsLit::Str(type_literal)) => {
           if value_literal.value() == type_literal.value() {
-            add_diagnostic_helper(span, ctx)
+            add_diagnostic_helper(range, ctx)
           }
         }
         (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
           if (value_literal.value() - type_literal.value()).abs() < f64::EPSILON
           {
-            add_diagnostic_helper(span, ctx)
+            add_diagnostic_helper(range, ctx)
           }
         }
         _ => {}
@@ -97,7 +97,7 @@ impl Handler for PreferAsConstHandler {
     compare(
       &as_expr.type_ann,
       &as_expr.expr,
-      as_expr.type_ann.span(),
+      as_expr.type_ann.range(),
       ctx,
     );
   }
@@ -110,7 +110,7 @@ impl Handler for PreferAsConstHandler {
     compare(
       &type_assertion.type_ann,
       &type_assertion.expr,
-      type_assertion.type_ann.span(),
+      type_assertion.type_ann.range(),
       ctx,
     );
   }
@@ -123,7 +123,7 @@ impl Handler for PreferAsConstHandler {
         | Pat::Ident(BindingIdent { type_ann, .. }) = &decl.name
         {
           if let Some(TsTypeAnn { type_ann, .. }) = &type_ann {
-            compare(type_ann, init, type_ann.span(), ctx);
+            compare(type_ann, init, type_ann.range(), ctx);
           }
         }
       }

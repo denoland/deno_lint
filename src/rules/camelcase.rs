@@ -3,9 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged, SourceRange};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
@@ -342,17 +340,17 @@ impl IdentToCheck {
 #[derive(Default)]
 struct CamelcaseHandler {
   /// Accumulated errors to report
-  errors: BTreeMap<Span, IdentToCheck>,
+  errors: BTreeMap<SourceRange, IdentToCheck>,
   /// Already visited identifiers
-  visited: BTreeSet<Span>,
+  visited: BTreeSet<SourceRange>,
 }
 
 impl CamelcaseHandler {
   /// Report accumulated errors, consuming `self`.
   fn report_errors(self, ctx: &mut Context) {
-    for (span, error_ident) in self.errors {
+    for (range, error_ident) in self.errors {
       ctx.add_diagnostic_with_hint(
-        span,
+        range,
         CODE,
         error_ident.to_message(),
         error_ident.to_hint(),
@@ -361,10 +359,10 @@ impl CamelcaseHandler {
   }
 
   /// Check if this ident is underscored only when it's not yet visited.
-  fn check_ident<S: Spanned>(&mut self, span: &S, ident: IdentToCheck) {
-    let span = span.span();
-    if self.visited.insert(span) && is_underscored(ident.get_ident_name()) {
-      self.errors.insert(span, ident);
+  fn check_ident<S: SourceRanged>(&mut self, range: &S, ident: IdentToCheck) {
+    let range = range.range();
+    if self.visited.insert(range) && is_underscored(ident.get_ident_name()) {
+      self.errors.insert(range, ident);
     }
   }
 

@@ -43,7 +43,7 @@ impl LintRule for NoInvalidTripleSlashReference {
       .filter_map(|comment| check_comment(comment, is_js_like))
     {
       context.add_diagnostic_with_hint(
-        report_kind.span(),
+        report_kind.range(),
         CODE,
         report_kind.as_message(),
         report_kind.as_hint(),

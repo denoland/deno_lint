@@ -14,8 +14,6 @@ use deno_ast::Scope;
 use std::sync::Arc;
 use std::time::Instant;
 
-pub use deno_ast::view::SourceFile;
-
 #[derive(Default)]
 pub struct LinterBuilder {
   ignore_file_directive: String,
@@ -174,18 +172,19 @@ impl Linter {
       let line_ignore_directives =
         parse_line_ignore_directives(&self.ignore_diagnostic_directive, pg);
 
-      let scope = Scope::analyze(pg);
+      let scope = Scope::analyze(pg, parsed_source.unresolved_context());
 
       let mut context = Context::new(
         parsed_source.specifier().to_string(),
         self.media_type,
-        parsed_source.source(),
+        parsed_source.text_info(),
         pg,
         file_ignore_directive,
         line_ignore_directives,
         scope,
         control_flow,
         parsed_source.top_level_context(),
+        parsed_source.unresolved_context(),
         check_unknown_rules,
       );
 

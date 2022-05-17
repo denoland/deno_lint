@@ -2,8 +2,10 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::ast::Id;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::{
-  ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Visit,
+  ast::*, utils::find_pat_ids, visit::Visit,
   visit::VisitWith,
 };
 use std::sync::Arc;
@@ -61,7 +63,7 @@ impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
     let id = i.to_id();
 
     if !self.bindings.insert(id) {
-      self.context.add_diagnostic(i.span, CODE, MESSAGE);
+      self.context.add_diagnostic(i.range(), CODE, MESSAGE);
     }
   }
 }
@@ -80,7 +82,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   }
 
   fn visit_var_declarator(&mut self, v: &VarDeclarator) {
-    let ids: Vec<Ident> = find_ids(&v.name);
+    let ids: Vec<Ident> = find_pat_ids(&v.name);
 
     for id in ids {
       self.declare(&id);
@@ -88,7 +90,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   }
 
   fn visit_param(&mut self, p: &Param) {
-    let ids: Vec<Ident> = find_ids(&p.pat);
+    let ids: Vec<Ident> = find_pat_ids(&p.pat);
 
     for id in ids {
       self.declare(&id);

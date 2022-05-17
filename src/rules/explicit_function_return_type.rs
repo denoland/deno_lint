@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -65,7 +64,7 @@ impl Handler for ExplicitFunctionReturnTypeHandler {
 
     if function.return_type.is_none() && !is_method_setter {
       context.add_diagnostic_with_hint(
-        function.span(),
+        function.range(),
         CODE,
         ExplicitFunctionReturnTypeMessage::MissingRetType,
         ExplicitFunctionReturnTypeHint::AddRetType,

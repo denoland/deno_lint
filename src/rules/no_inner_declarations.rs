@@ -173,7 +173,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
 }
 
 impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
-  fn add_diagnostic(&mut self, span: Span, kind: &str) {
+  fn add_diagnostic(&mut self, span: SourceRange, kind: &str) {
     let root = if self.in_function {
       "function"
     } else {

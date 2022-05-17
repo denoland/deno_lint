@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use deno_ast::view::NodeTrait;
 use std::sync::Arc;
 
@@ -76,7 +75,7 @@ impl Handler for NoSetterReturnHandler {
     }
 
     if inside_setter(return_stmt.as_node()) {
-      ctx.add_diagnostic(return_stmt.span(), CODE, MESSAGE);
+      ctx.add_diagnostic(return_stmt.range(), CODE, MESSAGE);
     }
   }
 }

@@ -1,5 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 
+#![deny(clippy::disallowed_methods)]
+#![deny(clippy::disallowed_types)]
+
 #[macro_use]
 extern crate log;
 

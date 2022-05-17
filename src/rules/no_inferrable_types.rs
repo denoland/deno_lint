@@ -78,13 +78,13 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     )
   }
 
-  fn check_callee(&mut self, callee: &Callee, span: Span, expected_sym: &str) {
+  fn check_callee(&mut self, callee: &Callee, span: SourceRange, expected_sym: &str) {
     if let Callee::Expr(expr) = &callee {
       self.check_callee_expr(expr, span, expected_sym);
     }
   }
 
-  fn check_callee_expr(&mut self, expr: &Expr, span: Span, expected_sym: &str) {
+  fn check_callee_expr(&mut self, expr: &Expr, span: SourceRange, expected_sym: &str) {
     if let Expr::Ident(value) = expr {
       if value.sym == *expected_sym {
         self.add_diagnostic_helper(span);
@@ -100,7 +100,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     &mut self,
     value: &Expr,
     ts_type: &TsKeywordType,
-    span: Span,
+    span: SourceRange,
   ) {
     use TsKeywordTypeKind::*;
     match ts_type.kind {
@@ -393,7 +393,6 @@ mod tests {
       "const a = /a/",
       "const a = RegExp('a')",
       "const a = RegExp?.('a')",
-      "const a = new RegExp?.('a')",
       "const a = 'str'",
       r#"const a = "str""#,
       "const a = `str`",
@@ -632,13 +631,6 @@ mod tests {
         }
       ],
       "const a: RegExp = RegExp?.('a')": [
-        {
-          col: 6,
-          message: NoInferrableTypesMessage::NotAllowed,
-          hint: NoInferrableTypesHint::Remove,
-        }
-      ],
-      "const a: RegExp = new RegExp?.('a')": [
         {
           col: 6,
           message: NoInferrableTypesMessage::NotAllowed,

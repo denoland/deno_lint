@@ -13,9 +13,10 @@ use deno_ast::swc::ast::{
   VarDeclarator,
 };
 use deno_ast::swc::atoms::js_word;
-use deno_ast::swc::utils::ident::IdentLike;
-use deno_ast::swc::utils::{find_ids, Id};
+use deno_ast::swc::ast::Id;
+use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
@@ -373,7 +374,7 @@ impl Visit for Collector {
   }
 
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
-    let declaring_ids: Vec<Id> = find_ids(&declarator.name);
+    let declaring_ids: Vec<Id> = find_pat_ids(&declarator.name);
     self.with_cur_defining(declaring_ids, |a| {
       declarator.name.visit_with(a);
       declarator.init.visit_with(a);
@@ -452,7 +453,7 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
     if !self.used_vars.contains(&inner.to_id()) {
       // The variable is not used.
       self.context.add_diagnostic_with_hint(
-        inner.span,
+        inner.range(),
         CODE,
         ident.to_message(),
         ident.to_hint(),
@@ -463,7 +464,7 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
 
 impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
-    let declared_idents: Vec<Ident> = find_ids(&expr.params);
+    let declared_idents: Vec<Ident> = find_pat_ids(&expr.params);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));
@@ -493,7 +494,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   }
 
   fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
-    let declared_idents: Vec<Ident> = find_ids(&declarator.name);
+    let declared_idents: Vec<Ident> = find_pat_ids(&declarator.name);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));
@@ -512,7 +513,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   }
 
   fn visit_catch_clause(&mut self, clause: &CatchClause) {
-    let declared_idents: Vec<Ident> = find_ids(&clause.param);
+    let declared_idents: Vec<Ident> = find_pat_ids(&clause.param);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));
@@ -561,7 +562,7 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
   }
 
   fn visit_param(&mut self, param: &Param) {
-    let declared_idents: Vec<Ident> = find_ids(&param.pat);
+    let declared_idents: Vec<Ident> = find_pat_ids(&param.pat);
 
     for ident in declared_idents {
       self.handle_id(IdentKind::Other(&ident));

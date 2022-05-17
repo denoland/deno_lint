@@ -54,7 +54,7 @@ impl Handler for NoExplicitAnyHandler {
     ctx: &mut Context,
   ) {
     if ts_keyword_type.keyword_kind() == TsAnyKeyword {
-      ctx.add_diagnostic_with_hint(ts_keyword_type.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(ts_keyword_type.range(), CODE, MESSAGE, HINT);
     }
   }
 }

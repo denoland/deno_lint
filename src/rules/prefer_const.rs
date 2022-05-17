@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::SourceRange;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
   Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
@@ -84,7 +85,7 @@ type Scope = Rc<RefCell<RawScope>>;
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<JsWord, Span>,
+  variables: BTreeMap<JsWord, SourceRange>,
 }
 
 impl RawScope {
@@ -98,22 +99,22 @@ impl RawScope {
 
 #[derive(Debug)]
 struct DeclInfo {
-  /// the span of its declaration
-  span: Span,
+  /// the range of its declaration
+  range: SourceRange,
   /// `true` if this is declared in the other scope
   in_other_scope: bool,
 }
 
-/// Looks for the declaration span of the given variable by traversing from the given scope to the parents.
+/// Looks for the declaration range of the given variable by traversing from the given scope to the parents.
 /// Returns `None` if no matching span is found. Most likely it means the variable is not declared
 /// with `let`.
 fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
   let mut is_current_scope = true;
   while let Some(cur) = cur_scope {
-    if let Some(&span) = cur.borrow().variables.get(&ident.sym) {
+    if let Some(&range) = cur.borrow().variables.get(&ident.sym) {
       return Some(DeclInfo {
-        span,
+        range,
         in_other_scope: !is_current_scope,
       });
     }
@@ -163,7 +164,7 @@ impl DisjointSet {
     Self::default()
   }
 
-  fn proceed_status(&mut self, span: Span, force_reassigned: bool) {
+  fn proceed_status(&mut self, span: SourceRange, force_reassigned: bool) {
     // This unwrap is safe if VariableCollector works fine.
     // If it panics, it means a bug in implementation.
     let root = self.get_root(span).unwrap();
@@ -175,7 +176,7 @@ impl DisjointSet {
     }
   }
 
-  fn add_root(&mut self, span: Span, status: VarStatus) {
+  fn add_root(&mut self, span: SourceRange, status: VarStatus) {
     if self.parents.contains_key(&span) {
       return;
     }
@@ -727,17 +728,17 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
       [decl] => {
         self
           .var_groups
-          .proceed_status(decl.span, force_reassigned || decl.in_other_scope);
+          .proceed_status(decl.range, force_reassigned || decl.in_other_scope);
       }
       [first, others @ ..] => {
         self
           .var_groups
-          .proceed_status(first.span, force_reassigned || first.in_other_scope);
+          .proceed_status(first.range, force_reassigned || first.in_other_scope);
         for s in others {
           self
             .var_groups
-            .proceed_status(s.span, force_reassigned || s.in_other_scope);
-          self.var_groups.unite(first.span, s.span);
+            .proceed_status(s.range, force_reassigned || s.in_other_scope);
+          self.var_groups.unite(first.range, s.range);
         }
       }
     }

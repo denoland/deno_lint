@@ -72,7 +72,7 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
     &mut self,
     callee: &Expr,
     args: &[ExprOrSpread],
-    span: Span,
+    span: SourceRange,
   ) {
     if let Expr::Ident(ident) = callee {
       if ident.sym != *"RegExp" || args.is_empty() {

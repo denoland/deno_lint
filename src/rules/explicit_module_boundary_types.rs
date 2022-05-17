@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::ProgramRef;
-use deno_ast::swc::common::{Span, Spanned};
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -103,7 +102,7 @@ fn check_class(class: &ast_view::Class, ctx: &mut Context) {
 fn check_fn(function: &ast_view::Function, ctx: &mut Context) {
   if function.return_type.is_none() {
     ctx.add_diagnostic_with_hint(
-      function.span(),
+      function.range(),
       CODE,
       ExplicitModuleBoundaryTypesMessage::MissingRetType,
       ExplicitModuleBoundaryTypesHint::AddRetType,
@@ -117,7 +116,7 @@ fn check_fn(function: &ast_view::Function, ctx: &mut Context) {
 fn check_arrow(arrow: &ast_view::ArrowExpr, ctx: &mut Context) {
   if arrow.return_type.is_none() {
     ctx.add_diagnostic_with_hint(
-      arrow.span(),
+      arrow.range(),
       CODE,
       ExplicitModuleBoundaryTypesMessage::MissingRetType,
       ExplicitModuleBoundaryTypesHint::AddRetType,
@@ -128,14 +127,14 @@ fn check_arrow(arrow: &ast_view::ArrowExpr, ctx: &mut Context) {
   }
 }
 
-fn check_ann(ann: Option<&ast_view::TsTypeAnn>, span: Span, ctx: &mut Context) {
+fn check_ann(ann: Option<&ast_view::TsTypeAnn>, range: SourceRange, ctx: &mut Context) {
   if let Some(ann) = ann {
     if let ast_view::TsType::TsKeywordType(keyword_type) = ann.type_ann {
       if ast_view::TsKeywordTypeKind::TsAnyKeyword
         == keyword_type.keyword_kind()
       {
         ctx.add_diagnostic_with_hint(
-          span,
+          range,
           CODE,
           ExplicitModuleBoundaryTypesMessage::MissingArgType,
           ExplicitModuleBoundaryTypesHint::AddArgTypes,
@@ -144,7 +143,7 @@ fn check_ann(ann: Option<&ast_view::TsTypeAnn>, span: Span, ctx: &mut Context) {
     }
   } else {
     ctx.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       ExplicitModuleBoundaryTypesMessage::MissingArgType,
       ExplicitModuleBoundaryTypesHint::AddArgTypes,
@@ -155,15 +154,15 @@ fn check_ann(ann: Option<&ast_view::TsTypeAnn>, span: Span, ctx: &mut Context) {
 fn check_pat(pat: &ast_view::Pat, ctx: &mut Context) {
   match pat {
     ast_view::Pat::Ident(ident) => {
-      check_ann(ident.type_ann, ident.id.span(), ctx)
+      check_ann(ident.type_ann, ident.id.range(), ctx)
     }
-    ast_view::Pat::Array(array) => check_ann(array.type_ann, array.span(), ctx),
-    ast_view::Pat::Rest(rest) => check_ann(rest.type_ann, rest.span(), ctx),
+    ast_view::Pat::Array(array) => check_ann(array.type_ann, array.range(), ctx),
+    ast_view::Pat::Rest(rest) => check_ann(rest.type_ann, rest.range(), ctx),
     ast_view::Pat::Object(object) => {
-      check_ann(object.type_ann, object.span(), ctx)
+      check_ann(object.type_ann, object.range(), ctx)
     }
     ast_view::Pat::Assign(assign) => {
-      check_ann(assign.type_ann, assign.span(), ctx)
+      check_ann(assign.type_ann, assign.range(), ctx)
     }
     _ => {}
   };

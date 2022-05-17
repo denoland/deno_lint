@@ -49,7 +49,7 @@ impl LintRule for NoObjCalls {
 
 struct NoObjCallsHandler;
 
-fn check_callee(callee: &Ident, span: Span, ctx: &mut Context) {
+fn check_callee(callee: &Ident, span: SourceRange, ctx: &mut Context) {
   if matches!(
     callee.sym().as_ref(),
     "Math" | "JSON" | "Reflect" | "Atomics"
@@ -66,13 +66,13 @@ fn check_callee(callee: &Ident, span: Span, ctx: &mut Context) {
 impl Handler for NoObjCallsHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let Callee::Expr(Expr::Ident(ident)) = call_expr.callee {
-      check_callee(ident, call_expr.span(), ctx);
+      check_callee(ident, call_expr.range(), ctx);
     }
   }
 
   fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
     if let Expr::Ident(ident) = new_expr.callee {
-      check_callee(ident, new_expr.span(), ctx);
+      check_callee(ident, new_expr.range(), ctx);
     }
   }
 }

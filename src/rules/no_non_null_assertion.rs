@@ -55,7 +55,7 @@ impl Handler for NoNonNullAssertionHandler {
   ) {
     if !non_null_expr.parent().is::<TsNonNullExpr>() {
       ctx.add_diagnostic(
-        non_null_expr.span(),
+        non_null_expr.range(),
         CODE,
         NoNonNullAssertionMessage::Unexpected,
       );

@@ -48,7 +48,7 @@ impl NoEvalHandler {
   fn maybe_add_diagnostic(
     &mut self,
     source: &dyn StringRepr,
-    span: Span,
+    span: SourceRange,
     ctx: &mut Context,
   ) {
     if source.string_repr().as_deref() == Some("eval") {
@@ -56,7 +56,7 @@ impl NoEvalHandler {
     }
   }
 
-  fn add_diagnostic(&mut self, span: Span, ctx: &mut Context) {
+  fn add_diagnostic(&mut self, span: SourceRange, ctx: &mut Context) {
     ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 
@@ -65,12 +65,12 @@ impl NoEvalHandler {
       // Nested paren callee ((eval))('var foo = 0;')
       Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
       // Single argument callee: (eval)('var foo = 0;')
-      Expr::Ident(ident) => self.maybe_add_diagnostic(ident, ident.span(), ctx),
+      Expr::Ident(ident) => self.maybe_add_diagnostic(ident, ident.range(), ctx),
       // Multiple arguments callee: (0, eval)('var foo = 0;')
       Expr::Seq(seq) => {
         for expr in &seq.exprs {
           if let Expr::Ident(ident) = expr {
-            self.maybe_add_diagnostic(*ident, ident.span(), ctx)
+            self.maybe_add_diagnostic(*ident, ident.range(), ctx)
           }
         }
       }
@@ -82,7 +82,7 @@ impl NoEvalHandler {
 impl Handler for NoEvalHandler {
   fn var_declarator(&mut self, v: &VarDeclarator, ctx: &mut Context) {
     if let Some(Expr::Ident(ident)) = &v.init {
-      self.maybe_add_diagnostic(*ident, v.span(), ctx);
+      self.maybe_add_diagnostic(*ident, v.range(), ctx);
     }
   }
 
@@ -90,7 +90,7 @@ impl Handler for NoEvalHandler {
     if let Callee::Expr(expr) = &call_expr.callee {
       match expr {
         Expr::Ident(ident) => {
-          self.maybe_add_diagnostic(*ident, call_expr.span(), ctx)
+          self.maybe_add_diagnostic(*ident, call_expr.range(), ctx)
         }
         Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
         _ => {}

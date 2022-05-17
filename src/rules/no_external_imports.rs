@@ -71,7 +71,7 @@ impl NoExternalImportHandler {
 
     if parsed_src.is_ok() && file_name != Some("deps") {
       ctx.add_diagnostic_with_hint(
-        decl.span(),
+        decl.range(),
         CODE,
         NoExternalImportMessage::Unexpected,
         NoExternalImportHint::CreateDependencyFile,

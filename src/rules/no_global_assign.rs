@@ -69,8 +69,8 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn check(&mut self, span: Span, id: Id) {
-    if id.1 != self.context.top_level_ctxt() {
+  fn check(&mut self, span: SourceRange, id: Id) {
+    if id.1 != self.context.unresolved_ctxt() {
       return;
     }
 
