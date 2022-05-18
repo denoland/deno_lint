@@ -1,11 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::{swc::{
-  ast::*,
-  visit::{noop_visit_type, Visit, VisitWith},
-}, SourceRange, SwcSourceRanged};
 use deno_ast::BindingKind;
+use deno_ast::{
+  swc::{
+    ast::*,
+    visit::{noop_visit_type, Visit, VisitWith},
+  },
+  SourceRange, SwcSourceRanged,
+};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -73,7 +76,12 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     }
   }
 
-  fn check_assign(&mut self, range: SourceRange, lhs: &Expr, is_assign_to_prop: bool) {
+  fn check_assign(
+    &mut self,
+    range: SourceRange,
+    lhs: &Expr,
+    is_assign_to_prop: bool,
+  ) {
     if let Expr::Ident(lhs) = &lhs {
       self.check(range, lhs, is_assign_to_prop);
     }

@@ -2,12 +2,12 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::view::{
   ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
   TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 

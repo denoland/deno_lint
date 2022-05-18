@@ -3,8 +3,8 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
 use crate::{Program, ProgramRef};
-use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
+use deno_ast::{SourceRange, SourceRanged};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 

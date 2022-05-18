@@ -2,12 +2,12 @@
 use super::{Context, LintRule};
 use crate::js_regex::*;
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]

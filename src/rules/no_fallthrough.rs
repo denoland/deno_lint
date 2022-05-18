@@ -1,12 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::{SwcSourceRanged, SourceRange};
-use deno_ast::swc::common::{comments::Comment};
+use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::{SourceRange, SwcSourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 

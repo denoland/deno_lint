@@ -127,7 +127,11 @@ fn check_arrow(arrow: &ast_view::ArrowExpr, ctx: &mut Context) {
   }
 }
 
-fn check_ann(ann: Option<&ast_view::TsTypeAnn>, range: SourceRange, ctx: &mut Context) {
+fn check_ann(
+  ann: Option<&ast_view::TsTypeAnn>,
+  range: SourceRange,
+  ctx: &mut Context,
+) {
   if let Some(ann) = ann {
     if let ast_view::TsType::TsKeywordType(keyword_type) = ann.type_ann {
       if ast_view::TsKeywordTypeKind::TsAnyKeyword
@@ -156,7 +160,9 @@ fn check_pat(pat: &ast_view::Pat, ctx: &mut Context) {
     ast_view::Pat::Ident(ident) => {
       check_ann(ident.type_ann, ident.id.range(), ctx)
     }
-    ast_view::Pat::Array(array) => check_ann(array.type_ann, array.range(), ctx),
+    ast_view::Pat::Array(array) => {
+      check_ann(array.type_ann, array.range(), ctx)
+    }
     ast_view::Pat::Rest(rest) => check_ann(rest.type_ann, rest.range(), ctx),
     ast_view::Pat::Object(object) => {
       check_ann(object.type_ann, object.range(), ctx)

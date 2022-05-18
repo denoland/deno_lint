@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::{SourceRanged, SourceRange};
 use deno_ast::view::{CallExpr, Callee, Expr, ExprOrSpread, NewExpr};
+use deno_ast::{SourceRange, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -48,7 +48,11 @@ impl LintRule for NoArrayConstructor {
   }
 }
 
-fn check_args(args: Vec<&ExprOrSpread>, range: SourceRange, context: &mut Context) {
+fn check_args(
+  args: Vec<&ExprOrSpread>,
+  range: SourceRange,
+  context: &mut Context,
+) {
   if args.len() != 1 {
     context.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
   }

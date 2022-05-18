@@ -7,8 +7,8 @@ use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
 use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::visit::{noop_visit_type, Visit};
+use deno_ast::SwcSourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]

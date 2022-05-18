@@ -2,8 +2,6 @@
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr, FnDecl,
   FnExpr, GetterProp, MemberProp, MethodKind, MethodProp, PrivateMethod, Prop,
@@ -12,6 +10,8 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -121,7 +121,11 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     );
   }
 
-  fn check_getter(&mut self, getter_body_range: SourceRange, getter_range: SourceRange) {
+  fn check_getter(
+    &mut self,
+    getter_body_range: SourceRange,
+    getter_range: SourceRange,
+  ) {
     if self.getter_name.is_none() {
       return;
     }

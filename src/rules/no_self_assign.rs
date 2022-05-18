@@ -4,7 +4,6 @@ use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use std::sync::Arc;
 
-use deno_ast::SourceRange;
 use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::Expr;
@@ -17,9 +16,10 @@ use deno_ast::swc::ast::Pat;
 use deno_ast::swc::ast::PatOrExpr;
 use deno_ast::swc::ast::Prop;
 use deno_ast::swc::ast::PropOrSpread;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 
 #[derive(Debug)]

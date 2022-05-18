@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::swc::ast::Id;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignPatProp, CallExpr, CatchClause, ClassDecl, ClassMethod,
   ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
@@ -13,7 +14,6 @@ use deno_ast::swc::ast::{
   VarDeclarator,
 };
 use deno_ast::swc::atoms::js_word;
-use deno_ast::swc::ast::Id;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SwcSourceRanged;

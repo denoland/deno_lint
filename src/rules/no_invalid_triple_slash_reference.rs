@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::comments::{Comment, CommentKind};
-use deno_ast::{SwcSourceRanged, SourceRange};
 use deno_ast::MediaType;
+use deno_ast::{SourceRange, SwcSourceRanged};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;
@@ -165,13 +165,16 @@ fn is_no_default_lib_ref(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use deno_ast::StartSourcePos;
   use deno_ast::SourceRange;
+  use deno_ast::StartSourcePos;
 
   use super::*;
 
   fn dummy_range() -> SourceRange {
-    SourceRange::new(StartSourcePos::START_SOURCE_POS.into(), StartSourcePos::START_SOURCE_POS.into())
+    SourceRange::new(
+      StartSourcePos::START_SOURCE_POS.into(),
+      StartSourcePos::START_SOURCE_POS.into(),
+    )
   }
 
   #[test]

@@ -1,13 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::ast::Id;
-use deno_ast::SwcSourceRanged;
+use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::{
-  ast::*, utils::find_pat_ids, visit::Visit,
-  visit::VisitWith,
+  ast::*, utils::find_pat_ids, visit::Visit, visit::VisitWith,
 };
+use deno_ast::SwcSourceRanged;
 use std::sync::Arc;
 
 use std::collections::HashSet;

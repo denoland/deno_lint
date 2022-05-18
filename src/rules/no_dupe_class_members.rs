@@ -1,13 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::SourceRange;
 use deno_ast::swc::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;

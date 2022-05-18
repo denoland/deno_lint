@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
-use deno_ast::{view as ast_view, SourceRanged, SourceRange};
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};

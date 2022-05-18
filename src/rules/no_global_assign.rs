@@ -2,13 +2,13 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
-use deno_ast::SourceRange;
 use deno_ast::swc::ast::Id;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 

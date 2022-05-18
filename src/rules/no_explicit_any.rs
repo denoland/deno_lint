@@ -2,9 +2,9 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::swc::ast::TsKeywordTypeKind::TsAnyKeyword;
 use deno_ast::view::TsKeywordType;
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -54,7 +54,12 @@ impl Handler for NoExplicitAnyHandler {
     ctx: &mut Context,
   ) {
     if ts_keyword_type.keyword_kind() == TsAnyKeyword {
-      ctx.add_diagnostic_with_hint(ts_keyword_type.range(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(
+        ts_keyword_type.range(),
+        CODE,
+        MESSAGE,
+        HINT,
+      );
     }
   }
 }

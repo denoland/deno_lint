@@ -7,10 +7,12 @@ use crate::ignore_directives::{
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::SyntaxContext;
-use deno_ast::{view as ast_view, SourceRange, RootNode, SourcePos, ParsedSource};
-use deno_ast::SourceTextInfo;
 use deno_ast::MediaType;
 use deno_ast::Scope;
+use deno_ast::SourceTextInfo;
+use deno_ast::{
+  view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
+};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
@@ -57,7 +59,7 @@ impl<'view> Context<'view> {
 
   /// File name on which the lint rule is run
   pub fn file_name(&self) -> &str {
-    &self.parsed_source.specifier()
+    self.parsed_source.specifier()
   }
 
   /// The media type which linter was configured with. Can be used
@@ -132,20 +134,14 @@ impl<'view> Context<'view> {
     &self,
     start: SourcePos,
   ) -> impl Iterator<Item = &'view Comment> {
-    self
-      .program
-      .comment_container()
-      .leading_comments(start)
+    self.program.comment_container().leading_comments(start)
   }
 
   pub fn trailing_comments_at(
     &self,
     end: SourcePos,
   ) -> impl Iterator<Item = &'view Comment> {
-    self
-      .program
-      .comment_container()
-      .trailing_comments(end)
+    self.program.comment_container().trailing_comments(end)
   }
 
   /// Mark ignore directives as used if that directive actually suppresses some
@@ -304,8 +300,12 @@ impl<'view> Context<'view> {
     code: impl ToString,
     message: impl ToString,
   ) {
-    let diagnostic =
-      self.create_diagnostic(range, code.to_string(), message.to_string(), None);
+    let diagnostic = self.create_diagnostic(
+      range,
+      code.to_string(),
+      message.to_string(),
+      None,
+    );
     self.diagnostics.push(diagnostic);
   }
 

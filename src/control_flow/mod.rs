@@ -3,14 +3,14 @@
 #[cfg(test)]
 mod analyze_test;
 
-use deno_ast::swc::utils::ExprCtx;
-use deno_ast::{SourcePos, ParsedSource};
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::*;
+use deno_ast::swc::utils::ExprCtx;
 use deno_ast::swc::{
   utils::{ExprExt, Value},
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::SwcSourceRanged;
+use deno_ast::{ParsedSource, SourcePos};
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,
@@ -26,7 +26,10 @@ impl ControlFlow {
     let mut v = Analyzer {
       scope: Scope::new(None, BlockKind::Program),
       info: Default::default(),
-      expr_ctxt: ExprCtx { unresolved_ctxt: parsed_source.unresolved_context(), is_unresolved_ref_safe: false }
+      expr_ctxt: ExprCtx {
+        unresolved_ctxt: parsed_source.unresolved_context(),
+        is_unresolved_ref_safe: false,
+      },
     };
     match parsed_source.program_ref() {
       Program::Module(module) => module.visit_with(&mut v),
@@ -281,7 +284,9 @@ impl Analyzer<'_> {
         BlockKind::Program => {}
         BlockKind::Function => {
           match end {
-            End::Forced { .. } | End::Continue => self.mark_as_end(start_pos, end),
+            End::Forced { .. } | End::Continue => {
+              self.mark_as_end(start_pos, end)
+            }
             _ => { /* valid code is supposed to be unreachable here */ }
           }
           self.scope.end = prev_end;
@@ -629,7 +634,8 @@ impl Visit for Analyzer<'_> {
             forced_end = Some(end);
           }
           Some(test) => {
-            if matches!(test.cast_to_bool(&expr_ctxt), (_, Value::Known(true))) {
+            if matches!(test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
+            {
               a.mark_as_end(n.start(), end);
               forced_end = Some(end);
             }
@@ -714,8 +720,9 @@ impl Visit for Analyzer<'_> {
 
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
-      let infinite_loop = matches!(n.test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
-        && a.scope.found_break.is_none();
+      let infinite_loop =
+        matches!(n.test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
+          && a.scope.found_break.is_none();
       let has_break = matches!(a.scope.found_break, Some(None));
 
       if return_or_throw && !has_break {

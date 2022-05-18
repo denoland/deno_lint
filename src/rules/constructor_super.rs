@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::{view as ast_view, SourceRanged, SourceRange};
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use if_chain::if_chain;
 use std::sync::Arc;
 

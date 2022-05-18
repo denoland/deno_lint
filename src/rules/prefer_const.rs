@@ -1,8 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
   Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
@@ -14,6 +12,8 @@ use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -731,9 +731,10 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
           .proceed_status(decl.range, force_reassigned || decl.in_other_scope);
       }
       [first, others @ ..] => {
-        self
-          .var_groups
-          .proceed_status(first.range, force_reassigned || first.in_other_scope);
+        self.var_groups.proceed_status(
+          first.range,
+          force_reassigned || first.in_other_scope,
+        );
         for s in others {
           self
             .var_groups

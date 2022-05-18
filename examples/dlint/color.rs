@@ -1,5 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use deno_ast::{swc::parser::token::{Token, Word}, lex};
+use deno_ast::{
+  lex,
+  swc::parser::token::{Token, Word},
+};
 use if_chain::if_chain;
 use pulldown_cmark::{Options, Parser, Tag};
 use std::convert::TryFrom;

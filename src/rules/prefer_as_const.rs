@@ -2,11 +2,11 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::view::{
   ArrayPat, BindingIdent, Expr, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAnn, TsTypeAssertion, VarDecl,
 };
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -71,7 +71,12 @@ fn add_diagnostic_helper(range: SourceRange, ctx: &mut Context) {
   );
 }
 
-fn compare(type_ann: &TsType, expr: &Expr, range: SourceRange, ctx: &mut Context) {
+fn compare(
+  type_ann: &TsType,
+  expr: &Expr,
+  range: SourceRange,
+  ctx: &mut Context,
+) {
   if let TsType::TsLitType(lit_type) = &*type_ann {
     if let Expr::Lit(expr_lit) = &*expr {
       match (expr_lit, &lit_type.lit) {

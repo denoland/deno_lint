@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::view::{BinExpr, BinaryOp, Expr, Ident, SwitchStmt};
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -111,7 +111,11 @@ impl Handler for UseIsNaNHandler {
     for case in &switch_stmt.cases {
       if let Some(Expr::Ident(ident)) = &case.test {
         if is_nan_identifier(ident) {
-          ctx.add_diagnostic(case.range(), CODE, UseIsNaNMessage::CaseUnmatched);
+          ctx.add_diagnostic(
+            case.range(),
+            CODE,
+            UseIsNaNMessage::CaseUnmatched,
+          );
         }
       }
     }

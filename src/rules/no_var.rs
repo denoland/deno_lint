@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::view::{VarDecl, VarDeclKind};
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 #[derive(Debug)]
 pub struct NoVar;

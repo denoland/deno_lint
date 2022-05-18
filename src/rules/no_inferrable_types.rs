@@ -1,8 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::{
   ArrowExpr, CallExpr, ClassProp, Expr, Function, Ident, Lit, NewExpr, OptCall,
   OptChainBase, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
@@ -10,6 +8,8 @@ use deno_ast::swc::ast::{
 };
 use deno_ast::swc::ast::{Callee, PropName};
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -79,13 +79,23 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     )
   }
 
-  fn check_callee(&mut self, callee: &Callee, range: SourceRange, expected_sym: &str) {
+  fn check_callee(
+    &mut self,
+    callee: &Callee,
+    range: SourceRange,
+    expected_sym: &str,
+  ) {
     if let Callee::Expr(expr) = &callee {
       self.check_callee_expr(expr, range, expected_sym);
     }
   }
 
-  fn check_callee_expr(&mut self, expr: &Expr, range: SourceRange, expected_sym: &str) {
+  fn check_callee_expr(
+    &mut self,
+    expr: &Expr,
+    range: SourceRange,
+    expected_sym: &str,
+  ) {
     if let Expr::Ident(value) = expr {
       if value.sym == *expected_sym {
         self.add_diagnostic_helper(range);
@@ -246,7 +256,12 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn check_ref_type(&mut self, value: &Expr, ts_type: &TsTypeRef, range: SourceRange) {
+  fn check_ref_type(
+    &mut self,
+    value: &Expr,
+    ts_type: &TsTypeRef,
+    range: SourceRange,
+  ) {
     if let TsEntityName::Ident(ident) = &ts_type.type_name {
       if ident.sym != *"RegExp" {
         return;
@@ -281,7 +296,12 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn check_ts_type(&mut self, value: &Expr, ts_type: &TsTypeAnn, range: SourceRange) {
+  fn check_ts_type(
+    &mut self,
+    value: &Expr,
+    ts_type: &TsTypeAnn,
+    range: SourceRange,
+  ) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
       self.check_keyword_type(value, ts_type, range);
     } else if let TsType::TsTypeRef(ts_type) = &*ts_type.type_ann {
@@ -296,7 +316,11 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
       if let Pat::Assign(assign_pat) = &param.pat {
         if let Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
-            self.check_ts_type(&assign_pat.right, ident_type_ann, param.range());
+            self.check_ts_type(
+              &assign_pat.right,
+              ident_type_ann,
+              param.range(),
+            );
           }
         }
       }

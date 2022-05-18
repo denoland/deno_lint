@@ -7,8 +7,8 @@ use deno_ast::swc::ast::Expr::Lit;
 use deno_ast::swc::ast::Lit::Num;
 use deno_ast::swc::ast::UnaryExpr;
 use deno_ast::swc::ast::UnaryOp::Minus;
-use deno_ast::SourceRanged;
 use deno_ast::view::{BinExpr, BinaryOp, Expr};
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 

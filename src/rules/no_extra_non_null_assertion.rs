@@ -5,12 +5,12 @@ use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
 use deno_ast::view::Expr;
 use deno_ast::view::OptChainBase;
 use deno_ast::view::OptChainExpr;
 use deno_ast::view::TsNonNullExpr;
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 

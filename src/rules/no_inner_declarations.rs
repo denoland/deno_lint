@@ -1,8 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
@@ -10,6 +8,8 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::visit::{
   noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith,
 };
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -163,7 +163,10 @@ struct NoInnerDeclarationsVisitor<'c, 'view> {
 }
 
 impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>, valid_decls: HashSet<SourceRange>) -> Self {
+  fn new(
+    context: &'c mut Context<'view>,
+    valid_decls: HashSet<SourceRange>,
+  ) -> Self {
     Self {
       context,
       valid_decls,

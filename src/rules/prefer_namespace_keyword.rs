@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::view::{TsModuleDecl, TsModuleName};
+use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;

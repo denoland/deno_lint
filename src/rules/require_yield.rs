@@ -1,7 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::ClassMethod;
 use deno_ast::swc::ast::FnDecl;
 use deno_ast::swc::ast::FnExpr;
@@ -11,6 +10,7 @@ use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::SwcSourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]

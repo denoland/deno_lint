@@ -3,8 +3,8 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
-use deno_ast::{SourceRanged, SourceRange};
 use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
+use deno_ast::{SourceRange, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -64,7 +64,9 @@ impl NoEvalHandler {
       // Nested paren callee ((eval))('var foo = 0;')
       Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
       // Single argument callee: (eval)('var foo = 0;')
-      Expr::Ident(ident) => self.maybe_add_diagnostic(ident, ident.range(), ctx),
+      Expr::Ident(ident) => {
+        self.maybe_add_diagnostic(ident, ident.range(), ctx)
+      }
       // Multiple arguments callee: (0, eval)('var foo = 0;')
       Expr::Seq(seq) => {
         for expr in &seq.exprs {

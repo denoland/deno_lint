@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;
@@ -52,7 +52,12 @@ impl DirectiveKind {
 }
 
 impl BanTsComment {
-  fn report(&self, context: &mut Context, range: SourceRange, kind: DirectiveKind) {
+  fn report(
+    &self,
+    context: &mut Context,
+    range: SourceRange,
+    kind: DirectiveKind,
+  ) {
     context.add_diagnostic_with_hint(
       range,
       CODE,

@@ -2,13 +2,13 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
-use deno_ast::SwcSourceRanged;
 use deno_ast::view::{
   CallExpr, Callee, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ForStmt, Ident,
   IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
 };
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 

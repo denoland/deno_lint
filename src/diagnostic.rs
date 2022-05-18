@@ -16,10 +16,7 @@ pub struct Position {
 }
 
 impl Position {
-  pub fn new(
-    byte_index: usize,
-    loc: deno_ast::LineAndColumnIndex,
-  ) -> Self {
+  pub fn new(byte_index: usize, loc: deno_ast::LineAndColumnIndex) -> Self {
     Position {
       line_index: loc.line_index,
       column_index: loc.column_index,

@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use deno_ast::view::NodeTrait;
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -142,7 +142,10 @@ impl SuperCallChecker {
   }
 
   fn node_is_inside_function(&self, node: ast_view::Node) -> bool {
-    fn inside_function(root_range: SourceRange, cur_node: ast_view::Node) -> bool {
+    fn inside_function(
+      root_range: SourceRange,
+      cur_node: ast_view::Node,
+    ) -> bool {
       // Stop recursion if the current node gets out of root_node.
       if !root_range.contains(&cur_node.range()) {
         return false;
@@ -169,7 +172,8 @@ impl Handler for SuperCallChecker {
     }
 
     if self.yet_appeared() {
-      self.first_appeared = Some(FirstAppeared::ThisAccessed(this_expr.range()));
+      self.first_appeared =
+        Some(FirstAppeared::ThisAccessed(this_expr.range()));
     }
   }
 

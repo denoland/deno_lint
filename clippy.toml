@@ -5,5 +5,4 @@ disallowed-types = [
   "swc_common::BytePos",
   "swc_common::Span",
   "swc_common::Spanned",
-  "swc_ecma_parser::token::TokenAndSpan",
 ]

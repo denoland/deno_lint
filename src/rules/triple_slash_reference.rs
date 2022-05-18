@@ -1,10 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
+use deno_ast::SourceRange;
+use deno_ast::SwcSourceRanged;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -23,7 +23,11 @@ enum TripleSlashReferenceMessage {
 
 impl TripleSlashReference {
   fn report(&self, context: &mut Context, range: SourceRange) {
-    context.add_diagnostic(range, CODE, TripleSlashReferenceMessage::Unexpected);
+    context.add_diagnostic(
+      range,
+      CODE,
+      TripleSlashReferenceMessage::Unexpected,
+    );
   }
 }
 

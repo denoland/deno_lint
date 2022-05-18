@@ -3,11 +3,11 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
-use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::view::{
   GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
   SetterProp,
 };
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -64,7 +64,12 @@ impl LintRule for NoDupeKeys {
 struct NoDupeKeysHandler;
 
 impl NoDupeKeysHandler {
-  fn report(&mut self, range: SourceRange, key: impl Into<String>, ctx: &mut Context) {
+  fn report(
+    &mut self,
+    range: SourceRange,
+    key: impl Into<String>,
+    ctx: &mut Context,
+  ) {
     ctx.add_diagnostic_with_hint(
       range,
       CODE,

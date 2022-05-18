@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::{view as ast_view, SourceRanged};
 use deno_ast::view::{TsEntityName, TsKeywordTypeKind};
+use deno_ast::{view as ast_view, SourceRanged};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 use std::sync::Arc;

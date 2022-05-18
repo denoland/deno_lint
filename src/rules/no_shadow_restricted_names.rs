@@ -2,11 +2,11 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::view::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 

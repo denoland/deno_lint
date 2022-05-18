@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRanged;
 use deno_ast::view::{CallExpr, Callee, Expr, MemberProp};
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 
 const BANNED_PROPERTIES: &[&str] =
