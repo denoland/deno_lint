@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::{
   DoWhileStmt, EmptyStmt, ForInStmt, ForOfStmt, ForStmt, IfStmt, LabeledStmt,
   Stmt, WhileStmt, WithStmt,
@@ -72,7 +73,7 @@ impl<'c, 'view> Visit for NoExtraSemiVisitor<'c, 'view> {
 
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt) {
     self.context.add_diagnostic_with_hint(
-      empty_stmt.span,
+      empty_stmt.range(),
       CODE,
       NoExtraSemiMessage::Unnecessary,
       NoExtraSemiHint::Remove,

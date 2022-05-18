@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::comments::{Comment, CommentKind};
-use deno_ast::swc::common::Span;
+use deno_ast::{SwcSourceRanged, SourceRange};
 use deno_ast::MediaType;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -61,10 +61,10 @@ impl LintRule for NoInvalidTripleSlashReference {
 enum ReportKind {
   /// In JavaScript files, the directives other than `types`, `path` and `lib` are not allowed. This variant
   /// represents such invalid directives in JavaScript.
-  InvalidDirectiveInJs(Span),
+  InvalidDirectiveInJs(SourceRange),
 
   /// Represents an unsupported or badly-formed directive
-  InvalidDirective(Span),
+  InvalidDirective(SourceRange),
 }
 
 impl ReportKind {
@@ -92,11 +92,11 @@ impl ReportKind {
     }
   }
 
-  fn span(&self) -> Span {
+  fn range(&self) -> SourceRange {
     use ReportKind::*;
     match *self {
-      InvalidDirectiveInJs(span) => span,
-      InvalidDirective(span) => span,
+      InvalidDirectiveInJs(range) => range,
+      InvalidDirective(range) => range,
     }
   }
 }
@@ -134,7 +134,7 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
     {
       None
     } else {
-      Some(ReportKind::InvalidDirectiveInJs(comment.span))
+      Some(ReportKind::InvalidDirectiveInJs(comment.range()))
     }
   } else if is_path_ref(&comment.text)
     || is_types_ref(&comment.text)
@@ -143,7 +143,7 @@ fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
   {
     None
   } else {
-    Some(ReportKind::InvalidDirective(comment.span))
+    Some(ReportKind::InvalidDirective(comment.range()))
   }
 }
 
@@ -165,8 +165,12 @@ fn is_no_default_lib_ref(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+  use deno_ast::StartSourcePos;
+  use deno_ast::SourceRange;
+
   use super::*;
-  use deno_ast::swc::common::DUMMY_SP;
+
+  const DUMMY_RANGE: SourceRange = SourceRange::new(StartSourcePos::START_SOURCE_POS.into(), StartSourcePos::START_SOURCE_POS.into());
 
   #[test]
   fn test_is_path_ref() {
@@ -227,14 +231,14 @@ mod tests {
   fn line(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Line,
-      span: DUMMY_SP,
+      span: DUMMY_RANGE.into(),
       text: text.to_string(),
     }
   }
   fn block(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Block,
-      span: DUMMY_SP,
+      span: DUMMY_RANGE.into(),
       text: text.to_string(),
     }
   }
@@ -273,7 +277,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, true).unwrap();
-      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(DUMMY_SP))
+      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(DUMMY_RANGE))
     }
   }
 
@@ -300,7 +304,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, false).unwrap();
-      assert_eq!(report_kind, ReportKind::InvalidDirective(DUMMY_SP))
+      assert_eq!(report_kind, ReportKind::InvalidDirective(DUMMY_RANGE))
     }
   }
 
@@ -344,11 +348,11 @@ mod tests {
   #[test]
   fn triple_slash_reference_invalid() {
     let (not_types_in_js_msg, not_types_in_js_hint) = {
-      let r = ReportKind::InvalidDirectiveInJs(DUMMY_SP);
+      let r = ReportKind::InvalidDirectiveInJs(DUMMY_RANGE);
       (r.as_message(), r.as_hint())
     };
     let (invalid_directive_msg, invalid_directive_hint) = {
-      let r = ReportKind::InvalidDirective(DUMMY_SP);
+      let r = ReportKind::InvalidDirective(DUMMY_RANGE);
       (r.as_message(), r.as_hint())
     };
 

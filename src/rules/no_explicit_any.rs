@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::SourceRanged;
 use deno_ast::swc::ast::TsKeywordTypeKind::TsAnyKeyword;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::TsKeywordType;
 use std::sync::Arc;
 

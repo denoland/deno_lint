@@ -4,6 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 
+use deno_ast::SourceRanged;
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{NodeTrait, Program};
 use derive_more::Display;
@@ -270,7 +271,7 @@ fn process_function<'a, N>(
   function_info: FunctionInfo,
   ctx: &mut Context,
 ) where
-  N: NodeTrait<'a> + Spanned,
+  N: NodeTrait<'a>,
 {
   let mut function_handler = FunctionHandler {
     function_info: Some(Box::new(function_info)),

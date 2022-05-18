@@ -1,13 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
-use deno_ast::swc::{
+use deno_ast::{swc::{
   ast::*,
   utils::ident::IdentLike,
   visit::{noop_visit_type, Visit, VisitWith},
-};
+}, SourceRange, SwcSourceRanged};
 use deno_ast::BindingKind;
 use std::sync::Arc;
 
@@ -58,12 +56,12 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn check(&mut self, span: SourceRange, i: &Ident, is_assign_to_prop: bool) {
+  fn check(&mut self, range: SourceRange, i: &Ident, is_assign_to_prop: bool) {
     let var = self.context.scope().var(&i.to_id());
     if var.map_or(false, |v| v.kind() == BindingKind::NamespaceImport) {
       self
         .context
-        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
       return;
     }
 
@@ -72,26 +70,26 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     {
       self
         .context
-        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
     }
   }
 
-  fn check_assign(&mut self, span: SourceRange, lhs: &Expr, is_assign_to_prop: bool) {
+  fn check_assign(&mut self, range: SourceRange, lhs: &Expr, is_assign_to_prop: bool) {
     if let Expr::Ident(lhs) = &lhs {
-      self.check(span, lhs, is_assign_to_prop);
+      self.check(range, lhs, is_assign_to_prop);
     }
   }
 
-  fn check_expr(&mut self, span: SourceRange, e: &Expr) {
+  fn check_expr(&mut self, range: SourceRange, e: &Expr) {
     match e {
       Expr::Ident(i) => {
-        self.check(span, i, false);
+        self.check(range, i, false);
       }
-      Expr::Member(e) => self.check_assign(span, &e.obj, true),
-      Expr::Paren(e) => self.check_expr(span, &e.expr),
+      Expr::Member(e) => self.check_assign(range, &e.obj, true),
+      Expr::Paren(e) => self.check_expr(range, &e.expr),
       Expr::OptChain(e) => match &e.base {
         OptChainBase::Call(e) => self.visit_opt_call(e),
-        OptChainBase::Member(e) => self.check_expr(span, &e.obj),
+        OptChainBase::Member(e) => self.check_expr(range, &e.obj),
       },
       _ => e.visit_children_with(self),
     }
@@ -168,7 +166,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
   fn visit_pat(&mut self, n: &Pat) {
     match n {
       Pat::Ident(i) => {
-        self.check(i.id.span, &i.id, false);
+        self.check(i.id.range(), &i.id, false);
       }
       Pat::Expr(e) => {
         self.check_expr(n.range(), e);
@@ -183,7 +181,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
     if let Pat::Expr(e) = &*n.arg {
       match &**e {
         Expr::Ident(i) => {
-          self.check(i.span, i, true);
+          self.check(i.range(), i, true);
         }
         _ => {
           self.check_expr(e.range(), e);
@@ -197,7 +195,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
   fn visit_assign_expr(&mut self, n: &AssignExpr) {
     match &n.left {
       PatOrExpr::Expr(e) => {
-        self.check_expr(n.span, e);
+        self.check_expr(n.range(), e);
       }
       PatOrExpr::Pat(p) => {
         p.visit_with(self);
@@ -207,18 +205,18 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
   }
 
   fn visit_assign_pat_prop(&mut self, n: &AssignPatProp) {
-    self.check(n.key.span, &n.key, false);
+    self.check(n.key.range(), &n.key, false);
 
     n.value.visit_children_with(self);
   }
 
   fn visit_update_expr(&mut self, n: &UpdateExpr) {
-    self.check_expr(n.span, &n.arg);
+    self.check_expr(n.range(), &n.arg);
   }
 
   fn visit_unary_expr(&mut self, n: &UnaryExpr) {
     if let UnaryOp::Delete = n.op {
-      self.check_expr(n.span, &n.arg);
+      self.check_expr(n.range(), &n.arg);
     } else {
       n.arg.visit_with(self);
     }
@@ -230,7 +228,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
     if let Callee::Expr(callee) = &n.callee {
       if let Some(arg) = n.args.first() {
         if self.modifies_first(callee) {
-          self.check_assign(n.span, &arg.expr, true);
+          self.check_assign(n.range(), &arg.expr, true);
         }
       }
     }
@@ -241,7 +239,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
 
     if let Some(arg) = n.args.first() {
       if self.modifies_first(&*n.callee) {
-        self.check_assign(n.span, &arg.expr, true);
+        self.check_assign(n.range(), &arg.expr, true);
       }
     }
   }

@@ -2,6 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Callee, Expr, TsNonNullExpr};
 use derive_more::Display;
@@ -52,13 +53,13 @@ impl LintRule for NoNonNullAssertedOptionalChain {
 struct NoNonNullAssertedOptionalChainHandler;
 
 fn check_expr_for_nested_optional_assert(
-  span: SourceRange,
+  range: SourceRange,
   expr: &Expr,
   ctx: &mut Context,
 ) {
   if let Expr::OptChain(_) = expr {
     ctx.add_diagnostic(
-      span,
+      range,
       CODE,
       NoNonNullAssertedOptionalChainMessage::WrongAssertion,
     );

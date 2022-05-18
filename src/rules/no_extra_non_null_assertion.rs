@@ -5,8 +5,8 @@ use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
 use crate::ProgramRef;
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
 use deno_ast::view::Expr;
 use deno_ast::view::OptChainBase;
 use deno_ast::view::OptChainExpr;
@@ -64,9 +64,9 @@ impl LintRule for NoExtraNonNullAssertion {
 
 struct NoExtraNonNullAssertionHandler;
 
-fn add_diagnostic(span: SourceRange, ctx: &mut Context) {
+fn add_diagnostic(range: SourceRange, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    span,
+    range,
     CODE,
     NoExtraNonNullAssertionMessage::Unexpected,
     NoExtraNonNullAssertionHint::Remove,
@@ -74,14 +74,14 @@ fn add_diagnostic(span: SourceRange, ctx: &mut Context) {
 }
 
 fn check_expr_for_nested_non_null_assert(
-  span: SourceRange,
+  range: SourceRange,
   expr: &Expr,
   ctx: &mut Context,
 ) {
   match expr {
-    Expr::TsNonNull(_) => add_diagnostic(span, ctx),
+    Expr::TsNonNull(_) => add_diagnostic(range, ctx),
     Expr::Paren(paren_expr) => {
-      check_expr_for_nested_non_null_assert(span, &paren_expr.expr, ctx)
+      check_expr_for_nested_non_null_assert(range, &paren_expr.expr, ctx)
     }
     _ => {}
   }

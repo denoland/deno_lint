@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::view::{CallExpr, Callee, Expr, Ident, NewExpr};
 use std::sync::Arc;
 
@@ -49,14 +48,14 @@ impl LintRule for NoObjCalls {
 
 struct NoObjCallsHandler;
 
-fn check_callee(callee: &Ident, span: SourceRange, ctx: &mut Context) {
+fn check_callee(callee: &Ident, range: SourceRange, ctx: &mut Context) {
   if matches!(
     callee.sym().as_ref(),
     "Math" | "JSON" | "Reflect" | "Atomics"
   ) && ctx.scope().var(&callee.to_id()).is_none()
   {
     ctx.add_diagnostic(
-      span,
+      range,
       "no-obj-calls",
       get_message(callee.sym().as_ref()),
     );

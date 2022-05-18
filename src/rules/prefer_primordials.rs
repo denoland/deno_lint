@@ -106,10 +106,10 @@ impl Handler for PreferPrimordialsHandler {
         return true;
       }
       if let Some(decl) = node.to::<ast_view::VarDeclarator>() {
-        return decl.name.range().contains(orig.range());
+        return decl.name.range().contains(&orig.range());
       }
       if let Some(kv) = node.to::<ast_view::KeyValueProp>() {
-        return kv.key.range().contains(orig.range());
+        return kv.key.range().contains(&orig.range());
       }
 
       match node.parent() {

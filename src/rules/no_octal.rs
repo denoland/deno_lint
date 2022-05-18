@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRanged;
 use deno_ast::view::Number;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -52,7 +52,7 @@ impl Handler for NoOctalHandler {
   fn number(&mut self, literal_num: &Number, ctx: &mut Context) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
-    let raw_number = ctx.file_text_substring(&literal_num.span());
+    let raw_number = ctx.file_text_substring(&literal_num.range());
 
     if OCTAL.is_match(raw_number) {
       ctx.add_diagnostic_with_hint(literal_num.range(), CODE, MESSAGE, HINT);

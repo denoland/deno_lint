@@ -2,8 +2,9 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
+use deno_ast::SwcSourceRanged;
 use deno_ast::view::{
   CallExpr, Callee, CondExpr, DoWhileStmt, Expr, ExprOrSpread, ForStmt, Ident,
   IfStmt, NewExpr, ParenExpr, UnaryExpr, UnaryOp, WhileStmt,
@@ -65,18 +66,18 @@ impl LintRule for NoExtraBooleanCast {
 
 struct NoExtraBooleanCastHandler;
 
-fn unexpected_call(span: SourceRange, ctx: &mut Context) {
+fn unexpected_call(range: SourceRange, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    span,
+    range,
     CODE,
     NoExtraBooleanCastMessage::BooleanCall,
     NoExtraBooleanCastHint::BooleanCall,
   );
 }
 
-fn unexpected_negation(span: SourceRange, ctx: &mut Context) {
+fn unexpected_negation(range: SourceRange, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    span,
+    range,
     CODE,
     NoExtraBooleanCastMessage::DoubleNegation,
     NoExtraBooleanCastHint::DoubleNegation,
@@ -89,11 +90,11 @@ fn check_condition(expr: &Expr, ctx: &mut Context) {
       ref callee, inner, ..
     }) => {
       if callee_is_boolean(callee) {
-        unexpected_call(inner.span, ctx);
+        unexpected_call(inner.range(), ctx);
       }
     }
     Expr::Unary(UnaryExpr { inner, ref arg, .. }) if has_n_bang(arg, 1) => {
-      unexpected_negation(inner.span, ctx);
+      unexpected_negation(inner.range(), ctx);
     }
     Expr::Paren(ParenExpr { ref expr, .. }) => {
       check_condition(expr, ctx);
@@ -110,21 +111,21 @@ fn check_unary_expr(unary_expr: &UnaryExpr, ctx: &mut Context) {
 }
 
 fn check_unary_expr_internal(
-  unary_expr_span: SourceRange,
+  unary_expr_range: SourceRange,
   internal_expr: &Expr,
   ctx: &mut Context,
 ) {
   match internal_expr {
     Expr::Call(CallExpr { ref callee, .. }) => {
       if callee_is_boolean(callee) {
-        unexpected_call(unary_expr_span, ctx);
+        unexpected_call(unary_expr_range, ctx);
       }
     }
     Expr::Unary(UnaryExpr { ref arg, .. }) if has_n_bang(arg, 1) => {
-      unexpected_negation(unary_expr_span, ctx);
+      unexpected_negation(unary_expr_range, ctx);
     }
     Expr::Paren(ParenExpr { ref expr, .. }) => {
-      check_unary_expr_internal(unary_expr_span, expr, ctx);
+      check_unary_expr_internal(unary_expr_range, expr, ctx);
     }
     _ => (),
   }

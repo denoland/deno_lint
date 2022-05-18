@@ -176,12 +176,12 @@ impl DisjointSet {
     }
   }
 
-  fn add_root(&mut self, span: SourceRange, status: VarStatus) {
-    if self.parents.contains_key(&span) {
+  fn add_root(&mut self, range: SourceRange, status: VarStatus) {
+    if self.parents.contains_key(&range) {
       return;
     }
-    self.parents.insert(span, span);
-    self.roots.insert(span, (status, 1));
+    self.parents.insert(range, range);
+    self.roots.insert(range, (status, 1));
   }
 
   fn get_root(&mut self, span: Span) -> Option<Span> {

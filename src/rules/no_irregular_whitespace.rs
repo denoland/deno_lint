@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::{swc::common::hygiene::SyntaxContext, SourceRange};
-use deno_ast::RootNode;
+use deno_ast::SourceRange;
+use deno_ast::{RootNode, SwcSourceRanged};
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
@@ -61,19 +61,17 @@ impl LintRule for NoIrregularWhitespace {
     context: &mut Context,
     program: Program,
   ) {
-    let file_span = context.text_info().span();
-    let mut check_span = |range: SourceRange| {
-      let whitespace_text = context.text_info().text()
-        [range.lo().0 as usize..range.hi().0 as usize]
-        .to_string();
+    let file_range = context.text_info().range();
+    let mut check_range = |range: SourceRange| {
+      let whitespace_text = context.text_info().range_text(&range);
       for whitespace_matches in
         test_for_whitespace(&whitespace_text).into_iter()
       {
         for whitespace_match in whitespace_matches {
-          let range = whitespace_match.range();
+          let whitespace_range = whitespace_match.range();
           let span = SourceRange::new(
-            range.start() + range.start,
-            range.start() + range.end,
+            range.start + whitespace_range.start,
+            range.start + whitespace_range.end,
           );
           context.add_diagnostic_with_hint(
             span,
@@ -84,14 +82,14 @@ impl LintRule for NoIrregularWhitespace {
         }
       }
     };
-    let mut last_end = BytePos(0);
+    let mut last_end = file_range.start.as_source_pos();
 
-    for token in program.token_container().unwrap().tokens {
-      check_span(Span::new(last_end, token.span.lo(), Default::default()));
-      last_end = token.span.hi();
+    for token in program.token_container().tokens {
+      check_range(SourceRange::new(last_end, token.start()));
+      last_end = token.end();
     }
 
-    check_span(Span::new(last_end, file_span.hi(), Default::default()));
+    check_range(SourceRange::new(last_end, file_range.end));
   }
 
   #[cfg(feature = "docs")]

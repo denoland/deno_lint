@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::swc_util::find_lhs_ids;
 use crate::ProgramRef;
 use deno_ast::swc::ast::AssignExpr;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::BindingKind;
@@ -80,7 +81,7 @@ impl<'c, 'view> VisitAll for NoFuncAssignVisitor<'c, 'view> {
       if let Some(var) = var {
         if let BindingKind::Function = var.kind() {
           self.context.add_diagnostic_with_hint(
-            assign_expr.span,
+            assign_expr.range(),
             CODE,
             NoFuncAssignMessage::Unexpected,
             NoFuncAssignHint::RemoveOrRework,

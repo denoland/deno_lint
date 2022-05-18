@@ -2,11 +2,12 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
-use deno_ast::swc::common::Span;
+use deno_ast::SourceRange;
+use deno_ast::swc::ast::Id;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::{
   ast::*,
   utils::ident::IdentLike,
-  utils::Id,
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use derive_more::Display;
@@ -69,7 +70,7 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn check(&mut self, span: SourceRange, id: Id) {
+  fn check(&mut self, range: SourceRange, id: Id) {
     if id.1 != self.context.unresolved_ctxt() {
       return;
     }
@@ -85,7 +86,7 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
       // If global can be overwritten then don't need to report anything
       if !global.1 {
         self.context.add_diagnostic_with_hint(
-          span,
+          range,
           CODE,
           NoGlobalAssignMessage::NotAllowed,
           NoGlobalAssignHint::Remove,
@@ -102,13 +103,13 @@ impl<'c, 'view> Visit for NoGlobalAssignVisitor<'c, 'view> {
     let idents: Vec<Ident> = find_lhs_ids(&e.left);
 
     for ident in idents {
-      self.check(ident.span, ident.to_id());
+      self.check(ident.range(), ident.to_id());
     }
   }
 
   fn visit_update_expr(&mut self, e: &UpdateExpr) {
     if let Expr::Ident(i) = &*e.arg {
-      self.check(e.span, i.to_id());
+      self.check(e.range(), i.to_id());
     } else {
       e.visit_children_with(self);
     }

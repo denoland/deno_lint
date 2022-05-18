@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::ClassMethod;
 use deno_ast::swc::ast::FnDecl;
 use deno_ast::swc::ast::FnExpr;
@@ -76,7 +77,7 @@ impl<'c, 'view> RequireYieldVisitor<'c, 'view> {
       // is non-empty
       if let Some(body) = &function.body {
         if !body.stmts.is_empty() && yield_count == 0 {
-          self.context.add_diagnostic(function.span, CODE, MESSAGE);
+          self.context.add_diagnostic(function.range(), CODE, MESSAGE);
         }
       }
     }

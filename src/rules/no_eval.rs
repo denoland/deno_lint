@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
+use deno_ast::{SourceRanged, SourceRange};
 use deno_ast::swc::common::Span;
 use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};

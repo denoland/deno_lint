@@ -2,12 +2,10 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
   ArrayPat, AssignExpr, Expr, Ident, ObjectPat, ObjectPatProp, Pat, PatOrExpr,
 };
-use deno_ast::BindingKind;
+use deno_ast::{BindingKind, SourceRange, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -61,49 +59,49 @@ impl LintRule for NoExAssign {
 
 struct NoExAssignHandler;
 
-fn check_pat(pat: &Pat, span: SourceRange, ctx: &mut Context) {
+fn check_pat(pat: &Pat, range: SourceRange, ctx: &mut Context) {
   match pat {
     Pat::Ident(ident) => {
-      check_scope_for_const(span, ident.id, ctx);
+      check_scope_for_const(range, ident.id, ctx);
     }
     Pat::Assign(assign) => {
-      check_pat(&assign.left, span, ctx);
+      check_pat(&assign.left, range, ctx);
     }
     Pat::Array(array) => {
-      check_array_pat(array, span, ctx);
+      check_array_pat(array, range, ctx);
     }
     Pat::Object(object) => {
-      check_obj_pat(object, span, ctx);
+      check_obj_pat(object, range, ctx);
     }
     _ => {}
   }
 }
 
-fn check_obj_pat(object: &ObjectPat, span: SourceRange, ctx: &mut Context) {
+fn check_obj_pat(object: &ObjectPat, range: SourceRange, ctx: &mut Context) {
   if !object.props.is_empty() {
     for prop in object.props.iter() {
       if let ObjectPatProp::Assign(assign_prop) = prop {
         check_scope_for_const(assign_prop.key.range(), assign_prop.key, ctx);
       } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
-        check_pat(&kv_prop.value, span, ctx);
+        check_pat(&kv_prop.value, range, ctx);
       }
     }
   }
 }
 
-fn check_array_pat(array: &ArrayPat, span: SourceRange, ctx: &mut Context) {
+fn check_array_pat(array: &ArrayPat, range: SourceRange, ctx: &mut Context) {
   if !array.elems.is_empty() {
     for elem in array.elems.iter().flatten() {
-      check_pat(elem, span, ctx);
+      check_pat(elem, range, ctx);
     }
   }
 }
 
-fn check_scope_for_const(span: SourceRange, name: &Ident, ctx: &mut Context) {
+fn check_scope_for_const(range: SourceRange, name: &Ident, ctx: &mut Context) {
   if let Some(v) = ctx.scope().var_by_ident(name) {
     if let BindingKind::CatchClause = v.kind() {
       ctx.add_diagnostic_with_hint(
-        span,
+        range,
         CODE,
         NoExAssignMessage::NotAllowed,
         NoExAssignHint::UseDifferent,

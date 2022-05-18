@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::{BytePos, Span};
+use deno_ast::SourceRange;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -38,21 +38,18 @@ impl LintRule for PreferAscii {
     let mut not_asciis = Vec::new();
 
     let mut src_chars = context.text_info().text().char_indices().peekable();
+    let start_pos = context.text_info().range().start;
     while let Some((i, c)) = src_chars.next() {
       if let Some(&(pi, _)) = src_chars.peek() {
         if (pi > i + 1) || !c.is_ascii() {
-          let span = Span::new(
-            BytePos(i as u32),
-            BytePos(pi as u32),
-            Default::default(),
-          );
-          not_asciis.push((c, span));
+          let range = SourceRange::new(start_pos + i, start_pos + pi);
+          not_asciis.push((c, range));
         }
       }
     }
 
-    for (c, span) in not_asciis {
-      context.add_diagnostic_with_hint(span, CODE, MESSAGE, hint(c));
+    for (c, range) in not_asciis {
+      context.add_diagnostic_with_hint(range, CODE, MESSAGE, hint(c));
     }
   }
 

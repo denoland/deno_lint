@@ -1,6 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::SwcSourceRanged;
 use deno_ast::swc::ast::VarDecl;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
@@ -61,7 +62,7 @@ impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
-        var_decl.span,
+        var_decl.range(),
         CODE,
         SingleVarDeclaratorMessage::Unexpected,
       );
