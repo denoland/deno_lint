@@ -174,6 +174,10 @@ function foo() {
       "function* foo() { try { yield 1; return; } catch (err) { return err; } }",
       "function foo() { try { bar(); return; } catch (err) { return err; } }",
       "function foo() { try { a.b.c = 1; return; } catch (err) { return err; } }",
+      "function foo() { try { a.b.c = 1; return; } catch (err) { return err; } finally { return; } }",
+      "function foo() { try { a.b.c = 1; } catch (err) { return err; } finally { return; } }",
+      "function foo() { try { a.b.c = 1; } catch (err) { d = 1; } finally { return; } }",
+      "function foo() { try { a.b.c = 1; return; } catch (err) { d = 1; } finally { return; } }",
 
       r#"
 function normalize(type: string): string | undefined {
