@@ -63,18 +63,18 @@ impl LintRule for NoIrregularWhitespace {
   ) {
     let file_range = context.text_info().range();
     let mut check_range = |range: SourceRange| {
-      let whitespace_text = context.text_info().range_text(&range);
+      let whitespace_text = context.text_info().range_text(&range).to_string();
       for whitespace_matches in
         test_for_whitespace(&whitespace_text).into_iter()
       {
         for whitespace_match in whitespace_matches {
           let whitespace_range = whitespace_match.range();
-          let span = SourceRange::new(
+          let range = SourceRange::new(
             range.start + whitespace_range.start,
             range.start + whitespace_range.end,
           );
           context.add_diagnostic_with_hint(
-            span,
+            range,
             CODE,
             NoIrregularWhitespaceMessage::NotAllowed,
             HINT,

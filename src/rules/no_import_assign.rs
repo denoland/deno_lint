@@ -3,7 +3,6 @@ use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::{swc::{
   ast::*,
-  utils::ident::IdentLike,
   visit::{noop_visit_type, Visit, VisitWith},
 }, SourceRange, SwcSourceRanged};
 use deno_ast::BindingKind;

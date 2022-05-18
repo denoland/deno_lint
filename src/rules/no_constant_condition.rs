@@ -4,7 +4,6 @@ use crate::ProgramRef;
 use deno_ast::SourceRange;
 use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
 use deno_ast::SwcSourceRanged;
-use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
 use derive_more::Display;
 use std::sync::Arc;

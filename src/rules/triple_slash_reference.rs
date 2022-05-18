@@ -5,7 +5,6 @@ use deno_ast::SourceRange;
 use deno_ast::SwcSourceRanged;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::swc::common::Span;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;

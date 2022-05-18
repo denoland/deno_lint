@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::{SwcSourceRanged, SourceRange};
-use deno_ast::swc::common::{comments::Comment, Span};
+use deno_ast::swc::common::{comments::Comment};
 use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},

@@ -7,7 +7,6 @@ use deno_ast::swc::ast::Id;
 use deno_ast::SwcSourceRanged;
 use deno_ast::swc::{
   ast::*,
-  utils::ident::IdentLike,
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use derive_more::Display;

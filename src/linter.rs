@@ -157,7 +157,7 @@ impl Linter {
       .rules
       .iter()
       .any(|a| a.code() == (BanUnknownRuleCode).code());
-    let control_flow = ControlFlow::analyze(parsed_source.program_ref().into());
+    let control_flow = ControlFlow::analyze(parsed_source);
     let diagnostics = parsed_source.with_view(|pg| {
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ignore_file_directive, pg);

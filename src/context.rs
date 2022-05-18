@@ -6,7 +6,7 @@ use crate::ignore_directives::{
 };
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::{Span, SyntaxContext};
+use deno_ast::swc::common::SyntaxContext;
 use deno_ast::{view as ast_view, SourceRange, RootNode, SourcePos};
 use deno_ast::SourceTextInfo;
 use deno_ast::MediaType;

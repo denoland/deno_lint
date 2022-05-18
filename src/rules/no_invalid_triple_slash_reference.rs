@@ -170,7 +170,9 @@ mod tests {
 
   use super::*;
 
-  const DUMMY_RANGE: SourceRange = SourceRange::new(StartSourcePos::START_SOURCE_POS.into(), StartSourcePos::START_SOURCE_POS.into());
+  fn dummy_range() -> SourceRange {
+    SourceRange::new(StartSourcePos::START_SOURCE_POS.into(), StartSourcePos::START_SOURCE_POS.into())
+  }
 
   #[test]
   fn test_is_path_ref() {
@@ -231,14 +233,14 @@ mod tests {
   fn line(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Line,
-      span: DUMMY_RANGE.into(),
+      span: dummy_range().into(),
       text: text.to_string(),
     }
   }
   fn block(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Block,
-      span: DUMMY_RANGE.into(),
+      span: dummy_range().into(),
       text: text.to_string(),
     }
   }
@@ -277,7 +279,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, true).unwrap();
-      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(DUMMY_RANGE))
+      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(dummy_range()))
     }
   }
 
@@ -304,7 +306,7 @@ mod tests {
     ];
     for invalid_comment in &invalid_comments {
       let report_kind = check_comment(invalid_comment, false).unwrap();
-      assert_eq!(report_kind, ReportKind::InvalidDirective(DUMMY_RANGE))
+      assert_eq!(report_kind, ReportKind::InvalidDirective(dummy_range()))
     }
   }
 
@@ -348,11 +350,11 @@ mod tests {
   #[test]
   fn triple_slash_reference_invalid() {
     let (not_types_in_js_msg, not_types_in_js_hint) = {
-      let r = ReportKind::InvalidDirectiveInJs(DUMMY_RANGE);
+      let r = ReportKind::InvalidDirectiveInJs(dummy_range());
       (r.as_message(), r.as_hint())
     };
     let (invalid_directive_msg, invalid_directive_hint) = {
-      let r = ReportKind::InvalidDirective(DUMMY_RANGE);
+      let r = ReportKind::InvalidDirective(dummy_range());
       (r.as_message(), r.as_hint())
     };
 

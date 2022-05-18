@@ -37,8 +37,9 @@ impl LintRule for PreferAscii {
   ) {
     let mut not_asciis = Vec::new();
 
-    let mut src_chars = context.text_info().text().char_indices().peekable();
-    let start_pos = context.text_info().range().start;
+    let text_info = context.text_info();
+    let mut src_chars = text_info.text_str().char_indices().peekable();
+    let start_pos = text_info.range().start;
     while let Some((i, c)) = src_chars.next() {
       if let Some(&(pi, _)) = src_chars.peek() {
         if (pi > i + 1) || !c.is_ascii() {

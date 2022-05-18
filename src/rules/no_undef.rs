@@ -4,7 +4,6 @@ use crate::globals::GLOBALS;
 use crate::ProgramRef;
 use deno_ast::swc::{
   ast::*,
-  utils::ident::IdentLike,
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SwcSourceRanged;

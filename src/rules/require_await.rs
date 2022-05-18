@@ -4,8 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 
-use deno_ast::SourceRanged;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{NodeTrait, Program};
 use derive_more::Display;
 use std::sync::Arc;

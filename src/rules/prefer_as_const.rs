@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRange;
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::view::{
   ArrayPat, BindingIdent, Expr, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
   TsTypeAnn, TsTypeAssertion, VarDecl,

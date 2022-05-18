@@ -2,7 +2,6 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
 use deno_ast::{SwcSourceRanged, SourceRange};
