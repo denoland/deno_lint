@@ -142,9 +142,9 @@ impl SuperCallChecker {
   }
 
   fn node_is_inside_function(&self, node: ast_view::Node) -> bool {
-    fn inside_function(root_span: SourceRange, cur_node: ast_view::Node) -> bool {
+    fn inside_function(root_range: SourceRange, cur_node: ast_view::Node) -> bool {
       // Stop recursion if the current node gets out of root_node.
-      if !root_span.contains(&cur_node.range()) {
+      if !root_range.contains(&cur_node.range()) {
         return false;
       }
 
@@ -155,7 +155,7 @@ impl SuperCallChecker {
         return true;
       }
 
-      inside_function(root_span, cur_node.parent().unwrap())
+      inside_function(root_range, cur_node.parent().unwrap())
     }
 
     inside_function(self.root_range, node)

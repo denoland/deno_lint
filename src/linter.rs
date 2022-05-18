@@ -172,19 +172,16 @@ impl Linter {
       let line_ignore_directives =
         parse_line_ignore_directives(&self.ignore_diagnostic_directive, pg);
 
-      let scope = Scope::analyze(pg, parsed_source.unresolved_context());
+      let scope = Scope::analyze(pg);
 
       let mut context = Context::new(
-        parsed_source.specifier().to_string(),
+        parsed_source.clone(),
         self.media_type,
-        parsed_source.text_info(),
         pg,
         file_ignore_directive,
         line_ignore_directives,
         scope,
         control_flow,
-        parsed_source.top_level_context(),
-        parsed_source.unresolved_context(),
         check_unknown_rules,
       );
 

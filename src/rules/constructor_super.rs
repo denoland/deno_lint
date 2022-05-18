@@ -160,10 +160,10 @@ fn check_constructor(
   let super_calls = super_call_ranges(cons);
 
   // in case where there are more than one `super()` calls.
-  for exceeded_super_span in super_calls.iter().skip(1) {
+  for exceeded_super_range in super_calls.iter().skip(1) {
     let kind = DiagnosticKind::TooManySuper;
     ctx.add_diagnostic_with_hint(
-      *exceeded_super_span,
+      *exceeded_super_range,
       CODE,
       kind.message(),
       kind.hint(),

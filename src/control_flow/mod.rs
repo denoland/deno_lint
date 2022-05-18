@@ -35,7 +35,7 @@ impl ControlFlow {
     ControlFlow { meta: v.info }
   }
 
-  /// lo can be extracted from span of
+  /// start_pos can be extracted from range of
   ///
   /// - All statements (including stmt.range())
   /// - [SwitchCase]

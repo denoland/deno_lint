@@ -77,9 +77,9 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
       if should_emit_err {
         let comments = self.context.leading_comments_at(case.start());
         if !allow_fall_through(comments) {
-          if let Some(prev_span) = prev_range.take() {
+          if let Some(prev_range) = prev_range.take() {
             self.context.add_diagnostic_with_hint(
-              prev_span,
+              prev_range,
               CODE,
               NoFallthroughMessage::Unexpected,
               NoFallthroughHint::BreakOrComment,
@@ -115,9 +115,9 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
 
       if case_idx + 1 < cases.len() && empty {
         let range = SourceRange::new(case.start(), cases[case_idx + 1].start());
-        // todo(dsherret): use `span.line_start_fast(context.program)` and
+        // todo(dsherret): use `range.line_start_fast(context.program)` and
         // `line_end_fast` when switching to ast_view
-        let span_line_count = self
+        let range_line_count = self
           .context
           .file_text_substring(&range)
           .chars()
@@ -128,7 +128,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
         // This means there are no statements detected so we must detect case
         // bodies made up of only new lines by counting the total amount of new lines.
         // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
-        should_emit_err = span_line_count > 2;
+        should_emit_err = range_line_count > 2;
       }
 
       prev_range = Some(case.range());

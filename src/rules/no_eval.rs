@@ -47,16 +47,16 @@ impl NoEvalHandler {
   fn maybe_add_diagnostic(
     &mut self,
     source: &dyn StringRepr,
-    span: SourceRange,
+    range: SourceRange,
     ctx: &mut Context,
   ) {
     if source.string_repr().as_deref() == Some("eval") {
-      self.add_diagnostic(span, ctx);
+      self.add_diagnostic(range, ctx);
     }
   }
 
-  fn add_diagnostic(&mut self, span: SourceRange, ctx: &mut Context) {
-    ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+  fn add_diagnostic(&mut self, range: SourceRange, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
   }
 
   fn handle_paren_callee(&mut self, p: &ParenExpr, ctx: &mut Context) {

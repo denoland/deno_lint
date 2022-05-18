@@ -54,7 +54,7 @@ impl LintRule for NoRedeclare {
 
 struct NoRedeclareVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  /// TODO(kdy1): Change this to HashMap<Id, Vec<Span>> and use those spans to point previous bindings/
+  /// TODO(kdy1): Change this to HashMap<Id, Vec<SourceRange>> and use those ranges to point previous bindings/
   bindings: HashSet<Id>,
 }
 

@@ -96,7 +96,7 @@ impl NoDupeKeysHandler {
 
   fn check_getter<S: Into<String>>(
     &mut self,
-    obj_span: SourceRange,
+    obj_range: SourceRange,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
     ctx: &mut Context,
@@ -109,7 +109,7 @@ impl NoDupeKeysHandler {
           if occupied.get().setter_only() {
             occupied.get_mut().getter = true;
           } else {
-            self.report(obj_span, occupied.key(), ctx);
+            self.report(obj_range, occupied.key(), ctx);
           }
         }
         Entry::Vacant(vacant) => {
@@ -124,7 +124,7 @@ impl NoDupeKeysHandler {
 
   fn check_setter<S: Into<String>>(
     &mut self,
-    obj_span: SourceRange,
+    obj_range: SourceRange,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
     ctx: &mut Context,
@@ -137,7 +137,7 @@ impl NoDupeKeysHandler {
           if occupied.get().getter_only() {
             occupied.get_mut().setter = true;
           } else {
-            self.report(obj_span, occupied.key(), ctx);
+            self.report(obj_range, occupied.key(), ctx);
           }
         }
         Entry::Vacant(vacant) => {

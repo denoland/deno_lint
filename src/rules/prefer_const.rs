@@ -106,7 +106,7 @@ struct DeclInfo {
 }
 
 /// Looks for the declaration range of the given variable by traversing from the given scope to the parents.
-/// Returns `None` if no matching span is found. Most likely it means the variable is not declared
+/// Returns `None` if no matching range is found. Most likely it means the variable is not declared
 /// with `let`.
 fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
@@ -148,11 +148,11 @@ impl VarStatus {
 
 #[derive(Default, Debug)]
 struct DisjointSet {
-  /// Key: span of ident, Value: span of parent node
-  /// This map is supposed to contain all spans of variable declarations.
+  /// Key: range of ident, Value: range of parent node
+  /// This map is supposed to contain all ranges of variable declarations.
   parents: BTreeMap<SourceRange, SourceRange>,
 
-  /// Key: span of ident (representative of the group)
+  /// Key: range of ident (representative of the group)
   /// Value: pair of the following values:
   ///        - status of variables in this tree
   ///        - the maximum height of this tree, which is used for optimization
@@ -187,13 +187,13 @@ impl DisjointSet {
   fn get_root(&mut self, range: SourceRange) -> Option<SourceRange> {
     match self.parents.get(&range) {
       None => None,
-      Some(&par_span) if range == par_span => Some(range),
-      Some(&par_span) => {
-        let root = self.get_root(par_span);
-        if let (Some(root_span), Some(par)) =
+      Some(&par_range) if range == par_range => Some(range),
+      Some(&par_range) => {
+        let root = self.get_root(par_range);
+        if let (Some(root_range), Some(par)) =
           (root, self.parents.get_mut(&range))
         {
-          *par = root_span;
+          *par = root_range;
         }
         root
       }
@@ -674,11 +674,11 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn report(&mut self, range: SourceRange) {
-    let span_text = self.context.file_text_substring(&range).to_string();
+    let range_text = self.context.file_text_substring(&range).to_string();
     self.context.add_diagnostic_with_hint(
       range,
       CODE,
-      PreferConstMessage::NeverReassigned(span_text),
+      PreferConstMessage::NeverReassigned(range_text),
       PreferConstHint::UseConst,
     );
   }
@@ -751,16 +751,16 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   fn visit_module(&mut self, module: &Module) {
     module.visit_children_with(self);
     // After visiting all nodes, reports errors.
-    for span in self.var_groups.dump() {
-      self.report(span);
+    for range in self.var_groups.dump() {
+      self.report(range);
     }
   }
 
   fn visit_script(&mut self, script: &Script) {
     script.visit_children_with(self);
     // After visiting all nodes, reports errors.
-    for span in self.var_groups.dump() {
-      self.report(span);
+    for range in self.var_groups.dump() {
+      self.report(range);
     }
   }
 
