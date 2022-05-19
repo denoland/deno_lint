@@ -503,7 +503,7 @@ function foo() {
     false,
     Some(End::Forced {
       ret: true,
-      throw: true,
+      throw: false, // wont throw
       infinite_loop: false
     })
   ); // TryStmt
@@ -585,7 +585,7 @@ function foo() {
     false,
     Some(End::Forced {
       ret: true,
-      throw: true,
+      throw: false,
       infinite_loop: false
     })
   ); // TryStmt
