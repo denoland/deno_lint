@@ -316,14 +316,6 @@ impl Analyzer<'_> {
         }
         BlockKind::Finally => {
           self.mark_as_end(start_pos, end);
-          match end {
-            e if matches!(e, End::Forced { .. }) => {
-              self.scope.end = Some(e);
-            }
-            _ => {
-              self.scope.end = prev_end;
-            }
-          }
         }
       }
     }
@@ -751,11 +743,6 @@ impl Visit for Analyzer<'_> {
   }
 
   fn visit_try_stmt(&mut self, n: &TryStmt) {
-    if let Some(finalizer) = &n.finalizer {
-      self.with_child_scope(BlockKind::Finally, finalizer.start(), |a| {
-        n.finalizer.visit_with(a);
-      });
-    }
     let old_throw = self.scope.may_throw;
 
     let prev_end = self.scope.end;
@@ -763,53 +750,64 @@ impl Visit for Analyzer<'_> {
     self.scope.may_throw = false;
     n.block.visit_with(self);
 
-    let mut try_block_end = None;
-
-    if self.scope.may_throw {
-      if let Some(end) = self.scope.end {
-        try_block_end = Some(end);
-        self.scope.end = prev_end;
-      }
-    } else if let Some(end) = self.scope.end {
-      try_block_end = Some(end);
-      self.mark_as_end(n.start(), end);
-    }
+    let try_block_end = self.scope.end;
+    let try_block_may_throw = self.scope.may_throw;
 
     if let Some(handler) = &n.handler {
+      if try_block_may_throw {
+        self.scope.end = prev_end;
+      }
       self.scope.may_throw = false;
       handler.visit_with(self);
 
-      match (try_block_end, self.scope.end) {
-        (Some(x), Some(y)) if x.is_forced() && y.is_forced() => {
-          // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
-          self.mark_as_end(n.start(), x.merge_forced(y).unwrap());
+      if try_block_may_throw {
+        match (try_block_end, self.scope.end) {
+          (
+            Some(End::Forced {
+              ret: false,
+              throw: true,
+              infinite_loop: false,
+            }),
+            _,
+          ) => {}
+          (Some(x), Some(y)) if x.is_forced() && y.is_forced() => {
+            // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
+            self.scope.end = Some(x.merge_forced(y).unwrap());
+          }
+          (_, Some(y)) if y.is_forced() => {
+            self.scope.end = try_block_end;
+          }
+          (None | Some(End::Continue), Some(End::Break)) => {
+            self.scope.end = try_block_end;
+          }
+          _ => {}
         }
-        (Some(x), Some(End::Break)) if x.is_forced() => {
-          self.mark_as_end(n.start(), End::Break);
-        }
-        _ => {
-          self.mark_as_end(n.start(), End::Continue);
-          self.scope.end = prev_end;
-        }
+      } else {
+        self.scope.end = try_block_end;
       }
-    } else if matches!(
-      try_block_end,
-      Some(End::Forced { .. }) | Some(End::Break)
-    ) {
-      // This `unwrap` is safe; `try_block_end` is surely wrapped in `Some`
-      self.mark_as_end(n.start(), try_block_end.unwrap());
-    } else if let Some(finalizer) = &n.finalizer {
-      self.mark_as_end(
-        n.start(),
-        self
-          .get_end_reason(finalizer.start())
-          .unwrap_or(End::Continue),
-      );
-      self.scope.end = prev_end;
-      self.scope.may_throw = old_throw;
-    } else {
-      self.scope.end = prev_end;
     }
+
+    if let Some(finalizer) = &n.finalizer {
+      let try_catch_end = self.scope.end;
+      self.scope.end = prev_end;
+      self.with_child_scope(BlockKind::Finally, finalizer.span.lo, |a| {
+        n.finalizer.visit_with(a);
+      });
+      match (try_catch_end, self.scope.end) {
+        (Some(x), Some(End::Break)) if x.is_forced() => {
+          self.scope.end = Some(x);
+        }
+        (Some(x), None | Some(End::Continue)) => {
+          self.scope.end = Some(x);
+        }
+        _ => {}
+      }
+    }
+
+    if let Some(end) = self.scope.end {
+      self.mark_as_end(n.span.lo, end);
+    }
+    self.scope.may_throw |= old_throw;
   }
 
   fn visit_labeled_stmt(&mut self, n: &LabeledStmt) {
