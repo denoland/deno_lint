@@ -760,11 +760,11 @@ impl Visit for Analyzer<'_> {
             // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
             self.scope.end = Some(x.merge_forced(y).unwrap());
           }
-          (Some(x), Some(y)) if y.is_forced() => {
-            self.scope.end = Some(x);
+          (_, Some(y)) if y.is_forced() => {
+            self.scope.end = try_block_end;
           }
           (None | Some(End::Continue), Some(End::Break)) => {
-            self.scope.end = Some(End::Continue);
+            self.scope.end = try_block_end;
           }
           _ => {}
         }
