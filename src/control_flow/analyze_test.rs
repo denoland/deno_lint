@@ -503,7 +503,7 @@ function foo() {
     false,
     Some(End::Forced {
       ret: true,
-      throw: false, // wont throw
+      throw: false,
       infinite_loop: false
     })
   ); // TryStmt
@@ -698,6 +698,28 @@ bar();
   assert_flow!(flow, 55, false, Some(End::Continue)); // 2nd catch
   assert_flow!(flow, 65, false, None); // `foo();`
   assert_flow!(flow, 74, false, None); // `bar();`
+}
+
+#[test]
+fn try_11() {
+  let src = r#"
+try {
+  throw 0;
+} catch (e) {
+  break;
+} finally {
+  return;
+}
+"#;
+  let flow = analyze_flow(src);
+  assert_flow!(flow, 1, false, Some(End::forced_return())); // try stmt
+  assert_flow!(flow, 5, false, Some(End::forced_throw())); // BlockStmt of try
+  assert_flow!(flow, 9, false, Some(End::forced_throw())); // throw stmt
+  assert_flow!(flow, 20, false, Some(End::Break)); // catch
+  assert_flow!(flow, 30, false, Some(End::Break)); // BloskStmt of catch
+  assert_flow!(flow, 34, false, Some(End::Break)); // break stmt
+  assert_flow!(flow, 51, false, Some(End::forced_return())); // finally
+  assert_flow!(flow, 55, false, Some(End::forced_return())); // return stmt
 }
 
 #[test]
