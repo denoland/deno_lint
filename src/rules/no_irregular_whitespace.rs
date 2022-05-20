@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::SourceRange;
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::{RootNode, SourceRangedForSpanned};
 use derive_more::Display;
 use once_cell::sync::Lazy;
@@ -63,7 +63,7 @@ impl LintRule for NoIrregularWhitespace {
   ) {
     let file_range = context.text_info().range();
     let mut check_range = |range: SourceRange| {
-      let whitespace_text = context.text_info().range_text(&range).to_string();
+      let whitespace_text = range.text_fast(&context.text_info()).to_string();
       for whitespace_matches in
         test_for_whitespace(&whitespace_text).into_iter()
       {

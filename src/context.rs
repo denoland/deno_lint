@@ -78,10 +78,6 @@ impl<'view> Context<'view> {
     self.parsed_source.text_info()
   }
 
-  pub fn file_text_substring(&self, range: &SourceRange) -> &str {
-    self.parsed_source.text_info().range_text(range)
-  }
-
   /// The AST view of the program, which for example can be used for getting
   /// comments
   pub fn program(&self) -> &ast_view::Program<'view> {

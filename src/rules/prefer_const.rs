@@ -12,7 +12,7 @@ use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{Visit, VisitWith};
-use deno_ast::SourceRange;
+use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::cell::RefCell;
@@ -674,7 +674,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn report(&mut self, range: SourceRange) {
-    let range_text = self.context.file_text_substring(&range).to_string();
+    let range_text = range.text_fast(&self.context.text_info()).to_string();
     self.context.add_diagnostic_with_hint(
       range,
       CODE,

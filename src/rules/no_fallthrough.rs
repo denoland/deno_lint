@@ -6,7 +6,7 @@ use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},
 };
-use deno_ast::{SourceRange, SourceRangedForSpanned};
+use deno_ast::{SourceRange, SourceRangedForSpanned, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -117,9 +117,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
         let range = SourceRange::new(case.start(), cases[case_idx + 1].start());
         // todo(dsherret): use `range.line_start_fast(context.program)` and
         // `line_end_fast` when switching to ast_view
-        let range_line_count = self
-          .context
-          .file_text_substring(&range)
+        let range_line_count = range.text_fast(&self.context.text_info())
           .chars()
           .filter(|c| *c == '\n')
           .count()

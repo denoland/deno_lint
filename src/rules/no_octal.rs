@@ -52,7 +52,7 @@ impl Handler for NoOctalHandler {
   fn number(&mut self, literal_num: &Number, ctx: &mut Context) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
-    let raw_number = ctx.file_text_substring(&literal_num.range());
+    let raw_number = literal_num.text_fast(&ctx.text_info());
 
     if OCTAL.is_match(raw_number) {
       ctx.add_diagnostic_with_hint(literal_num.range(), CODE, MESSAGE, HINT);
