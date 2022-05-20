@@ -19,7 +19,7 @@ use deno_ast::swc::ast::PropOrSpread;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 
 #[derive(Debug)]

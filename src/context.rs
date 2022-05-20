@@ -331,11 +331,11 @@ impl<'view> Context<'view> {
     let time_start = Instant::now();
     let text_info = self.text_info();
     let start = Position::new(
-      range.start - text_info.range().start,
+      range.start.as_byte_index(text_info.range().start),
       text_info.line_and_column_index(range.start),
     );
     let end = Position::new(
-      range.end - text_info.range().start,
+      range.end.as_byte_index(text_info.range().start),
       text_info.line_and_column_index(range.end),
     );
 

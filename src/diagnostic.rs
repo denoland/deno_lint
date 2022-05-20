@@ -12,6 +12,7 @@ pub struct Position {
   /// The 0-indexed column index.
   #[serde(rename(serialize = "col"))]
   pub column_index: usize,
+  #[serde(rename(serialize = "bytePos"))]
   pub byte_index: usize,
 }
 

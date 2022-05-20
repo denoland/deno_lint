@@ -10,7 +10,7 @@ use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]

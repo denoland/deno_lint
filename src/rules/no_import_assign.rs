@@ -7,7 +7,7 @@ use deno_ast::{
     ast::*,
     visit::{noop_visit_type, Visit, VisitWith},
   },
-  SourceRange, SwcSourceRanged,
+  SourceRange, SourceRangedForSpanned,
 };
 use std::sync::Arc;
 

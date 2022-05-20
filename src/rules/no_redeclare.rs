@@ -6,7 +6,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::{
   ast::*, utils::find_pat_ids, visit::Visit, visit::VisitWith,
 };
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 use std::collections::HashSet;

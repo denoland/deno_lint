@@ -1,8 +1,0 @@
-disallowed-methods = [
-  "swc_common::Spanned::span"
-]
-disallowed-types = [
-  "swc_common::BytePos",
-  "swc_common::Span",
-  "swc_common::Spanned",
-]

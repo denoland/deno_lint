@@ -13,7 +13,7 @@ use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -309,7 +309,7 @@ impl VariableCollector {
 
   fn with_child_scope<F, S>(&mut self, node: S, op: F)
   where
-    S: SwcSourceRanged,
+    S: SourceRangedForSpanned,
     F: FnOnce(&mut VariableCollector),
   {
     let parent_scope_range = self.cur_scope;
@@ -685,7 +685,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
 
   fn with_child_scope<F, S>(&mut self, node: &S, op: F)
   where
-    S: SwcSourceRanged,
+    S: SourceRangedForSpanned,
     F: FnOnce(&mut Self),
   {
     let parent_scope_range = self.cur_scope;

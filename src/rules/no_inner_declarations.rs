@@ -9,7 +9,7 @@ use deno_ast::swc::visit::{
   noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith,
 };
 use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::HashSet;
 use std::sync::Arc;

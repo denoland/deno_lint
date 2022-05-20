@@ -4,7 +4,7 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::{Decl, Stmt, VarDecl, VarDeclKind};
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]

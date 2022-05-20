@@ -16,7 +16,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::{Visit, VisitWith};
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;

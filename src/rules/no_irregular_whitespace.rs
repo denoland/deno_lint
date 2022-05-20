@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::SourceRange;
-use deno_ast::{RootNode, SwcSourceRanged};
+use deno_ast::{RootNode, SourceRangedForSpanned};
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};

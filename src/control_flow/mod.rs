@@ -9,7 +9,7 @@ use deno_ast::swc::{
   utils::{ExprExt, Value},
   visit::{noop_visit_type, Visit, VisitWith},
 };
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use deno_ast::{ParsedSource, SourcePos};
 use std::{
   collections::{BTreeMap, HashSet},

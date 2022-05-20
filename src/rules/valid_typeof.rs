@@ -8,7 +8,7 @@ use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
 use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
 use deno_ast::swc::visit::{noop_visit_type, Visit};
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]

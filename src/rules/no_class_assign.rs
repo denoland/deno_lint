@@ -7,7 +7,7 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::VisitAll;
 use deno_ast::swc::visit::VisitAllWith;
 use deno_ast::BindingKind;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]

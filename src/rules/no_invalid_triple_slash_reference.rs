@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
 use deno_ast::swc::common::comments::{Comment, CommentKind};
 use deno_ast::MediaType;
-use deno_ast::{SourceRange, SwcSourceRanged};
+use deno_ast::{SourceRange, SourceRangedForSpanned};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;

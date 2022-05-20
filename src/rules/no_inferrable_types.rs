@@ -9,7 +9,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::ast::{Callee, PropName};
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::SourceRange;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 

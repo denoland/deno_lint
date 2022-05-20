@@ -8,7 +8,7 @@ use deno_ast::view::{
 };
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 

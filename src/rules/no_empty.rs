@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
-use deno_ast::{SourceRanged, SwcSourceRanged};
+use deno_ast::{SourceRanged, SourceRangedForSpanned};
 use std::sync::Arc;
 
 #[derive(Debug)]

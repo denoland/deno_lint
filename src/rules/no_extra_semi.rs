@@ -6,7 +6,7 @@ use deno_ast::swc::ast::{
   Stmt, WhileStmt, WithStmt,
 };
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
-use deno_ast::SwcSourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 
