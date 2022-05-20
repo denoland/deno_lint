@@ -790,7 +790,7 @@ impl Visit for Analyzer<'_> {
     if let Some(finalizer) = &n.finalizer {
       let try_catch_end = self.scope.end;
       self.scope.end = prev_end;
-      self.with_child_scope(BlockKind::Finally, finalizer.span.lo, |a| {
+      self.with_child_scope(BlockKind::Finally, finalizer.start(), |a| {
         n.finalizer.visit_with(a);
       });
       match (try_catch_end, self.scope.end) {
@@ -805,7 +805,7 @@ impl Visit for Analyzer<'_> {
     }
 
     if let Some(end) = self.scope.end {
-      self.mark_as_end(n.span.lo, end);
+      self.mark_as_end(n.start(), end);
     }
     self.scope.may_throw |= old_throw;
   }
