@@ -22,7 +22,6 @@ pub fn display_diagnostics(
       source_code: &miette_source_code,
       lint_diagnostic: diagnostic,
     };
-    panic!("STOP");
     reporter.render_report(&mut s, &miette_diag).unwrap();
     eprintln!("{}", s);
   }
