@@ -111,7 +111,7 @@ fn run_linter(
         FileDiagnostics {
           filename: file_path.to_string_lossy().to_string(),
           diagnostics,
-          text_info: parsed_source.source().to_owned(),
+          text_info: parsed_source.text_info().clone(),
         },
       );
 

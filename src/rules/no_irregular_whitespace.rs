@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::{SourceRange, SourceRanged};
 use deno_ast::{RootNode, SourceRangedForSpanned};
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};

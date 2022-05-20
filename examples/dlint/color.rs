@@ -2,10 +2,10 @@
 use deno_ast::{
   lex,
   swc::parser::token::{Token, Word},
+  MediaType, TokenOrComment,
 };
 use if_chain::if_chain;
 use pulldown_cmark::{Options, Parser, Tag};
-use std::convert::TryFrom;
 
 pub fn colorize_markdown(input: &str) -> String {
   let mut options = Options::empty();
@@ -158,7 +158,7 @@ impl MarkdownColorizer {
         if is_start {
           if_chain! {
             if let CodeBlockKind::Fenced(info) = kind;
-            if let Ok(media_type) = MediaType::try_from(&**info);
+            if let Some(media_type) = try_code_block_to_media_type(&**info);
             then {
               self.code_block = Some(CodeBlockLang::Known(media_type))
             } else {
@@ -270,7 +270,7 @@ fn colorize_code_block(lang: CodeBlockLang, src: &str) -> String {
       let mut out_line = String::from(line);
       for item in lex(line, media_type) {
         let offset = out_line.len() - line.len();
-        let range = item.span_as_range();
+        let range = item.range;
 
         out_line.replace_range(
           range.start + offset..range.end + offset,
@@ -346,5 +346,16 @@ where
 {
   fn join_by(self, sep: &str) -> String {
     self.collect::<Vec<_>>().join(sep)
+  }
+}
+
+fn try_code_block_to_media_type(value: &str) -> Option<MediaType> {
+  match value {
+    "javascript" => Some(MediaType::JavaScript),
+    "typescript" => Some(MediaType::TypeScript),
+    "jsx" => Some(MediaType::Jsx),
+    "tsx" => Some(MediaType::Tsx),
+    "dts" => Some(MediaType::Dts),
+    _ => None,
   }
 }

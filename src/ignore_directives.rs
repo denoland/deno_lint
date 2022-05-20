@@ -1,7 +1,7 @@
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
-use deno_ast::SourceTextInfoProvider;
 use deno_ast::SourceRangedForSpanned;
+use deno_ast::SourceTextInfoProvider;
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
