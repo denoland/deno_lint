@@ -760,30 +760,21 @@ impl Visit for Analyzer<'_> {
             // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
             self.scope.end = Some(x.merge_forced(y).unwrap());
           }
-          (x, Some(y)) if y.is_forced() => {
-            self.scope.end = x;
+          (Some(x), Some(y)) if y.is_forced() => {
+            self.scope.end = Some(x);
           }
           (None | Some(End::Continue), Some(End::Break)) => {
-            self.scope.end = try_block_end;
+            self.scope.end = Some(End::Continue);
           }
           _ => {}
         }
       } else {
         self.scope.end = try_block_end;
       }
-
-      if n.finalizer.is_none() {
-        if let Some(end) = self.scope.end {
-          self.mark_as_end(n.span.lo, end);
-        }
-      }
     }
 
-    let try_catch_end = self.scope.end;
-
     if let Some(finalizer) = &n.finalizer {
-      dbg!(self.scope.end);
-
+      let try_catch_end = self.scope.end;
       self.scope.end = prev_end;
       self.with_child_scope(BlockKind::Finally, finalizer.span.lo, |a| {
         n.finalizer.visit_with(a);
@@ -797,10 +788,10 @@ impl Visit for Analyzer<'_> {
         }
         _ => {}
       }
+    }
 
-      if let Some(end) = self.scope.end {
-        self.mark_as_end(n.span.lo, end);
-      }
+    if let Some(end) = self.scope.end {
+      self.mark_as_end(n.span.lo, end);
     }
     self.scope.may_throw |= old_throw;
   }
