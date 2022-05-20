@@ -7,8 +7,8 @@ use deno_ast::swc::ast::Expr::Lit;
 use deno_ast::swc::ast::Lit::Num;
 use deno_ast::swc::ast::UnaryExpr;
 use deno_ast::swc::ast::UnaryOp::Minus;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{BinExpr, BinaryOp, Expr};
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -72,7 +72,7 @@ impl Handler for NoCompareNegZeroHandler {
 
     if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
       context.add_diagnostic_with_hint(
-        bin_expr.span(),
+        bin_expr.range(),
         CODE,
         NoCompareNegZeroMessage::Unexpected,
         NoCompareNegZeroHint::ObjectIs,

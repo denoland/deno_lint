@@ -5,11 +5,11 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{
   noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith,
 };
+use deno_ast::SourceRange;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -70,7 +70,7 @@ impl LintRule for NoInnerDeclarations {
 }
 
 struct ValidDeclsVisitor {
-  valid_decls: HashSet<Span>,
+  valid_decls: HashSet<SourceRange>,
 }
 
 impl ValidDeclsVisitor {
@@ -93,11 +93,11 @@ impl ValidDeclsVisitor {
   fn check_decl(&mut self, decl: &Decl) {
     match decl {
       Decl::Fn(fn_decl) => {
-        self.valid_decls.insert(fn_decl.span());
+        self.valid_decls.insert(fn_decl.range());
       }
       Decl::Var(var_decl) => {
         if var_decl.kind == VarDeclKind::Var {
-          self.valid_decls.insert(var_decl.span());
+          self.valid_decls.insert(var_decl.range());
         }
       }
       _ => {}
@@ -124,7 +124,7 @@ impl VisitAll for ValidDeclsVisitor {
         }
         ModuleDecl::ExportDefaultDecl(default_export) => {
           if let DefaultDecl::Fn(fn_expr) = &default_export.decl {
-            self.valid_decls.insert(fn_expr.span());
+            self.valid_decls.insert(fn_expr.range());
           }
         }
         _ => {}
@@ -158,12 +158,15 @@ impl VisitAll for ValidDeclsVisitor {
 
 struct NoInnerDeclarationsVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  valid_decls: HashSet<Span>,
+  valid_decls: HashSet<SourceRange>,
   in_function: bool,
 }
 
 impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>, valid_decls: HashSet<Span>) -> Self {
+  fn new(
+    context: &'c mut Context<'view>,
+    valid_decls: HashSet<SourceRange>,
+  ) -> Self {
     Self {
       context,
       valid_decls,
@@ -173,7 +176,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
 }
 
 impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
-  fn add_diagnostic(&mut self, span: Span, kind: &str) {
+  fn add_diagnostic(&mut self, range: SourceRange, kind: &str) {
     let root = if self.in_function {
       "function"
     } else {
@@ -181,7 +184,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
     };
 
     self.context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoInnerDeclarationsMessage::Move(kind.to_string(), root.to_string()),
       NoInnerDeclarationsHint::Move,
@@ -207,20 +210,20 @@ impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
   }
 
   fn visit_fn_decl(&mut self, decl: &FnDecl) {
-    let span = decl.span();
+    let range = decl.range();
 
-    if !self.valid_decls.contains(&span) {
-      self.add_diagnostic(span, "function");
+    if !self.valid_decls.contains(&range) {
+      self.add_diagnostic(range, "function");
     }
 
     decl.visit_children_with(self);
   }
 
   fn visit_var_decl(&mut self, decl: &VarDecl) {
-    let span = decl.span();
+    let range = decl.range();
 
-    if decl.kind == VarDeclKind::Var && !self.valid_decls.contains(&span) {
-      self.add_diagnostic(span, "variable");
+    if decl.kind == VarDeclKind::Var && !self.valid_decls.contains(&range) {
+      self.add_diagnostic(range, "variable");
     }
 
     decl.visit_children_with(self);

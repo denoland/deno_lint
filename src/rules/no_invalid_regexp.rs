@@ -4,9 +4,10 @@ use crate::js_regex::*;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::SourceRange;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -72,7 +73,7 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
     &mut self,
     callee: &Expr,
     args: &[ExprOrSpread],
-    span: Span,
+    range: SourceRange,
   ) {
     if let Expr::Ident(ident) = callee {
       if ident.sym != *"RegExp" || args.is_empty() {
@@ -81,16 +82,16 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
       if let Some(pattern) = &check_expr_for_string_literal(&*args[0].expr) {
         if args.len() > 1 {
           if let Some(flags) = &check_expr_for_string_literal(&*args[1].expr) {
-            self.check_regex(pattern, flags, span);
+            self.check_regex(pattern, flags, range);
             return;
           }
         }
-        self.check_regex(pattern, "", span);
+        self.check_regex(pattern, "", range);
       }
     }
   }
 
-  fn check_regex(&mut self, pattern: &str, flags: &str, span: Span) {
+  fn check_regex(&mut self, pattern: &str, flags: &str, range: SourceRange) {
     if self.check_for_invalid_flags(flags)
       || (!flags.is_empty()
         && self.check_for_invalid_pattern(pattern, flags.contains('u')))
@@ -99,7 +100,7 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
     {
       self
         .context
-        .add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
     }
   }
 
@@ -116,12 +117,12 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &deno_ast::swc::ast::Regex) {
-    self.check_regex(&regex.exp, &regex.flags, regex.span);
+    self.check_regex(&regex.exp, &regex.flags, regex.range());
   }
 
   fn visit_call_expr(&mut self, call_expr: &deno_ast::swc::ast::CallExpr) {
     if let deno_ast::swc::ast::Callee::Expr(expr) = &call_expr.callee {
-      self.handle_call_or_new_expr(&*expr, &call_expr.args, call_expr.span);
+      self.handle_call_or_new_expr(&*expr, &call_expr.args, call_expr.range());
     }
   }
 
@@ -130,7 +131,7 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
       self.handle_call_or_new_expr(
         &*new_expr.callee,
         new_expr.args.as_ref().unwrap(),
-        new_expr.span,
+        new_expr.range(),
       );
     }
   }

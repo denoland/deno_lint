@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::TsNonNullExpr;
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -55,7 +55,7 @@ impl Handler for NoNonNullAssertionHandler {
   ) {
     if !non_null_expr.parent().is::<TsNonNullExpr>() {
       ctx.add_diagnostic(
-        non_null_expr.span(),
+        non_null_expr.range(),
         CODE,
         NoNonNullAssertionMessage::Unexpected,
       );

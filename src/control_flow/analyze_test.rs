@@ -1,17 +1,17 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{ControlFlow, End, Metadata};
 use crate::test_util;
-use deno_ast::swc::common::BytePos;
+use deno_ast::StartSourcePos;
 
 fn analyze_flow(src: &str) -> ControlFlow {
   let parsed_source = test_util::parse(src);
-  ControlFlow::analyze(parsed_source.program_ref().into())
+  ControlFlow::analyze(&parsed_source)
 }
 
 macro_rules! assert_flow {
   ($flow:ident, $lo:expr, $unreachable:expr, $end:expr) => {
     assert_eq!(
-      $flow.meta(BytePos($lo)).unwrap(),
+      $flow.meta(StartSourcePos::START_SOURCE_POS + $lo).unwrap(),
       &Metadata {
         unreachable: $unreachable,
         end: $end,

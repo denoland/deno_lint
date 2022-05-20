@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::DebuggerStmt;
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -60,7 +60,7 @@ struct NoDebuggerHandler;
 impl Handler for NoDebuggerHandler {
   fn debugger_stmt(&mut self, debugger_stmt: &DebuggerStmt, ctx: &mut Context) {
     ctx.add_diagnostic_with_hint(
-      debugger_stmt.span(),
+      debugger_stmt.range(),
       CODE,
       NoDebuggerMessage::Unexpected,
       NoDebuggerHint::Remove,

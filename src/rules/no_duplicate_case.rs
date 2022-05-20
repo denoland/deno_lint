@@ -5,6 +5,7 @@ use deno_ast::swc::ast::{Expr, SwitchStmt};
 use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -79,7 +80,7 @@ impl<'c, 'view> VisitAll for NoDuplicateCaseVisitor<'c, 'view> {
         let span_dropped_test = drop_span(test.clone());
         if !seen.insert(span_dropped_test) {
           self.context.add_diagnostic_with_hint(
-            case.span,
+            case.range(),
             CODE,
             NoDuplicateCaseMessage::Unexpected,
             NoDuplicateCaseHint::RemoveOrRename,

@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
+use deno_ast::{SourceRanged, SourceRangedForSpanned};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl Handler for NoEmptyHandler {
       && !block_stmt.contains_comments(ctx)
     {
       ctx.add_diagnostic_with_hint(
-        block_stmt.span(),
+        block_stmt.range(),
         CODE,
         "Empty block statement",
         "Add code or comment to the empty block",
@@ -68,7 +68,7 @@ impl Handler for NoEmptyHandler {
   fn switch_stmt(&mut self, switch: &SwitchStmt, ctx: &mut Context) {
     if switch.cases.is_empty() {
       ctx.add_diagnostic_with_hint(
-        switch.span(),
+        switch.range(),
         CODE,
         "Empty switch statement",
         "Add case statement(s) to the empty switch, or remove",
@@ -85,7 +85,7 @@ impl ContainsComments for BlockStmt<'_> {
   fn contains_comments(&self, context: &Context) -> bool {
     context
       .all_comments()
-      .any(|comment| self.span().contains(comment.span))
+      .any(|comment| self.range().contains(&comment.range()))
   }
 }
 

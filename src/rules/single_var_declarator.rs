@@ -4,6 +4,7 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::VarDecl;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -61,7 +62,7 @@ impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {
     if var_decl.decls.len() > 1 {
       self.context.add_diagnostic(
-        var_decl.span,
+        var_decl.range(),
         CODE,
         SingleVarDeclaratorMessage::Unexpected,
       );

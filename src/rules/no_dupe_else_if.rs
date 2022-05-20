@@ -2,9 +2,9 @@
 use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
+use deno_ast::{SourceRange, SourceRangedForSpanned};
 use derive_more::Display;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -66,14 +66,14 @@ impl LintRule for NoDupeElseIf {
 /// [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
 struct NoDupeElseIfVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  checked_span: HashSet<Span>,
+  checked_ranges: HashSet<SourceRange>,
 }
 
 impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
   fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
-      checked_span: HashSet::new(),
+      checked_ranges: HashSet::new(),
     }
   }
 }
@@ -82,11 +82,11 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
-    let span = if_stmt.test.span();
+    let range = if_stmt.test.range();
 
     // This check is necessary to avoid outputting the same errors multiple times.
-    if !self.checked_span.contains(&span) {
-      self.checked_span.insert(span);
+    if !self.checked_ranges.contains(&range) {
+      self.checked_ranges.insert(range);
       let span_dropped_test = drop_span(if_stmt.test.clone());
       let mut appeared_conditions: Vec<Vec<Vec<Expr>>> = Vec::new();
       append_test(&mut appeared_conditions, *span_dropped_test);
@@ -97,8 +97,8 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
           ref test, ref alt, ..
         }) = &**cur
         {
-          // preserve the span before dropping
-          let span = test.span();
+          // preserve the range before dropping
+          let range = test.range();
           let span_dropped_test = drop_span(test.clone());
           let mut current_condition_to_check: Vec<Vec<Vec<Expr>>> =
             mk_condition_to_check(*span_dropped_test.clone())
@@ -126,7 +126,7 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
               .any(|or_operands| or_operands.is_empty())
             {
               self.context.add_diagnostic_with_hint(
-                span,
+                range,
                 CODE,
                 NoDupeElseIfMessage::Unexpected,
                 NoDupeElseIfHint::RemoveOrRework,
@@ -135,7 +135,7 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
             }
           }
 
-          self.checked_span.insert(span);
+          self.checked_ranges.insert(range);
           append_test(&mut appeared_conditions, *span_dropped_test);
           next = alt.as_ref();
         } else {

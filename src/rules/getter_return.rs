@@ -7,10 +7,11 @@ use deno_ast::swc::ast::{
   FnExpr, GetterProp, MemberProp, MethodKind, MethodProp, PrivateMethod, Prop,
   PropName, PropOrSpread, ReturnStmt,
 };
-use deno_ast::swc::common::{Span, Spanned};
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
+use deno_ast::SourceRange;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -68,7 +69,7 @@ impl LintRule for GetterReturn {
 
 struct GetterReturnVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  errors: BTreeMap<Span, GetterReturnMessage>,
+  errors: BTreeMap<SourceRange, GetterReturnMessage>,
   /// If this visitor is currently in a getter, its name is stored.
   getter_name: Option<String>,
   // `true` if a getter contains as least one return statement.
@@ -86,9 +87,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
   }
 
   fn report(&mut self) {
-    for (span, msg) in &self.errors {
+    for (range, msg) in &self.errors {
       self.context.add_diagnostic_with_hint(
-        *span,
+        *range,
         CODE,
         msg,
         GetterReturnHint::Return,
@@ -96,9 +97,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     }
   }
 
-  fn report_expected(&mut self, span: Span) {
+  fn report_expected(&mut self, range: SourceRange) {
     self.errors.insert(
-      span,
+      range,
       GetterReturnMessage::Expected(
         self
           .getter_name
@@ -108,9 +109,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     );
   }
 
-  fn report_always_expected(&mut self, span: Span) {
+  fn report_always_expected(&mut self, range: SourceRange) {
     self.errors.insert(
-      span,
+      range,
       GetterReturnMessage::ExpectedAlways(
         self
           .getter_name
@@ -120,7 +121,11 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     );
   }
 
-  fn check_getter(&mut self, getter_body_span: Span, getter_span: Span) {
+  fn check_getter(
+    &mut self,
+    getter_body_range: SourceRange,
+    getter_range: SourceRange,
+  ) {
     if self.getter_name.is_none() {
       return;
     }
@@ -128,14 +133,14 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     if self
       .context
       .control_flow()
-      .meta(getter_body_span.lo)
+      .meta(getter_body_range.start)
       .unwrap()
       .continues_execution()
     {
       if self.has_return {
-        self.report_always_expected(getter_span);
+        self.report_always_expected(getter_range);
       } else {
-        self.report_expected(getter_span);
+        self.report_expected(getter_range);
       }
     }
   }
@@ -203,7 +208,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
       class_method.visit_children_with(a);
 
       if let Some(body) = &class_method.function.body {
-        a.check_getter(body.span, class_method.span);
+        a.check_getter(body.range(), class_method.range());
       }
     });
   }
@@ -216,7 +221,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
       private_method.visit_children_with(a);
 
       if let Some(body) = &private_method.function.body {
-        a.check_getter(body.span, private_method.span);
+        a.check_getter(body.range(), private_method.range());
       }
     });
   }
@@ -227,7 +232,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
       getter_prop.visit_children_with(a);
 
       if let Some(body) = &getter_prop.body {
-        a.check_getter(body.span, getter_prop.span);
+        a.check_getter(body.range(), getter_prop.range());
       }
     });
   }
@@ -267,7 +272,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
                   a.set_getter_name(&fn_expr.ident);
                   if let Some(body) = &fn_expr.function.body {
                     body.visit_children_with(a);
-                    a.check_getter(body.span, prop.span());
+                    a.check_getter(body.range(), prop.range());
                   }
                 } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
                   a.set_default_getter_name();
@@ -275,7 +280,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
                     &arrow_expr.body
                   {
                     block_stmt.visit_children_with(a);
-                    a.check_getter(block_stmt.span, prop.span());
+                    a.check_getter(block_stmt.range(), prop.range());
                   }
                 }
               });
@@ -292,7 +297,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
 
                 if let Some(body) = &method_prop.function.body {
                   body.visit_children_with(a);
-                  a.check_getter(body.span, prop.span());
+                  a.check_getter(body.range(), prop.range());
                 }
               });
             }
@@ -306,7 +311,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     if self.getter_name.is_some() {
       self.has_return = true;
       if return_stmt.arg.is_none() {
-        self.report_expected(return_stmt.span);
+        self.report_expected(return_stmt.range());
       }
     }
   }

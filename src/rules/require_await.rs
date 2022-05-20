@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{NodeTrait, Program};
 use derive_more::Display;
 use std::sync::Arc;
@@ -270,7 +269,7 @@ fn process_function<'a, N>(
   function_info: FunctionInfo,
   ctx: &mut Context,
 ) where
-  N: NodeTrait<'a> + Spanned,
+  N: NodeTrait<'a>,
 {
   let mut function_handler = FunctionHandler {
     function_info: Some(Box::new(function_info)),
@@ -284,7 +283,7 @@ fn process_function<'a, N>(
 
   if let Some(message) = function_info.should_report() {
     ctx.add_diagnostic_with_hint(
-      node.span(),
+      node.range(),
       CODE,
       message,
       RequireAwaitHint::RemoveOrUse,

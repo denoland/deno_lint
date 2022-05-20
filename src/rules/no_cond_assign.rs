@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CondExpr, DoWhileStmt, Expr, ForStmt, IfStmt, WhileStmt};
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -63,9 +62,9 @@ impl LintRule for NoCondAssign {
 struct NoCondAssignHandler;
 
 impl NoCondAssignHandler {
-  fn add_diagnostic(&mut self, span: Span, ctx: &mut Context) {
+  fn add_diagnostic(&mut self, range: SourceRange, ctx: &mut Context) {
     ctx.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoCondAssignMessage::Unexpected,
       NoCondAssignHint::ChangeOrMove,
@@ -75,7 +74,7 @@ impl NoCondAssignHandler {
   fn check_condition(&mut self, condition: &Expr, ctx: &mut Context) {
     match condition {
       Expr::Assign(assign) => {
-        self.add_diagnostic(assign.span(), ctx);
+        self.add_diagnostic(assign.range(), ctx);
       }
       Expr::Bin(bin) => {
         if bin.op() == deno_ast::swc::ast::BinaryOp::LogicalOr {

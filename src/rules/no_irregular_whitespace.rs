@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::{hygiene::SyntaxContext, BytePos, Span};
-use deno_ast::view::RootNode;
+use deno_ast::{RootNode, SourceRangedForSpanned};
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::{Matches, Regex};
@@ -61,23 +61,20 @@ impl LintRule for NoIrregularWhitespace {
     context: &mut Context,
     program: Program,
   ) {
-    let file_span = context.source_file().span();
-    let mut check_span = |span: Span| {
-      let whitespace_text = context.source_file().text()
-        [span.lo().0 as usize..span.hi().0 as usize]
-        .to_string();
+    let file_range = context.text_info().range();
+    let mut check_range = |range: SourceRange| {
+      let whitespace_text = range.text_fast(&context.text_info()).to_string();
       for whitespace_matches in
         test_for_whitespace(&whitespace_text).into_iter()
       {
         for whitespace_match in whitespace_matches {
-          let range = whitespace_match.range();
-          let span = Span::new(
-            span.lo() + BytePos(range.start as u32),
-            span.lo() + BytePos(range.end as u32),
-            SyntaxContext::empty(),
+          let whitespace_range = whitespace_match.range();
+          let range = SourceRange::new(
+            range.start + whitespace_range.start,
+            range.start + whitespace_range.end,
           );
           context.add_diagnostic_with_hint(
-            span,
+            range,
             CODE,
             NoIrregularWhitespaceMessage::NotAllowed,
             HINT,
@@ -85,14 +82,14 @@ impl LintRule for NoIrregularWhitespace {
         }
       }
     };
-    let mut last_end = BytePos(0);
+    let mut last_end = file_range.start.as_source_pos();
 
-    for token in program.token_container().unwrap().tokens {
-      check_span(Span::new(last_end, token.span.lo(), Default::default()));
-      last_end = token.span.hi();
+    for token in program.token_container().tokens {
+      check_range(SourceRange::new(last_end, token.start()));
+      last_end = token.end();
     }
 
-    check_span(Span::new(last_end, file_span.hi(), Default::default()));
+    check_range(SourceRange::new(last_end, file_range.end));
   }
 
   #[cfg(feature = "docs")]

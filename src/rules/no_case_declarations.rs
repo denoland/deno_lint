@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Decl, Stmt, SwitchCase, VarDeclKind};
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ impl Handler for NoCaseDeclarationsHandler {
 
       if is_lexical_decl {
         context.add_diagnostic_with_hint(
-          switch_case.span(),
+          switch_case.range(),
           CODE,
           MESSAGE,
           HINT,

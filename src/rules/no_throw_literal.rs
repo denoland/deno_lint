@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Expr, ThrowStmt};
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -54,12 +54,12 @@ impl Handler for NoThrowLiteralHandler {
   fn throw_stmt(&mut self, throw_stmt: &ThrowStmt, ctx: &mut Context) {
     match throw_stmt.arg {
       Expr::Lit(_) => ctx.add_diagnostic(
-        throw_stmt.span(),
+        throw_stmt.range(),
         CODE,
         NoThrowLiteralMessage::ErrObjectExpected,
       ),
       Expr::Ident(ident) if *ident.sym() == *"undefined" => ctx.add_diagnostic(
-        throw_stmt.span(),
+        throw_stmt.range(),
         CODE,
         NoThrowLiteralMessage::Undefined,
       ),

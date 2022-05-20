@@ -1,5 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use deno_ast::swc::common::BytePos;
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
 use std::fmt::Display;
@@ -59,10 +60,10 @@ impl miette::Diagnostic for MietteDiagnostic<'_> {
   fn labels(
     &self,
   ) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-    let len = self.lint_diagnostic.range.end.byte_pos
-      - self.lint_diagnostic.range.start.byte_pos;
+    let len = self.lint_diagnostic.range.end.byte_index
+      - self.lint_diagnostic.range.start.byte_index;
     let start =
-      miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_pos);
+      miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_index);
     let len = miette::SourceOffset::from(len);
     let span = miette::SourceSpan::new(start, len);
     let text = self
@@ -88,12 +89,11 @@ impl miette::SourceCode for MietteSourceCode<'_> {
     context_lines_before: usize,
     context_lines_after: usize,
   ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
-    let lo = span.offset();
+    let start_pos = self.source.range().start;
+    let lo = start_pos + span.offset();
     let hi = lo + span.len();
 
-    let start_line_column = self
-      .source
-      .line_and_column_index(BytePos(lo.try_into().unwrap()));
+    let start_line_column = self.source.line_and_column_index(lo);
 
     let start_line_index =
       if context_lines_before > start_line_column.line_index {
@@ -101,24 +101,24 @@ impl miette::SourceCode for MietteSourceCode<'_> {
       } else {
         start_line_column.line_index - context_lines_before
       };
-    let src_start = self.source.line_start(start_line_index).0 as usize;
-    let end_line_column = self
-      .source
-      .line_and_column_index(BytePos(hi.try_into().unwrap()));
+    let src_start = self.source.line_start(start_line_index);
+    let end_line_column = self.source.line_and_column_index(hi);
     let line_count = self.source.lines_count();
     let end_line_index = std::cmp::min(
       end_line_column.line_index + context_lines_after,
-      self.source.text().len(),
+      self.source.text_str().len(),
     );
-    let src_end = self.source.line_end(end_line_index).0 as usize;
-    let src = &self.source.text_str()[src_start..src_end];
+    let src_end = self.source.line_end(end_line_index);
+    let range = SourceRange::new(src_start, src_end);
+    let src_text = range.text_fast(&self.source);
+    let byte_range = range.as_byte_range(start_pos);
     let name = Some(self.filename.to_string());
-    let start = miette::SourceOffset::from(src_start);
-    let len = miette::SourceOffset::from(src_end - src_start);
+    let start = miette::SourceOffset::from(byte_range.start);
+    let len = miette::SourceOffset::from(byte_range.len());
     let span = miette::SourceSpan::new(start, len);
 
     Ok(Box::new(SpanContentsImpl {
-      data: src,
+      data: src_text,
       span,
       line: start_line_column.line_index,
       column: start_line_column.column_index,

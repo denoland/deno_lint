@@ -14,8 +14,6 @@ use deno_ast::Scope;
 use std::sync::Arc;
 use std::time::Instant;
 
-pub use deno_ast::view::SourceFile;
-
 #[derive(Default)]
 pub struct LinterBuilder {
   ignore_file_directive: String,
@@ -159,7 +157,7 @@ impl Linter {
       .rules
       .iter()
       .any(|a| a.code() == (BanUnknownRuleCode).code());
-    let control_flow = ControlFlow::analyze(parsed_source.program_ref().into());
+    let control_flow = ControlFlow::analyze(parsed_source);
     let diagnostics = parsed_source.with_view(|pg| {
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ignore_file_directive, pg);
@@ -177,15 +175,13 @@ impl Linter {
       let scope = Scope::analyze(pg);
 
       let mut context = Context::new(
-        parsed_source.specifier().to_string(),
+        parsed_source.clone(),
         self.media_type,
-        parsed_source.source(),
         pg,
         file_ignore_directive,
         line_ignore_directives,
         scope,
         control_flow,
-        parsed_source.top_level_context(),
         check_unknown_rules,
       );
 

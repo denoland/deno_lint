@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
+use deno_ast::SourceRange;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -31,22 +31,22 @@ impl LintRule for BanUntaggedIgnore {
     context: &mut Context,
     _program: Program,
   ) {
-    let mut violated_spans: Vec<Span> = context
+    let mut violated_ranges: Vec<SourceRange> = context
       .file_ignore_directive()
       .iter()
-      .filter_map(|d| d.ignore_all().then(|| d.span()))
+      .filter_map(|d| d.ignore_all().then(|| d.range()))
       .collect();
 
-    violated_spans.extend(
+    violated_ranges.extend(
       context
         .line_ignore_directives()
         .values()
-        .filter_map(|d| d.ignore_all().then(|| d.span())),
+        .filter_map(|d| d.ignore_all().then(|| d.range())),
     );
 
-    for span in violated_spans {
+    for range in violated_ranges {
       context.add_diagnostic_with_hint(
-        span,
+        range,
         CODE,
         "Ignore directive requires lint rule name(s)",
         "Add one or more lint rule names.  E.g. // deno-lint-ignore adjacent-overload-signatures",

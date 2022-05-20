@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
+use deno_ast::{view as ast_view, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -71,7 +70,7 @@ impl Handler for NoNamespaceHandler {
     }
 
     if !inside_ambient_context(module_decl.as_node()) {
-      ctx.add_diagnostic_with_hint(module_decl.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(module_decl.range(), CODE, MESSAGE, HINT);
     }
   }
 }

@@ -4,7 +4,7 @@ use deno_ast::swc::ast::{
   MemberProp, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
   PropOrSpread, Regex, Str, Tpl,
 };
-use deno_ast::swc::utils::{find_ids, ident::IdentLike};
+use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
 use deno_ast::view as ast_view;
 use deno_ast::Scope;
 
@@ -297,6 +297,6 @@ where
       Expr::Ident(i) => vec![I::from_ident(i)],
       _ => vec![],
     },
-    PatOrExpr::Pat(p) => find_ids(p),
+    PatOrExpr::Pat(p) => find_pat_ids(p),
   }
 }

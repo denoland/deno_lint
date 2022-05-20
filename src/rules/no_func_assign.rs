@@ -6,6 +6,7 @@ use deno_ast::swc::ast::AssignExpr;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::BindingKind;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -80,7 +81,7 @@ impl<'c, 'view> VisitAll for NoFuncAssignVisitor<'c, 'view> {
       if let Some(var) = var {
         if let BindingKind::Function = var.kind() {
           self.context.add_diagnostic_with_hint(
-            assign_expr.span,
+            assign_expr.range(),
             CODE,
             NoFuncAssignMessage::Unexpected,
             NoFuncAssignHint::RemoveOrRework,

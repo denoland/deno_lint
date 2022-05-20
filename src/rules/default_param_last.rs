@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -83,7 +82,7 @@ where
       ast_view::Pat::Assign(pat) => {
         if has_seen_normal_param {
           ctx.add_diagnostic_with_hint(
-            pat.span(),
+            pat.range(),
             CODE,
             DefaultParamLastMessage::DefaultLast,
             DefaultParamLastHint::MoveToEnd,

@@ -3,12 +3,11 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
   GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
   SetterProp,
 };
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -65,9 +64,14 @@ impl LintRule for NoDupeKeys {
 struct NoDupeKeysHandler;
 
 impl NoDupeKeysHandler {
-  fn report(&mut self, span: Span, key: impl Into<String>, ctx: &mut Context) {
+  fn report(
+    &mut self,
+    range: SourceRange,
+    key: impl Into<String>,
+    ctx: &mut Context,
+  ) {
     ctx.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoDupeKeysMessage::Duplicate(key.into()),
       NoDupeKeysHint::RemoveOrRename,
@@ -76,7 +80,7 @@ impl NoDupeKeysHandler {
 
   fn check_key<S: Into<String>>(
     &mut self,
-    obj_span: Span,
+    obj_range: SourceRange,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
     ctx: &mut Context,
@@ -86,7 +90,7 @@ impl NoDupeKeysHandler {
 
       match keys.entry(key) {
         Entry::Occupied(occupied) => {
-          self.report(obj_span, occupied.key(), ctx);
+          self.report(obj_range, occupied.key(), ctx);
         }
         Entry::Vacant(vacant) => {
           vacant.insert(PropertyInfo::default());
@@ -97,7 +101,7 @@ impl NoDupeKeysHandler {
 
   fn check_getter<S: Into<String>>(
     &mut self,
-    obj_span: Span,
+    obj_range: SourceRange,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
     ctx: &mut Context,
@@ -110,7 +114,7 @@ impl NoDupeKeysHandler {
           if occupied.get().setter_only() {
             occupied.get_mut().getter = true;
           } else {
-            self.report(obj_span, occupied.key(), ctx);
+            self.report(obj_range, occupied.key(), ctx);
           }
         }
         Entry::Vacant(vacant) => {
@@ -125,7 +129,7 @@ impl NoDupeKeysHandler {
 
   fn check_setter<S: Into<String>>(
     &mut self,
-    obj_span: Span,
+    obj_range: SourceRange,
     key: Option<S>,
     keys: &mut HashMap<String, PropertyInfo>,
     ctx: &mut Context,
@@ -138,7 +142,7 @@ impl NoDupeKeysHandler {
           if occupied.get().getter_only() {
             occupied.get_mut().setter = true;
           } else {
-            self.report(obj_span, occupied.key(), ctx);
+            self.report(obj_range, occupied.key(), ctx);
           }
         }
         Entry::Vacant(vacant) => {
@@ -170,27 +174,27 @@ impl PropertyInfo {
 
 impl Handler for NoDupeKeysHandler {
   fn object_lit(&mut self, obj_lit: &ObjectLit, ctx: &mut Context) {
-    let span = obj_lit.span();
+    let range = obj_lit.range();
     let mut keys: HashMap<String, PropertyInfo> = HashMap::new();
 
     for prop in &obj_lit.props {
       if let PropOrSpread::Prop(prop) = prop {
         match prop {
           Prop::Shorthand(ident) => {
-            self.check_key(span, Some(ident.inner.as_ref()), &mut keys, ctx);
+            self.check_key(range, Some(ident.inner.as_ref()), &mut keys, ctx);
           }
           Prop::KeyValue(KeyValueProp { key, .. }) => {
-            self.check_key(span, key.string_repr(), &mut keys, ctx);
+            self.check_key(range, key.string_repr(), &mut keys, ctx);
           }
           Prop::Assign(_) => {}
           Prop::Getter(GetterProp { key, .. }) => {
-            self.check_getter(span, key.string_repr(), &mut keys, ctx);
+            self.check_getter(range, key.string_repr(), &mut keys, ctx);
           }
           Prop::Setter(SetterProp { key, .. }) => {
-            self.check_setter(span, key.string_repr(), &mut keys, ctx);
+            self.check_setter(range, key.string_repr(), &mut keys, ctx);
           }
           Prop::Method(MethodProp { key, .. }) => {
-            self.check_key(span, key.string_repr(), &mut keys, ctx);
+            self.check_key(range, key.string_repr(), &mut keys, ctx);
           }
         }
       }

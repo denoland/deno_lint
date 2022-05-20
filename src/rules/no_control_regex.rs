@@ -3,9 +3,8 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -66,16 +65,16 @@ impl LintRule for NoControlRegex {
 
 struct NoControlRegexHandler;
 
-fn add_diagnostic(span: Span, cp: u64, ctx: &mut Context) {
+fn add_diagnostic(range: SourceRange, cp: u64, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    span,
+    range,
     CODE,
     NoControlRegexMessage::Unexpected(cp),
     NoControlRegexHint::DisableOrRework,
   );
 }
 
-fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
+fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
   let mut iter = regex.chars().peekable();
   while let Some(ch) = iter.next() {
     if ch != '\\' {
@@ -85,7 +84,7 @@ fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
       Some('x') => {
         if let Some(cp) = read_hex_n(&mut iter, 2) {
           if cp <= 31 {
-            add_diagnostic(span, cp, ctx);
+            add_diagnostic(range, cp, ctx);
             return;
           }
         }
@@ -98,7 +97,7 @@ fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
         };
         if let Some(cp) = cp {
           if cp <= 31 {
-            add_diagnostic(span, cp, ctx);
+            add_diagnostic(range, cp, ctx);
             return;
           }
         }
@@ -134,14 +133,14 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
 
 impl Handler for NoControlRegexHandler {
   fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    check_regex(regex.inner.exp.to_string().as_str(), regex.span(), ctx);
+    check_regex(regex.inner.exp.to_string().as_str(), regex.range(), ctx);
   }
 
   fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
     if let Expr::Ident(ident) = new_expr.callee {
       if let Some(args) = &new_expr.args {
         if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
-          check_regex(regex.as_str(), new_expr.span(), ctx);
+          check_regex(regex.as_str(), new_expr.range(), ctx);
         }
       }
     }
@@ -150,7 +149,7 @@ impl Handler for NoControlRegexHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
       if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
-        check_regex(regex.as_str(), call_expr.span(), ctx);
+        check_regex(regex.as_str(), call_expr.range(), ctx);
       }
     }
   }

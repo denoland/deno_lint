@@ -2,8 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use if_chain::if_chain;
 use std::sync::Arc;
@@ -63,7 +62,7 @@ impl Handler for NoUnsafeNegationHandler {
       if unary_expr.op() == UnaryOp::Bang;
       then {
         ctx.add_diagnostic_with_hint(
-          bin_expr.span(),
+          bin_expr.range(),
           CODE,
           NoUnsafeNegationMessage::Unexpected(bin_expr.op().to_string()),
           HINT,

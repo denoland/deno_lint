@@ -7,8 +7,9 @@ use deno_ast::swc::ast::{
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use deno_ast::swc::ast::{Callee, PropName};
-use deno_ast::swc::common::Span;
 use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::SourceRange;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -69,25 +70,35 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     Self { context }
   }
 
-  fn add_diagnostic_helper(&mut self, span: Span) {
+  fn add_diagnostic_helper(&mut self, range: SourceRange) {
     self.context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
       NoInferrableTypesMessage::NotAllowed,
       NoInferrableTypesHint::Remove,
     )
   }
 
-  fn check_callee(&mut self, callee: &Callee, span: Span, expected_sym: &str) {
+  fn check_callee(
+    &mut self,
+    callee: &Callee,
+    range: SourceRange,
+    expected_sym: &str,
+  ) {
     if let Callee::Expr(expr) = &callee {
-      self.check_callee_expr(expr, span, expected_sym);
+      self.check_callee_expr(expr, range, expected_sym);
     }
   }
 
-  fn check_callee_expr(&mut self, expr: &Expr, span: Span, expected_sym: &str) {
+  fn check_callee_expr(
+    &mut self,
+    expr: &Expr,
+    range: SourceRange,
+    expected_sym: &str,
+  ) {
     if let Expr::Ident(value) = expr {
       if value.sym == *expected_sym {
-        self.add_diagnostic_helper(span);
+        self.add_diagnostic_helper(range);
       }
     }
   }
@@ -100,29 +111,29 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     &mut self,
     value: &Expr,
     ts_type: &TsKeywordType,
-    span: Span,
+    range: SourceRange,
   ) {
     use TsKeywordTypeKind::*;
     match ts_type.kind {
       TsBigIntKeyword => match &*value {
         Expr::Lit(Lit::BigInt(_)) => {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
         Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, span, "BigInt");
+          self.check_callee(callee, range, "BigInt");
         }
         Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
           Expr::Lit(Lit::BigInt(_)) => {
-            self.add_diagnostic_helper(span);
+            self.add_diagnostic_helper(range);
           }
           Expr::Call(CallExpr { callee, .. }) => {
-            self.check_callee(callee, span, "BigInt");
+            self.check_callee(callee, range, "BigInt");
           }
           Expr::OptChain(OptChainExpr {
             base: OptChainBase::Call(OptCall { callee, .. }),
             ..
           }) => {
-            self.check_callee_expr(callee, span, "BigInt");
+            self.check_callee_expr(callee, range, "BigInt");
           }
           _ => {}
         },
@@ -130,59 +141,59 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
         }) => {
-          self.check_callee_expr(callee, span, "BigInt");
+          self.check_callee_expr(callee, range, "BigInt");
         }
         _ => {}
       },
       TsBooleanKeyword => match &*value {
         Expr::Lit(Lit::Bool(_)) => {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
         Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, span, "Boolean");
+          self.check_callee(callee, range, "Boolean");
         }
         Expr::Unary(UnaryExpr { op, .. }) => {
           if op.to_string() == "!" {
-            self.add_diagnostic_helper(span);
+            self.add_diagnostic_helper(range);
           }
         }
         Expr::OptChain(OptChainExpr {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
         }) => {
-          self.check_callee_expr(callee, span, "Boolean");
+          self.check_callee_expr(callee, range, "Boolean");
         }
         _ => {}
       },
       TsNumberKeyword => match &*value {
         Expr::Lit(Lit::Num(_)) => {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
         Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, span, "Number");
+          self.check_callee(callee, range, "Number");
         }
         Expr::Ident(ident) => {
           if self.is_nan_or_infinity(ident) {
-            self.add_diagnostic_helper(span);
+            self.add_diagnostic_helper(range);
           }
         }
         Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
           Expr::Lit(Lit::Num(_)) => {
-            self.add_diagnostic_helper(span);
+            self.add_diagnostic_helper(range);
           }
           Expr::Call(CallExpr { callee, .. }) => {
-            self.check_callee(callee, span, "Number");
+            self.check_callee(callee, range, "Number");
           }
           Expr::Ident(ident) => {
             if self.is_nan_or_infinity(ident) {
-              self.add_diagnostic_helper(span);
+              self.add_diagnostic_helper(range);
             }
           }
           Expr::OptChain(OptChainExpr {
             base: OptChainBase::Call(OptCall { callee, .. }),
             ..
           }) => {
-            self.check_callee_expr(callee, span, "Number");
+            self.check_callee_expr(callee, range, "Number");
           }
           _ => {}
         },
@@ -190,53 +201,53 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
         }) => {
-          self.check_callee_expr(callee, span, "Number");
+          self.check_callee_expr(callee, range, "Number");
         }
         _ => {}
       },
       TsNullKeyword => {
         if let Expr::Lit(Lit::Null(_)) = &*value {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
       }
       TsStringKeyword => match &*value {
         Expr::Lit(Lit::Str(_)) => {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
         Expr::Tpl(_) => {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
         Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, span, "String");
+          self.check_callee(callee, range, "String");
         }
         Expr::OptChain(OptChainExpr {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
         }) => {
-          self.check_callee_expr(callee, span, "String");
+          self.check_callee_expr(callee, range, "String");
         }
         _ => {}
       },
       TsSymbolKeyword => {
         if let Expr::Call(CallExpr { callee, .. }) = &*value {
-          self.check_callee(callee, span, "Symbol");
+          self.check_callee(callee, range, "Symbol");
         } else if let Expr::OptChain(OptChainExpr {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
         }) = &*value
         {
-          self.check_callee_expr(callee, span, "Symbol");
+          self.check_callee_expr(callee, range, "Symbol");
         }
       }
       TsUndefinedKeyword => match &*value {
         Expr::Ident(ident) => {
           if ident.sym == *"undefined" {
-            self.add_diagnostic_helper(span);
+            self.add_diagnostic_helper(range);
           }
         }
         Expr::Unary(UnaryExpr { op, .. }) => {
           if op.to_string() == "void" {
-            self.add_diagnostic_helper(span);
+            self.add_diagnostic_helper(range);
           }
         }
         _ => {}
@@ -245,27 +256,32 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
     }
   }
 
-  fn check_ref_type(&mut self, value: &Expr, ts_type: &TsTypeRef, span: Span) {
+  fn check_ref_type(
+    &mut self,
+    value: &Expr,
+    ts_type: &TsTypeRef,
+    range: SourceRange,
+  ) {
     if let TsEntityName::Ident(ident) = &ts_type.type_name {
       if ident.sym != *"RegExp" {
         return;
       }
       match &*value {
         Expr::Lit(Lit::Regex(_)) => {
-          self.add_diagnostic_helper(span);
+          self.add_diagnostic_helper(range);
         }
         Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, span, "RegExp");
+          self.check_callee(callee, range, "RegExp");
         }
         Expr::New(NewExpr { callee, .. }) => {
           if let Expr::Ident(ident) = &**callee {
             if ident.sym == *"RegExp" {
-              self.add_diagnostic_helper(span);
+              self.add_diagnostic_helper(range);
             }
           } else if let Expr::OptChain(opt_chain) = &**callee {
             if let OptChainBase::Call(OptCall { callee, .. }) = &opt_chain.base
             {
-              self.check_callee_expr(callee, span, "RegExp");
+              self.check_callee_expr(callee, range, "RegExp");
             }
           }
         }
@@ -273,18 +289,23 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
         }) => {
-          self.check_callee_expr(callee, span, "RegExp");
+          self.check_callee_expr(callee, range, "RegExp");
         }
         _ => {}
       }
     }
   }
 
-  fn check_ts_type(&mut self, value: &Expr, ts_type: &TsTypeAnn, span: Span) {
+  fn check_ts_type(
+    &mut self,
+    value: &Expr,
+    ts_type: &TsTypeAnn,
+    range: SourceRange,
+  ) {
     if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
-      self.check_keyword_type(value, ts_type, span);
+      self.check_keyword_type(value, ts_type, range);
     } else if let TsType::TsTypeRef(ts_type) = &*ts_type.type_ann {
-      self.check_ref_type(value, ts_type, span);
+      self.check_ref_type(value, ts_type, range);
     }
   }
 }
@@ -295,7 +316,11 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
       if let Pat::Assign(assign_pat) = &param.pat {
         if let Pat::Ident(ident) = &*assign_pat.left {
           if let Some(ident_type_ann) = &ident.type_ann {
-            self.check_ts_type(&assign_pat.right, ident_type_ann, param.span);
+            self.check_ts_type(
+              &assign_pat.right,
+              ident_type_ann,
+              param.range(),
+            );
           }
         }
       }
@@ -310,7 +335,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
             self.check_ts_type(
               &assign_pat.right,
               ident_type_ann,
-              assign_pat.span,
+              assign_pat.range(),
             );
           }
         }
@@ -325,7 +350,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
     if let Some(init) = &prop.value {
       if let PropName::Ident(_) = &prop.key {
         if let Some(ident_type_ann) = &prop.type_ann {
-          self.check_ts_type(init, ident_type_ann, prop.span);
+          self.check_ts_type(init, ident_type_ann, prop.range());
         }
       }
     }
@@ -337,7 +362,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
     }
     if let Some(init) = &prop.value {
       if let Some(ident_type_ann) = &prop.type_ann {
-        self.check_ts_type(init, ident_type_ann, prop.span);
+        self.check_ts_type(init, ident_type_ann, prop.range());
       }
     }
   }
@@ -347,7 +372,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
       if let Some(init) = &decl.init {
         if let Pat::Ident(ident) = &decl.name {
           if let Some(ident_type_ann) = &ident.type_ann {
-            self.check_ts_type(init, ident_type_ann, decl.span);
+            self.check_ts_type(init, ident_type_ann, decl.range());
           }
         }
       }
@@ -393,7 +418,6 @@ mod tests {
       "const a = /a/",
       "const a = RegExp('a')",
       "const a = RegExp?.('a')",
-      "const a = new RegExp?.('a')",
       "const a = 'str'",
       r#"const a = "str""#,
       "const a = `str`",
@@ -632,13 +656,6 @@ mod tests {
         }
       ],
       "const a: RegExp = RegExp?.('a')": [
-        {
-          col: 6,
-          message: NoInferrableTypesMessage::NotAllowed,
-          hint: NoInferrableTypesHint::Remove,
-        }
-      ],
-      "const a: RegExp = new RegExp?.('a')": [
         {
           col: 6,
           message: NoInferrableTypesMessage::NotAllowed,

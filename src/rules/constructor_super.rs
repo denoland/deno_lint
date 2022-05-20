@@ -2,9 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use if_chain::if_chain;
 use std::sync::Arc;
 
@@ -82,25 +80,25 @@ fn inherits_from_non_constructor(class: &ast_view::Class) -> bool {
   matches!(&class.super_class, Some(ast_view::Expr::Lit(_)))
 }
 
-fn super_call_spans(constructor: &ast_view::Constructor) -> Vec<Span> {
+fn super_call_ranges(constructor: &ast_view::Constructor) -> Vec<SourceRange> {
   if let Some(block_stmt) = &constructor.body {
     block_stmt
       .stmts
       .iter()
-      .filter_map(extract_super_span)
+      .filter_map(extract_super_range)
       .collect()
   } else {
     vec![]
   }
 }
 
-fn extract_super_span(stmt: &ast_view::Stmt) -> Option<Span> {
+fn extract_super_range(stmt: &ast_view::Stmt) -> Option<SourceRange> {
   if_chain! {
     if let ast_view::Stmt::Expr(expr) = stmt;
     if let ast_view::Expr::Call(call) = expr.expr;
     if matches!(&call.callee, ast_view::Callee::Super(_));
     then {
-      Some(call.span())
+      Some(call.range())
     } else {
       None
     }
@@ -112,7 +110,7 @@ fn return_before_super<'a, 'view>(
 ) -> Option<&'a ast_view::ReturnStmt<'view>> {
   if let Some(block_stmt) = &constructor.body {
     for stmt in &block_stmt.stmts {
-      if extract_super_span(stmt).is_some() {
+      if extract_super_range(stmt).is_some() {
         return None;
       }
 
@@ -139,7 +137,7 @@ fn check_constructor(
     if ret.arg.is_none() && class.super_class.is_some() {
       let kind = DiagnosticKind::NoSuper;
       ctx.add_diagnostic_with_hint(
-        cons.span(),
+        cons.range(),
         CODE,
         kind.message(),
         kind.hint(),
@@ -151,7 +149,7 @@ fn check_constructor(
   if inherits_from_non_constructor(class) {
     let kind = DiagnosticKind::UnnecessaryConstructor;
     ctx.add_diagnostic_with_hint(
-      cons.span(),
+      cons.range(),
       CODE,
       kind.message(),
       kind.hint(),
@@ -159,13 +157,13 @@ fn check_constructor(
     return;
   }
 
-  let super_calls = super_call_spans(cons);
+  let super_calls = super_call_ranges(cons);
 
   // in case where there are more than one `super()` calls.
-  for exceeded_super_span in super_calls.iter().skip(1) {
+  for exceeded_super_range in super_calls.iter().skip(1) {
     let kind = DiagnosticKind::TooManySuper;
     ctx.add_diagnostic_with_hint(
-      *exceeded_super_span,
+      *exceeded_super_range,
       CODE,
       kind.message(),
       kind.hint(),
@@ -176,7 +174,7 @@ fn check_constructor(
     (true, true) => {
       let kind = DiagnosticKind::NoSuper;
       ctx.add_diagnostic_with_hint(
-        cons.span(),
+        cons.range(),
         CODE,
         kind.message(),
         kind.hint(),

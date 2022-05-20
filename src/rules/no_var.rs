@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{VarDecl, VarDeclKind};
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 #[derive(Debug)]
 pub struct NoVar;
@@ -47,7 +47,7 @@ struct NoVarHandler;
 impl Handler for NoVarHandler {
   fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
     if var_decl.decl_kind() == VarDeclKind::Var {
-      ctx.add_diagnostic(var_decl.span(), CODE, MESSAGE);
+      ctx.add_diagnostic(var_decl.range(), CODE, MESSAGE);
     }
   }
 }

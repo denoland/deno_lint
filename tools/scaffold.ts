@@ -99,7 +99,7 @@ export function genRustContent(
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
+use deno_ast::SourceRanged;
 use deno_ast::view as ast_view;
 use std::sync::Arc;
 
@@ -144,7 +144,7 @@ impl Handler for ${pascalCasedLintName}Handler {
 
   // This is an example
   fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
-    ctx.add_diagnostic_with_hint(with_stmt.span(), CODE, MESSAGE, HINT);
+    ctx.add_diagnostic_with_hint(with_stmt.range(), CODE, MESSAGE, HINT);
   }
 }
 

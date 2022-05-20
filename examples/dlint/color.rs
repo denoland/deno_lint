@@ -1,9 +1,11 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use crate::lexer::{lex, MediaType, TokenOrComment};
-use deno_ast::swc::parser::token::{Token, Word};
+use deno_ast::{
+  lex,
+  swc::parser::token::{Token, Word},
+  MediaType, TokenOrComment,
+};
 use if_chain::if_chain;
 use pulldown_cmark::{Options, Parser, Tag};
-use std::convert::TryFrom;
 
 pub fn colorize_markdown(input: &str) -> String {
   let mut options = Options::empty();
@@ -156,7 +158,7 @@ impl MarkdownColorizer {
         if is_start {
           if_chain! {
             if let CodeBlockKind::Fenced(info) = kind;
-            if let Ok(media_type) = MediaType::try_from(&**info);
+            if let Some(media_type) = try_code_block_to_media_type(&**info);
             then {
               self.code_block = Some(CodeBlockLang::Known(media_type))
             } else {
@@ -268,43 +270,43 @@ fn colorize_code_block(lang: CodeBlockLang, src: &str) -> String {
       let mut out_line = String::from(line);
       for item in lex(line, media_type) {
         let offset = out_line.len() - line.len();
-        let span = item.span_as_range();
+        let range = item.range;
 
         out_line.replace_range(
-          span.start + offset..span.end + offset,
+          range.start + offset..range.end + offset,
           &match item.inner {
             TokenOrComment::Token(token) => match token {
               Token::Str { .. } | Token::Template { .. } | Token::BackQuote => {
-                decorate(&line[span], Attribute::Green)
+                decorate(&line[range], Attribute::Green)
               }
-              Token::Regex(_, _) => decorate(&line[span], Attribute::Red),
+              Token::Regex(_, _) => decorate(&line[range], Attribute::Red),
               Token::Num { .. } | Token::BigInt { .. } => {
-                decorate(&line[span], Attribute::Yellow)
+                decorate(&line[range], Attribute::Yellow)
               }
               Token::Word(word) => match word {
                 Word::True | Word::False | Word::Null => {
-                  decorate(&line[span], Attribute::Yellow)
+                  decorate(&line[range], Attribute::Yellow)
                 }
-                Word::Keyword(_) => decorate(&line[span], Attribute::Cyan),
+                Word::Keyword(_) => decorate(&line[range], Attribute::Cyan),
                 Word::Ident(ident) => {
                   if ident == *"undefined" {
-                    decorate(&line[span], Attribute::Gray)
+                    decorate(&line[range], Attribute::Gray)
                   } else if ident == *"Infinity" || ident == *"NaN" {
-                    decorate(&line[span], Attribute::Yellow)
+                    decorate(&line[range], Attribute::Yellow)
                   } else if matches!(
                     ident.as_ref(),
                     "async" | "of" | "enum" | "type" | "interface"
                   ) {
-                    decorate(&line[span], Attribute::Cyan)
+                    decorate(&line[range], Attribute::Cyan)
                   } else {
-                    line[span].to_string()
+                    line[range].to_string()
                   }
                 }
               },
-              _ => line[span].to_string(),
+              _ => line[range].to_string(),
             },
             TokenOrComment::Comment { .. } => {
-              decorate(&line[span], Attribute::Gray)
+              decorate(&line[range], Attribute::Gray)
             }
           },
         );
@@ -344,5 +346,16 @@ where
 {
   fn join_by(self, sep: &str) -> String {
     self.collect::<Vec<_>>().join(sep)
+  }
+}
+
+fn try_code_block_to_media_type(value: &str) -> Option<MediaType> {
+  match value {
+    "javascript" => Some(MediaType::JavaScript),
+    "typescript" => Some(MediaType::TypeScript),
+    "jsx" => Some(MediaType::Jsx),
+    "tsx" => Some(MediaType::Tsx),
+    "dts" => Some(MediaType::Dts),
+    _ => None,
   }
 }

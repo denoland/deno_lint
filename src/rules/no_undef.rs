@@ -4,9 +4,9 @@ use crate::globals::GLOBALS;
 use crate::ProgramRef;
 use deno_ast::swc::{
   ast::*,
-  utils::ident::IdentLike,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
     //
     // function foo(Map) { ... }
     //
-    if ident.span.ctxt != self.context.top_level_ctxt() {
+    if ident.span.ctxt != self.context.unresolved_ctxt() {
       return;
     }
 
@@ -73,7 +73,7 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
     }
 
     self.context.add_diagnostic(
-      ident.span,
+      ident.range(),
       "no-undef",
       format!("{} is not defined", ident.sym),
     )

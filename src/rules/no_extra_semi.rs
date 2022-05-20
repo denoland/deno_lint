@@ -6,6 +6,7 @@ use deno_ast::swc::ast::{
   Stmt, WhileStmt, WithStmt,
 };
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -72,7 +73,7 @@ impl<'c, 'view> Visit for NoExtraSemiVisitor<'c, 'view> {
 
   fn visit_empty_stmt(&mut self, empty_stmt: &EmptyStmt) {
     self.context.add_diagnostic_with_hint(
-      empty_stmt.span,
+      empty_stmt.range(),
       CODE,
       NoExtraSemiMessage::Unnecessary,
       NoExtraSemiHint::Remove,

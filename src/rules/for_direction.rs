@@ -5,9 +5,8 @@ use crate::{Program, ProgramRef};
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::BinaryOp;
 use deno_ast::swc::ast::UpdateOp;
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
 use deno_ast::view::{AssignExpr, Expr, Pat, PatOrExpr, UnaryOp, UpdateExpr};
+use deno_ast::{view as ast_view, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -151,7 +150,7 @@ impl Handler for ForDirectionHandler {
 
       if update_direction == wrong_direction {
         context.add_diagnostic_with_hint(
-          for_stmt.span(),
+          for_stmt.range(),
           "for-direction",
           MESSAGE,
           HINT,

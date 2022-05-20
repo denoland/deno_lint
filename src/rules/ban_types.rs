@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
-use deno_ast::view as ast_view;
 use deno_ast::view::{TsEntityName, TsKeywordTypeKind};
+use deno_ast::{view as ast_view, SourceRanged};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -116,12 +115,12 @@ impl Handler for BanTypesHandler {
   ) {
     if_chain! {
       if let TsEntityName::Ident(ident) = &ts_type_ref.type_name;
-      if ident.span().ctxt == ctx.top_level_ctxt();
+      if ident.ctxt() == ctx.unresolved_ctxt();
       if ctx.scope().is_global(&ident.to_id());
       if let Ok(banned_type) = BannedType::try_from(ident.sym().as_ref());
       then {
         ctx.add_diagnostic_with_hint(
-          ts_type_ref.span(),
+          ts_type_ref.range(),
           CODE,
           banned_type.as_message(),
           banned_type.as_hint(),
@@ -137,7 +136,7 @@ impl Handler for BanTypesHandler {
   ) {
     if ts_type_lit.members.is_empty() {
       ctx.add_diagnostic_with_hint(
-        ts_type_lit.span(),
+        ts_type_lit.range(),
         CODE,
         BannedType::EmptyObjectLiteral.as_message(),
         BannedType::EmptyObjectLiteral.as_hint(),
@@ -152,7 +151,7 @@ impl Handler for BanTypesHandler {
   ) {
     if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.keyword_kind() {
       ctx.add_diagnostic_with_hint(
-        ts_keyword_type.span(),
+        ts_keyword_type.range(),
         CODE,
         BannedType::LowerObject.as_message(),
         BannedType::LowerObject.as_hint(),

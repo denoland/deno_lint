@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
+use deno_ast::swc::ast::Id;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::{
-  ast::*, utils::find_ids, utils::ident::IdentLike, utils::Id, visit::Visit,
-  visit::VisitWith,
+  ast::*, utils::find_pat_ids, visit::Visit, visit::VisitWith,
 };
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 use std::collections::HashSet;
@@ -52,7 +53,7 @@ impl LintRule for NoRedeclare {
 
 struct NoRedeclareVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  /// TODO(kdy1): Change this to HashMap<Id, Vec<Span>> and use those spans to point previous bindings/
+  /// TODO(kdy1): Change this to HashMap<Id, Vec<SourceRange>> and use those ranges to point previous bindings/
   bindings: HashSet<Id>,
 }
 
@@ -61,7 +62,7 @@ impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
     let id = i.to_id();
 
     if !self.bindings.insert(id) {
-      self.context.add_diagnostic(i.span, CODE, MESSAGE);
+      self.context.add_diagnostic(i.range(), CODE, MESSAGE);
     }
   }
 }
@@ -80,7 +81,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   }
 
   fn visit_var_declarator(&mut self, v: &VarDeclarator) {
-    let ids: Vec<Ident> = find_ids(&v.name);
+    let ids: Vec<Ident> = find_pat_ids(&v.name);
 
     for id in ids {
       self.declare(&id);
@@ -88,7 +89,7 @@ impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
   }
 
   fn visit_param(&mut self, p: &Param) {
-    let ids: Vec<Ident> = find_ids(&p.pat);
+    let ids: Vec<Ident> = find_pat_ids(&p.pat);
 
     for id in ids {
       self.declare(&id);

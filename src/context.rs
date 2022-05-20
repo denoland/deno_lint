@@ -6,129 +6,108 @@ use crate::ignore_directives::{
 };
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::BytePos;
-use deno_ast::swc::common::{Span, SyntaxContext};
-use deno_ast::view as ast_view;
-use deno_ast::view::{RootNode, SourceFile};
+use deno_ast::swc::common::SyntaxContext;
 use deno_ast::MediaType;
 use deno_ast::Scope;
+use deno_ast::SourceTextInfo;
+use deno_ast::{
+  view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
+};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
 /// `Context` stores data needed while performing all lint rules to a file.
 pub struct Context<'view> {
-  /// File name on which the lint rule is run
-  file_name: String,
-
-  /// The media type which linter was configured with. Can be used
-  /// to skip checking some rules.
+  parsed_source: ParsedSource,
   media_type: MediaType,
-
-  /// Stores diagnostics that are generated while linting
   diagnostics: Vec<LintDiagnostic>,
-
-  /// Information about the file text.
-  source_file: &'view dyn SourceFile,
-
-  /// The AST view of the program, which for example can be used for getting
-  /// comments
   program: ast_view::Program<'view>,
-
-  /// File-level ignore directive (`deno-lint-ignore-file`)
   file_ignore_directive: Option<FileIgnoreDirective>,
-
-  /// The map that stores line-level ignore directives (`deno-lint-ignore`).
-  /// The key of the map is line number.
   line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
-
-  /// Scope analysis result
   scope: Scope,
-
-  /// Control-flow analysis result
   control_flow: ControlFlow,
-
-  /// The `SyntaxContext` of the top level
-  top_level_ctxt: SyntaxContext,
-
-  /// A value to control whether the node's children will be traversed or not.
   traverse_flow: TraverseFlow,
-
-  /// Whether to check unknown rules
   check_unknown_rules: bool,
 }
 
 impl<'view> Context<'view> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
-    file_name: String,
+    parsed_source: ParsedSource,
     media_type: MediaType,
-    source_file: &'view impl SourceFile,
     program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
     line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
     scope: Scope,
     control_flow: ControlFlow,
-    top_level_ctxt: SyntaxContext,
     check_unknown_rules: bool,
   ) -> Self {
     Self {
-      file_name,
+      parsed_source,
       media_type,
-      source_file,
       program,
       file_ignore_directive,
       line_ignore_directives,
       scope,
       control_flow,
-      top_level_ctxt,
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules,
     }
   }
+
+  /// File name on which the lint rule is run
   pub fn file_name(&self) -> &str {
-    &self.file_name
+    self.parsed_source.specifier()
   }
 
+  /// The media type which linter was configured with. Can be used
+  /// to skip checking some rules.
   pub fn media_type(&self) -> MediaType {
     self.media_type
   }
 
+  /// Stores diagnostics that are generated while linting
   pub fn diagnostics(&self) -> &[LintDiagnostic] {
     &self.diagnostics
   }
 
-  pub fn source_file(&self) -> &dyn SourceFile {
-    self.source_file
+  /// Information about the file text.
+  pub fn text_info(&self) -> &SourceTextInfo {
+    self.parsed_source.text_info()
   }
 
-  pub fn file_text_substring(&self, span: &Span) -> &str {
-    &self.source_file.text()[span.lo.0 as usize..span.hi.0 as usize]
-  }
-
+  /// The AST view of the program, which for example can be used for getting
+  /// comments
   pub fn program(&self) -> &ast_view::Program<'view> {
     &self.program
   }
 
+  /// File-level ignore directive (`deno-lint-ignore-file`)
   pub fn file_ignore_directive(&self) -> Option<&FileIgnoreDirective> {
     self.file_ignore_directive.as_ref()
   }
 
+  /// The map that stores line-level ignore directives (`deno-lint-ignore`).
+  /// The key of the map is line number.
   pub fn line_ignore_directives(&self) -> &HashMap<usize, LineIgnoreDirective> {
     &self.line_ignore_directives
   }
 
+  /// Scope analysis result
   pub fn scope(&self) -> &Scope {
     &self.scope
   }
 
+  /// Control-flow analysis result
   pub fn control_flow(&self) -> &ControlFlow {
     &self.control_flow
   }
 
-  pub(crate) fn top_level_ctxt(&self) -> SyntaxContext {
-    self.top_level_ctxt
+  /// The `SyntaxContext` of any unresolved identifiers
+  pub(crate) fn unresolved_ctxt(&self) -> SyntaxContext {
+    self.parsed_source.unresolved_context()
   }
 
   pub(crate) fn assert_traverse_init(&self) {
@@ -144,29 +123,21 @@ impl<'view> Context<'view> {
   }
 
   pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
-    self.program.comment_container().unwrap().all_comments()
+    self.program.comment_container().all_comments()
   }
 
   pub fn leading_comments_at(
     &self,
-    lo: BytePos,
+    start: SourcePos,
   ) -> impl Iterator<Item = &'view Comment> {
-    self
-      .program
-      .comment_container()
-      .unwrap()
-      .leading_comments(lo)
+    self.program.comment_container().leading_comments(start)
   }
 
   pub fn trailing_comments_at(
     &self,
-    hi: BytePos,
+    end: SourcePos,
   ) -> impl Iterator<Item = &'view Comment> {
-    self
-      .program
-      .comment_container()
-      .unwrap()
-      .trailing_comments(hi)
+    self.program.comment_container().trailing_comments(end)
   }
 
   /// Mark ignore directives as used if that directive actually suppresses some
@@ -233,7 +204,7 @@ impl<'view> Context<'view> {
         file_ignore.codes().iter().filter(is_unused_code)
       {
         let d = self.create_diagnostic(
-          file_ignore.span(),
+          file_ignore.range(),
           CODE,
           format!("Ignore for code \"{}\" was not used.", unused_code),
           None,
@@ -251,7 +222,7 @@ impl<'view> Context<'view> {
         line_ignore.codes().iter().filter(is_unused_code)
       {
         let d = self.create_diagnostic(
-          line_ignore.span(),
+          line_ignore.range(),
           CODE,
           format!("Ignore for code \"{}\" was not used.", unused_code),
           None,
@@ -278,7 +249,7 @@ impl<'view> Context<'view> {
         file_ignore.codes().keys().filter(is_unknown_rule)
       {
         let d = self.create_diagnostic(
-          file_ignore.span(),
+          file_ignore.range(),
           rules::ban_unknown_rule_code::CODE,
           format!("Unknown rule for code \"{}\"", unknown_rule_code),
           None,
@@ -292,7 +263,7 @@ impl<'view> Context<'view> {
         line_ignore.codes().keys().filter(is_unknown_rule)
       {
         let d = self.create_diagnostic(
-          line_ignore.span(),
+          line_ignore.range(),
           rules::ban_unknown_rule_code::CODE,
           format!("Unknown rule for code \"{}\"", unknown_rule_code),
           None,
@@ -321,47 +292,52 @@ impl<'view> Context<'view> {
 
   pub fn add_diagnostic(
     &mut self,
-    span: Span,
+    range: SourceRange,
     code: impl ToString,
     message: impl ToString,
   ) {
-    let diagnostic =
-      self.create_diagnostic(span, code.to_string(), message.to_string(), None);
+    let diagnostic = self.create_diagnostic(
+      range,
+      code.to_string(),
+      message.to_string(),
+      None,
+    );
     self.diagnostics.push(diagnostic);
   }
 
   pub fn add_diagnostic_with_hint(
     &mut self,
-    span: Span,
+    range: SourceRange,
     code: impl ToString,
     message: impl ToString,
     hint: impl ToString,
   ) {
     let diagnostic =
-      self.create_diagnostic(span, code, message, Some(hint.to_string()));
+      self.create_diagnostic(range, code, message, Some(hint.to_string()));
     self.diagnostics.push(diagnostic);
   }
 
   pub(crate) fn create_diagnostic(
     &self,
-    span: Span,
+    range: SourceRange,
     code: impl ToString,
     message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
     let time_start = Instant::now();
+    let text_info = self.text_info();
     let start = Position::new(
-      span.lo(),
-      self.source_file.line_and_column_index(span.lo()),
+      range.start.as_byte_index(text_info.range().start),
+      text_info.line_and_column_index(range.start),
     );
     let end = Position::new(
-      span.hi(),
-      self.source_file.line_and_column_index(span.hi()),
+      range.end.as_byte_index(text_info.range().start),
+      text_info.line_and_column_index(range.end),
     );
 
     let diagnostic = LintDiagnostic {
       range: Range { start, end },
-      filename: self.file_name.clone(),
+      filename: self.file_name().to_string(),
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,

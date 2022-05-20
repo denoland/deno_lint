@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::Regex;
+use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
@@ -50,7 +50,7 @@ struct NoEmptyCharacterClassVisitor;
 
 impl Handler for NoEmptyCharacterClassVisitor {
   fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    let raw_regex = ctx.file_text_substring(&regex.span());
+    let raw_regex = regex.text_fast(&ctx.text_info());
 
     static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
@@ -70,7 +70,7 @@ impl Handler for NoEmptyCharacterClassVisitor {
     });
 
     if !RULE_REGEX.is_match(raw_regex) {
-      ctx.add_diagnostic_with_hint(regex.span(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(regex.range(), CODE, MESSAGE, HINT);
     }
   }
 }

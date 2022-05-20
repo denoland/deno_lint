@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{TsModuleDecl, TsModuleName};
+use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::sync::Arc;
@@ -54,11 +54,11 @@ impl Handler for PreferNamespaceKeywordHandler {
     static KEYWORD: Lazy<Regex> =
       Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
 
-    let snippet = ctx.file_text_substring(&mod_decl.span());
+    let snippet = mod_decl.text_fast(&ctx.text_info());
     if let Some(capt) = KEYWORD.captures(snippet) {
       let keyword = capt.name("keyword").unwrap().as_str();
       if keyword == "module" && !mod_decl.global() {
-        ctx.add_diagnostic(mod_decl.span(), CODE, MESSAGE)
+        ctx.add_diagnostic(mod_decl.range(), CODE, MESSAGE)
       }
     }
   }

@@ -3,7 +3,8 @@ use super::{Context, LintRule};
 use crate::ProgramRef;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::swc::common::Span;
+use deno_ast::SourceRange;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -21,8 +22,12 @@ enum TripleSlashReferenceMessage {
 }
 
 impl TripleSlashReference {
-  fn report(&self, context: &mut Context, span: Span) {
-    context.add_diagnostic(span, CODE, TripleSlashReferenceMessage::Unexpected);
+  fn report(&self, context: &mut Context, range: SourceRange) {
+    context.add_diagnostic(
+      range,
+      CODE,
+      TripleSlashReferenceMessage::Unexpected,
+    );
   }
 }
 
@@ -36,18 +41,18 @@ impl LintRule for TripleSlashReference {
   }
 
   fn lint_program(&self, context: &mut Context, _program: ProgramRef<'_>) {
-    let mut violated_comment_spans = Vec::new();
+    let mut violated_comment_ranges = Vec::new();
 
-    violated_comment_spans.extend(context.all_comments().filter_map(|c| {
+    violated_comment_ranges.extend(context.all_comments().filter_map(|c| {
       if check_comment(c) {
-        Some(c.span)
+        Some(c.range())
       } else {
         None
       }
     }));
 
-    for span in violated_comment_spans {
-      self.report(context, span);
+    for range in violated_comment_ranges {
+      self.report(context, range);
     }
   }
 

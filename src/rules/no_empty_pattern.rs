@@ -4,6 +4,7 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -71,9 +72,12 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
   fn visit_object_pat(&mut self, obj_pat: &ObjectPat) {
     if obj_pat.props.is_empty() {
       if obj_pat.type_ann.is_none() {
-        self
-          .context
-          .add_diagnostic_with_hint(obj_pat.span, CODE, MESSAGE, HINT)
+        self.context.add_diagnostic_with_hint(
+          obj_pat.range(),
+          CODE,
+          MESSAGE,
+          HINT,
+        )
       }
     } else {
       for prop in &obj_pat.props {
@@ -84,9 +88,12 @@ impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
 
   fn visit_array_pat(&mut self, arr_pat: &ArrayPat) {
     if arr_pat.elems.is_empty() {
-      self
-        .context
-        .add_diagnostic_with_hint(arr_pat.span, CODE, MESSAGE, HINT)
+      self.context.add_diagnostic_with_hint(
+        arr_pat.range(),
+        CODE,
+        MESSAGE,
+        HINT,
+      )
     } else {
       for element in arr_pat.elems.iter().flatten() {
         if let deno_ast::swc::ast::Pat::Object(obj_pat) = element {

@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Callee, Expr, MemberProp};
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 
 const BANNED_PROPERTIES: &[&str] =
@@ -67,7 +67,7 @@ impl Handler for NoPrototypeBuiltinsHandler {
     if let MemberProp::Ident(ident) = member_expr.prop {
       let prop_name = ident.sym().as_ref();
       if BANNED_PROPERTIES.contains(&prop_name) {
-        ctx.add_diagnostic(call_expr.span(), CODE, get_message(prop_name));
+        ctx.add_diagnostic(call_expr.range(), CODE, get_message(prop_name));
       }
     }
   }

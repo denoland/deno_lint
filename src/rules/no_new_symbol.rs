@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Expr, NewExpr};
+use deno_ast::SourceRanged;
 use if_chain::if_chain;
 use std::sync::Arc;
 
@@ -53,7 +53,7 @@ impl Handler for NoNewSymbolHandler {
       if *ident.sym() == *"Symbol";
       if ctx.scope().var(&ident.to_id()).is_none();
       then {
-        ctx.add_diagnostic(new_expr.span(), CODE, MESSAGE);
+        ctx.add_diagnostic(new_expr.range(), CODE, MESSAGE);
       }
     }
   }

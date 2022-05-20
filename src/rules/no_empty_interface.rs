@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::TsInterfaceDecl;
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -74,7 +74,7 @@ impl Handler for NoEmptyInterfaceHandler {
     if interface_decl.extends.len() <= 1 && interface_decl.body.body.is_empty()
     {
       ctx.add_diagnostic_with_hint(
-        interface_decl.span(),
+        interface_decl.range(),
         CODE,
         if interface_decl.extends.is_empty() {
           NoEmptyInterfaceMessage::EmptyObject

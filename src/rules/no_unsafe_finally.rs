@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::{Span, Spanned};
-use deno_ast::view as ast_view;
 use deno_ast::view::NodeTrait;
+use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -78,8 +77,8 @@ impl Handler for NoUnsafeFinallyHandler {
     ctx: &mut Context,
   ) {
     let kind = StmtKind::Break(break_stmt.label);
-    if stmt_inside_finally(break_stmt.span(), kind, break_stmt.as_node()) {
-      add_diagnostic_with_hint(ctx, break_stmt.span(), kind);
+    if stmt_inside_finally(break_stmt.range(), kind, break_stmt.as_node()) {
+      add_diagnostic_with_hint(ctx, break_stmt.range(), kind);
     }
   }
 
@@ -89,9 +88,9 @@ impl Handler for NoUnsafeFinallyHandler {
     ctx: &mut Context,
   ) {
     let kind = StmtKind::Continue(continue_stmt.label);
-    if stmt_inside_finally(continue_stmt.span(), kind, continue_stmt.as_node())
+    if stmt_inside_finally(continue_stmt.range(), kind, continue_stmt.as_node())
     {
-      add_diagnostic_with_hint(ctx, continue_stmt.span(), kind);
+      add_diagnostic_with_hint(ctx, continue_stmt.range(), kind);
     }
   }
 
@@ -101,8 +100,8 @@ impl Handler for NoUnsafeFinallyHandler {
     ctx: &mut Context,
   ) {
     let kind = StmtKind::Return;
-    if stmt_inside_finally(return_stmt.span(), kind, return_stmt.as_node()) {
-      add_diagnostic_with_hint(ctx, return_stmt.span(), kind);
+    if stmt_inside_finally(return_stmt.range(), kind, return_stmt.as_node()) {
+      add_diagnostic_with_hint(ctx, return_stmt.range(), kind);
     }
   }
 
@@ -112,8 +111,8 @@ impl Handler for NoUnsafeFinallyHandler {
     ctx: &mut Context,
   ) {
     let kind = StmtKind::Throw;
-    if stmt_inside_finally(throw_stmt.span(), kind, throw_stmt.as_node()) {
-      add_diagnostic_with_hint(ctx, throw_stmt.span(), kind);
+    if stmt_inside_finally(throw_stmt.range(), kind, throw_stmt.as_node()) {
+      add_diagnostic_with_hint(ctx, throw_stmt.range(), kind);
     }
   }
 }
@@ -144,9 +143,9 @@ impl<'a> StmtKind<'a> {
   }
 }
 
-/// Checks if the given span is contained in a `finally` block
+/// Checks if the given range is contained in a `finally` block
 fn stmt_inside_finally(
-  stmt_span: Span,
+  stmt_range: SourceRange,
   stmt_kind: StmtKind,
   cur_node: ast_view::Node,
 ) -> bool {
@@ -174,10 +173,10 @@ fn stmt_inside_finally(
         ..
       }),
       _,
-    ) if f.span().contains(stmt_span) => true,
+    ) if f.range().contains(&stmt_range) => true,
     _ => {
       if let Some(parent) = cur_node.parent() {
-        stmt_inside_finally(stmt_span, stmt_kind, parent)
+        stmt_inside_finally(stmt_range, stmt_kind, parent)
       } else {
         false
       }
@@ -187,11 +186,11 @@ fn stmt_inside_finally(
 
 fn add_diagnostic_with_hint(
   ctx: &mut Context,
-  span: Span,
+  range: SourceRange,
   stmt_kind: StmtKind,
 ) {
   ctx.add_diagnostic_with_hint(
-    span,
+    range,
     CODE,
     NoUnsafeFinallyMessage::from(stmt_kind),
     HINT,

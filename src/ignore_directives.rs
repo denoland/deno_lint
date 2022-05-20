@@ -1,10 +1,12 @@
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
+use deno_ast::SourceRangedForSpanned;
+use deno_ast::SourceTextInfoProvider;
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
-use deno_ast::view::RootNode;
+use deno_ast::RootNode;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashMap;
@@ -20,14 +22,14 @@ impl DirectiveKind for File {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IgnoreDirective<T: DirectiveKind> {
-  span: Span,
+  range: SourceRange,
   codes: HashMap<String, CodeStatus>,
   _marker: std::marker::PhantomData<T>,
 }
 
 impl<T: DirectiveKind> IgnoreDirective<T> {
-  pub fn span(&self) -> Span {
-    self.span
+  pub fn range(&self) -> SourceRange {
+    self.range
   }
 
   /// If the directive has no codes specified, it means all the rules should be
@@ -71,13 +73,12 @@ pub fn parse_line_ignore_directives(
 ) -> HashMap<usize, LineIgnoreDirective> {
   program
     .comment_container()
-    .unwrap()
     .all_comments()
     .filter_map(|comment| {
       parse_ignore_comment(ignore_diagnostic_directive, comment).map(
         |directive| {
           (
-            program.source_file().unwrap().line_index(directive.span.lo),
+            program.text_info().line_index(directive.range().start),
             directive,
           )
         },
@@ -99,22 +100,22 @@ pub fn parse_file_ignore_directives(
   //    comments.
   // 3. Shebang, and the program is empty. The file's leading comments are the
   //    program's trailing comments.
-  let (has_shebang, first_item_span) = match program {
+  let (has_shebang, first_item_range) = match program {
     ast_view::Program::Module(module) => (
       module.shebang().is_some(),
-      module.body.get(0).map(Spanned::span),
+      module.body.get(0).map(SourceRanged::range),
     ),
     ast_view::Program::Script(script) => (
       script.shebang().is_some(),
-      script.body.get(0).map(Spanned::span),
+      script.body.get(0).map(SourceRanged::range),
     ),
   };
 
-  let comments = program.comment_container().unwrap();
-  let mut initial_comments = match (has_shebang, first_item_span) {
-    (false, _) => comments.leading_comments(program.span().lo()),
-    (true, Some(span)) => comments.leading_comments(span.lo()),
-    (true, None) => comments.trailing_comments(program.span().hi()),
+  let comments = program.comment_container();
+  let mut initial_comments = match (has_shebang, first_item_range) {
+    (false, _) => comments.leading_comments(program.start()),
+    (true, Some(range)) => comments.leading_comments(range.start),
+    (true, None) => comments.trailing_comments(program.end()),
   };
   initial_comments
     .find_map(|comment| parse_ignore_comment(ignore_global_directive, comment))
@@ -153,7 +154,7 @@ fn parse_ignore_comment<T: DirectiveKind>(
         .collect();
 
       return Some(IgnoreDirective::<T> {
-        span: comment.span,
+        range: comment.range(),
         codes,
         _marker: std::marker::PhantomData,
       });

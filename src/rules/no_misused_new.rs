@@ -2,12 +2,12 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
   ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
   TsType, TsTypeAliasDecl, TsTypeAnn,
   TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
 };
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -91,7 +91,7 @@ impl Handler for NoMisusedNewHandler {
           if let Expr::Ident(ident) = signature.key {
             if is_constructor_keyword(ident) {
               ctx.add_diagnostic_with_hint(
-                ident.span(),
+                ident.range(),
                 CODE,
                 NoMisusedNewMessage::TypeAlias,
                 NoMisusedNewHint::NotType,
@@ -111,7 +111,7 @@ impl Handler for NoMisusedNewHandler {
             if is_constructor_keyword(ident) {
               // constructor
               ctx.add_diagnostic_with_hint(
-                signature.span(),
+                signature.range(),
                 CODE,
                 NoMisusedNewMessage::Interface,
                 NoMisusedNewHint::NotInterface,
@@ -124,7 +124,7 @@ impl Handler for NoMisusedNewHandler {
             && match_parent_type(n.id, signature.type_ann.as_ref().unwrap())
           {
             ctx.add_diagnostic_with_hint(
-              signature.span(),
+              signature.range(),
               CODE,
               NoMisusedNewMessage::Interface,
               NoMisusedNewHint::NotInterface,
@@ -157,7 +157,7 @@ impl Handler for NoMisusedNewHandler {
         {
           // new
           ctx.add_diagnostic_with_hint(
-            method.span(),
+            method.range(),
             CODE,
             NoMisusedNewMessage::NewMethod,
             NoMisusedNewHint::RenameMethod,

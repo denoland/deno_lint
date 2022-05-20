@@ -7,8 +7,8 @@ use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
 use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
-use deno_ast::swc::common::Spanned;
 use deno_ast::swc::visit::{noop_visit_type, Visit};
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -70,7 +70,7 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
           Unary(unary) if unary.op == TypeOf => {}
           Lit(Str(str)) => {
             if !is_valid_typeof_string(&str.value) {
-              self.context.add_diagnostic(str.span, CODE, MESSAGE);
+              self.context.add_diagnostic(str.range(), CODE, MESSAGE);
             }
           }
           Tpl(tpl) => {
@@ -78,11 +78,11 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
               .string_repr()
               .map_or(false, |s| !is_valid_typeof_string(&s))
             {
-              self.context.add_diagnostic(tpl.span, CODE, MESSAGE);
+              self.context.add_diagnostic(tpl.range(), CODE, MESSAGE);
             }
           }
           _ => {
-            self.context.add_diagnostic(operand.span(), CODE, MESSAGE);
+            self.context.add_diagnostic(operand.range(), CODE, MESSAGE);
           }
         }
       }

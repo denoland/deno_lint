@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view as ast_view;
+use deno_ast::SourceRanged;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ struct NoWithHandler;
 
 impl Handler for NoWithHandler {
   fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
-    ctx.add_diagnostic(with_stmt.span(), CODE, MESSAGE);
+    ctx.add_diagnostic(with_stmt.range(), CODE, MESSAGE);
   }
 }
 

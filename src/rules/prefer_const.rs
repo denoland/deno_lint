@@ -9,10 +9,11 @@ use deno_ast::swc::ast::{
   VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
 };
 use deno_ast::swc::atoms::JsWord;
-use deno_ast::swc::common::{Span, Spanned};
-use deno_ast::swc::utils::find_ids;
+use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::SourceRangedForSpanned;
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
@@ -84,7 +85,7 @@ type Scope = Rc<RefCell<RawScope>>;
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<JsWord, Span>,
+  variables: BTreeMap<JsWord, SourceRange>,
 }
 
 impl RawScope {
@@ -98,22 +99,22 @@ impl RawScope {
 
 #[derive(Debug)]
 struct DeclInfo {
-  /// the span of its declaration
-  span: Span,
+  /// the range of its declaration
+  range: SourceRange,
   /// `true` if this is declared in the other scope
   in_other_scope: bool,
 }
 
-/// Looks for the declaration span of the given variable by traversing from the given scope to the parents.
-/// Returns `None` if no matching span is found. Most likely it means the variable is not declared
+/// Looks for the declaration range of the given variable by traversing from the given scope to the parents.
+/// Returns `None` if no matching range is found. Most likely it means the variable is not declared
 /// with `let`.
 fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
   let mut is_current_scope = true;
   while let Some(cur) = cur_scope {
-    if let Some(&span) = cur.borrow().variables.get(&ident.sym) {
+    if let Some(&range) = cur.borrow().variables.get(&ident.sym) {
       return Some(DeclInfo {
-        span,
+        range,
         in_other_scope: !is_current_scope,
       });
     }
@@ -147,15 +148,15 @@ impl VarStatus {
 
 #[derive(Default, Debug)]
 struct DisjointSet {
-  /// Key: span of ident, Value: span of parent node
-  /// This map is supposed to contain all spans of variable declarations.
-  parents: BTreeMap<Span, Span>,
+  /// Key: range of ident, Value: range of parent node
+  /// This map is supposed to contain all ranges of variable declarations.
+  parents: BTreeMap<SourceRange, SourceRange>,
 
-  /// Key: span of ident (representative of the group)
+  /// Key: range of ident (representative of the group)
   /// Value: pair of the following values:
   ///        - status of variables in this tree
   ///        - the maximum height of this tree, which is used for optimization
-  roots: HashMap<Span, (VarStatus, usize)>,
+  roots: HashMap<SourceRange, (VarStatus, usize)>,
 }
 
 impl DisjointSet {
@@ -163,10 +164,10 @@ impl DisjointSet {
     Self::default()
   }
 
-  fn proceed_status(&mut self, span: Span, force_reassigned: bool) {
+  fn proceed_status(&mut self, range: SourceRange, force_reassigned: bool) {
     // This unwrap is safe if VariableCollector works fine.
     // If it panics, it means a bug in implementation.
-    let root = self.get_root(span).unwrap();
+    let root = self.get_root(range).unwrap();
     let (ref mut st, _) = self.roots.get_mut(&root).unwrap();
     if force_reassigned {
       st.force_reassigned();
@@ -175,33 +176,33 @@ impl DisjointSet {
     }
   }
 
-  fn add_root(&mut self, span: Span, status: VarStatus) {
-    if self.parents.contains_key(&span) {
+  fn add_root(&mut self, range: SourceRange, status: VarStatus) {
+    if self.parents.contains_key(&range) {
       return;
     }
-    self.parents.insert(span, span);
-    self.roots.insert(span, (status, 1));
+    self.parents.insert(range, range);
+    self.roots.insert(range, (status, 1));
   }
 
-  fn get_root(&mut self, span: Span) -> Option<Span> {
-    match self.parents.get(&span) {
+  fn get_root(&mut self, range: SourceRange) -> Option<SourceRange> {
+    match self.parents.get(&range) {
       None => None,
-      Some(&par_span) if span == par_span => Some(span),
-      Some(&par_span) => {
-        let root = self.get_root(par_span);
-        if let (Some(root_span), Some(par)) =
-          (root, self.parents.get_mut(&span))
+      Some(&par_range) if range == par_range => Some(range),
+      Some(&par_range) => {
+        let root = self.get_root(par_range);
+        if let (Some(root_range), Some(par)) =
+          (root, self.parents.get_mut(&range))
         {
-          *par = root_span;
+          *par = root_range;
         }
         root
       }
     }
   }
 
-  fn unite(&mut self, span1: Span, span2: Span) -> Option<()> {
-    let rs1 = self.get_root(span1)?;
-    let rs2 = self.get_root(span2)?;
+  fn unite(&mut self, range1: SourceRange, range2: SourceRange) -> Option<()> {
+    let rs1 = self.get_root(range1)?;
+    let rs2 = self.get_root(range2)?;
     if rs1 == rs2 {
       return None;
     }
@@ -231,7 +232,7 @@ impl DisjointSet {
     Some(())
   }
 
-  fn dump(&mut self) -> Vec<Span> {
+  fn dump(&mut self) -> Vec<SourceRange> {
     self
       .parents
       .clone()
@@ -251,7 +252,7 @@ impl DisjointSet {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 enum ScopeRange {
   Global,
-  Block(Span),
+  Block(SourceRange),
 }
 
 #[derive(Debug)]
@@ -271,9 +272,9 @@ impl VariableCollector {
   }
 
   fn insert_var(&mut self, ident: &Ident, status: VarStatus) {
-    self.var_groups.add_root(ident.span, status);
+    self.var_groups.add_root(ident.range(), status);
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
-    scope.variables.insert(ident.sym.clone(), ident.span);
+    scope.variables.insert(ident.sym.clone(), ident.range());
   }
 
   fn insert_vars(&mut self, idents: &[&Ident], status: VarStatus) {
@@ -288,7 +289,7 @@ impl VariableCollector {
         // If there are more than one idents, they need to be grouped
         for i in others {
           self.insert_var(i, status);
-          self.var_groups.unite(first.span, i.span);
+          self.var_groups.unite(first.range(), i.range());
         }
       }
     }
@@ -308,17 +309,17 @@ impl VariableCollector {
 
   fn with_child_scope<F, S>(&mut self, node: S, op: F)
   where
-    S: Spanned,
+    S: SourceRangedForSpanned,
     F: FnOnce(&mut VariableCollector),
   {
     let parent_scope_range = self.cur_scope;
     let parent_scope = self.scopes.get(&parent_scope_range).map(Rc::clone);
     let child_scope = RawScope::new(parent_scope);
     self.scopes.insert(
-      ScopeRange::Block(node.span()),
+      ScopeRange::Block(node.range()),
       Rc::new(RefCell::new(child_scope)),
     );
-    self.cur_scope = ScopeRange::Block(node.span());
+    self.cur_scope = ScopeRange::Block(node.range());
     op(self);
     self.cur_scope = parent_scope_range;
   }
@@ -347,7 +348,7 @@ impl Visit for VariableCollector {
     self.with_child_scope(function, |a| {
       for param in &function.params {
         param.visit_children_with(a);
-        let idents: Vec<Ident> = find_ids(&param.pat);
+        let idents: Vec<Ident> = find_pat_ids(&param.pat);
         for ident in idents {
           a.insert_var(&ident, VarStatus::Reassigned);
         }
@@ -362,7 +363,7 @@ impl Visit for VariableCollector {
     self.with_child_scope(arrow_expr, |a| {
       for param in &arrow_expr.params {
         param.visit_children_with(a);
-        let idents: Vec<Ident> = find_ids(param);
+        let idents: Vec<Ident> = find_pat_ids(param);
         for ident in idents {
           a.insert_var(&ident, VarStatus::Reassigned);
         }
@@ -529,7 +530,7 @@ impl Visit for VariableCollector {
   fn visit_catch_clause(&mut self, catch_clause: &CatchClause) {
     self.with_child_scope(catch_clause, |a| {
       if let Some(param) = &catch_clause.param {
-        let idents: Vec<Ident> = find_ids(param);
+        let idents: Vec<Ident> = find_pat_ids(param);
         for ident in idents {
           a.insert_var(&ident, VarStatus::Reassigned);
         }
@@ -566,7 +567,7 @@ impl Visit for VariableCollector {
               }
               TsParamPropParam::Assign(assign_pat) => {
                 assign_pat.visit_children_with(a);
-                let idents: Vec<Ident> = find_ids(&assign_pat.left);
+                let idents: Vec<Ident> = find_pat_ids(&assign_pat.left);
                 for ident in idents {
                   a.insert_var(&ident, VarStatus::Reassigned);
                 }
@@ -575,7 +576,7 @@ impl Visit for VariableCollector {
           }
           ParamOrTsParamProp::Param(param) => {
             param.visit_children_with(a);
-            let idents: Vec<Ident> = find_ids(&param.pat);
+            let idents: Vec<Ident> = find_pat_ids(&param.pat);
             for ident in idents {
               a.insert_var(&ident, VarStatus::Reassigned);
             }
@@ -672,23 +673,23 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn report(&mut self, span: Span) {
-    let span_text = self.context.file_text_substring(&span).to_string();
+  fn report(&mut self, range: SourceRange) {
+    let range_text = range.text_fast(&self.context.text_info()).to_string();
     self.context.add_diagnostic_with_hint(
-      span,
+      range,
       CODE,
-      PreferConstMessage::NeverReassigned(span_text),
+      PreferConstMessage::NeverReassigned(range_text),
       PreferConstHint::UseConst,
     );
   }
 
   fn with_child_scope<F, S>(&mut self, node: &S, op: F)
   where
-    S: Spanned,
+    S: SourceRangedForSpanned,
     F: FnOnce(&mut Self),
   {
     let parent_scope_range = self.cur_scope;
-    self.cur_scope = ScopeRange::Block(node.span());
+    self.cur_scope = ScopeRange::Block(node.range());
     op(self);
     self.cur_scope = parent_scope_range;
   }
@@ -727,17 +728,18 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
       [decl] => {
         self
           .var_groups
-          .proceed_status(decl.span, force_reassigned || decl.in_other_scope);
+          .proceed_status(decl.range, force_reassigned || decl.in_other_scope);
       }
       [first, others @ ..] => {
-        self
-          .var_groups
-          .proceed_status(first.span, force_reassigned || first.in_other_scope);
+        self.var_groups.proceed_status(
+          first.range,
+          force_reassigned || first.in_other_scope,
+        );
         for s in others {
           self
             .var_groups
-            .proceed_status(s.span, force_reassigned || s.in_other_scope);
-          self.var_groups.unite(first.span, s.span);
+            .proceed_status(s.range, force_reassigned || s.in_other_scope);
+          self.var_groups.unite(first.range, s.range);
         }
       }
     }
@@ -750,16 +752,16 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   fn visit_module(&mut self, module: &Module) {
     module.visit_children_with(self);
     // After visiting all nodes, reports errors.
-    for span in self.var_groups.dump() {
-      self.report(span);
+    for range in self.var_groups.dump() {
+      self.report(range);
     }
   }
 
   fn visit_script(&mut self, script: &Script) {
     script.visit_children_with(self);
     // After visiting all nodes, reports errors.
-    for span in self.var_groups.dump() {
-      self.report(span);
+    for range in self.var_groups.dump() {
+      self.report(range);
     }
   }
 
@@ -772,7 +774,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     assign_expr.visit_children_with(self);
 
     let idents: Vec<Ident> = match &assign_expr.left {
-      PatOrExpr::Pat(pat) => find_ids(pat), // find_ids doesn't work for Expression
+      PatOrExpr::Pat(pat) => find_pat_ids(pat), // find_pat_ids doesn't work for Expression
       PatOrExpr::Expr(expr) if expr.is_ident() => {
         let ident = (**expr).clone().expect_ident();
         vec![ident]

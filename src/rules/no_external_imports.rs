@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::ImportDecl;
-use deno_ast::ModuleSpecifier;
+use deno_ast::{ModuleSpecifier, SourceRanged};
 use derive_more::Display;
 use std::ffi::OsStr;
 use std::path::Path;
@@ -71,7 +70,7 @@ impl NoExternalImportHandler {
 
     if parsed_src.is_ok() && file_name != Some("deps") {
       ctx.add_diagnostic_with_hint(
-        decl.span(),
+        decl.range(),
         CODE,
         NoExternalImportMessage::Unexpected,
         NoExternalImportHint::CreateDependencyFile,

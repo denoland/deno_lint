@@ -10,6 +10,7 @@ use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::SourceRangedForSpanned;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -76,7 +77,7 @@ impl<'c, 'view> RequireYieldVisitor<'c, 'view> {
       // is non-empty
       if let Some(body) = &function.body {
         if !body.stmts.is_empty() && yield_count == 0 {
-          self.context.add_diagnostic(function.span, CODE, MESSAGE);
+          self.context.add_diagnostic(function.range(), CODE, MESSAGE);
         }
       }
     }

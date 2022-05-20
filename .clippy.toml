@@ -1,0 +1,10 @@
+# Prefer using `SourcePos` from deno_ast because it abstracts
+# away swc's non-zero-indexed based positioning
+disallowed-methods = [
+  "swc_common::Spanned::span",
+]
+disallowed-types = [
+  "swc_common::BytePos",
+  "swc_common::Span",
+  "swc_common::Spanned",
+]

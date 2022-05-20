@@ -2,11 +2,11 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{
   ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
   ObjectPatProp, Pat, PatOrExpr, VarDecl,
 };
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -104,7 +104,7 @@ fn check_shadowing(ident: &Ident, ctx: &mut Context) {
 
 fn report_shadowing(ident: &Ident, ctx: &mut Context) {
   ctx.add_diagnostic(
-    ident.span(),
+    ident.range(),
     CODE,
     NoShadowRestrictedNamesMessage::Shadowing(ident.sym().to_string()),
   );

@@ -2,9 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Span;
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{CallExpr, Callee, Expr, ExprOrSpread, NewExpr};
+use deno_ast::{SourceRange, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -49,9 +48,13 @@ impl LintRule for NoArrayConstructor {
   }
 }
 
-fn check_args(args: Vec<&ExprOrSpread>, span: Span, context: &mut Context) {
+fn check_args(
+  args: Vec<&ExprOrSpread>,
+  range: SourceRange,
+  context: &mut Context,
+) {
   if args.len() != 1 {
-    context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+    context.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
   }
 }
 
@@ -69,9 +72,9 @@ impl Handler for NoArrayConstructorHandler {
       }
       match &new_expr.args {
         Some(args) => {
-          check_args(args.to_vec(), new_expr.span(), context);
+          check_args(args.to_vec(), new_expr.range(), context);
         }
-        None => check_args(vec![], new_expr.span(), context),
+        None => check_args(vec![], new_expr.range(), context),
       };
     }
   }
@@ -86,7 +89,7 @@ impl Handler for NoArrayConstructorHandler {
         return;
       }
 
-      check_args((&*call_expr.args).to_vec(), call_expr.span(), context);
+      check_args((&*call_expr.args).to_vec(), call_expr.range(), context);
     }
   }
 }

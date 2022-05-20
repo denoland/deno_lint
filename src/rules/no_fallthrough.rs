@@ -1,11 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::ProgramRef;
-use deno_ast::swc::common::{comments::Comment, Span, Spanned, DUMMY_SP};
+use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::{SourceRange, SourceRanged, SourceRangedForSpanned};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -68,20 +69,22 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase]) {
     let mut should_emit_err = false;
-    let mut prev_span = DUMMY_SP;
+    let mut prev_range = None;
 
     'cases: for (case_idx, case) in cases.iter().enumerate() {
       case.visit_with(self);
 
       if should_emit_err {
-        let comments = self.context.leading_comments_at(case.span.lo);
+        let comments = self.context.leading_comments_at(case.start());
         if !allow_fall_through(comments) {
-          self.context.add_diagnostic_with_hint(
-            prev_span,
-            CODE,
-            NoFallthroughMessage::Unexpected,
-            NoFallthroughHint::BreakOrComment,
-          );
+          if let Some(prev_range) = prev_range.take() {
+            self.context.add_diagnostic_with_hint(
+              prev_range,
+              CODE,
+              NoFallthroughMessage::Unexpected,
+              NoFallthroughHint::BreakOrComment,
+            );
+          }
         }
       }
       should_emit_err = true;
@@ -90,18 +93,18 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
       // Handle return / throw / break / continue
       for (idx, stmt) in case.cons.iter().enumerate() {
         let last = idx + 1 == case.cons.len();
-        let metadata = self.context.control_flow().meta(stmt.span().lo);
+        let metadata = self.context.control_flow().meta(stmt.start());
         stops_exec |= metadata.map(|v| v.stops_execution()).unwrap_or(false);
         if stops_exec {
           should_emit_err = false;
         }
 
         if last {
-          let comments = self.context.trailing_comments_at(stmt.span().hi);
+          let comments = self.context.trailing_comments_at(stmt.end());
           if allow_fall_through(comments) {
             should_emit_err = false;
             // User comment beats everything
-            prev_span = case.span;
+            prev_range = Some(case.range());
             continue 'cases;
           }
         }
@@ -111,16 +114,11 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
         || matches!(case.cons.as_slice(), [Stmt::Block(b)] if b.stmts.is_empty());
 
       if case_idx + 1 < cases.len() && empty {
-        let span = Span {
-          lo: case.span.lo(),
-          hi: cases[case_idx + 1].span.lo(),
-          ctxt: case.span.ctxt,
-        };
-        // todo(dsherret): use `span.line_start_fast(context.program)` and
+        let range = SourceRange::new(case.start(), cases[case_idx + 1].start());
+        // todo(dsherret): use `range.line_start_fast(context.program)` and
         // `line_end_fast` when switching to ast_view
-        let span_line_count = self
-          .context
-          .file_text_substring(&span)
+        let range_line_count = range
+          .text_fast(&self.context.text_info())
           .chars()
           .filter(|c| *c == '\n')
           .count()
@@ -129,10 +127,10 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
         // This means there are no statements detected so we must detect case
         // bodies made up of only new lines by counting the total amount of new lines.
         // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
-        should_emit_err = span_line_count > 2;
+        should_emit_err = range_line_count > 2;
       }
 
-      prev_span = case.span;
+      prev_range = Some(case.range());
     }
   }
 }

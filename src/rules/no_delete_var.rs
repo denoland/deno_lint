@@ -2,8 +2,8 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::swc::common::Spanned;
 use deno_ast::view::{Expr, UnaryExpr, UnaryOp};
+use deno_ast::SourceRanged;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -69,7 +69,7 @@ impl Handler for NoDeleteVarHandler {
 
     if let Expr::Ident(_) = unary_expr.arg {
       ctx.add_diagnostic_with_hint(
-        unary_expr.span(),
+        unary_expr.range(),
         CODE,
         NoDeleteVarMessage::Unexpected,
         NoDeleteVarHint::Remove,
