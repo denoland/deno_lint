@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::ProgramRef;
-use deno_ast::{view as ast_view, SourceRange, SourceRanged};
+use deno_ast::{view as ast_view, MediaType, SourceRange, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -51,6 +51,10 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     context: &mut Context,
     program: ast_view::Program,
   ) {
+    // ignore js(x) files
+    if matches!(context.media_type(), MediaType::JavaScript | MediaType::Jsx) {
+      return;
+    }
     ExplicitModuleBoundaryTypesHandler.traverse(program, context);
   }
 
@@ -190,11 +194,29 @@ mod tests {
   fn explicit_module_boundary_types_valid() {
     assert_lint_ok! {
       ExplicitModuleBoundaryTypes,
+      filename: "foo.ts",
       "function test() { return }",
       "export var fn = function (): number { return 1; }",
       "export var arrowFn = (arg: string): string => `test ${arg}`",
       "export var arrowFn = (arg: unknown): string => `test ${arg}`",
       "class Test { method() { return; } }",
+    };
+
+    assert_lint_ok! {
+      ExplicitModuleBoundaryTypes,
+      filename: "foo.js",
+      "function test() { return }",
+      "export var fn = function () { return 1; }",
+      "export var arrowFn = (arg) => `test ${arg}`",
+      "export var arrowFn = (arg) => `test ${arg}`",
+      "class Test { method() { return; } }",
+    };
+
+    assert_lint_ok! {
+      ExplicitModuleBoundaryTypes,
+      filename: "foo.jsx",
+      "export function Foo(props) {return <div>{props.name}</div>}",
+      "export default class Foo { render() { return <div></div>}}"
     };
   }
 
