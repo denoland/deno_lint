@@ -211,6 +211,13 @@ mod tests {
       "export var arrowFn = (arg) => `test ${arg}`",
       "class Test { method() { return; } }",
     };
+
+    assert_lint_ok! {
+      ExplicitModuleBoundaryTypes,
+      filename: "foo.jsx",
+      "export function Foo(props) {return <div>{props.name}</div>}",
+      "export default class Foo { render() { return <div></div>}}"
+    };
   }
 
   #[test]
