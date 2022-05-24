@@ -171,9 +171,6 @@ fn check_pat(pat: &ast_view::Pat, ctx: &mut Context) {
     ast_view::Pat::Object(object) => {
       check_ann(object.type_ann, object.range(), ctx)
     }
-    ast_view::Pat::Assign(assign) => {
-      check_ann(assign.type_ann, assign.range(), ctx)
-    }
     _ => {}
   };
 }
@@ -200,6 +197,8 @@ mod tests {
       "export var arrowFn = (arg: string): string => `test ${arg}`",
       "export var arrowFn = (arg: unknown): string => `test ${arg}`",
       "class Test { method() { return; } }",
+      "export function test(arg = 1) : number { return arg;}",
+      "export function test(arg :number = 1) : number { return arg;}",
     };
 
     assert_lint_ok! {
