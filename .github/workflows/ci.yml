@@ -27,15 +27,7 @@ jobs:
           submodules: true
           persist-credentials: false
 
-      - name: Install rust
-        uses: hecrj/setup-rust-action@v1.3.4
-        with:
-          rust-version: 1.59.0
-
-      - name: Install clippy and rustfmt
-        run: |
-          rustup component add clippy
-          rustup component add rustfmt
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Install Deno
         uses: denoland/setup-deno@v1
