@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::{view as ast_view, MediaType, SourceRanged};
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -41,6 +41,10 @@ impl LintRule for ExplicitFunctionReturnType {
     context: &mut Context,
     program: Program,
   ) {
+    // ignore js(x) files
+    if matches!(context.media_type(), MediaType::JavaScript | MediaType::Jsx) {
+      return;
+    }
     ExplicitFunctionReturnTypeHandler.traverse(program, context);
   }
 
@@ -86,6 +90,22 @@ mod tests {
       "const barTyped = (a: string): Promise<void> => { }",
       "class Test { set test(value: string) {} }",
       "const obj = { set test(value: string) {} };",
+    };
+
+    assert_lint_ok! {
+      ExplicitFunctionReturnType,
+      filename: "foo.js",
+      "function foo() { }",
+      "const bar = (a) => { }",
+      "class Test { set test(value) {} }",
+      "const obj = { set test(value) {} };",
+    };
+
+    assert_lint_ok! {
+      ExplicitFunctionReturnType,
+      filename: "foo.jsx",
+      "export function Foo(props) {return <div>{props.name}</div>}",
+      "export default class Foo { render() { return <div></div>}}"
     };
   }
 
