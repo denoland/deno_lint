@@ -92,6 +92,7 @@ const TARGETS: &[&str] = &[
   "WeakMap",
   "WeakSet",
   "Promise",
+  "eval"
 ];
 
 struct PreferPrimordialsHandler;
