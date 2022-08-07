@@ -124,12 +124,12 @@ function Rule(props: { rule: RuleData }) {
                 <summary>
                   <div
                     dangerouslySetInnerHTML={{ __html: rule.snippet }}
-                    class="markdown-body"
+                    class="markdown-body " + tw`inline-block`
                   />
                 </summary>
                 <div
                   dangerouslySetInnerHTML={{ __html: rule.docs }}
-                  class={"markdown-body " + tw`mt-4`}
+                  class={"markdown-body " + tw`inline-block mt-4`}
                 />
               </details>
             </>
