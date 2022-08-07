@@ -555,7 +555,7 @@ const noop = Function.prototype;
       r#"eval("console.log('This test should fail!');");"#: [
         {
           col: 0,
-          message: MASSAGE,
+          message: MESSAGE,
           hint: HINT,
         },
       ],
