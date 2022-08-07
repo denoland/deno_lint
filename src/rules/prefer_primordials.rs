@@ -323,6 +323,10 @@ const { SafeArrayIterator } = primordials;
 for (const val of new SafeArrayIterator(arr)) {}
 for (const val of new SafeArrayIterator([1, 2, 3])) {}
       "#,
+      r#"
+const { indirectEval } = primordials;
+indirectEval("console.log('This test should pass.');");
+      "#,
     };
   }
 
@@ -545,6 +549,13 @@ const noop = Function.prototype;
         {
           col: 18,
           message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"eval("console.log('This test should fail!');");"#: [
+        {
+          col: 0,
+          message: MASSAGE,
           hint: HINT,
         },
       ],
