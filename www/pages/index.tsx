@@ -1,7 +1,7 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { Fragment, h, Head, PageProps, tw, useData } from "../deps.ts";
-import { Header } from "../components/Header.btsx";
+import { Header } from "../components/Header.tsx";
 import { diskFetcher, renderMarkdown } from "../components/utils.ts";
 
 interface RuleData {
