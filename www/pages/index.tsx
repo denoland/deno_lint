@@ -16,6 +16,8 @@ function IndexPage(props: PageProps) {
     useData("www/public/docs.json", diskFetcher),
   );
 
+  const stlye = useData("www/public/extension.css", diskFetcher);
+
   const rules = jsonData.map<RuleData>((rule) => ({
     code: rule.code,
     snippet: renderMarkdown(rule.docs.split("\n")[0]),
@@ -44,6 +46,7 @@ function IndexPage(props: PageProps) {
           href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@df7ae27/www/static/markdown.css"
           crossOrigin="anonymous"
         />
+        <style>{stlye}</style>
       </Head>
       <Header />
       <main class={tw`my-8`}>
