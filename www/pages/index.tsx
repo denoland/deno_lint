@@ -53,7 +53,8 @@ function IndexPage(props: PageProps) {
             <input
               type="text"
               name="q"
-              class={tw`w-full border h-10 border-gray-200 dark:border-gray-500 rounded rounded-r-none px-3 relative dark:bg-gray-800 `}
+              class={tw
+                `w-full border h-10 border-gray-200 dark:border-gray-500 rounded rounded-r-none px-3 relative dark:bg-gray-800 `}
               placeholder="Search"
               value={search}
             />
@@ -94,11 +95,13 @@ function Rule(props: { rule: RuleData }) {
 
   return (
     <section
-      class={tw`my-8 border-gray-200 dark:border-[#313235] border-2 rounded-lg overflow-hidden`}
+      class={tw
+        `my-8 border-gray-200 dark:border-[#313235] border-2 rounded-lg overflow-hidden`}
       id={rule.code}
     >
       <div
-        class={tw`p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white dark:bg-[#0d1117] dark:border-[#313235]`}
+        class={tw
+          `p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white dark:bg-[#0d1117] dark:border-[#313235]`}
       >
         <h1 class={tw`text-xl font-bold`}>
           <a href={`#${rule.code}`} class={tw`hover:underline`}>
@@ -107,7 +110,8 @@ function Rule(props: { rule: RuleData }) {
         </h1>
         {rule.tags.includes("recommended") && (
           <span
-            class={tw`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800`}
+            class={tw
+              `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800`}
           >
             Recommended
           </span>
