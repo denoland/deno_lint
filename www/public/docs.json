@@ -284,7 +284,7 @@
   },
   {
     "code": "no-extra-semi",
-    "docs": "<!-- deno-fmt-ignore-file -->\n\nDisallows the use of unnecessary semi-colons\n\nExtra (and unnecessary) semi-colons can cause confusion when reading the code as\nwell as making the code less clean.\n\n### Invalid:\n\n```typescript\nconst x = 5;;\n\nfunction foo() {};\n```\n\n### Valid:\n\n```typescript\nconst x = 5;\n\nfunction foo() {}\n```\n",
+    "docs": "Disallows the use of unnecessary semi-colons\n\nExtra (and unnecessary) semi-colons can cause confusion when reading the code as\nwell as making the code less clean.\n\n### Invalid:\n\n```typescript\nconst x = 5;;\n\nfunction foo() {};\n```\n\n### Valid:\n\n```typescript\nconst x = 5;\n\nfunction foo() {}\n```\n",
     "tags": [
       "recommended"
     ]
