@@ -55,8 +55,7 @@ function IndexPage(props: PageProps) {
           <input
             type="text"
             name="q"
-            class={tw
-              `w-full border h-10 border-gray-200 rounded rounded-r-none px-3 relative`}
+            class={tw`w-full border h-10 border-gray-200 rounded rounded-r-none px-3 relative`}
             placeholder="Search"
             value={search}
           />
@@ -100,8 +99,7 @@ function Rule(props: { rule: RuleData }) {
       id={rule.code}
     >
       <div
-        class={tw
-          `p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white`}
+        class={tw`p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white`}
       >
         <h1 class={tw`text-xl font-bold`}>
           <a href={`#${rule.code}`} class={tw`hover:underline`}>
@@ -110,8 +108,7 @@ function Rule(props: { rule: RuleData }) {
         </h1>
         {rule.tags.includes("recommended") && (
           <span
-            class={tw
-              `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800`}
+            class={tw`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800`}
           >
             Recommended
           </span>

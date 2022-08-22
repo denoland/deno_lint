@@ -157,7 +157,7 @@ impl Handler for NoExtraBooleanCastHandler {
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if callee_is_boolean(&call_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) = call_expr.args.get(0) {
-        check_condition(&*expr, ctx);
+        check_condition(expr, ctx);
       }
     }
   }
@@ -167,7 +167,7 @@ impl Handler for NoExtraBooleanCastHandler {
       if let Some(ExprOrSpread { expr, .. }) =
         new_expr.args.as_ref().and_then(|a| a.get(0))
       {
-        check_condition(&*expr, ctx);
+        check_condition(expr, ctx);
       }
     }
   }

@@ -203,7 +203,8 @@ impl MarkdownColorizer {
       Strikethrough => vec![Attribute::Strikethrough],
       Link(_link_type, url, _title) => {
         if !is_start {
-          self.buffer.push_str(&format!("({url})", url = url));
+          use std::fmt::Write;
+          write!(self.buffer, "({})", url).unwrap();
         }
         vec![]
       }

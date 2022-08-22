@@ -77,8 +77,8 @@ fn compare(
   range: SourceRange,
   ctx: &mut Context,
 ) {
-  if let TsType::TsLitType(lit_type) = &*type_ann {
-    if let Expr::Lit(expr_lit) = &*expr {
+  if let TsType::TsLitType(lit_type) = type_ann {
+    if let Expr::Lit(expr_lit) = expr {
       match (expr_lit, &lit_type.lit) {
         (Lit::Str(value_literal), TsLit::Str(type_literal)) => {
           if value_literal.value() == type_literal.value() {
