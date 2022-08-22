@@ -113,8 +113,7 @@ function Rule(props: { rule: RuleData }) {
         </h1>
         {rule.tags.includes("recommended") && (
           <span
-            class={tw
-              `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800`}
+            class={tw`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800`}
           >
             Recommended
           </span>

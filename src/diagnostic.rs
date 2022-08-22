@@ -2,7 +2,7 @@
 use serde::Serialize;
 use serde::Serializer;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Position {
   /// The 0-indexed line index.
@@ -33,7 +33,7 @@ where
   s.serialize_u32((x + 1) as u32)
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Range {
   pub start: Position,
   pub end: Position,

@@ -261,7 +261,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
           if left_elem.is_some() && right_elem.is_some() {
             self.check_pat_and_spread_or_expr(
               left_elem.as_ref().unwrap(),
-              &*right_elem.as_ref().unwrap(),
+              right_elem.as_ref().unwrap(),
             );
           }
 

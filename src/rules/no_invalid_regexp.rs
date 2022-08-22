@@ -122,7 +122,7 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
 
   fn visit_call_expr(&mut self, call_expr: &deno_ast::swc::ast::CallExpr) {
     if let deno_ast::swc::ast::Callee::Expr(expr) = &call_expr.callee {
-      self.handle_call_or_new_expr(&*expr, &call_expr.args, call_expr.range());
+      self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
     }
   }
 
