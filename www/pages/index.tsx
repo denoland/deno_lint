@@ -79,7 +79,7 @@ function IndexPage(props: PageProps) {
             }}
           >
           </script>
-          <div class={tw`mt-6 text-gray-600`}>
+          <div class={tw`mt-6 text-gray-600 dark:text-gray-400`}>
             Showing {searchResults.length} out of {rules.length} rules
           </div>
           <div>
