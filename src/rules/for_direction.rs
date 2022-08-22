@@ -82,11 +82,11 @@ fn check_assign_direction(
   let update_direction = 0;
 
   let name = match &assign_expr.left {
-    PatOrExpr::Expr(boxed_expr) => match &*boxed_expr {
+    PatOrExpr::Expr(boxed_expr) => match boxed_expr {
       Expr::Ident(ident) => ident.inner.as_ref(),
       _ => return update_direction,
     },
-    PatOrExpr::Pat(boxed_pat) => match &*boxed_pat {
+    PatOrExpr::Pat(boxed_pat) => match boxed_pat {
       Pat::Ident(ident) => ident.id.inner.as_ref(),
       _ => return update_direction,
     },

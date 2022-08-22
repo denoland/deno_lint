@@ -115,7 +115,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
   ) {
     use TsKeywordTypeKind::*;
     match ts_type.kind {
-      TsBigIntKeyword => match &*value {
+      TsBigIntKeyword => match value {
         Expr::Lit(Lit::BigInt(_)) => {
           self.add_diagnostic_helper(range);
         }
@@ -145,7 +145,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
         }
         _ => {}
       },
-      TsBooleanKeyword => match &*value {
+      TsBooleanKeyword => match value {
         Expr::Lit(Lit::Bool(_)) => {
           self.add_diagnostic_helper(range);
         }
@@ -165,7 +165,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
         }
         _ => {}
       },
-      TsNumberKeyword => match &*value {
+      TsNumberKeyword => match value {
         Expr::Lit(Lit::Num(_)) => {
           self.add_diagnostic_helper(range);
         }
@@ -206,11 +206,11 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
         _ => {}
       },
       TsNullKeyword => {
-        if let Expr::Lit(Lit::Null(_)) = &*value {
+        if let Expr::Lit(Lit::Null(_)) = value {
           self.add_diagnostic_helper(range);
         }
       }
-      TsStringKeyword => match &*value {
+      TsStringKeyword => match value {
         Expr::Lit(Lit::Str(_)) => {
           self.add_diagnostic_helper(range);
         }
@@ -229,17 +229,17 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
         _ => {}
       },
       TsSymbolKeyword => {
-        if let Expr::Call(CallExpr { callee, .. }) = &*value {
+        if let Expr::Call(CallExpr { callee, .. }) = value {
           self.check_callee(callee, range, "Symbol");
         } else if let Expr::OptChain(OptChainExpr {
           base: OptChainBase::Call(OptCall { callee, .. }),
           ..
-        }) = &*value
+        }) = value
         {
           self.check_callee_expr(callee, range, "Symbol");
         }
       }
-      TsUndefinedKeyword => match &*value {
+      TsUndefinedKeyword => match value {
         Expr::Ident(ident) => {
           if ident.sym == *"undefined" {
             self.add_diagnostic_helper(range);
@@ -266,7 +266,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
       if ident.sym != *"RegExp" {
         return;
       }
-      match &*value {
+      match value {
         Expr::Lit(Lit::Regex(_)) => {
           self.add_diagnostic_helper(range);
         }

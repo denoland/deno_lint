@@ -28,7 +28,7 @@ fn is_unicode_property_name_character(cp: char) -> bool {
 }
 
 fn is_unicode_property_value_character(cp: char) -> bool {
-  is_unicode_property_name_character(cp) || cp.is_digit(10)
+  is_unicode_property_name_character(cp) || cp.is_ascii_digit()
 }
 
 fn is_regexp_identifier_start(cp: char) -> bool {
@@ -913,7 +913,7 @@ impl EcmaRegexValidator {
       && self.code_point_with_offset(0) == Some('c')
     {
       if let Some(cp) = self.code_point_with_offset(1) {
-        if cp.is_digit(10) || cp == '_' {
+        if cp.is_ascii_digit() || cp == '_' {
           self.advance();
           self.advance();
           self.last_int_value = cp as i64 % 0x20;
@@ -1095,7 +1095,7 @@ impl EcmaRegexValidator {
     if self.code_point_with_offset(0) != Some('0') {
       return false;
     } else if let Some(cp) = self.code_point_with_offset(1) {
-      if cp.is_digit(10) {
+      if cp.is_ascii_digit() {
         return false;
       }
     }
@@ -1286,12 +1286,12 @@ impl EcmaRegexValidator {
   fn eat_decimal_escape(&mut self) -> bool {
     self.last_int_value = 0;
     if let Some(cp) = self.code_point_with_offset(0) {
-      if cp.is_digit(10) {
+      if cp.is_ascii_digit() {
         self.last_int_value =
           10 * self.last_int_value + cp.to_digit(10).unwrap() as i64;
         self.advance();
         while let Some(cp) = self.code_point_with_offset(0) {
-          if !cp.is_digit(10) {
+          if !cp.is_ascii_digit() {
             break;
           }
           self.last_int_value =
@@ -1442,7 +1442,7 @@ impl EcmaRegexValidator {
 
     self.last_int_value = 0;
     while let Some(cp) = self.code_point_with_offset(0) {
-      if !cp.is_digit(10) {
+      if !cp.is_ascii_digit() {
         break;
       }
       self.last_int_value = 10 * self.last_int_value
@@ -1471,7 +1471,7 @@ impl EcmaRegexValidator {
     let start = self.index();
     self.last_int_value = 0;
     while let Some(cp) = self.code_point_with_offset(0) {
-      if !cp.is_digit(16) {
+      if !cp.is_ascii_hexdigit() {
         break;
       }
       self.last_int_value =
@@ -1547,7 +1547,7 @@ impl EcmaRegexValidator {
     self.last_int_value = 0;
     for _ in 0..length {
       let cp = self.code_point_with_offset(0);
-      if cp.is_none() || !cp.unwrap().is_digit(16) {
+      if cp.is_none() || !cp.unwrap().is_ascii_hexdigit() {
         self.rewind(start);
         return false;
       }

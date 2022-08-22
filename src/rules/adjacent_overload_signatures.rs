@@ -195,7 +195,7 @@ impl<'a> ExtractMethod for ast_view::TsTypeElement<'a> {
     match self {
       TsTypeElement::TsMethodSignature(TsMethodSignature {
         ref key, ..
-      }) => match &*key {
+      }) => match key {
         Expr::Ident(ident) => Some(Method::Method(ident.sym().to_string())),
         Expr::Lit(Lit::Str(s)) => Some(Method::Method(s.value().to_string())),
         _ => None,
