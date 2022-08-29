@@ -16,7 +16,7 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::{Visit, VisitWith};
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::{MediaType, SourceRangedForSpanned};
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
@@ -70,7 +70,7 @@ impl LintRule for NoUnusedVars {
     // Skip linting this file to avoid emitting false positives about `jsxFactory` and `jsxFragmentFactory`
     // if it's a JSX or TSX file.
     // See https://github.com/denoland/deno_lint/pull/664#discussion_r614692736
-    if is_jsx_file(context.file_name()) {
+    if is_jsx_file(context.media_type()) {
       return;
     }
 
@@ -97,10 +97,8 @@ impl LintRule for NoUnusedVars {
   }
 }
 
-// TODO(@magurotuna): use MediaType instead
-// https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/media_type.rs#L15-L26
-fn is_jsx_file(filename: &str) -> bool {
-  filename.ends_with(".jsx") || filename.ends_with(".tsx")
+fn is_jsx_file(media_type: MediaType) -> bool {
+  media_type == MediaType::Jsx || media_type == MediaType::Tsx
 }
 
 /// Collects information about variable usages.
