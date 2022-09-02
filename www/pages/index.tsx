@@ -39,53 +39,55 @@ function IndexPage(props: PageProps) {
     .filter((rule: RuleData) => rule.code.includes(search));
 
   return (
-    <div class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8`}>
-      <Head>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@df7ae27/www/static/markdown.css"
-          crossOrigin="anonymous"
-        />
-        <style>{style}</style>
-      </Head>
-      <Header />
-      <main class={tw`my-8`}>
-        <label for="search" class={tw`sr-only`}>Search</label>
-        <form id="search_form">
-          <input
-            type="text"
-            name="q"
-            class={tw`w-full border h-10 border-gray-200 rounded rounded-r-none px-3 relative`}
-            placeholder="Search"
-            value={search}
+    <div class={tw`dark:bg-[#0d1117] dark:text-white py-6`}>
+      <div class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8`}>
+        <Head>
+          <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@df7ae27/www/static/markdown.css"
+            crossOrigin="anonymous"
           />
-          <div class={tw`mt-2`}>
+          <style>{style}</style>
+        </Head>
+        <Header />
+        <main class={tw`my-8`}>
+          <label for="search" class={tw`sr-only`}>Search</label>
+          <form id="search_form">
             <input
-              type="checkbox"
-              id="all_rules"
-              name="all"
-              checked={allRules}
+              type="text"
+              name="q"
+              class={tw`w-full border h-10 border-gray-200 dark:border-gray-500 rounded rounded-r-none px-3 relative dark:bg-gray-800 `}
+              placeholder="Search"
+              value={search}
             />
-            <label htmlFor="all_rules" class={tw`ml-2`}>
-              Show all rules
-            </label>
+            <div class={tw`mt-2`}>
+              <input
+                type="checkbox"
+                id="all_rules"
+                name="all"
+                checked={allRules}
+              />
+              <label htmlFor="all_rules" class={tw`ml-2`}>
+                Show all rules
+              </label>
+            </div>
+          </form>
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "document.getElementById('all_rules').oninput = () => document.getElementById('search_form').submit();",
+            }}
+          >
+          </script>
+          <div class={tw`mt-6 text-gray-600 dark:text-gray-400`}>
+            Showing {searchResults.length} out of {rules.length} rules
           </div>
-        </form>
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "document.getElementById('all_rules').oninput = () => document.getElementById('search_form').submit();",
-          }}
-        >
-        </script>
-        <div class={tw`mt-6 text-gray-600`}>
-          Showing {searchResults.length} out of {rules.length} rules
-        </div>
-        <div>
-          {searchResults
-            .map((rule: RuleData) => <Rule key={rule.code} rule={rule} />)}
-        </div>
-      </main>
+          <div>
+            {searchResults
+              .map((rule: RuleData) => <Rule key={rule.code} rule={rule} />)}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
@@ -95,11 +97,11 @@ function Rule(props: { rule: RuleData }) {
 
   return (
     <section
-      class={tw`my-8 border-gray-200 border-2 rounded-lg overflow-hidden`}
+      class={tw`my-8 border-gray-200 dark:border-[#313235] border-2 rounded-lg overflow-hidden`}
       id={rule.code}
     >
       <div
-        class={tw`p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white`}
+        class={tw`p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white dark:bg-[#0d1117] dark:border-[#313235]`}
       >
         <h1 class={tw`text-xl font-bold`}>
           <a href={`#${rule.code}`} class={tw`hover:underline`}>
@@ -115,7 +117,7 @@ function Rule(props: { rule: RuleData }) {
         )}
       </div>
       <div
-        class={tw`relative bg-gray-50 dark:bg-[#0d1117] dark:text-white p-3`}
+        class={tw`relative bg-gray-50 dark:bg-[#192029] dark:text-white p-3`}
       >
         {rule.docs.length > 0
           ? (
