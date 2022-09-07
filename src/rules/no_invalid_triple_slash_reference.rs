@@ -237,14 +237,14 @@ mod tests {
     Comment {
       kind: CommentKind::Line,
       span: dummy_range().into(),
-      text: text.to_string(),
+      text: text.into(),
     }
   }
   fn block(text: &str) -> Comment {
     Comment {
       kind: CommentKind::Block,
       span: dummy_range().into(),
-      text: text.to_string(),
+      text: text.into(),
     }
   }
 

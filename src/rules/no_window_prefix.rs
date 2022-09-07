@@ -1,9 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
-use deno_ast::swc::atoms::JsWord;
-use deno_ast::{view as ast_view, SourceRanged};
+use super::Context;
+use super::LintRule;
+use crate::handler::Handler;
+use crate::handler::Traverse;
+use crate::Program;
+use crate::ProgramRef;
+use deno_ast::view as ast_view;
+use deno_ast::SourceRanged;
 use if_chain::if_chain;
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
@@ -212,7 +215,7 @@ static PROPERTY_DENY_LIST: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 
 /// Extracts a symbol from the given expression if the symbol is statically determined (otherwise,
 /// return `None`).
-fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a JsWord> {
+fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a str> {
   use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match &expr.prop {
     MemberProp::Ident(ident) => Some(ident.sym()),
@@ -251,7 +254,7 @@ impl Handler for NoWindowPrefixHandler {
       if obj_symbol == "window";
       if ctx.scope().is_global(&obj.inner.to_id());
       if let Some(prop_symbol) = extract_symbol(member_expr);
-      if PROPERTY_DENY_LIST.contains(prop_symbol.as_ref());
+      if PROPERTY_DENY_LIST.contains(prop_symbol);
       then {
         ctx.add_diagnostic_with_hint(
           member_expr.range(),

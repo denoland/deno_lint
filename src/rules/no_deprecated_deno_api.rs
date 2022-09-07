@@ -1,9 +1,12 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
-use deno_ast::swc::atoms::JsWord;
-use deno_ast::{view as ast_view, SourceRanged};
+use super::Context;
+use super::LintRule;
+use crate::handler::Handler;
+use crate::handler::Traverse;
+use crate::Program;
+use crate::ProgramRef;
+use deno_ast::view as ast_view;
+use deno_ast::SourceRanged;
 use if_chain::if_chain;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -48,7 +51,7 @@ impl LintRule for NoDeprecatedDenoApi {
 /// return `None`).
 fn extract_symbol<'a>(
   member_prop: &'a ast_view::MemberProp,
-) -> Option<&'a JsWord> {
+) -> Option<&'a str> {
   use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match member_prop {
     MemberProp::Ident(ident) => Some(ident.sym()),
@@ -79,7 +82,7 @@ enum DeprecatedApi {
   WriteAllSync,
 }
 
-impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
+impl TryFrom<(&str, &str)> for DeprecatedApi {
   type Error = ();
 
   /// Converts the given member expression (made up of `obj_symbol` and `prop_symbol`) into
@@ -87,13 +90,13 @@ impl TryFrom<(&JsWord, &JsWord)> for DeprecatedApi {
   /// Note that this conversion does not take shadowing into account, so use this after calling
   /// `is_global` method on the scope analyzer.
   fn try_from(
-    (obj_symbol, prop_symbol): (&JsWord, &JsWord),
+    (obj_symbol, prop_symbol): (&str, &str),
   ) -> Result<Self, Self::Error> {
     if obj_symbol != "Deno" {
       return Err(());
     }
 
-    match prop_symbol.as_ref() {
+    match prop_symbol {
       "Buffer" => Ok(DeprecatedApi::Buffer),
       "copy" => Ok(DeprecatedApi::Copy),
       "customInspect" => Ok(DeprecatedApi::CustomInspect),
@@ -185,7 +188,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
     if_chain! {
       if let Expr::Ident(obj) = &member_expr.obj;
       if ctx.scope().is_global(&obj.inner.to_id());
-      let obj_symbol = obj.sym();
+      let obj_symbol: &str = obj.sym();
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
       then {
