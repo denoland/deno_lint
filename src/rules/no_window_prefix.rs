@@ -218,17 +218,17 @@ static PROPERTY_DENY_LIST: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a str> {
   use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match &expr.prop {
-    MemberProp::Ident(ident) => Some(&ident.sym()),
-    MemberProp::PrivateName(name) => Some(&name.id.sym()),
+    MemberProp::Ident(ident) => Some(ident.sym()),
+    MemberProp::PrivateName(name) => Some(name.id.sym()),
     MemberProp::Computed(prop) => match &prop.expr {
-      Expr::Lit(Lit::Str(s)) => Some(&s.value()),
+      Expr::Lit(Lit::Str(s)) => Some(s.value()),
       // If it's computed, this MemberExpr looks like `foo[bar]`
       Expr::Ident(_) => None,
       Expr::Tpl(Tpl {
         ref exprs,
         ref quasis,
         ..
-      }) if exprs.is_empty() && quasis.len() == 1 => Some(&quasis[0].raw()),
+      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
       _ => None,
     },
   }

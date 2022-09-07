@@ -54,16 +54,16 @@ fn extract_symbol<'a>(
 ) -> Option<&'a str> {
   use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match member_prop {
-    MemberProp::Ident(ident) => Some(&ident.sym()),
-    MemberProp::PrivateName(ident) => Some(&ident.id.sym()),
+    MemberProp::Ident(ident) => Some(ident.sym()),
+    MemberProp::PrivateName(ident) => Some(ident.id.sym()),
     MemberProp::Computed(prop) => match &prop.expr {
-      Expr::Lit(Lit::Str(s)) => Some(&s.value()),
-      Expr::Ident(ident) => Some(&ident.sym()),
+      Expr::Lit(Lit::Str(s)) => Some(s.value()),
+      Expr::Ident(ident) => Some(ident.sym()),
       Expr::Tpl(Tpl {
         ref exprs,
         ref quasis,
         ..
-      }) if exprs.is_empty() && quasis.len() == 1 => Some(&quasis[0].raw()),
+      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
       _ => None,
     },
   }
@@ -96,7 +96,7 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
       return Err(());
     }
 
-    match prop_symbol.as_ref() {
+    match prop_symbol {
       "Buffer" => Ok(DeprecatedApi::Buffer),
       "copy" => Ok(DeprecatedApi::Copy),
       "customInspect" => Ok(DeprecatedApi::CustomInspect),
@@ -188,7 +188,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
     if_chain! {
       if let Expr::Ident(obj) = &member_expr.obj;
       if ctx.scope().is_global(&obj.inner.to_id());
-      let obj_symbol: &str = &obj.sym();
+      let obj_symbol: &str = obj.sym();
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
       then {
