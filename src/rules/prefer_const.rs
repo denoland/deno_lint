@@ -822,6 +822,11 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   }
 
   fn visit_function(&mut self, function: &Function) {
+    for param in &function.params {
+      if let Pat::Assign(assign_pat) = &param.pat {
+        self.visit_assign_pat(assign_pat);
+      }
+    }
     self.with_child_scope(function, |a| {
       if let Some(body) = &function.body {
         body.visit_children_with(a);
@@ -830,6 +835,11 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
+    for param in &arrow_expr.params {
+      if let Pat::Assign(assign_pat) = param {
+        self.visit_assign_pat(assign_pat);
+      }
+    }
     self.with_child_scope(arrow_expr, |a| match &arrow_expr.body {
       BlockStmtOrExpr::BlockStmt(block_stmt) => {
         block_stmt.visit_children_with(a);
@@ -1904,6 +1914,15 @@ mod prefer_const_tests {
       r#"let a; switch (foo) { case 0: a = 0; break; }"#,
       r#"let a; switch (foo) { case 0: bar(); break; default: a = "default"; break; }"#,
       r#"let a; switch (foo) { case 0: { a = 0; break; } }"#,
+
+      // https://github.com/denoland/deno_lint/issues/1065
+      r#"let x = 0; const funcA = (someNumber: number = x++) => { return someNumber; };"#,
+      r#"let x = 0; const funcA = (someNumber: number = x = x + 1) => { return someNumber; };"#,
+      r#"let x = 0; const funcA = (someNumber: number = x += 1) => { return someNumber; };"#,
+      r#"let x = 0; function foo(someNumber: number = x++) { return someNumber; };"#,
+      r#"let x = 0; function foo(someNumber: number = x = x + 1) { return someNumber; };"#,
+      r#"let x = 0; function foo(someNumber: number = x += 1) { return someNumber; };"#,
+
     };
   }
 
