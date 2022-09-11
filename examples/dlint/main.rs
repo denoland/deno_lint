@@ -50,6 +50,11 @@ fn create_cli_app<'a>() -> Command<'a> {
             .long("config")
             .help("Load config from file")
             .takes_value(true),
+        ).arg(
+          Arg::new("FORMAT")
+            .long("format")
+            .help("Configure output format")
+            .takes_value(true),
         )
     )
 }
@@ -58,6 +63,7 @@ fn run_linter(
   paths: Vec<String>,
   filter_rule_name: Option<&str>,
   maybe_config: Option<Arc<config::Config>>,
+  format: Option<&str>,
 ) -> Result<(), AnyError> {
   let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
 
@@ -119,7 +125,12 @@ fn run_linter(
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    diagnostics::display_diagnostics(&d.diagnostics, &d.text_info, &d.filename);
+    diagnostics::display_diagnostics(
+      &d.diagnostics,
+      &d.text_info,
+      &d.filename,
+      format,
+    );
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);
@@ -162,7 +173,12 @@ fn main() -> Result<(), AnyError> {
         .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
-      run_linter(paths, run_matches.value_of("RULE_CODE"), maybe_config)?;
+      run_linter(
+        paths,
+        run_matches.value_of("RULE_CODE"),
+        maybe_config,
+        run_matches.value_of("FORMAT"),
+      )?;
     }
     Some(("rules", rules_matches)) => {
       let rules = if let Some(rule_name) = rules_matches.value_of("RULE_NAME") {
