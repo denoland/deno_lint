@@ -54,7 +54,13 @@ fn create_cli_app<'a>() -> Command<'a> {
           Arg::new("FORMAT")
             .long("format")
             .help("Configure output format")
-            .takes_value(true),
+            .takes_value(true)
+            .default_value("pretty")
+            .validator(|val: &str| match val {
+              "compact" => Ok(()),
+              "pretty" => Ok(()),
+              _ => Err("Output format must be compact or pretty")
+            }),
         )
     )
 }

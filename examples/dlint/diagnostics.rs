@@ -11,43 +11,46 @@ pub fn display_diagnostics(
   filename: &str,
   format: Option<&str>,
 ) {
-  for diagnostic in diagnostics {
-    match format {
-      Some("compact") => print_compact(filename, diagnostic),
-      _ => print_pretty(source_file, filename, diagnostic),
-    }
+  match format {
+    Some("compact") => print_compact(diagnostics, filename),
+    Some("pretty") => print_pretty(diagnostics, source_file, filename),
+    _ => unreachable!("Invalid output format specified"),
   }
 }
 
-fn print_compact(filename: &str, diagnostic: &LintDiagnostic) {
-  eprintln!(
-    "{}: line {}, col {}, Error - {} ({})",
-    filename,
-    diagnostic.range.start.line_index + 1,
-    diagnostic.range.start.column_index + 1,
-    diagnostic.message,
-    diagnostic.code
-  )
+fn print_compact(diagnostics: &[LintDiagnostic], filename: &str) {
+  for diagnostic in diagnostics {
+    eprintln!(
+      "{}: line {}, col {}, Error - {} ({})",
+      filename,
+      diagnostic.range.start.line_index + 1,
+      diagnostic.range.start.column_index + 1,
+      diagnostic.message,
+      diagnostic.code
+    )
+  }
 }
 
 fn print_pretty(
+  diagnostics: &[LintDiagnostic],
   source_file: &SourceTextInfo,
   filename: &str,
-  diagnostic: &LintDiagnostic,
 ) {
-  let reporter = miette::GraphicalReportHandler::new();
-  let miette_source_code = MietteSourceCode {
-    source: source_file,
-    filename,
-  };
+  for diagnostic in diagnostics {
+    let reporter = miette::GraphicalReportHandler::new();
+    let miette_source_code = MietteSourceCode {
+      source: source_file,
+      filename,
+    };
 
-  let mut s = String::new();
-  let miette_diag = MietteDiagnostic {
-    source_code: &miette_source_code,
-    lint_diagnostic: diagnostic,
-  };
-  reporter.render_report(&mut s, &miette_diag).unwrap();
-  eprintln!("{}", s);
+    let mut s = String::new();
+    let miette_diag = MietteDiagnostic {
+      source_code: &miette_source_code,
+      lint_diagnostic: diagnostic,
+    };
+    reporter.render_report(&mut s, &miette_diag).unwrap();
+    eprintln!("{}", s);
+  }
 }
 
 #[derive(Debug)]
