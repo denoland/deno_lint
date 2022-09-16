@@ -9,14 +9,40 @@ pub fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
   source_file: &SourceTextInfo,
   filename: &str,
+  format: Option<&str>,
 ) {
-  let reporter = miette::GraphicalReportHandler::new();
-  let miette_source_code = MietteSourceCode {
-    source: source_file,
-    filename,
-  };
+  match format {
+    Some("compact") => print_compact(diagnostics, filename),
+    Some("pretty") => print_pretty(diagnostics, source_file, filename),
+    _ => unreachable!("Invalid output format specified"),
+  }
+}
 
+fn print_compact(diagnostics: &[LintDiagnostic], filename: &str) {
   for diagnostic in diagnostics {
+    eprintln!(
+      "{}: line {}, col {}, Error - {} ({})",
+      filename,
+      diagnostic.range.start.line_index + 1,
+      diagnostic.range.start.column_index + 1,
+      diagnostic.message,
+      diagnostic.code
+    )
+  }
+}
+
+fn print_pretty(
+  diagnostics: &[LintDiagnostic],
+  source_file: &SourceTextInfo,
+  filename: &str,
+) {
+  for diagnostic in diagnostics {
+    let reporter = miette::GraphicalReportHandler::new();
+    let miette_source_code = MietteSourceCode {
+      source: source_file,
+      filename,
+    };
+
     let mut s = String::new();
     let miette_diag = MietteDiagnostic {
       source_code: &miette_source_code,
