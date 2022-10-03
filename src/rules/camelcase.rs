@@ -415,7 +415,7 @@ impl CamelcaseHandler {
   fn check_pat(&mut self, pat: &ast_view::Pat) {
     match pat {
       ast_view::Pat::Ident(ident) => {
-        self.check_ident(ident, IdentToCheck::variable(&ident.id.inner));
+        self.check_ident(ident, IdentToCheck::variable(ident.id.inner));
       }
       ast_view::Pat::Array(ast_view::ArrayPat { ref elems, .. }) => {
         for pat in elems.iter().flatten() {
@@ -506,7 +506,7 @@ impl Handler for CamelcaseHandler {
 
     self.check_ident(
       &fn_decl.ident,
-      IdentToCheck::function(&fn_decl.ident.inner),
+      IdentToCheck::function(fn_decl.ident.inner),
     );
   }
 
@@ -522,7 +522,7 @@ impl Handler for CamelcaseHandler {
 
     self.check_ident(
       &class_decl.ident,
-      IdentToCheck::class(&class_decl.ident.inner),
+      IdentToCheck::class(class_decl.ident.inner),
     );
   }
 
@@ -658,7 +658,7 @@ impl Handler for CamelcaseHandler {
 
     self.check_ident(
       &type_alias.id,
-      IdentToCheck::type_alias(&type_alias.id.inner),
+      IdentToCheck::type_alias(type_alias.id.inner),
     );
     self.check_ts_type(&type_alias.type_ann);
   }
@@ -675,7 +675,7 @@ impl Handler for CamelcaseHandler {
 
     self.check_ident(
       &interface_decl.id,
-      IdentToCheck::interface(&interface_decl.id.inner),
+      IdentToCheck::interface(interface_decl.id.inner),
     );
 
     for ty_el in &interface_decl.body.body {
@@ -695,7 +695,7 @@ impl Handler for CamelcaseHandler {
 
     self.check_ident(
       &namespace_decl.id,
-      IdentToCheck::namespace(&namespace_decl.id.inner),
+      IdentToCheck::namespace(namespace_decl.id.inner),
     );
   }
 
@@ -725,7 +725,7 @@ impl Handler for CamelcaseHandler {
     }
 
     self
-      .check_ident(&enum_decl.id, IdentToCheck::enum_name(&enum_decl.id.inner));
+      .check_ident(&enum_decl.id, IdentToCheck::enum_name(enum_decl.id.inner));
     for variant in &enum_decl.members {
       if let ast_view::TsEnumMemberId::Ident(id) = &variant.id {
         self.check_ident(id, IdentToCheck::enum_variant(id.inner));

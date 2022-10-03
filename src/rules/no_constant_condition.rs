@@ -76,26 +76,6 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
     );
   }
 
-  fn check_short_circuit(&self, expr: &Expr, operator: BinaryOp) -> bool {
-    match expr {
-      Expr::Lit(Lit::Bool(boolean)) => {
-        (operator == BinaryOp::LogicalOr && boolean.value)
-          || (operator == BinaryOp::LogicalAnd && !boolean.value)
-      }
-      Expr::Lit(_) => false,
-      Expr::Unary(unary) => {
-        operator == BinaryOp::LogicalAnd && unary.op == UnaryOp::Void
-      }
-      Expr::Bin(bin)
-        if bin.op == BinaryOp::LogicalAnd || bin.op == BinaryOp::LogicalOr =>
-      {
-        self.check_short_circuit(&bin.left, bin.op)
-          || self.check_short_circuit(&bin.right, bin.op)
-      }
-      _ => false,
-    }
-  }
-
   fn is_constant(
     &self,
     node: &Expr,
@@ -148,9 +128,9 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
           let is_right_constant =
             self.is_constant(&bin.right, Some(node), in_boolean_position);
           let is_left_short_circuit =
-            is_left_constant && self.check_short_circuit(&bin.left, bin.op);
+            is_left_constant && check_short_circuit(&bin.left, bin.op);
           let is_right_short_circuit =
-            is_right_constant && self.check_short_circuit(&bin.right, bin.op);
+            is_right_constant && check_short_circuit(&bin.right, bin.op);
           (is_left_constant && is_right_constant)
           // TODO(humancalico) add more condiitons here from https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
             || is_left_short_circuit
@@ -182,6 +162,26 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
       let range = condition.range();
       self.add_diagnostic(range);
     }
+  }
+}
+
+fn check_short_circuit(expr: &Expr, operator: BinaryOp) -> bool {
+  match expr {
+    Expr::Lit(Lit::Bool(boolean)) => {
+      (operator == BinaryOp::LogicalOr && boolean.value)
+        || (operator == BinaryOp::LogicalAnd && !boolean.value)
+    }
+    Expr::Lit(_) => false,
+    Expr::Unary(unary) => {
+      operator == BinaryOp::LogicalAnd && unary.op == UnaryOp::Void
+    }
+    Expr::Bin(bin)
+      if bin.op == BinaryOp::LogicalAnd || bin.op == BinaryOp::LogicalOr =>
+    {
+      check_short_circuit(&bin.left, bin.op)
+        || check_short_circuit(&bin.right, bin.op)
+    }
+    _ => false,
   }
 }
 

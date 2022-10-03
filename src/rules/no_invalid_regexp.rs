@@ -79,9 +79,9 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
       if ident.sym != *"RegExp" || args.is_empty() {
         return;
       }
-      if let Some(pattern) = &check_expr_for_string_literal(&*args[0].expr) {
+      if let Some(pattern) = &check_expr_for_string_literal(&args[0].expr) {
         if args.len() > 1 {
-          if let Some(flags) = &check_expr_for_string_literal(&*args[1].expr) {
+          if let Some(flags) = &check_expr_for_string_literal(&args[1].expr) {
             self.check_regex(pattern, flags, range);
             return;
           }
@@ -129,7 +129,7 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   fn visit_new_expr(&mut self, new_expr: &deno_ast::swc::ast::NewExpr) {
     if new_expr.args.is_some() {
       self.handle_call_or_new_expr(
-        &*new_expr.callee,
+        &new_expr.callee,
         new_expr.args.as_ref().unwrap(),
         new_expr.range(),
       );

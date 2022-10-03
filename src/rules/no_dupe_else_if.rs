@@ -199,13 +199,13 @@ fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
       if matches!(bin1.op, BinaryOp::LogicalOr | BinaryOp::LogicalAnd)
         && bin1.op == bin2.op =>
     {
-      equal_in_if_else(&*bin1.left, &*bin2.left)
-        && equal_in_if_else(&*bin1.right, &*bin2.right)
-        || equal_in_if_else(&*bin1.left, &*bin2.right)
-          && equal_in_if_else(&*bin1.right, &*bin2.left)
+      equal_in_if_else(&bin1.left, &bin2.left)
+        && equal_in_if_else(&bin1.right, &bin2.right)
+        || equal_in_if_else(&bin1.left, &bin2.right)
+          && equal_in_if_else(&bin1.right, &bin2.left)
     }
-    (Paren(ParenExpr { ref expr, .. }), _) => equal_in_if_else(&**expr, expr2),
-    (_, Paren(ParenExpr { ref expr, .. })) => equal_in_if_else(expr1, &**expr),
+    (Paren(ParenExpr { ref expr, .. }), _) => equal_in_if_else(expr, expr2),
+    (_, Paren(ParenExpr { ref expr, .. })) => equal_in_if_else(expr1, expr),
     (This(_), This(_))
     | (Array(_), Array(_))
     | (Object(_), Object(_))

@@ -140,10 +140,10 @@ impl Handler for ForDirectionHandler {
       let update = for_stmt.update.as_ref().unwrap();
       let update_direction = match &update {
         Expr::Update(update_expr) => {
-          check_update_direction(&**update_expr, counter_name)
+          check_update_direction(update_expr, counter_name)
         }
         Expr::Assign(assign_expr) => {
-          check_assign_direction(&**assign_expr, counter_name)
+          check_assign_direction(assign_expr, counter_name)
         }
         _ => return,
       };

@@ -94,7 +94,7 @@ impl StringRepr for PropOrSpread {
   fn string_repr(&self) -> Option<String> {
     use PropOrSpread::*;
     match self {
-      Prop(p) => (&**p).string_repr(),
+      Prop(p) => (**p).string_repr(),
       Spread(_) => None,
     }
   }

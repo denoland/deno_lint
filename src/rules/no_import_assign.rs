@@ -245,7 +245,7 @@ impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
     n.visit_children_with(self);
 
     if let Some(arg) = n.args.first() {
-      if self.modifies_first(&*n.callee) {
+      if self.modifies_first(&n.callee) {
         self.check_assign(n.range(), &arg.expr, true);
       }
     }

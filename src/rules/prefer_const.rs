@@ -633,24 +633,24 @@ where
         extract_idents_from_pat_with(elem_pat, op);
       }
     }
-    Pat::Rest(rest_pat) => extract_idents_from_pat_with(&*rest_pat.arg, op),
+    Pat::Rest(rest_pat) => extract_idents_from_pat_with(&rest_pat.arg, op),
     Pat::Object(object_pat) => {
       for prop in &object_pat.props {
         match prop {
           ObjectPatProp::KeyValue(key_value) => {
-            extract_idents_from_pat_with(&*key_value.value, op);
+            extract_idents_from_pat_with(&key_value.value, op);
           }
           ObjectPatProp::Assign(assign) => {
             op(ExtractIdentsArgs::Ident(&assign.key));
           }
           ObjectPatProp::Rest(rest) => {
-            extract_idents_from_pat_with(&*rest.arg, op)
+            extract_idents_from_pat_with(&rest.arg, op)
           }
         }
       }
     }
     Pat::Assign(assign_pat) => {
-      extract_idents_from_pat_with(&*assign_pat.left, op)
+      extract_idents_from_pat_with(&assign_pat.left, op)
     }
     Pat::Expr(_) => {
       op(ExtractIdentsArgs::MemberExpr);
@@ -796,7 +796,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     match expr {
       Expr::Assign(assign_expr) => {
         match &assign_expr.left {
-          PatOrExpr::Pat(pat) => self.extract_assign_idents(&**pat),
+          PatOrExpr::Pat(pat) => self.extract_assign_idents(pat),
           PatOrExpr::Expr(expr) => match &**expr {
             Expr::Ident(ident) => {
               self.process_var_status(iter::once(ident), false);
