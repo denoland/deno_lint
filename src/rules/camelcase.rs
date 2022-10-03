@@ -504,10 +504,8 @@ impl Handler for CamelcaseHandler {
       return;
     }
 
-    self.check_ident(
-      &fn_decl.ident,
-      IdentToCheck::function(fn_decl.ident.inner),
-    );
+    self
+      .check_ident(&fn_decl.ident, IdentToCheck::function(fn_decl.ident.inner));
   }
 
   fn class_decl(
