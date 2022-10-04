@@ -89,7 +89,7 @@ impl Handler for NoArrayConstructorHandler {
         return;
       }
 
-      check_args((&*call_expr.args).to_vec(), call_expr.range(), context);
+      check_args((*call_expr.args).to_vec(), call_expr.range(), context);
     }
   }
 }

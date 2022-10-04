@@ -190,10 +190,10 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
   fn check_pat_and_spread_or_expr(&mut self, left: &Pat, right: &ExprOrSpread) {
     if right.spread.is_some() {
       if let Pat::Rest(rest_pat) = left {
-        self.check_pat_and_expr(&*rest_pat.arg, &*right.expr)
+        self.check_pat_and_expr(&rest_pat.arg, &right.expr)
       }
     } else {
-      self.check_pat_and_expr(left, &*right.expr);
+      self.check_pat_and_expr(left, &right.expr);
     }
   }
 
@@ -218,15 +218,15 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
         PropOrSpread::Prop(boxed_prop),
       ) => {
         if let Prop::KeyValue(key_value_prop) = &**boxed_prop {
-          let left_name = (&key_val_pat_prop.key).string_repr();
-          let right_name = (&key_value_prop.key).string_repr();
+          let left_name = key_val_pat_prop.key.string_repr();
+          let right_name = key_value_prop.key.string_repr();
 
           if let Some(lname) = left_name {
             if let Some(rname) = right_name {
               if lname == rname {
                 self.check_pat_and_expr(
-                  &*key_val_pat_prop.value,
-                  &*key_value_prop.value,
+                  &key_val_pat_prop.value,
+                  &key_value_prop.value,
                 );
               }
             }
@@ -240,7 +240,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
   fn check_pat_and_expr(&mut self, left: &Pat, right: &Expr) {
     match (left, right) {
       (Pat::Expr(l_expr), _) => {
-        self.check_expr_and_expr(&**l_expr, right);
+        self.check_expr_and_expr(l_expr, right);
       }
       (Pat::Ident(l_ident), Expr::Ident(r_ident)) => {
         self.check_same_ident(&l_ident.id, r_ident);

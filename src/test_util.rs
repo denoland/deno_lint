@@ -273,7 +273,7 @@ impl LintErrBuilder {
     LintErr {
       line: self.line.unwrap_or(1),
       col: self.col.unwrap_or(0),
-      message: self.message.unwrap_or_else(|| "".to_string()),
+      message: self.message.unwrap_or_default(),
       hint: self.hint,
     }
   }
