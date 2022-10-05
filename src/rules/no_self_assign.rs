@@ -95,6 +95,16 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     left: &MemberExpr,
     right: &MemberExpr,
   ) -> bool {
+    match (&left.prop, &right.prop) {
+      (MemberProp::Ident(_), MemberProp::PrivateName(_)) => {
+        return false;
+      }
+      (MemberProp::PrivateName(_), MemberProp::Ident(_)) => {
+        return false;
+      }
+      _ => {}
+    }
+
     if let (
       MemberProp::Computed(l_computed),
       MemberProp::Computed(r_computed),
@@ -357,6 +367,13 @@ mod tests {
       "this.x = this.y",
       "this.x = options.x",
       "this.name = this.constructor.name",
+      r#"
+        class Foo {
+          constructor() {
+            this.#bar = this.bar
+          }
+        }
+      "#,
     };
   }
 
@@ -611,6 +628,21 @@ mod tests {
         {
           col: 18,
           message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          hint: NoSelfAssignHint::Mistake,
+        }
+      ],
+
+      r#"
+        class Foo {
+          constructor() {
+            this.#bar = this.#bar
+          }
+        }
+      "#: [
+        {
+          line: 4,
+          col: 24,
+          message: variant!(NoSelfAssignMessage, Invalid, "bar"),
           hint: NoSelfAssignHint::Mistake,
         }
       ],
