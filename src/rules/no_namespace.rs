@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::{Program, ProgramRef};
 use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::{view as ast_view, MediaType, SourceRanged};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl LintRule for NoNamespace {
     context: &mut Context,
     program: Program<'_>,
   ) {
-    if context.file_name().ends_with(".d.ts") {
+    if matches!(context.media_type(), MediaType::Dts) {
       return;
     }
 
