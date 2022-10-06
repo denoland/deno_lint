@@ -367,6 +367,8 @@ mod tests {
       "this.x = this.y",
       "this.x = options.x",
       "this.name = this.constructor.name",
+
+      // https://github.com/denoland/deno_lint/issues/1081
       r#"
         class Foo {
           constructor() {
