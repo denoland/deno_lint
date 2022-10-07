@@ -36,7 +36,7 @@ enum NoSelfAssignMessage {
 #[derive(Display)]
 enum NoSelfAssignHint {
   #[display(
-    fmt = "Self assignments have no effect. Perhaps you make a mistake?"
+    fmt = "Self assignments have no effect. Perhaps you made a mistake?"
   )]
   Mistake,
 }
