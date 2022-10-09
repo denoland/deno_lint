@@ -246,7 +246,7 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     if let Callee::Expr(callee_expr) = &call_expr.callee {
       if let Expr::Member(member) = &**callee_expr {
         if let Expr::Ident(ident) = &*member.obj {
-          if ident.sym != *"Object" {
+          if !(matches!(ident.sym.as_ref(), "Object" | "Reflect")) {
             return;
           }
         }
@@ -341,6 +341,8 @@ mod tests {
          { bar: { get: function() { return true; } } });"#,
       r#"Object.defineProperties(foo,
          { bar: { get: function () { ~function() { return true; }(); return true; } } });"#,
+      r#"Reflect.defineProperty(foo, "bar", { get: function () { return true; } });"#,
+      r#"Reflect.defineProperty(foo, "bar", { get: () => { return true; } });"#,
       "let get = function() {};",
       "let get = function() { return true; };",
       "let foo = { bar() {} };",
@@ -580,6 +582,22 @@ class _Test {
       r#"Object.defineProperty(foo, "bar", { get: function(){ ~function() { return true; }() } });"#: [
         {
           col: 36,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // Reflect.defineProperty
+      "Reflect.defineProperty(foo, 'bar', { get: function(){} });": [
+        {
+          col: 37,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Reflect.defineProperty(foo, 'bar', { get: () => {} });": [
+        {
+          col: 37,
           message: variant!(GetterReturnMessage, Expected, "get"),
           hint: GetterReturnHint::Return,
         }
