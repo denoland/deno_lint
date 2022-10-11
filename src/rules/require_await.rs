@@ -5,6 +5,9 @@ use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 
 use deno_ast::view::{NodeTrait, Program};
+use deno_ast::SourceRange;
+use deno_ast::SourceRanged;
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::sync::Arc;
 
@@ -123,7 +126,12 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
-    process_function(fn_decl.as_node(), function_info, ctx);
+    process_function(
+      fn_decl.as_node(),
+      fn_decl.ident.range(),
+      function_info,
+      ctx,
+    );
   }
 
   fn fn_expr(&mut self, fn_expr: &deno_ast::view::FnExpr, ctx: &mut Context) {
@@ -136,7 +144,12 @@ impl Handler for RequireAwaitHandler {
       is_empty: is_body_empty(fn_expr.function.body),
       has_await: false,
     };
-    process_function(fn_expr.as_node(), function_info, ctx);
+    let range = if let Some(name) = fn_expr.ident {
+      name.range()
+    } else {
+      fn_expr.range()
+    };
+    process_function(fn_expr.as_node(), range, function_info, ctx);
   }
 
   fn arrow_expr(
@@ -154,7 +167,12 @@ impl Handler for RequireAwaitHandler {
       ),
       has_await: false,
     };
-    process_function(arrow_expr.as_node(), function_info, ctx);
+    process_function(
+      arrow_expr.as_node(),
+      arrow_expr.range(),
+      function_info,
+      ctx,
+    );
   }
 
   fn method_prop(
@@ -170,7 +188,12 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
-    process_function(method_prop.as_node(), function_info, ctx);
+    process_function(
+      method_prop.as_node(),
+      method_prop.inner.key.range(),
+      function_info,
+      ctx,
+    );
   }
 
   fn class_method(
@@ -186,7 +209,12 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
-    process_function(class_method.as_node(), function_info, ctx);
+    process_function(
+      class_method.as_node(),
+      class_method.inner.key.range(),
+      function_info,
+      ctx,
+    );
   }
 
   fn private_method(
@@ -201,7 +229,12 @@ impl Handler for RequireAwaitHandler {
       is_empty: is_body_empty(private_method.function.body),
       has_await: false,
     };
-    process_function(private_method.as_node(), function_info, ctx);
+    process_function(
+      private_method.as_node(),
+      private_method.inner.key.range(),
+      function_info,
+      ctx,
+    );
   }
 }
 
@@ -266,6 +299,7 @@ impl Handler for FunctionHandler {
 
 fn process_function<'a, N>(
   node: N,
+  range: SourceRange,
   function_info: FunctionInfo,
   ctx: &mut Context,
 ) where
@@ -283,7 +317,7 @@ fn process_function<'a, N>(
 
   if let Some(message) = function_info.should_report() {
     ctx.add_diagnostic_with_hint(
-      node.range(),
+      range,
       CODE,
       message,
       RequireAwaitHint::RemoveOrUse,
@@ -357,7 +391,7 @@ async function* run() {
       RequireAwait,
       "async function foo() { doSomething() }": [
         {
-          col: 0,
+          col: 15,
           message: variant!(RequireAwaitMessage, Function, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
@@ -385,42 +419,42 @@ async function* run() {
       ],
       "({ async foo() { doSomething() } })": [
         {
-          col: 3,
+          col: 9,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { async foo() { doSomething() } }": [
         {
-          col: 10,
+          col: 16,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { private async foo() { doSomething() } }": [
         {
-          col: 10,
+          col: 24,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async foo() { doSomething() } })": [
         {
-          col: 9,
+          col: 15,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async ''() { doSomething() } })": [
         {
-          col: 9,
+          col: 15,
           message: variant!(RequireAwaitMessage, Method, ""),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "async function foo() { async () => { await doSomething() } }": [
         {
-          col: 0,
+          col: 15,
           message: variant!(RequireAwaitMessage, Function, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
