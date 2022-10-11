@@ -4,8 +4,9 @@ use crate::swc_util::StringRepr;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr, FnDecl,
-  FnExpr, GetterProp, MemberProp, MethodKind, MethodProp, PrivateMethod, Prop,
-  PropName, PropOrSpread, ReturnStmt,
+  FnExpr, GetterProp, MemberExpr, MemberProp, MethodKind, MethodProp,
+  ObjectLit, OptChainBase, PrivateMethod, Prop, PropName, PropOrSpread,
+  ReturnStmt,
 };
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
@@ -164,6 +165,79 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     self.getter_name = prev_name;
     self.has_return = prev_has_return;
   }
+
+  fn check_callee_expr<F>(&mut self, expr: &Expr, op: F)
+  where
+    F: FnOnce(&mut Self, &MemberExpr),
+  {
+    match expr {
+      Expr::Paren(paren) => {
+        self.check_callee_expr(&paren.expr, op);
+      }
+      Expr::Member(member) => {
+        op(self, member);
+      }
+      Expr::OptChain(opt) => {
+        if let OptChainBase::Member(member) = &opt.base {
+          op(self, member);
+        }
+      }
+      _ => {}
+    }
+  }
+
+  fn check_obj_method_getter_return(&mut self, obj_expr: &ObjectLit) {
+    for prop in obj_expr.props.iter() {
+      if let PropOrSpread::Prop(prop_expr) = prop {
+        if let Prop::KeyValue(kv_prop) = &**prop_expr {
+          if let Expr::Object(obj_expr) = &*kv_prop.value {
+            // e.g. Object.create(foo, { bar: { get: function() {} } })
+            self.check_obj_method_getter_return(obj_expr);
+            continue;
+          }
+
+          // e.g. Object.defineProperty(foo, 'bar', { get: function() {} })
+          if let PropName::Ident(ident) = &kv_prop.key {
+            if ident.sym != *"get" {
+              continue;
+            }
+            self.visit_getter_or_function(|a| {
+              // function
+              if let Expr::Fn(fn_expr) = &*kv_prop.value {
+                a.set_getter_name(&fn_expr.ident);
+                if let Some(body) = &fn_expr.function.body {
+                  body.visit_children_with(a);
+                  a.check_getter(body.range(), prop.range());
+                }
+                // arrow function
+              } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
+                a.set_default_getter_name();
+                if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body
+                {
+                  block_stmt.visit_children_with(a);
+                  a.check_getter(block_stmt.range(), prop.range());
+                }
+              }
+            });
+          }
+        } else if let Prop::Method(method_prop) = &**prop_expr {
+          // e.g. Object.defineProperty(foo, 'bar', { get() {} })
+          if let PropName::Ident(ident) = &method_prop.key {
+            if ident.sym != *"get" {
+              continue;
+            }
+            self.visit_getter_or_function(|a| {
+              a.set_getter_name(&method_prop.key);
+              if let Some(body) = &method_prop.function.body {
+                body.visit_children_with(a);
+                a.check_getter(body.range(), prop.range());
+              }
+            });
+          }
+        }
+      }
+    }
+  }
 }
 
 impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
@@ -239,71 +313,33 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
 
   fn visit_call_expr(&mut self, call_expr: &CallExpr) {
     call_expr.visit_children_with(self);
-
-    if call_expr.args.len() != 3 {
+    if !(matches!(call_expr.args.len(), 2 | 3)) {
       return;
     }
+
     if let Callee::Expr(callee_expr) = &call_expr.callee {
-      if let Expr::Member(member) = &**callee_expr {
-        if let Expr::Ident(ident) = &*member.obj {
+      self.check_callee_expr(callee_expr, |visitor, member_expr| {
+        if let Expr::Ident(ident) = &*member_expr.obj {
           if !(matches!(ident.sym.as_ref(), "Object" | "Reflect")) {
             return;
           }
-        }
-        if let MemberProp::Ident(ident) = &member.prop {
-          if ident.sym != *"defineProperty" {
-            return;
-          }
-        }
-      }
-    }
-    if let Expr::Object(obj_expr) = &*call_expr.args[2].expr {
-      for prop in obj_expr.props.iter() {
-        if let PropOrSpread::Prop(prop_expr) = prop {
-          if let Prop::KeyValue(kv_prop) = &**prop_expr {
-            // e.g. Object.defineProperty(foo, 'bar', { get: function() {} })
-            if let PropName::Ident(ident) = &kv_prop.key {
-              if ident.sym != *"get" {
-                return;
-              }
 
-              self.visit_getter_or_function(|a| {
-                if let Expr::Fn(fn_expr) = &*kv_prop.value {
-                  a.set_getter_name(&fn_expr.ident);
-                  if let Some(body) = &fn_expr.function.body {
-                    body.visit_children_with(a);
-                    a.check_getter(body.range(), prop.range());
-                  }
-                } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
-                  a.set_default_getter_name();
-                  if let BlockStmtOrExpr::BlockStmt(block_stmt) =
-                    &arrow_expr.body
-                  {
-                    block_stmt.visit_children_with(a);
-                    a.check_getter(block_stmt.range(), prop.range());
-                  }
-                }
-              });
-            }
-          } else if let Prop::Method(method_prop) = &**prop_expr {
-            // e.g. Object.defineProperty(foo, 'bar', { get() {} })
-            if let PropName::Ident(ident) = &method_prop.key {
-              if ident.sym != *"get" {
-                return;
-              }
-
-              self.visit_getter_or_function(|a| {
-                a.set_getter_name(&method_prop.key);
-
-                if let Some(body) = &method_prop.function.body {
-                  body.visit_children_with(a);
-                  a.check_getter(body.range(), prop.range());
-                }
-              });
+          if let MemberProp::Ident(ident) = &member_expr.prop {
+            if !(matches!(
+              ident.sym.as_ref(),
+              "create" | "defineProperty" | "defineProperties"
+            )) {
+              return;
             }
           }
         }
-      }
+
+        if let Expr::Object(obj_expr) =
+          &*call_expr.args[call_expr.args.len() - 1].expr
+        {
+          visitor.check_obj_method_getter_return(obj_expr)
+        }
+      });
     }
   }
 
@@ -460,8 +496,31 @@ class _Test {
     };
     return target;
   }
-}"#
-    };
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1088
+      "Object.create(foo)",
+      "Object.create(foo, { bar: { configurable: false, get: () => { return true } } })",
+      "Object.create(foo, { bar: { configurable: false, get: function() { return true } } })",
+      "Object.create(foo, { bar: { configurable: false, get() { return true } } })",
+      r#"
+Object.create(Object.prototype, {
+  foo: {
+    writable: true,
+    configurable: true,
+    value: 'hello'
+  },
+  bar: {
+    configurable: false,
+    get: function() { return value },
+    set: function(value) {
+      console.log('Setting `o.bar` to', value);
+    }
+  }
+})
+      "#
+    }
   }
 
   #[test]
@@ -539,6 +598,118 @@ class _Test {
         {
           col: 12,
           message: variant!(GetterReturnMessage, Expected, "bar"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // Object.create
+      "Object.create(foo, { bar: { configurable: false, get: () => {} } })": [
+        {
+          col: 49,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Object.create(foo, { bar: { configurable: false, get: function() {} } })": [
+        {
+          col: 49,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      "Object.create(foo, { bar: { configurable: false, get: function() {} } })": [
+        {
+          col: 49,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      r#"
+Object.create(Object.prototype, {
+  foo: {
+    writable: true,
+    configurable: true,
+    value: 'hello'
+  },
+  bar: {
+    configurable: false,
+    get: function() {},
+    set: function(value) {
+      console.log('Setting `o.bar` to', value);
+    }
+  }
+})
+      "#: [
+        {
+          line: 10,
+          col: 4,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+
+      // Object.defineProperties
+      "Object.defineProperties(obj, { 'property1': { value: true, writable: true, get: () => {} } });": [
+        {
+          col: 75,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Object.defineProperties(obj, { 'property1': { value: true, writable: true, get: function(){} } });": [
+        {
+          col: 75,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      "Object.defineProperties(obj, { 'property1': { value: true, writable: true, get(){} } });": [
+        {
+          col: 75,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      r#"
+Object.defineProperties(obj, {
+  'property1': {
+    value: true,
+    writable: true,
+    get: () => {}
+  },
+  'property2': {
+    value: 'Hello',
+    writable: false,
+    get: () => { return true }
+  }
+});
+      "#: [
+        {
+          line: 6,
+          col: 4,
+          message: variant!(GetterReturnMessage, Expected, "get"),
+          hint: GetterReturnHint::Return,
+        }
+      ],
+      r#"
+Object.defineProperties(obj, {
+  'property1': {
+    value: true,
+    writable: true,
+    get: () => { return true }
+  },
+  'property2': {
+    value: 'Hello',
+    writable: false,
+    get: () => {}
+  }
+});
+      "#: [
+        {
+          line: 11,
+          col: 4,
+          message: variant!(GetterReturnMessage, Expected, "get"),
           hint: GetterReturnHint::Return,
         }
       ],
