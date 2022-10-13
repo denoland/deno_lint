@@ -204,6 +204,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
             self.visit_getter_or_function(|a| {
               // function
               if let Expr::Fn(fn_expr) = &*kv_prop.value {
+                if fn_expr.function.is_generator {
+                  return;
+                }
                 a.set_getter_name(&fn_expr.ident);
                 if let Some(body) = &fn_expr.function.body {
                   body.visit_children_with(a);
@@ -221,6 +224,9 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
             });
           }
         } else if let Prop::Method(method_prop) = &**prop_expr {
+          if method_prop.function.is_generator {
+            return;
+          }
           // e.g. Object.defineProperty(foo, 'bar', { get() {} })
           if let PropName::Ident(ident) = &method_prop.key {
             if ident.sym != *"get" {
@@ -519,7 +525,23 @@ Object.create(Object.prototype, {
     }
   }
 })
-      "#
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1072
+      r#"
+Object.defineProperty(Number.prototype, x, {
+  *get() {
+    for (let n = 0; n < this; n++) yield n;
+  },
+});
+      "#,
+      r#"
+Object.defineProperty(Number.prototype, x, {
+  get: function* () {
+    for (let n = 0; n < this; n++) yield n;
+  },
+});
+      "#,
     }
   }
 
