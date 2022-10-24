@@ -71,7 +71,8 @@ impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
       Stmt::Decl(Decl::TsTypeAlias(..)) => return,
       Stmt::Decl(Decl::TsModule(..)) => return,
       Stmt::Decl(Decl::Var(decl))
-        if decl.kind == VarDeclKind::Var && decl.decls.iter().all(|decl| decl.init.is_none()) =>
+        if decl.kind == VarDeclKind::Var
+          && decl.decls.iter().all(|decl| decl.init.is_none()) =>
       {
         return;
       }

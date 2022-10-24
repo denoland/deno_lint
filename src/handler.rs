@@ -253,7 +253,12 @@ pub trait Handler {
   fn try_stmt(&mut self, _n: &ast_view::TryStmt, _ctx: &mut Context) {}
   fn ts_array_type(&mut self, _n: &ast_view::TsArrayType, _ctx: &mut Context) {}
   fn ts_as_expr(&mut self, _n: &ast_view::TsAsExpr, _ctx: &mut Context) {}
-  fn ts_satisfaction_expr(&mut self, _n: &ast_view::TsSatisfactionExpr, _ctx: &mut Context) {}
+  fn ts_satisfaction_expr(
+    &mut self,
+    _n: &ast_view::TsSatisfactionExpr,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_call_signature_decl(
     &mut self,
     _n: &ast_view::TsCallSignatureDecl,
