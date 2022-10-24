@@ -1,7 +1,10 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::{Context, LintRule};
+use super::Context;
+use super::LintRule;
 use crate::ProgramRef;
-use deno_ast::swc::ast::{Decl, Stmt, VarDecl, VarDeclKind};
+use deno_ast::swc::ast::Decl;
+use deno_ast::swc::ast::Stmt;
+use deno_ast::swc::ast::VarDeclKind;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 use deno_ast::SourceRangedForSpanned;
@@ -67,12 +70,8 @@ impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
       Stmt::Decl(Decl::TsInterface(..)) => return,
       Stmt::Decl(Decl::TsTypeAlias(..)) => return,
       Stmt::Decl(Decl::TsModule(..)) => return,
-      Stmt::Decl(Decl::Var(VarDecl {
-        kind: VarDeclKind::Var,
-        decls,
-        ..
-      }))
-        if decls.iter().all(|decl| decl.init.is_none()) =>
+      Stmt::Decl(Decl::Var(decl))
+        if decl.kind == VarDeclKind::Var && decl.decls.iter().all(|decl| decl.init.is_none()) =>
       {
         return;
       }
