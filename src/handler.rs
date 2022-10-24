@@ -253,6 +253,12 @@ pub trait Handler {
   fn try_stmt(&mut self, _n: &ast_view::TryStmt, _ctx: &mut Context) {}
   fn ts_array_type(&mut self, _n: &ast_view::TsArrayType, _ctx: &mut Context) {}
   fn ts_as_expr(&mut self, _n: &ast_view::TsAsExpr, _ctx: &mut Context) {}
+  fn ts_satisfaction_expr(
+    &mut self,
+    _n: &ast_view::TsSatisfactionExpr,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_call_signature_decl(
     &mut self,
     _n: &ast_view::TsCallSignatureDecl,
@@ -674,6 +680,7 @@ pub trait Traverse: Handler {
       TsPropertySignature(n) => self.ts_property_signature(n, ctx),
       TsQualifiedName(n) => self.ts_qualified_name(n, ctx),
       TsRestType(n) => self.ts_rest_type(n, ctx),
+      TsSatisfactionExpr(n) => self.ts_satisfaction_expr(n, ctx),
       TsSetterSignature(n) => self.ts_setter_signature(n, ctx),
       TsThisType(n) => self.ts_this_type(n, ctx),
       TsTplLitType(n) => self.ts_tpl_lit_type(n, ctx),
