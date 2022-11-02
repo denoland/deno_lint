@@ -50,7 +50,7 @@ impl BannedType {
       }
       LowerObject => "Use `Record<string, unknown>` instead",
       EmptyObjectLiteral => {
-        r#"If you want a type that means "empty object", use `Record<never, never>` instead"#
+        r#"If you want a type that means "empty object", use `Record<string | number | symbol, never>` instead"#
       }
     }
   }
