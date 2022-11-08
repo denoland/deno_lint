@@ -158,7 +158,7 @@ impl MarkdownColorizer {
         if is_start {
           if_chain! {
             if let CodeBlockKind::Fenced(info) = kind;
-            if let Some(media_type) = try_code_block_to_media_type(&**info);
+            if let Some(media_type) = try_code_block_to_media_type(info);
             then {
               self.code_block = Some(CodeBlockLang::Known(media_type))
             } else {

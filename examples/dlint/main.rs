@@ -97,7 +97,7 @@ fn run_linter(
   paths
     .par_iter()
     .try_for_each(|file_path| -> Result<(), AnyError> {
-      let source_code = std::fs::read_to_string(&file_path)?;
+      let source_code = std::fs::read_to_string(file_path)?;
 
       debug!("Configured rules: {}", rules.len());
 
