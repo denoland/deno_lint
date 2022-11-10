@@ -62,7 +62,7 @@ struct NoConstantConditionVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
 }
 
-impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
+impl<'c, 'view: 'c> NoConstantConditionVisitor<'c, 'view> {
   fn new(context: &'c mut Context<'view>) -> Self {
     Self { context }
   }
@@ -77,7 +77,6 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
   }
 
   fn is_constant(
-    &self,
     node: &Expr,
     parent_node: Option<&Expr>,
     in_boolean_position: bool,
@@ -91,16 +90,16 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
             None => false,
           }))
           || tpl.exprs.iter().all(|expr| {
-            self.is_constant(expr, parent_node, in_boolean_position)
+            Self::is_constant(expr, parent_node, in_boolean_position)
           })
       }
       // TODO(humancalico) confirm in_boolean_position here
-      Expr::Paren(paren) => self.is_constant(&paren.expr, Some(node), false),
+      Expr::Paren(paren) => Self::is_constant(&paren.expr, Some(node), false),
       Expr::Array(arr) => match parent_node {
         Some(Expr::Bin(bin)) => {
           if bin.op == BinaryOp::Add {
             arr.elems.iter().all(|element| {
-              self.is_constant(
+              Self::is_constant(
                 &element.as_ref().unwrap().expr,
                 parent_node,
                 false,
@@ -117,16 +116,16 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
           true
         } else {
           (unary.op == UnaryOp::TypeOf && in_boolean_position)
-            || self.is_constant(&unary.arg, Some(node), true)
+            || Self::is_constant(&unary.arg, Some(node), true)
         }
       }
       Expr::Bin(bin) => {
         // This is for LogicalExpression
         if bin.op == BinaryOp::LogicalOr || bin.op == BinaryOp::LogicalAnd {
           let is_left_constant =
-            self.is_constant(&bin.left, Some(node), in_boolean_position);
+            Self::is_constant(&bin.left, Some(node), in_boolean_position);
           let is_right_constant =
-            self.is_constant(&bin.right, Some(node), in_boolean_position);
+            Self::is_constant(&bin.right, Some(node), in_boolean_position);
           let is_left_short_circuit =
             is_left_constant && check_short_circuit(&bin.left, bin.op);
           let is_right_short_circuit =
@@ -138,17 +137,17 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
         }
         // These are fo regular BinaryExpression
         else if bin.op != BinaryOp::In {
-          self.is_constant(&bin.left, Some(node), false)
-            && self.is_constant(&bin.right, Some(node), false)
+          Self::is_constant(&bin.left, Some(node), false)
+            && Self::is_constant(&bin.right, Some(node), false)
         } else {
           false
         }
       }
       Expr::Assign(assign) => {
         assign.op == deno_ast::swc::ast::AssignOp::Assign
-          && self.is_constant(&assign.right, Some(node), in_boolean_position)
+          && Self::is_constant(&assign.right, Some(node), in_boolean_position)
       }
-      Expr::Seq(seq) => self.is_constant(
+      Expr::Seq(seq) => Self::is_constant(
         &seq.exprs[seq.exprs.len() - 1],
         Some(node),
         in_boolean_position,
@@ -158,7 +157,7 @@ impl<'c, 'view> NoConstantConditionVisitor<'c, 'view> {
   }
 
   fn report(&mut self, condition: &Expr) {
-    if self.is_constant(condition, None, true) {
+    if Self::is_constant(condition, None, true) {
       let range = condition.range();
       self.add_diagnostic(range);
     }
