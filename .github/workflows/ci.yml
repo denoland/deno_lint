@@ -64,6 +64,10 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: deno run --allow-run ./tools/lint.ts --release
 
+      - name: Check if www/public/docs.json is up-to-date
+        if: contains(matrix.os, 'ubuntu')
+        run: diff <(./target/release/examples/dlint rules --json) www/public/docs.json
+
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts
