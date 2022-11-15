@@ -174,7 +174,7 @@
   },
   {
     "code": "no-deprecated-deno-api",
-    "docs": "Warns the usage of the deprecated Deno APIs\n\nThe following APIs in `Deno` namespace are now marked as deprecated and will get\nremoved from the namespace in the future.\n\n**IO APIs**\n\n- `Deno.Buffer`\n- `Deno.readAll`\n- `Deno.readAllSync`\n- `Deno.writeAll`\n- `Deno.writeAllSync`\n- `Deno.iter`\n- `Deno.iterSync`\n- `Deno.copy`\n\nThe IO APIs are already available in `std/io`, so replace these deprecated ones\nwith alternatives from `std/io`. For more detail, see\n[the tracking issue](https://github.com/denoland/deno/issues/9795).\n\n**Custom Inspector API**\n\n- `Deno.customInspect`\n\n`Deno.customInspect` was deprecated in favor of\n`Symbol.for(\"Deno.customInspect\")`. Replace the usages with this symbol\nexpression. See [deno#9294](https://github.com/denoland/deno/issues/9294) for\nmore details.\n\n### Invalid:\n\n```typescript\n// buffer\nconst a = Deno.Buffer();\n\n// read\nconst b = await Deno.readAll(reader);\nconst c = Deno.readAllSync(reader);\n\n// write\nawait Deno.writeAll(writer, data);\nDeno.writeAllSync(writer, data);\n\n// iter\nfor await (const x of Deno.iter(xs)) {}\nfor (const y of Deno.iterSync(ys)) {}\n\n// copy\nawait Deno.copy(reader, writer);\n\n// custom inspector\nclass A {\n  [Deno.customInspect]() {\n    return \"This is A\";\n  }\n}\n```\n\n### Valid:\n\n```typescript\n// buffer\nimport { Buffer } from \"https://deno.land/std/io/buffer.ts\";\nconst a = new Buffer();\n\n// read\nimport { readAll, readAllSync } from \"https://deno.land/std/io/util.ts\";\nconst b = await readAll(reader);\nconst c = readAllSync(reader);\n\n// write\nimport { writeAll, writeAllSync } from \"https://deno.land/std/io/util.ts\";\nawait writeAll(writer, data);\nwriteAllSync(writer, data);\n\n// iter\nimport { iter, iterSync } from \"https://deno.land/std/io/util.ts\";\nfor await (const x of iter(xs)) {}\nfor (const y of iterSync(ys)) {}\n\n// copy\nimport { copy } from \"https://deno.land/std/io/util.ts\";\nawait copy(reader, writer);\n\n// custom inspector\nclass A {\n  [Symbol.for(\"Deno.customInspect\")]() {\n    return \"This is A\";\n  }\n}\n```\n",
+    "docs": "Warns the usage of the deprecated Deno APIs\n\nThe following APIs in `Deno` namespace are now marked as deprecated and will get\nremoved from the namespace in the future.\n\n**IO APIs**\n\n- `Deno.Buffer`\n- `Deno.copy`\n- `Deno.iter`\n- `Deno.iterSync`\n- `Deno.readAll`\n- `Deno.readAllSync`\n- `Deno.writeAll`\n- `Deno.writeAllSync`\n\nThe IO APIs are already available in `std/io` or `std/streams`, so replace these\ndeprecated ones with alternatives from `std`. For more detail, see\n[the tracking issue](https://github.com/denoland/deno/issues/9795).\n\n**Custom Inspector API**\n\n- `Deno.customInspect`\n\n`Deno.customInspect` was deprecated in favor of\n`Symbol.for(\"Deno.customInspect\")`. Replace the usages with this symbol\nexpression. See [deno#9294](https://github.com/denoland/deno/issues/9294) for\nmore details.\n\n**File system API\"\n\n- `Deno.File`\n\n`Deno.File` was deprecated in favor of `Deno.FsFile`. Replace the usages with\nnew class name.\n\n### Invalid:\n\n```typescript\n// buffer\nconst a = Deno.Buffer();\n\n// read\nconst b = await Deno.readAll(reader);\nconst c = Deno.readAllSync(reader);\n\n// write\nawait Deno.writeAll(writer, data);\nDeno.writeAllSync(writer, data);\n\n// iter\nfor await (const x of Deno.iter(xs)) {}\nfor (const y of Deno.iterSync(ys)) {}\n\n// copy\nawait Deno.copy(reader, writer);\n\n// custom inspector\nclass A {\n  [Deno.customInspect]() {\n    return \"This is A\";\n  }\n}\n\nfunction foo(file: Deno.File) {\n  // ...\n}\n```\n\n### Valid:\n\n```typescript\n// buffer\nimport { Buffer } from \"https://deno.land/std/io/buffer.ts\";\nconst a = new Buffer();\n\n// read\nimport { readAll, readAllSync } from \"https://deno.land/std/io/util.ts\";\nconst b = await readAll(reader);\nconst c = readAllSync(reader);\n\n// write\nimport { writeAll, writeAllSync } from \"https://deno.land/std/io/util.ts\";\nawait writeAll(writer, data);\nwriteAllSync(writer, data);\n\n// iter\nimport { iter, iterSync } from \"https://deno.land/std/io/util.ts\";\nfor await (const x of iter(xs)) {}\nfor (const y of iterSync(ys)) {}\n\n// copy\nimport { copy } from \"https://deno.land/std/io/util.ts\";\nawait copy(reader, writer);\n\n// custom inspector\nclass A {\n  [Symbol.for(\"Deno.customInspect\")]() {\n    return \"This is A\";\n  }\n}\n\nfunction foo(file: Deno.FsFile) {\n  // ...\n}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -216,7 +216,7 @@
   },
   {
     "code": "no-empty",
-    "docs": "Disallows the use of empty block statements.\n\nEmpty block statements are legal but often represent that something was missed\nand can make code less readable. This rule ignores block statements that only\ncontain comments. This rule also ignores empty constructors and function bodies\n(including arrow functions), which are covered by the `no-empty-function` rule.\n\n### Invalid:\n\n```typescript\nif (foo) {}\n\nwhile (foo) {}\n\nswitch (foo) {}\n\ntry {\n  doSomething();\n} catch (e) {\n} finally {\n}\n```\n\n### Valid:\n\n```typescript\nif (foo) {\n  // empty\n}\n\nwhile (foo) {\n  /* empty */\n}\n\ntry {\n  doSomething();\n} catch (e) {\n  // continue regardless of error\n}\n\ntry {\n  doSomething();\n} finally {\n  /* continue regardless of error */\n}\n```\n",
+    "docs": "Disallows the use of empty block statements.\n\nEmpty block statements are legal but often represent that something was missed\nand can make code less readable. This rule ignores block statements that only\ncontain comments. This rule also ignores empty constructors and function bodies\n(including arrow functions).\n\n### Invalid:\n\n```typescript\nif (foo) {}\n\nwhile (foo) {}\n\nswitch (foo) {}\n\ntry {\n  doSomething();\n} catch (e) {\n} finally {\n}\n```\n\n### Valid:\n\n```typescript\nif (foo) {\n  // empty\n}\n\nwhile (foo) {\n  /* empty */\n}\n\ntry {\n  doSomething();\n} catch (e) {\n  // continue regardless of error\n}\n\ntry {\n  doSomething();\n} finally {\n  /* continue regardless of error */\n}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -269,6 +269,11 @@
     ]
   },
   {
+    "code": "no-external-import",
+    "docs": "Disallows the use of external imports\n\n- what's the motivation of this lint rule?\n  - this rule emits warnings if external modules are imported via URL. \"deps.ts\"\n    and import maps are exception.\n- why is linted code considered bad?\n  - importing external modules just works fine, but it will take time and effort\n    when you want to upgrade those modules if they are imported in multiple\n    places in your project.\n- who should use it?\n  - to avoid it you could use \"deps.ts convention\" or\n    [import maps](https://deno.land/manual/linking_to_external_code/import_maps),\n    where you import all external modules and then re-export them or assign\n    aliases to them.\n  - so if you'd like to follow the \"deps.ts convention\" or to use import maps,\n    this rule is for you.\n\n### Invalid:\n\n```typescript\nimport { assertEquals } from \"https://deno.land/std@0.126.0/testing/asserts.ts\";\n```\n\n### Valid:\n\n```typescript\nimport { assertEquals } from \"./deps.ts\";\n```\n\n```typescript\n// deps.ts\n\nexport {\n  assert,\n  assertEquals,\n  assertStringIncludes,\n} from \"https://deno.land/std@0.126.0/testing/asserts.ts\";\n```\n\nyou can refer to the explanation of this convention here\nhttps://deno.land/manual/linking_to_external_code#it-seems-unwieldy-to-import-urls-everywhere\n",
+    "tags": []
+  },
+  {
     "code": "no-extra-boolean-cast",
     "docs": "Disallows unnecessary boolean casts\n\nIn certain contexts, such as `if`, `while` or `for` statements, expressions are\nautomatically coerced into a boolean. Therefore, techniques such as double\nnegation (`!!foo`) or casting (`Boolean(foo)`) are unnecessary and produce the\nsame result as without the negation or casting.\n\n### Invalid:\n\n```typescript\nif (!!foo) {}\nif (Boolean(foo)) {}\nwhile (!!foo) {}\nfor (; Boolean(foo);) {}\n```\n\n### Valid:\n\n```typescript\nif (foo) {}\nwhile (foo) {}\nfor (; foo;) {}\n```\n",
     "tags": [
@@ -284,7 +289,7 @@
   },
   {
     "code": "no-extra-semi",
-    "docs": "Disallows the use of unnecessary semi-colons\n\nExtra (and unnecessary) semi-colons can cause confusion when reading the code as\nwell as making the code less clean.\n\n### Invalid:\n\n```typescript\nconst x = 5;;\n\nfunction foo() {};\n```\n\n### Valid:\n\n```typescript\nconst x = 5;\n\nfunction foo() {}\n```\n",
+    "docs": "<!-- deno-fmt-ignore-file -->\n\nDisallows the use of unnecessary semi-colons\n\nExtra (and unnecessary) semi-colons can cause confusion when reading the code as\nwell as making the code less clean.\n\n### Invalid:\n\n```typescript\nconst x = 5;;\n\nfunction foo() {};\n```\n\n### Valid:\n\n```typescript\nconst x = 5;\n\nfunction foo() {}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -309,6 +314,11 @@
     "tags": [
       "recommended"
     ]
+  },
+  {
+    "code": "no-implicit-declare-namespace-export",
+    "docs": "Disallows the use of implicit exports in [\"ambient\" namespaces].\n\nTypeScript implicitly export all members of an [\"ambient\" namespaces], except\nwhether a named export is present.\n\n[\"ambient\" namespaces]: https://www.typescriptlang.org/docs/handbook/namespaces.html#ambient-namespaces\n\n### Invalid:\n\n```ts\n// foo.ts or foo.d.ts\ndeclare namespace ns {\n  interface ImplicitlyExported {}\n  export type Exported = true;\n}\n```\n\n### Valid:\n\n```ts\n// foo.ts or foo.d.ts\ndeclare namespace ns {\n  interface NonExported {}\n  export {};\n}\n\ndeclare namespace ns {\n  interface Exported {}\n  export { Exported };\n}\n\ndeclare namespace ns {\n  export interface Exported {}\n}\n```\n",
+    "tags": []
   },
   {
     "code": "no-import-assign",
