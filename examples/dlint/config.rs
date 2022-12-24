@@ -199,7 +199,7 @@ mod tests {
     let recommended_rules_codes = into_codes(get_recommended_rules());
     assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
 
-    // `include` has higher precedence over `exclude`
+    // `exclude` has higher precedence over `include`
     let config = Config {
       rules: RulesConfig {
         tags: svec![],
@@ -208,7 +208,7 @@ mod tests {
       },
       ..Default::default()
     };
-    assert_eq!(into_codes(config.get_rules()), set!["eqeqeq"]);
+    assert_eq!(into_codes(config.get_rules()), set![]);
 
     // if unknown rule is specified, just ignore it
     let config = Config {

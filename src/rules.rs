@@ -416,6 +416,8 @@ mod tests {
       ]),
     );
     assert_eq!(rules.len(), 2);
+    assert_eq!(rules[0].code(), "no-const-assign");
+    assert_eq!(rules[1].code(), "no-throw-literal");
   }
 
   #[test]
