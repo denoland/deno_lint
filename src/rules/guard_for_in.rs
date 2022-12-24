@@ -102,7 +102,6 @@ impl Handler for GuardForInHandler {
                   MESSAGE,
                   HINT,
                 );
-                return;
               }
             }
           }
@@ -110,7 +109,6 @@ impl Handler for GuardForInHandler {
       }
       _ => {
         ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
-        return;
       }
     };
   }
