@@ -44,7 +44,7 @@ impl Handler for GuardForInHandler {
   fn for_in_stmt(
     &mut self,
     for_in_stmt: &deno_ast::view::ForInStmt,
-    ctx: &mut Context
+    ctx: &mut Context,
   ) {
     use deno_ast::view::Stmt::{Block, Continue, Empty, If};
 
@@ -61,22 +61,33 @@ impl Handler for GuardForInHandler {
               ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
               return;
             };
-          },
+          }
 
           // block statement that start with an if statement with only a continue statement
           _ => {
-            let if_stmt =
-              if let If(if_stmt) = block_stmt.stmts.first().unwrap() { if_stmt }
-              else {
-                ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
-                return;
-              };
+            let if_stmt = if let If(if_stmt) = block_stmt.stmts.first().unwrap()
+            {
+              if_stmt
+            } else {
+              ctx.add_diagnostic_with_hint(
+                for_in_stmt.range(),
+                CODE,
+                MESSAGE,
+                HINT,
+              );
+              return;
+            };
 
             match if_stmt.cons {
               Continue(_) => (),
               Block(inner_block_stmt) => {
                 if inner_block_stmt.stmts.len() != 1 {
-                  ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
+                  ctx.add_diagnostic_with_hint(
+                    for_in_stmt.range(),
+                    CODE,
+                    MESSAGE,
+                    HINT,
+                  );
                   return;
                 }
                 let Continue(_) = inner_block_stmt.stmts.first().unwrap() else {
@@ -85,17 +96,22 @@ impl Handler for GuardForInHandler {
                 };
               }
               _ => {
-                ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
+                ctx.add_diagnostic_with_hint(
+                  for_in_stmt.range(),
+                  CODE,
+                  MESSAGE,
+                  HINT,
+                );
                 return;
               }
             }
           }
         }
-      },
+      }
       _ => {
         ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
         return;
-      },
+      }
     };
   }
 }
