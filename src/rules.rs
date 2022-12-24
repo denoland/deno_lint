@@ -21,6 +21,7 @@ pub mod explicit_function_return_type;
 pub mod explicit_module_boundary_types;
 pub mod for_direction;
 pub mod getter_return;
+pub mod guard_for_in;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
@@ -248,6 +249,7 @@ fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
     explicit_module_boundary_types::ExplicitModuleBoundaryTypes::new(),
     for_direction::ForDirection::new(),
     getter_return::GetterReturn::new(),
+    guard_for_in::GuardForIn::new(),
     no_array_constructor::NoArrayConstructor::new(),
     no_async_promise_executor::NoAsyncPromiseExecutor::new(),
     no_await_in_loop::NoAwaitInLoop::new(),
