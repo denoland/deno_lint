@@ -4,7 +4,7 @@ Looping over objects with a `for-in` loop will include properties that are
 inherited through the prototype chain. This behavior can lead to unexpected
 items in your for loop.
 
-## Invalid:
+### Invalid:
 
 ```typescript
 for (key in obj) {
