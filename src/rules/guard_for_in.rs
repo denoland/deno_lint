@@ -135,12 +135,18 @@ for (key in obj) {
 "#,
       r#"
 for (key in obj) {
+  if (!Object.hasOwn(obj, key)) continue;
+  foo(obj, key);
+}
+"#,
+      r#"
+for (key in obj) {
   if (!Object.hasOwn(obj, key)) {
     continue;
   }
 }
 "#,
-r#"
+      r#"
 for (key in obj) {
   if (!Object.hasOwn(obj, key)) {
     continue;
@@ -164,6 +170,21 @@ for (key in obj)
       r#"
 for (key in obj) {
   foo(obj, key);
+}
+"#: [{ line: 2, col: 0 }],
+      r#"
+for (key in obj) {
+  foo(obj, key);
+  bar(obj, key);
+}
+"#: [{ line: 2, col: 0 }],
+      r#"
+for (key in obj) {
+  if (!Object.hasOwn(obj, key)) {
+    foo(obj, key);
+    continue;
+  }
+  bar(obj, key);
 }
 "#: [{ line: 2, col: 0 }],
     };
