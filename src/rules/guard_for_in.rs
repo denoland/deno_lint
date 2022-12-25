@@ -51,24 +51,25 @@ impl Handler for GuardForInHandler {
     match for_in_stmt.body {
       Empty(_) | If(_) => (),
       Block(block_stmt) => {
-        match block_stmt.stmts.len() {
+        match block_stmt.stmts[..] {
           // empty block
-          0 => (),
+          [] => (),
 
           // block statement with only an if statement
-          1 => {
-            let If(_) = block_stmt.stmts.first().unwrap() else {
-              ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
-              return;
-            };
+          [stmt] => {
+            if !matches!(stmt, If(_)) {
+              ctx.add_diagnostic_with_hint(
+                for_in_stmt.range(),
+                CODE,
+                MESSAGE,
+                HINT,
+              );
+            }
           }
 
           // block statement that start with an if statement with only a continue statement
-          _ => {
-            let if_stmt = if let If(if_stmt) = block_stmt.stmts.first().unwrap()
-            {
-              if_stmt
-            } else {
+          [first, ..] => {
+            let If(if_stmt) = first else {
               ctx.add_diagnostic_with_hint(
                 for_in_stmt.range(),
                 CODE,
@@ -81,19 +82,14 @@ impl Handler for GuardForInHandler {
             match if_stmt.cons {
               Continue(_) => (),
               Block(inner_block_stmt) => {
-                if inner_block_stmt.stmts.len() != 1 {
+                if !matches!(inner_block_stmt.stmts[..], [Continue(_)]) {
                   ctx.add_diagnostic_with_hint(
                     for_in_stmt.range(),
                     CODE,
                     MESSAGE,
                     HINT,
                   );
-                  return;
                 }
-                let Continue(_) = inner_block_stmt.stmts.first().unwrap() else {
-                  ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
-                  return;
-                };
               }
               _ => {
                 ctx.add_diagnostic_with_hint(
