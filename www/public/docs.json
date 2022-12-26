@@ -94,7 +94,7 @@
   },
   {
     "code": "guard-for-in",
-    "docs": "Require `for-in` loops to include an `if` statement\n\nLooping over objects with a `for-in` loop will include properties that are\ninherited through the prototype chain. This behavior can lead to unexpected\nitems in your for loop.\n\n### Invalid:\n\n```typescript\nfor (key in obj) {\n  foo(obj, key);\n}\n```\n\n### Valid:\n\n```typescript\nfor (key in obj) {\n  if (!Object.hasOwn(obj, key)) {\n    continue;\n  }\n  foo(obj, key);\n}\n```\n",
+    "docs": "Require `for-in` loops to include an `if` statement\n\nLooping over objects with a `for-in` loop will include properties that are\ninherited through the prototype chain. This behavior can lead to unexpected\nitems in your for loop.\n\n### Invalid:\n\n```typescript\nfor (key in obj) {\n  foo(obj, key);\n}\n```\n\n### Valid:\n\n```typescript\nfor (key in obj) {\n  if (Object.hasOwn(obj, key)) {\n    foo(obj, key);\n  }\n}\n```\n\n```typescript\nfor (key in obj) {\n  if (!Object.hasOwn(obj, key)) {\n    continue;\n  }\n  foo(obj, key);\n}\n```\n",
     "tags": []
   },
   {

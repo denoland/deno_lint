@@ -16,6 +16,14 @@ for (key in obj) {
 
 ```typescript
 for (key in obj) {
+  if (Object.hasOwn(obj, key)) {
+    foo(obj, key);
+  }
+}
+```
+
+```typescript
+for (key in obj) {
   if (!Object.hasOwn(obj, key)) {
     continue;
   }
