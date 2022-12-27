@@ -198,15 +198,15 @@ pub fn get_filtered_rules(
         true
       };
 
-      if let Some(excludes) = &maybe_exclude {
-        if excludes.contains(&rule.code().to_owned()) {
-          passes &= false;
-        }
-      }
-
       if let Some(includes) = &maybe_include {
         if includes.contains(&rule.code().to_owned()) {
           passes |= true;
+        }
+      }
+
+      if let Some(excludes) = &maybe_exclude {
+        if excludes.contains(&rule.code().to_owned()) {
+          passes &= false;
         }
       }
 
@@ -360,12 +360,14 @@ mod tests {
 
   #[test]
   fn test_get_filtered_rules() {
+    // Should return recommended rules when given `recommended` tag.
     let rules =
       get_filtered_rules(Some(vec!["recommended".to_string()]), None, None);
     for (r, rr) in rules.iter().zip(get_recommended_rules().iter()) {
       assert_eq!(r.code(), rr.code());
     }
 
+    // Should allow to add more rules to recommended rules.
     let rules = get_filtered_rules(
       Some(vec!["recommended".to_string()]),
       None,
@@ -373,9 +375,19 @@ mod tests {
     );
     assert_eq!(rules.len(), get_recommended_rules().len() + 1);
 
+    // Recommended should allow to exclude some recommended rules and include more on top.
+    let rules = get_filtered_rules(
+      Some(vec!["recommended".to_string()]),
+      Some(vec!["ban-ts-comment".to_string()]),
+      Some(vec!["ban-untagged-todo".to_string()]),
+    );
+    assert_eq!(rules.len(), get_recommended_rules().len());
+
+    // Should skip all rules if given empty tags vec.
     let rules = get_filtered_rules(Some(vec![]), None, None);
     assert!(rules.is_empty());
 
+    // Should still allow to include rules when passed empty tags vec.
     let rules = get_filtered_rules(
       Some(vec![]),
       None,
@@ -383,22 +395,31 @@ mod tests {
     );
     assert_eq!(rules.len(), 1);
 
+    // Excluded rules should have priority over included rules.
+    let rules = get_filtered_rules(
+      Some(vec![]),
+      Some(vec!["ban-untagged-todo".to_string()]),
+      Some(vec!["ban-untagged-todo".to_string()]),
+    );
+    assert_eq!(rules.len(), 0);
+
+    // Should still allow to include other rules, when other duplicates are excluded.
     let rules = get_filtered_rules(
       Some(vec![]),
       Some(vec![
         "ban-untagged-todo".to_string(),
-        "no-const-assign".to_string(),
+        "ban-ts-comment".to_string(),
       ]),
-      Some(vec!["ban-untagged-todo".to_string()]),
+      Some(vec![
+        "ban-untagged-todo".to_string(),
+        "ban-ts-comment".to_string(),
+        "no-const-assign".to_string(),
+        "no-throw-literal".to_string(),
+      ]),
     );
-    assert_eq!(rules.len(), 1);
-
-    let rules = get_filtered_rules(
-      Some(vec!["recommended".to_string()]),
-      Some(vec!["ban-ts-comment".to_string()]),
-      Some(vec!["ban-untagged-todo".to_string()]),
-    );
-    assert_eq!(rules.len(), get_recommended_rules().len());
+    assert_eq!(rules.len(), 2);
+    assert_eq!(rules[0].code(), "no-const-assign");
+    assert_eq!(rules[1].code(), "no-throw-literal");
   }
 
   #[test]
