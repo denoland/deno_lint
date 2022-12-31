@@ -155,6 +155,10 @@ impl Handler for PreferPrimordialsHandler {
       }
     }
 
+    fn is_shadowed(ident: &ast_view::Ident, scope: &Scope) -> bool {
+      scope.var(&ident.inner.to_id()).is_some()
+    }
+
     if inside_var_decl_lhs_or_member_expr_or_prop(
       ident.as_node(),
       ident.as_node(),
@@ -187,7 +191,7 @@ impl Handler for PreferPrimordialsHandler {
           expr_or_spread.range(),
           CODE,
           PreferPrimordialsMessage::Iterator,
-          PreferPrimordialsHint::Iterator
+          PreferPrimordialsHint::Iterator,
         );
       }
     }
@@ -252,7 +256,7 @@ impl Handler for PreferPrimordialsHandler {
           member_expr.range(),
           CODE,
           PreferPrimordialsMessage::GlobalIntrinsic,
-          PreferPrimordialsHint::GlobalIntrinsic
+          PreferPrimordialsHint::GlobalIntrinsic,
         );
       }
     }
@@ -260,6 +264,7 @@ impl Handler for PreferPrimordialsHandler {
 
   fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
     use ast_view::BinaryOp;
+
     if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
       ctx.add_diagnostic_with_hint(
         bin_expr.range(),
@@ -276,10 +281,6 @@ impl Handler for PreferPrimordialsHandler {
       );
     }
   }
-}
-
-fn is_shadowed(ident: &ast_view::Ident, scope: &Scope) -> bool {
-  scope.var(&ident.inner.to_id()).is_some()
 }
 
 #[cfg(test)]
