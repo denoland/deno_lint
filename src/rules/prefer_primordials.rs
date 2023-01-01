@@ -5,6 +5,7 @@ use crate::{Program, ProgramRef};
 use deno_ast::view::NodeTrait;
 use deno_ast::Scope;
 use deno_ast::{view as ast_view, SourceRanged};
+use derive_more::Display;
 use if_chain::if_chain;
 use std::sync::Arc;
 
@@ -12,8 +13,34 @@ use std::sync::Arc;
 pub struct PreferPrimordials;
 
 const CODE: &str = "prefer-primordials";
-const MESSAGE: &str = "Don't use the global intrinsic";
-const HINT: &str = "Instead use the equivalent from the `primordials` object";
+
+#[derive(Display)]
+enum PreferPrimordialsMessage {
+  #[display(fmt = "Don't use the global intrinsic")]
+  GlobalIntrinsic,
+  #[display(fmt = "Don't use iterator protocol directly")]
+  Iterator,
+  #[display(fmt = "Don't use `instanceof` operator")]
+  InstanceOf,
+  #[display(fmt = "Don't use `in` operator")]
+  In,
+}
+
+#[derive(Display)]
+enum PreferPrimordialsHint {
+  #[display(fmt = "Instead use the equivalent from the `primordials` object")]
+  GlobalIntrinsic,
+  #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
+  Iterator,
+  #[display(
+    fmt = "Instead use `ObjectPrototypeIsPrototypeOf` from the `primordials` object"
+  )]
+  InstanceOf,
+  #[display(
+    fmt = "Instead use either `ObjectPrototypeHasOwnProperty` or `ReflectHas` from the `primordials` object"
+  )]
+  In,
+}
 
 impl LintRule for PreferPrimordials {
   fn new() -> Arc<Self> {
@@ -47,11 +74,17 @@ impl LintRule for PreferPrimordials {
 }
 
 const TARGETS: &[&str] = &[
+  "isFinite",
   "isNaN",
   "decodeURI",
   "decodeURIComponent",
   "encodeURI",
   "encodeURIComponent",
+  "eval",
+  "parseFloat",
+  "parseInt",
+  "queueMicrotask",
+  "Atomics",
   "JSON",
   "Math",
   "Reflect",
@@ -65,6 +98,7 @@ const TARGETS: &[&str] = &[
   "Date",
   "Error",
   "EvalError",
+  "FinalizationRegistry",
   "Float32Array",
   "Float64Array",
   "Function",
@@ -73,26 +107,26 @@ const TARGETS: &[&str] = &[
   "Int8Array",
   "Map",
   "Number",
-  "parseInt",
   "Object",
-  "queueMicrotask",
+  "Promise",
+  "Proxy",
   "RangeError",
   "ReferenceError",
   "RegExp",
   "Set",
+  "SharedArrayBuffer",
   "String",
   "Symbol",
   "SyntaxError",
   "TypeError",
   "Uint8Array",
-  "URIError",
   "Uint16Array",
   "Uint32Array",
   "Uint8ClampedArray",
+  "URIError",
   "WeakMap",
+  "WeakRef",
   "WeakSet",
-  "Promise",
-  "eval",
 ];
 
 struct PreferPrimordialsHandler;
@@ -121,6 +155,10 @@ impl Handler for PreferPrimordialsHandler {
       }
     }
 
+    fn is_shadowed(ident: &ast_view::Ident, scope: &Scope) -> bool {
+      scope.var(&ident.inner.to_id()).is_some()
+    }
+
     if inside_var_decl_lhs_or_member_expr_or_prop(
       ident.as_node(),
       ident.as_node(),
@@ -131,7 +169,12 @@ impl Handler for PreferPrimordialsHandler {
     if TARGETS.contains(&ident.sym().as_ref())
       && !is_shadowed(ident, ctx.scope())
     {
-      ctx.add_diagnostic_with_hint(ident.range(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(
+        ident.range(),
+        CODE,
+        PreferPrimordialsMessage::GlobalIntrinsic,
+        PreferPrimordialsHint::GlobalIntrinsic,
+      );
     }
   }
 
@@ -144,7 +187,12 @@ impl Handler for PreferPrimordialsHandler {
       if expr_or_spread.inner.spread.is_some();
       if !expr_or_spread.inner.expr.is_new();
       then {
-        ctx.add_diagnostic_with_hint(expr_or_spread.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(
+          expr_or_spread.range(),
+          CODE,
+          PreferPrimordialsMessage::Iterator,
+          PreferPrimordialsHint::Iterator,
+        );
       }
     }
   }
@@ -158,8 +206,8 @@ impl Handler for PreferPrimordialsHandler {
       ctx.add_diagnostic_with_hint(
         for_of_stmt.right.range(),
         CODE,
-        MESSAGE,
-        HINT,
+        PreferPrimordialsMessage::Iterator,
+        PreferPrimordialsHint::Iterator,
       );
     }
   }
@@ -185,7 +233,12 @@ impl Handler for PreferPrimordialsHandler {
     // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
     // ```
     if let Expr::Array(_) = &member_expr.obj {
-      ctx.add_diagnostic_with_hint(member_expr.range(), CODE, MESSAGE, HINT);
+      ctx.add_diagnostic_with_hint(
+        member_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::GlobalIntrinsic,
+        PreferPrimordialsHint::GlobalIntrinsic,
+      );
       return;
     }
 
@@ -199,23 +252,35 @@ impl Handler for PreferPrimordialsHandler {
       if let Expr::Ident(ident) = &member_expr.obj;
       if TARGETS.contains(&ident.sym().as_ref());
       then {
-        ctx.add_diagnostic_with_hint(member_expr.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(
+          member_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
       }
     }
   }
 
   fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
     use ast_view::BinaryOp;
-    if matches!(bin_expr.op(), BinaryOp::InstanceOf)
-      || matches!(bin_expr.op(), BinaryOp::In)
-    {
-      ctx.add_diagnostic_with_hint(bin_expr.range(), CODE, MESSAGE, HINT);
+
+    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
+      ctx.add_diagnostic_with_hint(
+        bin_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::InstanceOf,
+        PreferPrimordialsHint::InstanceOf,
+      );
+    } else if matches!(bin_expr.op(), BinaryOp::In) {
+      ctx.add_diagnostic_with_hint(
+        bin_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::In,
+        PreferPrimordialsHint::In,
+      );
     }
   }
-}
-
-fn is_shadowed(ident: &ast_view::Ident, scope: &Scope) -> bool {
-  scope.var(&ident.inner.to_id()).is_some()
 }
 
 #[cfg(test)]
@@ -337,29 +402,29 @@ indirectEval("console.log('This test should pass.');");
       r#"const foo = Symbol("foo");"#: [
         {
           col: 12,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"const foo = Symbol.for("foo");"#: [
         {
           col: 12,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"const arr = new Array();"#: [
         {
           col: 16,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"JSON.parse("{}")"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -369,15 +434,15 @@ JSON.parse("{}");
         {
           line: 3,
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"Symbol.for("foo")"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -387,8 +452,8 @@ Symbol.for("foo");
         {
           line: 3,
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -402,8 +467,8 @@ class A {
         {
           line: 4,
           col: 4,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -417,8 +482,8 @@ const a = {
         {
           line: 4,
           col: 4,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -428,8 +493,8 @@ ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" });
         {
           line: 3,
           col: 24,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -439,29 +504,29 @@ Number.parseInt("10");
         {
           line: 3,
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"parseInt("10")"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"const { ownKeys } = Reflect;"#: [
         {
           col: 20,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"new Map();"#: [
         {
           col: 4,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"
@@ -471,92 +536,92 @@ const noop = Function.prototype;
         {
           line: 3,
           col: 13,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#"[1, 2, 3].map(val => val * 2);"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
       r#""a" in A"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::In,
+          hint: PreferPrimordialsHint::In,
         },
       ],
       r#"a instanceof A"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::InstanceOf,
+          hint: PreferPrimordialsHint::InstanceOf,
         },
       ],
       r#"[1, 2, ...arr];"#: [
         {
           col: 7,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"foo(1, 2, ...arr);"#: [
         {
           col: 10,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"new Foo(1, 2, ...arr);"#: [
         {
           col: 14,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"[1, 2, ...[3]];"#: [
         {
           col: 7,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"foo(1, 2, ...[3]);"#: [
         {
           col: 10,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"new Foo(1, 2, ...[3]);"#: [
         {
           col: 14,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"for (const val of arr) {}"#: [
         {
           col: 18,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"for (const val of [1, 2, 3]) {}"#: [
         {
           col: 18,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::Iterator,
         },
       ],
       r#"eval("console.log('This test should fail!');");"#: [
         {
           col: 0,
-          message: MESSAGE,
-          hint: HINT,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
     }
