@@ -319,7 +319,7 @@ impl Handler for PreferPrimordialsHandler {
             PreferPrimordialsHint::SafeIterator,
           );
         }
-      },
+      }
       Node::AssignExpr(asssign_expr) => {
         if !matches!(asssign_expr.right, Expr::New(_)) {
           ctx.add_diagnostic_with_hint(
@@ -329,9 +329,9 @@ impl Handler for PreferPrimordialsHandler {
             PreferPrimordialsHint::SafeIterator,
           );
         }
-      },
+      }
       // TODO(petamoriken): Support for deeply nested assignments
-      _ => ()
+      _ => (),
     }
   }
 }
