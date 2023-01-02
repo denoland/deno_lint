@@ -31,7 +31,9 @@ enum PreferPrimordialsHint {
   #[display(fmt = "Instead use the equivalent from the `primordials` object")]
   GlobalIntrinsic,
   #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
-  Iterator,
+  SafeIterator,
+  #[display(fmt = "Instead use the object pattern destructuring assignment")]
+  ObjectPattern,
   #[display(
     fmt = "Instead use `ObjectPrototypeIsPrototypeOf` from the `primordials` object"
   )]
@@ -191,7 +193,7 @@ impl Handler for PreferPrimordialsHandler {
           expr_or_spread.range(),
           CODE,
           PreferPrimordialsMessage::Iterator,
-          PreferPrimordialsHint::Iterator,
+          PreferPrimordialsHint::SafeIterator,
         );
       }
     }
@@ -207,7 +209,7 @@ impl Handler for PreferPrimordialsHandler {
         for_of_stmt.right.range(),
         CODE,
         PreferPrimordialsMessage::Iterator,
-        PreferPrimordialsHint::Iterator,
+        PreferPrimordialsHint::SafeIterator,
       );
     }
   }
@@ -279,6 +281,57 @@ impl Handler for PreferPrimordialsHandler {
         PreferPrimordialsMessage::In,
         PreferPrimordialsHint::In,
       );
+    }
+  }
+
+  fn array_pat(&mut self, array_pat: &ast_view::ArrayPat, ctx: &mut Context) {
+    use ast_view::{Expr, Node, Pat};
+
+    // If array_pat.elems don't include rest pattern, should be used object pattern instead
+    // For example:
+    //
+    // ```js
+    // const [a, b] = [1, 2];
+    // ```
+    //
+    // should be turned into:
+    //
+    // ```js
+    // const { 0: a, 1: b } = [1, 2];
+    // ```
+    if !matches!(array_pat.elems.last(), Some(Some(Pat::Rest(_)))) {
+      ctx.add_diagnostic_with_hint(
+        array_pat.range(),
+        CODE,
+        PreferPrimordialsMessage::Iterator,
+        PreferPrimordialsHint::ObjectPattern,
+      );
+      return;
+    }
+
+    match array_pat.parent() {
+      Node::VarDeclarator(var_declarator) => {
+        if !matches!(var_declarator.init, Some(Expr::New(_)) | None) {
+          ctx.add_diagnostic_with_hint(
+            var_declarator.range(),
+            CODE,
+            PreferPrimordialsMessage::Iterator,
+            PreferPrimordialsHint::SafeIterator,
+          );
+        }
+      }
+      Node::AssignExpr(asssign_expr) => {
+        if !matches!(asssign_expr.right, Expr::New(_)) {
+          ctx.add_diagnostic_with_hint(
+            asssign_expr.range(),
+            CODE,
+            PreferPrimordialsMessage::Iterator,
+            PreferPrimordialsHint::SafeIterator,
+          );
+        }
+      }
+      // TODO(petamoriken): Support for deeply nested assignments
+      _ => (),
     }
   }
 }
@@ -387,6 +440,22 @@ new Foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
 const { SafeArrayIterator } = primordials;
 for (const val of new SafeArrayIterator(arr)) {}
 for (const val of new SafeArrayIterator([1, 2, 3])) {}
+      "#,
+      r#"
+const { 0: a, 1: b } = [1, 2];
+      "#,
+      r#"
+let a, b;
+({ 0: a, 1: b } = [1, 2]);
+      "#,
+      r#"
+const { SafeArrayIterator } = primordials;
+const [a, b, ...c] = new SafeArrayIterator([1, 2, 3]);
+      "#,
+      r#"
+const { SafeArrayIterator } = primordials;
+let a, b, c;
+[a, b, ...c] = new SafeArrayIterator([1, 2, 3]);
       "#,
       r#"
 const { indirectEval } = primordials;
@@ -565,56 +634,92 @@ const noop = Function.prototype;
         {
           col: 7,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"foo(1, 2, ...arr);"#: [
         {
           col: 10,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"new Foo(1, 2, ...arr);"#: [
         {
           col: 14,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"[1, 2, ...[3]];"#: [
         {
           col: 7,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"foo(1, 2, ...[3]);"#: [
         {
           col: 10,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"new Foo(1, 2, ...[3]);"#: [
         {
           col: 14,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"for (const val of arr) {}"#: [
         {
           col: 18,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"for (const val of [1, 2, 3]) {}"#: [
         {
           col: 18,
           message: PreferPrimordialsMessage::Iterator,
-          hint: PreferPrimordialsHint::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
+        },
+      ],
+      r#"const [a, b] = [1, 2];"#: [
+        {
+          col: 6,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::ObjectPattern,
+        },
+      ],
+      r#"
+let a, b;
+[a, b] = [1, 2];
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::ObjectPattern,
+        },
+      ],
+      r#"const [a, b, ...c] = [1, 2, 3];"#: [
+        {
+          col: 6,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
+        },
+      ],
+      r#"
+let a, b, c;
+[a, b, ...c] = [1, 2, 3];
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
         },
       ],
       r#"eval("console.log('This test should fail!');");"#: [
