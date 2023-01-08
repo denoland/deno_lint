@@ -214,6 +214,23 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
+  fn yield_expr(
+    &mut self,
+    yield_expr: &ast_view::YieldExpr,
+    ctx: &mut Context,
+  ) {
+    if yield_expr.delegate()
+      && !matches!(yield_expr.arg, Some(ast_view::Expr::New(_)))
+    {
+      ctx.add_diagnostic_with_hint(
+        yield_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::Iterator,
+        PreferPrimordialsHint::SafeIterator,
+      );
+    }
+  }
+
   fn member_expr(
     &mut self,
     member_expr: &ast_view::MemberExpr,
@@ -440,6 +457,10 @@ new Foo(1, 2, ...new SafeArrayIterator([1, 2, 3]));
 const { SafeArrayIterator } = primordials;
 for (const val of new SafeArrayIterator(arr)) {}
 for (const val of new SafeArrayIterator([1, 2, 3])) {}
+      "#,
+      r#"
+const { SafeArrayIterator } = primordials;
+function* foo() { yield* new SafeArrayIterator([1, 2, 3]); }
       "#,
       r#"
 const { 0: a, 1: b } = [1, 2];
@@ -685,6 +706,13 @@ const noop = Function.prototype;
           message: PreferPrimordialsMessage::Iterator,
           hint: PreferPrimordialsHint::SafeIterator,
         },
+      ],
+      r#"function* foo() { yield* [1, 2, 3]; }"#: [
+        {
+          col: 18,
+          message: PreferPrimordialsMessage::Iterator,
+          hint: PreferPrimordialsHint::SafeIterator,
+        }
       ],
       r#"const [a, b] = [1, 2];"#: [
         {
