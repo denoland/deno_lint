@@ -199,57 +199,6 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn expr_or_spread(
-    &mut self,
-    expr_or_spread: &ast_view::ExprOrSpread,
-    ctx: &mut Context,
-  ) {
-    if_chain! {
-      if expr_or_spread.inner.spread.is_some();
-      if !expr_or_spread.inner.expr.is_new();
-      then {
-        ctx.add_diagnostic_with_hint(
-          expr_or_spread.range(),
-          CODE,
-          PreferPrimordialsMessage::Iterator,
-          PreferPrimordialsHint::SafeIterator,
-        );
-      }
-    }
-  }
-
-  fn for_of_stmt(
-    &mut self,
-    for_of_stmt: &ast_view::ForOfStmt,
-    ctx: &mut Context,
-  ) {
-    if !for_of_stmt.right.is::<ast_view::NewExpr>() {
-      ctx.add_diagnostic_with_hint(
-        for_of_stmt.right.range(),
-        CODE,
-        PreferPrimordialsMessage::Iterator,
-        PreferPrimordialsHint::SafeIterator,
-      );
-    }
-  }
-
-  fn yield_expr(
-    &mut self,
-    yield_expr: &ast_view::YieldExpr,
-    ctx: &mut Context,
-  ) {
-    if yield_expr.delegate()
-      && !matches!(yield_expr.arg, Some(ast_view::Expr::New(_)))
-    {
-      ctx.add_diagnostic_with_hint(
-        yield_expr.range(),
-        CODE,
-        PreferPrimordialsMessage::Iterator,
-        PreferPrimordialsHint::SafeIterator,
-      );
-    }
-  }
-
   fn member_expr(
     &mut self,
     member_expr: &ast_view::MemberExpr,
@@ -314,22 +263,53 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
-    use ast_view::BinaryOp;
+  fn expr_or_spread(
+    &mut self,
+    expr_or_spread: &ast_view::ExprOrSpread,
+    ctx: &mut Context,
+  ) {
+    if_chain! {
+      if expr_or_spread.inner.spread.is_some();
+      if !expr_or_spread.inner.expr.is_new();
+      then {
+        ctx.add_diagnostic_with_hint(
+          expr_or_spread.range(),
+          CODE,
+          PreferPrimordialsMessage::Iterator,
+          PreferPrimordialsHint::SafeIterator,
+        );
+      }
+    }
+  }
 
-    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
+  fn for_of_stmt(
+    &mut self,
+    for_of_stmt: &ast_view::ForOfStmt,
+    ctx: &mut Context,
+  ) {
+    if !for_of_stmt.right.is::<ast_view::NewExpr>() {
       ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
+        for_of_stmt.right.range(),
         CODE,
-        PreferPrimordialsMessage::InstanceOf,
-        PreferPrimordialsHint::InstanceOf,
+        PreferPrimordialsMessage::Iterator,
+        PreferPrimordialsHint::SafeIterator,
       );
-    } else if matches!(bin_expr.op(), BinaryOp::In) {
+    }
+  }
+
+  fn yield_expr(
+    &mut self,
+    yield_expr: &ast_view::YieldExpr,
+    ctx: &mut Context,
+  ) {
+    if yield_expr.delegate()
+      && !matches!(yield_expr.arg, Some(ast_view::Expr::New(_)))
+    {
       ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
+        yield_expr.range(),
         CODE,
-        PreferPrimordialsMessage::In,
-        PreferPrimordialsHint::In,
+        PreferPrimordialsMessage::Iterator,
+        PreferPrimordialsHint::SafeIterator,
       );
     }
   }
@@ -382,6 +362,26 @@ impl Handler for PreferPrimordialsHandler {
       }
       // TODO(petamoriken): Support for deeply nested assignments
       _ => (),
+    }
+  }
+
+  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
+    use ast_view::BinaryOp;
+
+    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
+      ctx.add_diagnostic_with_hint(
+        bin_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::InstanceOf,
+        PreferPrimordialsHint::InstanceOf,
+      );
+    } else if matches!(bin_expr.op(), BinaryOp::In) {
+      ctx.add_diagnostic_with_hint(
+        bin_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::In,
+        PreferPrimordialsHint::In,
+      );
     }
   }
 }
