@@ -75,7 +75,7 @@ impl LintRule for PreferPrimordials {
   }
 }
 
-const TARGETS: &[&str] = &[
+const GLOBAL_TARGETS: &[&str] = &[
   "isFinite",
   "isNaN",
   "decodeURI",
@@ -131,6 +131,25 @@ const TARGETS: &[&str] = &[
   "WeakSet",
 ];
 
+const GETTER_TARGETS: &[&str] = &[
+  "description",
+  "dotAll",
+  "flags",
+  "global",
+  "hasIndices",
+  "ignoreCase",
+  "multiline",
+  "source",
+  "sticky",
+  "unicode",
+  "buffer",
+  "byteLength",
+  "byteOffset",
+  // avoid false positives for Array
+  // "length",
+  "size",
+];
+
 struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
@@ -168,7 +187,7 @@ impl Handler for PreferPrimordialsHandler {
       return;
     }
 
-    if TARGETS.contains(&ident.sym().as_ref())
+    if GLOBAL_TARGETS.contains(&ident.sym().as_ref())
       && !is_shadowed(ident, ctx.scope())
     {
       ctx.add_diagnostic_with_hint(
@@ -236,7 +255,7 @@ impl Handler for PreferPrimordialsHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    use ast_view::Expr;
+    use ast_view::{Expr, MemberProp};
 
     // If `member_expr.obj` is an array literal, access to its properties or
     // methods should be replaced with the one from `primordials`.
@@ -261,15 +280,29 @@ impl Handler for PreferPrimordialsHandler {
       return;
     }
 
-    // Don't check non-root elements in chained member expressions
-    // e.g. `bar.baz` in `foo.bar.baz`
-    if member_expr.parent().is::<ast_view::MemberExpr>() {
-      return;
+    if_chain! {
+      // Don't check non-root elements in chained member expressions
+      // e.g. `bar.baz` in `foo.bar.baz`
+      if !member_expr.parent().is::<ast_view::MemberExpr>();
+      if let Expr::Ident(ident) = &member_expr.obj;
+      if GLOBAL_TARGETS.contains(&ident.sym().as_ref());
+      then {
+        ctx.add_diagnostic_with_hint(
+          member_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
+        return;
+      }
     }
 
     if_chain! {
-      if let Expr::Ident(ident) = &member_expr.obj;
-      if TARGETS.contains(&ident.sym().as_ref());
+      // Don't check call expressions
+      // e.g. `foo.bar()`
+      if !member_expr.parent().is::<ast_view::CallExpr>();
+      if let MemberProp::Ident(ident) = &member_expr.prop;
+      if GETTER_TARGETS.contains(&ident.sym().as_ref());
       then {
         ctx.add_diagnostic_with_hint(
           member_expr.range(),
@@ -632,6 +665,17 @@ const noop = Function.prototype;
       ],
       r#"[1, 2, 3].map(val => val * 2);"#: [
         {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { ArrayBuffer } = primordials;
+new ArrayBuffer(10).byteLength;
+      "#: [
+        {
+          line: 3,
           col: 0,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
