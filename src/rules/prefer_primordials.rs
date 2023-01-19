@@ -247,6 +247,9 @@ impl Handler for PreferPrimordialsHandler {
     }
 
     if_chain! {
+      // Don't check assignment expressions
+      // e.g. `foo.bar = 1`
+      if !member_expr.parent().is::<ast_view::AssignExpr>();
       // Don't check call expressions
       // e.g. `foo.bar()`
       if !member_expr.parent().is::<ast_view::CallExpr>();
@@ -471,6 +474,7 @@ const parseInt = () => {};
 parseInt();
       "#,
       r#"const foo = { Error: 1 };"#,
+      r#"foo.size = 1"#,
       r#"foo.size()"#,
       r#"
 const { SafeArrayIterator } = primordials;
