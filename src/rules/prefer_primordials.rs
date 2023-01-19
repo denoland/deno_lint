@@ -471,6 +471,7 @@ const parseInt = () => {};
 parseInt();
       "#,
       r#"const foo = { Error: 1 };"#,
+      r#"foo.size()"#,
       r#"
 const { SafeArrayIterator } = primordials;
 [1, 2, ...new SafeArrayIterator(arr)];
@@ -670,9 +671,105 @@ const noop = Function.prototype;
           hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
+      r#"/aaaa/u.dotAll;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.flags;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.global;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.hasIndices;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.ignoreCase;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.multiline;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.source;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.sticky;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.unicode;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { Uint8Array } = primordials;
+new Uint8Array(10).buffer;
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
       r#"
 const { ArrayBuffer } = primordials;
 new ArrayBuffer(10).byteLength;
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { ArrayBuffer, DataView } = primordials;
+new DataView(new ArrayBuffer(10)).byteOffset;
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { SafeSet } = primordials;
+new SafeSet().size;
       "#: [
         {
           line: 3,
