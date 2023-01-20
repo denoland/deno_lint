@@ -75,7 +75,7 @@ impl LintRule for PreferPrimordials {
   }
 }
 
-const TARGETS: &[&str] = &[
+const GLOBAL_TARGETS: &[&str] = &[
   "isFinite",
   "isNaN",
   "decodeURI",
@@ -131,6 +131,25 @@ const TARGETS: &[&str] = &[
   "WeakSet",
 ];
 
+const GETTER_TARGETS: &[&str] = &[
+  "description",
+  "dotAll",
+  "flags",
+  "global",
+  "hasIndices",
+  "ignoreCase",
+  "multiline",
+  "source",
+  "sticky",
+  "unicode",
+  "buffer",
+  "byteLength",
+  "byteOffset",
+  // avoid false positives for Array
+  // "length",
+  "size",
+];
+
 struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
@@ -168,7 +187,7 @@ impl Handler for PreferPrimordialsHandler {
       return;
     }
 
-    if TARGETS.contains(&ident.sym().as_ref())
+    if GLOBAL_TARGETS.contains(&ident.sym().as_ref())
       && !is_shadowed(ident, ctx.scope())
     {
       ctx.add_diagnostic_with_hint(
@@ -177,6 +196,73 @@ impl Handler for PreferPrimordialsHandler {
         PreferPrimordialsMessage::GlobalIntrinsic,
         PreferPrimordialsHint::GlobalIntrinsic,
       );
+    }
+  }
+
+  fn member_expr(
+    &mut self,
+    member_expr: &ast_view::MemberExpr,
+    ctx: &mut Context,
+  ) {
+    use ast_view::{Expr, MemberProp};
+
+    // If `member_expr.obj` is an array literal, access to its properties or
+    // methods should be replaced with the one from `primordials`.
+    // For example:
+    //
+    // ```js
+    // [1, 2, 3].filter((val) => val % 2 === 0)
+    // ```
+    //
+    // should be turned into:
+    //
+    // ```js
+    // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
+    // ```
+    if let Expr::Array(_) = &member_expr.obj {
+      ctx.add_diagnostic_with_hint(
+        member_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::GlobalIntrinsic,
+        PreferPrimordialsHint::GlobalIntrinsic,
+      );
+      return;
+    }
+
+    if_chain! {
+      // Don't check non-root elements in chained member expressions
+      // e.g. `bar.baz` in `foo.bar.baz`
+      if !member_expr.parent().is::<ast_view::MemberExpr>();
+      if let Expr::Ident(ident) = &member_expr.obj;
+      if GLOBAL_TARGETS.contains(&ident.sym().as_ref());
+      then {
+        ctx.add_diagnostic_with_hint(
+          member_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
+        return;
+      }
+    }
+
+    if_chain! {
+      // Don't check assignment expressions
+      // e.g. `foo.bar = 1`
+      if !member_expr.parent().is::<ast_view::AssignExpr>();
+      // Don't check call expressions
+      // e.g. `foo.bar()`
+      if !member_expr.parent().is::<ast_view::CallExpr>();
+      if let MemberProp::Ident(ident) = &member_expr.prop;
+      if GETTER_TARGETS.contains(&ident.sym().as_ref());
+      then {
+        ctx.add_diagnostic_with_hint(
+          member_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
+      }
     }
   }
 
@@ -231,76 +317,6 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn member_expr(
-    &mut self,
-    member_expr: &ast_view::MemberExpr,
-    ctx: &mut Context,
-  ) {
-    use ast_view::Expr;
-
-    // If `member_expr.obj` is an array literal, access to its properties or
-    // methods should be replaced with the one from `primordials`.
-    // For example:
-    //
-    // ```js
-    // [1, 2, 3].filter((val) => val % 2 === 0)
-    // ```
-    //
-    // should be turned into:
-    //
-    // ```js
-    // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
-    // ```
-    if let Expr::Array(_) = &member_expr.obj {
-      ctx.add_diagnostic_with_hint(
-        member_expr.range(),
-        CODE,
-        PreferPrimordialsMessage::GlobalIntrinsic,
-        PreferPrimordialsHint::GlobalIntrinsic,
-      );
-      return;
-    }
-
-    // Don't check non-root elements in chained member expressions
-    // e.g. `bar.baz` in `foo.bar.baz`
-    if member_expr.parent().is::<ast_view::MemberExpr>() {
-      return;
-    }
-
-    if_chain! {
-      if let Expr::Ident(ident) = &member_expr.obj;
-      if TARGETS.contains(&ident.sym().as_ref());
-      then {
-        ctx.add_diagnostic_with_hint(
-          member_expr.range(),
-          CODE,
-          PreferPrimordialsMessage::GlobalIntrinsic,
-          PreferPrimordialsHint::GlobalIntrinsic,
-        );
-      }
-    }
-  }
-
-  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
-    use ast_view::BinaryOp;
-
-    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
-      ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
-        CODE,
-        PreferPrimordialsMessage::InstanceOf,
-        PreferPrimordialsHint::InstanceOf,
-      );
-    } else if matches!(bin_expr.op(), BinaryOp::In) {
-      ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
-        CODE,
-        PreferPrimordialsMessage::In,
-        PreferPrimordialsHint::In,
-      );
-    }
-  }
-
   fn array_pat(&mut self, array_pat: &ast_view::ArrayPat, ctx: &mut Context) {
     use ast_view::{Expr, Node, Pat};
 
@@ -349,6 +365,26 @@ impl Handler for PreferPrimordialsHandler {
       }
       // TODO(petamoriken): Support for deeply nested assignments
       _ => (),
+    }
+  }
+
+  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
+    use ast_view::BinaryOp;
+
+    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
+      ctx.add_diagnostic_with_hint(
+        bin_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::InstanceOf,
+        PreferPrimordialsHint::InstanceOf,
+      );
+    } else if matches!(bin_expr.op(), BinaryOp::In) {
+      ctx.add_diagnostic_with_hint(
+        bin_expr.range(),
+        CODE,
+        PreferPrimordialsMessage::In,
+        PreferPrimordialsHint::In,
+      );
     }
   }
 }
@@ -438,6 +474,8 @@ const parseInt = () => {};
 parseInt();
       "#,
       r#"const foo = { Error: 1 };"#,
+      r#"foo.size = 1"#,
+      r#"foo.size()"#,
       r#"
 const { SafeArrayIterator } = primordials;
 [1, 2, ...new SafeArrayIterator(arr)];
@@ -632,6 +670,113 @@ const noop = Function.prototype;
       ],
       r#"[1, 2, 3].map(val => val * 2);"#: [
         {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.dotAll;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.flags;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.global;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.hasIndices;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.ignoreCase;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.multiline;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.source;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.sticky;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"/aaaa/u.unicode;"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { Uint8Array } = primordials;
+new Uint8Array(10).buffer;
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { ArrayBuffer } = primordials;
+new ArrayBuffer(10).byteLength;
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { ArrayBuffer, DataView } = primordials;
+new DataView(new ArrayBuffer(10)).byteOffset;
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { SafeSet } = primordials;
+new SafeSet().size;
+      "#: [
+        {
+          line: 3,
           col: 0,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
