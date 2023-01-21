@@ -456,7 +456,7 @@
   },
   {
     "code": "no-sparse-arrays",
-    "docs": "",
+    "docs": "Disallows sparse arrays\n\nSparse arrays are arrays that contain _empty slots_, which later could be\nhandled either as `undefined` value or skipped by array methods, and this may\nlead to unexpected behavior:\n\n```typescript\n[1, , 2].join(); // => '1,,2'\n[1, undefined, 2].join(); // => '1,,2'\n\n[1, , 2].flatMap((item) => item); // => [1, 2]\n[1, undefined, 2].flatMap((item) => item); // => [1, undefined, 2]\n```\n\n### Invalid:\n\n```typescript\nconst items = [\"foo\", , \"bar\"];\n```\n\n### Valid:\n\n```typescript\nconst items = [\"foo\", \"bar\"];\n```\n",
     "tags": []
   },
   {
