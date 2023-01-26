@@ -60,7 +60,30 @@ struct DefaultParamLastHandler;
 
 impl Handler for DefaultParamLastHandler {
   fn function(&mut self, function: &ast_view::Function, ctx: &mut Context) {
-    check_params(function.params.iter().rev().map(|p| &p.pat), ctx);
+    check_params(function.params.iter().rev().copied().map(|p| p.pat), ctx);
+  }
+
+  fn constructor(
+    &mut self,
+    constructor: &ast_view::Constructor,
+    ctx: &mut Context,
+  ) {
+    check_params(
+      constructor.params.iter().rev().copied().map(|p| match p {
+        ast_view::ParamOrTsParamProp::TsParamProp(ts_param_prop) => {
+          match ts_param_prop.param {
+            ast_view::TsParamPropParam::Ident(ident) => {
+              ast_view::Pat::Ident(ident)
+            }
+            ast_view::TsParamPropParam::Assign(assign) => {
+              ast_view::Pat::Assign(assign)
+            }
+          }
+        }
+        ast_view::ParamOrTsParamProp::Param(param) => param.pat,
+      }),
+      ctx,
+    )
   }
 
   fn arrow_expr(
@@ -68,13 +91,13 @@ impl Handler for DefaultParamLastHandler {
     arrow_expr: &ast_view::ArrowExpr,
     ctx: &mut Context,
   ) {
-    check_params(arrow_expr.params.iter().rev(), ctx);
+    check_params(arrow_expr.params.iter().rev().copied(), ctx);
   }
 }
 
 fn check_params<'a, 'b, I>(params: I, ctx: &mut Context)
 where
-  I: Iterator<Item = &'b ast_view::Pat<'b>>,
+  I: Iterator<Item = ast_view::Pat<'b>>,
 {
   let mut has_seen_normal_param = false;
   for param in params {
@@ -126,6 +149,16 @@ mod tests {
       r#"
 class Foo {
   bar(a, b = 2) {}
+}
+      "#,
+      r#"
+class Foo {
+  constructor(a, b = 2) {}
+}
+      "#,
+      r#"
+class Foo {
+  constructor(readonly a: number, readonly b = 2) {}
 }
       "#,
     };
@@ -231,6 +264,28 @@ class Foo {
         hint: DefaultParamLastHint::MoveToEnd,
       }],
       r#"
+class Foo {
+  constructor(a = 2, b) {}
+}
+      "#: [
+      {
+        line: 3,
+        col: 14,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"
+class Foo {
+  constructor(readonly a = 2, readonly b: number) {}
+}
+      "#: [
+      {
+        line: 3,
+        col: 23,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"
 function f() {
   function g(a = 5, b) {}
 }
@@ -286,6 +341,21 @@ class Foo {
       {
         line: 5,
         col: 8,
+        message: DefaultParamLastMessage::DefaultLast,
+        hint: DefaultParamLastHint::MoveToEnd,
+      }],
+      r#"
+class Foo {
+  constructor(a, b = 1) {
+    class X {
+      constructor(c = 3, d) {}
+    }
+  }
+}
+"#: [
+      {
+        line: 5,
+        col: 18,
         message: DefaultParamLastMessage::DefaultLast,
         hint: DefaultParamLastHint::MoveToEnd,
       }],
