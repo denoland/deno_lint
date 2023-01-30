@@ -19,6 +19,7 @@ enum BannedType {
   Boolean,
   Number,
   Symbol,
+  BigInt,
   Function,
   CapitalObject,
   LowerObject,
@@ -29,7 +30,7 @@ impl BannedType {
   fn as_message(&self) -> &'static str {
     use BannedType::*;
     match *self {
-      String | Boolean | Number | Symbol => "The corresponding lower-case primitive should be used",
+      String | Boolean | Number | Symbol | BigInt => "The corresponding lower-case primitive should be used",
       Function => "This provides no type safety because it represents all functions and classes",
       CapitalObject => "This type may be different from what you expect it to be",
       LowerObject => "This type is tricky to use so should be avoided if possible",
@@ -44,6 +45,7 @@ impl BannedType {
       Boolean => "Use `boolean` instead",
       Number => "Use `number` instead",
       Symbol => "Use `symbol` instead",
+      BigInt => "Use `bigint` instead",
       Function => "Define the function shape explicitly",
       CapitalObject => {
         r#"If you want a type meaning "any object", use `Record<string, unknown>` instead. Or if you want a type meaning "any value", you probably want `unknown` instead."#
@@ -65,6 +67,7 @@ impl TryFrom<&str> for BannedType {
       "Boolean" => Ok(Self::Boolean),
       "Number" => Ok(Self::Number),
       "Symbol" => Ok(Self::Symbol),
+      "BigInt" => Ok(Self::BigInt),
       "Function" => Ok(Self::Function),
       "Object" => Ok(Self::CapitalObject),
       "object" => Ok(Self::LowerObject),
@@ -210,6 +213,20 @@ mod tests {
           col: 7,
           message: message("Number"),
           hint: hint("Number"),
+        }
+      ],
+      "let a: Symbol;": [
+        {
+          col: 7,
+          message: message("Symbol"),
+          hint: hint("Symbol"),
+        }
+      ],
+      "let a: BigInt;": [
+        {
+          col: 7,
+          message: message("BigInt"),
+          hint: hint("BigInt"),
         }
       ],
       "let a: Function;": [
