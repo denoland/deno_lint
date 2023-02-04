@@ -18,15 +18,15 @@ bench({
   runs: RUN_COUNT,
   async func(b: BenchmarkTimer): Promise<void> {
     b.start();
-    const proc = Deno.run({
-      cmd: ["./target/release/examples/dlint", "run", ...files],
+    const proc = new Deno.Command("./target/release/examples/dlint", {
+      args: ["run", ...files],
       stdout: "null",
       stderr: "null",
-    });
+    }).spawn();
 
     // No assert on success, cause dlint returns exit
     // code 1 if there's any problem.
-    await proc.status();
+    await proc.status;
     b.stop();
   },
 });
@@ -36,13 +36,13 @@ bench({
   runs: RUN_COUNT,
   async func(b: BenchmarkTimer): Promise<void> {
     b.start();
-    const proc = Deno.run({
-      cmd: ["npm", "run", "eslint", ...files],
+    const proc = new Deno.Command("npm", {
+      args: ["run", "eslint", ...files],
       cwd: Deno.build.os === "windows" ? ".\\benchmarks" : "./benchmarks",
       stdout: "null",
       stderr: "null",
-    });
-    const { success } = await proc.status();
+    }).spawn();
+    const { success } = await proc.status;
     if (!success) {
       // await Deno.copy(proc.stdout!, Deno.stdout);
       // await Deno.copy(proc.stderr!, Deno.stderr);
