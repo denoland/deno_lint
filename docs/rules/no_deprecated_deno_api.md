@@ -18,6 +18,13 @@ The IO APIs are already available in `std/io` or `std/streams`, so replace these
 deprecated ones with alternatives from `std`. For more detail, see
 [the tracking issue](https://github.com/denoland/deno/issues/9795).
 
+**Sub Process API**
+
+- `Deno.run`
+
+`Deno.run` was deprecated in faver of `Deno.Command`. See
+[deno#9435](https://github.com/denoland/deno/discussions/9435) for more details.
+
 **Custom Inspector API**
 
 - `Deno.customInspect`
