@@ -22,7 +22,7 @@ deprecated ones with alternatives from `std`. For more detail, see
 
 - `Deno.run`
 
-`Deno.run` was deprecated in faver of `Deno.Command`. See
+`Deno.run` was deprecated in favor of `Deno.Command`. See
 [deno#9435](https://github.com/denoland/deno/discussions/9435) for more details.
 
 **Custom Inspector API**
