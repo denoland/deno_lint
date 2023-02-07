@@ -8,14 +8,14 @@ function IgnoringRulesPage() {
   const html = renderMarkdown(md);
 
   return (
-    <div class={tw`dark:bg-[#0d1117] dark:text-white py-6`}>
+    <div class={tw`dark:bg-[#0d1117] dark:text-white py-6 h-screen`}>
       <div
         class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8 `}
       >
         <Head>
           <link
             rel="stylesheet"
-            href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@www/www/static/markdown.css"
+            href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@df7ae27/www/static/markdown.css"
             crossOrigin="anonymous"
           />
         </Head>
