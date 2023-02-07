@@ -81,6 +81,7 @@ pub mod no_this_before_super;
 pub mod no_throw_literal;
 pub mod no_top_level_await;
 pub mod no_undef;
+pub mod no_unneeded_ternary;
 pub mod no_unreachable;
 pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
@@ -310,6 +311,7 @@ fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
     no_throw_literal::NoThrowLiteral::new(),
     no_top_level_await::NoTopLevelAwait::new(),
     no_undef::NoUndef::new(),
+    no_unneeded_ternary::NoUnneededTernary::new(),
     no_unreachable::NoUnreachable::new(),
     no_unsafe_finally::NoUnsafeFinally::new(),
     no_unsafe_negation::NoUnsafeNegation::new(),
