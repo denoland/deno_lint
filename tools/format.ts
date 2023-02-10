@@ -37,6 +37,7 @@ const p3 = await Deno.run({
     "www/pages",
     "docs/rules",
     "README.md",
+    ".devcontainer",
   ],
   stdin: "null",
 }).status();
