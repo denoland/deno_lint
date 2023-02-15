@@ -8,7 +8,7 @@ function IgnoringRulesPage() {
   const html = renderMarkdown(md);
 
   return (
-    <div class={tw`dark:bg-[#0d1117] dark:text-white py-6 h-screen`}>
+    <div class={tw`dark:bg-[#0d1117] dark:text-white py-6 h-full`}>
       <div
         class={tw`mx-auto max-w-screen-md px-6 sm:px-6 md:px-8 `}
       >
