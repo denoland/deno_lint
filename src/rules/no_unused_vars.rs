@@ -1,5 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::program_ref;
 use super::{Context, LintRule};
+use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Id;
 use deno_ast::swc::ast::{
@@ -62,11 +64,12 @@ impl LintRule for NoUnusedVars {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    program: Program<'view>,
   ) {
+    let program = program_ref(program);
     // Skip linting this file to avoid emitting false positives about `jsxFactory` and `jsxFragmentFactory`
     // if it's a JSX or TSX file.
     // See https://github.com/denoland/deno_lint/pull/664#discussion_r614692736

@@ -1,5 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::program_ref;
 use super::{Context, LintRule};
+use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::ClassMethod;
 use deno_ast::swc::ast::FnDecl;
@@ -32,11 +34,12 @@ impl LintRule for RequireYield {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    program: Program<'view>,
   ) {
+    let program = program_ref(program);
     let mut visitor = RequireYieldVisitor::new(context);
     match program {
       ProgramRef::Module(m) => visitor.visit_module(m),

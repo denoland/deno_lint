@@ -1,6 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
+use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr, FnDecl,
@@ -49,11 +51,12 @@ impl LintRule for GetterReturn {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    program: Program<'view>,
   ) {
+    let program = program_ref(program);
     let mut visitor = GetterReturnVisitor::new(context);
     match program {
       ProgramRef::Module(m) => visitor.visit_module(m),
