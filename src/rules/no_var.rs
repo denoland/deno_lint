@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
+use crate::Program;
 use deno_ast::view::{VarDecl, VarDeclKind};
 use deno_ast::SourceRanged;
 use std::sync::Arc;
@@ -22,10 +22,6 @@ impl LintRule for NoVar {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

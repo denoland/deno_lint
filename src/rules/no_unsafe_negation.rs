@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
+use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use if_chain::if_chain;
@@ -31,10 +31,6 @@ impl LintRule for NoUnsafeNegation {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

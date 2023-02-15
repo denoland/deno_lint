@@ -111,9 +111,11 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// TODO(@magurotuna): remove this after all rules get to use ast_view
   fn lint_program<'view>(
     &self,
-    context: &mut Context<'view>,
-    program: ProgramRef<'view>,
-  );
+    _context: &mut Context<'view>,
+    _program: ProgramRef<'view>,
+  ) {
+    unreachable!();
+  }
 
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.

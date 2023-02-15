@@ -1,7 +1,7 @@
 // Copyright 2020-2022 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
+use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::view::{self as ast_view};
 use deno_ast::SourceRanged;
@@ -21,10 +21,6 @@ impl LintRule for NoTopLevelAwait {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

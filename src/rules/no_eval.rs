@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
-use crate::{Program, ProgramRef};
+use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
 use deno_ast::{SourceRange, SourceRanged};
 use std::sync::Arc;
@@ -21,10 +21,6 @@ impl LintRule for NoEval {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

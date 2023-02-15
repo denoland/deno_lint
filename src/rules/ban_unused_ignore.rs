@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::{Program, ProgramRef};
+use crate::Program;
 use std::sync::Arc;
 
 /// This is a dummy struct just for having the docs.
@@ -19,10 +19,6 @@ impl LintRule for BanUnusedIgnore {
 
   fn code(&self) -> &'static str {
     "ban-unused-ignore"
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(
