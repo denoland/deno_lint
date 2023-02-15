@@ -2,7 +2,7 @@ import { Head } from "$fresh/runtime.ts";
 import jsonData from "../static/docs.json" assert { type: "json" };
 import { Header } from "../components/Header.tsx";
 import { CommonHead } from "../components/CommonHead.tsx";
-import { PageProps } from "$fresh/server.ts";
+import type { Handlers, PageProps } from "$fresh/server.ts";
 import { renderMarkdown } from "../utils/render_markdown.ts";
 
 interface RuleData {
@@ -12,13 +12,20 @@ interface RuleData {
   tags: string[];
 }
 
-export default function Home(props: PageProps) {
-  const rules = jsonData.map<RuleData>((rule) => ({
-    code: rule.code,
-    snippet: renderMarkdown(rule.docs.split("\n")[0]),
-    docs: renderMarkdown(rule.docs.split("\n").slice(1).join("\n")),
-    tags: rule.tags,
-  }));
+export const handler: Handlers<RuleData[]> = {
+  async GET(_req, ctx) {
+    const rules = jsonData.map<RuleData>((rule) => ({
+      code: rule.code,
+      snippet: renderMarkdown(rule.docs.split("\n")[0]),
+      docs: renderMarkdown(rule.docs.split("\n").slice(1).join("\n")),
+      tags: rule.tags,
+    }));
+    return ctx.render(rules);
+  }
+};
+
+export default function Home(props: PageProps<RuleData[]>) {
+  const rules = props.data;
 
   const search = props.url.searchParams.get("q") ?? "";
   const allRules = props.url.searchParams.has("all");
