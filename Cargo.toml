@@ -5,6 +5,9 @@ edition = "2021"
 description = "lint for deno"
 authors = ["the Deno authors"]
 license = "MIT"
+repository = "https://github.com/denoland/deno_lint"
+keywords = ["deno", "lint"]
+categories = ["development-tools"]
 exclude = [
     "benchmarks/*",
 ]
