@@ -1,3 +1,8 @@
+body {
+  background-color: #0d1117;
+  color: #ffffff;
+}
+
 h3#invalid ~ pre:not(h3#valid ~ pre){
     background-color: #f4e7e7;
     border: 2px solid #ec8282;

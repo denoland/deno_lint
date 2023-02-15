@@ -1,31 +1,15 @@
 import { Head } from "$fresh/runtime.ts";
 import jsonData from "../static/docs.json" assert { type: "json" };
 import { Header } from "../components/Header.tsx";
-import Prism from "prism";
-import marked from "marked";
+import { CommonHead } from "../components/CommonHead.tsx";
 import { PageProps } from "$fresh/server.ts";
-
-import "https://esm.sh/prismjs@1.25.0/components/prism-javascript.js?no-check&pin=v57";
-import "https://esm.sh/prismjs@1.25.0/components/prism-typescript.js?no-check&pin=v57";
+import { renderMarkdown } from "../utils/render_markdown.ts";
 
 interface RuleData {
   code: string;
   snippet: string;
   docs: string;
   tags: string[];
-}
-
-export function renderMarkdown(markdown: string): string {
-  const html = marked(markdown, {
-    highlight(code, lang) {
-      return Prism.highlight(
-        code,
-        Prism.languages.ts,
-        lang,
-      );
-    },
-  });
-  return html;
 }
 
 export default function Home(props: PageProps) {
@@ -50,16 +34,9 @@ export default function Home(props: PageProps) {
     .filter((rule: RuleData) => rule.code.includes(search));
 
   return (
-    <div class="dark:bg-[#0d1117] dark:text-white py-6 h-full h-screen">
+    <div class="py-6">
       <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
-        <Head>
-          <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@df7ae27/www/static/markdown.css"
-            crossOrigin="anonymous"
-          />
-          <link rel="stylesheet" href="extension.css" />
-        </Head>
+        <CommonHead />
         <Header />
         <main class="my-8">
           <label for="search" class="sr-only">Search</label>
