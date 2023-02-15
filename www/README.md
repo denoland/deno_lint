@@ -2,14 +2,10 @@
 
 ### Usage
 
-Start the project (from the root of the repo):
+Start the project:
 
 ```
-deno run -A --unstable --watch main.ts
+deno task start
 ```
 
-After adding, removing, or moving a page in the `pages` directory, run:
-
-```
-fresh routes
-```
+This will watch the project directory and restart as necessary.
