@@ -1,4 +1,4 @@
-# fresh project
+# lint.deno.land
 
 ### Usage
 
