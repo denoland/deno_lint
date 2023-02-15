@@ -1,6 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
+use crate::Program;
 use crate::ProgramRef;
 use std::sync::Arc;
 
@@ -54,11 +56,12 @@ impl LintRule for NoSelfAssign {
     CODE
   }
 
-  fn lint_program<'view>(
+  fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
-    program: ProgramRef<'view>,
+    program: Program<'view>,
   ) {
+    let program = program_ref(program);
     let mut visitor = NoSelfAssignVisitor::new(context);
     match program {
       ProgramRef::Module(m) => m.visit_all_with(&mut visitor),

@@ -107,30 +107,13 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   where
     Self: Sized;
 
-  /// Executes lint on the given `Program`.
-  /// TODO(@magurotuna): remove this after all rules get to use ast_view
-  fn lint_program<'view>(
-    &self,
-    _context: &mut Context<'view>,
-    _program: ProgramRef<'view>,
-  ) {
-    unreachable!();
-  }
-
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.
   fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
     program: Program<'view>,
-  ) {
-    use Program::*;
-    let program_ref = match program {
-      Module(m) => ProgramRef::Module(m.inner),
-      Script(s) => ProgramRef::Script(s.inner),
-    };
-    self.lint_program(context, program_ref);
-  }
+  );
 
   /// Returns the unique code that identifies the rule
   fn code(&self) -> &'static str;
@@ -151,6 +134,14 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// and they might override this value.
   fn priority(&self) -> u32 {
     0
+  }
+}
+
+/// TODO(@magurotuna): remove this after all rules get to use ast_view
+pub fn program_ref(program: Program) -> ProgramRef {
+  match program {
+    Program::Module(m) => ProgramRef::Module(m.inner),
+    Program::Script(s) => ProgramRef::Script(s.inner),
   }
 }
 

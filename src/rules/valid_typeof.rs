@@ -1,6 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
+use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::BinExpr;
 use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
@@ -30,7 +32,12 @@ impl LintRule for ValidTypeof {
     CODE
   }
 
-  fn lint_program(&self, context: &mut Context, program: ProgramRef) {
+  fn lint_program_with_ast_view(
+    &self,
+    context: &mut Context,
+    program: Program,
+  ) {
+    let program = program_ref(program);
     let mut visitor = ValidTypeofVisitor::new(context);
     match program {
       ProgramRef::Module(m) => visitor.visit_module(m),
