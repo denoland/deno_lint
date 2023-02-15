@@ -4,7 +4,7 @@ use super::LintRule;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
-use crate::ProgramRef;
+
 use deno_ast::view as ast_view;
 use deno_ast::SourceRanged;
 use if_chain::if_chain;
@@ -27,10 +27,6 @@ impl LintRule for NoDeprecatedDenoApi {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

@@ -1,7 +1,7 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::{Program, ProgramRef};
+use crate::Program;
 use deno_ast::view::{
   ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
   TsType, TsTypeAliasDecl, TsTypeAnn,
@@ -39,10 +39,6 @@ enum NoMisusedNewHint {
 impl LintRule for NoMisusedNew {
   fn new() -> Arc<Self> {
     Arc::new(NoMisusedNew)
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

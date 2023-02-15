@@ -4,7 +4,7 @@ use super::LintRule;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
-use crate::ProgramRef;
+
 use deno_ast::view::Expr;
 use deno_ast::view::OptChainBase;
 use deno_ast::view::OptChainExpr;
@@ -42,10 +42,6 @@ impl LintRule for NoExtraNonNullAssertion {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

@@ -2,7 +2,6 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
-use crate::ProgramRef;
 
 use deno_ast::view::{NodeTrait, Program};
 use deno_ast::SourceRange;
@@ -49,10 +48,6 @@ impl LintRule for RequireAwait {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(

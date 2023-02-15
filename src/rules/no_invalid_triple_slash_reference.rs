@@ -1,6 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
-use crate::{Program, ProgramRef};
+use crate::Program;
 use deno_ast::swc::common::comments::{Comment, CommentKind};
 use deno_ast::MediaType;
 use deno_ast::{SourceRange, SourceRangedForSpanned};
@@ -24,10 +24,6 @@ impl LintRule for NoInvalidTripleSlashReference {
 
   fn code(&self) -> &'static str {
     CODE
-  }
-
-  fn lint_program(&self, _context: &mut Context, _program: ProgramRef<'_>) {
-    unreachable!();
   }
 
   fn lint_program_with_ast_view(
