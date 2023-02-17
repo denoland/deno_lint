@@ -1,0 +1,26 @@
+h3#invalid ~ pre:not(h3#valid ~ pre) {
+  background-color: #f4e7e7;
+  border: 2px solid #ec8282;
+}
+
+h3#valid ~ pre {
+  background-color: #e9f0db;
+  border: 2px solid #72c072;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #0d1117;
+    color: #ffffff;
+  }
+
+  h3#invalid ~ pre:not(h3#valid ~ pre) {
+    background-color: #221616;
+    border: 2px solid #aa3f3f;
+  }
+
+  h3#valid ~ pre {
+    background-color: #1b2216;
+    border: 2px solid #406e40;
+  }
+}
