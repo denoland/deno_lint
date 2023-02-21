@@ -10,7 +10,6 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoInvalidRegexp;
@@ -20,10 +19,6 @@ const MESSAGE: &str = "Invalid RegExp literal";
 const HINT: &str = "Rework regular expression to be a valid";
 
 impl LintRule for NoInvalidRegexp {
-  fn new() -> Arc<Self> {
-    Arc::new(NoInvalidRegexp)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

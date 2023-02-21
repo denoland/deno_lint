@@ -8,7 +8,6 @@ use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TripleSlashReference;
@@ -32,10 +31,6 @@ impl TripleSlashReference {
 }
 
 impl LintRule for TripleSlashReference {
-  fn new() -> Arc<Self> {
-    Arc::new(TripleSlashReference)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

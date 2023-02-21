@@ -13,7 +13,6 @@ use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoInferrableTypes;
@@ -33,10 +32,6 @@ enum NoInferrableTypesHint {
 }
 
 impl LintRule for NoInferrableTypes {
-  fn new() -> Arc<Self> {
-    Arc::new(NoInferrableTypes)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{Expr, NewExpr, ParenExpr};
 use deno_ast::SourceRanged;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoAsyncPromiseExecutor;
@@ -15,10 +14,6 @@ const HINT: &str =
   "Remove `async` from executor function and adjust promise code as needed";
 
 impl LintRule for NoAsyncPromiseExecutor {
-  fn new() -> Arc<Self> {
-    Arc::new(NoAsyncPromiseExecutor)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

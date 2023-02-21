@@ -6,7 +6,6 @@ use deno_ast::view::{ArrowExpr, Function, Param, Pat};
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeArgs;
@@ -26,10 +25,6 @@ enum NoDupeArgsHint {
 }
 
 impl LintRule for NoDupeArgs {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDupeArgs)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

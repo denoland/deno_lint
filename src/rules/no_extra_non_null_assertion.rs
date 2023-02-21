@@ -12,7 +12,6 @@ use deno_ast::view::TsNonNullExpr;
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExtraNonNullAssertion;
@@ -32,10 +31,6 @@ enum NoExtraNonNullAssertionHint {
 }
 
 impl LintRule for NoExtraNonNullAssertion {
-  fn new() -> Arc<Self> {
-    Arc::new(NoExtraNonNullAssertion)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

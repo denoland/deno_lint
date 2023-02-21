@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::TsInterfaceDecl;
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmptyInterface;
@@ -33,10 +32,6 @@ enum NoEmptyInterfaceHint {
 }
 
 impl LintRule for NoEmptyInterface {
-  fn new() -> Arc<Self> {
-    Arc::new(NoEmptyInterface)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

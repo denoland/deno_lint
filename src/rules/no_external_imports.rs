@@ -7,7 +7,6 @@ use deno_ast::{ModuleSpecifier, SourceRanged};
 use derive_more::Display;
 use std::ffi::OsStr;
 use std::path::Path;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExternalImport;
@@ -27,10 +26,6 @@ enum NoExternalImportHint {
 }
 
 impl LintRule for NoExternalImport {
-  fn new() -> Arc<Self> {
-    Arc::new(NoExternalImport)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &[]
   }

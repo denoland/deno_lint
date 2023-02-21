@@ -6,7 +6,6 @@ use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct AdjacentOverloadSignatures;
@@ -26,10 +25,6 @@ enum AdjacentOverloadSignaturesHint {
 }
 
 impl LintRule for AdjacentOverloadSignatures {
-  fn new() -> Arc<Self> {
-    Arc::new(AdjacentOverloadSignatures)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

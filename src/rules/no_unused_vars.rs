@@ -23,7 +23,6 @@ use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
 use std::iter;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnusedVars;
@@ -52,10 +51,6 @@ enum NoUnusedVarsHint {
 }
 
 impl LintRule for NoUnusedVars {
-  fn new() -> Arc<Self> {
-    Arc::new(NoUnusedVars)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

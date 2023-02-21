@@ -6,7 +6,7 @@ use deno_ast::view::{TsModuleDecl, TsModuleName};
 use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::sync::Arc;
+
 #[derive(Debug)]
 pub struct PreferNamespaceKeyword;
 
@@ -14,10 +14,6 @@ const CODE: &str = "prefer-namespace-keyword";
 const MESSAGE: &str = "`module` keyword in module declaration is not allowed";
 
 impl LintRule for PreferNamespaceKeyword {
-  fn new() -> Arc<Self> {
-    Arc::new(PreferNamespaceKeyword)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

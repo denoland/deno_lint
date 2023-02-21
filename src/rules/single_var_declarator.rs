@@ -8,7 +8,6 @@ use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct SingleVarDeclarator;
@@ -22,10 +21,6 @@ enum SingleVarDeclaratorMessage {
 }
 
 impl LintRule for SingleVarDeclarator {
-  fn new() -> Arc<Self> {
-    Arc::new(SingleVarDeclarator)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::{view as ast_view, MediaType, SourceRanged};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoNamespace;
@@ -16,10 +15,6 @@ const HINT: &str = "Use ES2015 module syntax (`import`/`export`) to organize
 the code instead";
 
 impl LintRule for NoNamespace {
-  fn new() -> Arc<Self> {
-    Arc::new(NoNamespace)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

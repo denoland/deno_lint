@@ -6,7 +6,6 @@ use deno_ast::swc::common::comments::CommentKind;
 use deno_ast::SourceRangedForSpanned;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct BanUntaggedTodo;
@@ -16,10 +15,6 @@ const MESSAGE: &str = "TODO should be tagged with (@username) or (#issue)";
 const HINT: &str = "Add a user tag or issue reference to the TODO comment, e.g. TODO(@djones), TODO(djones), TODO(#123)";
 
 impl LintRule for BanUntaggedTodo {
-  fn new() -> Arc<Self> {
-    Arc::new(BanUntaggedTodo)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

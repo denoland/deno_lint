@@ -8,7 +8,6 @@ use deno_ast::view::{
 };
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoShadowRestrictedNames;
@@ -22,10 +21,6 @@ enum NoShadowRestrictedNamesMessage {
 }
 
 impl LintRule for NoShadowRestrictedNames {
-  fn new() -> Arc<Self> {
-    Arc::new(NoShadowRestrictedNames)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

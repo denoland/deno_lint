@@ -101,7 +101,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::SourceRanged;
 use deno_ast::view as ast_view;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ${pascalCasedLintName};
@@ -111,10 +110,6 @@ const MESSAGE: &str = "";
 const HINT: &str = "";
 
 impl LintRule for ${pascalCasedLintName} {
-  fn new() -> Arc<Self> {
-    Arc::new(${pascalCasedLintName})
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

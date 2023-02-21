@@ -7,7 +7,6 @@ use deno_ast::view::{
 };
 use deno_ast::{BindingKind, SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExAssign;
@@ -27,10 +26,6 @@ enum NoExAssignHint {
 }
 
 impl LintRule for NoExAssign {
-  fn new() -> Arc<Self> {
-    Arc::new(NoExAssign)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

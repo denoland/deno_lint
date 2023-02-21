@@ -9,7 +9,6 @@ use deno_ast::view::{
 };
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoMisusedNew;
@@ -37,10 +36,6 @@ enum NoMisusedNewHint {
 }
 
 impl LintRule for NoMisusedNew {
-  fn new() -> Arc<Self> {
-    Arc::new(NoMisusedNew)
-  }
-
   fn lint_program_with_ast_view(
     &self,
     context: &mut Context,

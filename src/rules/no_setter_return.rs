@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::{view as ast_view, SourceRanged};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoSetterReturn;
@@ -13,10 +12,6 @@ const CODE: &str = "no-setter-return";
 const MESSAGE: &str = "Setter cannot return a value";
 
 impl LintRule for NoSetterReturn {
-  fn new() -> Arc<Self> {
-    Arc::new(NoSetterReturn)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

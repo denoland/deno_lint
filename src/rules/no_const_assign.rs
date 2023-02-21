@@ -8,7 +8,6 @@ use deno_ast::view::{
 };
 use deno_ast::{BindingKind, SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoConstAssign;
@@ -29,10 +28,6 @@ enum NoConstantAssignHint {
   Remove,
 }
 impl LintRule for NoConstAssign {
-  fn new() -> Arc<Self> {
-    Arc::new(NoConstAssign)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

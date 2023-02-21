@@ -8,7 +8,6 @@ use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoControlRegex;
@@ -33,10 +32,6 @@ enum NoControlRegexHint {
 }
 
 impl LintRule for NoControlRegex {
-  fn new() -> Arc<Self> {
-    Arc::new(NoControlRegex)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

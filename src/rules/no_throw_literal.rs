@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::{Expr, ThrowStmt};
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoThrowLiteral;
@@ -22,10 +21,6 @@ enum NoThrowLiteralMessage {
 }
 
 impl LintRule for NoThrowLiteral {
-  fn new() -> Arc<Self> {
-    Arc::new(NoThrowLiteral)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

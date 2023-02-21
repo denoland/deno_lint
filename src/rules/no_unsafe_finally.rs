@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnsafeFinally;
@@ -38,10 +37,6 @@ impl From<StmtKind<'_>> for NoUnsafeFinallyMessage {
 }
 
 impl LintRule for NoUnsafeFinally {
-  fn new() -> Arc<Self> {
-    Arc::new(NoUnsafeFinally)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

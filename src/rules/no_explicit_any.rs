@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::swc::ast::TsKeywordTypeKind::TsAnyKeyword;
 use deno_ast::view::TsKeywordType;
 use deno_ast::SourceRanged;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExplicitAny;
@@ -15,10 +14,6 @@ const MESSAGE: &str = "`any` type is not allowed";
 const HINT: &str = "Use a specific type other than `any`";
 
 impl LintRule for NoExplicitAny {
-  fn new() -> Arc<Self> {
-    Arc::new(NoExplicitAny)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

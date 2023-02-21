@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, MemberProp};
 use deno_ast::SourceRanged;
-use std::sync::Arc;
 
 const BANNED_PROPERTIES: &[&str] =
   &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
@@ -22,10 +21,6 @@ fn get_message(prop: &str) -> String {
 }
 
 impl LintRule for NoPrototypeBuiltins {
-  fn new() -> Arc<Self> {
-    Arc::new(NoPrototypeBuiltins)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

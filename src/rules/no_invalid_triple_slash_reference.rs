@@ -6,7 +6,6 @@ use deno_ast::MediaType;
 use deno_ast::{SourceRange, SourceRangedForSpanned};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoInvalidTripleSlashReference;
@@ -14,10 +13,6 @@ pub struct NoInvalidTripleSlashReference;
 const CODE: &str = "no-invalid-triple-slash-reference";
 
 impl LintRule for NoInvalidTripleSlashReference {
-  fn new() -> Arc<Self> {
-    Arc::new(NoInvalidTripleSlashReference)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

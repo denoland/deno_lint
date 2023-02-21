@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::TsNonNullExpr;
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoNonNullAssertion;
@@ -19,10 +18,6 @@ enum NoNonNullAssertionMessage {
 }
 
 impl LintRule for NoNonNullAssertion {
-  fn new() -> Arc<Self> {
-    Arc::new(NoNonNullAssertion)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

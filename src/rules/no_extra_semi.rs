@@ -10,7 +10,6 @@ use deno_ast::swc::ast::{
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExtraSemi;
@@ -30,10 +29,6 @@ enum NoExtraSemiHint {
 }
 
 impl LintRule for NoExtraSemi {
-  fn new() -> Arc<Self> {
-    Arc::new(NoExtraSemi)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

@@ -5,7 +5,6 @@ use crate::swc_util::StringRepr;
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
 use deno_ast::{SourceRange, SourceRanged};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEval;
@@ -15,10 +14,6 @@ const MESSAGE: &str = "`eval` call is not allowed";
 const HINT: &str = "Remove the use of `eval`";
 
 impl LintRule for NoEval {
-  fn new() -> Arc<Self> {
-    Arc::new(NoEval)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

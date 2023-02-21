@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::{Expr, Pat, VarDecl};
 use deno_ast::SourceRanged;
 use if_chain::if_chain;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoThisAlias;
@@ -14,10 +13,6 @@ const CODE: &str = "no-this-alias";
 const MESSAGE: &str = "assign `this` to declare a value is not allowed";
 
 impl LintRule for NoThisAlias {
-  fn new() -> Arc<Self> {
-    Arc::new(NoThisAlias)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

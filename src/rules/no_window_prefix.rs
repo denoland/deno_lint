@@ -10,7 +10,6 @@ use deno_ast::SourceRanged;
 use if_chain::if_chain;
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoWindowPrefix;
@@ -21,10 +20,6 @@ const HINT: &str =
   "Instead, call this API via `self`, `globalThis`, or no extra prefix";
 
 impl LintRule for NoWindowPrefix {
-  fn new() -> Arc<Self> {
-    Arc::new(NoWindowPrefix)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

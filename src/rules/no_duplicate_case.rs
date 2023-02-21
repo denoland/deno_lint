@@ -10,7 +10,6 @@ use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDuplicateCase;
@@ -30,10 +29,6 @@ enum NoDuplicateCaseHint {
 }
 
 impl LintRule for NoDuplicateCase {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDuplicateCase)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

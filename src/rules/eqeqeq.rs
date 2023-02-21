@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::swc::ast::BinaryOp;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Eqeqeq;
@@ -29,10 +28,6 @@ enum EqeqeqHint {
 }
 
 impl LintRule for Eqeqeq {
-  fn new() -> Arc<Self> {
-    Arc::new(Eqeqeq)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

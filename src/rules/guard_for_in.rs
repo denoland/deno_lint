@@ -3,7 +3,6 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::SourceRanged;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct GuardForIn;
@@ -13,10 +12,6 @@ const MESSAGE: &str = "Require `for-in` loops to include an `if` statement";
 const HINT: &str = "The body of a `for-in` should be wrapped in an `if` statement to filter unwanted properties from the prototype.";
 
 impl LintRule for GuardForIn {
-  fn new() -> Arc<Self> {
-    Arc::new(GuardForIn)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

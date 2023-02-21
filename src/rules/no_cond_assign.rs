@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::{CondExpr, DoWhileStmt, Expr, ForStmt, IfStmt, WhileStmt};
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoCondAssign;
@@ -29,10 +28,6 @@ enum NoCondAssignHint {
 }
 
 impl LintRule for NoCondAssign {
-  fn new() -> Arc<Self> {
-    Arc::new(NoCondAssign)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

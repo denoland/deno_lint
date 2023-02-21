@@ -10,7 +10,6 @@ use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoExtraBooleanCast;
@@ -34,10 +33,6 @@ enum NoExtraBooleanCastHint {
 }
 
 impl LintRule for NoExtraBooleanCast {
-  fn new() -> Arc<Self> {
-    Arc::new(NoExtraBooleanCast)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

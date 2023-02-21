@@ -3,7 +3,6 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoImplicitDeclareNamespaceExport;
@@ -15,10 +14,6 @@ use";
 const HINT: &str = "Try adding an `export {};` to the top of the namespace to disable this behavior";
 
 impl LintRule for NoImplicitDeclareNamespaceExport {
-  fn new() -> Arc<Self> {
-    Arc::new(NoImplicitDeclareNamespaceExport)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &[]
   }
