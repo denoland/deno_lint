@@ -7,6 +7,7 @@ use deno_ast::Scope;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use if_chain::if_chain;
+use std::ptr;
 
 #[derive(Debug)]
 pub struct PreferPrimordials;
@@ -199,7 +200,7 @@ impl Handler for PreferPrimordialsHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    use ast_view::{Expr, MemberProp};
+    use ast_view::{Expr, Node};
 
     // If `member_expr.obj` is an array literal, access to its properties or
     // methods should be replaced with the one from `primordials`.
@@ -242,13 +243,15 @@ impl Handler for PreferPrimordialsHandler {
     }
 
     if_chain! {
-      // Don't check assignment expressions
+      // Don't check left side of assignment expressions
       // e.g. `foo.bar = 1`
-      if !member_expr.parent().is::<ast_view::AssignExpr>();
+      if !matches!(member_expr.parent(), Node::AssignExpr(assign_expr)
+        if assign_expr.left.to::<ast_view::MemberExpr>().map_or(false, |expr| ptr::eq(expr, member_expr))
+      );
       // Don't check call expressions
       // e.g. `foo.bar()`
       if !member_expr.parent().is::<ast_view::CallExpr>();
-      if let MemberProp::Ident(ident) = &member_expr.prop;
+      if let ast_view::MemberProp::Ident(ident) = &member_expr.prop;
       if GETTER_TARGETS.contains(&ident.sym().as_ref());
       then {
         ctx.add_diagnostic_with_hint(
@@ -699,6 +702,13 @@ new DataView(new ArrayBuffer(10)).byteOffset;
         {
           line: 3,
           col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"foo = bar.description;"#: [
+        {
+          col: 6,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
