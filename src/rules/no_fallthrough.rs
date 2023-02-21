@@ -10,7 +10,6 @@ use deno_ast::swc::{
 };
 use deno_ast::{SourceRange, SourceRanged, SourceRangedForSpanned};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoFallthrough;
@@ -32,10 +31,6 @@ enum NoFallthroughHint {
 }
 
 impl LintRule for NoFallthrough {
-  fn new() -> Arc<Self> {
-    Arc::new(NoFallthrough)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

@@ -13,7 +13,6 @@ use deno_ast::swc::ast::YieldExpr;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct RequireYield;
@@ -22,10 +21,6 @@ const CODE: &str = "require-yield";
 const MESSAGE: &str = "Generator function has no `yield`";
 
 impl LintRule for RequireYield {
-  fn new() -> Arc<Self> {
-    Arc::new(RequireYield)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

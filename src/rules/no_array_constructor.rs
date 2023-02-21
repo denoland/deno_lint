@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, ExprOrSpread, NewExpr};
 use deno_ast::{SourceRange, SourceRanged};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoArrayConstructor;
@@ -14,10 +13,6 @@ const MESSAGE: &str = "Array Constructor is not allowed";
 const HINT: &str = "Use array literal notation (e.g. []) or single argument specifying array size only (e.g. new Array(5)";
 
 impl LintRule for NoArrayConstructor {
-  fn new() -> Arc<Self> {
-    Arc::new(NoArrayConstructor)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

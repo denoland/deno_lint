@@ -11,7 +11,6 @@ use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeKeys;
@@ -31,10 +30,6 @@ enum NoDupeKeysHint {
 }
 
 impl LintRule for NoDupeKeys {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDupeKeys)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

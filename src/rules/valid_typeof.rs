@@ -11,7 +11,6 @@ use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
 use deno_ast::swc::visit::{noop_visit_type, Visit};
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ValidTypeof;
@@ -20,10 +19,6 @@ const CODE: &str = "valid-typeof";
 const MESSAGE: &str = "Invalid typeof comparison value";
 
 impl LintRule for ValidTypeof {
-  fn new() -> Arc<Self> {
-    Arc::new(ValidTypeof)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

@@ -8,7 +8,6 @@ use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct RequireAwait;
@@ -38,10 +37,6 @@ enum RequireAwaitHint {
 }
 
 impl LintRule for RequireAwait {
-  fn new() -> Arc<Self> {
-    Arc::new(RequireAwait)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

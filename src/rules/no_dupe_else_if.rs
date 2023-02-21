@@ -9,7 +9,6 @@ use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
 use deno_ast::{SourceRange, SourceRangedForSpanned};
 use derive_more::Display;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeElseIf;
@@ -33,10 +32,6 @@ enum NoDupeElseIfHint {
 }
 
 impl LintRule for NoDupeElseIf {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDupeElseIf)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

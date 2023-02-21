@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::{Expr, UnaryExpr, UnaryOp};
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDeleteVar;
@@ -25,10 +24,6 @@ enum NoDeleteVarHint {
 }
 
 impl LintRule for NoDeleteVar {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDeleteVar)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

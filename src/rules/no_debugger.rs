@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::DebuggerStmt;
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDebugger;
@@ -25,10 +24,6 @@ enum NoDebuggerHint {
 }
 
 impl LintRule for NoDebugger {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDebugger)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

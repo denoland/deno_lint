@@ -1,7 +1,6 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::Program;
-use std::sync::Arc;
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
@@ -11,10 +10,6 @@ pub struct BanUnknownRuleCode;
 pub(crate) const CODE: &str = "ban-unknown-rule-code";
 
 impl LintRule for BanUnknownRuleCode {
-  fn new() -> Arc<Self> {
-    Arc::new(BanUnknownRuleCode)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

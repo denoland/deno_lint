@@ -7,7 +7,6 @@ use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Camelcase;
@@ -15,10 +14,6 @@ pub struct Camelcase;
 const CODE: &str = "camelcase";
 
 impl LintRule for Camelcase {
-  fn new() -> Arc<Self> {
-    Arc::new(Camelcase)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &[]
   }

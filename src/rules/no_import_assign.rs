@@ -11,7 +11,6 @@ use deno_ast::{
   },
   SourceRange, SourceRangedForSpanned,
 };
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoImportAssign;
@@ -21,10 +20,6 @@ const MESSAGE: &str = "Assignment to import is not allowed";
 const HINT: &str = "Assign to another variable, this assignment is invalid";
 
 impl LintRule for NoImportAssign {
-  fn new() -> Arc<Self> {
-    Arc::new(NoImportAssign)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

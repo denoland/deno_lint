@@ -6,7 +6,6 @@ use deno_ast::view::NodeTrait;
 use deno_ast::view::{self as ast_view};
 use deno_ast::SourceRanged;
 use if_chain::if_chain;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoTopLevelAwait;
@@ -15,10 +14,6 @@ const CODE: &str = "no-top-level-await";
 const MESSAGE: &str = "Top level await is not allowed";
 
 impl LintRule for NoTopLevelAwait {
-  fn new() -> Arc<Self> {
-    Arc::new(NoTopLevelAwait)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

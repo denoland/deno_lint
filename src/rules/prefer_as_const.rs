@@ -8,7 +8,6 @@ use deno_ast::view::{
 };
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 const CODE: &str = "prefer-as-const";
 
@@ -30,10 +29,6 @@ enum PreferAsConstHint {
 pub struct PreferAsConst;
 
 impl LintRule for PreferAsConst {
-  fn new() -> Arc<Self> {
-    Arc::new(PreferAsConst)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

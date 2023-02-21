@@ -22,7 +22,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::iter;
 use std::mem;
 use std::rc::Rc;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PreferConst;
@@ -42,10 +41,6 @@ enum PreferConstHint {
 }
 
 impl LintRule for PreferConst {
-  fn new() -> Arc<Self> {
-    Arc::new(PreferConst)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

@@ -10,7 +10,6 @@ use deno_ast::swc::visit::{VisitAll, VisitAllWith};
 use deno_ast::BindingKind;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoFuncAssign;
@@ -32,10 +31,6 @@ enum NoFuncAssignHint {
 }
 
 impl LintRule for NoFuncAssign {
-  fn new() -> Arc<Self> {
-    Arc::new(NoFuncAssign)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

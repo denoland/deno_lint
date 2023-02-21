@@ -10,7 +10,6 @@ use deno_ast::swc::ast::UnaryOp::Minus;
 use deno_ast::view::{BinExpr, BinaryOp, Expr};
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoCompareNegZero;
@@ -32,10 +31,6 @@ enum NoCompareNegZeroHint {
 }
 
 impl LintRule for NoCompareNegZero {
-  fn new() -> Arc<Self> {
-    Arc::new(NoCompareNegZero)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

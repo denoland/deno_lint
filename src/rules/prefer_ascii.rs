@@ -2,7 +2,6 @@
 use super::{Context, LintRule};
 use crate::Program;
 use deno_ast::SourceRange;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PreferAscii;
@@ -18,10 +17,6 @@ fn hint(c: char) -> String {
 }
 
 impl LintRule for PreferAscii {
-  fn new() -> Arc<Self> {
-    Arc::new(PreferAscii)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

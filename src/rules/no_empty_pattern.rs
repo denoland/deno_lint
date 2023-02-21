@@ -7,7 +7,6 @@ use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmptyPattern;
@@ -18,10 +17,6 @@ const HINT: &str =
   "Add variable to pattern or apply correct default value syntax with `=`";
 
 impl LintRule for NoEmptyPattern {
-  fn new() -> Arc<Self> {
-    Arc::new(NoEmptyPattern)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

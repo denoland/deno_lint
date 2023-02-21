@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
 use deno_ast::{SourceRanged, SourceRangedForSpanned};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmpty;
@@ -12,10 +11,6 @@ pub struct NoEmpty;
 const CODE: &str = "no-empty";
 
 impl LintRule for NoEmpty {
-  fn new() -> Arc<Self> {
-    Arc::new(NoEmpty)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

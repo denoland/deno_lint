@@ -7,7 +7,6 @@ use deno_ast::Scope;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use if_chain::if_chain;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct PreferPrimordials;
@@ -45,10 +44,6 @@ enum PreferPrimordialsHint {
 }
 
 impl LintRule for PreferPrimordials {
-  fn new() -> Arc<Self> {
-    Arc::new(PreferPrimordials)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &[]
   }

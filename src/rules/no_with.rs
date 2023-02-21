@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view as ast_view;
 use deno_ast::SourceRanged;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoWith;
@@ -13,10 +12,6 @@ const CODE: &str = "no-with";
 const MESSAGE: &str = "`with` statement is not allowed";
 
 impl LintRule for NoWith {
-  fn new() -> Arc<Self> {
-    Arc::new(NoWith)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

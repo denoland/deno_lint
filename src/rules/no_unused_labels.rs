@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use if_chain::if_chain;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnusedLabels;
@@ -19,10 +18,6 @@ enum NoUnusedLabelsMessage {
 }
 
 impl LintRule for NoUnusedLabels {
-  fn new() -> Arc<Self> {
-    Arc::new(NoUnusedLabels)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

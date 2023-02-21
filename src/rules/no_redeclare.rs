@@ -9,7 +9,6 @@ use deno_ast::swc::{
   ast::*, utils::find_pat_ids, visit::Visit, visit::VisitWith,
 };
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 use std::collections::HashSet;
 
@@ -20,10 +19,6 @@ const CODE: &str = "no-redeclare";
 const MESSAGE: &str = "Redeclaration is not allowed";
 
 impl LintRule for NoRedeclare {
-  fn new() -> Arc<Self> {
-    Arc::new(NoRedeclare)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

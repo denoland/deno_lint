@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::{Callee, Expr, TsNonNullExpr};
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoNonNullAssertedOptionalChain;
@@ -21,10 +20,6 @@ enum NoNonNullAssertedOptionalChainMessage {
 }
 
 impl LintRule for NoNonNullAssertedOptionalChain {
-  fn new() -> Arc<Self> {
-    Arc::new(NoNonNullAssertedOptionalChain)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

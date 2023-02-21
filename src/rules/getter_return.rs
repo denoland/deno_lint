@@ -17,7 +17,6 @@ use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct GetterReturn;
@@ -39,10 +38,6 @@ enum GetterReturnHint {
 }
 
 impl LintRule for GetterReturn {
-  fn new() -> Arc<Self> {
-    Arc::new(GetterReturn)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

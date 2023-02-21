@@ -93,7 +93,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::SourceRanged;
 use deno_ast::view as ast_view;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct FooBarBaz;
@@ -103,10 +102,6 @@ const MESSAGE: &str = "";
 const HINT: &str = "";
 
 impl LintRule for FooBarBaz {
-  fn new() -> Arc<Self> {
-    Arc::new(FooBarBaz)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

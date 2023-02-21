@@ -10,7 +10,6 @@ use deno_ast::swc::ast::VarDeclKind;
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::VisitWith;
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnreachable;
@@ -19,10 +18,6 @@ const CODE: &str = "no-unreachable";
 const MESSAGE: &str = "This statement is unreachable";
 
 impl LintRule for NoUnreachable {
-  fn new() -> Arc<Self> {
-    Arc::new(NoUnreachable)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

@@ -13,7 +13,6 @@ use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoDupeClassMembers;
@@ -33,10 +32,6 @@ enum NoDupeClassMembersHint {
 }
 
 impl LintRule for NoDupeClassMembers {
-  fn new() -> Arc<Self> {
-    Arc::new(NoDupeClassMembers)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

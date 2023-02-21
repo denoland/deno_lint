@@ -4,7 +4,6 @@ use crate::Program;
 use crate::ProgramRef;
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
@@ -102,11 +101,6 @@ pub mod use_isnan;
 pub mod valid_typeof;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
-  /// Creates an instance of this rule.
-  fn new() -> Arc<Self>
-  where
-    Self: Sized;
-
   /// Executes lint using `dprint-swc-ecma-ast-view`.
   /// Falls back to the `lint_program` method if not implemented.
   fn lint_program_with_ast_view<'view>(
@@ -326,6 +320,8 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
 
 #[cfg(test)]
 mod tests {
+  use std::sync::Arc;
+
   use super::*;
 
   #[test]

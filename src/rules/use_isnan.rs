@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::{BinExpr, BinaryOp, Expr, Ident, SwitchStmt};
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct UseIsNaN;
@@ -29,10 +28,6 @@ enum UseIsNaNMessage {
 }
 
 impl LintRule for UseIsNaN {
-  fn new() -> Arc<Self> {
-    Arc::new(UseIsNaN)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

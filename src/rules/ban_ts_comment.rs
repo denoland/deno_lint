@@ -7,7 +7,6 @@ use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::sync::Arc;
 
 /// This rule differs from typescript-eslint. In typescript-eslint the following
 /// defaults apply:
@@ -68,10 +67,6 @@ impl BanTsComment {
 }
 
 impl LintRule for BanTsComment {
-  fn new() -> Arc<Self> {
-    Arc::new(BanTsComment)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

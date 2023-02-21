@@ -4,7 +4,7 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{VarDecl, VarDeclKind};
 use deno_ast::SourceRanged;
-use std::sync::Arc;
+
 #[derive(Debug)]
 pub struct NoVar;
 
@@ -12,10 +12,6 @@ const MESSAGE: &str = "`var` keyword is not allowed.";
 const CODE: &str = "no-var";
 
 impl LintRule for NoVar {
-  fn new() -> Arc<Self> {
-    Arc::new(NoVar)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

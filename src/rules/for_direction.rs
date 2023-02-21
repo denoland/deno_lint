@@ -7,16 +7,11 @@ use deno_ast::swc::ast::BinaryOp;
 use deno_ast::swc::ast::UpdateOp;
 use deno_ast::view::{AssignExpr, Expr, Pat, PatOrExpr, UnaryOp, UpdateExpr};
 use deno_ast::{view as ast_view, SourceRanged};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ForDirection;
 
 impl LintRule for ForDirection {
-  fn new() -> Arc<Self> {
-    Arc::new(ForDirection)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

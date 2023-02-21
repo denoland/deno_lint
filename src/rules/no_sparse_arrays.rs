@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::ArrayLit;
 use deno_ast::SourceRanged;
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoSparseArrays;
@@ -19,10 +18,6 @@ enum NoSparseArraysMessage {
 }
 
 impl LintRule for NoSparseArrays {
-  fn new() -> Arc<Self> {
-    Arc::new(NoSparseArrays)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

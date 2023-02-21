@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 
 use deno_ast::{view as ast_view, MediaType, SourceRange, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct ExplicitModuleBoundaryTypes;
@@ -30,10 +29,6 @@ enum ExplicitModuleBoundaryTypesHint {
 }
 
 impl LintRule for ExplicitModuleBoundaryTypes {
-  fn new() -> Arc<Self> {
-    Arc::new(ExplicitModuleBoundaryTypes)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

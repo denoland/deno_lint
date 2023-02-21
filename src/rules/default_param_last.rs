@@ -4,7 +4,6 @@ use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct DefaultParamLast;
@@ -26,10 +25,6 @@ enum DefaultParamLastHint {
 }
 
 impl LintRule for DefaultParamLast {
-  fn new() -> Arc<Self> {
-    Arc::new(DefaultParamLast)
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

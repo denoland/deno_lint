@@ -9,16 +9,11 @@ use deno_ast::swc::{
   visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SourceRangedForSpanned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUndef;
 
 impl LintRule for NoUndef {
-  fn new() -> Arc<Self> {
-    Arc::new(NoUndef)
-  }
-
   fn code(&self) -> &'static str {
     "no-undef"
   }

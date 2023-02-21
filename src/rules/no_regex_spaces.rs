@@ -6,7 +6,6 @@ use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
 use deno_ast::{SourceRange, SourceRanged};
 use once_cell::sync::Lazy;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoRegexSpaces;
@@ -16,10 +15,6 @@ const MESSAGE: &str =
   "more than one consecutive spaces in RegExp is not allowed";
 
 impl LintRule for NoRegexSpaces {
-  fn new() -> Arc<Self> {
-    Arc::new(NoRegexSpaces)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }

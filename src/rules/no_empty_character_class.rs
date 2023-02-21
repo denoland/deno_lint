@@ -5,7 +5,6 @@ use crate::Program;
 use deno_ast::view::Regex;
 use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoEmptyCharacterClass;
@@ -16,10 +15,6 @@ const HINT: &str =
   "Remove or rework the empty character class (`[]`) in the RegExp";
 
 impl LintRule for NoEmptyCharacterClass {
-  fn new() -> Arc<Self> {
-    Arc::new(NoEmptyCharacterClass)
-  }
-
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
