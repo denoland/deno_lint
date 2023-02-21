@@ -7,23 +7,21 @@ use crate::rules::LintRule;
 use deno_ast::view as ast_view;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
-use std::marker::PhantomData;
 use std::path::Path;
-use std::sync::Arc;
 
 #[macro_export]
 macro_rules! assert_lint_ok {
   (
-    $rule:ty,
+    $rule:expr,
     filename: $filename:literal,
     $($src:literal),+
     $(,)?
   ) => {
     $(
-      $crate::test_util::assert_lint_ok::<$rule>($src, $filename);
+      $crate::test_util::assert_lint_ok(&$rule, $src, $filename);
     )*
   };
-  ($rule:ty, $($src:literal),+ $(,)?) => {
+  ($rule:expr, $($src:literal),+ $(,)?) => {
     assert_lint_ok! {
       $rule,
       filename: "deno_lint_ok_test.ts",
@@ -35,14 +33,15 @@ macro_rules! assert_lint_ok {
 #[macro_export]
 macro_rules! assert_lint_err {
   (
-    $rule:ty,
+    $rule:expr,
     filename: $filename:literal,
     $($src:literal : $test:tt),+
     $(,)?
   ) => {
     $(
       let errors = parse_err_test!($test);
-      let tester = $crate::test_util::LintErrTester::<$rule>::new(
+      let tester = $crate::test_util::LintErrTester::new(
+        &$rule,
         $src,
         errors,
         $filename,
@@ -51,7 +50,7 @@ macro_rules! assert_lint_err {
     )*
   };
   (
-    $rule:ty,
+    $rule:expr,
     $($src:literal : $test:tt),+
     $(,)?
   ) => {
@@ -63,7 +62,7 @@ macro_rules! assert_lint_err {
   };
 
   (
-    $rule: ty,
+    $rule: expr,
     $message: expr,
     $hint: expr,
     filename: $filename:literal,
@@ -72,7 +71,8 @@ macro_rules! assert_lint_err {
   ) => {
     $(
       let errors = parse_err_test!($message, $hint, $test);
-      let tester = $crate::test_util::LintErrTester::<$rule>::new(
+      let tester = $crate::test_util::LintErrTester::new(
+        &$rule,
         $src,
         errors,
         $filename,
@@ -81,7 +81,7 @@ macro_rules! assert_lint_err {
     )*
   };
   (
-    $rule: ty,
+    $rule: expr,
     $message: expr,
     $hint: expr,
     $($src:literal : $test:tt),+
@@ -171,16 +171,16 @@ macro_rules! parse_err_test {
   }};
 }
 
-#[derive(Default)]
-pub struct LintErrTester<T: LintRule + 'static> {
+pub struct LintErrTester {
   src: &'static str,
   errors: Vec<LintErr>,
   filename: &'static str,
-  rule: PhantomData<T>,
+  rule: &'static dyn LintRule,
 }
 
-impl<T: LintRule + 'static> LintErrTester<T> {
+impl LintErrTester {
   pub fn new(
+    rule: &'static dyn LintRule,
     src: &'static str,
     errors: Vec<LintErr>,
     filename: &'static str,
@@ -189,14 +189,13 @@ impl<T: LintRule + 'static> LintErrTester<T> {
       src,
       errors,
       filename,
-      rule: PhantomData,
+      rule,
     }
   }
 
   pub fn run(self) {
-    let rule = T::new();
-    let rule_code = rule.code();
-    let diagnostics = lint(rule, self.src, self.filename);
+    let rule_code = self.rule.code();
+    let diagnostics = lint(self.rule, self.src, self.filename);
     assert_eq!(
       self.errors.len(),
       diagnostics.len(),
@@ -280,7 +279,7 @@ impl LintErrBuilder {
 }
 
 fn lint(
-  rule: Arc<dyn LintRule>,
+  rule: &'static dyn LintRule,
   source: &str,
   filename: &str,
 ) -> Vec<LintDiagnostic> {
@@ -366,11 +365,11 @@ fn assert_diagnostic_2(
   );
 }
 
-pub fn assert_lint_ok<T: LintRule + 'static>(
+pub fn assert_lint_ok(
+  rule: &'static dyn LintRule,
   source: &str,
   filename: &'static str,
 ) {
-  let rule = T::new();
   let diagnostics = lint(rule, source, filename);
   if !diagnostics.is_empty() {
     panic!(

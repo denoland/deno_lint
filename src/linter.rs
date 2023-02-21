@@ -11,7 +11,7 @@ use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::Scope;
-use std::sync::Arc;
+
 use std::time::Instant;
 
 #[derive(Default)]
@@ -19,7 +19,7 @@ pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   media_type: MediaType,
-  rules: Vec<Arc<dyn LintRule>>,
+  rules: Vec<&'static dyn LintRule>,
 }
 
 impl LinterBuilder {
@@ -68,7 +68,7 @@ impl LinterBuilder {
   /// Set a list of rules that will be used for linting.
   ///
   /// Defaults to empty list (no rules will be run by default).
-  pub fn rules(mut self, rules: Vec<Arc<dyn LintRule>>) -> Self {
+  pub fn rules(mut self, rules: Vec<&'static dyn LintRule>) -> Self {
     self.rules = rules;
     self
   }
@@ -78,7 +78,7 @@ pub struct Linter {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
   media_type: MediaType,
-  rules: Vec<Arc<dyn LintRule>>,
+  rules: Vec<&'static dyn LintRule>,
 }
 
 impl Linter {
@@ -86,7 +86,7 @@ impl Linter {
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
     media_type: MediaType,
-    rules: Vec<Arc<dyn LintRule>>,
+    rules: Vec<&'static dyn LintRule>,
   ) -> Self {
     Linter {
       ignore_file_directive,

@@ -32,9 +32,11 @@ mod lint_tests {
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
   use deno_ast::ParsedSource;
-  use std::sync::Arc;
 
-  fn lint(source: &str, rules: Vec<Arc<dyn LintRule>>) -> Vec<LintDiagnostic> {
+  fn lint(
+    source: &str,
+    rules: Vec<&'static dyn LintRule>,
+  ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
     let (_, diagnostics) = linter
@@ -45,7 +47,7 @@ mod lint_tests {
 
   fn lint_with_ast(
     parsed_source: &ParsedSource,
-    rules: Vec<Arc<dyn LintRule>>,
+    rules: Vec<&'static dyn LintRule>,
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
@@ -62,10 +64,11 @@ mod lint_tests {
     lint_with_ast(parsed_source, get_recommended_rules())
   }
 
-  fn lint_specified_rule<T: LintRule + 'static>(
+  fn lint_specified_rule(
+    rule: &'static dyn LintRule,
     source: &str,
   ) -> Vec<LintDiagnostic> {
-    lint(source, vec![T::new()])
+    lint(source, vec![rule])
   }
 
   #[test]
@@ -119,7 +122,8 @@ export function foo() {
   #[test]
   fn unknown_rules_always_know_available_rules() {
     use crate::rules::camelcase::Camelcase;
-    let diagnostics = lint_specified_rule::<Camelcase>(
+    let diagnostics = lint_specified_rule(
+      &Camelcase,
       r#"
 // deno-lint-ignore no-explicit-any
 const fooBar: any = 42;
@@ -149,7 +153,8 @@ const fooBar: any = 42;
   #[test]
   fn ban_unused_ignore_not_report_unexecuted_rule() {
     use crate::rules::camelcase::Camelcase;
-    let diagnostics = lint_specified_rule::<Camelcase>(
+    let diagnostics = lint_specified_rule(
+      &Camelcase,
       r#"
 // deno-lint-ignore no-explicit-any
 const _fooBar = 42;
