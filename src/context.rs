@@ -14,7 +14,7 @@ use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
 };
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+
 use std::time::Instant;
 
 /// `Context` stores data needed while performing all lint rules to a file.
@@ -176,7 +176,7 @@ impl<'view> Context<'view> {
   /// works for diagnostics reported by other rules.
   pub(crate) fn ban_unused_ignore(
     &self,
-    specified_rules: &[Arc<dyn LintRule>],
+    specified_rules: &[&'static dyn LintRule],
   ) -> Vec<LintDiagnostic> {
     const CODE: &str = "ban-unused-ignore";
 

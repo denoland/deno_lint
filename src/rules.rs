@@ -145,11 +145,11 @@ pub fn program_ref(program: Program) -> ProgramRef {
   }
 }
 
-pub fn get_all_rules() -> Vec<Arc<dyn LintRule>> {
+pub fn get_all_rules() -> Vec<&'static dyn LintRule> {
   get_all_rules_raw()
 }
 
-pub fn get_recommended_rules() -> Vec<Arc<dyn LintRule>> {
+pub fn get_recommended_rules() -> Vec<&'static dyn LintRule> {
   get_all_rules_raw()
     .into_iter()
     .filter(|r| r.tags().contains(&"recommended"))
@@ -175,7 +175,7 @@ pub fn get_filtered_rules(
   maybe_tags: Option<Vec<String>>,
   maybe_exclude: Option<Vec<String>>,
   maybe_include: Option<Vec<String>>,
-) -> Vec<Arc<dyn LintRule>> {
+) -> Vec<&'static dyn LintRule> {
   let tags_set =
     maybe_tags.map(|tags| tags.into_iter().collect::<HashSet<_>>());
 
@@ -213,7 +213,7 @@ pub fn get_filtered_rules(
 }
 
 /// Sort lint rules by priority and alphabetically.
-pub(crate) fn sort_rules_by_priority(rules: &mut [Arc<dyn LintRule>]) {
+pub(crate) fn sort_rules_by_priority(rules: &mut [&'static dyn LintRule]) {
   rules.sort_by(|rule1, rule2| {
     let priority_cmp = rule1.priority().cmp(&rule2.priority());
 
@@ -225,103 +225,102 @@ pub(crate) fn sort_rules_by_priority(rules: &mut [Arc<dyn LintRule>]) {
   });
 }
 
-fn get_all_rules_raw() -> Vec<Arc<dyn LintRule>> {
+fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
   vec![
-    adjacent_overload_signatures::AdjacentOverloadSignatures::new(),
-    ban_ts_comment::BanTsComment::new(),
-    ban_types::BanTypes::new(),
-    ban_unknown_rule_code::BanUnknownRuleCode::new(),
-    ban_untagged_ignore::BanUntaggedIgnore::new(),
-    ban_untagged_todo::BanUntaggedTodo::new(),
-    ban_unused_ignore::BanUnusedIgnore::new(),
-    camelcase::Camelcase::new(),
-    constructor_super::ConstructorSuper::new(),
-    default_param_last::DefaultParamLast::new(),
-    eqeqeq::Eqeqeq::new(),
-    explicit_function_return_type::ExplicitFunctionReturnType::new(),
-    explicit_module_boundary_types::ExplicitModuleBoundaryTypes::new(),
-    for_direction::ForDirection::new(),
-    getter_return::GetterReturn::new(),
-    guard_for_in::GuardForIn::new(),
-    no_array_constructor::NoArrayConstructor::new(),
-    no_async_promise_executor::NoAsyncPromiseExecutor::new(),
-    no_await_in_loop::NoAwaitInLoop::new(),
-    no_case_declarations::NoCaseDeclarations::new(),
-    no_class_assign::NoClassAssign::new(),
-    no_compare_neg_zero::NoCompareNegZero::new(),
-    no_cond_assign::NoCondAssign::new(),
-    no_const_assign::NoConstAssign::new(),
-    no_constant_condition::NoConstantCondition::new(),
-    no_control_regex::NoControlRegex::new(),
-    no_debugger::NoDebugger::new(),
-    no_delete_var::NoDeleteVar::new(),
-    no_deprecated_deno_api::NoDeprecatedDenoApi::new(),
-    no_dupe_args::NoDupeArgs::new(),
-    no_dupe_class_members::NoDupeClassMembers::new(),
-    no_dupe_else_if::NoDupeElseIf::new(),
-    no_dupe_keys::NoDupeKeys::new(),
-    no_duplicate_case::NoDuplicateCase::new(),
-    no_empty::NoEmpty::new(),
-    no_empty_character_class::NoEmptyCharacterClass::new(),
-    no_empty_enum::NoEmptyEnum::new(),
-    no_empty_interface::NoEmptyInterface::new(),
-    no_empty_pattern::NoEmptyPattern::new(),
-    no_eval::NoEval::new(),
-    no_ex_assign::NoExAssign::new(),
-    no_explicit_any::NoExplicitAny::new(),
-    no_external_imports::NoExternalImport::new(),
-    no_extra_boolean_cast::NoExtraBooleanCast::new(),
-    no_extra_non_null_assertion::NoExtraNonNullAssertion::new(),
-    no_extra_semi::NoExtraSemi::new(),
-    no_fallthrough::NoFallthrough::new(),
-    no_func_assign::NoFuncAssign::new(),
-    no_global_assign::NoGlobalAssign::new(),
-    no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport::new(
-    ),
-    no_import_assign::NoImportAssign::new(),
-    no_inferrable_types::NoInferrableTypes::new(),
-    no_inner_declarations::NoInnerDeclarations::new(),
-    no_invalid_regexp::NoInvalidRegexp::new(),
-    no_invalid_triple_slash_reference::NoInvalidTripleSlashReference::new(),
-    no_irregular_whitespace::NoIrregularWhitespace::new(),
-    no_misused_new::NoMisusedNew::new(),
-    no_namespace::NoNamespace::new(),
-    no_new_symbol::NoNewSymbol::new(),
-    no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain::new(),
-    no_non_null_assertion::NoNonNullAssertion::new(),
-    no_obj_calls::NoObjCalls::new(),
-    no_octal::NoOctal::new(),
-    no_prototype_builtins::NoPrototypeBuiltins::new(),
-    no_redeclare::NoRedeclare::new(),
-    no_regex_spaces::NoRegexSpaces::new(),
-    no_self_assign::NoSelfAssign::new(),
-    no_setter_return::NoSetterReturn::new(),
-    no_shadow_restricted_names::NoShadowRestrictedNames::new(),
-    no_sparse_arrays::NoSparseArrays::new(),
-    no_this_alias::NoThisAlias::new(),
-    no_this_before_super::NoThisBeforeSuper::new(),
-    no_throw_literal::NoThrowLiteral::new(),
-    no_top_level_await::NoTopLevelAwait::new(),
-    no_undef::NoUndef::new(),
-    no_unreachable::NoUnreachable::new(),
-    no_unsafe_finally::NoUnsafeFinally::new(),
-    no_unsafe_negation::NoUnsafeNegation::new(),
-    no_unused_labels::NoUnusedLabels::new(),
-    no_unused_vars::NoUnusedVars::new(),
-    no_var::NoVar::new(),
-    no_window_prefix::NoWindowPrefix::new(),
-    no_with::NoWith::new(),
-    prefer_as_const::PreferAsConst::new(),
-    prefer_ascii::PreferAscii::new(),
-    prefer_const::PreferConst::new(),
-    prefer_namespace_keyword::PreferNamespaceKeyword::new(),
-    prefer_primordials::PreferPrimordials::new(),
-    require_await::RequireAwait::new(),
-    require_yield::RequireYield::new(),
-    single_var_declarator::SingleVarDeclarator::new(),
-    triple_slash_reference::TripleSlashReference::new(),
-    use_isnan::UseIsNaN::new(),
-    valid_typeof::ValidTypeof::new(),
+    &adjacent_overload_signatures::AdjacentOverloadSignatures,
+    &ban_ts_comment::BanTsComment,
+    &ban_types::BanTypes,
+    &ban_unknown_rule_code::BanUnknownRuleCode,
+    &ban_untagged_ignore::BanUntaggedIgnore,
+    &ban_untagged_todo::BanUntaggedTodo,
+    &ban_unused_ignore::BanUnusedIgnore,
+    &camelcase::Camelcase,
+    &constructor_super::ConstructorSuper,
+    &default_param_last::DefaultParamLast,
+    &eqeqeq::Eqeqeq,
+    &explicit_function_return_type::ExplicitFunctionReturnType,
+    &explicit_module_boundary_types::ExplicitModuleBoundaryTypes,
+    &for_direction::ForDirection,
+    &getter_return::GetterReturn,
+    &guard_for_in::GuardForIn,
+    &no_array_constructor::NoArrayConstructor,
+    &no_async_promise_executor::NoAsyncPromiseExecutor,
+    &no_await_in_loop::NoAwaitInLoop,
+    &no_case_declarations::NoCaseDeclarations,
+    &no_class_assign::NoClassAssign,
+    &no_compare_neg_zero::NoCompareNegZero,
+    &no_cond_assign::NoCondAssign,
+    &no_const_assign::NoConstAssign,
+    &no_constant_condition::NoConstantCondition,
+    &no_control_regex::NoControlRegex,
+    &no_debugger::NoDebugger,
+    &no_delete_var::NoDeleteVar,
+    &no_deprecated_deno_api::NoDeprecatedDenoApi,
+    &no_dupe_args::NoDupeArgs,
+    &no_dupe_class_members::NoDupeClassMembers,
+    &no_dupe_else_if::NoDupeElseIf,
+    &no_dupe_keys::NoDupeKeys,
+    &no_duplicate_case::NoDuplicateCase,
+    &no_empty::NoEmpty,
+    &no_empty_character_class::NoEmptyCharacterClass,
+    &no_empty_enum::NoEmptyEnum,
+    &no_empty_interface::NoEmptyInterface,
+    &no_empty_pattern::NoEmptyPattern,
+    &no_eval::NoEval,
+    &no_ex_assign::NoExAssign,
+    &no_explicit_any::NoExplicitAny,
+    &no_external_imports::NoExternalImport,
+    &no_extra_boolean_cast::NoExtraBooleanCast,
+    &no_extra_non_null_assertion::NoExtraNonNullAssertion,
+    &no_extra_semi::NoExtraSemi,
+    &no_fallthrough::NoFallthrough,
+    &no_func_assign::NoFuncAssign,
+    &no_global_assign::NoGlobalAssign,
+    &no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport,
+    &no_import_assign::NoImportAssign,
+    &no_inferrable_types::NoInferrableTypes,
+    &no_inner_declarations::NoInnerDeclarations,
+    &no_invalid_regexp::NoInvalidRegexp,
+    &no_invalid_triple_slash_reference::NoInvalidTripleSlashReference,
+    &no_irregular_whitespace::NoIrregularWhitespace,
+    &no_misused_new::NoMisusedNew,
+    &no_namespace::NoNamespace,
+    &no_new_symbol::NoNewSymbol,
+    &no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain,
+    &no_non_null_assertion::NoNonNullAssertion,
+    &no_obj_calls::NoObjCalls,
+    &no_octal::NoOctal,
+    &no_prototype_builtins::NoPrototypeBuiltins,
+    &no_redeclare::NoRedeclare,
+    &no_regex_spaces::NoRegexSpaces,
+    &no_self_assign::NoSelfAssign,
+    &no_setter_return::NoSetterReturn,
+    &no_shadow_restricted_names::NoShadowRestrictedNames,
+    &no_sparse_arrays::NoSparseArrays,
+    &no_this_alias::NoThisAlias,
+    &no_this_before_super::NoThisBeforeSuper,
+    &no_throw_literal::NoThrowLiteral,
+    &no_top_level_await::NoTopLevelAwait,
+    &no_undef::NoUndef,
+    &no_unreachable::NoUnreachable,
+    &no_unsafe_finally::NoUnsafeFinally,
+    &no_unsafe_negation::NoUnsafeNegation,
+    &no_unused_labels::NoUnusedLabels,
+    &no_unused_vars::NoUnusedVars,
+    &no_var::NoVar,
+    &no_window_prefix::NoWindowPrefix,
+    &no_with::NoWith,
+    &prefer_as_const::PreferAsConst,
+    &prefer_ascii::PreferAscii,
+    &prefer_const::PreferConst,
+    &prefer_namespace_keyword::PreferNamespaceKeyword,
+    &prefer_primordials::PreferPrimordials,
+    &require_await::RequireAwait,
+    &require_yield::RequireYield,
+    &single_var_declarator::SingleVarDeclarator,
+    &triple_slash_reference::TripleSlashReference,
+    &use_isnan::UseIsNaN,
+    &valid_typeof::ValidTypeof,
   ]
 }
 
@@ -438,11 +437,11 @@ mod tests {
 
   #[test]
   fn sort_by_priority() {
-    let mut rules: Vec<Arc<dyn LintRule>> = vec![
-      ban_unknown_rule_code::BanUnknownRuleCode::new(),
-      ban_unused_ignore::BanUnusedIgnore::new(),
-      no_redeclare::NoRedeclare::new(),
-      eqeqeq::Eqeqeq::new(),
+    let mut rules: Vec<&'static dyn LintRule> = vec![
+      &ban_unknown_rule_code::BanUnknownRuleCode,
+      &ban_unused_ignore::BanUnusedIgnore,
+      &no_redeclare::NoRedeclare,
+      &eqeqeq::Eqeqeq,
     ];
 
     sort_rules_by_priority(&mut rules);
