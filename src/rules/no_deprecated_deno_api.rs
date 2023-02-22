@@ -74,7 +74,6 @@ enum DeprecatedApi {
   IterSync,
   ReadAll,
   ReadAllSync,
-  Run,
   WriteAll,
   WriteAllSync,
 }
@@ -102,7 +101,6 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
       "File" => Ok(DeprecatedApi::File),
       "readAll" => Ok(DeprecatedApi::ReadAll),
       "readAllSync" => Ok(DeprecatedApi::ReadAllSync),
-      "run" => Ok(DeprecatedApi::Run),
       "writeAll" => Ok(DeprecatedApi::WriteAll),
       "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
       _ => Err(()),
@@ -143,14 +141,12 @@ impl DeprecatedApi {
       File => "Deno.File",
       ReadAll => "Deno.readAll",
       ReadAllSync => "Deno.readAllSync",
-      Run => "Deno.run",
       WriteAll => "Deno.writeAll",
       WriteAllSync => "Deno.writeAllSync",
     }
   }
 
   fn get_replacement(&self) -> Replacement {
-    const DENO_API: &str = "https://deno.land/api";
     const BUFFER_TS: &str = "https://deno.land/std/io/buffer.ts";
     const STREAMS_TS: &str = "https://deno.land/std/streams/conversion.ts";
 
@@ -165,7 +161,6 @@ impl DeprecatedApi {
       File => Name("Deno.FsFile"),
       ReadAll => NameAndUrl("readAll", STREAMS_TS),
       ReadAllSync => NameAndUrl("readAllSync", STREAMS_TS),
-      Run => NameAndUrl("Deno.Command", DENO_API),
       WriteAll => NameAndUrl("writeAll", STREAMS_TS),
       WriteAllSync => NameAndUrl("writeAllSync", STREAMS_TS),
     }
@@ -377,13 +372,6 @@ mod tests {
           col: 10,
           message: File.message(),
           hint: File.hint()
-        }
-      ],
-      "Deno.run(options);": [
-        {
-          col: 0,
-          message: Run.message(),
-          hint: Run.hint()
         }
       ],
 
