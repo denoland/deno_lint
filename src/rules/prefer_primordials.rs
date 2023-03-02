@@ -475,6 +475,10 @@ set.add(2);
 set.size;
       "#,
       r#"
+const foo = { size: 100 };
+foo.size;
+      "#,
+      r#"
 const { SafeArrayIterator } = primordials;
 [1, 2, ...new SafeArrayIterator(arr)];
 foo(1, 2, ...new SafeArrayIterator(arr));
