@@ -463,6 +463,18 @@ parseInt();
       r#"foo.description = 1"#,
       r#"foo.description()"#,
       r#"
+const { SafeRegExp } = primordials;
+const pattern = new SafeRegExp(/aaaa/u);
+pattern.source;
+      "#,
+      r#"
+const { SafeSet } = primordials;
+const set = new SafeSet();
+set.add(1);
+set.add(2);
+set.size;
+      "#,
+      r#"
 const { SafeArrayIterator } = primordials;
 [1, 2, ...new SafeArrayIterator(arr)];
 foo(1, 2, ...new SafeArrayIterator(arr));
