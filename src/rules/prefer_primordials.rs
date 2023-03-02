@@ -132,18 +132,6 @@ const GETTER_TARGETS: &[&str] = &[
   "byteOffset",
   // TypedArray: avoid false positives for Array
   // "length",
-  // RegExp: no problem when using SafeRegExp
-  // "dotAll",
-  // "flags",
-  // "global",
-  // "hasIndices",
-  // "ignoreCase",
-  // "multiline",
-  // "source",
-  // "sticky",
-  // "unicode",
-  // Map, Set: no problem when using SafeMap or SafeSet
-  // "size",
 ];
 
 struct PreferPrimordialsHandler;
