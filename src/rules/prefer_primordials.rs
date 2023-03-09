@@ -7,6 +7,7 @@ use deno_ast::Scope;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
 use if_chain::if_chain;
+use std::ptr;
 
 #[derive(Debug)]
 pub struct PreferPrimordials;
@@ -123,22 +124,14 @@ const GLOBAL_TARGETS: &[&str] = &[
 ];
 
 const GETTER_TARGETS: &[&str] = &[
+  // Symbol
   "description",
-  "dotAll",
-  "flags",
-  "global",
-  "hasIndices",
-  "ignoreCase",
-  "multiline",
-  "source",
-  "sticky",
-  "unicode",
+  // ArrayBuffer, TypedArray, DataView
   "buffer",
   "byteLength",
   "byteOffset",
-  // avoid false positives for Array
+  // TypedArray: avoid false positives for Array
   // "length",
-  "size",
 ];
 
 struct PreferPrimordialsHandler;
@@ -195,7 +188,7 @@ impl Handler for PreferPrimordialsHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    use ast_view::{Expr, MemberProp};
+    use ast_view::{Expr, Node};
 
     // If `member_expr.obj` is an array literal, access to its properties or
     // methods should be replaced with the one from `primordials`.
@@ -238,13 +231,15 @@ impl Handler for PreferPrimordialsHandler {
     }
 
     if_chain! {
-      // Don't check assignment expressions
+      // Don't check left side of assignment expressions
       // e.g. `foo.bar = 1`
-      if !member_expr.parent().is::<ast_view::AssignExpr>();
+      if !matches!(member_expr.parent(), Node::AssignExpr(assign_expr)
+        if assign_expr.left.to::<ast_view::MemberExpr>().map_or(false, |expr| ptr::eq(expr, member_expr))
+      );
       // Don't check call expressions
       // e.g. `foo.bar()`
       if !member_expr.parent().is::<ast_view::CallExpr>();
-      if let MemberProp::Ident(ident) = &member_expr.prop;
+      if let ast_view::MemberProp::Ident(ident) = &member_expr.prop;
       if GETTER_TARGETS.contains(&ident.sym().as_ref());
       then {
         ctx.add_diagnostic_with_hint(
@@ -465,8 +460,24 @@ const parseInt = () => {};
 parseInt();
       "#,
       r#"const foo = { Error: 1 };"#,
-      r#"foo.size = 1"#,
-      r#"foo.size()"#,
+      r#"foo.description = 1"#,
+      r#"foo.description()"#,
+      r#"
+const { SafeRegExp } = primordials;
+const pattern = new SafeRegExp(/aaaa/u);
+pattern.source;
+      "#,
+      r#"
+const { SafeSet } = primordials;
+const set = new SafeSet();
+set.add(1);
+set.add(2);
+set.size;
+      "#,
+      r#"
+const foo = { size: 100 };
+foo.size;
+      "#,
       r#"
 const { SafeArrayIterator } = primordials;
 [1, 2, ...new SafeArrayIterator(arr)];
@@ -666,69 +677,6 @@ const noop = Function.prototype;
           hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
-      r#"/aaaa/u.dotAll;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.flags;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.global;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.hasIndices;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.ignoreCase;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.multiline;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.source;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.sticky;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
-      r#"/aaaa/u.unicode;"#: [
-        {
-          col: 0,
-          message: PreferPrimordialsMessage::GlobalIntrinsic,
-          hint: PreferPrimordialsHint::GlobalIntrinsic,
-        },
-      ],
       r#"
 const { Uint8Array } = primordials;
 new Uint8Array(10).buffer;
@@ -762,13 +710,9 @@ new DataView(new ArrayBuffer(10)).byteOffset;
           hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
       ],
-      r#"
-const { SafeSet } = primordials;
-new SafeSet().size;
-      "#: [
+      r#"foo = bar.description;"#: [
         {
-          line: 3,
-          col: 0,
+          col: 6,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
