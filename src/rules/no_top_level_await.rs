@@ -51,7 +51,7 @@ impl Handler for NoTopLevelAwaitHandler {
     ctx: &mut Context,
   ) {
     if_chain! {
-      if for_of_stmt.await_token().is_some();
+      if for_of_stmt.is_await();
       if !is_node_inside_function(for_of_stmt);
       then {
         ctx.add_diagnostic(for_of_stmt.range(), CODE, MESSAGE)

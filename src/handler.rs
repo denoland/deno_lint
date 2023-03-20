@@ -19,6 +19,7 @@ pub trait Handler {
   ) {
   }
   fn assign_prop(&mut self, _n: &ast_view::AssignProp, _ctx: &mut Context) {}
+  fn auto_accessor(&mut self, _n: &ast_view::AutoAccessor, _ctx: &mut Context) {}
   fn await_expr(&mut self, _n: &ast_view::AwaitExpr, _ctx: &mut Context) {}
   fn big_int(&mut self, _n: &ast_view::BigInt, _ctx: &mut Context) {}
   fn bin_expr(&mut self, _n: &ast_view::BinExpr, _ctx: &mut Context) {}
@@ -544,6 +545,7 @@ pub trait Traverse: Handler {
       AssignPat(n) => self.assign_pat(n, ctx),
       AssignPatProp(n) => self.assign_pat_prop(n, ctx),
       AssignProp(n) => self.assign_prop(n, ctx),
+      AutoAccessor(n) => self.auto_accessor(n, ctx),
       AwaitExpr(n) => self.await_expr(n, ctx),
       BigInt(n) => self.big_int(n, ctx),
       BinExpr(n) => self.bin_expr(n, ctx),

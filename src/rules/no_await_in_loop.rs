@@ -46,7 +46,7 @@ impl Handler for NoAwaitInLoopHandler {
       use deno_ast::view::Node::*;
       match node {
         FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
-        ForOfStmt(stmt) if stmt.await_token().is_some() => {
+        ForOfStmt(stmt) if stmt.is_await() => {
           // `await` is allowed to use within the body of `for await (const x of y) { ... }`
           false
         }

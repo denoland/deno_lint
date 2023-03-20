@@ -279,7 +279,7 @@ impl Handler for FunctionHandler {
     for_of_stmt: &deno_ast::view::ForOfStmt,
     _ctx: &mut Context,
   ) {
-    if for_of_stmt.await_token().is_some() {
+    if for_of_stmt.is_await() {
       if let Some(info) = self.function_info.as_mut() {
         info.has_await = true;
       }
