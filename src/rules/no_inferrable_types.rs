@@ -127,22 +127,16 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
           Expr::Call(CallExpr { callee, .. }) => {
             self.check_callee(callee, range, "BigInt");
           }
-          Expr::OptChain(OptChainExpr {
-            base,
-            ..
-          }) => {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "BigInt");
-          }
+          Expr::OptChain(OptChainExpr { base, .. }) => {
+            if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
+              self.check_callee_expr(callee, range, "BigInt");
+            }
           }
           _ => {}
         },
-        Expr::OptChain(OptChainExpr {
-          base,
-          ..
-        }) => {
+        Expr::OptChain(OptChainExpr { base, .. }) => {
           if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-          self.check_callee_expr(callee, range, "BigInt");
+            self.check_callee_expr(callee, range, "BigInt");
           }
         }
         _ => {}
@@ -159,12 +153,9 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
             self.add_diagnostic_helper(range);
           }
         }
-        Expr::OptChain(OptChainExpr {
-          base,
-          ..
-        }) => {
+        Expr::OptChain(OptChainExpr { base, .. }) => {
           if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-          self.check_callee_expr(callee, range, "Boolean");
+            self.check_callee_expr(callee, range, "Boolean");
           }
         }
         _ => {}
@@ -193,22 +184,16 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
               self.add_diagnostic_helper(range);
             }
           }
-          Expr::OptChain(OptChainExpr {
-            base,
-            ..
-          }) => {
+          Expr::OptChain(OptChainExpr { base, .. }) => {
             if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "Number");
+              self.check_callee_expr(callee, range, "Number");
             }
           }
           _ => {}
         },
-        Expr::OptChain(OptChainExpr {
-          base,
-          ..
-        }) => {
+        Expr::OptChain(OptChainExpr { base, .. }) => {
           if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-          self.check_callee_expr(callee, range, "Number");
+            self.check_callee_expr(callee, range, "Number");
           }
         }
         _ => {}
@@ -228,12 +213,9 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
         Expr::Call(CallExpr { callee, .. }) => {
           self.check_callee(callee, range, "String");
         }
-        Expr::OptChain(OptChainExpr {
-          base,
-          ..
-        }) => {
+        Expr::OptChain(OptChainExpr { base, .. }) => {
           if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-          self.check_callee_expr(callee, range, "String");
+            self.check_callee_expr(callee, range, "String");
           }
         }
         _ => {}
@@ -241,11 +223,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
       TsSymbolKeyword => {
         if let Expr::Call(CallExpr { callee, .. }) = value {
           self.check_callee(callee, range, "Symbol");
-        } else if let Expr::OptChain(OptChainExpr {
-          base,
-          ..
-        }) = value
-        {
+        } else if let Expr::OptChain(OptChainExpr { base, .. }) = value {
           if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
             self.check_callee_expr(callee, range, "Symbol");
           }
