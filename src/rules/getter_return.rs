@@ -176,7 +176,7 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
         op(self, member);
       }
       Expr::OptChain(opt) => {
-        if let OptChainBase::Member(member) = &opt.base {
+        if let OptChainBase::Member(member) = &*opt.base {
           op(self, member);
         }
       }
@@ -213,7 +213,8 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
                 // arrow function
               } else if let Expr::Arrow(arrow_expr) = &*kv_prop.value {
                 a.set_default_getter_name();
-                if let BlockStmtOrExpr::BlockStmt(block_stmt) = &arrow_expr.body
+                if let BlockStmtOrExpr::BlockStmt(block_stmt) =
+                  &*arrow_expr.body
                 {
                   block_stmt.visit_children_with(a);
                   a.check_getter(block_stmt.range(), prop.range());

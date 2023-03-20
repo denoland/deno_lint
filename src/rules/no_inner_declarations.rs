@@ -148,7 +148,7 @@ impl VisitAll for ValidDeclsVisitor {
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
-    if let BlockStmtOrExpr::BlockStmt(block) = &arrow_expr.body {
+    if let BlockStmtOrExpr::BlockStmt(block) = &*arrow_expr.body {
       self.check_stmts(&block.stmts);
     }
   }

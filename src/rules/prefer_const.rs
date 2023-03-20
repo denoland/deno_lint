@@ -366,7 +366,7 @@ impl Visit for VariableCollector {
           a.insert_var(&ident, VarStatus::Reassigned);
         }
       }
-      match &arrow_expr.body {
+      match &*arrow_expr.body {
         BlockStmtOrExpr::BlockStmt(block_stmt) => {
           block_stmt.visit_children_with(a);
         }
@@ -838,7 +838,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
         self.visit_assign_pat(assign_pat);
       }
     }
-    self.with_child_scope(arrow_expr, |a| match &arrow_expr.body {
+    self.with_child_scope(arrow_expr, |a| match &*arrow_expr.body {
       BlockStmtOrExpr::BlockStmt(block_stmt) => {
         block_stmt.visit_children_with(a);
       }

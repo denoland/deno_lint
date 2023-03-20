@@ -92,7 +92,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
       }
       Expr::Member(e) => self.check_assign(range, &e.obj, true),
       Expr::Paren(e) => self.check_expr(range, &e.expr),
-      Expr::OptChain(e) => match &e.base {
+      Expr::OptChain(e) => match &*e.base {
         OptChainBase::Call(e) => self.visit_opt_call(e),
         OptChainBase::Member(e) => self.check_expr(range, &e.obj),
       },
@@ -139,7 +139,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
   fn modifies_first(&self, callee: &Expr) -> bool {
     match callee {
       Expr::OptChain(opt_chain) => {
-        if let OptChainBase::Member(member_expr) = &opt_chain.base {
+        if let OptChainBase::Member(member_expr) = &*opt_chain.base {
           return self.member_expr_modifies_first(member_expr);
         }
       }

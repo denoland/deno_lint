@@ -107,7 +107,7 @@ fn run_linter(
 
       let linter_builder = LinterBuilder::default()
         .rules(rules.clone())
-        .media_type(MediaType::from(file_path));
+        .media_type(MediaType::from_path(file_path));
 
       let linter = linter_builder.build();
 
