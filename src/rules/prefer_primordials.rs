@@ -18,6 +18,8 @@ const CODE: &str = "prefer-primordials";
 enum PreferPrimordialsMessage {
   #[display(fmt = "Don't use the global intrinsic")]
   GlobalIntrinsic,
+  #[display(fmt = "Don't use the unsafe intrinsic")]
+  UnsafeIntrinsic,
   #[display(fmt = "Don't use iterator protocol directly")]
   Iterator,
   #[display(fmt = "Don't use `instanceof` operator")]
@@ -30,6 +32,8 @@ enum PreferPrimordialsMessage {
 enum PreferPrimordialsHint {
   #[display(fmt = "Instead use the equivalent from the `primordials` object")]
   GlobalIntrinsic,
+  #[display(fmt = "Instead use the safe wrapper from the `primordials` object")]
+  UnsafeIntrinsic,
   #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
   SafeIterator,
   #[display(fmt = "Instead use the object pattern destructuring assignment")]
@@ -123,6 +127,24 @@ const GLOBAL_TARGETS: &[&str] = &[
   "WeakSet",
 ];
 
+const UNSAFE_CONSTRUCTOR_TARGETS: &[&str] = &[
+  "FinalizationRegistry",
+  "Map",
+  "RegExp",
+  "Set",
+  "WeakMap",
+  "WeakRef",
+  "WeakSet",
+];
+
+const UNSAFE_FUNCTION_TARGETS: &[&str] = &[
+  "PromiseAll",
+  "PromiseAllSettled",
+  "PromiseAny",
+  "PromiseRace",
+  "PromisePrototypeFinally",
+];
+
 const GETTER_TARGETS: &[&str] = &[
   // Symbol
   "description",
@@ -181,6 +203,26 @@ impl Handler for PreferPrimordialsHandler {
         PreferPrimordialsHint::GlobalIntrinsic,
       );
     }
+
+    if UNSAFE_CONSTRUCTOR_TARGETS.contains(&ident.sym().as_ref())
+      && matches!(ident.parent(), ast_view::Node::NewExpr(_)) {
+        ctx.add_diagnostic_with_hint(
+          ident.range(),
+          CODE,
+          PreferPrimordialsMessage::UnsafeIntrinsic,
+          PreferPrimordialsHint::UnsafeIntrinsic,
+        );
+      }
+
+    if UNSAFE_FUNCTION_TARGETS.contains(&ident.sym().as_ref())
+      && matches!(ident.parent(), ast_view::Node::CallExpr(_)) {
+        ctx.add_diagnostic_with_hint(
+          ident.range(),
+          CODE,
+          PreferPrimordialsMessage::UnsafeIntrinsic,
+          PreferPrimordialsHint::UnsafeIntrinsic,
+        );
+      }
   }
 
   fn member_expr(
@@ -448,8 +490,19 @@ const { ReflectOwnKeys } = primordials;
 ReflectOwnKeys({});
       "#,
       r#"
-const { Map } = primordials;
-new Map();
+const { SafeRegExp } = primordials;
+new SafeRegExp("aaaa");
+      "#,
+      r#"
+const { SafeMap } = primordials;
+new SafeMap();
+      "#,
+      r#"
+const { SafePromiseAll, PromiseResolve } = primordials;
+SafePromiseAll([
+  PromiseResolve(1),
+  PromiseResolve(2),
+]);
       "#,
       r#"
 const { ArrayPrototypeMap } = primordials;
@@ -548,6 +601,42 @@ indirectEval("console.log('This test should pass.');");
           col: 16,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { RegExp } = primordials;
+new RegExp("aaaa");
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: PreferPrimordialsMessage::UnsafeIntrinsic,
+          hint: PreferPrimordialsHint::UnsafeIntrinsic,
+        },
+      ],
+      r#"
+const { Map } = primordials;
+new Map();
+      "#: [
+        {
+          line: 3,
+          col: 4,
+          message: PreferPrimordialsMessage::UnsafeIntrinsic,
+          hint: PreferPrimordialsHint::UnsafeIntrinsic,
+        },
+      ],
+      r#"
+const { PromiseAll, PromiseResolve } = primordials;
+PromiseAll([
+  PromiseResolve(1),
+  PromiseResolve(2),
+]);
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::UnsafeIntrinsic,
+          hint: PreferPrimordialsHint::UnsafeIntrinsic,
         },
       ],
       r#"JSON.parse("{}")"#: [
@@ -657,6 +746,11 @@ Number.parseInt("10");
           col: 4,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+        {
+          col: 4,
+          message: PreferPrimordialsMessage::UnsafeIntrinsic,
+          hint: PreferPrimordialsHint::UnsafeIntrinsic,
         },
       ],
       r#"
