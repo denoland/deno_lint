@@ -22,6 +22,8 @@ enum PreferPrimordialsMessage {
   UnsafeIntrinsic,
   #[display(fmt = "Don't use iterator protocol directly")]
   Iterator,
+  #[display(fmt = "Don't use RegExp literal directly")]
+  RegExp,
   #[display(fmt = "Don't use `instanceof` operator")]
   InstanceOf,
   #[display(fmt = "Don't use `in` operator")]
@@ -36,6 +38,8 @@ enum PreferPrimordialsHint {
   UnsafeIntrinsic,
   #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
   SafeIterator,
+  #[display(fmt = "Wrap `SafeRegExp` from the `primordials` object")]
+  SafeRegExp,
   #[display(fmt = "Instead use the object pattern destructuring assignment")]
   ObjectPattern,
   #[display(
@@ -393,6 +397,19 @@ impl Handler for PreferPrimordialsHandler {
       }
       // TODO(petamoriken): Support for deeply nested assignments
       _ => (),
+    }
+  }
+
+  fn regex(&mut self, regex: &ast_view::Regex, ctx: &mut Context) {
+    if !matches!(regex.parent(), ast_view::Node::ExprOrSpread(expr_or_spread)
+      if expr_or_spread.parent().is::<ast_view::NewExpr>()
+    ) {
+      ctx.add_diagnostic_with_hint(
+        regex.range(),
+        CODE,
+        PreferPrimordialsMessage::RegExp,
+        PreferPrimordialsHint::SafeRegExp,
+      );
     }
   }
 
@@ -923,6 +940,13 @@ let a, b, c;
           message: PreferPrimordialsMessage::Iterator,
           hint: PreferPrimordialsHint::SafeIterator,
         },
+      ],
+      r#"/aaa/u"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::RegExp,
+          hint: PreferPrimordialsHint::SafeRegExp,
+        }
       ],
       r#"eval("console.log('This test should fail!');");"#: [
         {
