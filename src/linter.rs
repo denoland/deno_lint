@@ -14,7 +14,6 @@ use deno_ast::Scope;
 
 use std::time::Instant;
 
-#[derive(Default)]
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
@@ -22,16 +21,18 @@ pub struct LinterBuilder {
   rules: Vec<&'static dyn LintRule>,
 }
 
-impl LinterBuilder {
-  pub fn default() -> Self {
+impl Default for LinterBuilder {
+  fn default() -> Self {
     Self {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
       media_type: MediaType::TypeScript,
-      ..Default::default()
+      rules: Vec::new(),
     }
   }
+}
 
+impl LinterBuilder {
   pub fn build(self) -> Linter {
     Linter::new(
       self.ignore_file_directive,
