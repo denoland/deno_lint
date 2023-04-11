@@ -700,10 +700,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn get_scope(&self) -> Option<Scope> {
-    match self.scopes.get(&self.cur_scope) {
-      Some(s) => Some(Rc::clone(s)),
-      None => None,
-    }
+    self.scopes.get(&self.cur_scope).map(Rc::clone)
   }
 
   fn extract_assign_idents<'a>(
