@@ -1,0 +1,22 @@
+no-unused-vars
+
+  x `base` is never used
+   ,-[issue1145.ts:3:5]
+ 3 | ---*/
+ 4 | var base
+   :     ^^|^
+   :       `-- If this is intentional, prefix it with an underscore like `_base`
+   `----
+  help: https://lint.deno.land/#no-unused-vars
+
+no-var
+
+  x `var` keyword is not allowed.
+   ,-[issue1145.ts:3:1]
+ 3 | ---*/
+ 4 | var base
+   : ^^^^^^^^
+   `----
+  help: https://lint.deno.land/#no-var
+
+Found 2 problems
