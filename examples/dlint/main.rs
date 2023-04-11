@@ -206,7 +206,6 @@ fn main() -> Result<(), AnyError> {
 
 #[cfg(test)]
 mod tests {
-  use lazy_static::lazy_static;
   use os_pipe::pipe;
   use regex::Regex;
   use std::io::Read;
@@ -217,16 +216,8 @@ mod tests {
 
   // TODO(bartlomieju): this code is copy-pasted from `deno/test_util/src/lib.rs`
 
-  lazy_static! {
-    // STRIP_ANSI_RE and strip_ansi_codes are lifted from the "console" crate.
-    // Copyright 2017 Armin Ronacher <armin.ronacher@active-4.com>. MIT License.
-    static ref STRIP_ANSI_RE: Regex = Regex::new(
-            r"[\x1b\x9b][\[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PRZcf-nqry=><]"
-    ).unwrap();
-  }
-
   pub fn strip_ansi_codes(s: &str) -> std::borrow::Cow<str> {
-    STRIP_ANSI_RE.replace_all(s, "")
+    console_static_text::ansi::strip_ansi_codes(s)
   }
 
   fn target_dir() -> PathBuf {
