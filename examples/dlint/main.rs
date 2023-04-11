@@ -436,9 +436,9 @@ mod tests {
     exit_code: 1,
   });
 
-  itest!(issue1145 {
-    args: "run issue1145.ts",
-    output: "issue1145.out",
+  itest!(issue1145_no_trailing_newline {
+    args: "run issue1145_no_trailing_newline.ts",
+    output: "issue1145_no_trailing_newline.out",
     exit_code: 1,
   });
 }
