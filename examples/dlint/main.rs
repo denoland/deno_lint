@@ -207,7 +207,6 @@ fn main() -> Result<(), AnyError> {
 #[cfg(test)]
 mod tests {
   use os_pipe::pipe;
-  use regex::Regex;
   use std::io::Read;
   use std::io::Write;
   use std::path::PathBuf;
