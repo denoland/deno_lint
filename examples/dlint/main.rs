@@ -435,4 +435,10 @@ mod tests {
     output: "simple.out",
     exit_code: 1,
   });
+
+  itest!(issue1145 {
+    args: "run issue1145.ts",
+    output: "issue1145.out",
+    exit_code: 1,
+  });
 }
