@@ -103,6 +103,11 @@ struct DeclInfo {
   in_other_scope: bool,
 }
 
+#[derive(Debug)]
+enum ScopeAnalysisError {
+  ScopeNotFound,
+}
+
 /// Looks for the declaration range of the given variable by traversing from the given scope to the parents.
 /// Returns `None` if no matching range is found. Most likely it means the variable is not declared
 /// with `let`.
@@ -603,6 +608,7 @@ struct PreferConstVisitor<'c, 'view> {
   cur_scope: ScopeRange,
   var_groups: DisjointSet,
   context: &'c mut Context<'view>,
+  scope_analysis_error_occurred: bool,
 }
 
 enum ExtractIdentsArgs<'a> {
@@ -668,6 +674,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
       scopes,
       var_groups,
       cur_scope: ScopeRange::Global,
+      scope_analysis_error_occurred: false,
     }
   }
 
@@ -692,11 +699,17 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
     self.cur_scope = parent_scope_range;
   }
 
-  fn get_scope(&self) -> Scope {
-    Rc::clone(self.scopes.get(&self.cur_scope).unwrap())
+  fn get_scope(&self) -> Option<Scope> {
+    match self.scopes.get(&self.cur_scope) {
+      Some(s) => Some(Rc::clone(s)),
+      None => None,
+    }
   }
 
-  fn extract_assign_idents<'a>(&mut self, pat: &'a Pat) {
+  fn extract_assign_idents<'a>(
+    &mut self,
+    pat: &'a Pat,
+  ) -> Result<(), ScopeAnalysisError> {
     let mut idents = Vec::new();
     // if `pat` contains member access, variables should be treated as "reassigned"
     let mut contains_member_access = false;
@@ -708,15 +721,18 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
       }
     };
     extract_idents_from_pat_with(pat, &mut op);
-    self.process_var_status(idents.into_iter(), contains_member_access);
+    self.process_var_status(idents.into_iter(), contains_member_access)?;
+    Ok(())
   }
 
   fn process_var_status<'a>(
     &mut self,
     idents: impl Iterator<Item = &'a Ident>,
     force_reassigned: bool,
-  ) {
-    let scope = self.get_scope();
+  ) -> Result<(), ScopeAnalysisError> {
+    let Some(scope) = self.get_scope() else {
+      return Err(ScopeAnalysisError::ScopeNotFound);
+    };
     let decls: Vec<DeclInfo> = idents
       .filter_map(|i| get_decl_by_ident(Rc::clone(&scope), i))
       .collect();
@@ -741,6 +757,8 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
         }
       }
     }
+
+    Ok(())
   }
 }
 
@@ -780,7 +798,9 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
       _ => vec![],
     };
 
-    self.process_var_status(idents.iter(), true);
+    if self.process_var_status(idents.iter(), true).is_err() {
+      self.scope_analysis_error_occurred = true;
+    }
   }
 
   fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt) {
@@ -794,10 +814,16 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     match expr {
       Expr::Assign(assign_expr) => {
         match &assign_expr.left {
-          PatOrExpr::Pat(pat) => self.extract_assign_idents(pat),
+          PatOrExpr::Pat(pat) => {
+            if self.extract_assign_idents(pat).is_err() {
+              self.scope_analysis_error_occurred = true;
+            }
+          }
           PatOrExpr::Expr(expr) => match &**expr {
             Expr::Ident(ident) => {
-              self.process_var_status(iter::once(ident), false);
+              if self.process_var_status(iter::once(ident), false).is_err() {
+                self.scope_analysis_error_occurred = true;
+              }
             }
             otherwise => {
               otherwise.visit_children_with(self);
@@ -813,7 +839,9 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   fn visit_update_expr(&mut self, update_expr: &UpdateExpr) {
     match &*update_expr.arg {
       Expr::Ident(ident) => {
-        self.process_var_status(iter::once(ident), false);
+        if self.process_var_status(iter::once(ident), false).is_err() {
+          self.scope_analysis_error_occurred = true;
+        }
       }
       otherwise => otherwise.visit_children_with(self),
     }
@@ -873,7 +901,9 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
           var_decl.visit_with(a);
         }
         VarDeclOrPat::Pat(pat) => {
-          a.extract_assign_idents(pat);
+          if a.extract_assign_idents(pat).is_err() {
+            a.scope_analysis_error_occurred = true;
+          }
         }
       }
 
@@ -894,7 +924,9 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
           var_decl.visit_with(a);
         }
         VarDeclOrPat::Pat(pat) => {
-          a.extract_assign_idents(pat);
+          if a.extract_assign_idents(pat).is_err() {
+            a.scope_analysis_error_occurred = true;
+          }
         }
       }
 
@@ -1763,6 +1795,8 @@ for (let {a, b} of obj) {}
 
 #[cfg(test)]
 mod prefer_const_tests {
+  use crate::test_util;
+
   use super::*;
 
   // Some tests are derived from
@@ -2337,5 +2371,17 @@ e = 2;
         }
       ]
     };
+  }
+
+  #[test]
+  fn issue1145_panic_while_scope_analysis() {
+    test_util::assert_lint_not_panic(
+      &PreferConst,
+      r#"
+for await (let [[...x] = function() { initCount += 1; }()] of [[values]]) {
+  assert(Array.isArray(x));
+  assert.sameValue(x[0], 2);
+      "#,
+    );
   }
 }
