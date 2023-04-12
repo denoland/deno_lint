@@ -134,7 +134,9 @@ impl miette::SourceCode for MietteSourceCode<'_> {
       end_line_column.line_index + context_lines_after,
       self.source.text_str().len(),
     );
-    let src_end = self.source.line_end(end_line_index);
+    let src_end = self
+      .source
+      .line_end(std::cmp::min(end_line_index, line_count - 1));
     let range = SourceRange::new(src_start, src_end);
     let src_text = range.text_fast(&self.source);
     let byte_range = range.as_byte_range(start_pos);
