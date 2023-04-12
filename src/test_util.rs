@@ -379,6 +379,11 @@ pub fn assert_lint_ok(
   }
 }
 
+/// Just run the specified lint on the source code to make sure it doesn't panic.
+pub fn assert_lint_not_panic(rule: &'static dyn LintRule, source: &str) {
+  let _result = lint(rule, source, TEST_FILE_NAME);
+}
+
 const TEST_FILE_NAME: &str = "lint_test.ts";
 
 pub fn parse(source_code: &str) -> ParsedSource {
