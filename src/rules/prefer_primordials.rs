@@ -34,7 +34,9 @@ enum PreferPrimordialsMessage {
 enum PreferPrimordialsHint {
   #[display(fmt = "Instead use the equivalent from the `primordials` object")]
   GlobalIntrinsic,
-  #[display(fmt = "Instead use the safe wrapper from the `primordials` object")]
+  #[display(
+    fmt = "Instead use the safe wrapper from the `primordials` object"
+  )]
   UnsafeIntrinsic,
   #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
   SafeIterator,
@@ -209,24 +211,26 @@ impl Handler for PreferPrimordialsHandler {
     }
 
     if UNSAFE_CONSTRUCTOR_TARGETS.contains(&ident.sym().as_ref())
-      && matches!(ident.parent(), ast_view::Node::NewExpr(_)) {
-        ctx.add_diagnostic_with_hint(
-          ident.range(),
-          CODE,
-          PreferPrimordialsMessage::UnsafeIntrinsic,
-          PreferPrimordialsHint::UnsafeIntrinsic,
-        );
-      }
+      && matches!(ident.parent(), ast_view::Node::NewExpr(_))
+    {
+      ctx.add_diagnostic_with_hint(
+        ident.range(),
+        CODE,
+        PreferPrimordialsMessage::UnsafeIntrinsic,
+        PreferPrimordialsHint::UnsafeIntrinsic,
+      );
+    }
 
     if UNSAFE_FUNCTION_TARGETS.contains(&ident.sym().as_ref())
-      && matches!(ident.parent(), ast_view::Node::CallExpr(_)) {
-        ctx.add_diagnostic_with_hint(
-          ident.range(),
-          CODE,
-          PreferPrimordialsMessage::UnsafeIntrinsic,
-          PreferPrimordialsHint::UnsafeIntrinsic,
-        );
-      }
+      && matches!(ident.parent(), ast_view::Node::CallExpr(_))
+    {
+      ctx.add_diagnostic_with_hint(
+        ident.range(),
+        CODE,
+        PreferPrimordialsMessage::UnsafeIntrinsic,
+        PreferPrimordialsHint::UnsafeIntrinsic,
+      );
+    }
   }
 
   fn member_expr(
