@@ -9,8 +9,7 @@ should use in the Deno's internal to avoid the risk of prototype pollution. This
 rule detects the direct use of global intrinsics and suggests replacing it with
 the corresponding one from the `primordials` object.
 
-Note that currently this rule _cannot_ detect all erronous cases; there are a
-lot of false negatives. One such example is:
+One such example is:
 
 ```javascript
 const arr = getSomeArrayOfNumbers();
@@ -22,10 +21,6 @@ The second line of this example should be:
 ```javascript
 const evens = primordials.ArrayPrototypeFilter(arr, (val) => val % 2 === 0);
 ```
-
-but this would require type checking in order to know that `arr` is of type
-`Array`. Because deno_lint can't do type checking, this rule will emit no error
-for this example (i.e. false negative).
 
 ### Invalid:
 
