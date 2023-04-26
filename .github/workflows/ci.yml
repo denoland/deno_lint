@@ -70,7 +70,7 @@ jobs:
 
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
-        run: deno run -A --quiet benchmarks/benchmarks.ts
+        run: deno run -A --quiet --unstable benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
         if: |
