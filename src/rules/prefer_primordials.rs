@@ -49,7 +49,7 @@ enum PreferPrimordialsHint {
   )]
   InstanceOf,
   #[display(
-    fmt = "Instead use either `ObjectPrototypeHasOwnProperty` or `ReflectHas` from the `primordials` object"
+    fmt = "Instead use either `ObjectHasOwn` or `ReflectHas` from the `primordials` object"
   )]
   In,
 }
