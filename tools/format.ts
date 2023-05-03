@@ -5,31 +5,34 @@ console.log("rustfmt");
 
 const checkArgs = check ? ["--check"] : [];
 
-const p1 = await Deno.run({
-  cmd: ["rustfmt", ...checkArgs, "examples/dlint/main.rs"],
+const p1 = new Deno.Command("rustfmt", {
+  args: [...checkArgs, "examples/dlint/main.rs"],
   stdin: "null",
-}).status();
+});
 
-if (p1.code !== 0) {
+const o1 = await p1.output();
+
+if (o1.code !== 0) {
   throw new Error(
     `Failed: rustfmt ${check ? "--check" : ""} examples/dlint/main.rs`,
   );
 }
 
-const p2 = await Deno.run({
-  cmd: ["rustfmt", ...checkArgs, "src/lib.rs"],
+const p2 = new Deno.Command("rustfmt", {
+  args: [...checkArgs, "src/lib.rs"],
   stdin: "null",
-}).status();
+});
 
-if (p2.code !== 0) {
+const o2 = await p2.output();
+
+if (o2.code !== 0) {
   throw new Error(`Failed: rustfmt ${check ? "--check" : ""} src/lib.rs`);
 }
 
 console.log("deno fmt");
 
-const p3 = await Deno.run({
-  cmd: [
-    "deno",
+const p3 = new Deno.Command("deno", {
+  args: [
     "fmt",
     ...checkArgs,
     "tools",
@@ -39,9 +42,11 @@ const p3 = await Deno.run({
     "README.md",
   ],
   stdin: "null",
-}).status();
+});
 
-if (p3.code !== 0) {
+const o3 = await p3.output();
+
+if (o3.code !== 0) {
   throw new Error(
     `Failed: deno fmt ${check ? "--check" : ""} benchmarks/benchmarks.ts`,
   );
