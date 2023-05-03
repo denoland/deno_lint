@@ -13,9 +13,8 @@ Deno.test(
 
     try {
       console.log(`Run the scaffold script to create ${name} rule`);
-      const p1 = Deno.run({
-        cmd: [
-          "deno",
+      const p1 = new Deno.Command("deno", {
+        args: [
           "run",
           "--allow-write=.",
           "--allow-read=.",
@@ -23,10 +22,9 @@ Deno.test(
           name,
         ],
       });
-      const s1 = await p1.status();
-      p1.close();
+      const o1 = await p1.output();
 
-      assertEquals(s1.code, 0);
+      assertEquals(o1.code, 0);
       console.log("Scaffold succeeded");
 
       // Check if `cargo check` passes
@@ -37,13 +35,12 @@ Deno.test(
         // cargo builds are also release
         args.push("--release");
       }
-      const p2 = Deno.run({
-        cmd: ["cargo", ...args],
+      const p2 = new Deno.Command("cargo", {
+        args,
       });
-      const s2 = await p2.status();
-      p2.close();
+      const o2 = await p2.output();
 
-      assertEquals(s2.code, 0);
+      assertEquals(o2.code, 0);
       console.log("`cargo check` succeeded");
     } finally {
       console.log("Start cleanup...");

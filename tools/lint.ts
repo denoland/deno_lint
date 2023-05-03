@@ -5,7 +5,6 @@ console.log("clippy");
 
 const mode = release ? ["--release"] : [];
 const clippy = [
-  "cargo",
   "clippy",
   "--all-targets",
   "--all-features",
@@ -16,23 +15,27 @@ const clippy = [
   "clippy::all",
 ];
 
-let s1 = await Deno.run({
-  cmd: clippy,
+let p1 = new Deno.Command("cargo", {
+  args: clippy,
   stdin: "null",
-}).status();
+});
 
-if (s1.code !== 0) {
+const o1 = await p1.output();
+
+if (o1.code !== 0) {
   throw new Error(`Failed: ${clippy.join(" ")}`);
 }
 
 console.log("deno lint");
 
 const dlint = `./target/${release ? "release" : "debug"}/examples/dlint`;
-const s2 = await Deno.run({
-  cmd: [dlint, "run", "benchmarks/benchmarks.ts"],
+const p2 = new Deno.Command(dlint, {
+  args: ["run", "benchmarks/benchmarks.ts"],
   stdin: "null",
-}).status();
+});
 
-if (s2.code !== 0) {
+const o2 = await p2.output();
+
+if (o2.code !== 0) {
   throw new Error(`Failed: ${dlint} benchmarks/benchmarks.ts`);
 }
