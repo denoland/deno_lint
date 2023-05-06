@@ -151,6 +151,163 @@ const UNSAFE_FUNCTION_TARGETS: &[&str] = &[
   "PromisePrototypeFinally",
 ];
 
+const METHOD_TARGETS: &[&str] = &[
+  // Generic
+  "toLocaleString",
+  "toString",
+  "valueOf",
+  // Object
+  "hasOwnProperty",
+  "isPrototypeOf",
+  "propertyIsEnumerable",
+  // Function
+  "apply",
+  "bind",
+  "call",
+  // Number
+  "toExponential",
+  "toFixed",
+  "toPrecision",
+  // Date
+  "getDate",
+  "getDay",
+  "getFullYear",
+  "getHours",
+  "getMilliseconds",
+  "getMinutes",
+  "getMonth",
+  "getSeconds",
+  "getTime",
+  "getTimezoneOffset",
+  "getUTCDate",
+  "getUTCDay",
+  "getUTCFullYear",
+  "getUTCHours",
+  "getUTCMilliseconds",
+  "getUTCMinutes",
+  "getUTCMonth",
+  "getUTCSeconds",
+  "getYear",
+  "setDate",
+  "setFullYear",
+  "setHours",
+  "setMilliseconds",
+  "setMinutes",
+  "setMonth",
+  "setSeconds",
+  "setTime",
+  "setUTCDate",
+  "setUTCFullYear",
+  "setUTCHours",
+  "setUTCMilliseconds",
+  "setUTCMinutes",
+  "setUTCMonth",
+  "setUTCSeconds",
+  "setYear",
+  "toDateString",
+  "toISOString",
+  "toJSON",
+  "toLocaleDateString",
+  "toLocaleTimeString",
+  "toTimeString",
+  "toUTCString",
+  // String, Array
+  "at",
+  "concat",
+  "slice",
+  "includes",
+  "indexOf",
+  "lastIndexOf",
+  // Array, TypedArray
+  "copyWithin",
+  "entries",
+  "every",
+  "fill",
+  "filter",
+  "find",
+  "findIndex",
+  "findLast",
+  "findLastIndex",
+  "flat",
+  "flatMap",
+  "forEach",
+  "join",
+  "keys",
+  "map",
+  "pop",
+  "push",
+  "reduce",
+  "reduceRight",
+  "reverse",
+  "shift",
+  "some",
+  "sort",
+  "toReversed",
+  "toSorted",
+  "unshift",
+  "values",
+  "with",
+  // String
+  "charAt",
+  "charCodeAt",
+  "codePointAt",
+  "endsWith",
+  "localeCompare",
+  "match",
+  "matchAll",
+  "normalize",
+  "padEnd",
+  "padStart",
+  "repeat",
+  "replace",
+  "replaceAll",
+  "search",
+  "split",
+  "startsWith",
+  "substring",
+  "toLocaleLowerCase",
+  "toLocaleUpperCase",
+  "toLowerCase",
+  "toUpperCase",
+  "trim",
+  "trimEnd",
+  "trimStart",
+  // Array
+  "splice",
+  "toSpliced",
+  // TypedArray: avoid false positives for Map, Set, WeakMap, and WeakSet
+  // "set",
+  // DataView
+  "getBigInt64",
+  "getBigUint64",
+  "getFloat32",
+  "getFloat64",
+  "getInt8",
+  "getInt16",
+  "getInt32",
+  "getUint8",
+  "getUint16",
+  "getUint32",
+  "setBigInt64",
+  "setBigUint64",
+  "setFloat32",
+  "setFloat64",
+  "setInt8",
+  "setInt16",
+  "setInt32",
+  "setUint8",
+  "setUint16",
+  "setUint32",
+  // Iterator, Generator
+  "next",
+  "return",
+  "throw",
+  // Promise
+  "catch",
+  "finally",
+  "then",
+];
+
 const GETTER_TARGETS: &[&str] = &[
   // Symbol
   "description",
@@ -277,6 +434,20 @@ impl Handler for PreferPrimordialsHandler {
           PreferPrimordialsHint::GlobalIntrinsic,
         );
         return;
+      }
+    }
+
+    if_chain! {
+      if member_expr.parent().is::<ast_view::CallExpr>();
+      if let ast_view::MemberProp::Ident(ident) = &member_expr.prop;
+      if METHOD_TARGETS.contains(&ident.sym().as_ref());
+      then {
+        ctx.add_diagnostic_with_hint(
+          member_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
       }
     }
 
@@ -787,6 +958,83 @@ const noop = Function.prototype;
       ],
       r#"[1, 2, 3].map(val => val * 2);"#: [
         {
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const obj = { foo: 1 };
+obj.hasOwnProperty("foo");
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const fn = () => 1;
+fn.call(null);
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const num = 123.456;
+num.toFixed(2);
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const { Date } = primordials;
+new Date().toISOString();
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const arr = [1, 2, 3, 4];
+arr.filter((val) => val % 2 === 0);
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const str = "foo bar baz";
+str.split(" ");
+      "#: [
+        {
+          line: 3,
+          col: 0,
+          message: PreferPrimordialsMessage::GlobalIntrinsic,
+          hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+      ],
+      r#"
+const thenable = { then() {} };
+thenable.then(() => {});
+      "#: [
+        {
+          line: 3,
           col: 0,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
