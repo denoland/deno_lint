@@ -53,10 +53,10 @@ impl Handler for NoEmptyCharacterClassVisitor {
        * 2.1. `\\.`: an escape sequence
        * 2.2. `\[([^\\\]]|\\.)+\]`: a character class that isn't empty
        * 3. `\/` the `/` that ends the regexp
-       * 4. `[gimuy]*`: optional regexp flags
+       * 4. `[dgimsuvy]*`: optional regexp flags
        * 5. `$`: fix the match at the end of the string
        */
-      regex::Regex::new(r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[gimuysd]*$")
+      regex::Regex::new(r"(?u)^/([^\\\[]|\\.|\[([^\\\]]|\\.)+\])*/[dgimsuvy]*$")
         .unwrap()
     });
 
@@ -86,7 +86,7 @@ mod tests {
     const foo = /[\-\[\]\/\{\}\(\)\*\+\?\.\\^\$\|]/g;
     const foo = /\[/g;
     const foo = /\]/i;
-    const foo = /\]/d;
+    const foo = /\]/dgimsuvy;
     "#,
     };
   }

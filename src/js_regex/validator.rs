@@ -176,6 +176,7 @@ impl EcmaRegexValidator {
         || (flag == 'y' && self.ecma_version >= EcmaVersion::Es2015)
         || (flag == 's' && self.ecma_version >= EcmaVersion::Es2018)
         || (flag == 'd' && self.ecma_version >= EcmaVersion::Es2022)
+        || (flag == 'v' && self.ecma_version >= EcmaVersion::Es2022)
       {
         // do nothing
       } else {
