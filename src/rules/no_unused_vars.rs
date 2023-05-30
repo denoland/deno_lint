@@ -11,9 +11,9 @@ use deno_ast::swc::ast::{
   ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
   MemberExpr, MemberProp, MethodKind, ModuleExportName, NamedExport, Param,
   Pat, PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
-  TsExprWithTypeArgs, TsInterfaceDecl, TsModuleDecl, TsNamespaceDecl,
-  TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
-  VarDeclarator,
+  TsExprWithTypeArgs, TsImportEqualsDecl, TsInterfaceDecl, TsModuleDecl,
+  TsModuleRef, TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl,
+  TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::find_pat_ids;
@@ -376,6 +376,33 @@ impl Visit for Collector {
       declarator.init.visit_with(a);
     });
   }
+
+  fn visit_ts_import_equals_decl(&mut self, decl: &TsImportEqualsDecl) {
+    let id = decl.id.to_id();
+    self.with_cur_defining(iter::once(id), |collector| {
+      match &decl.module_ref {
+        TsModuleRef::TsEntityName(name) => {
+          let ident = match name {
+            TsEntityName::TsQualifiedName(name) => {
+              // get the leftmost identifier
+              let mut next = &name.left;
+              loop {
+                match next {
+                  TsEntityName::TsQualifiedName(name) => next = &name.left,
+                  TsEntityName::Ident(ident) => {
+                    break ident;
+                  }
+                }
+              }
+            }
+            TsEntityName::Ident(ident) => ident,
+          };
+          collector.mark_as_usage(ident);
+        }
+        TsModuleRef::TsExternalModuleRef(_) => {}
+      }
+    });
+  }
 }
 
 fn get_id(r: &TsEntityName) -> Id {
@@ -589,6 +616,10 @@ impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
       return;
     }
     self.handle_id(IdentKind::StarAsImport(&import.local));
+  }
+
+  fn visit_ts_import_equals_decl(&mut self, decl: &TsImportEqualsDecl) {
+    self.handle_id(IdentKind::Other(&decl.id));
   }
 
   /// No error as export is kind of usage
@@ -1367,6 +1398,16 @@ export class Test {
   }
 }
       "#,
+      "
+import * as deps from './deps.ts';
+import MyTest = deps.SubNamespace.MyTest;
+console.log(MyTest);
+      ",
+      "
+import * as deps from './deps.ts';
+import MyDeps = deps;
+console.log(MyDeps);
+      "
     };
 
     // JSX or TSX
@@ -2192,6 +2233,14 @@ export class Foo {
             line:5,
             message: variant!(NoUnusedVarsMessage, NeverUsed, "value"),
             hint: variant!(NoUnusedVarsHint, AddPrefix, "value"),
+          },
+        ],
+        "import * as deps from './test.js';\nimport Test = deps.test;": [
+          {
+            col: 7,
+            line: 2,
+            message: variant!(NoUnusedVarsMessage, NeverUsed, "Test"),
+            hint: variant!(NoUnusedVarsHint, AddPrefix, "Test"),
           },
         ],
     };
