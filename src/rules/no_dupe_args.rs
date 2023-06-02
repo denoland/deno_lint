@@ -67,9 +67,9 @@ impl NoDupeArgsHandler {
     }
   }
 
-  fn check_pats<'a, 'b, I>(&'a mut self, range: SourceRange, pats: I)
+  fn check_pats<'a, 'b, 'c: 'b, I>(&'a mut self, range: SourceRange, pats: I)
   where
-    I: Iterator<Item = &'b Pat<'b>>,
+    I: Iterator<Item = &'b Pat<'c>>,
   {
     let mut seen: HashSet<&str> = HashSet::new();
 
@@ -85,9 +85,9 @@ impl NoDupeArgsHandler {
     }
   }
 
-  fn check_params<'a, 'b, I>(&'a mut self, range: SourceRange, params: I)
+  fn check_params<'a, 'b, 'c: 'b, I>(&'a mut self, range: SourceRange, params: I)
   where
-    I: Iterator<Item = &'b &'b Param<'b>>,
+    I: Iterator<Item = &'b &'b Param<'c>>,
   {
     let pats = params.map(|param| &param.pat);
     self.check_pats(range, pats);

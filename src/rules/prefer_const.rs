@@ -679,7 +679,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn report(&mut self, range: SourceRange) {
-    let range_text = range.text_fast(&self.context.text_info()).to_string();
+    let range_text = range.text_fast(self.context.text_info()).to_string();
     self.context.add_diagnostic_with_hint(
       range,
       CODE,
