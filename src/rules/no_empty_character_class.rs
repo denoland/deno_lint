@@ -41,7 +41,7 @@ struct NoEmptyCharacterClassVisitor;
 
 impl Handler for NoEmptyCharacterClassVisitor {
   fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    let raw_regex = regex.text_fast(&ctx.text_info());
+    let raw_regex = regex.text_fast(ctx.text_info());
 
     static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)

@@ -116,7 +116,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
         // todo(dsherret): use `range.line_start_fast(context.program)` and
         // `line_end_fast` when switching to ast_view
         let range_line_count = range
-          .text_fast(&self.context.text_info())
+          .text_fast(self.context.text_info())
           .chars()
           .filter(|c| *c == '\n')
           .count()
