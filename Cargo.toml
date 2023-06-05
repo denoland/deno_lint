@@ -25,7 +25,7 @@ default = []
 docs = []
 
 [dependencies]
-deno_ast = { version = "0.26.0", features = ["scopes", "transforms", "utils", "visit", "view", "module_specifier"] }
+deno_ast = { version = "0.27.0", features = ["scopes", "transforms", "utils", "visit", "view", "module_specifier"] }
 log = "0.4.14"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.79"
@@ -46,5 +46,3 @@ os_pipe = "1.0.1"
 pulldown-cmark = "0.9.1"
 rayon = "1.5.1"
 console_static_text = "0.8.1"
-[patch.crates-io.deno_ast]
-path = "../deno_ast"

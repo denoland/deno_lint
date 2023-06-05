@@ -215,7 +215,9 @@ checksum = "8d7439c3735f405729d52c3fbbe4de140eaf938a1fe47d227c27f8254d4302a5"
 
 [[package]]
 name = "deno_ast"
-version = "0.26.0"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db178e9f423fe41ff3580e32c43bc13726a5730360ef04e50b84de683a24f7d9"
 dependencies = [
  "deno_media_type",
  "dprint-swc-ext",
