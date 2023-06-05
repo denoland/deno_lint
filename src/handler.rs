@@ -511,6 +511,7 @@ pub trait Handler {
   fn ts_union_type(&mut self, _n: &ast_view::TsUnionType, _ctx: &mut Context) {}
   fn unary_expr(&mut self, _n: &ast_view::UnaryExpr, _ctx: &mut Context) {}
   fn update_expr(&mut self, _n: &ast_view::UpdateExpr, _ctx: &mut Context) {}
+  fn using_decl(&mut self, _n: &ast_view::UsingDecl, _ctx: &mut Context) {}
   fn var_decl(&mut self, _n: &ast_view::VarDecl, _ctx: &mut Context) {}
   fn var_declarator(
     &mut self,
@@ -703,6 +704,7 @@ pub trait Traverse: Handler {
       TsUnionType(n) => self.ts_union_type(n, ctx),
       UnaryExpr(n) => self.unary_expr(n, ctx),
       UpdateExpr(n) => self.update_expr(n, ctx),
+      UsingDecl(n) => self.using_decl(n, ctx),
       VarDecl(n) => self.var_decl(n, ctx),
       VarDeclarator(n) => self.var_declarator(n, ctx),
       WhileStmt(n) => self.while_stmt(n, ctx),
