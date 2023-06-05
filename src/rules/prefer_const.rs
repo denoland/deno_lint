@@ -5,10 +5,10 @@ use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
-  Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
-  Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp, Pat,
-  PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl,
-  VarDeclKind, VarDeclOrExpr, VarDeclOrPat, WhileStmt, WithStmt,
+  Constructor, DoWhileStmt, Expr, ExprStmt, ForHead, ForInStmt, ForOfStmt,
+  ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp,
+  Pat, PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr,
+  VarDecl, VarDeclKind, VarDeclOrExpr, WhileStmt, WithStmt,
 };
 use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::utils::find_pat_ids;
@@ -431,7 +431,7 @@ impl Visit for VariableCollector {
 
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
     self.with_child_scope(for_of_stmt, |a| {
-      if let VarDeclOrPat::VarDecl(var_decl) = &for_of_stmt.left {
+      if let ForHead::VarDecl(var_decl) = &for_of_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
             a.extract_decl_idents(&decl.name, true);
@@ -451,7 +451,7 @@ impl Visit for VariableCollector {
 
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt) {
     self.with_child_scope(for_in_stmt, |a| {
-      if let VarDeclOrPat::VarDecl(var_decl) = &for_in_stmt.left {
+      if let ForHead::VarDecl(var_decl) = &for_in_stmt.left {
         if var_decl.kind == VarDeclKind::Let {
           for decl in &var_decl.decls {
             a.extract_decl_idents(&decl.name, true);
@@ -679,7 +679,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn report(&mut self, range: SourceRange) {
-    let range_text = range.text_fast(&self.context.text_info()).to_string();
+    let range_text = range.text_fast(self.context.text_info()).to_string();
     self.context.add_diagnostic_with_hint(
       range,
       CODE,
@@ -894,13 +894,16 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
     self.with_child_scope(for_of_stmt, |a| {
       match &for_of_stmt.left {
-        VarDeclOrPat::VarDecl(var_decl) => {
+        ForHead::VarDecl(var_decl) => {
           var_decl.visit_with(a);
         }
-        VarDeclOrPat::Pat(pat) => {
+        ForHead::Pat(pat) => {
           if a.extract_assign_idents(pat).is_err() {
             a.scope_analysis_error_occurred = true;
           }
+        }
+        ForHead::UsingDecl(decl) => {
+          decl.visit_with(a);
         }
       }
 
@@ -917,13 +920,16 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
   fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt) {
     self.with_child_scope(for_in_stmt, |a| {
       match &for_in_stmt.left {
-        VarDeclOrPat::VarDecl(var_decl) => {
+        ForHead::VarDecl(var_decl) => {
           var_decl.visit_with(a);
         }
-        VarDeclOrPat::Pat(pat) => {
+        ForHead::Pat(pat) => {
           if a.extract_assign_idents(pat).is_err() {
             a.scope_analysis_error_occurred = true;
           }
+        }
+        ForHead::UsingDecl(decl) => {
+          decl.visit_with(a);
         }
       }
 

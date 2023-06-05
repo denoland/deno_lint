@@ -3,12 +3,15 @@ name: Bug Report
 about: Create a bug report about a lint rule
 labels: bug
 ---
+
 <!--
 Thank you for reporting a bug!
 Please write a short description of the bug.
 Reproducible snippet as minimal as possible would be much helpful.
 -->
+
 ### Lint Name
+
 <!-- What lint rule do you want to report about? e.g. no-misused-new -->
 
 ### Code Snippet
