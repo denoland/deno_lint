@@ -263,7 +263,7 @@ mod tests {
   use super::*;
 
   #[test]
-  fn no_deprecated_deno_api_valid() {
+  fn no_window_prefix_valid() {
     assert_lint_ok! {
       NoWindowPrefix,
       "fetch();",
@@ -377,7 +377,7 @@ mod tests {
   }
 
   #[test]
-  fn no_deprecated_deno_api_invalid() {
+  fn no_window_prefix_invalid() {
     assert_lint_err! {
       NoWindowPrefix,
       MESSAGE,
