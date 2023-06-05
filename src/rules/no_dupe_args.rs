@@ -85,8 +85,11 @@ impl NoDupeArgsHandler {
     }
   }
 
-  fn check_params<'a, 'b, 'c: 'b, I>(&'a mut self, range: SourceRange, params: I)
-  where
+  fn check_params<'a, 'b, 'c: 'b, I>(
+    &'a mut self,
+    range: SourceRange,
+    params: I,
+  ) where
     I: Iterator<Item = &'b &'b Param<'c>>,
   {
     let pats = params.map(|param| &param.pat);

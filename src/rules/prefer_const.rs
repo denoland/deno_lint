@@ -5,10 +5,10 @@ use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
-  Constructor, DoWhileStmt, Expr, ExprStmt, ForInStmt, ForOfStmt, ForStmt,
-  Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp, Pat,
-  PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl,
-  VarDeclKind, VarDeclOrExpr, ForHead, WhileStmt, WithStmt,
+  Constructor, DoWhileStmt, Expr, ExprStmt, ForHead, ForInStmt, ForOfStmt,
+  ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp,
+  Pat, PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr,
+  VarDecl, VarDeclKind, VarDeclOrExpr, WhileStmt, WithStmt,
 };
 use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::utils::find_pat_ids;
@@ -902,7 +902,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
             a.scope_analysis_error_occurred = true;
           }
         }
-        ForHead::UsingDecl(decl) =>{
+        ForHead::UsingDecl(decl) => {
           decl.visit_with(a);
         }
       }
