@@ -54,7 +54,7 @@ impl LintRule for NoIrregularWhitespace {
   ) {
     let file_range = context.text_info().range();
     let mut check_range = |range: SourceRange| {
-      let whitespace_text = range.text_fast(&context.text_info()).to_string();
+      let whitespace_text = range.text_fast(context.text_info()).to_string();
       for whitespace_matches in
         test_for_whitespace(&whitespace_text).into_iter()
       {

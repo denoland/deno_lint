@@ -46,7 +46,7 @@ impl Handler for PreferNamespaceKeywordHandler {
     static KEYWORD: Lazy<Regex> =
       Lazy::new(|| Regex::new(r"(declare\s)?(?P<keyword>\w+)").unwrap());
 
-    let snippet = mod_decl.text_fast(&ctx.text_info());
+    let snippet = mod_decl.text_fast(ctx.text_info());
     if let Some(capt) = KEYWORD.captures(snippet) {
       let keyword = capt.name("keyword").unwrap().as_str();
       if keyword == "module" && !mod_decl.global() {
