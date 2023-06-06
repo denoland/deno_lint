@@ -15,8 +15,7 @@ rather than use the non-specific `Function` type which won't give you type
 safety with the function.
 
 Finally, `Object` and `{}` means "any non-nullish value" rather than "any object
-type". `object` is a good choice for a meaning of "any object
-type".
+type". `object` is a good choice for a meaning of "any object type".
 
 ### Invalid:
 
