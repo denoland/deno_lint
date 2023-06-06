@@ -2,7 +2,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
-use deno_ast::view::{TsEntityName, TsKeywordTypeKind};
+use deno_ast::view::TsEntityName;
 use deno_ast::{view as ast_view, SourceRanged};
 use if_chain::if_chain;
 use std::convert::TryFrom;
@@ -21,7 +21,6 @@ enum BannedType {
   BigInt,
   Function,
   CapitalObject,
-  LowerObject,
   EmptyObjectLiteral,
 }
 
@@ -32,7 +31,6 @@ impl BannedType {
       String | Boolean | Number | Symbol | BigInt => "The corresponding lower-case primitive should be used",
       Function => "This provides no type safety because it represents all functions and classes",
       CapitalObject => "This type may be different from what you expect it to be",
-      LowerObject => "This type is tricky to use so should be avoided if possible",
       EmptyObjectLiteral => "`{}` doesn't mean an empty object, but means any types other than `null` and `undefined`",
     }
   }
@@ -47,9 +45,8 @@ impl BannedType {
       BigInt => "Use `bigint` instead",
       Function => "Define the function shape explicitly",
       CapitalObject => {
-        r#"If you want a type meaning "any object", use `Record<string, unknown>` instead. Or if you want a type meaning "any value", you probably want `unknown` instead."#
+        r#"If you want a type meaning "any object", use `object` instead. Or if you want a type meaning "any value", you probably want `unknown` instead."#
       }
-      LowerObject => "Use `Record<string, unknown>` instead",
       EmptyObjectLiteral => {
         r#"If you want a type that means "empty object", use `Record<string | number | symbol, never>` instead"#
       }
@@ -69,7 +66,6 @@ impl TryFrom<&str> for BannedType {
       "BigInt" => Ok(Self::BigInt),
       "Function" => Ok(Self::Function),
       "Object" => Ok(Self::CapitalObject),
-      "object" => Ok(Self::LowerObject),
       "{}" => Ok(Self::EmptyObjectLiteral),
       _ => Err(()),
     }
@@ -134,21 +130,6 @@ impl Handler for BanTypesHandler {
         CODE,
         BannedType::EmptyObjectLiteral.as_message(),
         BannedType::EmptyObjectLiteral.as_hint(),
-      );
-    }
-  }
-
-  fn ts_keyword_type(
-    &mut self,
-    ts_keyword_type: &ast_view::TsKeywordType,
-    ctx: &mut Context,
-  ) {
-    if TsKeywordTypeKind::TsObjectKeyword == ts_keyword_type.keyword_kind() {
-      ctx.add_diagnostic_with_hint(
-        ts_keyword_type.range(),
-        CODE,
-        BannedType::LowerObject.as_message(),
-        BannedType::LowerObject.as_hint(),
       );
     }
   }
@@ -227,13 +208,6 @@ mod tests {
           hint: hint("Function"),
         }
       ],
-      "let a: object;": [
-        {
-          col: 7,
-          message: message("object"),
-          hint: hint("object"),
-        }
-      ],
       "let a: {};": [
         {
           col: 7,
@@ -256,11 +230,6 @@ mod tests {
         }
       ],
       "let a: { b: object, c: Object };": [
-        {
-          col: 12,
-          message: message("object"),
-          hint: hint("object"),
-        },
         {
           col: 23,
           message: message("Object"),
