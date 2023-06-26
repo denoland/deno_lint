@@ -86,6 +86,13 @@
     ]
   },
   {
+    "code": "fresh-server-event-handlers",
+    "docs": "Disallows event handlers in fresh server components\n\nComponents inside the `routes/` folder in a fresh app are exclusively rendered\non the server. They are not rendered in the client and setting an event handler\nwill have no effect.\n\nNote that this rule only applies to server components inside the `routes/`\nfolder, not to fresh islands or any other components.\n\n### Invalid:\n\n```jsx\n<button onClick={() => {}} />\n<button onclick={() => {}} />\n<my-custom-element foo={() => {}} />\n```\n\n### Valid:\n\n```jsx\n<button />\n<my-custom-element />\n```\n",
+    "tags": [
+      "fresh"
+    ]
+  },
+  {
     "code": "getter-return",
     "docs": "Requires all property getter functions to return a value\n\nGetter functions return the value of a property. If the function returns no\nvalue then this contract is broken.\n\n### Invalid:\n\n```typescript\nlet foo = {\n  get bar() {},\n};\n\nclass Person {\n  get name() {}\n}\n```\n\n### Valid:\n\n```typescript\nlet foo = {\n  get bar() {\n    return true;\n  },\n};\n\nclass Person {\n  get name() {\n    return \"alice\";\n  }\n}\n```\n",
     "tags": [
