@@ -81,7 +81,7 @@ impl Handler for Visitor {
       return;
     }
 
-    // Check for custom elements wher we cannot make assumptions about
+    // Check for custom elements where we cannot make assumptions about
     // event listeners being the only attributes to receive a function.
     // They must have a `-` in the name per spec like `<x-foo />`. See:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#prod-potentialcustomelementname
