@@ -86,6 +86,13 @@
     ]
   },
   {
+    "code": "fresh-handler-export",
+    "docs": "Checks correct naming for named fresh middleware export\n\nFiles inside the `routes/` folder can export middlewares that run before any\nrendering happens. They are expected to be available as a named export called\n`handler`. This rule checks for when the export was incorrectly named `handlers`\ninstead of `handler`.\n\n### Invalid:\n\n```js\nexport const handlers = {\n  GET() {},\n  POST() {},\n};\nexport function handlers() {}\nexport async function handlers() {}\n```\n\n### Valid:\n\n```jsx\nexport const handler = {\n  GET() {},\n  POST() {},\n};\nexport function handler() {}\nexport async function handler() {}\n```\n",
+    "tags": [
+      "fresh"
+    ]
+  },
+  {
     "code": "fresh-server-event-handlers",
     "docs": "Disallows event handlers in fresh server components\n\nComponents inside the `routes/` folder in a fresh app are exclusively rendered\non the server. They are not rendered in the client and setting an event handler\nwill have no effect.\n\nNote that this rule only applies to server components inside the `routes/`\nfolder, not to fresh islands or any other components.\n\n### Invalid:\n\n```jsx\n<button onClick={() => {}} />\n<button onclick={() => {}} />\n<my-custom-element foo={() => {}} />\n```\n\n### Valid:\n\n```jsx\n<button />\n<my-custom-element />\n```\n",
     "tags": [
