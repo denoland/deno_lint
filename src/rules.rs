@@ -19,6 +19,7 @@ pub mod eqeqeq;
 pub mod explicit_function_return_type;
 pub mod explicit_module_boundary_types;
 pub mod for_direction;
+pub mod fresh_handler_export;
 pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
@@ -236,6 +237,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &explicit_function_return_type::ExplicitFunctionReturnType,
     &explicit_module_boundary_types::ExplicitModuleBoundaryTypes,
     &for_direction::ForDirection,
+    &fresh_handler_export::FreshHandlerExport,
     &fresh_server_event_handlers::FreshServerEventHandlers,
     &getter_return::GetterReturn,
     &guard_for_in::GuardForIn,
