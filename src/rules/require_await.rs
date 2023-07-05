@@ -3,7 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 
-use deno_ast::swc::parser::token::{Token, Word, Keyword};
+use deno_ast::swc::parser::token::{Token, Word};
 use deno_ast::view::{NodeTrait, Program};
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
@@ -103,6 +103,15 @@ impl FunctionInfo {
   }
 }
 
+fn find_async_token_range(node: deno_ast::view::Node, ctx: &Context) -> SourceRange {
+  node
+  .tokens_fast(ctx.program())
+  .iter()
+  .find(|t| t.token == Token::Word(Word::Ident("async".into())))
+  .expect("there must be a async span")
+  .range()
+}
+
 struct RequireAwaitHandler;
 
 impl Handler for RequireAwaitHandler {
@@ -117,12 +126,15 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
-    let async_keyword_span = fn_decl.tokens_fast(ctx.program().script()).iter().find(|t| t.token == Token::Word(Word::Ident("async".into()))).expect("there must be async span").range();
-    eprintln!("async spans {:#?}", async_keyword_span);
+    let range = if function_info.is_async {
+      find_async_token_range(fn_decl.as_node(), ctx)
+    } else {
+      fn_decl.ident.range()
+    };
 
     process_function(
       fn_decl.as_node(),
-      async_keyword_span,
+      range,
       function_info,
       ctx,
     );
@@ -138,8 +150,8 @@ impl Handler for RequireAwaitHandler {
       is_empty: is_body_empty(fn_expr.function.body),
       has_await: false,
     };
-    let range = if let Some(name) = fn_expr.ident {
-      name.range()
+    let range = if function_info.is_async {
+      find_async_token_range(fn_expr.as_node(), ctx)
     } else {
       fn_expr.range()
     };
@@ -161,9 +173,14 @@ impl Handler for RequireAwaitHandler {
       ),
       has_await: false,
     };
+    let range = if function_info.is_async {
+      find_async_token_range(arrow_expr.as_node(), ctx)
+    } else {
+      arrow_expr.range()
+    };
     process_function(
       arrow_expr.as_node(),
-      arrow_expr.range(),
+      range,
       function_info,
       ctx,
     );
@@ -182,9 +199,15 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
+    let range = if function_info.is_async {
+      find_async_token_range(method_prop.as_node(), ctx)
+    } else {
+      method_prop.inner.key.range()
+    };
+
     process_function(
       method_prop.as_node(),
-      method_prop.inner.key.range(),
+      range,
       function_info,
       ctx,
     );
@@ -203,9 +226,15 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
+    let range = if function_info.is_async {
+      find_async_token_range(class_method.as_node(), ctx)
+    } else {
+      class_method.inner.key.range()
+    };
+
     process_function(
       class_method.as_node(),
-      class_method.inner.key.range(),
+      range,
       function_info,
       ctx,
     );
@@ -223,9 +252,14 @@ impl Handler for RequireAwaitHandler {
       is_empty: is_body_empty(private_method.function.body),
       has_await: false,
     };
+    let range = if function_info.is_async {
+      find_async_token_range(private_method.as_node(), ctx)
+    } else {
+      private_method.inner.key.range()
+    };
     process_function(
       private_method.as_node(),
-      private_method.inner.key.range(),
+      range,
       function_info,
       ctx,
     );
@@ -385,7 +419,7 @@ async function* run() {
       RequireAwait,
       "async function foo() { doSomething() }": [
         {
-          col: 15,
+          col: 0,
           message: variant!(RequireAwaitMessage, Function, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
@@ -413,42 +447,42 @@ async function* run() {
       ],
       "({ async foo() { doSomething() } })": [
         {
-          col: 9,
+          col: 3,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { async foo() { doSomething() } }": [
         {
-          col: 16,
+          col: 10,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { private async foo() { doSomething() } }": [
         {
-          col: 24,
+          col: 18,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async foo() { doSomething() } })": [
         {
-          col: 15,
+          col: 9,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async ''() { doSomething() } })": [
         {
-          col: 15,
+          col: 9,
           message: variant!(RequireAwaitMessage, Method, ""),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "async function foo() { async () => { await doSomething() } }": [
         {
-          col: 15,
+          col: 0,
           message: variant!(RequireAwaitMessage, Function, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },

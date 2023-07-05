@@ -80,8 +80,8 @@ impl<'view> Context<'view> {
 
   /// The AST view of the program, which for example can be used for getting
   /// comments
-  pub fn program(&self) -> &ast_view::Program<'view> {
-    &self.program
+  pub fn program(&self) -> ast_view::Program<'view> {
+    self.program
   }
 
   /// File-level ignore directive (`deno-lint-ignore-file`)
