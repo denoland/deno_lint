@@ -103,13 +103,16 @@ impl FunctionInfo {
   }
 }
 
-fn find_async_token_range(node: deno_ast::view::Node, ctx: &Context) -> SourceRange {
+fn find_async_token_range(
+  node: deno_ast::view::Node,
+  ctx: &Context,
+) -> SourceRange {
   node
-  .tokens_fast(ctx.program())
-  .iter()
-  .find(|t| t.token == Token::Word(Word::Ident("async".into())))
-  .expect("there must be a async span")
-  .range()
+    .tokens_fast(ctx.program())
+    .iter()
+    .find(|t| t.token == Token::Word(Word::Ident("async".into())))
+    .expect("there must be a async span")
+    .range()
 }
 
 struct RequireAwaitHandler;
@@ -132,12 +135,7 @@ impl Handler for RequireAwaitHandler {
       fn_decl.ident.range()
     };
 
-    process_function(
-      fn_decl.as_node(),
-      range,
-      function_info,
-      ctx,
-    );
+    process_function(fn_decl.as_node(), range, function_info, ctx);
   }
 
   fn fn_expr(&mut self, fn_expr: &deno_ast::view::FnExpr, ctx: &mut Context) {
@@ -178,12 +176,7 @@ impl Handler for RequireAwaitHandler {
     } else {
       arrow_expr.range()
     };
-    process_function(
-      arrow_expr.as_node(),
-      range,
-      function_info,
-      ctx,
-    );
+    process_function(arrow_expr.as_node(), range, function_info, ctx);
   }
 
   fn method_prop(
@@ -205,12 +198,7 @@ impl Handler for RequireAwaitHandler {
       method_prop.inner.key.range()
     };
 
-    process_function(
-      method_prop.as_node(),
-      range,
-      function_info,
-      ctx,
-    );
+    process_function(method_prop.as_node(), range, function_info, ctx);
   }
 
   fn class_method(
@@ -232,12 +220,7 @@ impl Handler for RequireAwaitHandler {
       class_method.inner.key.range()
     };
 
-    process_function(
-      class_method.as_node(),
-      range,
-      function_info,
-      ctx,
-    );
+    process_function(class_method.as_node(), range, function_info, ctx);
   }
 
   fn private_method(
@@ -257,12 +240,7 @@ impl Handler for RequireAwaitHandler {
     } else {
       private_method.inner.key.range()
     };
-    process_function(
-      private_method.as_node(),
-      range,
-      function_info,
-      ctx,
-    );
+    process_function(private_method.as_node(), range, function_info, ctx);
   }
 }
 
