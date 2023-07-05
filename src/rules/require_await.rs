@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 
+use deno_ast::swc::parser::token::{Token, Word, Keyword};
 use deno_ast::view::{NodeTrait, Program};
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
@@ -116,9 +117,12 @@ impl Handler for RequireAwaitHandler {
       has_await: false,
     };
 
+    let async_keyword_span = fn_decl.tokens_fast(ctx.program().script()).iter().find(|t| t.token == Token::Word(Word::Ident("async".into()))).expect("there must be async span").range();
+    eprintln!("async spans {:#?}", async_keyword_span);
+
     process_function(
       fn_decl.as_node(),
-      fn_decl.ident.range(),
+      async_keyword_span,
       function_info,
       ctx,
     );
