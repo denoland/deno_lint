@@ -1,9 +1,9 @@
-import { Head } from "$fresh/runtime.ts";
 import jsonData from "../static/docs.json" assert { type: "json" };
 import { Header } from "../components/Header.tsx";
 import { CommonHead } from "../components/CommonHead.tsx";
 import type { Handlers, PageProps } from "$fresh/server.ts";
 import { renderMarkdown } from "../utils/render_markdown.ts";
+import { ComponentChildren } from "preact";
 
 interface RuleData {
   code: string;
@@ -13,7 +13,7 @@ interface RuleData {
 }
 
 export const handler: Handlers<RuleData[]> = {
-  async GET(_req, ctx) {
+  GET(_req, ctx) {
     const rules = jsonData.map<RuleData>((rule) => ({
       code: rule.code,
       snippet: renderMarkdown(rule.docs.split("\n")[0]),
@@ -21,7 +21,7 @@ export const handler: Handlers<RuleData[]> = {
       tags: rule.tags,
     }));
     return ctx.render(rules);
-  }
+  },
 };
 
 export default function Home(props: PageProps<RuleData[]>) {
@@ -35,7 +35,7 @@ export default function Home(props: PageProps<RuleData[]>) {
       if (allRules) {
         return true;
       } else {
-        return rule.tags.includes("recommended");
+        return rule.tags.includes("recommended") || rule.tags.includes("fresh");
       }
     })
     .filter((rule: RuleData) => rule.code.includes(search));
@@ -52,6 +52,7 @@ export default function Home(props: PageProps<RuleData[]>) {
               type="text"
               name="q"
               class="w-full border h-10 border-gray-200 dark:border-gray-500 rounded rounded-r-none px-3 relative dark:bg-gray-800 "
+              id="search"
               placeholder="Search"
               value={search}
             />
@@ -95,25 +96,20 @@ function Rule(props: { rule: RuleData }) {
       class="my-8 border-gray-200 dark:border-[#313235] border-2 rounded-lg overflow-hidden"
       id={rule.code}
     >
-      <div
-        class="p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white dark:bg-[#0d1117] dark:border-[#313235]"
-      >
+      <div class="p-3 border-b border-gray-200 flex justify-between flex-wrap gap-2 items-center bg-white dark:bg-[#0d1117] dark:border-[#313235]">
         <h1 class="text-xl font-bold">
           <a href={`#${rule.code}`} class="hover:underline">
             {rule.code}
           </a>
         </h1>
-        {rule.tags.includes("recommended") && (
-          <span
-            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-blue-100 text-blue-800"
-          >
-            Recommended
-          </span>
-        )}
+        <div>
+          {rule.tags.includes("recommended") &&
+            <Badge color="blue">Recommended</Badge>}
+          {rule.tags.includes("fresh") &&
+            <Badge color="green">Fresh</Badge>}
+        </div>
       </div>
-      <div
-        class="relative bg-gray-50 dark:bg-[#192029] dark:text-white p-3"
-      >
+      <div class="relative bg-gray-50 dark:bg-[#192029] dark:text-white p-3">
         {rule.docs.length > 0
           ? (
             <>
@@ -134,5 +130,17 @@ function Rule(props: { rule: RuleData }) {
           : <div class="text-gray-500 italic">no docs available</div>}
       </div>
     </section>
+  );
+}
+
+function Badge(
+  { children, color }: { children: ComponentChildren; color: string },
+) {
+  return (
+    <span
+      class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 bg-${color}-100 text-${color}-800`}
+    >
+      {children}
+    </span>
   );
 }
