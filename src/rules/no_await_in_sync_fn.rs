@@ -13,6 +13,10 @@ const MESSAGE: &str = "Unexpected `await` inside a non-async function.";
 const HINT: &str = "Remove `await` in the function body or change the function to an async function.";
 
 impl LintRule for NoAwaitInSyncFn {
+  fn tags(&self) -> &'static [&'static str] {
+    &["recommended"]
+  }
+
   fn code(&self) -> &'static str {
     CODE
   }
