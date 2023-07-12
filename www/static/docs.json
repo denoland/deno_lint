@@ -131,6 +131,13 @@
     "tags": []
   },
   {
+    "code": "no-await-in-sync-fn",
+    "docs": "Disallow `await` keyword inside a non-async function\n\nUsing the `await` keyword inside a non-async function is a syntax error. To be\nable to use `await` inside a function, the function needs to be marked as async\nvia the `async` keyword\n\n### Invalid:\n\n```javascript\nfunction foo() {\n  await bar();\n}\n\nconst fooFn = function foo() {\n  await bar();\n};\n\nconst fooFn = () => {\n  await bar();\n};\n```\n\n### Valid:\n\n```javascript\nasync function foo() {\n  await bar();\n}\n\nconst fooFn = async function foo() {\n  await bar();\n};\n\nconst fooFn = async () => {\n  await bar();\n};\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "no-case-declarations",
     "docs": "Requires lexical declarations (`let`, `const`, `function` and `class`) in switch\n`case` or `default` clauses to be scoped with brackets.\n\nWithout brackets in the `case` or `default` block, the lexical declarations are\nvisible to the entire switch block but only get initialized when they are\nassigned, which only happens if that case/default is reached. This can lead to\nunexpected errors. The solution is to ensure each `case` or `default` block is\nwrapped in brackets to scope limit the declarations.\n\n### Invalid:\n\n```typescript\nswitch (choice) {\n  // `let`, `const`, `function` and `class` are scoped the entire switch statement here\n  case 1:\n    let a = \"choice 1\";\n    break;\n  case 2:\n    const b = \"choice 2\";\n    break;\n  case 3:\n    function f() {\n      return \"choice 3\";\n    }\n    break;\n  default:\n    class C {}\n}\n```\n\n### Valid:\n\n```typescript\nswitch (choice) {\n  // The following `case` and `default` clauses are wrapped into blocks using brackets\n  case 1: {\n    let a = \"choice 1\";\n    break;\n  }\n  case 2: {\n    const b = \"choice 2\";\n    break;\n  }\n  case 3: {\n    function f() {\n      return \"choice 3\";\n    }\n    break;\n  }\n  default: {\n    class C {}\n  }\n}\n```\n",
     "tags": [
