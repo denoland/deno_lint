@@ -43,26 +43,23 @@ impl Handler for NoAwaitInSyncFnHandler {
     await_expr: &ast_view::AwaitExpr,
     ctx: &mut Context,
   ) {
-    fn inside_sync_fn(
-      await_expr: &ast_view::AwaitExpr,
-      node: ast_view::Node,
-    ) -> bool {
+    fn inside_sync_fn(node: ast_view::Node) -> bool {
       use deno_ast::view::Node::*;
       match node {
-        FnDecl(decl) => return !decl.function.is_async(),
-        FnExpr(decl) => return !decl.function.is_async(),
-        ArrowExpr(decl) => return !decl.is_async(),
+        FnDecl(decl) => !decl.function.is_async(),
+        FnExpr(decl) => !decl.function.is_async(),
+        ArrowExpr(decl) => !decl.is_async(),
         _ => {
           let parent = match node.parent() {
             Some(p) => p,
             None => return false,
           };
-          inside_sync_fn(await_expr, parent)
+          inside_sync_fn(parent)
         }
       }
     }
 
-    if inside_sync_fn(await_expr, await_expr.as_node()) {
+    if inside_sync_fn(await_expr.as_node()) {
       ctx.add_diagnostic_with_hint(await_expr.range(), CODE, MESSAGE, HINT);
     }
   }
