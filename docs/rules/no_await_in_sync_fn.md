@@ -1,6 +1,8 @@
 Disallow `await` keyword inside a non-async function
 
-Using the `await` keyword inside a non-async function is a syntax error. To be able to use `await` inside a function, the function needs to be marked as async via the `async` keyword
+Using the `await` keyword inside a non-async function is a syntax error. To be
+able to use `await` inside a function, the function needs to be marked as async
+via the `async` keyword
 
 ### Invalid:
 
