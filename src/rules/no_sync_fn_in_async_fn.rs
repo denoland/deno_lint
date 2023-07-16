@@ -12,7 +12,7 @@ pub struct NoSyncFnInAsyncFn;
 const CODE: &str = "no-sync-fn-in-async-fn";
 const MESSAGE: &str =
   "Sync fn is used inside an async fn, this blocks deno event loop";
-const HINT: &str = "Consider changing this to an async fn equivalent";
+const HINT: &str = "Consider changing this to an async function equivalent";
 
 impl LintRule for NoSyncFnInAsyncFn {
   fn tags(&self) -> &'static [&'static str] {
@@ -99,10 +99,10 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       if inside_async_fn(member_expr.as_node());
       then {
         ctx.add_diagnostic_with_hint(
-          member_expr.range(),
+          member_expr.prop.range(),
           CODE,
-            MESSAGE,
-            HINT,
+          MESSAGE,
+          HINT,
         );
       }
     }
