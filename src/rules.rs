@@ -246,7 +246,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_array_constructor::NoArrayConstructor,
     &no_async_promise_executor::NoAsyncPromiseExecutor,
     &no_await_in_loop::NoAwaitInLoop,
-    &no_await_in_loop::NoAwaitInLoop,
+    &no_await_in_sync_fn::NoAwaitInSyncFn,
     &no_case_declarations::NoCaseDeclarations,
     &no_class_assign::NoClassAssign,
     &no_compare_neg_zero::NoCompareNegZero,
