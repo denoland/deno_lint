@@ -147,7 +147,7 @@ mod tests {
     assert_lint_err! {
       NoSyncFnInAsyncFn,
       MESSAGE,
-      "Consider changing this to an async equivalent: `await Deno.readTextFileSync(..)`",
+      "Consider changing this to an async equivalent: `await Deno.readTextFile(..)`",
       r#"
       async function foo(things) {
         Deno.readTextFileSync("");
