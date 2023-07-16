@@ -42,6 +42,7 @@ pub mod no_dupe_class_members;
 pub mod no_dupe_else_if;
 pub mod no_dupe_keys;
 pub mod no_duplicate_case;
+pub mod no_sync_fn_in_async_fn;
 pub mod no_empty;
 pub mod no_empty_character_class;
 pub mod no_empty_enum;
@@ -245,7 +246,8 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_array_constructor::NoArrayConstructor,
     &no_async_promise_executor::NoAsyncPromiseExecutor,
     &no_await_in_loop::NoAwaitInLoop,
-    &no_await_in_sync_fn::NoAwaitInSyncFn,
+    &no_await_in_loop::NoAwaitInLoop,
+    &no_sync_fn_in_async_fn::NoSyncFnInAsyncFn,
     &no_case_declarations::NoCaseDeclarations,
     &no_class_assign::NoClassAssign,
     &no_compare_neg_zero::NoCompareNegZero,
