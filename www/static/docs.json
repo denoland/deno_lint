@@ -482,7 +482,7 @@
   },
   {
     "code": "no-sync-fn-in-async-fn",
-    "docs": "Disallow sync function inside async function\n\nUsing sync functions like `Deno.readTextFileSync` blocks the deno event loop so\nits not recomonded to use it inside of an async function, because its stops\nprogress of all other async tasks.\n\n### Invalid:\n\n```javascript\nasync function foo() {\n  Deno.readTextFileSync(\"\");\n}\n\nconst fooFn = async function foo() {\n  Deno.readTextFileSync(\"\");\n};\n\nconst fooFn = async () => {\n  Deno.readTextFileSync(\"\");\n};\n```\n\n### Valid:\n\n```javascript\nfunction foo() {\n  Deno.readTextFileSync(\"\");\n}\n\nconst fooFn = function foo() {\n  Deno.readTextFileSync(\"\");\n};\n\nconst fooFn = () => {\n  Deno.readTextFileSync(\"\");\n};\n```\n",
+    "docs": "Disallow sync function inside async function\n\nUsing sync functions like `Deno.readTextFileSync` blocks the deno event loop so\nits not recommended to use it inside of an async function, because its stops\nprogress of all other async tasks.\n\n### Invalid:\n\n```javascript\nasync function foo() {\n  Deno.readTextFileSync(\"\");\n}\n\nconst fooFn = async function foo() {\n  Deno.readTextFileSync(\"\");\n};\n\nconst fooFn = async () => {\n  Deno.readTextFileSync(\"\");\n};\n```\n\n### Valid:\n\n```javascript\nfunction foo() {\n  Deno.readTextFileSync(\"\");\n}\n\nconst fooFn = function foo() {\n  Deno.readTextFileSync(\"\");\n};\n\nconst fooFn = () => {\n  Deno.readTextFileSync(\"\");\n};\n```\n",
     "tags": [
       "recommended"
     ]
