@@ -99,10 +99,11 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       if inside_async_fn(member_expr.as_node());
       then {
         ctx.add_diagnostic_with_hint(
-          member_expr.prop.range(),
+          member_expr.range(),
           CODE,
           MESSAGE,
-          HINT,
+          format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
+            prop_symbol.strip_suffix("Sync").expect("exists")),
         );
       }
     }
