@@ -12,7 +12,6 @@ pub struct NoSyncFnInAsyncFn;
 const CODE: &str = "no-sync-fn-in-async-fn";
 const MESSAGE: &str =
   "Sync fn is used inside an async fn, this blocks deno event loop";
-const HINT: &str = "Consider changing this to an async function equivalent";
 
 impl LintRule for NoSyncFnInAsyncFn {
   fn tags(&self) -> &'static [&'static str] {
@@ -148,7 +147,7 @@ mod tests {
     assert_lint_err! {
       NoSyncFnInAsyncFn,
       MESSAGE,
-      HINT,
+      "Consider changing this to an async equivalent: `await Deno.readTextFileSync(..)`",
       r#"
       async function foo(things) {
         Deno.readTextFileSync("");
