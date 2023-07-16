@@ -94,17 +94,16 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       if ctx.scope().is_global(&obj.inner.to_id());
       let obj_symbol: &str = obj.sym();
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
+      if obj_symbol == "Deno";
+      if prop_symbol.contains("Sync");
+      if inside_async_fn(member_expr.as_node());
       then {
-        if obj_symbol == "Deno" && prop_symbol.contains("Sync") {
-              if inside_async_fn(member_expr.as_node()) {
         ctx.add_diagnostic_with_hint(
           member_expr.range(),
           CODE,
             MESSAGE,
             HINT,
         );
-    }
-        }
       }
     }
   }
