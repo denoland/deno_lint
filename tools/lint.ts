@@ -28,7 +28,10 @@ if (o1.code !== 0) {
 
 console.log("deno lint");
 
-const dlint = `./target/${release ? "release" : "debug"}/examples/dlint`;
+const cargoTargetDir = Deno.env.get("CARGO_TARGET_DIR") || "./target";
+const dlint = `${cargoTargetDir}/${
+  release ? "release" : "debug"
+}/examples/dlint`;
 const p2 = new Deno.Command(dlint, {
   args: ["run", "benchmarks/benchmarks.ts"],
   stdin: "null",
