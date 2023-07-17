@@ -15,7 +15,7 @@ const MESSAGE: &str =
 
 impl LintRule for NoSyncFnInAsyncFn {
   fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+    &[]
   }
 
   fn code(&self) -> &'static str {
