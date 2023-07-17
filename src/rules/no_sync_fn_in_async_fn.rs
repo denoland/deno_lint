@@ -92,8 +92,8 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       if let Expr::Ident(obj) = &member_expr.obj;
       if ctx.scope().is_global(&obj.inner.to_id());
       let obj_symbol: &str = obj.sym();
-      if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if obj_symbol == "Deno";
+      if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if let Some(async_name) = prop_symbol.strip_suffix("Sync");
       if inside_async_fn(member_expr.as_node());
       then {
@@ -102,7 +102,7 @@ impl Handler for NoSyncFnInAsyncFnHandler {
           CODE,
           MESSAGE,
           format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
-            prop_symbol.strip_suffix("Sync").expect("exists")),
+            async_name
         );
       }
     }

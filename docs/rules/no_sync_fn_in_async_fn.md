@@ -23,6 +23,10 @@ const fooFn = async () => {
 ### Valid:
 
 ```javascript
+async function foo() {
+  await Deno.readTextFile("");
+}
+
 function foo() {
   Deno.readTextFileSync("");
 }
