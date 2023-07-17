@@ -102,7 +102,7 @@ impl Handler for NoSyncFnInAsyncFnHandler {
           CODE,
           MESSAGE,
           format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
-            async_name
+            async_name),
         );
       }
     }
