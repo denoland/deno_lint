@@ -94,7 +94,7 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       let obj_symbol: &str = obj.sym();
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if obj_symbol == "Deno";
-      if prop_symbol.contains("Sync");
+      if let Some(async_name) = prop_symbol.strip_suffix("Sync");
       if inside_async_fn(member_expr.as_node());
       then {
         ctx.add_diagnostic_with_hint(
