@@ -1,7 +1,7 @@
 Disallow sync function inside async function
 
 Using sync functions like `Deno.readTextFileSync` blocks the deno event loop so
-its not recommended to use it inside of an async function, because its stops
+it's not recommended to use it inside of an async function, because it stops
 progress of all other async tasks.
 
 ### Invalid:
