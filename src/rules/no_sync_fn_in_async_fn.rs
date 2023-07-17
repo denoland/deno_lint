@@ -135,7 +135,7 @@ mod tests {
           r#"
       class Foo {
         foo(things) {
-        Deno.readTextFileSync("");
+          Deno.readTextFileSync("");
         }
       }
       "#,
