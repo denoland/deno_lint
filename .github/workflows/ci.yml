@@ -45,8 +45,9 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
