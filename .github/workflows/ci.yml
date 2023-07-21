@@ -63,7 +63,7 @@ jobs:
 
       - name: Lint
         if: contains(matrix.os, 'ubuntu')
-        run: deno run --allow-run ./tools/lint.ts --release
+        run: deno run --allow-run --allow-env ./tools/lint.ts --release
 
       - name: Check if www/static/docs.json is up-to-date
         if: contains(matrix.os, 'ubuntu')
