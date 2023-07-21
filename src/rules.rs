@@ -78,6 +78,7 @@ pub mod no_self_assign;
 pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
 pub mod no_sparse_arrays;
+pub mod no_sync_fn_in_async_fn;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
@@ -297,6 +298,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_setter_return::NoSetterReturn,
     &no_shadow_restricted_names::NoShadowRestrictedNames,
     &no_sparse_arrays::NoSparseArrays,
+    &no_sync_fn_in_async_fn::NoSyncFnInAsyncFn,
     &no_this_alias::NoThisAlias,
     &no_this_before_super::NoThisBeforeSuper,
     &no_throw_literal::NoThrowLiteral,
