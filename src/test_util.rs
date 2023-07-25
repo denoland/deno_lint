@@ -39,10 +39,11 @@ macro_rules! assert_lint_err {
     $(,)?
   ) => {
     $(
-      let errors = parse_err_test!($test);
+      let (errors, output) = parse_err_test!($test);
       let tester = $crate::test_util::LintErrTester::new(
         &$rule,
         $src,
+        output,
         errors,
         $filename,
       );
@@ -70,10 +71,11 @@ macro_rules! assert_lint_err {
     $(,)?
   ) => {
     $(
-      let errors = parse_err_test!($message, $hint, $test);
+      let (errors, _) = parse_err_test!($message, $hint, $test);
       let tester = $crate::test_util::LintErrTester::new(
         &$rule,
         $src,
+        None,
         errors,
         $filename,
       );
@@ -130,17 +132,29 @@ macro_rules! parse_err_test {
       let e = builder.build();
       errors.push(e);
     )*
-    errors
+    (errors, None::<&'static str>)
   }};
 
-  (
-    {
-      filename : $filename:literal,
-      errors : $errors:tt $(,)?
-    }
-  ) => {{
-    let (errors, _) = parse_err_test!($errors);
-    (errors, $filename)
+  ({
+    $output:literal,
+    [
+      $(
+        {
+          $($field:ident : $value:expr),* $(,)?
+        }
+      ),* $(,)?
+    ]
+  }) => {{
+    let mut errors = Vec::new();
+    $(
+      let mut builder = $crate::test_util::LintErrBuilder::new();
+      $(
+        builder.$field($value);
+      )*
+      let e = builder.build();
+      errors.push(e);
+    )*
+    (errors, Some($output))
   }};
 
   (
@@ -154,7 +168,7 @@ macro_rules! parse_err_test {
       ),* $(,)?
     ]
   ) => {{
-    let errors = parse_err_test!(
+    parse_err_test!(
       $(
         [
           {
@@ -166,13 +180,13 @@ macro_rules! parse_err_test {
           },
         ]
       )*
-    );
-    errors
+   )
   }};
 }
 
 pub struct LintErrTester {
   src: &'static str,
+  output: Option<&'static str>,
   errors: Vec<LintErr>,
   filename: &'static str,
   rule: &'static dyn LintRule,
@@ -182,11 +196,13 @@ impl LintErrTester {
   pub fn new(
     rule: &'static dyn LintRule,
     src: &'static str,
+    output: Option<&'static str>,
     errors: Vec<LintErr>,
     filename: &'static str,
   ) -> Self {
     Self {
       src,
+      output,
       errors,
       filename,
       rule,
