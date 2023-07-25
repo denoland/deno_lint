@@ -211,13 +211,23 @@ impl LintErrTester {
 
   pub fn run(self) {
     let rule_code = self.rule.code();
-    let diagnostics = lint(self.rule, self.src, self.filename);
+    let (diagnostics, output) = lint(self.rule, self.src, self.filename);
+
     assert_eq!(
       self.errors.len(),
       diagnostics.len(),
       "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
       self.errors.len(),
       diagnostics.len(),
+      self.src,
+    );
+
+    assert_eq!(
+      self.output,
+      output.as_deref(),
+      "Output is expected to be \"{:?}\", but got \"{:?}\"\n\nsource:\n{}\n",
+      self.output,
+      output.as_deref(),
       self.src,
     );
 
@@ -298,14 +308,14 @@ fn lint(
   rule: &'static dyn LintRule,
   source: &str,
   filename: &str,
-) -> Vec<LintDiagnostic> {
+) -> (Vec<LintDiagnostic>, Option<String>) {
   let linter = LinterBuilder::default()
     .media_type(MediaType::from_path(Path::new(filename)))
     .rules(vec![rule])
     .build();
 
   match linter.lint(filename.to_string(), source.to_string()) {
-    Ok((_, diagnostics)) => diagnostics,
+    Ok((_, diagnostics, output)) => (diagnostics, output),
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
       e, source
@@ -386,11 +396,17 @@ pub fn assert_lint_ok(
   source: &str,
   filename: &'static str,
 ) {
-  let diagnostics = lint(rule, source, filename);
+  let (diagnostics, output) = lint(rule, source, filename);
   if !diagnostics.is_empty() {
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
       diagnostics, source
+    );
+  }
+  if !output.is_none() {
+    panic!(
+      "Unexpected output found:\n{:#?}\n\nsource:\n{}\n",
+      output, source
     );
   }
 }

@@ -101,7 +101,7 @@ impl Linter {
     mut self,
     file_name: String,
     source_code: String,
-  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
+  ) -> Result<(ParsedSource, Vec<LintDiagnostic>, Option<String>), Diagnostic> {
     let start = Instant::now();
 
     let syntax = deno_ast::get_syntax(self.media_type);
@@ -118,7 +118,7 @@ impl Linter {
 
     let end = Instant::now();
     debug!("Linter::lint took {:#?}", end - start);
-    Ok((parsed_source, diagnostics))
+    Ok((parsed_source, diagnostics, None))
   }
 
   pub fn lint_with_ast(

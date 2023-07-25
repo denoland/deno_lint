@@ -39,7 +39,7 @@ mod lint_tests {
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
-    let (_, diagnostics) = linter
+    let (_, diagnostics, _) = linter
       .lint("lint_test.ts".to_string(), source.to_string())
       .expect("Failed to lint");
     diagnostics
