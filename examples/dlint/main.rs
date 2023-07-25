@@ -61,6 +61,11 @@ fn create_cli_app<'a>() -> Command<'a> {
               "pretty" => Ok(()),
               _ => Err("Output format must be compact or pretty")
             }),
+        ).arg(
+          Arg::new("FIX")
+            .long("fix")
+            .help("Fix linting errors when possible")
+            .takes_value(false)
         )
     )
 }
