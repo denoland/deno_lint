@@ -19,6 +19,7 @@ mod handler;
 mod ignore_directives;
 mod js_regex;
 pub mod linter;
+mod perf;
 pub mod rules;
 pub mod swc_util;
 
