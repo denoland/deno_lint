@@ -53,7 +53,7 @@ export default function Linter(props: Props) {
 
   return (
     <div class="h-full">
-      <div class="bg-[#1e1e1e] p-4 overflow-x-auto h-full">
+      <div class="border border-gray-300 dark:border-gray-700 dark:bg-[#1e1e1e] p-4 overflow-x-auto h-full">
         {display.value.kind === "Loading"
           ? <p>Loading...</p>
           : display.value.kind === "LintError"
@@ -62,18 +62,18 @@ export default function Linter(props: Props) {
               <span class="inline-block text-red-500">
                 Lint error
               </span>
-              <code class="inline-block py-5 whitespace-pre">
+              <code class="block py-5 whitespace-pre">
                 {display.value.content}
               </code>
             </>
           )
           : (
             <>
-              <span class="inline-block border border-white p-3 rounded-lg">
+              <span class="inline-block border border-gray-300 dark:border-white p-3 rounded-lg">
                 Diagnostics
               </span>
               <code
-                class="inline-block font-mono whitespace-pre py-5"
+                class="block font-mono whitespace-pre py-5"
                 dangerouslySetInnerHTML={{ __html: display.value.content }}
               >
               </code>

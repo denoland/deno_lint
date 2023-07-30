@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import loader from "https://esm.sh/v130/@monaco-editor/loader@1.3.3";
-import type { Signal } from "@preact/signals";
+import { type Signal } from "@preact/signals";
 
 type Props = {
   defaultValue?: string;
@@ -8,23 +8,16 @@ type Props = {
   source: Signal<string>;
   className?: string;
   fontSize?: number;
+  isDarkMode: boolean;
 };
 
 export default function MonacoEditor(props: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (editorRef.current === null) {
-      return;
-    }
-
     loader.init().then((monaco) => {
-      const properties = {
-        value: 'function hello() {\n\talert("Hello world!");\n}',
-        language: "javascript",
-      };
-      monaco.editor.setTheme("vs-dark");
-      const editor = monaco.editor.create(editorRef.current, {
+      monaco.editor.setTheme(props.isDarkMode ? "vs-dark" : "vs-light");
+      const editor = monaco.editor.create(editorRef.current!, {
         value: props.defaultValue,
         language: props.language,
         fontSize: props.fontSize ?? 16,
