@@ -5,8 +5,9 @@
 import * as $0 from "./routes/ignoring-rules.tsx";
 import * as $1 from "./routes/index.tsx";
 import * as $2 from "./routes/playground.tsx";
-import * as $$0 from "./islands/MonacoEditor.tsx";
-import * as $$1 from "./islands/Playground.tsx";
+import * as $$0 from "./islands/Linter.tsx";
+import * as $$1 from "./islands/MonacoEditor.tsx";
+import * as $$2 from "./islands/Playground.tsx";
 
 const manifest = {
   routes: {
@@ -15,8 +16,9 @@ const manifest = {
     "./routes/playground.tsx": $2,
   },
   islands: {
-    "./islands/MonacoEditor.tsx": $$0,
-    "./islands/Playground.tsx": $$1,
+    "./islands/Linter.tsx": $$0,
+    "./islands/MonacoEditor.tsx": $$1,
+    "./islands/Playground.tsx": $$2,
   },
   baseUrl: import.meta.url,
 };

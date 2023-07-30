@@ -7,6 +7,7 @@ type Props = {
   language: string;
   source: Signal<string>;
   className?: string;
+  fontSize?: number;
 };
 
 export default function MonacoEditor(props: Props) {
@@ -26,6 +27,7 @@ export default function MonacoEditor(props: Props) {
       const editor = monaco.editor.create(editorRef.current, {
         value: props.defaultValue,
         language: props.language,
+        fontSize: props.fontSize ?? 16,
         minimap: {
           enabled: false,
         },
