@@ -4,13 +4,20 @@
 
 import * as $0 from "./routes/ignoring-rules.tsx";
 import * as $1 from "./routes/index.tsx";
+import * as $2 from "./routes/playground.tsx";
+import * as $$0 from "./islands/MonacoEditor.tsx";
+import * as $$1 from "./islands/Playground.tsx";
 
 const manifest = {
   routes: {
     "./routes/ignoring-rules.tsx": $0,
     "./routes/index.tsx": $1,
+    "./routes/playground.tsx": $2,
   },
-  islands: {},
+  islands: {
+    "./islands/MonacoEditor.tsx": $$0,
+    "./islands/Playground.tsx": $$1,
+  },
   baseUrl: import.meta.url,
 };
 
