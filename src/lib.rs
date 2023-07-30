@@ -3,9 +3,6 @@
 #![deny(clippy::disallowed_methods)]
 #![deny(clippy::disallowed_types)]
 
-#[macro_use]
-extern crate log;
-
 #[cfg(test)]
 #[macro_use]
 mod test_util;
