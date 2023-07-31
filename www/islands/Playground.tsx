@@ -18,15 +18,15 @@ export default function Playground() {
   }, []);
 
   return (
-    <div class="flex flex-col gap-9 h-full">
+    <div class="flex w-full h-full md:px-9 md:gap-4">
       <MonacoEditor
-        className="w-full h-2/3 border border-gray-300 dark:border-gray-700"
+        className="w-1/2 h-full border border-gray-300 dark:border-gray-700"
         defaultValue={defaultSource}
         language="typescript"
         source={source}
         isDarkMode={isDarkMode}
       />
-      <div class="flex-1">
+      <div class="w-1/2 h-full">
         <Linter source={source} />
       </div>
     </div>

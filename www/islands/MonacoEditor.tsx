@@ -24,6 +24,7 @@ export default function MonacoEditor(props: Props) {
         minimap: {
           enabled: false,
         },
+        automaticLayout: true,
       });
       editor.onDidChangeModelContent((_e) => {
         props.source.value = editor.getValue();
