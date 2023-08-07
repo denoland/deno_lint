@@ -22,7 +22,7 @@
   },
   {
     "code": "ban-unknown-rule-code",
-    "docs": "Warns the usage of unknown rule codes in ignore directives\n\nWe sometimes have to suppress and ignore lint errors for some reasons. We can do\nso using [ignore directives](https://lint.deno.land/ignoring-rules) with rule\nnames that should be ignored like so:\n\n```typescript\n// deno-lint-ignore no-explicit-any no-unused-vars\nconst foo: any = 42;\n```\n\nThis rule checks for the validity of the specified rule names (i.e. whether\n`deno_lint` provides the rule or not).\n\n### Invalid:\n\n```typescript\n// typo\n// deno-lint-ignore eq-eq-e\nconsole.assert(x == 42)\n\n// unknown rule name\n// deno-lint-ignore UNKNOWN_RULE_NAME\nconst b = \"b\";\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore eq-eq-eq\nconsole.assert(x == 42)\n\n// deno-lint-ignore no-unused-vars\nconst b = \"b\";\n```\n",
+    "docs": "Warns the usage of unknown rule codes in ignore directives\n\nWe sometimes have to suppress and ignore lint errors for some reasons. We can do\nso using [ignore directives](https://lint.deno.land/ignoring-rules) with rule\nnames that should be ignored like so:\n\n```typescript\n// deno-lint-ignore no-explicit-any no-unused-vars\nconst foo: any = 42;\n```\n\nThis rule checks for the validity of the specified rule names (i.e. whether\n`deno_lint` provides the rule or not).\n\n### Invalid:\n\n```typescript\n// typo\n// deno-lint-ignore eq-eq-e\nconsole.assert(x == 42);\n\n// unknown rule name\n// deno-lint-ignore UNKNOWN_RULE_NAME\nconst b = \"b\";\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore eq-eq-eq\nconsole.assert(x == 42);\n\n// deno-lint-ignore no-unused-vars\nconst b = \"b\";\n```\n",
     "tags": [
       "recommended"
     ]
@@ -316,7 +316,9 @@
   {
     "code": "no-fallthrough",
     "docs": "Disallows the implicit fallthrough of case statements\n\nCase statements without a `break` will execute their body and then fallthrough\nto the next case or default block and execute this block as well. While this is\nsometimes intentional, many times the developer has forgotten to add a break\nstatement, intending only for a single case statement to be executed. This rule\nenforces that you either end each case statement with a break statement or an\nexplicit comment that fallthrough was intentional. The fallthrough comment must\ncontain one of `fallthrough`, `falls through` or `fall through`.\n\n### Invalid:\n\n```typescript\nswitch (myVar) {\n  case 1:\n    console.log(\"1\");\n\n  case 2:\n    console.log(\"2\");\n}\n// If myVar = 1, outputs both `1` and `2`.  Was this intentional?\n```\n\n### Valid:\n\n```typescript\nswitch (myVar) {\n  case 1:\n    console.log(\"1\");\n    break;\n\n  case 2:\n    console.log(\"2\");\n    break;\n}\n// If myVar = 1, outputs only `1`\n\nswitch (myVar) {\n  case 1:\n    console.log(\"1\");\n    /* falls through */\n  case 2:\n    console.log(\"2\");\n}\n// If myVar = 1, intentionally outputs both `1` and `2`\n```\n",
-    "tags": ["recommended"]
+    "tags": [
+      "recommended"
+    ]
   },
   {
     "code": "no-func-assign",
