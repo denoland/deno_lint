@@ -53,7 +53,6 @@ pub mod no_explicit_any;
 pub mod no_external_imports;
 pub mod no_extra_boolean_cast;
 pub mod no_extra_non_null_assertion;
-pub mod no_extra_semi;
 pub mod no_fallthrough;
 pub mod no_func_assign;
 pub mod no_global_assign;
@@ -273,7 +272,6 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_external_imports::NoExternalImport,
     &no_extra_boolean_cast::NoExtraBooleanCast,
     &no_extra_non_null_assertion::NoExtraNonNullAssertion,
-    &no_extra_semi::NoExtraSemi,
     &no_fallthrough::NoFallthrough,
     &no_func_assign::NoFuncAssign,
     &no_global_assign::NoGlobalAssign,
