@@ -3,6 +3,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 
+use deno_ast::view::{NodeKind, NodeTrait};
 use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
@@ -453,14 +454,18 @@ impl CamelcaseHandler {
               ..
             }) => {
               let has_default = value.is_some();
-              self.check_ident(
-                key,
-                IdentToCheck::object_pat::<&str, &str>(
-                  &key.inner.as_ref(),
-                  None,
-                  has_default,
-                ),
-              );
+              if has_default
+                || pat.parent().unwrap().kind() != NodeKind::VarDeclarator
+              {
+                self.check_ident(
+                  key,
+                  IdentToCheck::object_pat::<&str, &str>(
+                    &key.inner.as_ref(),
+                    None,
+                    has_default,
+                  ),
+                );
+              }
             }
             ast_view::ObjectPatProp::Rest(ast_view::RestPat {
               ref arg,
@@ -587,16 +592,18 @@ impl Handler for CamelcaseHandler {
     let ast_view::ImportNamedSpecifier {
       local, imported, ..
     } = import_named_specifier;
-    self.check_ident(
-      local,
-      IdentToCheck::named_import(
-        local.inner,
-        imported.as_ref().map(|i| match i {
-          ast_view::ModuleExportName::Ident(ident) => ident.sym(),
-          ast_view::ModuleExportName::Str(str) => str.value(),
-        }),
-      ),
-    );
+    if let Some(imported) = &imported {
+      self.check_ident(
+        local,
+        IdentToCheck::named_import(
+          local.inner,
+          Some(match imported {
+            ast_view::ModuleExportName::Ident(ident) => ident.sym(),
+            ast_view::ModuleExportName::Str(str) => str.value(),
+          }),
+        ),
+      );
+    }
   }
 
   fn import_default_specifier(
@@ -869,9 +876,11 @@ mod tests {
       r#"var { category_id: category } = query;"#,
       r#"var { _leading } = query;"#,
       r#"var { trailing_ } = query;"#,
+      r#"var { or_middle } = query;"#,
       r#"import { camelCased } from "external module";"#,
       r#"import { _leading } from "external module";"#,
       r#"import { trailing_ } from "external module";"#,
+      r#"import { or_middle } from "external module";"#,
       r#"import { no_camelcased as camelCased } from "external-module";"#,
       r#"import { no_camelcased as _leading } from "external-module";"#,
       r#"import { no_camelcased as trailing_ } from "external-module";"#,
@@ -989,13 +998,6 @@ mod tests {
               hint: "Consider renaming `category_alias` to `categoryAlias`",
             }
           ],
-    r#"var { category_id } = query;"#: [
-            {
-              col: 6,
-              message: "Identifier 'category_id' is not in camel case.",
-              hint: "Consider replacing `{ category_id }` with `{ category_id: categoryId }`",
-            }
-          ],
     r#"var { category_id: category_id } = query;"#: [
             {
               col: 19,
@@ -1010,25 +1012,11 @@ mod tests {
               hint: "Consider replacing `{ category_id = .. }` with `{ category_id: categoryId = .. }`",
             }
           ],
-    r#"import no_camelcased from "external-module";"#: [
-            {
-              col: 7,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
-            }
-          ],
     r#"import * as no_camelcased from "external-module";"#: [
             {
               col: 12,
               message: "Identifier 'no_camelcased' is not in camel case.",
               hint: "Consider renaming `no_camelcased` to `noCamelcased`",
-            }
-          ],
-    r#"import { no_camelcased } from "external-module";"#: [
-            {
-              col: 9,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
             }
           ],
     r#"import { no_camelcased as no_camel_cased } from "external module";"#: [
@@ -1043,27 +1031,6 @@ mod tests {
               col: 23,
               message: "Identifier 'no_camel_cased' is not in camel case.",
               hint: "Consider renaming `no_camel_cased` to `noCamelCased`",
-            }
-          ],
-    r#"import { camelCased, no_camelcased } from "external-module";"#: [
-            {
-              col: 21,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
-            }
-          ],
-    r#"import { no_camelcased as camelCased, another_no_camelcased } from "external-module";"#: [
-            {
-              col: 38,
-              message: "Identifier 'another_no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ another_no_camelcased }` with `{ another_no_camelcased as anotherNoCamelcased }`",
-            }
-          ],
-    r#"import camelCased, { no_camelcased } from "external-module";"#: [
-            {
-              col: 21,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
             }
           ],
     r#"import no_camelcased, { another_no_camelcased as camelCased } from "external-module";"#: [
