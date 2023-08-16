@@ -5,10 +5,10 @@ use crate::swc_util::StringRepr;
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
-  ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr, FnDecl,
-  FnExpr, GetterProp, MemberExpr, MemberProp, MethodKind, MethodProp,
-  ObjectLit, OptChainBase, PrivateMethod, Prop, PropName, PropOrSpread,
-  ReturnStmt,
+  ArrowExpr, BlockStmtOrExpr, CallExpr, Callee, ClassMethod, Expr,
+  ExprOrSpread, FnDecl, FnExpr, GetterProp, MemberExpr, MemberProp, MethodKind,
+  MethodProp, ObjectLit, OptCall, OptChainBase, PrivateMethod, Prop, PropName,
+  PropOrSpread, ReturnStmt,
 };
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
@@ -243,6 +243,33 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
       }
     }
   }
+
+  fn check_call_expr(&mut self, callee_expr: &Expr, args: &[ExprOrSpread]) {
+    if !(matches!(args.len(), 2 | 3)) {
+      return;
+    }
+
+    self.check_callee_expr(callee_expr, |visitor, member_expr| {
+      if let Expr::Ident(ident) = &*member_expr.obj {
+        if !(matches!(ident.sym.as_ref(), "Object" | "Reflect")) {
+          return;
+        }
+
+        if let MemberProp::Ident(ident) = &member_expr.prop {
+          if !(matches!(
+            ident.sym.as_ref(),
+            "create" | "defineProperty" | "defineProperties"
+          )) {
+            return;
+          }
+        }
+      }
+
+      if let Expr::Object(obj_expr) = &*args[args.len() - 1].expr {
+        visitor.check_obj_method_getter_return(obj_expr)
+      }
+    });
+  }
 }
 
 impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
@@ -316,36 +343,17 @@ impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
     });
   }
 
+  fn visit_opt_call(&mut self, opt_call: &OptCall) {
+    opt_call.visit_children_with(self);
+    self.check_call_expr(&opt_call.callee, &opt_call.args);
+  }
+
   fn visit_call_expr(&mut self, call_expr: &CallExpr) {
     call_expr.visit_children_with(self);
-    if !(matches!(call_expr.args.len(), 2 | 3)) {
+    let Callee::Expr(callee_expr) = &call_expr.callee else {
       return;
-    }
-
-    if let Callee::Expr(callee_expr) = &call_expr.callee {
-      self.check_callee_expr(callee_expr, |visitor, member_expr| {
-        if let Expr::Ident(ident) = &*member_expr.obj {
-          if !(matches!(ident.sym.as_ref(), "Object" | "Reflect")) {
-            return;
-          }
-
-          if let MemberProp::Ident(ident) = &member_expr.prop {
-            if !(matches!(
-              ident.sym.as_ref(),
-              "create" | "defineProperty" | "defineProperties"
-            )) {
-              return;
-            }
-          }
-        }
-
-        if let Expr::Object(obj_expr) =
-          &*call_expr.args[call_expr.args.len() - 1].expr
-        {
-          visitor.check_obj_method_getter_return(obj_expr)
-        }
-      });
-    }
+    };
+    self.check_call_expr(callee_expr, &call_expr.args);
   }
 
   fn visit_return_stmt(&mut self, return_stmt: &ReturnStmt) {
