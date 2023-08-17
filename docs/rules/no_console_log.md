@@ -2,7 +2,11 @@
 
 Disallows the use of `console.log`.
 
-Oftentimes, developers are guilty of committing `console.log` statements accidentally, left in particularly after debugging. Moreover, using `console.log` in code may leak sensitive information to the output or clutter the console with unnecessary information. This rule helps maintain clean and secure code by disallowing the use of `console.log`.
+Oftentimes, developers are guilty of committing `console.log` statements
+accidentally, left in particularly after debugging. Moreover, using
+`console.log` in code may leak sensitive information to the output or clutter
+the console with unnecessary information. This rule helps maintain clean and
+secure code by disallowing the use of `console.log`.
 
 ### Invalid
 
@@ -20,6 +24,6 @@ function log() { console.log("Log"); }
 console.error("Error message");
 
 function log_error(message: string) {
-    console.warn(message);
+  console.warn(message);
 }
 ```
