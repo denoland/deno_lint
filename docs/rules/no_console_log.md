@@ -17,10 +17,6 @@ function log() { console.log("Log"); }
 ### Valid
 
 ```typescript
-let foo = 0;
-
-const bar = 1;
-
 console.error("Error message");
 
 function log_error(message: string) {
