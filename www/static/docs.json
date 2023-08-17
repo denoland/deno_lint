@@ -22,7 +22,7 @@
   },
   {
     "code": "ban-unknown-rule-code",
-    "docs": "Warns the usage of unknown rule codes in ignore directives\n\nWe sometimes have to suppress and ignore lint errors for some reasons. We can do\nso using [ignore directives](https://lint.deno.land/ignoring-rules) with rule\nnames that should be ignored like so:\n\n```typescript\n// deno-lint-ignore no-explicit-any no-unused-vars\nconst foo: any = 42;\n```\n\nThis rule checks for the validity of the specified rule names (i.e. whether\n`deno_lint` provides the rule or not).\n\n### Invalid:\n\n```typescript\n// typo\n// deno-lint-ignore no-extra-sem\nexport const a = 42;\n\n// unknown rule name\n// deno-lint-ignore UNKNOWN_RULE_NAME\nconst b = \"b\";\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore no-extra-semi\nexport const a = 42;\n\n// deno-lint-ignore no-unused-vars\nconst b = \"b\";\n```\n",
+    "docs": "Warns the usage of unknown rule codes in ignore directives\n\nWe sometimes have to suppress and ignore lint errors for some reasons. We can do\nso using [ignore directives](https://lint.deno.land/ignoring-rules) with rule\nnames that should be ignored like so:\n\n```typescript\n// deno-lint-ignore no-explicit-any no-unused-vars\nconst foo: any = 42;\n```\n\nThis rule checks for the validity of the specified rule names (i.e. whether\n`deno_lint` provides the rule or not).\n\n### Invalid:\n\n```typescript\n// typo\n// deno-lint-ignore eq-eq-e\nconsole.assert(x == 42);\n\n// unknown rule name\n// deno-lint-ignore UNKNOWN_RULE_NAME\nconst b = \"b\";\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore eq-eq-eq\nconsole.assert(x == 42);\n\n// deno-lint-ignore no-unused-vars\nconst b = \"b\";\n```\n",
     "tags": [
       "recommended"
     ]
@@ -309,13 +309,6 @@
   {
     "code": "no-extra-non-null-assertion",
     "docs": "Disallows unnecessary non-null assertions\n\nNon-null assertions are specified with an `!` saying to the compiler that you\nknow this value is not null. Specifying this operator more than once in a row,\nor in combination with the optional chaining operator (`?`) is confusing and\nunnecessary.\n\n### Invalid:\n\n```typescript\nconst foo: { str: string } | null = null;\nconst bar = foo!!.str;\n\nfunction myFunc(bar: undefined | string) {\n  return bar!!;\n}\nfunction anotherFunc(bar?: { str: string }) {\n  return bar!?.str;\n}\n```\n\n### Valid:\n\n```typescript\nconst foo: { str: string } | null = null;\nconst bar = foo!.str;\n\nfunction myFunc(bar: undefined | string) {\n  return bar!;\n}\nfunction anotherFunc(bar?: { str: string }) {\n  return bar?.str;\n}\n```\n",
-    "tags": [
-      "recommended"
-    ]
-  },
-  {
-    "code": "no-extra-semi",
-    "docs": "<!-- deno-fmt-ignore-file -->\n\nDisallows the use of unnecessary semi-colons\n\nExtra (and unnecessary) semi-colons can cause confusion when reading the code as\nwell as making the code less clean.\n\n### Invalid:\n\n```typescript\nconst x = 5;;\n\nfunction foo() {};\n```\n\n### Valid:\n\n```typescript\nconst x = 5;\n\nfunction foo() {}\n```\n",
     "tags": [
       "recommended"
     ]
