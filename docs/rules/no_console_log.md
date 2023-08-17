@@ -6,24 +6,24 @@ Oftentimes, developers are guilty of committing `console.log` statements acciden
 
 ### Invalid
 
-```rust
+```typescript
 console.log("Debug message");
 
 if debug { console.log("Debugging"); }
 
-fn log() { console.log("Log"); }
+function log() { console.log("Log"); }
 ```
 
 ### Valid
 
-```rust
+```typescript
 let foo = 0;
 
 const bar = 1;
 
 console.error("Error message");
 
-fn log_error(message: &str) {
-    eprintln!("{}", message);
+function log_error(message: string) {
+    console.warn(message);
 }
 ```
