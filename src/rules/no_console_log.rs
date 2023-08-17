@@ -1,7 +1,8 @@
 use super::{ Context, LintRule };
 use crate::handler::{ Handler, Traverse };
 use crate::Program;
-use deno_ast::view::{ CallExpr, Expr };
+use deno_ast::SourceRanged;
+use deno_ast::view::{ CallExpr, Expr, MemberProp };
 
 #[derive(Debug)]
 pub struct NoConsoleLog;
@@ -36,11 +37,15 @@ struct NoConsoleLogHandler;
 
 impl Handler for NoConsoleLogHandler {
     fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-        if let Expr::Member(member_expr) = call_expr.callee() {
-            if member_expr.object().as_ident().unwrap().raw() == "console" 
-                && member_expr.prop().as_ident().unwrap().raw() == "log" 
-            {
-                ctx.add_diagnostic(call_expr.range(), CODE, MESSAGE);
+        if let deno_ast::view::Callee::Expr(Expr::Member(member_expr)) = &call_expr.callee {
+            if let Expr::Ident(obj_ident) = &member_expr.obj {
+                if obj_ident.sym().as_ref() == "console" {
+                    if let MemberProp::Ident(prop_ident) = &member_expr.prop {
+                        if prop_ident.sym().as_ref() == "log" {
+                            ctx.add_diagnostic(call_expr.range(), CODE, MESSAGE);
+                        }
+                    }
+                }
             }
         }
     }
@@ -56,8 +61,26 @@ mod tests {
         assert_lint_ok!(NoConsoleLog,
             r#"let foo = 0; const bar = 1;"#,
             r#"console.error('Error message');"#
-        )
+        );
     }
 
     #[test]
+    fn no_console_log_invalid() {
+        // Test cases where console.log is present
+        assert_lint_err!(
+            NoConsoleLog,
+            r#"console.log('Debug message');"#: [{
+                col: 0,
+                message: MESSAGE,
+            }],
+            r#"if (debug) { console.log('Debugging'); }"#: [{
+                col: 13,
+                message: MESSAGE,
+            }],
+            r#"function log() { console.log('Log'); }"#: [{
+                col: 17,
+                message: MESSAGE,
+            }]
+        );
+    }
 }
