@@ -193,6 +193,7 @@ impl LintErrTester {
     }
   }
 
+  #[track_caller]
   pub fn run(self) {
     let rule_code = self.rule.code();
     let diagnostics = lint(self.rule, self.src, self.filename);
