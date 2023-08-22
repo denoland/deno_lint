@@ -49,6 +49,9 @@ impl Handler for NoAwaitInSyncFnHandler {
         FnDecl(decl) => !decl.function.is_async(),
         FnExpr(decl) => !decl.function.is_async(),
         ArrowExpr(decl) => !decl.is_async(),
+        MethodProp(decl) => !decl.function.is_async(),
+        ClassMethod(decl) => !decl.function.is_async(),
+        PrivateMethod(decl) => !decl.function.is_async(),
         _ => {
           let parent = match node.parent() {
             Some(p) => p,
@@ -89,8 +92,22 @@ mod tests {
       }
       "#,
       r#"
+      const foo = {
+        async foo(things) {
+          await bar();
+        }
+      }
+      "#,
+      r#"
       class Foo {
         async foo(things) {
+          await bar();
+        }
+      }
+      "#,
+      r#"
+      class Foo {
+        async #foo(things) {
           await bar();
         }
       }
@@ -119,6 +136,27 @@ mod tests {
         await bar();
       }
       "#: [{ line: 3, col: 8 }],
+      r#"
+      const foo = {
+        foo(things) {
+          await bar();
+        }
+      }
+      "#: [{ line: 4, col: 10 }],
+      r#"
+      class Foo {
+        foo(things) {
+          await bar();
+        }
+      }
+      "#: [{ line: 4, col: 10 }],
+      r#"
+      class Foo {
+        #foo(things) {
+          await bar();
+        }
+      }
+      "#: [{ line: 4, col: 10 }],
     }
   }
 }
