@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-22.04-xl, windows-2019]
+        os: [macOS-latest, ubuntu-latest, windows-2019]
 
     env:
       CARGO_INCREMENTAL: 0
@@ -27,7 +27,7 @@ jobs:
           submodules: true
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dsherret/rust-toolchain-file@v1
 
       - name: Install Deno
         uses: denoland/setup-deno@v1
