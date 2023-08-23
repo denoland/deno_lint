@@ -1,6 +1,6 @@
 [package]
 name = "deno_lint"
-version = "0.50.1"
+version = "0.50.3"
 edition = "2021"
 description = "lint for deno"
 authors = ["the Deno authors"]
