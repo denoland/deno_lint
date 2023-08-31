@@ -31,6 +31,7 @@ pub mod no_case_declarations;
 pub mod no_class_assign;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
+pub mod no_console_log;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
