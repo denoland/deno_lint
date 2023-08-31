@@ -1,3 +1,2 @@
 function hello(): any {
-    
 }
