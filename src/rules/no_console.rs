@@ -7,7 +7,7 @@ use deno_ast::SourceRanged;
 #[derive(Debug)]
 pub struct NoConsole;
 
-const MESSAGE: &str = "'console` usage is not allowed.";
+const MESSAGE: &str = "`console` usage is not allowed.";
 const CODE: &str = "no-console";
 
 impl LintRule for NoConsole {
