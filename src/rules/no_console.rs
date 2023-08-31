@@ -59,8 +59,8 @@ mod tests {
   }
 
   #[test]
-  fn no_console_log_invalid() {
-    // Test cases where console.log is present
+  fn no_console_invalid() {
+    // Test cases where console is present
     assert_lint_err!(
         NoConsole,
         r#"console.log('Debug message');"#: [{
@@ -78,7 +78,15 @@ mod tests {
         r#"function log() { console.debug('Log'); }"#: [{
             col: 17,
             message: MESSAGE,
-        }]
+        }],
+        r#"console;"#: [{
+            col: 0,
+            message: MESSAGE,
+        }],
+        r#"console.warn("test");"#: [{
+            col: 0,
+            message: MESSAGE,
+        }],
     );
   }
 }
