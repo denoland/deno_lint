@@ -50,12 +50,12 @@ impl Handler for Visitor {
     ctx: &mut Context,
   ) {
     // Fresh only considers components in the routes/ folder to be
-    // server components.
+    // server components. Files inside an `(_islands)` folder are considered
+    // islands though, even if they are inside the `routes` folder.
     let path = Path::new(ctx.file_name());
-    if !path
-      .components()
-      .map(|comp| comp.as_os_str())
-      .any(|comp| comp == "routes")
+    let mut path_component = path.components().map(|comp| comp.as_os_str());
+    if !path_component.any(|comp| comp == "routes")
+      || path_component.any(|comp| comp == "(_islands)")
     {
       return;
     }
@@ -165,6 +165,11 @@ mod tests {
       &FreshServerEventHandlers,
       "<x-foo onClick=\"console.log('hey')\" />",
       "foo.jsx",
+    );
+    assert_lint_ok(
+      &FreshServerEventHandlers,
+      "<button onClick={function () {}} />",
+      "routes/foo/(_islands)/foo.jsx",
     );
 
     assert_lint_err!(FreshServerEventHandlers, filename: "routes/index.tsx",  r#"<button onClick={() => {}} />"#: [
