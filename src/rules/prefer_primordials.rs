@@ -323,7 +323,7 @@ struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
   fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
-    fn inside_var_decl_lhs_or_member_expr_or_prop(
+    fn inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(
       orig: ast_view::Node,
       node: ast_view::Node,
     ) -> bool {
@@ -336,11 +336,14 @@ impl Handler for PreferPrimordialsHandler {
       if let Some(kv) = node.to::<ast_view::KeyValueProp>() {
         return kv.key.range().contains(&orig.range());
       }
+      if let Some(type_ref) = node.to::<ast_view::TsTypeRef>() {
+        return type_ref.type_name.range().contains(&orig.range());
+      }
 
       match node.parent() {
         None => false,
         Some(parent) => {
-          inside_var_decl_lhs_or_member_expr_or_prop(orig, parent)
+          inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(orig, parent)
         }
       }
     }
@@ -349,7 +352,7 @@ impl Handler for PreferPrimordialsHandler {
       scope.var(&ident.inner.to_id()).is_some()
     }
 
-    if inside_var_decl_lhs_or_member_expr_or_prop(
+    if inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(
       ident.as_node(),
       ident.as_node(),
     ) {
@@ -766,6 +769,15 @@ let a, b, c;
       r#"
 const { indirectEval } = primordials;
 indirectEval("console.log('This test should pass.');");
+      "#,
+      r#"
+function foo(a: Array<any>) {}
+      "#,
+      r#"
+function foo(): Array<any> {}
+      "#,
+      r#"
+type p = Promise<void>;
       "#,
     };
   }
