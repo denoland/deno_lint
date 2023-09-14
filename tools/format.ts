@@ -40,6 +40,7 @@ const p3 = new Deno.Command("deno", {
     "www/pages",
     "docs/rules",
     "README.md",
+    ".devcontainer",
   ],
   stdin: "null",
 }).spawn();
