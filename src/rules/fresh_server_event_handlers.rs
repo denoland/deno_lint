@@ -91,9 +91,7 @@ impl Handler for Visitor {
         _ => return,
       };
 
-      let JSXExpr::Expr(expr_value) = expr.expr else {
-        return;
-      };
+      let JSXExpr::Expr(expr_value) = expr.expr else {return};
 
       // If we pass a function expression or an arrow function expression
       // then we know for sure that we can't render that.
