@@ -74,28 +74,36 @@ impl NoSyncFnInAsyncFnHandler {
     ctx: &mut Context,
   ) {
     // if we detect one of the blocking functions inside an async context, add lint
+    let node_name = node.text().to_string();
     if_chain! {
-      if self.blocking_fns.contains(&node.text().to_string());
+      if self.blocking_fns.contains(&node_name);
       if inside_async_fn(node);
       then {
-        self.add_diagnostic(node.range(), ctx)
+        self.add_diagnostic(&node_name, node.range(), ctx)
       }
     }
   }
 
-  fn add_diagnostic(&mut self, range: SourceRange, ctx: &mut Context) {
-    ctx.add_diagnostic_with_hint(range, CODE, MESSAGE, format!("hello world"));
+  fn add_diagnostic(
+    &mut self,
+    node_name: &str,
+    range: SourceRange,
+    ctx: &mut Context,
+  ) {
+    ctx.add_diagnostic_with_hint(
+      range,
+      CODE,
+      MESSAGE,
+      format!("consier changing {node_name} to an async function"),
+    );
   }
 
   fn handle_paren_callee(&mut self, p: &ParenExpr, ctx: &mut Context) {
     match p.expr {
-      // Nested paren callee ((eval))('var foo = 0;')
       Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
-      // Single argument callee: (eval)('var foo = 0;')
       Expr::Ident(ident) => {
         self.maybe_add_diagnostic(p.expr.as_node(), ctx);
       }
-      // Multiple arguments callee: (0, eval)('var foo = 0;')
       Expr::Seq(seq) => {
         for expr in &seq.exprs {
           if let Expr::Ident(ident) = expr {
@@ -107,21 +115,6 @@ impl NoSyncFnInAsyncFnHandler {
     }
   }
 }
-fn inside_async_fn(node: ast_view::Node) -> bool {
-  use deno_ast::view::Node::*;
-  match node {
-    FnDecl(decl) => decl.function.is_async(),
-    FnExpr(decl) => decl.function.is_async(),
-    ArrowExpr(decl) => decl.is_async(),
-    _ => {
-      let parent = match node.parent() {
-        Some(p) => p,
-        None => return false,
-      };
-      inside_async_fn(parent)
-    }
-  }
-}
 
 impl Handler for NoSyncFnInAsyncFnHandler {
   fn member_expr(
@@ -129,26 +122,7 @@ impl Handler for NoSyncFnInAsyncFnHandler {
     member_expr: &ast_view::MemberExpr,
     ctx: &mut Context,
   ) {
-    fn inside_sync_fn(node: ast_view::Node) -> Option<String> {
-      use deno_ast::view::Node::*;
-      match node {
-        FnDecl(decl) if !decl.function.is_async() => {
-          Some(decl.ident.text().into())
-        }
-        FnExpr(decl) if !decl.function.is_async() => {
-          decl.ident.map(|id| id.text().into())
-        }
-        _ => {
-          let parent = match node.parent() {
-            Some(p) => p,
-            None => return None,
-          };
-          inside_sync_fn(parent)
-        }
-      }
-    }
-
-    // Not check chained member expressions (e.g. `foo.bar.baz`)
+    // do not check chained member expressions (e.g. `foo.bar.baz`)
     if member_expr.parent().is::<ast_view::MemberExpr>() {
       return;
     }
@@ -210,22 +184,56 @@ impl Handler for NoSyncFnInAsyncFnHandler {
   }
 }
 
+fn inside_async_fn(node: ast_view::Node) -> bool {
+  use deno_ast::view::Node::*;
+  match node {
+    FnDecl(decl) => decl.function.is_async(),
+    FnExpr(decl) => decl.function.is_async(),
+    ArrowExpr(decl) => decl.is_async(),
+    _ => {
+      let parent = match node.parent() {
+        Some(p) => p,
+        None => return false,
+      };
+      inside_async_fn(parent)
+    }
+  }
+}
+
+fn inside_sync_fn(node: ast_view::Node) -> Option<String> {
+  use deno_ast::view::Node::*;
+  match node {
+    FnDecl(decl) if !decl.function.is_async() => Some(decl.ident.text().into()),
+    FnExpr(decl) if !decl.function.is_async() => {
+      decl.ident.map(|id| id.text().into())
+    }
+    _ => {
+      let parent = match node.parent() {
+        Some(p) => p,
+        None => return None,
+      };
+      inside_sync_fn(parent)
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
 
   #[test]
-  fn hello() {
+  fn no_sync_fn_in_async_fn_fails_nested() {
+    // both of these should panic
+    // TODO switch to assert_err
     assert_lint_ok! {
      NoSyncFnInAsyncFn,
            r#"
-
       async function foo2() {
         foo()
       }
-            function foo() {
+      function foo() {
         Deno.readTextFileSync("");
-     }"#
+      }"#
     }
 
     assert_lint_ok! {
@@ -236,9 +244,7 @@ mod tests {
       }"
       async function foo2() {
         foo()
-      }
-      
-      #
+      }"#
     }
   }
 
