@@ -31,7 +31,9 @@ impl LintRule for NoSyncFnInAsyncFn {
     context: &mut Context,
     program: Program<'_>,
   ) {
-    NoSyncFnInAsyncFnHandler::default().traverse(program, context);
+    let mut rule =  NoSyncFnInAsyncFnHandler::default();
+    rule.traverse(program, context);
+    rule.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -242,8 +244,6 @@ mod tests {
 
   #[test]
   fn hello() {
-    //TODO: is this fixable, this doesn't fail
-    // bacuse the parsing is done from top to bottom
     assert_lint_ok! {
      NoSyncFnInAsyncFn,
            r#"
@@ -255,9 +255,7 @@ mod tests {
         Deno.readTextFileSync("");
      }"#
     }
-    dbg!("reached here incorrectly");
 
-    // this fails cool
     assert_lint_ok! {
      NoSyncFnInAsyncFn,
            r#"
