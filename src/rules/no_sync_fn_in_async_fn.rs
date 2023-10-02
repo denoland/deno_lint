@@ -1,17 +1,16 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::swc_util::StringRepr;
 use crate::Program;
 use deno_ast::view::NodeTrait;
+use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
+use deno_ast::SourceRange;
 use deno_ast::{view as ast_view, SourceRanged};
 use if_chain::if_chain;
-use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
-use deno_ast::{SourceRange };
-use crate::swc_util::StringRepr;
-
 
 #[derive(Debug)]
-pub struct NoSyncFnInAsyncFn ;
+pub struct NoSyncFnInAsyncFn;
 
 const CODE: &str = "no-sync-fn-in-async-fn";
 const MESSAGE: &str =
@@ -31,7 +30,7 @@ impl LintRule for NoSyncFnInAsyncFn {
     context: &mut Context,
     program: Program<'_>,
   ) {
-    let mut rule =  NoSyncFnInAsyncFnHandler::default();
+    let mut rule = NoSyncFnInAsyncFnHandler::default();
     rule.traverse(program, context);
     rule.traverse(program, context);
   }
@@ -68,8 +67,8 @@ fn extract_symbol<'a>(
 struct NoSyncFnInAsyncFnHandler {
   blocking_fns: Vec<String>,
 }
-impl NoSyncFnInAsyncFnHandler{
-    fn maybe_add_diagnostic(
+impl NoSyncFnInAsyncFnHandler {
+  fn maybe_add_diagnostic(
     &mut self,
     node: deno_ast::view::Node,
     ctx: &mut Context,
@@ -89,12 +88,7 @@ impl NoSyncFnInAsyncFnHandler{
   }
 
   fn add_diagnostic(&mut self, range: SourceRange, ctx: &mut Context) {
-        ctx.add_diagnostic_with_hint(
-          range,
-          CODE,
-          MESSAGE,
-          format!("hello world"),
-        );
+    ctx.add_diagnostic_with_hint(range, CODE, MESSAGE, format!("hello world"));
   }
 
   fn handle_paren_callee(&mut self, p: &ParenExpr, ctx: &mut Context) {
@@ -117,21 +111,21 @@ impl NoSyncFnInAsyncFnHandler{
     }
   }
 }
-    fn inside_async_fn(node: ast_view::Node) -> bool {
-      use deno_ast::view::Node::*;
-      match node {
-        FnDecl(decl) => decl.function.is_async(),
-        FnExpr(decl) => decl.function.is_async(),
-        ArrowExpr(decl) => decl.is_async(),
-        _ => {
-          let parent = match node.parent() {
-            Some(p) => p,
-            None => return false,
-          };
-          inside_async_fn(parent)
-        }
-      }
+fn inside_async_fn(node: ast_view::Node) -> bool {
+  use deno_ast::view::Node::*;
+  match node {
+    FnDecl(decl) => decl.function.is_async(),
+    FnExpr(decl) => decl.function.is_async(),
+    ArrowExpr(decl) => decl.is_async(),
+    _ => {
+      let parent = match node.parent() {
+        Some(p) => p,
+        None => return false,
+      };
+      inside_async_fn(parent)
     }
+  }
+}
 
 impl Handler for NoSyncFnInAsyncFnHandler {
   fn member_expr(
@@ -142,8 +136,12 @@ impl Handler for NoSyncFnInAsyncFnHandler {
     fn inside_sync_fn(node: ast_view::Node) -> Option<String> {
       use deno_ast::view::Node::*;
       match node {
-        FnDecl(decl) if !decl.function.is_async() => Some(decl.ident.text().into()),
-        FnExpr(decl) if !decl.function.is_async() => decl.ident.map(|id|id.text().into()),
+        FnDecl(decl) if !decl.function.is_async() => {
+          Some(decl.ident.text().into())
+        }
+        FnExpr(decl) if !decl.function.is_async() => {
+          decl.ident.map(|id| id.text().into())
+        }
         _ => {
           let parent = match node.parent() {
             Some(p) => p,
@@ -196,46 +194,40 @@ impl Handler for NoSyncFnInAsyncFnHandler {
         );
       }
     }
-    }
-    
-    // // if we detect one of the blocking functions inside an async context, add lint
-    // if_chain! {
-    //   if inside_async_fn(member_expr.as_node());
-    //   then {
-    //     dbg!("{}",member_expr.text());
-    //     // ctx.add_diagnostic_with_hint(
-    //     //   member_expr.range(),
-    //     //   CODE,
-    //     //   MESSAGE,
-    //     //   format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
-    //     //     async_name),
-    //     // );
-    //   }
-    // }
+  }
 
-    fn var_declarator(&mut self, v: &VarDeclarator, ctx: &mut Context) {
+  // // if we detect one of the blocking functions inside an async context, add lint
+  // if_chain! {
+  //   if inside_async_fn(member_expr.as_node());
+  //   then {
+  //     dbg!("{}",member_expr.text());
+  //     // ctx.add_diagnostic_with_hint(
+  //     //   member_expr.range(),
+  //     //   CODE,
+  //     //   MESSAGE,
+  //     //   format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
+  //     //     async_name),
+  //     // );
+  //   }
+  // }
+
+  fn var_declarator(&mut self, v: &VarDeclarator, ctx: &mut Context) {
     if let Some(expr) = &v.init {
-    if let Expr::Ident(ident) = expr {
-      self.maybe_add_diagnostic(expr.as_node(), ctx);
-    }
-      
+      if let Expr::Ident(ident) = expr {
+        self.maybe_add_diagnostic(expr.as_node(), ctx);
+      }
     }
   }
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let Callee::Expr(expr) = &call_expr.callee {
       match expr {
-        Expr::Ident(ident) => {
-          self.maybe_add_diagnostic(expr.as_node(),  ctx)
-        }
+        Expr::Ident(ident) => self.maybe_add_diagnostic(expr.as_node(), ctx),
         Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
         _ => {}
       }
     }
   }
-
-    
-  
 }
 
 #[cfg(test)]
@@ -257,8 +249,8 @@ mod tests {
     }
 
     assert_lint_ok! {
-     NoSyncFnInAsyncFn,
-           r#"
+    NoSyncFnInAsyncFn,
+          r#"
       function foo() {
         Deno.readTextFileSync("");
       }"
@@ -279,24 +271,24 @@ mod tests {
         Deno.readTextFileSync("");
       }
       "#,
-          r#"
+         r#"
       const foo = (things) => {
         Deno.readTextFileSync("");
       }
       "#,
-          r#"
+         r#"
       const foo = function(things) {
         Deno.readTextFileSync("");
       }
       "#,
-          r#"
+         r#"
       class Foo {
         foo(things) {
           Deno.readTextFileSync("");
         }
       }
       "#,
-        }
+       }
   }
 
   #[test]

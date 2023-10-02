@@ -60,7 +60,9 @@ impl Handler for Visitor {
     let id = match export_decl.decl {
       Decl::Var(var_decl) => {
         if let Some(first) = var_decl.decls.first() {
-          let Pat::Ident(name_ident) = first.name else {return};
+          let Pat::Ident(name_ident) = first.name else {
+            return;
+          };
           name_ident.id
         } else {
           return;
