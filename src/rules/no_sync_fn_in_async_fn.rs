@@ -74,14 +74,10 @@ impl NoSyncFnInAsyncFnHandler {
     ctx: &mut Context,
   ) {
     // if we detect one of the blocking functions inside an async context, add lint
-    dbg!("a");
-    dbg!(&self.blocking_fns);
-    dbg!(&node.text());
     if_chain! {
       if self.blocking_fns.contains(&node.text().to_string());
       if inside_async_fn(node);
       then {
-        dbg!("azea");
         self.add_diagnostic(node.range(), ctx)
       }
     }
@@ -170,7 +166,6 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       if prop_symbol.strip_suffix("Sync").is_some();
       if let Some(sync_fn) = inside_sync_fn(member_expr.as_node());
       then {
-        dbg!(member_expr.text());
         self.blocking_fns.push(sync_fn);
       }
     }
@@ -195,21 +190,6 @@ impl Handler for NoSyncFnInAsyncFnHandler {
       }
     }
   }
-
-  // // if we detect one of the blocking functions inside an async context, add lint
-  // if_chain! {
-  //   if inside_async_fn(member_expr.as_node());
-  //   then {
-  //     dbg!("{}",member_expr.text());
-  //     // ctx.add_diagnostic_with_hint(
-  //     //   member_expr.range(),
-  //     //   CODE,
-  //     //   MESSAGE,
-  //     //   format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
-  //     //     async_name),
-  //     // );
-  //   }
-  // }
 
   fn var_declarator(&mut self, v: &VarDeclarator, ctx: &mut Context) {
     if let Some(expr) = &v.init {
