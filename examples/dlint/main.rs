@@ -356,6 +356,7 @@ mod tests {
     pattern_match(pattern, s, "[WILDCARD]")
   }
 
+  // TODO(bartlomieju): update to the current version in `deno` repo
   fn pattern_match(pattern: &str, s: &str, wildcard: &str) -> bool {
     // Normalize line endings
     let mut s = s.replace("\r\n", "\n");

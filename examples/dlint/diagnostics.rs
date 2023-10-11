@@ -23,7 +23,7 @@ fn print_compact(diagnostics: &[LintDiagnostic], filename: &str) {
     eprintln!(
       "{}: line {}, col {}, Error - {} ({})",
       filename,
-      diagnostic.range.start.line_index + 1,
+      diagnostic.range.start.line_index,
       diagnostic.range.start.column_index + 1,
       diagnostic.message,
       diagnostic.code
@@ -134,6 +134,8 @@ impl miette::SourceCode for MietteSourceCode<'_> {
       end_line_column.line_index + context_lines_after,
       self.source.text_str().len(),
     );
+    eprintln!("start line column {:?}", start_line_column);
+    eprintln!("end line column {:?}", end_line_column);
     let src_end = self
       .source
       .line_end(std::cmp::min(end_line_index, line_count - 1));
