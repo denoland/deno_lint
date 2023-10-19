@@ -471,18 +471,14 @@ impl Visit for Analyzer<'_> {
         .cases
         .iter()
         .filter_map(|case| self.get_end_reason(case.start()))
-        .fold(
-          Some(End::Forced {
+        .try_fold(
+          End::Forced {
             ret: false,
             throw: false,
             infinite_loop: false,
-          }),
+          },
           |acc, cur| {
-            if let Some(acc) = acc {
-              acc.merge_forced(cur)
-            } else {
-              None
-            }
+            acc.merge_forced(cur)
           },
         );
 

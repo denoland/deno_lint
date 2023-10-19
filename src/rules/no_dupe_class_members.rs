@@ -135,7 +135,7 @@ impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
         self
           .appeared_methods
           .entry(m)
-          .or_insert_with(Vec::new)
+          .or_default()
           .push((class_method.range(), name));
       }
     }

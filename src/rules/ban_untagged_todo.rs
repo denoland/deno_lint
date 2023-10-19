@@ -59,7 +59,7 @@ fn check_comment(comment: &Comment) -> bool {
   }
 
   static TODO_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"todo\((#|@)?\S+\)"#).unwrap());
+    Lazy::new(|| Regex::new(r"todo\((#|@)?\S+\)").unwrap());
 
   if TODO_RE.is_match(text) {
     return false;

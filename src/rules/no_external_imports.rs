@@ -39,7 +39,7 @@ impl LintRule for NoExternalImport {
     context: &mut Context,
     program: Program,
   ) {
-    let mut handler = NoExternalImportHandler::default();
+    let mut handler = NoExternalImportHandler;
     handler.traverse(program, context);
   }
 

@@ -105,11 +105,11 @@ fn check_comment(comment: &Comment) -> Option<DirectiveKind> {
   }
 
   static EXPECT_ERROR_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-expect-error\s*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^/*\s*@ts-expect-error\s*$").unwrap());
   static IGNORE_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-ignore\s*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^/*\s*@ts-ignore\s*$").unwrap());
   static NOCHECK_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-nocheck\s*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^/*\s*@ts-nocheck\s*$").unwrap());
 
   if EXPECT_ERROR_REGEX.is_match(&comment.text) {
     return Some(DirectiveKind::ExpectError);
