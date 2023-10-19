@@ -333,105 +333,105 @@ mod tests {
   fn no_constant_condition_invalid() {
     assert_lint_err! {
       NoConstantCondition,
-      r#"true ? 1 : 2;"#: [
+      r"true ? 1 : 2;": [
         {
           col: 0,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"q = 0 ? 1 : 2;"#: [
+      r"q = 0 ? 1 : 2;": [
         {
           col: 4,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"(q = 0) ? 1 : 2;"#: [
+      r"(q = 0) ? 1 : 2;": [
         {
           col: 0,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"`` ? 1 : 2;"#: [
+      r"`` ? 1 : 2;": [
         {
           col: 0,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"`foo` ? 1 : 2;"#: [
+      r"`foo` ? 1 : 2;": [
         {
           col: 0,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"`foo${bar}` ? 1 : 2;"#: [
+      r"`foo${bar}` ? 1 : 2;": [
         {
           col: 0,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(-2);"#: [
+      r"if(-2);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(true);"#: [
+      r"if(true);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if({});"#: [
+      r"if({});": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(0 < 1);"#: [
+      r"if(0 < 1);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(0 || 1);"#: [
+      r"if(0 || 1);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(a, 1);"#: [
+      r"if(a, 1);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(`foo`);"#: [
+      r"if(`foo`);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(``);"#: [
+      r"if(``);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
           hint: NoConstantConditionHint::Remove,
         }
       ],
-      r#"if(`\\\n`);"#: [
+      r"if(`\\\n`);": [
         {
           col: 3,
           message: NoConstantConditionMessage::Unexpected,
