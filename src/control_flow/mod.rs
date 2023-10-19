@@ -477,9 +477,7 @@ impl Visit for Analyzer<'_> {
             throw: false,
             infinite_loop: false,
           },
-          |acc, cur| {
-            acc.merge_forced(cur)
-          },
+          |acc, cur| acc.merge_forced(cur),
         );
 
       match forced_end {

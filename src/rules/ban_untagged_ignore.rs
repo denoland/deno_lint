@@ -34,7 +34,7 @@ impl LintRule for BanUntaggedIgnore {
         .line_ignore_directives()
         .values()
         .filter(|d| d.ignore_all())
-        .map(|d| d.range())
+        .map(|d| d.range()),
     );
 
     for range in violated_ranges {
