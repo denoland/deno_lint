@@ -14,6 +14,8 @@ it will be less confusing.
 
 ### Invalid:
 
+<!-- deno-fmt-ignore -->
+
 ```typescript
 if (!key in object) {}
 if (!foo instanceof Foo) {}
