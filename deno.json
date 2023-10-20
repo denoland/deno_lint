@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "update-docs": "cargo run --features=docs --example dlint rules --json > www/static/docs.json"
+  },
+  "exclude": [
+    "target",
+    "examples"
+  ]
+}

@@ -35,11 +35,6 @@ const p3 = new Deno.Command("deno", {
   args: [
     "fmt",
     ...checkArgs,
-    "tools",
-    "benchmarks/benchmarks.ts",
-    "www/pages",
-    "docs/rules",
-    "README.md",
   ],
   stdin: "null",
 }).spawn();
