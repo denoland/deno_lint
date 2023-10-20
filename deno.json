@@ -4,6 +4,7 @@
   },
   "exclude": [
     "target",
-    "examples"
+    "examples",
+    "benchmarks/oak"
   ]
 }
