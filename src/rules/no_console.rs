@@ -52,9 +52,9 @@ mod tests {
     assert_lint_ok!(
       NoConsole,
       // ignored
-      r#"// deno-lint-ignore no-console\nconsole.error('Error message');"#,
+      r"// deno-lint-ignore no-console\nconsole.error('Error message');",
       // not global
-      r#"const console = { log() {} } console.log('Error message');"#,
+      r"const console = { log() {} } console.log('Error message');",
     );
   }
 

@@ -143,7 +143,7 @@ mod tests {
   fn no_invalid_regexp_valid() {
     assert_lint_ok! {
       NoInvalidRegexp,
-      r#"RegExp('');
+      r"RegExp('');
 RegExp();
 RegExp('.', 'g');
 new RegExp('.');
@@ -176,7 +176,7 @@ var foo = new RegExp('a', '');
 /(a)bc[de]/.test('abcd');
 /(a)bc[de]/u;
 let x = new FooBar('\\');
-let re = new RegExp('foo', x);"#,
+let re = new RegExp('foo', x);",
     };
   }
 
@@ -184,14 +184,14 @@ let re = new RegExp('foo', x);"#,
   fn no_invalid_regexp_invalid() {
     assert_lint_err! {
       NoInvalidRegexp,
-      r#"RegExp('[');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"RegExp('.', 'z');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"new RegExp(')');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"new RegExp('\\');"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"var foo = new RegExp('(', '');"#: [{ col: 10, message: MESSAGE, hint: HINT }],
-      r#"/(?<a>a)\k</"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"/(?<!a){1}/"#: [{ col: 0, message: MESSAGE, hint: HINT }],
-      r#"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u"#: [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"RegExp('[');": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"RegExp('.', 'z');": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"new RegExp(')');": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"new RegExp('\\');": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"var foo = new RegExp('(', '');": [{ col: 10, message: MESSAGE, hint: HINT }],
+      r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
     }
   }
 }

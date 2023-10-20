@@ -15,7 +15,7 @@ const clippy = [
   "clippy::all",
 ];
 
-let p1 = new Deno.Command("cargo", {
+const p1 = new Deno.Command("cargo", {
   args: clippy,
   stdin: "null",
 });

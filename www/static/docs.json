@@ -523,7 +523,7 @@
   },
   {
     "code": "no-unsafe-negation",
-    "docs": "Disallows the usage of negation operator `!` as the left operand of relational\noperators.\n\n`!` operators appearing in the left operand of the following operators will\nsometimes cause an unexpected behavior because of the operator precedence:\n\n- `in` operator\n- `instanceof` operator\n\nFor example, when developers write a code like `!key in someObject`, most likely\nthey want it to behave just like `!(key in someObject)`, but actually it behaves\nlike `(!key) in someObject`. This lint rule warns such usage of `!` operator so\nit will be less confusing.\n\n### Invalid:\n\n```typescript\nif (!key in object) {}\nif (!foo instanceof Foo) {}\n```\n\n### Valid:\n\n```typescript\nif (!(key in object)) {}\nif (!(foo instanceof Foo)) {}\nif ((!key) in object) {}\nif ((!foo) instanceof Foo) {}\n```\n",
+    "docs": "Disallows the usage of negation operator `!` as the left operand of relational\noperators.\n\n`!` operators appearing in the left operand of the following operators will\nsometimes cause an unexpected behavior because of the operator precedence:\n\n- `in` operator\n- `instanceof` operator\n\nFor example, when developers write a code like `!key in someObject`, most likely\nthey want it to behave just like `!(key in someObject)`, but actually it behaves\nlike `(!key) in someObject`. This lint rule warns such usage of `!` operator so\nit will be less confusing.\n\n### Invalid:\n\n<!-- deno-fmt-ignore -->\n\n```typescript\nif (!key in object) {}\nif (!foo instanceof Foo) {}\n```\n\n### Valid:\n\n```typescript\nif (!(key in object)) {}\nif (!(foo instanceof Foo)) {}\nif ((!key) in object) {}\nif ((!foo) instanceof Foo) {}\n```\n",
     "tags": [
       "recommended"
     ]
