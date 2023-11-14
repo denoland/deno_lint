@@ -8,10 +8,12 @@ deprecated.
 
 ```typescript
 import obj from "./obj.json" assert { type: "json" };
+import("./obj2.json", { assert: { type: "json" } });
 ```
 
 ### Valid:
 
 ```typescript
 import obj from "./obj.json" with { type: "json" };
+import("./obj2.json", { with: { type: "json" } });
 ```

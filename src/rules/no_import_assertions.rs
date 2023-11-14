@@ -63,6 +63,47 @@ impl Handler for NoImportAssertionsHandler {
       }
     }
   }
+
+  fn call_expr(&mut self, call_expr: &ast_view::CallExpr, ctx: &mut Context) {
+      if_chain! {
+        if matches!(call_expr.callee, ast_view::Callee::Import(_));
+        if let Some(expr_or_spread) = call_expr.args.get(1);
+        if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
+        then {
+          for prop_or_spread in object_lit.props.iter() {
+            if_chain! {
+              if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
+              if let ast_view::Prop::KeyValue(key_value_prop) = prop;
+              then {
+                match key_value_prop.key {
+                  ast_view::PropName::Ident(ident) => {
+                    if ident.sym().as_ref() == "assert" {
+                      ctx.add_diagnostic_with_hint(
+                        ident.range(),
+                        CODE,
+                        MESSAGE,
+                        HINT,
+                      );
+                    }
+                  },
+                  ast_view::PropName::Str(str) => {
+                    if str.value().as_ref() == "assert" {
+                      ctx.add_diagnostic_with_hint(
+                        str.range(),
+                        CODE,
+                        MESSAGE,
+                        HINT,
+                      );
+                    }
+                  }
+                  _ => (),
+                }
+              }
+            }
+          }
+        }
+      }
+  }
 }
 
 #[cfg(test)]
@@ -75,6 +116,9 @@ mod tests {
       NoImportAssertions,
       r#"import foo from './foo.js';"#,
       r#"import foo from './foo.js' with { bar: 'bar' };"#,
+      r#"import('./foo.js');"#,
+      r#"import('./foo.js', { with: { bar: 'bar' } });"#,
+      r#"import('./foo.js', { "with": { bar: 'bar' } });"#,
     };
   }
 
@@ -88,6 +132,18 @@ mod tests {
         {
           line: 1,
           col: 27,
+        },
+      ],
+      r#"import('./foo.js', { assert: { bar: 'bar' } });"#: [
+        {
+          line: 1,
+          col: 21,
+        },
+      ],
+      r#"import('./foo.js', { "assert": { bar: 'bar' } });"#: [
+        {
+          line: 1,
+          col: 21,
         },
       ],
     };

@@ -341,7 +341,7 @@
   },
   {
     "code": "no-import-assertions",
-    "docs": "Disallows the `assert` keyword for import attributes\n\nES import attributes (previously called import assetions) has been changed to\nuse the `with` keyword. The old syntax using `assert` is still supported, but\ndeprecated.\n\n### Invalid:\n\n```typescript\nimport obj from \"./obj.json\" assert { type: \"json\" };\n```\n\n### Valid:\n\n```typescript\nimport obj from \"./obj.json\" with { type: \"json\" };\n```\n",
+    "docs": "Disallows the `assert` keyword for import attributes\n\nES import attributes (previously called import assetions) has been changed to\nuse the `with` keyword. The old syntax using `assert` is still supported, but\ndeprecated.\n\n### Invalid:\n\n```typescript\nimport obj from \"./obj.json\" assert { type: \"json\" };\nimport(\"./obj2.json\", { assert: { type: \"json\" } });\n```\n\n### Valid:\n\n```typescript\nimport obj from \"./obj.json\" with { type: \"json\" };\nimport(\"./obj2.json\", { with: { type: \"json\" } });\n```\n",
     "tags": [
       "recommended"
     ]
