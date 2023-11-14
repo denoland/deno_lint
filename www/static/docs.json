@@ -340,6 +340,13 @@
     "tags": []
   },
   {
+    "code": "no-import-assertions",
+    "docs": "Disallows the `assert` keyword for import attributes\n\nES import attributes (previously called import assetions) has been changed to\nuse the `with` keyword. The old syntax using `assert` is still supported, but\ndeprecated.\n\n### Invalid:\n\n```typescript\nimport obj from \"./obj.json\" assert { type: \"json\" };\n```\n\n### Valid:\n\n```typescript\nimport obj from \"./obj.json\" with { type: \"json\" };\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "no-import-assign",
     "docs": "Disallows reassignment of imported module bindings\n\nES module import bindings should be treated as read-only since modifying them\nduring code execution will likely result in runtime errors. It also makes for\npoor code readability and difficult maintenance.\n\n### Invalid:\n\n```typescript\nimport defaultMod, { namedMod } from \"./mod.js\";\nimport * as modNameSpace from \"./mod2.js\";\n\ndefaultMod = 0;\nnamedMod = true;\nmodNameSpace.someExportedMember = \"hello\";\nmodNameSpace = {};\n```\n\n### Valid:\n\n```typescript\nimport defaultMod, { namedMod } from \"./mod.js\";\nimport * as modNameSpace from \"./mod2.js\";\n\n// properties of bound imports may be set\ndefaultMod.prop = 1;\nnamedMod.prop = true;\nmodNameSpace.someExportedMember.prop = \"hello\";\n```\n",
     "tags": [
