@@ -1,8 +1,8 @@
-Disallows async functions that have no await expression or using await
+Disallows async functions that have no await expression or await using
 declaration
 
 In general, the primary reason to use async functions is to use await
-expressions or using await declarations inside. If an async function has
+expressions or await using declarations inside. If an async function has
 neither, it is most likely an unintentional mistake.
 
 ### Invalid:
@@ -57,7 +57,7 @@ async function f4() {
 }
 
 async function f5() {
-  using await = createResource();
+  using = createResource();
 }
 
 // empty functions are valid

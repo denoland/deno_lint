@@ -18,25 +18,25 @@ const CODE: &str = "require-await";
 #[derive(Display)]
 enum RequireAwaitMessage {
   #[display(
-    fmt = "Async function '{}' has no 'await' expression or 'using await' declaration.",
+    fmt = "Async function '{}' has no 'await' expression or 'await using' declaration.",
     _0
   )]
   Function(String),
   #[display(
-    fmt = "Async function has no 'await' expression or 'using await' declaration."
+    fmt = "Async function has no 'await' expression or 'await using' declaration."
   )]
   AnonymousFunction,
   #[display(
-    fmt = "Async arrow function has no 'await' expression or 'using await' declaration."
+    fmt = "Async arrow function has no 'await' expression or 'await using' declaration."
   )]
   ArrowFunction,
   #[display(
-    fmt = "Async method '{}' has no 'await' expression or 'using await' declaration.",
+    fmt = "Async method '{}' has no 'await' expression or 'await using' declaration.",
     _0
   )]
   Method(String),
   #[display(
-    fmt = "Async method has no 'await' expression or 'using await' declaration."
+    fmt = "Async method has no 'await' expression or 'await using' declaration."
   )]
   AnonymousMethod,
 }
@@ -44,7 +44,7 @@ enum RequireAwaitMessage {
 #[derive(Display)]
 enum RequireAwaitHint {
   #[display(
-    fmt = "Remove 'async' keyword from the function or use 'await' expression or 'using await' declaration inside."
+    fmt = "Remove 'async' keyword from the function or use 'await' expression or 'await using' declaration inside."
   )]
   RemoveOrUse,
 }
@@ -306,9 +306,8 @@ impl Handler for FunctionHandler {
   fn for_of_stmt(
     &mut self,
     for_of_stmt: &deno_ast::view::ForOfStmt,
-    ctx: &mut Context,
+    _ctx: &mut Context,
   ) {
-    for_of_stmt.tokens_fast(ctx.program());
     if for_of_stmt.is_await() {
       if let Some(info) = self.function_info.as_mut() {
         info.has_await = true;
@@ -394,7 +393,7 @@ mod tests {
       "async function foo() { for await (x of xs); }",
 
       // using-await
-      "async function foo() { using await = doSomething(); }",
+      "async function foo() { await using foo = doSomething(); }",
 
       // global await
       "await foo()",
