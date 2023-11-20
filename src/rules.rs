@@ -58,6 +58,7 @@ pub mod no_fallthrough;
 pub mod no_func_assign;
 pub mod no_global_assign;
 pub mod no_implicit_declare_namespace_export;
+pub mod no_import_assertions;
 pub mod no_import_assign;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
@@ -277,6 +278,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_func_assign::NoFuncAssign,
     &no_global_assign::NoGlobalAssign,
     &no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport,
+    &no_import_assertions::NoImportAssertions,
     &no_import_assign::NoImportAssign,
     &no_inferrable_types::NoInferrableTypes,
     &no_inner_declarations::NoInnerDeclarations,
