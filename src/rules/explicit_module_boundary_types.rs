@@ -62,7 +62,7 @@ impl Handler for ExplicitModuleBoundaryTypesHandler {
     use ast_view::Decl;
     match &export_decl.decl {
       Decl::Class(decl) => check_class(decl.class, ctx),
-      Decl::Fn(decl) => check_fn(decl.function, ctx),
+      Decl::Fn(decl) => check_fn(decl.function, ctx, false),
       Decl::Var(var) => check_var_decl(var, ctx),
       _ => {}
     }
@@ -76,22 +76,31 @@ impl Handler for ExplicitModuleBoundaryTypesHandler {
     use ast_view::DefaultDecl;
     match &export_default_decl.decl {
       DefaultDecl::Class(expr) => check_class(expr.class, ctx),
-      DefaultDecl::Fn(expr) => check_fn(expr.function, ctx),
+      DefaultDecl::Fn(expr) => check_fn(expr.function, ctx, false),
       _ => {}
     }
+  }
+
+  fn export_default_expr(
+    &mut self,
+    export_default_expr: &ast_view::ExportDefaultExpr,
+    ctx: &mut Context,
+  ) {
+    check_expr(&export_default_expr.expr, ctx);
   }
 }
 
 fn check_class(class: &ast_view::Class, ctx: &mut Context) {
   for member in &class.body {
     if let ast_view::ClassMember::Method(method) = member {
-      check_fn(method.function, ctx);
+      let is_setter = method.inner.kind == ast_view::MethodKind::Setter;
+      check_fn(method.function, ctx, is_setter);
     }
   }
 }
 
-fn check_fn(function: &ast_view::Function, ctx: &mut Context) {
-  if function.return_type.is_none() {
+fn check_fn(function: &ast_view::Function, ctx: &mut Context, is_setter: bool) {
+  if !is_setter && function.return_type.is_none() {
     ctx.add_diagnostic_with_hint(
       function.range(),
       CODE,
@@ -162,10 +171,19 @@ fn check_pat(pat: &ast_view::Pat, ctx: &mut Context) {
   };
 }
 
+fn check_expr(expr: &ast_view::Expr, ctx: &mut Context) {
+  match expr {
+    ast_view::Expr::Fn(func) => check_fn(func.function, ctx, false),
+    ast_view::Expr::Arrow(arrow) => check_arrow(arrow, ctx),
+    ast_view::Expr::Class(class) => check_class(class.class, ctx),
+    _ => {}
+  }
+}
+
 fn check_var_decl(var: &ast_view::VarDecl, ctx: &mut Context) {
   for declarator in &var.decls {
-    if let Some(ast_view::Expr::Arrow(arrow)) = &declarator.init {
-      check_arrow(arrow, ctx);
+    if let Some(expr) = &declarator.init {
+      check_expr(expr, ctx)
     }
   }
 }
@@ -186,6 +204,7 @@ mod tests {
       "class Test { method() { return; } }",
       "export function test(arg = 1) : number { return arg;}",
       "export function test(arg :number = 1) : number { return arg;}",
+      "export class Test { set method() { return true; } }",
     };
 
     assert_lint_ok! {
@@ -244,6 +263,36 @@ mod tests {
       r#"export class Test { method() { return; } }"#: [
       {
         col: 20,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export default () => true;"#: [
+      {
+        col: 15,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export default function() { return true; }"#: [
+      {
+        col: 15,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export default function named() { return true; }"#: [
+      {
+        col: 15,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export default class { method() { return; } }"#: [
+      {
+        col: 23,
+        message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
+        hint: ExplicitModuleBoundaryTypesHint::AddRetType,
+      }],
+      r#"export default class Named { method() { return; } }"#: [
+      {
+        col: 29,
         message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
         hint: ExplicitModuleBoundaryTypesHint::AddRetType,
       }],
