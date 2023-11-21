@@ -17,22 +17,34 @@ const CODE: &str = "require-await";
 
 #[derive(Display)]
 enum RequireAwaitMessage {
-  #[display(fmt = "Async function '{}' has no 'await' expression.", _0)]
+  #[display(
+    fmt = "Async function '{}' has no 'await' expression or 'await using' declaration.",
+    _0
+  )]
   Function(String),
-  #[display(fmt = "Async function has no 'await' expression.")]
+  #[display(
+    fmt = "Async function has no 'await' expression or 'await using' declaration."
+  )]
   AnonymousFunction,
-  #[display(fmt = "Async arrow function has no 'await' expression.")]
+  #[display(
+    fmt = "Async arrow function has no 'await' expression or 'await using' declaration."
+  )]
   ArrowFunction,
-  #[display(fmt = "Async method '{}' has no 'await' expression.", _0)]
+  #[display(
+    fmt = "Async method '{}' has no 'await' expression or 'await using' declaration.",
+    _0
+  )]
   Method(String),
-  #[display(fmt = "Async method has no 'await' expression.")]
+  #[display(
+    fmt = "Async method has no 'await' expression or 'await using' declaration."
+  )]
   AnonymousMethod,
 }
 
 #[derive(Display)]
 enum RequireAwaitHint {
   #[display(
-    fmt = "Remove 'async' keyword from the function or use 'await' expression inside."
+    fmt = "Remove 'async' keyword from the function or use 'await' expression or 'await using' declaration inside."
   )]
   RemoveOrUse,
 }
@@ -290,13 +302,25 @@ impl Handler for FunctionHandler {
       info.has_await = true;
     }
   }
+
   fn for_of_stmt(
     &mut self,
     for_of_stmt: &deno_ast::view::ForOfStmt,
     _ctx: &mut Context,
   ) {
-    for_of_stmt.tokens_fast(_ctx.program());
     if for_of_stmt.is_await() {
+      if let Some(info) = self.function_info.as_mut() {
+        info.has_await = true;
+      }
+    }
+  }
+
+  fn using_decl(
+    &mut self,
+    using_decl: &deno_ast::view::UsingDecl,
+    _ctx: &mut Context,
+  ) {
+    if using_decl.is_await() {
       if let Some(info) = self.function_info.as_mut() {
         info.has_await = true;
       }
@@ -367,6 +391,9 @@ mod tests {
 
       // for-await-of
       "async function foo() { for await (x of xs); }",
+
+      // using-await
+      "async function foo() { await using foo = doSomething(); }",
 
       // global await
       "await foo()",
