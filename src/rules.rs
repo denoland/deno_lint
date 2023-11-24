@@ -252,6 +252,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_class_assign::NoClassAssign,
     &no_compare_neg_zero::NoCompareNegZero,
     &no_cond_assign::NoCondAssign,
+    &no_console::NoConsole,
     &no_const_assign::NoConstAssign,
     &no_constant_condition::NoConstantCondition,
     &no_control_regex::NoControlRegex,
