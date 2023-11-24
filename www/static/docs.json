@@ -166,6 +166,11 @@
     ]
   },
   {
+    "code": "no-console",
+    "docs": "# no_console\n\nDisallows the use of the `console` global.\n\nOftentimes, developers accidentally commit `console.log`/`console.error`\nstatements, left in particularly after debugging. Moreover, using these in code\nmay leak sensitive information to the output or clutter the console with\nunnecessary information. This rule helps maintain clean and secure code by\ndisallowing the use of `console`.\n\nThis rule is especially useful in libraries where you almost never want to\noutput to the console.\n\n### Invalid\n\n```typescript\nconsole.log(\"Debug message\");\nconsole.error(\"Debug message\");\nconsole.debug(obj);\n\nif (debug) console.log(\"Debugging\");\n\nfunction log() {\n  console.log(\"Log\");\n}\n```\n\n### Valid\n\nIt is recommended to explicitly enable the console via a `deno-lint-ignore`\ncomment for any calls where you actually want to use it.\n\n```typescript\nfunction logWarning(message: string) {\n  // deno-lint-ignore no-console\n  console.warn(message);\n}\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-const-assign",
     "docs": "Disallows modifying a variable declared as `const`.\n\nModifying a variable declared as `const` will result in a runtime error.\n\n### Invalid:\n\n```typescript\nconst a = 0;\na = 1;\na += 1;\na++;\n++a;\n```\n\n### Valid:\n\n```typescript\nconst a = 0;\nconst b = a + 1;\n\n// `c` is out of scope on each loop iteration, allowing a new assignment\nfor (const c in [1, 2, 3]) {}\n```\n",
     "tags": []
