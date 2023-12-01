@@ -4,6 +4,7 @@ use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
+use crate::perf::Perf;
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::SyntaxContext;
@@ -14,8 +15,6 @@ use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
 };
 use std::collections::{HashMap, HashSet};
-
-use std::time::Instant;
 
 /// `Context` stores data needed while performing all lint rules to a file.
 pub struct Context<'view> {
@@ -324,7 +323,8 @@ impl<'view> Context<'view> {
     message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
-    let time_start = Instant::now();
+    let mut perf = Perf::start();
+
     let text_info = self.text_info();
     let start = Position::new(
       range.start.as_byte_index(text_info.range().start),
@@ -343,11 +343,8 @@ impl<'view> Context<'view> {
       hint: maybe_hint,
     };
 
-    let time_end = Instant::now();
-    debug!(
-      "Context::create_diagnostic took {:?}",
-      time_end - time_start
-    );
+    perf.mark("Context::create_diagnostic");
+
     diagnostic
   }
 }

@@ -3,9 +3,6 @@
 #![deny(clippy::disallowed_methods)]
 #![deny(clippy::disallowed_types)]
 
-#[macro_use]
-extern crate log;
-
 #[cfg(test)]
 #[macro_use]
 mod test_util;
@@ -19,11 +16,16 @@ mod handler;
 mod ignore_directives;
 mod js_regex;
 pub mod linter;
+mod perf;
 pub mod rules;
 pub mod swc_util;
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use deno_ast::view::Program;
 pub use deno_ast::view::ProgramRef;
+#[cfg(feature = "wasm")]
+pub use wasm::run;
 
 #[cfg(test)]
 mod lint_tests {

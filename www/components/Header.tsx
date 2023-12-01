@@ -18,6 +18,12 @@ export function Header() {
           >
             Ignoring rules
           </a>
+          <a
+            href="/playground"
+            class="hover:underline ml-4"
+          >
+            Playground
+          </a>
         </div>
         <div class="mt-2">
           <a
