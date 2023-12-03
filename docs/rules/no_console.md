@@ -1,5 +1,3 @@
-# no_console
-
 Disallows the use of the `console` global.
 
 Oftentimes, developers accidentally commit `console.log`/`console.error`
