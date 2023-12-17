@@ -7,7 +7,7 @@ items in your for loop.
 ### Invalid:
 
 ```typescript
-for (key in obj) {
+for (const key in obj) {
   foo(obj, key);
 }
 ```
@@ -15,7 +15,7 @@ for (key in obj) {
 ### Valid:
 
 ```typescript
-for (key in obj) {
+for (const key in obj) {
   if (Object.hasOwn(obj, key)) {
     foo(obj, key);
   }
@@ -23,7 +23,7 @@ for (key in obj) {
 ```
 
 ```typescript
-for (key in obj) {
+for (const key in obj) {
   if (!Object.hasOwn(obj, key)) {
     continue;
   }

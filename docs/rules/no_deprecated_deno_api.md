@@ -34,7 +34,7 @@ deprecated ones with alternatives from `std`. For more detail, see
 expression. See [deno#9294](https://github.com/denoland/deno/issues/9294) for
 more details.
 
-**File system API"
+**File system API**
 
 - `Deno.File`
 

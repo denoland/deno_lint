@@ -1,6 +1,6 @@
 Disallows the `assert` keyword for import attributes
 
-ES import attributes (previously called import assetions) has been changed to
+ES import attributes (previously called import assertions) has been changed to
 use the `with` keyword. The old syntax using `assert` is still supported, but
 deprecated.
 
