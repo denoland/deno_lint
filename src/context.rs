@@ -35,7 +35,6 @@ impl<'view> Context<'view> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
     parsed_source: ParsedSource,
-    media_type: MediaType,
     program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
     line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
@@ -43,6 +42,7 @@ impl<'view> Context<'view> {
     control_flow: ControlFlow,
     check_unknown_rules: bool,
   ) -> Self {
+    let media_type = parsed_source.media_type();
     Self {
       parsed_source,
       media_type,

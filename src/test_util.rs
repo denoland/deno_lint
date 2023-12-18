@@ -285,11 +285,10 @@ fn lint(
   filename: &str,
 ) -> Vec<LintDiagnostic> {
   let linter = LinterBuilder::default()
-    .media_type(MediaType::from_path(Path::new(filename)))
     .rules(vec![rule])
     .build();
 
-  match linter.lint(filename.to_string(), source.to_string()) {
+  match linter.lint(filename.to_string(), source.to_string(), MediaType::from_path(Path::new(filename))) {
     Ok((_, diagnostics)) => diagnostics,
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",

@@ -16,7 +16,6 @@ use deno_ast::Scope;
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  media_type: MediaType,
   rules: Vec<&'static dyn LintRule>,
 }
 
@@ -25,7 +24,6 @@ impl Default for LinterBuilder {
     Self {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
-      media_type: MediaType::TypeScript,
       rules: Vec::new(),
     }
   }
@@ -36,7 +34,6 @@ impl LinterBuilder {
     Linter::new(
       self.ignore_file_directive,
       self.ignore_diagnostic_directive,
-      self.media_type,
       self.rules,
     )
   }
@@ -57,14 +54,6 @@ impl LinterBuilder {
     self
   }
 
-  /// Set media type of a file to be linted.
-  ///
-  /// Defaults to `MediaType::TypeScript`
-  pub fn media_type(mut self, media_type: MediaType) -> Self {
-    self.media_type = media_type;
-    self
-  }
-
   /// Set a list of rules that will be used for linting.
   ///
   /// Defaults to empty list (no rules will be run by default).
@@ -82,8 +71,6 @@ pub struct Linter {
 pub struct LinterContext {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  // TODO(bartlomieju): this should be on `FileContext`
-  media_type: MediaType,
   check_unknown_rules: bool,
   /// Rules are sorted by priority
   rules: Vec<&'static dyn LintRule>,
@@ -93,7 +80,6 @@ impl LinterContext {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    media_type: MediaType,
     mut rules: Vec<&'static dyn LintRule>,
   ) -> Self {
     crate::rules::sort_rules_by_priority(&mut rules);
@@ -104,7 +90,6 @@ impl LinterContext {
     LinterContext {
       ignore_file_directive,
       ignore_diagnostic_directive,
-      media_type,
       check_unknown_rules,
       rules,
     }
@@ -115,27 +100,28 @@ impl Linter {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    media_type: MediaType,
     rules: Vec<&'static dyn LintRule>,
   ) -> Self {
     let ctx = LinterContext::new(
       ignore_file_directive,
       ignore_diagnostic_directive,
-      media_type,
       rules,
     );
 
     Linter { ctx }
   }
 
+  // TODO(bartlomieju): rename to `lint_file`, accept `LintOptions` instead
+  // of free floating args
   pub fn lint(
     mut self,
     file_name: String,
     source_code: String,
+    media_type: MediaType,
   ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
     let _mark = PerformanceMark::new("Linter::lint");
 
-    let syntax = deno_ast::get_syntax(self.ctx.media_type);
+    let syntax = deno_ast::get_syntax(media_type);
     let parse_result = {
       let _mark = PerformanceMark::new("ast_parser.parse_program");
       parse_program(&file_name, syntax, source_code)
@@ -172,7 +158,7 @@ impl Linter {
     &mut self,
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
-    let _mark = PerformanceMark::new("Linter::lint_module");
+    let _mark = PerformanceMark::new("Linter::lint_program");
 
     let control_flow = ControlFlow::analyze(parsed_source);
     let diagnostics = parsed_source.with_view(|pg| {
@@ -193,7 +179,6 @@ impl Linter {
 
       let mut context = Context::new(
         parsed_source.clone(),
-        self.ctx.media_type,
         pg,
         file_ignore_directive,
         line_ignore_directives,

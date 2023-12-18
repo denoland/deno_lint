@@ -32,7 +32,7 @@ mod lint_tests {
   use crate::linter::*;
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
-  use deno_ast::ParsedSource;
+  use deno_ast::{ParsedSource, MediaType};
 
   fn lint(
     source: &str,
@@ -41,7 +41,7 @@ mod lint_tests {
     let linter = LinterBuilder::default().rules(rules).build();
 
     let (_, diagnostics) = linter
-      .lint("lint_test.ts".to_string(), source.to_string())
+      .lint("lint_test.ts".to_string(), source.to_string(), MediaType::TypeScript)
       .expect("Failed to lint");
     diagnostics
   }

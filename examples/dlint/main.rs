@@ -106,13 +106,12 @@ fn run_linter(
       }
 
       let linter_builder = LinterBuilder::default()
-        .rules(rules.clone())
-        .media_type(MediaType::from_path(file_path));
+        .rules(rules.clone());
 
       let linter = linter_builder.build();
 
       let (parsed_source, diagnostics) =
-        linter.lint(file_path.to_string_lossy().to_string(), source_code)?;
+        linter.lint(file_path.to_string_lossy().to_string(), source_code, MediaType::from_path(file_path))?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
