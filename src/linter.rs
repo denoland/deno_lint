@@ -6,6 +6,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::{
   parse_file_ignore_directives, parse_line_ignore_directives,
 };
+use crate::performance_mark::PerformanceMark;
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
 use deno_ast::Diagnostic;
 use deno_ast::MediaType;
@@ -102,22 +103,17 @@ impl Linter {
     file_name: String,
     source_code: String,
   ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
-    let start = Instant::now();
+    let _mark = PerformanceMark::new("Linter::lint");
 
     let syntax = deno_ast::get_syntax(self.media_type);
-    let parse_result = parse_program(&file_name, syntax, source_code);
-
-    let end_parse_program = Instant::now();
-    debug!(
-      "ast_parser.parse_program took {:#?}",
-      end_parse_program - start
-    );
+    let parse_result = {
+      let _mark = PerformanceMark::new("ast_parser.parse_program");
+      parse_program(&file_name, syntax, source_code)
+    };
 
     let parsed_source = parse_result?;
     let diagnostics = self.lint_program(&parsed_source);
 
-    let end = Instant::now();
-    debug!("Linter::lint took {:#?}", end - start);
     Ok((parsed_source, diagnostics))
   }
 
@@ -125,16 +121,12 @@ impl Linter {
     mut self,
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
-    let start = Instant::now();
-    let diagnostics = self.lint_program(parsed_source);
-    let end = Instant::now();
-    debug!("Linter::lint_with_ast took {:#?}", end - start);
-
-    diagnostics
+    let _mark = PerformanceMark::new("Linter::lint_with_ast");
+    self.lint_program(parsed_source)
   }
 
   fn filter_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
-    let start = Instant::now();
+    let _mark = PerformanceMark::new("Linter::filter_diagnostics");
 
     let mut filtered_diagnostics = context.check_ignore_directive_usage();
     // Run `ban-unknown-rule-code`
@@ -143,9 +135,6 @@ impl Linter {
     filtered_diagnostics.extend(context.ban_unused_ignore(&self.rules));
     filtered_diagnostics.sort_by_key(|d| d.range.start.line_index);
 
-    let end = Instant::now();
-    debug!("Linter::filter_diagnostics took {:#?}", end - start);
-
     filtered_diagnostics
   }
 
@@ -153,7 +142,8 @@ impl Linter {
     &mut self,
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
-    let start = Instant::now();
+    let _mark = PerformanceMark::new("Linter::lint_module");
+
     let check_unknown_rules = self
       .rules
       .iter()
@@ -195,9 +185,6 @@ impl Linter {
 
       self.filter_diagnostics(context)
     });
-
-    let end = Instant::now();
-    debug!("Linter::lint_module took {:#?}", end - start);
 
     diagnostics
   }
