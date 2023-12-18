@@ -105,13 +105,15 @@ fn run_linter(
         bail!("There's no rule to be run!");
       }
 
-      let linter_builder = LinterBuilder::default()
-        .rules(rules.clone());
+      let linter_builder = LinterBuilder::default().rules(rules.clone());
 
       let linter = linter_builder.build();
 
-      let (parsed_source, diagnostics) =
-        linter.lint(file_path.to_string_lossy().to_string(), source_code, MediaType::from_path(file_path))?;
+      let (parsed_source, diagnostics) = linter.lint(
+        file_path.to_string_lossy().to_string(),
+        source_code,
+        MediaType::from_path(file_path),
+      )?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 

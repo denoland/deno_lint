@@ -121,10 +121,9 @@ impl Linter {
   ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
     let _mark = PerformanceMark::new("Linter::lint");
 
-    let syntax = deno_ast::get_syntax(media_type);
     let parse_result = {
       let _mark = PerformanceMark::new("ast_parser.parse_program");
-      parse_program(&file_name, syntax, source_code)
+      parse_program(&file_name, media_type, source_code)
     };
 
     let parsed_source = parse_result?;

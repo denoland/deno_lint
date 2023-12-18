@@ -284,11 +284,13 @@ fn lint(
   source: &str,
   filename: &str,
 ) -> Vec<LintDiagnostic> {
-  let linter = LinterBuilder::default()
-    .rules(vec![rule])
-    .build();
+  let linter = LinterBuilder::default().rules(vec![rule]).build();
 
-  match linter.lint(filename.to_string(), source.to_string(), MediaType::from_path(Path::new(filename))) {
+  match linter.lint(
+    filename.to_string(),
+    source.to_string(),
+    MediaType::from_path(Path::new(filename)),
+  ) {
     Ok((_, diagnostics)) => diagnostics,
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
@@ -372,6 +374,7 @@ pub fn assert_lint_ok(
 ) {
   let diagnostics = lint(rule, source, filename);
   if !diagnostics.is_empty() {
+    eprintln!("filename {:?}", filename);
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
       diagnostics, source
@@ -389,7 +392,7 @@ const TEST_FILE_NAME: &str = "lint_test.ts";
 pub fn parse(source_code: &str) -> ParsedSource {
   ast_parser::parse_program(
     TEST_FILE_NAME,
-    deno_ast::get_syntax(MediaType::TypeScript),
+    MediaType::TypeScript,
     source_code.to_string(),
   )
   .unwrap()
