@@ -67,7 +67,7 @@ pub struct Linter {
   ctx: LinterContext,
 }
 
-/// TODO
+/// TODO(bartlomieju): docstring
 pub struct LinterContext {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
