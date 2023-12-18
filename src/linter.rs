@@ -96,6 +96,12 @@ impl LinterContext {
   }
 }
 
+pub struct LintFileOptions {
+  pub filename: String,
+  pub source_code: String,
+  pub media_type: MediaType,
+}
+
 impl Linter {
   fn new(
     ignore_file_directive: String,
@@ -111,19 +117,15 @@ impl Linter {
     Linter { ctx }
   }
 
-  // TODO(bartlomieju): rename to `lint_file`, accept `LintOptions` instead
-  // of free floating args
-  pub fn lint(
+  pub fn lint_file(
     mut self,
-    file_name: String,
-    source_code: String,
-    media_type: MediaType,
+    options: LintFileOptions,
   ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
     let _mark = PerformanceMark::new("Linter::lint");
 
     let parse_result = {
       let _mark = PerformanceMark::new("ast_parser.parse_program");
-      parse_program(&file_name, media_type, source_code)
+      parse_program(&options.filename, options.media_type, options.source_code)
     };
 
     let parsed_source = parse_result?;

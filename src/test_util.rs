@@ -2,6 +2,7 @@
 
 use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use deno_ast::view as ast_view;
@@ -286,11 +287,12 @@ fn lint(
 ) -> Vec<LintDiagnostic> {
   let linter = LinterBuilder::default().rules(vec![rule]).build();
 
-  match linter.lint(
-    filename.to_string(),
-    source.to_string(),
-    MediaType::from_path(Path::new(filename)),
-  ) {
+  let lint_result = linter.lint_file(LintFileOptions {
+    filename: filename.to_string(),
+    source_code: source.to_string(),
+    media_type: MediaType::from_path(Path::new(filename)),
+  });
+  match lint_result {
     Ok((_, diagnostics)) => diagnostics,
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",

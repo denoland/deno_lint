@@ -6,6 +6,7 @@ use clap::Command;
 use deno_ast::MediaType;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
+use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
@@ -109,11 +110,11 @@ fn run_linter(
 
       let linter = linter_builder.build();
 
-      let (parsed_source, diagnostics) = linter.lint(
-        file_path.to_string_lossy().to_string(),
+      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
+        filename: file_path.to_string_lossy().to_string(),
         source_code,
-        MediaType::from_path(file_path),
-      )?;
+        media_type: MediaType::from_path(file_path),
+      })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 

@@ -41,11 +41,11 @@ mod lint_tests {
     let linter = LinterBuilder::default().rules(rules).build();
 
     let (_, diagnostics) = linter
-      .lint(
-        "lint_test.ts".to_string(),
-        source.to_string(),
-        MediaType::TypeScript,
-      )
+      .lint_file(LintFileOptions {
+        filename: "lint_test.ts".to_string(),
+        source_code: source.to_string(),
+        media_type: MediaType::TypeScript,
+      })
       .expect("Failed to lint");
     diagnostics
   }
