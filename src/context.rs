@@ -2,10 +2,8 @@
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
-  parse_file_ignore_directives, parse_line_ignore_directives,
-};
-use crate::ignore_directives::{
-  CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
+  parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
+  LineIgnoreDirective,
 };
 use crate::linter::LinterContext;
 use crate::rules::{self, get_all_rules, LintRule};

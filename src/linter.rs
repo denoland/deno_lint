@@ -176,19 +176,29 @@ impl Linter {
     let _mark = PerformanceMark::new("Linter::lint_inner");
 
     let diagnostics = parsed_source.with_view(|pg| {
-
-      // TODO(bartlomieju): do it in `Context`
+      // If a top-level ignore directive exists, eg:
+      // ```
+      //   // deno-lint-ignore-file
+      // ```
+      // and there's no particular rule(s) specified, eg:
+      // ```
+      //   // deno-lint-ignore-file no-undefined
+      // ```
+      // we want to ignore the whole file.
+      //
+      // That means we want to return no diagnostics for a particular file, so
+      // we're gonna check if the file should be ignored, before performing
+      // other expensive work like scope or control-flow analysis.
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ctx.ignore_file_directive, pg);
-
-      // If a global ignore directive that has no codes specified exists, we must skip linting on
-      // this file.
-      if matches!(file_ignore_directive, Some(ref file_ignore) if file_ignore.ignore_all())
-      {
-        return vec![];
+      if let Some(ignore_directive) = file_ignore_directive.as_ref() {
+        if ignore_directive.ignore_all() {
+          return vec![];
+        }
       }
 
-      // TODO(bartlomieju): rename to `FileContext`?
+      // TODO(bartlomieju): rename to `FileContext`? It would be a very noisy
+      // change, but "Context" is so ambiguous.
       let mut context = Context::new(
         &self.ctx,
         parsed_source.clone(),
