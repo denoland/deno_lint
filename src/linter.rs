@@ -1,17 +1,13 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::parse_program;
 use crate::context::Context;
-use crate::control_flow::ControlFlow;
 use crate::diagnostic::LintDiagnostic;
-use crate::ignore_directives::{
-  parse_file_ignore_directives, parse_line_ignore_directives,
-};
+use crate::ignore_directives::parse_file_ignore_directives;
 use crate::performance_mark::PerformanceMark;
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
 use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
-use deno_ast::Scope;
 use std::sync::Arc;
 
 pub struct LinterBuilder {
@@ -75,11 +71,11 @@ pub struct Linter {
 /// This struct is passed along and used to construct a specific file context,
 /// just before a particular file is linted.
 pub struct LinterContext {
-  ignore_file_directive: String,
-  ignore_diagnostic_directive: String,
-  check_unknown_rules: bool,
+  pub ignore_file_directive: String,
+  pub ignore_diagnostic_directive: String,
+  pub check_unknown_rules: bool,
   /// Rules are sorted by priority
-  rules: Vec<&'static dyn LintRule>,
+  pub rules: Vec<&'static dyn LintRule>,
 }
 
 impl LinterContext {
@@ -179,7 +175,6 @@ impl Linter {
   fn lint_inner(&self, parsed_source: &ParsedSource) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_inner");
 
-    let control_flow = ControlFlow::analyze(parsed_source);
     let diagnostics = parsed_source.with_view(|pg| {
 
       // TODO(bartlomieju): do it in `Context`
@@ -193,22 +188,12 @@ impl Linter {
         return vec![];
       }
 
-      // TODO(bartlomieju): do it in `Context`
-      let line_ignore_directives =
-        parse_line_ignore_directives(&self.ctx.ignore_diagnostic_directive, pg);
-
-      // TODO(bartlomieju): do it in `Context`
-      let scope = Scope::analyze(pg);
-
       // TODO(bartlomieju): rename to `FileContext`?
       let mut context = Context::new(
+        &self.ctx,
         parsed_source.clone(),
         pg,
         file_ignore_directive,
-        line_ignore_directives,
-        scope,
-        control_flow,
-        self.ctx.check_unknown_rules,
       );
 
       // Run configured lint rules.

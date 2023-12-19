@@ -2,8 +2,12 @@
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
+  parse_file_ignore_directives, parse_line_ignore_directives,
+};
+use crate::ignore_directives::{
   CodeStatus, FileIgnoreDirective, LineIgnoreDirective,
 };
+use crate::linter::LinterContext;
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::SyntaxContext;
@@ -14,10 +18,9 @@ use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
 };
 use std::collections::{HashMap, HashSet};
-
 use std::time::Instant;
 
-/// `Context` stores data needed while performing all lint rules to a file.
+/// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'view> {
   parsed_source: ParsedSource,
   media_type: MediaType,
@@ -32,28 +35,32 @@ pub struct Context<'view> {
 }
 
 impl<'view> Context<'view> {
-  #[allow(clippy::too_many_arguments)]
   pub(crate) fn new(
+    linter_ctx: &LinterContext,
     parsed_source: ParsedSource,
     program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
-    line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
-    scope: Scope,
-    control_flow: ControlFlow,
-    check_unknown_rules: bool,
   ) -> Self {
     let media_type = parsed_source.media_type();
-    Self {
-      parsed_source,
-      media_type,
+    let line_ignore_directives = parse_line_ignore_directives(
+      &linter_ctx.ignore_diagnostic_directive,
       program,
+    );
+    // TODO(bartlomieju): both of these should use either `program` or `parsed_source`.
+    let scope = Scope::analyze(program);
+    let control_flow = ControlFlow::analyze(&parsed_source);
+
+    Self {
+      media_type,
       file_ignore_directive,
       line_ignore_directives,
       scope,
       control_flow,
+      program,
+      parsed_source,
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
-      check_unknown_rules,
+      check_unknown_rules: linter_ctx.check_unknown_rules,
     }
   }
 
@@ -234,6 +241,8 @@ impl<'view> Context<'view> {
     diagnostics
   }
 
+  // TODO(bartlomieju): this should be a regular lint rule, not a mathod on this
+  // struct.
   /// Lint rule implementation for `ban-unknown-rule-code`.
   /// This should be run after all normal rules.
   pub(crate) fn ban_unknown_rule_code(&mut self) -> Vec<LintDiagnostic> {
