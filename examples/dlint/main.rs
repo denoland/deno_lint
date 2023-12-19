@@ -95,22 +95,21 @@ fn run_linter(
     get_recommended_rules()
   };
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
+  let linter_builder = LinterBuilder::default().rules(rules.clone());
+
+  let linter = linter_builder.build();
+  debug!("Configured rules: {}", rules.len());
+
+  if rules.is_empty() {
+    bail!("There's no rule to be run!");
+  }
+
   paths
     .par_iter()
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      debug!("Configured rules: {}", rules.len());
-
-      if rules.is_empty() {
-        bail!("There's no rule to be run!");
-      }
-
-      let linter_builder = LinterBuilder::default().rules(rules.clone());
-
-      let linter = linter_builder.build();
-
-      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
+      let (parsed_source, diagnostics) = linter.clone().lint_file(LintFileOptions {
         filename: file_path.to_string_lossy().to_string(),
         source_code,
         media_type: MediaType::from_path(file_path),

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::parse_program;
 use crate::context::Context;
@@ -63,8 +65,10 @@ impl LinterBuilder {
   }
 }
 
+/// A linter instance. It can be cheaply cloned and shared between threads.
+#[derive(Clone)]
 pub struct Linter {
-  ctx: LinterContext,
+  ctx: Arc<LinterContext>,
 }
 
 /// TODO(bartlomieju): docstring
@@ -114,7 +118,7 @@ impl Linter {
       rules,
     );
 
-    Linter { ctx }
+    Linter { ctx: Arc::new(ctx) }
   }
 
   pub fn lint_file(
