@@ -32,7 +32,8 @@ mod lint_tests {
   use crate::linter::*;
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
-  use deno_ast::{MediaType, ParsedSource};
+  use deno_ast::MediaType;
+  use deno_ast::ParsedSource;
 
   fn lint(
     source: &str,

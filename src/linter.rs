@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use crate::ast_parser::parse_program;
 use crate::context::Context;
@@ -14,6 +12,7 @@ use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::Scope;
+use std::sync::Arc;
 
 pub struct LinterBuilder {
   ignore_file_directive: String,
