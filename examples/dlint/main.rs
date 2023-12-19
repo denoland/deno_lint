@@ -109,11 +109,12 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      let (parsed_source, diagnostics) = linter.clone().lint_file(LintFileOptions {
-        filename: file_path.to_string_lossy().to_string(),
-        source_code,
-        media_type: MediaType::from_path(file_path),
-      })?;
+      let (parsed_source, diagnostics) =
+        linter.clone().lint_file(LintFileOptions {
+          filename: file_path.to_string_lossy().to_string(),
+          source_code,
+          media_type: MediaType::from_path(file_path),
+        })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
