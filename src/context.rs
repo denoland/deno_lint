@@ -42,7 +42,6 @@ impl<'view> Context<'view> {
     control_flow: ControlFlow,
     check_unknown_rules: bool,
   ) -> Self {
-    eprintln!("media type {:?}", parsed_source.media_type());
     let media_type = parsed_source.media_type();
     Self {
       parsed_source,
