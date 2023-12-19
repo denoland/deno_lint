@@ -142,17 +142,19 @@ impl Linter {
     self.lint_program(parsed_source)
   }
 
-  fn filter_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
-    let _mark = PerformanceMark::new("Linter::filter_diagnostics");
+  fn collect_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
+    let _mark = PerformanceMark::new("Linter::collect_diagnostics");
 
-    let mut filtered_diagnostics = context.check_ignore_directive_usage();
+    let mut diagnostics = context.check_ignore_directive_usage();
     // Run `ban-unknown-rule-code`
-    filtered_diagnostics.extend(context.ban_unknown_rule_code());
+    diagnostics.extend(context.ban_unknown_rule_code());
     // Run `ban-unused-ignore`
-    filtered_diagnostics.extend(context.ban_unused_ignore(&self.ctx.rules));
-    filtered_diagnostics.sort_by_key(|d| d.range.start.line_index);
+    diagnostics.extend(context.ban_unused_ignore(&self.ctx.rules));
 
-    filtered_diagnostics
+    // Finally sort by line the diagnostics originates on
+    diagnostics.sort_by_key(|d| d.range.start.line_index);
+
+    diagnostics
   }
 
   fn lint_program(
@@ -193,7 +195,7 @@ impl Linter {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
 
-      self.filter_diagnostics(context)
+      self.collect_diagnostics(context)
     });
 
     diagnostics
