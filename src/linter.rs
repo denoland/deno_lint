@@ -122,7 +122,7 @@ impl Linter {
   }
 
   pub fn lint_file(
-    mut self,
+    &self,
     options: LintFileOptions,
   ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
     let _mark = PerformanceMark::new("Linter::lint");
@@ -139,7 +139,7 @@ impl Linter {
   }
 
   pub fn lint_with_ast(
-    mut self,
+    &self,
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
@@ -162,7 +162,7 @@ impl Linter {
   }
 
   fn lint_program(
-    &mut self,
+    &self,
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_program");

@@ -98,10 +98,10 @@ fn run_linter(
   let linter_builder = LinterBuilder::default().rules(rules.clone());
 
   let linter = linter_builder.build();
-  debug!("Configured rules: {}", rules.len());
-
   if rules.is_empty() {
-    bail!("There's no rule to be run!");
+    bail!("No lint rules configured");
+  } else {
+    debug!("Configured rules: {}", rules.len());
   }
 
   paths
@@ -110,7 +110,7 @@ fn run_linter(
       let source_code = std::fs::read_to_string(file_path)?;
 
       let (parsed_source, diagnostics) =
-        linter.clone().lint_file(LintFileOptions {
+        linter.lint_file(LintFileOptions {
           filename: file_path.to_string_lossy().to_string(),
           source_code,
           media_type: MediaType::from_path(file_path),
