@@ -70,7 +70,10 @@ pub struct Linter {
   ctx: Arc<LinterContext>,
 }
 
-/// TODO(bartlomieju): docstring
+/// A struct defining configuration of a `Linter` instance.
+///
+/// This struct is passed along and used to construct a specific file context,
+/// just before a particular file is linted.
 pub struct LinterContext {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
@@ -155,6 +158,9 @@ impl Linter {
     self.lint_inner(parsed_source)
   }
 
+  // TODO(bartlomieju): this struct does too much - not only it checks for ignored
+  // lint rules, it also runs 2 additional rules. These rules should be rewritten
+  // to use a regular way of writing a rule and not live on the `Context` struct.
   fn collect_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::collect_diagnostics");
 
@@ -175,6 +181,8 @@ impl Linter {
 
     let control_flow = ControlFlow::analyze(parsed_source);
     let diagnostics = parsed_source.with_view(|pg| {
+
+      // TODO(bartlomieju): do it in `Context`
       let file_ignore_directive =
         parse_file_ignore_directives(&self.ctx.ignore_file_directive, pg);
 
@@ -185,11 +193,14 @@ impl Linter {
         return vec![];
       }
 
+      // TODO(bartlomieju): do it in `Context`
       let line_ignore_directives =
         parse_line_ignore_directives(&self.ctx.ignore_diagnostic_directive, pg);
 
+      // TODO(bartlomieju): do it in `Context`
       let scope = Scope::analyze(pg);
 
+      // TODO(bartlomieju): rename to `FileContext`?
       let mut context = Context::new(
         parsed_source.clone(),
         pg,
@@ -200,7 +211,7 @@ impl Linter {
         self.ctx.check_unknown_rules,
       );
 
-      // Run builtin rules
+      // Run configured lint rules.
       for rule in self.ctx.rules.iter() {
         rule.lint_program_with_ast_view(&mut context, pg);
       }

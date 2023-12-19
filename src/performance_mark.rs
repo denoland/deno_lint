@@ -2,9 +2,9 @@
 
 use std::time::Instant;
 
-/// A struct to keep mesaure how long a function takes to execute.
+/// A struct to measure how long a function takes to execute.
 ///
-/// When the struct is dropped, `debug!` is used print the measurement.
+/// When the struct is dropped, `debug!` is used to print the measurement.
 pub struct PerformanceMark {
   name: String,
   start: Instant,
