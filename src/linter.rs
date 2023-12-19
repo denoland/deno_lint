@@ -121,6 +121,12 @@ impl Linter {
     Linter { ctx: Arc::new(ctx) }
   }
 
+  /// Lint a single file.
+  ///
+  /// Returns `ParsedSource` and `Vec<ListDiagnostic>`, so the file can be
+  /// processed further without having to be parsed again.
+  ///
+  /// If you have an already parsed file, use `Linter::lint_with_ast` instead.
   pub fn lint_file(
     &self,
     options: LintFileOptions,
@@ -133,17 +139,21 @@ impl Linter {
     };
 
     let parsed_source = parse_result?;
-    let diagnostics = self.lint_program(&parsed_source);
+    let diagnostics = self.lint_inner(&parsed_source);
 
     Ok((parsed_source, diagnostics))
   }
 
+  /// Lint an already parsed file.
+  ///
+  /// This method is useful in context where the file is already parsed for other
+  /// purposes like transpilation or LSP analysis.
   pub fn lint_with_ast(
     &self,
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
-    self.lint_program(parsed_source)
+    self.lint_inner(parsed_source)
   }
 
   fn collect_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
@@ -161,11 +171,8 @@ impl Linter {
     diagnostics
   }
 
-  fn lint_program(
-    &self,
-    parsed_source: &ParsedSource,
-  ) -> Vec<LintDiagnostic> {
-    let _mark = PerformanceMark::new("Linter::lint_program");
+  fn lint_inner(&self, parsed_source: &ParsedSource) -> Vec<LintDiagnostic> {
+    let _mark = PerformanceMark::new("Linter::lint_inner");
 
     let control_flow = ControlFlow::analyze(parsed_source);
     let diagnostics = parsed_source.with_view(|pg| {
