@@ -4,13 +4,15 @@
 mod analyze_test;
 
 use deno_ast::swc::ast::*;
+use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::utils::ExprCtx;
 use deno_ast::swc::{
   utils::{ExprExt, Value},
   visit::{noop_visit_type, Visit, VisitWith},
 };
+use deno_ast::view;
+use deno_ast::SourcePos;
 use deno_ast::SourceRangedForSpanned;
-use deno_ast::{ParsedSource, SourcePos};
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,
@@ -22,18 +24,21 @@ pub struct ControlFlow {
 }
 
 impl ControlFlow {
-  pub fn analyze(parsed_source: &ParsedSource) -> Self {
+  pub fn analyze(
+    program: view::Program,
+    unresolved_ctxt: SyntaxContext,
+  ) -> Self {
     let mut v = Analyzer {
       scope: Scope::new(None, BlockKind::Program),
       info: Default::default(),
       expr_ctxt: ExprCtx {
-        unresolved_ctxt: parsed_source.unresolved_context(),
+        unresolved_ctxt,
         is_unresolved_ref_safe: false,
       },
     };
-    match parsed_source.program_ref() {
-      Program::Module(module) => module.visit_with(&mut v),
-      Program::Script(script) => script.visit_with(&mut v),
+    match program {
+      view::Program::Module(module) => module.inner.visit_with(&mut v),
+      view::Program::Script(script) => script.inner.visit_with(&mut v),
     }
     ControlFlow { meta: v.info }
   }
