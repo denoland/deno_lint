@@ -3,7 +3,6 @@
 #[cfg(test)]
 mod analyze_test;
 
-use deno_ast::view;
 use deno_ast::swc::ast::*;
 use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::utils::ExprCtx;
@@ -11,8 +10,9 @@ use deno_ast::swc::{
   utils::{ExprExt, Value},
   visit::{noop_visit_type, Visit, VisitWith},
 };
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::view;
 use deno_ast::SourcePos;
+use deno_ast::SourceRangedForSpanned;
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,
