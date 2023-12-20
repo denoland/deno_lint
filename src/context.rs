@@ -21,7 +21,6 @@ use std::time::Instant;
 /// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'view> {
   parsed_source: ParsedSource,
-  media_type: MediaType,
   diagnostics: Vec<LintDiagnostic>,
   program: ast_view::Program<'view>,
   file_ignore_directive: Option<FileIgnoreDirective>,
@@ -39,7 +38,6 @@ impl<'view> Context<'view> {
     program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
   ) -> Self {
-    let media_type = parsed_source.media_type();
     let line_ignore_directives = parse_line_ignore_directives(
       &linter_ctx.ignore_diagnostic_directive,
       program,
@@ -49,7 +47,6 @@ impl<'view> Context<'view> {
     let control_flow = ControlFlow::analyze(&parsed_source);
 
     Self {
-      media_type,
       file_ignore_directive,
       line_ignore_directives,
       scope,
@@ -70,7 +67,7 @@ impl<'view> Context<'view> {
   /// The media type which linter was configured with. Can be used
   /// to skip checking some rules.
   pub fn media_type(&self) -> MediaType {
-    self.media_type
+    self.parsed_source.media_type()
   }
 
   /// Stores diagnostics that are generated while linting
