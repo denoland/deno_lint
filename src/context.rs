@@ -42,9 +42,9 @@ impl<'view> Context<'view> {
       &linter_ctx.ignore_diagnostic_directive,
       program,
     );
-    // TODO(bartlomieju): both of these should use either `program` or `parsed_source`.
     let scope = Scope::analyze(program);
-    let control_flow = ControlFlow::analyze(&parsed_source);
+    let control_flow =
+      ControlFlow::analyze(program, parsed_source.unresolved_context());
 
     Self {
       file_ignore_directive,
