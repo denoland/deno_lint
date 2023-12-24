@@ -9,7 +9,7 @@ Disallows the use of external imports
     places in your project.
 - who should use it?
   - to avoid it you could use "deps.ts convention" or
-    [import maps](https://deno.land/manual/linking_to_external_code/import_maps),
+    [import maps](https://docs.deno.com/runtime/manual/basics/import_maps),
     where you import all external modules and then re-export them or assign
     aliases to them.
   - so if you'd like to follow the "deps.ts convention" or to use import maps,
@@ -38,4 +38,4 @@ export {
 ```
 
 you can refer to the explanation of this convention here
-https://deno.land/manual/linking_to_external_code#it-seems-unwieldy-to-import-urls-everywhere
+https://docs.deno.com/runtime/manual/basics/modules/#it-seems-unwieldy-to-import-urls-everywhere
