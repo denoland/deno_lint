@@ -107,6 +107,7 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
 enum Replacement {
   NameAndUrl(&'static str, &'static str),
   Name(&'static str),
+  NameAndUrls(Vec<(&'static str, &'static str)>),
 }
 
 impl DeprecatedApi {
@@ -123,6 +124,17 @@ impl DeprecatedApi {
       Replacement::Name(name) => format!("Use `{}` instead", name),
       Replacement::NameAndUrl(name, url) => {
         format!("Use `{}` from {} instead", name, url)
+      }
+      Replacement::NameAndUrls(name_and_urls) => {
+        let mut hint = String::from("Use ");
+        for (i, (name, url)) in name_and_urls.into_iter().enumerate() {
+          if i != 0 {
+            hint.push_str(" and ");
+          }
+          hint.push_str(&format!("`{}` from {}", name, url));
+        }
+        hint.push_str(" instead");
+        hint
       }
     }
   }
@@ -147,22 +159,39 @@ impl DeprecatedApi {
   fn get_replacement(&self) -> Replacement {
     const DENO_API: &str = "https://deno.land/api";
     const BUFFER_TS: &str = "https://deno.land/std/io/buffer.ts";
-    const STREAMS_TS: &str = "https://deno.land/std/streams/conversion.ts";
+    const STREAMS_REDABLE_TS: &str = "https://deno.land/api?s=ReadableStream";
+    const STREAMS_REDABLE_PIPE_TO_TS: &str =
+      "https://deno.land/api?s=ReadableStream#method_pipeTo_4";
+    const STREAMS_REDABLE_FROM_TS: &str =
+      "https://deno.land/api@v1.39.2?s=ReadableStream#variable_ReadableStream";
+    const STREAMS_WRITEABLE_TS: &str = "https://deno.land/api?s=WritableStream";
+    const STREAMS_TO_ARRAY_BUFFER_TS: &str =
+      "https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer";
 
     use DeprecatedApi::*;
     use Replacement::*;
     match *self {
       Buffer => NameAndUrl("Buffer", BUFFER_TS),
-      Copy => NameAndUrl("copy", STREAMS_TS),
+      Copy => Name(STREAMS_REDABLE_PIPE_TO_TS),
       CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
-      Iter => NameAndUrl("iter", STREAMS_TS),
-      IterSync => NameAndUrl("iterSync", STREAMS_TS),
+      Iter => Name(STREAMS_REDABLE_TS),
+      IterSync => Name(STREAMS_REDABLE_TS),
       File => Name("Deno.FsFile"),
-      ReadAll => NameAndUrl("readAll", STREAMS_TS),
-      ReadAllSync => NameAndUrl("readAllSync", STREAMS_TS),
+      ReadAll => NameAndUrls(vec![
+        ("ReadableStream", STREAMS_REDABLE_TS),
+        ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
+      ]),
+      ReadAllSync => NameAndUrls(vec![
+        ("ReadableStream", STREAMS_REDABLE_TS),
+        ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
+      ]),
       Run => NameAndUrl("Deno.Command", DENO_API),
-      WriteAll => NameAndUrl("writeAll", STREAMS_TS),
-      WriteAllSync => NameAndUrl("writeAllSync", STREAMS_TS),
+      WriteAll => NameAndUrls(vec![
+        ("WritableStream", STREAMS_WRITEABLE_TS),
+        ("ReadableStream.from", STREAMS_REDABLE_FROM_TS),
+        ("ReadableStream.pipeTo", STREAMS_REDABLE_PIPE_TO_TS),
+      ]),
+      WriteAllSync => NameAndUrl("writeAllSync", STREAMS_REDABLE_TS),
     }
   }
 }
