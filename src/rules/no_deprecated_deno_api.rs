@@ -157,13 +157,14 @@ impl DeprecatedApi {
   }
 
   fn get_replacement(&self) -> Replacement {
-    const DENO_API: &str = "https://deno.land/api";
-    const BUFFER_TS: &str = "https://deno.land/std/io/buffer.ts";
+    const DENO_COMMAND_API: &str = "https://deno.land/api?s=Deno.Command";
+    const BUFFER_TS: &str =
+      "https://developer.mozilla.org/en-US/docs/Web/API/Streams_API";
     const STREAMS_REDABLE_TS: &str = "https://deno.land/api?s=ReadableStream";
     const STREAMS_REDABLE_PIPE_TO_TS: &str =
       "https://deno.land/api?s=ReadableStream#method_pipeTo_4";
     const STREAMS_REDABLE_FROM_TS: &str =
-      "https://deno.land/api@v1.39.2?s=ReadableStream#variable_ReadableStream";
+      "https://deno.land/api?s=ReadableStream#variable_ReadableStream";
     const STREAMS_WRITEABLE_TS: &str = "https://deno.land/api?s=WritableStream";
     const STREAMS_TO_ARRAY_BUFFER_TS: &str =
       "https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer";
@@ -171,7 +172,7 @@ impl DeprecatedApi {
     use DeprecatedApi::*;
     use Replacement::*;
     match *self {
-      Buffer => NameAndUrl("Buffer", BUFFER_TS),
+      Buffer => Name(BUFFER_TS),
       Copy => Name(STREAMS_REDABLE_PIPE_TO_TS),
       CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
       Iter => Name(STREAMS_REDABLE_TS),
@@ -185,7 +186,7 @@ impl DeprecatedApi {
         ("ReadableStream", STREAMS_REDABLE_TS),
         ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
       ]),
-      Run => NameAndUrl("Deno.Command", DENO_API),
+      Run => NameAndUrl("Deno.Command", DENO_COMMAND_API),
       WriteAll => NameAndUrls(vec![
         ("WritableStream", STREAMS_WRITEABLE_TS),
         ("ReadableStream.from", STREAMS_REDABLE_FROM_TS),
@@ -562,6 +563,31 @@ Deno.readAll(reader);
           hint: ReadAll.hint()
         }
       ],
+    }
+  }
+
+  #[test]
+  fn expect_deprecated_api_hint() {
+    let tests = vec![
+      (
+        "Buffer",
+        "Use `https://developer.mozilla.org/en-US/docs/Web/API/Streams_API` instead",
+      ),
+      ("copy", "Use `https://deno.land/api?s=ReadableStream#method_pipeTo_4` instead"),
+      ("customInspect", "Use `Symbol.for(\"Deno.customInspect\")` instead"),
+      ("File", "Use `Deno.FsFile` instead"),
+      ("iter", "Use `https://deno.land/api?s=ReadableStream` instead"),
+      ("iterSync", "Use `https://deno.land/api?s=ReadableStream` instead"),
+      ("readAll", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
+      ("readAllSync", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
+      ("run", "Use `Deno.Command` from https://deno.land/api?s=Deno.Command instead"),
+      ("writeAll", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
+      ("writeAllSync", "Use `writeAllSync` from https://deno.land/api?s=ReadableStream instead"),
+    ];
+
+    for test in tests {
+      let hint = DeprecatedApi::try_from(("Deno", test.0)).unwrap().hint();
+      assert_eq!(hint, test.1);
     }
   }
 }
