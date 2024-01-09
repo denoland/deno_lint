@@ -84,7 +84,7 @@ considered to be a warning]
 });
 
 Deno.test("the content of .rs", () => {
-  const now = new Date("2022-08-10T14:48:00");
+  const now = new Date("2024-08-10T14:48:00");
   const actual = genRustContent(now, "FooBarBaz", "foo-bar-baz", "foo_bar_baz");
   const expected =
     `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
