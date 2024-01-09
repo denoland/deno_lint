@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use deno_ast::get_syntax;
 use deno_ast::Diagnostic;
 use deno_ast::MediaType;
