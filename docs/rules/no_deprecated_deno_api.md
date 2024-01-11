@@ -77,28 +77,25 @@ function foo(file: Deno.File) {
 ### Valid:
 
 ```typescript
-// buffer
-import { Buffer } from "https://deno.land/std/io/buffer.ts";
-const a = new Buffer();
+// readAll
+import { toArrayBuffer } from "https://deno.land/std/streams/to_array_buffer.ts";
+const b = await toArrayBuffer(reader); // `b` is ArrayBuffer
+const c = new Uint8Array(b); // You can convert ArrayBuffer to Uint8Array
 
-// read
-import { readAll, readAllSync } from "https://deno.land/std/io/util.ts";
-const b = await readAll(reader);
-const c = readAllSync(reader);
-
-// write
-import { writeAll, writeAllSync } from "https://deno.land/std/io/util.ts";
-await writeAll(writer, data);
-writeAllSync(writer, data);
+// writeAll
+// reader is `ReadableStream` and writer is `WritableStream`
+const reader = ReadableStream.from(...);
+await reader.pipeTo(writer);
 
 // iter
-import { iter, iterSync } from "https://deno.land/std/io/util.ts";
-for await (const x of iter(xs)) {}
-for (const y of iterSync(ys)) {}
+// reader is `ReadableStream`
+for await (const chunk of reader) {
+  // do something
+}
 
 // copy
-import { copy } from "https://deno.land/std/io/util.ts";
-await copy(reader, writer);
+// reader is `ReadableStream` and writer is `WritableStream`
+await reader.pipeTo(writer);
 
 // custom inspector
 class A {
