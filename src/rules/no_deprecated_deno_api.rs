@@ -178,21 +178,16 @@ impl DeprecatedApi {
       Iter => Name(STREAMS_REDABLE_TS),
       IterSync => Name(STREAMS_REDABLE_TS),
       File => Name("Deno.FsFile"),
-      ReadAll => NameAndUrls(vec![
-        ("ReadableStream", STREAMS_REDABLE_TS),
-        ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
-      ]),
-      ReadAllSync => NameAndUrls(vec![
+      ReadAll | ReadAllSync => NameAndUrls(vec![
         ("ReadableStream", STREAMS_REDABLE_TS),
         ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
       ]),
       Run => NameAndUrl("Deno.Command", DENO_COMMAND_API),
-      WriteAll => NameAndUrls(vec![
+      WriteAll | WriteAllSync => NameAndUrls(vec![
         ("WritableStream", STREAMS_WRITEABLE_TS),
         ("ReadableStream.from", STREAMS_REDABLE_FROM_TS),
         ("ReadableStream.pipeTo", STREAMS_REDABLE_PIPE_TO_TS),
       ]),
-      WriteAllSync => NameAndUrl("writeAllSync", STREAMS_REDABLE_TS),
     }
   }
 }
@@ -582,7 +577,7 @@ Deno.readAll(reader);
       ("readAllSync", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
       ("run", "Use `Deno.Command` from https://deno.land/api?s=Deno.Command instead"),
       ("writeAll", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
-      ("writeAllSync", "Use `writeAllSync` from https://deno.land/api?s=ReadableStream instead"),
+      ("writeAllSync", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
     ];
 
     for test in tests {
