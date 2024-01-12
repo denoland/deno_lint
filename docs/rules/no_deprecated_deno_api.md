@@ -84,7 +84,7 @@ const c = new Uint8Array(b); // You can convert ArrayBuffer to Uint8Array
 
 // writeAll
 // reader is `ReadableStream` and writer is `WritableStream`
-const reader = ReadableStream.from(...);
+const reader = ReadableStream.from([1, 2, 3]);
 await reader.pipeTo(writer);
 
 // iter
