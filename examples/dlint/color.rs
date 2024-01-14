@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use deno_ast::{
   lex,
   swc::parser::token::{Token, Word},
