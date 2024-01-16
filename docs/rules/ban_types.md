@@ -15,9 +15,7 @@ rather than use the non-specific `Function` type which won't give you type
 safety with the function.
 
 Finally, `Object` and `{}` means "any non-nullish value" rather than "any object
-type". `Record<string, unknown>` is a good choice for a meaning of "any object
-type". On the other hand `object` type means "any object type", but using
-`Record<string, unknown>` is much more preferable in this case too.
+type". `object` is a good choice for a meaning of "any object type".
 
 ### Invalid:
 
@@ -28,8 +26,7 @@ let c: Number;
 let d: Symbol;
 let e: Function;
 let f: Object;
-let g: object;
-let h: {};
+let g: {};
 ```
 
 ### Valid:
@@ -40,6 +37,6 @@ let b: string;
 let c: number;
 let d: symbol;
 let e: () => number;
-let f: Record<string, unknown>;
-let g = Record<string, never>;
+let f: object;
+let g: Record<string, never>;
 ```

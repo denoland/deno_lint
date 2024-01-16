@@ -1,9 +1,9 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
-use deno_ast::view::{VarDecl, VarDeclKind};
-use deno_ast::SourceRanged;
+use deno_ast::view::{NodeTrait, VarDecl, VarDeclKind};
+use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
 pub struct NoVar;
@@ -39,7 +39,8 @@ struct NoVarHandler;
 impl Handler for NoVarHandler {
   fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
     if var_decl.decl_kind() == VarDeclKind::Var {
-      ctx.add_diagnostic(var_decl.range(), CODE, MESSAGE);
+      let range = var_decl.tokens().first().unwrap().range();
+      ctx.add_diagnostic(range, CODE, MESSAGE);
     }
   }
 }

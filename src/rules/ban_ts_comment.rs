@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::Program;
 use deno_ast::swc::common::comments::Comment;
@@ -105,11 +105,11 @@ fn check_comment(comment: &Comment) -> Option<DirectiveKind> {
   }
 
   static EXPECT_ERROR_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-expect-error\s*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^/*\s*@ts-expect-error\s*$").unwrap());
   static IGNORE_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-ignore\s*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^/*\s*@ts-ignore\s*$").unwrap());
   static NOCHECK_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^/*\s*@ts-nocheck\s*$"#).unwrap());
+    Lazy::new(|| Regex::new(r"^/*\s*@ts-nocheck\s*$").unwrap());
 
   if EXPECT_ERROR_REGEX.is_match(&comment.text) {
     return Some(DirectiveKind::ExpectError);

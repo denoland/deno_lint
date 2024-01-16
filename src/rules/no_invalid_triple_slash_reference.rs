@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::Program;
 use deno_ast::swc::common::comments::{Comment, CommentKind};
@@ -95,7 +95,7 @@ impl ReportKind {
 // These regexes should be consistent with how Deno resolves modules.
 // https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/module_graph.rs
 static TRIPLE_SLASH_REFERENCE_RE: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r#"(?i)^/\s*<reference\s.*?/>"#).unwrap());
+  Lazy::new(|| Regex::new(r"(?i)^/\s*<reference\s.*?/>").unwrap());
 static PATH_REFERENCE_RE: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r#"(?i)\spath\s*=\s*["'](?P<value>[^"']*)["']"#).unwrap()
 });

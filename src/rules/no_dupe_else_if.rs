@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::Program;
@@ -146,7 +146,10 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
 
 fn mk_condition_to_check(cond: Expr) -> Vec<Expr> {
   match cond {
-    Expr::Bin(BinExpr { op, .. }) if op == BinaryOp::LogicalAnd => {
+    Expr::Bin(BinExpr {
+      op: BinaryOp::LogicalAnd,
+      ..
+    }) => {
       let mut c = vec![cond.clone()];
       c.append(&mut split_by_and(cond));
       c

@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 #![deny(clippy::disallowed_methods)]
 #![deny(clippy::disallowed_types)]
@@ -19,6 +19,7 @@ mod handler;
 mod ignore_directives;
 mod js_regex;
 pub mod linter;
+mod performance_mark;
 pub mod rules;
 pub mod swc_util;
 
@@ -31,6 +32,7 @@ mod lint_tests {
   use crate::linter::*;
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
+  use deno_ast::MediaType;
   use deno_ast::ParsedSource;
 
   fn lint(
@@ -40,7 +42,11 @@ mod lint_tests {
     let linter = LinterBuilder::default().rules(rules).build();
 
     let (_, diagnostics) = linter
-      .lint("lint_test.ts".to_string(), source.to_string())
+      .lint_file(LintFileOptions {
+        filename: "lint_test.ts".to_string(),
+        source_code: source.to_string(),
+        media_type: MediaType::TypeScript,
+      })
       .expect("Failed to lint");
     diagnostics
   }

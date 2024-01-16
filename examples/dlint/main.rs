@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use anyhow::bail;
 use anyhow::Error as AnyError;
 use clap::Arg;
@@ -6,6 +6,7 @@ use clap::Command;
 use deno_ast::MediaType;
 use deno_ast::SourceTextInfo;
 use deno_lint::diagnostic::LintDiagnostic;
+use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
@@ -94,25 +95,25 @@ fn run_linter(
     get_recommended_rules()
   };
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
+  let linter_builder = LinterBuilder::default().rules(rules.clone());
+
+  let linter = linter_builder.build();
+  if rules.is_empty() {
+    bail!("No lint rules configured");
+  } else {
+    debug!("Configured rules: {}", rules.len());
+  }
+
   paths
     .par_iter()
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      debug!("Configured rules: {}", rules.len());
-
-      if rules.is_empty() {
-        bail!("There's no rule to be run!");
-      }
-
-      let linter_builder = LinterBuilder::default()
-        .rules(rules.clone())
-        .media_type(MediaType::from_path(file_path));
-
-      let linter = linter_builder.build();
-
-      let (parsed_source, diagnostics) =
-        linter.lint(file_path.to_string_lossy().to_string(), source_code)?;
+      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
+        filename: file_path.to_string_lossy().to_string(),
+        source_code,
+        media_type: MediaType::from_path(file_path),
+      })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 

@@ -15,7 +15,7 @@ no-var
    ,-[issue1145_no_trailing_newline.ts:3:1]
  3 | ---*/
  4 | var base
-   : ^^^^^^^^
+   : ^^^
    `----
   help: https://lint.deno.land/#no-var
 

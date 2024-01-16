@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
@@ -19,15 +19,19 @@ pub mod eqeqeq;
 pub mod explicit_function_return_type;
 pub mod explicit_module_boundary_types;
 pub mod for_direction;
+pub mod fresh_handler_export;
+pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
+pub mod no_await_in_sync_fn;
 pub mod no_case_declarations;
 pub mod no_class_assign;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
+pub mod no_console;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
@@ -50,11 +54,11 @@ pub mod no_explicit_any;
 pub mod no_external_imports;
 pub mod no_extra_boolean_cast;
 pub mod no_extra_non_null_assertion;
-pub mod no_extra_semi;
 pub mod no_fallthrough;
 pub mod no_func_assign;
 pub mod no_global_assign;
 pub mod no_implicit_declare_namespace_export;
+pub mod no_import_assertions;
 pub mod no_import_assign;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
@@ -75,6 +79,7 @@ pub mod no_self_assign;
 pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
 pub mod no_sparse_arrays;
+pub mod no_sync_fn_in_async_fn;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
@@ -236,15 +241,19 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &explicit_function_return_type::ExplicitFunctionReturnType,
     &explicit_module_boundary_types::ExplicitModuleBoundaryTypes,
     &for_direction::ForDirection,
+    &fresh_handler_export::FreshHandlerExport,
+    &fresh_server_event_handlers::FreshServerEventHandlers,
     &getter_return::GetterReturn,
     &guard_for_in::GuardForIn,
     &no_array_constructor::NoArrayConstructor,
     &no_async_promise_executor::NoAsyncPromiseExecutor,
     &no_await_in_loop::NoAwaitInLoop,
+    &no_await_in_sync_fn::NoAwaitInSyncFn,
     &no_case_declarations::NoCaseDeclarations,
     &no_class_assign::NoClassAssign,
     &no_compare_neg_zero::NoCompareNegZero,
     &no_cond_assign::NoCondAssign,
+    &no_console::NoConsole,
     &no_const_assign::NoConstAssign,
     &no_constant_condition::NoConstantCondition,
     &no_control_regex::NoControlRegex,
@@ -267,11 +276,11 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_external_imports::NoExternalImport,
     &no_extra_boolean_cast::NoExtraBooleanCast,
     &no_extra_non_null_assertion::NoExtraNonNullAssertion,
-    &no_extra_semi::NoExtraSemi,
     &no_fallthrough::NoFallthrough,
     &no_func_assign::NoFuncAssign,
     &no_global_assign::NoGlobalAssign,
     &no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport,
+    &no_import_assertions::NoImportAssertions,
     &no_import_assign::NoImportAssign,
     &no_inferrable_types::NoInferrableTypes,
     &no_inner_declarations::NoInnerDeclarations,
@@ -292,6 +301,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_setter_return::NoSetterReturn,
     &no_shadow_restricted_names::NoShadowRestrictedNames,
     &no_sparse_arrays::NoSparseArrays,
+    &no_sync_fn_in_async_fn::NoSyncFnInAsyncFn,
     &no_this_alias::NoThisAlias,
     &no_this_before_super::NoThisBeforeSuper,
     &no_throw_literal::NoThrowLiteral,

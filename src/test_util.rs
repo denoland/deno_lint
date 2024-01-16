@@ -1,7 +1,8 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
 use deno_ast::view as ast_view;
@@ -193,6 +194,7 @@ impl LintErrTester {
     }
   }
 
+  #[track_caller]
   pub fn run(self) {
     let rule_code = self.rule.code();
     let diagnostics = lint(self.rule, self.src, self.filename);
@@ -283,12 +285,14 @@ fn lint(
   source: &str,
   filename: &str,
 ) -> Vec<LintDiagnostic> {
-  let linter = LinterBuilder::default()
-    .media_type(MediaType::from_path(Path::new(filename)))
-    .rules(vec![rule])
-    .build();
+  let linter = LinterBuilder::default().rules(vec![rule]).build();
 
-  match linter.lint(filename.to_string(), source.to_string()) {
+  let lint_result = linter.lint_file(LintFileOptions {
+    filename: filename.to_string(),
+    source_code: source.to_string(),
+    media_type: MediaType::from_path(Path::new(filename)),
+  });
+  match lint_result {
     Ok((_, diagnostics)) => diagnostics,
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
@@ -372,6 +376,7 @@ pub fn assert_lint_ok(
 ) {
   let diagnostics = lint(rule, source, filename);
   if !diagnostics.is_empty() {
+    eprintln!("filename {:?}", filename);
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
       diagnostics, source
@@ -389,7 +394,7 @@ const TEST_FILE_NAME: &str = "lint_test.ts";
 pub fn parse(source_code: &str) -> ParsedSource {
   ast_parser::parse_program(
     TEST_FILE_NAME,
-    deno_ast::get_syntax(MediaType::TypeScript),
+    MediaType::TypeScript,
     source_code.to_string(),
   )
   .unwrap()

@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use deno_ast::swc::ast::{
   BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr,
   MemberProp, Null, Number, PatOrExpr, PrivateName, Prop, PropName,

@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -39,7 +39,7 @@ impl LintRule for NoExternalImport {
     context: &mut Context,
     program: Program,
   ) {
-    let mut handler = NoExternalImportHandler::default();
+    let mut handler = NoExternalImportHandler;
     handler.traverse(program, context);
   }
 

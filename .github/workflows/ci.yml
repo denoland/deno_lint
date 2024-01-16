@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-22.04-xl, windows-2019]
+        os: [macOS-latest, ubuntu-latest, windows-2019]
 
     env:
       CARGO_INCREMENTAL: 0
@@ -27,7 +27,7 @@ jobs:
           submodules: true
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dsherret/rust-toolchain-file@v1
 
       - name: Install Deno
         uses: denoland/setup-deno@v1
@@ -45,8 +45,9 @@ jobs:
         run: npm install --ci
         working-directory: benchmarks
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Format
         if: contains(matrix.os, 'ubuntu')
@@ -62,7 +63,7 @@ jobs:
 
       - name: Lint
         if: contains(matrix.os, 'ubuntu')
-        run: deno run --allow-run ./tools/lint.ts --release
+        run: deno run --allow-run --allow-env ./tools/lint.ts --release
 
       - name: Check if www/static/docs.json is up-to-date
         if: contains(matrix.os, 'ubuntu')

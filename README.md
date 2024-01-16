@@ -72,7 +72,7 @@ which provides programmatic API as well as Webpack loader for `deno_lint`.
 
 ```shell
 # Build standalone binary
-$ cargo build --example dlint
+$ cargo build --example dlint --features="docs"
 
 $ ./target/debug/examples/dlint --help
 
@@ -196,4 +196,8 @@ Before submitting, please make sure the following is done:
 2. There are tests that cover the changes.
 3. Ensure `cargo test` passes.
 4. Format your code with `deno run --allow-run tools/format.ts`
-5. Make sure `deno run --allow-run tools/lint.ts` passes.
+5. Make sure `deno run --allow-run --allow-env tools/lint.ts` passes.
+6. If you've added a new rule:
+   1. Run `cargo build --example dlint --all-features`
+   2. Update docs by running the generated binary with these arguments
+      `./target/debug/examples/dlint rules --json > www/static/docs.json`

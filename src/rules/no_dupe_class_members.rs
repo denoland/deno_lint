@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::Program;
@@ -135,7 +135,7 @@ impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
         self
           .appeared_methods
           .entry(m)
-          .or_insert_with(Vec::new)
+          .or_default()
           .push((class_method.range(), name));
       }
     }

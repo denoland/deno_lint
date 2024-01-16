@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -95,27 +95,27 @@ mod tests {
   fn no_empty_character_invalid() {
     assert_lint_err! {
       NoEmptyCharacterClass,
-      r#"const foo = /^abc[]/;"#: [{
+      r"const foo = /^abc[]/;": [{
         col: 12,
         message: MESSAGE,
         hint: HINT,
       }],
-      r#"const foo = /foo[]bar/;"#: [{
+      r"const foo = /foo[]bar/;": [{
         col: 12,
         message: MESSAGE,
         hint: HINT,
       }],
-      r#"const foo = /[]]/;"#: [{
+      r"const foo = /[]]/;": [{
         col: 12,
         message: MESSAGE,
         hint: HINT,
       }],
-      r#"const foo = /\[[]/;"#: [{
+      r"const foo = /\[[]/;": [{
         col: 12,
         message: MESSAGE,
         hint: HINT,
       }],
-      r#"const foo = /\\[\\[\\]a-z[]/;"#: [{
+      r"const foo = /\\[\\[\\]a-z[]/;": [{
         col: 12,
         message: MESSAGE,
         hint: HINT,

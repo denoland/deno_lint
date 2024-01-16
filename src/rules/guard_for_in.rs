@@ -1,4 +1,4 @@
-// Copyright 2020-2022 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -110,36 +110,36 @@ mod tests {
   fn guard_for_in_valid() {
     assert_lint_ok! {
       GuardForIn,
-      r#"for (key in obj);"#,
+      r#"for (const key in obj);"#,
       r#"
-for (key in obj)
+for (const key in obj)
   if (Object.hasOwn(obj, key)) {}
 "#,
       r#"
-for (key in obj) {
+for (const key in obj) {
   if (Object.hasOwn(obj, key)) {}
 }
 "#,
       r#"
-for (key in obj) {
+for (const key in obj) {
   if (!Object.hasOwn(obj, key)) continue;
 }
 "#,
       r#"
-for (key in obj) {
+for (const key in obj) {
   if (!Object.hasOwn(obj, key)) continue;
   foo(obj, key);
 }
 "#,
       r#"
-for (key in obj) {
+for (const key in obj) {
   if (!Object.hasOwn(obj, key)) {
     continue;
   }
 }
 "#,
       r#"
-for (key in obj) {
+for (const key in obj) {
   if (!Object.hasOwn(obj, key)) {
     continue;
   }
@@ -156,22 +156,22 @@ for (key in obj) {
       MESSAGE,
       HINT,
       r#"
-for (key in obj)
+for (const key in obj)
   foo(obj, key);
 "#: [{ line: 2, col: 0 }],
       r#"
-for (key in obj) {
+for (const key in obj) {
   foo(obj, key);
 }
 "#: [{ line: 2, col: 0 }],
       r#"
-for (key in obj) {
+for (const key in obj) {
   foo(obj, key);
   bar(obj, key);
 }
 "#: [{ line: 2, col: 0 }],
       r#"
-for (key in obj) {
+for (const key in obj) {
   if (!Object.hasOwn(obj, key)) {
     foo(obj, key);
     continue;

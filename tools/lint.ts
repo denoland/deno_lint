@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-run
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 const release = Deno.args.includes("--release");
 console.log("clippy");
 
@@ -15,7 +15,7 @@ const clippy = [
   "clippy::all",
 ];
 
-let p1 = new Deno.Command("cargo", {
+const p1 = new Deno.Command("cargo", {
   args: clippy,
   stdin: "null",
 });
@@ -28,7 +28,10 @@ if (o1.code !== 0) {
 
 console.log("deno lint");
 
-const dlint = `./target/${release ? "release" : "debug"}/examples/dlint`;
+const cargoTargetDir = Deno.env.get("CARGO_TARGET_DIR") || "./target";
+const dlint = `${cargoTargetDir}/${
+  release ? "release" : "debug"
+}/examples/dlint`;
 const p2 = new Deno.Command(dlint, {
   args: ["run", "benchmarks/benchmarks.ts"],
   stdin: "null",
