@@ -91,7 +91,7 @@ pub mod no_unsafe_negation;
 pub mod no_unused_labels;
 pub mod no_unused_vars;
 pub mod no_var;
-pub mod no_window_global;
+pub mod no_window;
 pub mod no_window_prefix;
 pub mod no_with;
 pub mod prefer_as_const;
@@ -313,7 +313,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_unused_labels::NoUnusedLabels,
     &no_unused_vars::NoUnusedVars,
     &no_var::NoVar,
-    &no_window_global::NoWindowGlobal,
+    &no_window::NoWindow,
     &no_window_prefix::NoWindowPrefix,
     &no_with::NoWith,
     &prefer_as_const::PreferAsConst,

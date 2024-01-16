@@ -562,7 +562,7 @@
     ]
   },
   {
-    "code": "no-window-global",
+    "code": "no-window",
     "docs": "Disallows the use of the `window` object.\n\nUsing the `window` global is deprecated and scheduled for removal in Deno 2.0.\nDeno does not have a window and `typeof window === \"undefined\"` is often used to\ntell if the code is running in the browser.\n\n### Invalid:\n\n```typescript\nconst a = await window.fetch(\"https://deno.land\");\n\nconst b = window.Deno.metrics();\nconsole.log(window);\n\nwindow.addEventListener(\"load\", () => {\n  console.log(\"Loaded.\");\n});\n```\n\n### Valid:\n\n```typescript\nconst a1 = await fetch(\"https://deno.land\");\nconst a2 = await globalThis.fetch(\"https://deno.land\");\nconst a3 = await self.fetch(\"https://deno.land\");\n\nconst b1 = Deno.metrics();\nconst b2 = globalThis.Deno.metrics();\nconst b3 = self.Deno.metrics();\nconsole.log(globalThis);\n\naddEventListener(\"load\", () => {\n  console.log(\"Loaded.\");\n});\n```\n",
     "tags": [
       "recommended"

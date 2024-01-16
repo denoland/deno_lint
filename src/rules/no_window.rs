@@ -10,14 +10,14 @@ use deno_ast::SourceRanged;
 use if_chain::if_chain;
 
 #[derive(Debug)]
-pub struct NoWindowGlobal;
+pub struct NoWindow;
 
-const CODE: &str = "no-window-global";
+const CODE: &str = "no-window";
 const MESSAGE: &str =
   "window is deprecated and scheduled for removal in Deno 2.0";
 const HINT: &str = "Instead, use `globalThis`";
 
-impl LintRule for NoWindowGlobal {
+impl LintRule for NoWindow {
   fn tags(&self) -> &'static [&'static str] {
     &["recommended"]
   }
@@ -64,9 +64,9 @@ mod tests {
   use super::*;
 
   #[test]
-  fn no_window_global_valid() {
+  fn no_window_valid() {
     assert_lint_ok! {
-      NoWindowGlobal,
+      NoWindow,
       "fetch();",
       "self.fetch();",
       "globalThis.fetch();",
@@ -82,9 +82,9 @@ mod tests {
   }
 
   #[test]
-  fn no_window_global_invalid() {
+  fn no_window_invalid() {
     assert_lint_err! {
-      NoWindowGlobal,
+      NoWindow,
       MESSAGE,
       HINT,
       r#"window.fetch()"#: [
