@@ -11,6 +11,10 @@ const a = await window.fetch("https://deno.land");
 
 const b = window.Deno.metrics();
 console.log(window);
+
+window.addEventListener("load", () => {
+  console.log("Loaded.");
+});
 ```
 
 ### Valid:
@@ -24,4 +28,8 @@ const b1 = Deno.metrics();
 const b2 = globalThis.Deno.metrics();
 const b3 = self.Deno.metrics();
 console.log(globalThis);
+
+addEventListener("load", () => {
+  console.log("Loaded.");
+});
 ```
