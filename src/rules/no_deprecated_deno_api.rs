@@ -70,6 +70,7 @@ enum DeprecatedApi {
   ReadAll,
   ReadAllSync,
   Run,
+  ServeHttp,
   WriteAll,
   WriteAllSync,
 }
@@ -98,6 +99,7 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
       "readAll" => Ok(DeprecatedApi::ReadAll),
       "readAllSync" => Ok(DeprecatedApi::ReadAllSync),
       "run" => Ok(DeprecatedApi::Run),
+      "serveHttp" => Ok(DeprecatedApi::ServeHttp),
       "writeAll" => Ok(DeprecatedApi::WriteAll),
       "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
       _ => Err(()),
@@ -151,6 +153,7 @@ impl DeprecatedApi {
       ReadAll => "Deno.readAll",
       ReadAllSync => "Deno.readAllSync",
       Run => "Deno.run",
+      ServeHttp => "Deno.serveHttp",
       WriteAll => "Deno.writeAll",
       WriteAllSync => "Deno.writeAllSync",
     }
@@ -158,6 +161,7 @@ impl DeprecatedApi {
 
   fn get_replacement(&self) -> Replacement {
     const DENO_COMMAND_API: &str = "https://deno.land/api?s=Deno.Command";
+    const DENO_SERVE_API: &str = "https://deno.land/api?s=Deno.serve";
     const BUFFER_TS: &str =
       "https://developer.mozilla.org/en-US/docs/Web/API/Streams_API";
     const STREAMS_REDABLE_TS: &str = "https://deno.land/api?s=ReadableStream";
@@ -183,6 +187,7 @@ impl DeprecatedApi {
         ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
       ]),
       Run => NameAndUrl("Deno.Command", DENO_COMMAND_API),
+      ServeHttp => NameAndUrl("Deno.serve", DENO_SERVE_API),
       WriteAll | WriteAllSync => NameAndUrls(vec![
         ("WritableStream", STREAMS_WRITEABLE_TS),
         ("ReadableStream.from", STREAMS_REDABLE_FROM_TS),
@@ -558,6 +563,20 @@ Deno.readAll(reader);
           hint: ReadAll.hint()
         }
       ],
+      r#"Deno.serveHttp();"#: [
+        {
+          col: 0,
+          message: ServeHttp.message(),
+          hint: ServeHttp.hint()
+        }
+      ],
+      r#"Deno[`serveHttp`];"#: [
+        {
+          col: 0,
+          message: ServeHttp.message(),
+          hint: ServeHttp.hint()
+        }
+      ],
     }
   }
 
@@ -576,6 +595,7 @@ Deno.readAll(reader);
       ("readAll", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
       ("readAllSync", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
       ("run", "Use `Deno.Command` from https://deno.land/api?s=Deno.Command instead"),
+      ("serveHttp", "Use `Deno.serve` from https://deno.land/api?s=Deno.serve instead"),
       ("writeAll", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
       ("writeAllSync", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
     ];

@@ -41,6 +41,12 @@ more details.
 `Deno.File` was deprecated in favor of `Deno.FsFile`. Replace the usages with
 new class name.
 
+**HTTP server API**
+
+- `Deno.serveHttp`
+
+`Deno.serveHttp` was deprecated in favor of `Deno.serve`.
+
 ### Invalid:
 
 ```typescript
