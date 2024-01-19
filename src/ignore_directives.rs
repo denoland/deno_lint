@@ -205,7 +205,7 @@ export function deepAssign(
 target: Record<string, any>,
 ...sources: any[]
 ): // deno-lint-ignore ban-types
-object | undefined {}
+Object | undefined {}
 
 // deno-lint-ignore no-explicit-any no-empty no-debugger -- reason for ignoring
 function foo(): any {}
