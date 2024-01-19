@@ -181,6 +181,14 @@ mod tests {
               hint: HINT,
           }
         ],
+        "do {} while (x === x)": [
+          {
+            line: 1,
+            col: 13,
+            message: variant!(NoSelfCompareMessage, Invalid, "x"),
+            hint: HINT,
+          }
+        ],
         "x === x ? console.log('foo') : console.log('bar');": [
           {
               line: 1,
