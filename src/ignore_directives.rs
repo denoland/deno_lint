@@ -141,12 +141,14 @@ fn parse_ignore_comment<T: DirectiveKind>(
         Lazy::new(|| Regex::new(r"\s*--.*").unwrap());
 
       // remove ignore reason
-      let comment_text_without_reason = IGNORE_COMMENT_REASON_RE.replace_all(comment_text, "");
+      let comment_text_without_reason =
+        IGNORE_COMMENT_REASON_RE.replace_all(comment_text, "");
 
       static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
 
-      let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(&comment_text_without_reason, ",");
+      let comment_text =
+        IGNORE_COMMENT_CODE_RE.replace_all(&comment_text_without_reason, ",");
       let codes = comment_text
         .split(',')
         .filter_map(|code| {
