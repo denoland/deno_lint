@@ -1,8 +1,9 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use if_chain::if_chain;
 
 use deno_ast::{
-  view::{BinaryOp, Expr, NodeTrait},
+  view::{BinaryOp, NodeTrait},
   SourceRanged,
 };
 use derive_more::Display;
@@ -46,42 +47,30 @@ impl Handler for NoSelfCompareHandler {
     binary_expression: &deno_ast::view::BinExpr,
     ctx: &mut Context,
   ) {
-    let should_check_left_and_right = matches!(
-      binary_expression.op(),
-      BinaryOp::EqEqEq
-        | BinaryOp::EqEq
-        | BinaryOp::NotEqEq
-        | BinaryOp::NotEq
-        | BinaryOp::Gt
-        | BinaryOp::Lt
-        | BinaryOp::GtEq
-        | BinaryOp::LtEq
-    );
+    if_chain! {
+      if matches!(
+        binary_expression.op(),
+        BinaryOp::EqEqEq
+          | BinaryOp::EqEq
+          | BinaryOp::NotEqEq
+          | BinaryOp::NotEq
+          | BinaryOp::Gt
+          | BinaryOp::Lt
+          | BinaryOp::GtEq
+          | BinaryOp::LtEq
+      );
 
-    if should_check_left_and_right {
-      if let Expr::Ident(left) = binary_expression.left {
-        if let Expr::Ident(right) = binary_expression.right {
-          if left.text() == right.text() {
-            ctx.add_diagnostic_with_hint(
-              binary_expression.range(),
-              CODE,
-              NoSelfCompareMessage::Invalid(left.text().to_string()),
-              HINT,
-            )
-          }
-        }
-      } else if let Expr::Member(left) = binary_expression.left {
-        if let Expr::Member(right) = binary_expression.right {
-          if left.text() == right.text() {
-            ctx.add_diagnostic_with_hint(
-              binary_expression.range(),
-              CODE,
-              NoSelfCompareMessage::Invalid(left.text().to_string()),
-              HINT,
-            )
-          }
-        }
+      if binary_expression.left.text() == binary_expression.right.text();
+
+      then {
+        ctx.add_diagnostic_with_hint(
+          binary_expression.range(),
+          CODE,
+          NoSelfCompareMessage::Invalid(binary_expression.left.text().to_string()),
+          HINT,
+        )
       }
+
     }
   }
 }
@@ -175,6 +164,14 @@ mod tests {
               col: 0,
               message: variant!(NoSelfCompareMessage, Invalid, "foo.bar().baz['qux']"),
               hint: HINT,
+          }
+        ],
+        "if ('x' > 'x') { }": [
+          {
+            line: 1,
+            col: 4,
+            message: variant!(NoSelfCompareMessage, Invalid, "'x'"),
+            hint: HINT,
           }
         ],
         "do {} while (x === x)": [
