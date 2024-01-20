@@ -469,9 +469,7 @@
   {
     "code": "no-self-compare",
     "docs": "Disallows comparisons where both sides are exactly the same.\n\nComparing a variable against itself is usually an error, either a typo or\nrefactoring error. It is confusing to the reader and may potentially introduce a\nruntime error.\n\n### Invalid:\n\n```typescript\nif (x === x) {\n}\nif (a.b === a.b) {\n}\nif (a[\"b\"] === a[\"b\"]) {\n}\n```\n\n### Valid:\n\n```typescript\nif (x === y) {\n}\nif (a.b === a.c) {\n}\nif (a[\"b\"] === a[\"c\"]) {\n}\n```\n",
-    "tags": [
-      "recommended"
-    ]
+    "tags": []
   },
   {
     "code": "no-setter-return",
