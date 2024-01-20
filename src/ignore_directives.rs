@@ -250,12 +250,34 @@ function foo(): any {}
       assert!(file_directive.codes.is_empty());
     });
 
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file -- reason for ignoring",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
     test_util::parse_and_then("// deno-lint-ignore-file foo", |program| {
       let file_directive =
         parse_file_ignore_directives("deno-lint-ignore-file", program).unwrap();
 
       assert_eq!(file_directive.codes, code_map(["foo"]));
     });
+
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file foo -- reason for ignoring",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+
+        assert_eq!(file_directive.codes, code_map(["foo"]));
+      },
+    );
 
     test_util::parse_and_then("// deno-lint-ignore-file foo bar", |program| {
       let file_directive =
@@ -302,7 +324,27 @@ const x = 42;
     );
 
     test_util::parse_and_then(
+      "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file -- reason for ignoring",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
+    test_util::parse_and_then(
       "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file\nconst a = 42;",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
+    test_util::parse_and_then(
+      "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file -- reason for ignoring\nconst a = 42;",
       |program| {
         let file_directive =
           parse_file_ignore_directives("deno-lint-ignore-file", program)
