@@ -87,6 +87,7 @@ mod tests {
         "if (1 === 2) { }",
         "y=x*x",
         "foo.bar.baz === foo.bar.qux",
+        "if ('x' === 'y') { }",
     };
   }
 
