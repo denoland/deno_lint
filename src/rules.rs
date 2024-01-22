@@ -76,6 +76,7 @@ pub mod no_prototype_builtins;
 pub mod no_redeclare;
 pub mod no_regex_spaces;
 pub mod no_self_assign;
+pub mod no_self_compare;
 pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
 pub mod no_sparse_arrays;
@@ -298,6 +299,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_redeclare::NoRedeclare,
     &no_regex_spaces::NoRegexSpaces,
     &no_self_assign::NoSelfAssign,
+    &no_self_compare::NoSelfCompare,
     &no_setter_return::NoSetterReturn,
     &no_shadow_restricted_names::NoShadowRestrictedNames,
     &no_sparse_arrays::NoSparseArrays,

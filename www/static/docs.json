@@ -467,6 +467,11 @@
     ]
   },
   {
+    "code": "no-self-compare",
+    "docs": "Disallows comparisons where both sides are exactly the same.\n\nComparing a variable or value against itself is usually an error, either a typo\nor refactoring error. It is confusing to the reader and may potentially\nintroduce a runtime error.\n\n### Invalid:\n\n```typescript\nif (x === x) {\n}\nif (\"x\" === \"x\") {\n}\nif (a.b === a.b) {\n}\nif (a[\"b\"] === a[\"b\"]) {\n}\n```\n\n### Valid:\n\n```typescript\nif (x === y) {\n}\nif (\"x\" === \"y\") {\n}\nif (a.b === a.c) {\n}\nif (a[\"b\"] === a[\"c\"]) {\n}\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-setter-return",
     "docs": "Disallows returning values from setters.\n\nSetters are supposed to be used for setting some value to the property, which\nmeans that returning a value from a setter makes no sense. In fact, returned\nvalues are ignored and cannot ever be used at all although returning a value\nfrom a setter produces no error. This is why static check for this mistake by\nthe linter is quite beneficial.\n\nNote that returning without a value is allowed; this is a useful technique to do\nearly-return from a function.\n\n### Invalid:\n\n```typescript\nconst a = {\n  set foo(x: number) {\n    return \"something\";\n  },\n};\n\nclass B {\n  private set foo(x: number) {\n    return \"something\";\n  }\n}\n\nconst c = {\n  set foo(x: boolean) {\n    if (x) {\n      return 42;\n    }\n  },\n};\n```\n\n### Valid:\n\n```typescript\n// return without a value is allowed since it is used to do early-return\nconst a = {\n  set foo(x: number) {\n    if (x % 2 == 0) {\n      return;\n    }\n  },\n};\n\n// not a setter, but a getter\nclass B {\n  get foo() {\n    return 42;\n  }\n}\n\n// not a setter\nconst c = {\n  set(x: number) {\n    return \"something\";\n  },\n};\n```\n",
     "tags": [
