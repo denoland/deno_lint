@@ -137,10 +137,18 @@ fn parse_ignore_comment<T: DirectiveKind>(
         .strip_prefix(ignore_diagnostic_directive)
         .unwrap();
 
+      static IGNORE_COMMENT_REASON_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\s*--.*").unwrap());
+
+      // remove ignore reason
+      let comment_text_without_reason =
+        IGNORE_COMMENT_REASON_RE.replace_all(comment_text, "");
+
       static IGNORE_COMMENT_CODE_RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r",\s*|\s").unwrap());
 
-      let comment_text = IGNORE_COMMENT_CODE_RE.replace_all(comment_text, ",");
+      let comment_text =
+        IGNORE_COMMENT_CODE_RE.replace_all(&comment_text_without_reason, ",");
       let codes = comment_text
         .split(',')
         .filter_map(|code| {
@@ -197,14 +205,17 @@ export function deepAssign(
 target: Record<string, any>,
 ...sources: any[]
 ): // deno-lint-ignore ban-types
-object | undefined {}
+Object | undefined {}
+
+// deno-lint-ignore no-explicit-any no-empty no-debugger -- reason for ignoring
+function foo(): any {}
   "#;
 
     test_util::parse_and_then(source_code, |program| {
       let line_directives =
         parse_line_ignore_directives("deno-lint-ignore", program);
 
-      assert_eq!(line_directives.len(), 4);
+      assert_eq!(line_directives.len(), 5);
       let d = line_directives.get(&1).unwrap();
       assert_eq!(
         d.codes,
@@ -222,6 +233,11 @@ object | undefined {}
       );
       let d = line_directives.get(&16).unwrap();
       assert_eq!(d.codes, code_map(["ban-types"]));
+      let d = line_directives.get(&19).unwrap();
+      assert_eq!(
+        d.codes,
+        code_map(["no-explicit-any", "no-empty", "no-debugger"])
+      );
     });
   }
 
@@ -234,12 +250,34 @@ object | undefined {}
       assert!(file_directive.codes.is_empty());
     });
 
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file -- reason for ignoring",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
     test_util::parse_and_then("// deno-lint-ignore-file foo", |program| {
       let file_directive =
         parse_file_ignore_directives("deno-lint-ignore-file", program).unwrap();
 
       assert_eq!(file_directive.codes, code_map(["foo"]));
     });
+
+    test_util::parse_and_then(
+      "// deno-lint-ignore-file foo -- reason for ignoring",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+
+        assert_eq!(file_directive.codes, code_map(["foo"]));
+      },
+    );
 
     test_util::parse_and_then("// deno-lint-ignore-file foo bar", |program| {
       let file_directive =
@@ -286,7 +324,27 @@ const x = 42;
     );
 
     test_util::parse_and_then(
+      "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file -- reason for ignoring",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
+    test_util::parse_and_then(
       "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file\nconst a = 42;",
+      |program| {
+        let file_directive =
+          parse_file_ignore_directives("deno-lint-ignore-file", program)
+            .unwrap();
+        assert!(file_directive.codes.is_empty());
+      },
+    );
+
+    test_util::parse_and_then(
+      "#!/usr/bin/env -S deno run\n// deno-lint-ignore-file -- reason for ignoring\nconst a = 42;",
       |program| {
         let file_directive =
           parse_file_ignore_directives("deno-lint-ignore-file", program)
