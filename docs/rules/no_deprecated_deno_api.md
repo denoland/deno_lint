@@ -150,7 +150,7 @@ Deno.close(file.rid);
 
 ### Valid:
 
-```typescript 
+```typescript
 const file = await Deno.open("foo.txt");
 file.close();
 ```
