@@ -1,7 +1,7 @@
 Warns the usage of the deprecated Deno APIs
 
 The following APIs in the `Deno` namespace are now marked as deprecated and will
-get removed from the namespace in Deno 2.0.
+be removed from the namespace in Deno 2.0.
 
 **IO APIs**
 
