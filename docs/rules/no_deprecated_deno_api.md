@@ -108,3 +108,47 @@ function foo(file: Deno.FsFile) {
   // ...
 }
 ```
+
+- `Deno.fdatasync`
+- `Deno.fdatasyncSync`
+
+`Deno.fdatasync` and `Deno.fdatasyncSync` are deprecated in favor of
+`Deno.FsFile.datasync` and `Deno.FsFile.datasyncSync` respectively.
+
+- `Deno.fsync`
+- `Deno.fsyncSync`
+
+`Deno.fsync` and `Deno.fsyncSync` are deprecated in favor of `Deno.FsFile.sync`
+and `Deno.FsFile.syncSync` respectively.
+
+- `Deno.isatty`
+
+`Deno.isatty` was deprecated in favor of `Deno.stdin.isTerminal()`.
+
+### Invalid
+
+```typescript
+Deno.isatty(Deno.stdin.rid);
+Deno.isatty(Deno.stdout.rid);
+```
+
+### Valid
+
+```typescript
+Deno.stdin.isTerminal();
+Deno.stdout.isTerminal();
+```
+
+- `Deno.resources()`
+
+Deno.resources() was deprecated. There are no replacements for this API.
+
+- `Deno.metrics()`
+
+Deno.metrics() was deprecated. There are no replacements for this API.
+
+**HTTP server API**
+
+- `Deno.serveHttp`
+
+`Deno.serveHttp` was deprecated in favor of `Deno.serve`.
