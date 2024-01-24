@@ -123,7 +123,7 @@ and `Deno.FsFile.syncSync` respectively.
 
 - `Deno.isatty`
 
-`Deno.isatty` was deprecated in favor of `Deno.stdin.isTerminal()`.
+`Deno.isatty` was deprecated in favor of `Deno.stdin.isTerminal()`, `Deno.stdout.isTerminal()` and `Deno.stderr.isTerminal()`.
 
 ### Invalid:
 
