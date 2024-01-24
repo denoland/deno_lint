@@ -43,10 +43,33 @@ impl LintRule for NoWindow {
 struct NoWindowGlobalHandler;
 
 impl Handler for NoWindowGlobalHandler {
-  fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
+  fn member_expr(&mut self, expr: &ast_view::MemberExpr, ctx: &mut Context) {
+    if expr.parent().is::<ast_view::MemberExpr>() {
+      return;
+    }
+
+    use deno_ast::view::Expr;
     if_chain! {
+      if let Expr::Ident(ident) = &expr.obj;
       if ident.sym() == "window";
-      if ctx.scope().is_global(&ident.to_id());
+      if ctx.scope().is_global(&ident.inner.to_id());
+      then {
+        ctx.add_diagnostic_with_hint(
+          ident.range(),
+          CODE,
+          MESSAGE,
+          HINT,
+        );
+      }
+    }
+  }
+
+  fn expr_stmt(&mut self, expr: &ast_view::ExprStmt, ctx: &mut Context) {
+    use deno_ast::view::Expr;
+    if_chain! {
+      if let Expr::Ident(ident) = &expr.expr;
+      if ident.sym() == "window";
+      if ctx.scope().is_global(&ident.inner.to_id());
       then {
         ctx.add_diagnostic_with_hint(
           ident.range(),
@@ -78,6 +101,10 @@ mod tests {
       "const window = 42; window.alert();",
       r#"const window = 42; window["alert"]();"#,
       r#"const window = 42; window[`alert`]();"#,
+
+      // https://github.com/denoland/deno_lint/issues/1232
+      "const params: { window: number } = { window: 23 };",
+      "x.window"
     };
   }
 
