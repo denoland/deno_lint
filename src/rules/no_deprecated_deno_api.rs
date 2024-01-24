@@ -67,6 +67,8 @@ enum DeprecatedApi {
   File,
   Iter,
   IterSync,
+  Read,
+  ReadSync,
   ReadAll,
   ReadAllSync,
   Run,
@@ -96,6 +98,8 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
       "iter" => Ok(DeprecatedApi::Iter),
       "iterSync" => Ok(DeprecatedApi::IterSync),
       "File" => Ok(DeprecatedApi::File),
+      "read" => Ok(DeprecatedApi::Read),
+      "readSync" => Ok(DeprecatedApi::ReadSync),
       "readAll" => Ok(DeprecatedApi::ReadAll),
       "readAllSync" => Ok(DeprecatedApi::ReadAllSync),
       "run" => Ok(DeprecatedApi::Run),
@@ -151,6 +155,8 @@ impl DeprecatedApi {
       Iter => "Deno.iter",
       IterSync => "Deno.iterSync",
       File => "Deno.File",
+      Read => "Deno.read",
+      ReadSync => "Deno.readSync",
       ReadAll => "Deno.readAll",
       ReadAllSync => "Deno.readAllSync",
       Run => "Deno.run",
@@ -166,9 +172,12 @@ impl DeprecatedApi {
     const STD_BUFFER: &str = "https://deno.land/std/io/buffer.ts?s=Buffer";
     const STD_COPY: &str = "https://deno.land/std/io/copy.ts?s=copy";
     const STD_READ_ALL: &str = "https://deno.land/std/io/read_all.ts?s=readAll";
-    const STD_READ_ALL_SYNC: &str = "https://deno.land/std/io/read_all.ts?s=readAllSync";
-    const STD_WRITE_ALL: &str = "https://deno.land/std/io/write_all.ts?s=writeAll";
-    const STD_WRITE_ALL_SYNC: &str = "https://deno.land/std/io/write_all.ts?s=writeAllSync";
+    const STD_READ_ALL_SYNC: &str =
+      "https://deno.land/std/io/read_all.ts?s=readAllSync";
+    const STD_WRITE_ALL: &str =
+      "https://deno.land/std/io/write_all.ts?s=writeAll";
+    const STD_WRITE_ALL_SYNC: &str =
+      "https://deno.land/std/io/write_all.ts?s=writeAllSync";
     const STREAMS_READABLE_TS: &str = "https://deno.land/api?s=ReadableStream";
 
     use DeprecatedApi::*;
@@ -180,6 +189,8 @@ impl DeprecatedApi {
       Iter => Name(STREAMS_READABLE_TS),
       IterSync => Name(STREAMS_READABLE_TS),
       File => Name("Deno.FsFile"),
+      Read => Name("resource.read"),
+      ReadSync => Name("resource.readSync"),
       ReadAll => NameAndUrl("readAll", STD_READ_ALL),
       ReadAllSync => NameAndUrl("readAllSync", STD_READ_ALL_SYNC),
       Run => NameAndUrl("Deno.Command", DENO_COMMAND_API),
@@ -262,6 +273,8 @@ mod tests {
       "Deno.foo.iterSync();",
       "Deno.foo.copy();",
       "Deno.foo.customInspect;",
+      "Deno.foo.read();",
+      "Deno.foo.readSync();",
       "foo.Deno.Buffer();",
       "foo.Deno.readAll();",
       "foo.Deno.readAllSync();",
@@ -271,6 +284,8 @@ mod tests {
       "foo.Deno.iterSync();",
       "foo.Deno.copy();",
       "foo.Deno.customInspect;",
+      "foo.Deno.read();",
+      "foo.Deno.readSync();",
 
       // `Deno` is shadowed
       "const Deno = 42; const a = new Deno.Buffer();",
@@ -281,6 +296,8 @@ mod tests {
       "const Deno = 42; for await (const x of Deno.iter(xs)) {}",
       "const Deno = 42; for (const x of Deno.iterSync(xs)) {}",
       "const Deno = 42; await Deno.copy(reader, writer);",
+      "const Deno = 42; const a = await Deno.read(reader);",
+      "const Deno = 42; const a = Deno.readSync(reader);",
       r#"const Deno = 42; Deno.customInspect"#,
       r#"import { Deno } from "./foo.ts"; Deno.writeAllSync(writer, data);"#,
 
@@ -294,6 +311,8 @@ mod tests {
       r#"const Deno = 42; for (const x of Deno["iterSync"](xs)) {}"#,
       r#"const Deno = 42; Deno["copy"](reader, writer);"#,
       r#"const Deno = 42; Deno["customInspect"]"#,
+      r#"const Deno = 42; Deno["read"](reader);"#,
+      r#"const Deno = 42; Deno["readSync"](reader);"#,
 
       // access property with template literal (shadowed)
       r#"const Deno = 42; new Deno[`Buffer`]();"#,
@@ -305,9 +324,12 @@ mod tests {
       r#"const Deno = 42; for (const x of Deno[`iterSync`](xs)) {}"#,
       r#"const Deno = 42; Deno[`copy`](reader, writer);"#,
       r#"const Deno = 42; Deno[`customInspect`]"#,
+      r#"const Deno = 42; Deno[`read`](reader);"#,
+      r#"const Deno = 42; Deno[`readSync`](reader);"#,
 
       // Ignore template literals that include expressions
       r#"const read = "read"; Deno[`${read}All`](reader);"#,
+      r#"const sync = "Sync"; Deno[`read${sync}`](reader);"#,
 
       // types
       r#"interface Deno {} let file: Deno.File;"#,
@@ -325,6 +347,20 @@ mod tests {
           col: 4,
           message: Buffer.message(),
           hint: Buffer.hint()
+        }
+      ],
+      "Deno.read(reader);": [
+        {
+          col: 0,
+          message: Read.message(),
+          hint: Read.hint()
+        }
+      ],
+      "Deno.readSync(reader);": [
+        {
+          col: 0,
+          message: ReadSync.message(),
+          hint: ReadSync.hint()
         }
       ],
       "Deno.readAll(reader);": [
@@ -585,6 +621,8 @@ Deno.readAll(reader);
       ("File", "Use `Deno.FsFile` instead"),
       ("iter", "Use `https://deno.land/api?s=ReadableStream` instead"),
       ("iterSync", "Use `https://deno.land/api?s=ReadableStream` instead"),
+      ("read", "Use `resource.read` instead"),
+      ("readSync", "Use `resource.readSync` instead"),
       ("readAll", "Use `readAll` from https://deno.land/std/io/read_all.ts?s=readAll instead"),
       ("readAllSync", "Use `readAllSync` from https://deno.land/std/io/read_all.ts?s=readAllSync instead"),
       ("run", "Use `Deno.Command` from https://deno.land/api?s=Deno.Command instead"),
