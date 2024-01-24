@@ -1,6 +1,7 @@
 Warns the usage of the deprecated Deno APIs
 
-The following APIs in `Deno` namespace are now marked as deprecated and will get removed from the namespace in Deno 2.0
+The following APIs in `Deno` namespace are now marked as deprecated and will get
+removed from the namespace in Deno 2.0
 
 **IO APIs**
 
@@ -8,13 +9,15 @@ The following APIs in `Deno` namespace are now marked as deprecated and will get
 - `Deno.copy`
 - `Deno.iter`
 - `Deno.iterSync`
+- `Deno.read`
+- `Deno.readSync`
 - `Deno.readAll`
 - `Deno.readAllSync`
 - `Deno.writeAll`
 - `Deno.writeAllSync`
 
-The IO APIs are already available in `std/io` or `std/streams`, so replace these
-deprecated ones with alternatives from `std`. For more detail, see
+The IO APIs are already available in `std/io`, so replace these deprecated ones
+with alternatives from `std`. For more detail, see
 [the tracking issue](https://github.com/denoland/deno/issues/9795).
 
 **Sub Process API**
