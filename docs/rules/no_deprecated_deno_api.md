@@ -130,6 +130,7 @@ and `Deno.FsFile.syncSync` respectively.
 ```typescript
 Deno.isatty(Deno.stdin.rid);
 Deno.isatty(Deno.stdout.rid);
+Deno.isatty(Deno.stderr.rid);
 ```
 
 ### Valid:
