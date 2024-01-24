@@ -151,6 +151,7 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
 enum Replacement {
   NameAndUrl(&'static str, &'static str),
   Name(&'static str),
+  #[allow(dead_code)]
   NameAndUrls(Vec<(&'static str, &'static str)>),
   None,
 }
@@ -226,36 +227,31 @@ impl DeprecatedApi {
 
   fn get_replacement(&self) -> Replacement {
     const DENO_COMMAND_API: &str = "https://deno.land/api?s=Deno.Command";
-    const BUFFER_TS: &str =
-      "https://developer.mozilla.org/en-US/docs/Web/API/Streams_API";
-    const STREAMS_REDABLE_TS: &str = "https://deno.land/api?s=ReadableStream";
-    const STREAMS_REDABLE_PIPE_TO_TS: &str =
-      "https://deno.land/api?s=ReadableStream#method_pipeTo_4";
-    const STREAMS_REDABLE_FROM_TS: &str =
-      "https://deno.land/api?s=ReadableStream#variable_ReadableStream";
-    const STREAMS_WRITEABLE_TS: &str = "https://deno.land/api?s=WritableStream";
-    const STREAMS_TO_ARRAY_BUFFER_TS: &str =
-      "https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer";
+    const STD_BUFFER: &str = "https://deno.land/std/io/buffer.ts?s=Buffer";
+    const STD_COPY: &str = "https://deno.land/std/io/copy.ts?s=copy";
+    const STD_READ_ALL: &str = "https://deno.land/std/io/read_all.ts?s=readAll";
+    const STD_READ_ALL_SYNC: &str =
+      "https://deno.land/std/io/read_all.ts?s=readAllSync";
+    const STD_WRITE_ALL: &str =
+      "https://deno.land/std/io/write_all.ts?s=writeAll";
+    const STD_WRITE_ALL_SYNC: &str =
+      "https://deno.land/std/io/write_all.ts?s=writeAllSync";
+    const STREAMS_READABLE_TS: &str = "https://deno.land/api?s=ReadableStream";
 
     use DeprecatedApi::*;
     use Replacement::*;
     match *self {
-      Buffer => Name(BUFFER_TS),
-      Copy => Name(STREAMS_REDABLE_PIPE_TO_TS),
+      Buffer => Name(STD_BUFFER),
+      Copy => Name(STD_COPY),
       CustomInspect => Name("Symbol.for(\"Deno.customInspect\")"),
-      Iter => Name(STREAMS_REDABLE_TS),
-      IterSync => Name(STREAMS_REDABLE_TS),
+      Iter => Name(STREAMS_READABLE_TS),
+      IterSync => Name(STREAMS_READABLE_TS),
       File => Name("Deno.FsFile"),
-      ReadAll | ReadAllSync => NameAndUrls(vec![
-        ("ReadableStream", STREAMS_REDABLE_TS),
-        ("toArrayBuffer()", STREAMS_TO_ARRAY_BUFFER_TS),
-      ]),
+      ReadAll => NameAndUrl("readAll", STD_READ_ALL),
+      ReadAllSync => NameAndUrl("readAllSync", STD_READ_ALL_SYNC),
       Run => NameAndUrl("Deno.Command", DENO_COMMAND_API),
-      WriteAll | WriteAllSync => NameAndUrls(vec![
-        ("WritableStream", STREAMS_WRITEABLE_TS),
-        ("ReadableStream.from", STREAMS_REDABLE_FROM_TS),
-        ("ReadableStream.pipeTo", STREAMS_REDABLE_PIPE_TO_TS),
-      ]),
+      WriteAll => NameAndUrl("writeAll", STD_WRITE_ALL),
+      WriteAllSync => NameAndUrl("writeAllSync", STD_WRITE_ALL_SYNC),
       Fdatasync | FdatasyncSync => NameAndUrls(vec![
         (
           "Deno.FsFile.datasync",
@@ -779,18 +775,18 @@ Deno.readAll(reader);
     let tests = vec![
       (
         "Buffer",
-        "Use `https://developer.mozilla.org/en-US/docs/Web/API/Streams_API` instead",
+        "Use `https://deno.land/std/io/buffer.ts?s=Buffer` instead",
       ),
-      ("copy", "Use `https://deno.land/api?s=ReadableStream#method_pipeTo_4` instead"),
+      ("copy", "Use `https://deno.land/std/io/copy.ts?s=copy` instead"),
       ("customInspect", "Use `Symbol.for(\"Deno.customInspect\")` instead"),
       ("File", "Use `Deno.FsFile` instead"),
       ("iter", "Use `https://deno.land/api?s=ReadableStream` instead"),
       ("iterSync", "Use `https://deno.land/api?s=ReadableStream` instead"),
-      ("readAll", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
-      ("readAllSync", "Use `ReadableStream` from https://deno.land/api?s=ReadableStream and `toArrayBuffer()` from https://deno.land/std/streams/to_array_buffer.ts?s=toArrayBuffer instead"),
+      ("readAll", "Use `readAll` from https://deno.land/std/io/read_all.ts?s=readAll instead"),
+      ("readAllSync", "Use `readAllSync` from https://deno.land/std/io/read_all.ts?s=readAllSync instead"),
       ("run", "Use `Deno.Command` from https://deno.land/api?s=Deno.Command instead"),
-      ("writeAll", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
-      ("writeAllSync", "Use `WritableStream` from https://deno.land/api?s=WritableStream and `ReadableStream.from` from https://deno.land/api?s=ReadableStream#variable_ReadableStream and `ReadableStream.pipeTo` from https://deno.land/api?s=ReadableStream#method_pipeTo_4 instead"),
+      ("writeAll", "Use `writeAll` from https://deno.land/std/io/write_all.ts?s=writeAll instead"),
+      ("writeAllSync", "Use `writeAllSync` from https://deno.land/std/io/write_all.ts?s=writeAllSync instead"),
     ];
 
     for test in tests {

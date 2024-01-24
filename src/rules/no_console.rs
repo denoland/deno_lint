@@ -1,8 +1,10 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
-use deno_ast::view::Ident;
+
+use deno_ast::view as ast_view;
 use deno_ast::SourceRanged;
+use if_chain::if_chain;
 
 #[derive(Debug)]
 pub struct NoConsole;
@@ -36,9 +38,39 @@ impl LintRule for NoConsole {
 struct NoConsoleHandler;
 
 impl Handler for NoConsoleHandler {
-  fn ident(&mut self, id: &Ident, ctx: &mut Context) {
-    if id.sym().as_ref() == "console" && ctx.scope().is_global(&id.to_id()) {
-      ctx.add_diagnostic(id.range(), CODE, MESSAGE);
+  fn member_expr(&mut self, expr: &ast_view::MemberExpr, ctx: &mut Context) {
+    if expr.parent().is::<ast_view::MemberExpr>() {
+      return;
+    }
+
+    use deno_ast::view::Expr;
+    if_chain! {
+      if let Expr::Ident(ident) = &expr.obj;
+      if ident.sym() == "console";
+      if ctx.scope().is_global(&ident.inner.to_id());
+      then {
+        ctx.add_diagnostic(
+          ident.range(),
+          CODE,
+          MESSAGE,
+        );
+      }
+    }
+  }
+
+  fn expr_stmt(&mut self, expr: &ast_view::ExprStmt, ctx: &mut Context) {
+    use deno_ast::view::Expr;
+    if_chain! {
+      if let Expr::Ident(ident) = &expr.expr;
+      if ident.sym() == "console";
+      if ctx.scope().is_global(&ident.inner.to_id());
+      then {
+        ctx.add_diagnostic(
+          ident.range(),
+          CODE,
+          MESSAGE,
+        );
+      }
     }
   }
 }
@@ -55,6 +87,8 @@ mod tests {
       r"// deno-lint-ignore no-console\nconsole.error('Error message');",
       // not global
       r"const console = { log() {} } console.log('Error message');",
+      // https://github.com/denoland/deno_lint/issues/1232
+      "const x: { console: any } = { console: 21 }; x.console",
     );
   }
 
