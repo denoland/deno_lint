@@ -137,6 +137,7 @@ Deno.isatty(Deno.stdout.rid);
 ```typescript
 Deno.stdin.isTerminal();
 Deno.stdout.isTerminal();
+Deno.stderr.isTerminal();
 ```
 
 - `Deno.resources()`
