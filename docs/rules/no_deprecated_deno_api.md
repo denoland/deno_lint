@@ -114,3 +114,57 @@ function foo(file: Deno.FsFile) {
   // ...
 }
 ```
+
+- `Deno.isatty`
+
+`Deno.isatty` was deprecated in favor of `Deno.stdin.isTerminal()`,
+`Deno.stdout.isTerminal()` and `Deno.stderr.isTerminal()`.
+
+### Invalid:
+
+```typescript
+Deno.isatty(Deno.stdin.rid);
+Deno.isatty(Deno.stdout.rid);
+Deno.isatty(Deno.stderr.rid);
+```
+
+### Valid:
+
+```typescript
+Deno.stdin.isTerminal();
+Deno.stdout.isTerminal();
+Deno.stderr.isTerminal();
+```
+
+- `Deno.close`
+
+`Deno.close` was deprecated in favor of `.close()` method available on relevant
+objects.
+
+### Invalid:
+
+```typescript
+const file = await Deno.open("foo.txt");
+Deno.close(file.rid);
+```
+
+### Valid:
+
+```typescript
+const file = await Deno.open("foo.txt");
+file.close();
+```
+
+- `Deno.resources()`
+
+Deno.resources() was deprecated. There are no replacements for this API.
+
+- `Deno.metrics()`
+
+Deno.metrics() was deprecated. There are no replacements for this API.
+
+**HTTP server API**
+
+- `Deno.serveHttp`
+
+`Deno.serveHttp` was deprecated in favor of `Deno.serve`.

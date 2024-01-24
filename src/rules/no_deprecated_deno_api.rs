@@ -72,6 +72,24 @@ enum DeprecatedApi {
   Run,
   WriteAll,
   WriteAllSync,
+  Isatty,
+  Metrics,
+  Resources,
+  ServeHttp,
+  Seek,
+  SeekSync,
+  Read,
+  ReadSync,
+  Shutdown,
+  Ftruncate,
+  FtruncateSync,
+  Close,
+  Write,
+  WriteSync,
+  Futime,
+  FutimeSync,
+  Fstat,
+  FstatSync,
 }
 
 impl TryFrom<(&str, &str)> for DeprecatedApi {
@@ -100,6 +118,24 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
       "run" => Ok(DeprecatedApi::Run),
       "writeAll" => Ok(DeprecatedApi::WriteAll),
       "writeAllSync" => Ok(DeprecatedApi::WriteAllSync),
+      "isatty" => Ok(DeprecatedApi::Isatty),
+      "metrics" => Ok(DeprecatedApi::Metrics),
+      "resources" => Ok(DeprecatedApi::Resources),
+      "serveHttp" => Ok(DeprecatedApi::ServeHttp),
+      "seek" => Ok(DeprecatedApi::Seek),
+      "seekSync" => Ok(DeprecatedApi::SeekSync),
+      "read" => Ok(DeprecatedApi::Read),
+      "readSync" => Ok(DeprecatedApi::ReadSync),
+      "shutdown" => Ok(DeprecatedApi::Shutdown),
+      "ftruncate" => Ok(DeprecatedApi::Ftruncate),
+      "ftruncateSync" => Ok(DeprecatedApi::FtruncateSync),
+      "close" => Ok(DeprecatedApi::Close),
+      "write" => Ok(DeprecatedApi::Write),
+      "writeSync" => Ok(DeprecatedApi::WriteSync),
+      "futime" => Ok(DeprecatedApi::Futime),
+      "futimeSync" => Ok(DeprecatedApi::FutimeSync),
+      "fstat" => Ok(DeprecatedApi::Fstat),
+      "fstatSync" => Ok(DeprecatedApi::FstatSync),
       _ => Err(()),
     }
   }
@@ -109,6 +145,7 @@ enum Replacement {
   Name(&'static str),
   #[allow(dead_code)]
   NameAndUrls(Vec<(&'static str, &'static str)>),
+  None,
 }
 
 impl DeprecatedApi {
@@ -120,11 +157,11 @@ impl DeprecatedApi {
     )
   }
 
-  fn hint(&self) -> String {
+  fn hint(&self) -> Option<String> {
     match self.get_replacement() {
-      Replacement::Name(name) => format!("Use `{}` instead", name),
+      Replacement::Name(name) => Some(format!("Use `{}` instead", name)),
       Replacement::NameAndUrl(name, url) => {
-        format!("Use `{}` from {} instead", name, url)
+        Some(format!("Use `{}` from {} instead", name, url))
       }
       Replacement::NameAndUrls(name_and_urls) => {
         let mut hint = String::from("Use ");
@@ -135,8 +172,9 @@ impl DeprecatedApi {
           hint.push_str(&format!("`{}` from {}", name, url));
         }
         hint.push_str(" instead");
-        hint
+        Some(hint)
       }
+      Replacement::None => None,
     }
   }
 
@@ -154,6 +192,24 @@ impl DeprecatedApi {
       Run => "Deno.run",
       WriteAll => "Deno.writeAll",
       WriteAllSync => "Deno.writeAllSync",
+      Isatty => "Deno.isatty",
+      Metrics => "Deno.metrics",
+      Resources => "Deno.resources",
+      ServeHttp => "Deno.serveHttp",
+      Seek => "Deno.seek",
+      SeekSync => "Deno.seekSync",
+      Read => "Deno.read",
+      ReadSync => "Deno.readSync",
+      Shutdown => "Deno.shutdown",
+      Ftruncate => "Deno.ftruncate",
+      FtruncateSync => "Deno.ftruncateSync",
+      Close => "Deno.close",
+      Write => "Deno.write",
+      WriteSync => "Deno.writeSync",
+      Futime => "Deno.futime",
+      FutimeSync => "Deno.futimeSync",
+      Fstat => "Deno.fstat",
+      FstatSync => "Deno.fstatSync",
     }
   }
 
@@ -184,6 +240,72 @@ impl DeprecatedApi {
       Run => NameAndUrl("Deno.Command", DENO_COMMAND_API),
       WriteAll => NameAndUrl("writeAll", STD_WRITE_ALL),
       WriteAllSync => NameAndUrl("writeAllSync", STD_WRITE_ALL_SYNC),
+      Isatty => Name("Deno.stdin.isTerminal"),
+      Metrics => None,
+      Resources => None,
+      ServeHttp => Name("Deno.serve"),
+      Seek | SeekSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.seek",
+          "https://deno.land/apis?s=Deno.FsFile#method_seek_0",
+        ),
+        (
+          "Deno.FsFile.seekSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_seekSync_0",
+        ),
+      ]),
+      Read | ReadSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.read",
+          "https://deno.land/apis?s=Deno.FsFile#method_read_0",
+        ),
+        (
+          "Deno.FsFile.readSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_readSync_0",
+        ),
+      ]),
+      Ftruncate | FtruncateSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.ftruncate",
+          "https://deno.land/apis?s=Deno.FsFile#method_ftruncate_0",
+        ),
+        (
+          "Deno.FsFile.ftruncateSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_ftruncateSync_0",
+        ),
+      ]),
+      Write | WriteSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.write",
+          "https://deno.land/apis?s=Deno.FsFile#method_write_0",
+        ),
+        (
+          "Deno.FsFile.writeSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_writeSync_0",
+        ),
+      ]),
+      Futime | FutimeSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.futime",
+          "https://deno.land/apis?s=Deno.FsFile#method_futime_0",
+        ),
+        (
+          "Deno.FsFile.futimeSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_futimeSync_0",
+        ),
+      ]),
+      Fstat | FstatSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.fstat",
+          "https://deno.land/apis?s=Deno.FsFile#method_fstat_0",
+        ),
+        (
+          "Deno.FsFile.fstatSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_fstatSync_0",
+        ),
+      ]),
+      Shutdown => Name("Deno.Conn.closeWrite"),
+      Close => Name(".close()"),
     }
   }
 }
@@ -209,12 +331,19 @@ impl Handler for NoDeprecatedDenoApiHandler {
       if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
       if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
       then {
-        ctx.add_diagnostic_with_hint(
-          member_expr.range(),
-          CODE,
-          deprecated_api.message(),
-          deprecated_api.hint(),
-        );
+        match deprecated_api.hint() {
+          Some(hint) => {
+            ctx.add_diagnostic_with_hint(
+              member_expr.range(),
+              CODE,
+              deprecated_api.message(),
+              hint,
+            );
+          }
+          None => {
+            ctx.add_diagnostic(member_expr.range(), CODE, deprecated_api.message());
+          }
+        }
       }
     }
   }
@@ -235,7 +364,7 @@ impl Handler for NoDeprecatedDenoApiHandler {
           qualified_name.range(),
           CODE,
           deprecated_api.message(),
-          deprecated_api.hint(),
+          deprecated_api.hint().unwrap(),
         );
       }
     }
@@ -260,6 +389,10 @@ mod tests {
       "Deno.foo.iterSync();",
       "Deno.foo.copy();",
       "Deno.foo.customInspect;",
+      "Deno.foo.isatty();",
+      "Deno.foo.metrics();",
+      "Deno.foo.resources();",
+      "Deno.foo.serveHttp();",
       "foo.Deno.Buffer();",
       "foo.Deno.readAll();",
       "foo.Deno.readAllSync();",
@@ -269,6 +402,10 @@ mod tests {
       "foo.Deno.iterSync();",
       "foo.Deno.copy();",
       "foo.Deno.customInspect;",
+      "foo.Deno.isatty();",
+      "foo.Deno.metrics();",
+      "foo.Deno.resources();",
+      "foo.Deno.serveHttp();",
 
       // `Deno` is shadowed
       "const Deno = 42; const a = new Deno.Buffer();",
@@ -279,6 +416,10 @@ mod tests {
       "const Deno = 42; for await (const x of Deno.iter(xs)) {}",
       "const Deno = 42; for (const x of Deno.iterSync(xs)) {}",
       "const Deno = 42; await Deno.copy(reader, writer);",
+      "const Deno = 42; Deno.isatty(rid);",
+      "const Deno = 42; Deno.metrics();",
+      "const Deno = 42; Deno.resources();",
+      "const Deno = 42; Deno.serveHttp();",
       r#"const Deno = 42; Deno.customInspect"#,
       r#"import { Deno } from "./foo.ts"; Deno.writeAllSync(writer, data);"#,
 
@@ -292,6 +433,10 @@ mod tests {
       r#"const Deno = 42; for (const x of Deno["iterSync"](xs)) {}"#,
       r#"const Deno = 42; Deno["copy"](reader, writer);"#,
       r#"const Deno = 42; Deno["customInspect"]"#,
+      r#"const Deno = 42; Deno["isatty"](rid);"#,
+      r#"const Deno = 42; Deno["metrics"]();"#,
+      r#"const Deno = 42; Deno["resources"]();"#,
+      r#"const Deno = 42; Deno["serveHttp"]();"#,
 
       // access property with template literal (shadowed)
       r#"const Deno = 42; new Deno[`Buffer`]();"#,
@@ -303,6 +448,10 @@ mod tests {
       r#"const Deno = 42; for (const x of Deno[`iterSync`](xs)) {}"#,
       r#"const Deno = 42; Deno[`copy`](reader, writer);"#,
       r#"const Deno = 42; Deno[`customInspect`]"#,
+      r#"const Deno = 42; Deno[`isatty`](rid);"#,
+      r#"const Deno = 42; Deno[`metrics`]();"#,
+      r#"const Deno = 42; Deno[`resources`]();"#,
+      r#"const Deno = 42; Deno[`serveHttp`]();"#,
 
       // Ignore template literals that include expressions
       r#"const read = "read"; Deno[`${read}All`](reader);"#,
@@ -322,84 +471,96 @@ mod tests {
         {
           col: 4,
           message: Buffer.message(),
-          hint: Buffer.hint()
+          hint: Buffer.hint().unwrap()
         }
       ],
       "Deno.readAll(reader);": [
         {
           col: 0,
           message: ReadAll.message(),
-          hint: ReadAll.hint()
+          hint: ReadAll.hint().unwrap()
         }
       ],
       "Deno.readAllSync(reader);": [
         {
           col: 0,
           message: ReadAllSync.message(),
-          hint: ReadAllSync.hint()
+          hint: ReadAllSync.hint().unwrap()
         }
       ],
       "Deno.writeAll(writer, data);": [
         {
           col: 0,
           message: WriteAll.message(),
-          hint: WriteAll.hint()
+          hint: WriteAll.hint().unwrap()
         }
       ],
       "Deno.writeAllSync(writer, data);": [
         {
           col: 0,
           message: WriteAllSync.message(),
-          hint: WriteAllSync.hint()
+          hint: WriteAllSync.hint().unwrap()
         }
       ],
       "Deno.iter(reader);": [
         {
           col: 0,
           message: Iter.message(),
-          hint: Iter.hint()
+          hint: Iter.hint().unwrap()
         }
       ],
       "Deno.iterSync(reader);": [
         {
           col: 0,
           message: IterSync.message(),
-          hint: IterSync.hint()
+          hint: IterSync.hint().unwrap()
         }
       ],
       "Deno.copy(reader, writer);": [
         {
           col: 0,
           message: Copy.message(),
-          hint: Copy.hint()
+          hint: Copy.hint().unwrap()
         }
       ],
       "Deno.customInspect;": [
         {
           col: 0,
           message: CustomInspect.message(),
-          hint: CustomInspect.hint()
+          hint: CustomInspect.hint().unwrap()
         }
       ],
       "Deno.File;": [
         {
           col: 0,
           message: File.message(),
-          hint: File.hint()
+          hint: File.hint().unwrap()
         }
       ],
       "let file: Deno.File;": [
         {
           col: 10,
           message: File.message(),
-          hint: File.hint()
+          hint: File.hint().unwrap()
         }
       ],
       "Deno.run(options);": [
         {
           col: 0,
           message: Run.message(),
-          hint: Run.hint()
+          hint: Run.hint().unwrap()
+        }
+      ],
+      "Deno.metrics();": [
+        {
+          col: 0,
+          message: Metrics.message(),
+        }
+      ],
+      "Deno.resources();": [
+        {
+          col: 0,
+          message: Resources.message(),
         }
       ],
 
@@ -408,63 +569,63 @@ mod tests {
         {
           col: 4,
           message: Buffer.message(),
-          hint: Buffer.hint()
+          hint: Buffer.hint().unwrap()
         }
       ],
       r#"Deno["readAll"](reader);"#: [
         {
           col: 0,
           message: ReadAll.message(),
-          hint: ReadAll.hint()
+          hint: ReadAll.hint().unwrap()
         }
       ],
       r#"Deno["readAllSync"](reader);"#: [
         {
           col: 0,
           message: ReadAllSync.message(),
-          hint: ReadAllSync.hint()
+          hint: ReadAllSync.hint().unwrap()
         }
       ],
       r#"Deno["writeAll"](writer, data);"#: [
         {
           col: 0,
           message: WriteAll.message(),
-          hint: WriteAll.hint()
+          hint: WriteAll.hint().unwrap()
         }
       ],
       r#"Deno["writeAllSync"](writer, data);"#: [
         {
           col: 0,
           message: WriteAllSync.message(),
-          hint: WriteAllSync.hint()
+          hint: WriteAllSync.hint().unwrap()
         }
       ],
       r#"Deno["iter"](reader);"#: [
         {
           col: 0,
           message: Iter.message(),
-          hint: Iter.hint()
+          hint: Iter.hint().unwrap()
         }
       ],
       r#"Deno["iterSync"](reader);"#: [
         {
           col: 0,
           message: IterSync.message(),
-          hint: IterSync.hint()
+          hint: IterSync.hint().unwrap()
         }
       ],
       r#"Deno["copy"](reader, writer);"#: [
         {
           col: 0,
           message: Copy.message(),
-          hint: Copy.hint()
+          hint: Copy.hint().unwrap()
         }
       ],
       r#"Deno["customInspect"];"#: [
         {
           col: 0,
           message: CustomInspect.message(),
-          hint: CustomInspect.hint()
+          hint: CustomInspect.hint().unwrap()
         }
       ],
 
@@ -473,70 +634,70 @@ mod tests {
         {
           col: 4,
           message: Buffer.message(),
-          hint: Buffer.hint()
+          hint: Buffer.hint().unwrap()
         }
       ],
       r#"Deno[`readAll`](reader);"#: [
         {
           col: 0,
           message: ReadAll.message(),
-          hint: ReadAll.hint()
+          hint: ReadAll.hint().unwrap()
         }
       ],
       r#"Deno[`readAllSync`](reader);"#: [
         {
           col: 0,
           message: ReadAllSync.message(),
-          hint: ReadAllSync.hint()
+          hint: ReadAllSync.hint().unwrap()
         }
       ],
       r#"Deno[`writeAll`](writer, data);"#: [
         {
           col: 0,
           message: WriteAll.message(),
-          hint: WriteAll.hint()
+          hint: WriteAll.hint().unwrap()
         }
       ],
       r#"Deno[`writeAllSync`](writer, data);"#: [
         {
           col: 0,
           message: WriteAllSync.message(),
-          hint: WriteAllSync.hint()
+          hint: WriteAllSync.hint().unwrap()
         }
       ],
       r#"Deno[`iter`](reader);"#: [
         {
           col: 0,
           message: Iter.message(),
-          hint: Iter.hint()
+          hint: Iter.hint().unwrap()
         }
       ],
       r#"Deno[`iterSync`](reader);"#: [
         {
           col: 0,
           message: IterSync.message(),
-          hint: IterSync.hint()
+          hint: IterSync.hint().unwrap()
         }
       ],
       r#"Deno[`copy`](reader);"#: [
         {
           col: 0,
           message: Copy.message(),
-          hint: Copy.hint()
+          hint: Copy.hint().unwrap()
         }
       ],
       r#"Deno[`customInspect`];"#: [
         {
           col: 0,
           message: CustomInspect.message(),
-          hint: CustomInspect.hint()
+          hint: CustomInspect.hint().unwrap()
         }
       ],
       r#"Deno[`File`];"#: [
         {
           col: 0,
           message: File.message(),
-          hint: File.hint()
+          hint: File.hint().unwrap()
         }
       ],
 
@@ -551,7 +712,7 @@ Deno.readAll(reader);
           line: 5,
           col: 0,
           message: ReadAll.message(),
-          hint: ReadAll.hint()
+          hint: ReadAll.hint().unwrap()
         }
       ],
     }
@@ -577,7 +738,10 @@ Deno.readAll(reader);
     ];
 
     for test in tests {
-      let hint = DeprecatedApi::try_from(("Deno", test.0)).unwrap().hint();
+      let hint = DeprecatedApi::try_from(("Deno", test.0))
+        .unwrap()
+        .hint()
+        .unwrap();
       assert_eq!(hint, test.1);
     }
   }
