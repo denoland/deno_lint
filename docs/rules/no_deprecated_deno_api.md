@@ -1,7 +1,7 @@
 Warns the usage of the deprecated Deno APIs
 
-The following APIs in `Deno` namespace are now marked as deprecated and will get
-removed from the namespace in the future.
+The following APIs in the `Deno` namespace are now marked as deprecated and will
+get removed from the namespace in Deno 2.0.
 
 **IO APIs**
 
@@ -14,8 +14,8 @@ removed from the namespace in the future.
 - `Deno.writeAll`
 - `Deno.writeAllSync`
 
-The IO APIs are already available in `std/io` or `std/streams`, so replace these
-deprecated ones with alternatives from `std`. For more detail, see
+Most of these APIs have been moved to [`std/io`](https://deno.land/std/io) of
+the Deno Standard Library. For more detail, see
 [the tracking issue](https://github.com/denoland/deno/issues/9795).
 
 **Sub Process API**
@@ -45,13 +45,13 @@ new class name.
 
 ```typescript
 // buffer
-const a = Deno.Buffer();
+const a = new Deno.Buffer();
 
-// read
+// read all
 const b = await Deno.readAll(reader);
 const c = Deno.readAllSync(reader);
 
-// write
+// write all
 await Deno.writeAll(writer, data);
 Deno.writeAllSync(writer, data);
 
@@ -69,6 +69,7 @@ class A {
   }
 }
 
+// file
 function foo(file: Deno.File) {
   // ...
 }
@@ -77,15 +78,19 @@ function foo(file: Deno.File) {
 ### Valid:
 
 ```typescript
-// readAll
-import { toArrayBuffer } from "https://deno.land/std/streams/to_array_buffer.ts";
-const b = await toArrayBuffer(reader); // `b` is ArrayBuffer
-const c = new Uint8Array(b); // You can convert ArrayBuffer to Uint8Array
+// buffer
+import { Buffer } from "https://deno.land/std/io/buffer.ts";
+const a = new Buffer();
 
-// writeAll
-// reader is `ReadableStream` and writer is `WritableStream`
-const reader = ReadableStream.from([1, 2, 3]);
-await reader.pipeTo(writer);
+// read all
+import { readAll, readAllSync } from "https://deno.land/std/io/read_all.ts";
+const b = await readAll(reader);
+const c = readAllSync(reader);
+
+// write all
+import { writeAll, writeAllSync } from "https://deno.land/std/io/write_all.ts";
+await writeAll(writer, data);
+writeAllSync(writer, data);
 
 // iter
 // reader is `ReadableStream`
@@ -104,6 +109,7 @@ class A {
   }
 }
 
+// file
 function foo(file: Deno.FsFile) {
   // ...
 }
