@@ -80,6 +80,20 @@ enum DeprecatedApi {
   Metrics,
   Resources,
   ServeHttp,
+  Seek,
+  SeekSync,
+  Read,
+  ReadSync,
+  Shutdown,
+  Ftruncate,
+  FtruncateSync,
+  Close,
+  Write,
+  WriteSync,
+  Futime,
+  FutimeSync,
+  Fstat,
+  FstatSync,
 }
 
 impl TryFrom<(&str, &str)> for DeprecatedApi {
@@ -116,6 +130,20 @@ impl TryFrom<(&str, &str)> for DeprecatedApi {
       "metrics" => Ok(DeprecatedApi::Metrics),
       "resources" => Ok(DeprecatedApi::Resources),
       "serveHttp" => Ok(DeprecatedApi::ServeHttp),
+      "seek" => Ok(DeprecatedApi::Seek),
+      "seekSync" => Ok(DeprecatedApi::SeekSync),
+      "read" => Ok(DeprecatedApi::Read),
+      "readSync" => Ok(DeprecatedApi::ReadSync),
+      "shutdown" => Ok(DeprecatedApi::Shutdown),
+      "ftruncate" => Ok(DeprecatedApi::Ftruncate),
+      "ftruncateSync" => Ok(DeprecatedApi::FtruncateSync),
+      "close" => Ok(DeprecatedApi::Close),
+      "write" => Ok(DeprecatedApi::Write),
+      "writeSync" => Ok(DeprecatedApi::WriteSync),
+      "futime" => Ok(DeprecatedApi::Futime),
+      "futimeSync" => Ok(DeprecatedApi::FutimeSync),
+      "fstat" => Ok(DeprecatedApi::Fstat),
+      "fstatSync" => Ok(DeprecatedApi::FstatSync),
       _ => Err(()),
     }
   }
@@ -179,6 +207,20 @@ impl DeprecatedApi {
       Metrics => "Deno.metrics",
       Resources => "Deno.resources",
       ServeHttp => "Deno.serveHttp",
+      Seek => "Deno.seek",
+      SeekSync => "Deno.seekSync",
+      Read => "Deno.read",
+      ReadSync => "Deno.readSync",
+      Shutdown => "Deno.shutdown",
+      Ftruncate => "Deno.ftruncate",
+      FtruncateSync => "Deno.ftruncateSync",
+      Close => "Deno.close",
+      Write => "Deno.write",
+      WriteSync => "Deno.writeSync",
+      Futime => "Deno.futime",
+      FutimeSync => "Deno.futimeSync",
+      Fstat => "Deno.fstat",
+      FstatSync => "Deno.fstatSync",
     }
   }
 
@@ -238,6 +280,68 @@ impl DeprecatedApi {
       Metrics => None,
       Resources => None,
       ServeHttp => Name("Deno.serve"),
+      Seek | SeekSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.seek",
+          "https://deno.land/apis?s=Deno.FsFile#method_seek_0",
+        ),
+        (
+          "Deno.FsFile.seekSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_seekSync_0",
+        ),
+      ]),
+      Read | ReadSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.read",
+          "https://deno.land/apis?s=Deno.FsFile#method_read_0",
+        ),
+        (
+          "Deno.FsFile.readSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_readSync_0",
+        ),
+      ]),
+      Ftruncate | FtruncateSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.ftruncate",
+          "https://deno.land/apis?s=Deno.FsFile#method_ftruncate_0",
+        ),
+        (
+          "Deno.FsFile.ftruncateSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_ftruncateSync_0",
+        ),
+      ]),
+      Write | WriteSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.write",
+          "https://deno.land/apis?s=Deno.FsFile#method_write_0",
+        ),
+        (
+          "Deno.FsFile.writeSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_writeSync_0",
+        ),
+      ]),
+      Futime | FutimeSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.futime",
+          "https://deno.land/apis?s=Deno.FsFile#method_futime_0",
+        ),
+        (
+          "Deno.FsFile.futimeSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_futimeSync_0",
+        ),
+      ]),
+      Fstat | FstatSync => NameAndUrls(vec![
+        (
+          "Deno.FsFile.fstat",
+          "https://deno.land/apis?s=Deno.FsFile#method_fstat_0",
+        ),
+        (
+          "Deno.FsFile.fstatSync",
+          "https://deno.land/apis?s=Deno.FsFile#method_fstatSync_0",
+        ),
+      ]),
+      Shutdown => Name("Deno.Conn.closeWrite"),
+      Close => Name(".close()"),
     }
   }
 }
