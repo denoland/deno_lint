@@ -115,18 +115,6 @@ function foo(file: Deno.FsFile) {
 }
 ```
 
-- `Deno.fdatasync`
-- `Deno.fdatasyncSync`
-
-`Deno.fdatasync` and `Deno.fdatasyncSync` are deprecated in favor of
-`Deno.FsFile.datasync` and `Deno.FsFile.datasyncSync` respectively.
-
-- `Deno.fsync`
-- `Deno.fsyncSync`
-
-`Deno.fsync` and `Deno.fsyncSync` are deprecated in favor of `Deno.FsFile.sync`
-and `Deno.FsFile.syncSync` respectively.
-
 - `Deno.isatty`
 
 `Deno.isatty` was deprecated in favor of `Deno.stdin.isTerminal()`,
@@ -146,6 +134,25 @@ Deno.isatty(Deno.stderr.rid);
 Deno.stdin.isTerminal();
 Deno.stdout.isTerminal();
 Deno.stderr.isTerminal();
+```
+
+- `Deno.close`
+
+`Deno.close` was deprecated in favor of `.close()` method available on relevant
+objects.
+
+### Invalid:
+
+```typescript
+const file = await Deno.open("foo.txt");
+Deno.close(file.rid);
+```
+
+### Valid:
+
+```typescript 
+const file = await Deno.open("foo.txt");
+file.close();
 ```
 
 - `Deno.resources()`
