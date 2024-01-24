@@ -125,14 +125,14 @@ and `Deno.FsFile.syncSync` respectively.
 
 `Deno.isatty` was deprecated in favor of `Deno.stdin.isTerminal()`.
 
-### Invalid
+### Invalid:
 
 ```typescript
 Deno.isatty(Deno.stdin.rid);
 Deno.isatty(Deno.stdout.rid);
 ```
 
-### Valid
+### Valid:
 
 ```typescript
 Deno.stdin.isTerminal();
