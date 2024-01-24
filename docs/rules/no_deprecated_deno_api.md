@@ -1,7 +1,6 @@
 Warns the usage of the deprecated Deno APIs
 
-The following APIs in `Deno` namespace are now marked as deprecated and will get
-removed from the namespace in the future.
+The following APIs in `Deno` namespace are now marked as deprecated and will get removed from the namespace in Deno 2.0
 
 **IO APIs**
 
