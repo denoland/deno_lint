@@ -12,6 +12,16 @@ function foo(): any {
 }
 ```
 
+You can also specify the reason for ignoring the file:
+
+```ts
+// deno-lint-ignore-file -- reason for ignoring
+
+function foo(): any {
+  // ...
+}
+```
+
 The ignore directive must be placed before the first statement or declaration:
 
 ```ts
@@ -73,6 +83,15 @@ function bar(a: any) {
 ```
 
 You must specify the names of the rules to be ignored.
+
+You can also specify the reason for ignoring the diagnostic:
+
+```ts
+// deno-lint-ignore no-explicit-any -- reason for ignoring
+function foo(): any {
+  // ...
+}
+```
 
 ## Ignore `ban-unused-ignore` itself
 
