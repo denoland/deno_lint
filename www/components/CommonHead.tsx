@@ -1,5 +1,4 @@
 import { Head } from "$fresh/runtime.ts";
-import { JSX } from "preact";
 
 export function CommonHead() {
   return (
