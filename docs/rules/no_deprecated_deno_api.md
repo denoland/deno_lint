@@ -48,7 +48,8 @@ for migration instructions.
 - `Deno.write()`
 - `new Deno.FsFile()`
 
-The following APIs will be removed from the `Deno.*` namespace without replacement.
+The following APIs will be removed from the `Deno.*` namespace without
+replacement.
 
 - `Deno.resources()`
 - `Deno.metrics()`
