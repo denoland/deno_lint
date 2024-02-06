@@ -1,6 +1,4 @@
 import jsonData from "../static/docs.json" assert { type: "json" };
-import { Header } from "../components/Header.tsx";
-import { CommonHead } from "../components/CommonHead.tsx";
 import type { Handlers, PageProps } from "$fresh/server.ts";
 import { renderMarkdown } from "../utils/render_markdown.ts";
 import { ComponentChildren } from "preact";
@@ -41,50 +39,44 @@ export default function Home(props: PageProps<RuleData[]>) {
     .filter((rule: RuleData) => rule.code.includes(search));
 
   return (
-    <div class="py-6">
-      <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
-        <CommonHead />
-        <Header />
-        <main class="my-8">
-          <label for="search" class="sr-only">Search</label>
-          <form id="search_form">
-            <input
-              type="text"
-              name="q"
-              class="w-full border h-10 border-gray-200 dark:border-gray-500 rounded rounded-r-none px-3 relative dark:bg-gray-800 "
-              id="search"
-              placeholder="Search"
-              value={search}
-            />
-            <div class="mt-2">
-              <input
-                type="checkbox"
-                id="all_rules"
-                name="all"
-                checked={allRules}
-              />
-              <label htmlFor="all_rules" class="ml-2">
-                Show all rules
-              </label>
-            </div>
-          </form>
-          <script
-            dangerouslySetInnerHTML={{
-              __html:
-                "document.getElementById('all_rules').oninput = () => document.getElementById('search_form').submit();",
-            }}
-          >
-          </script>
-          <div class="mt-6 text-gray-600 dark:text-gray-400">
-            Showing {searchResults.length} out of {rules.length} rules
-          </div>
-          <div>
-            {searchResults
-              .map((rule: RuleData) => <Rule key={rule.code} rule={rule} />)}
-          </div>
-        </main>
+    <main class="my-8">
+      <label for="search" class="sr-only">Search</label>
+      <form id="search_form">
+        <input
+          type="text"
+          name="q"
+          class="w-full border h-10 border-gray-200 dark:border-gray-500 rounded rounded-r-none px-3 relative dark:bg-gray-800 "
+          id="search"
+          placeholder="Search"
+          value={search}
+        />
+        <div class="mt-2">
+          <input
+            type="checkbox"
+            id="all_rules"
+            name="all"
+            checked={allRules}
+          />
+          <label htmlFor="all_rules" class="ml-2">
+            Show all rules
+          </label>
+        </div>
+      </form>
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "document.getElementById('all_rules').oninput = () => document.getElementById('search_form').submit();",
+        }}
+      >
+      </script>
+      <div class="mt-6 text-gray-600 dark:text-gray-400">
+        Showing {searchResults.length} out of {rules.length} rules
       </div>
-    </div>
+      <div>
+        {searchResults
+          .map((rule: RuleData) => <Rule key={rule.code} rule={rule} />)}
+      </div>
+    </main>
   );
 }
 

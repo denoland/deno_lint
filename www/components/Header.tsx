@@ -1,5 +1,3 @@
-import { JSX } from "preact";
-
 export function Header() {
   return (
     <section class="my-8">
