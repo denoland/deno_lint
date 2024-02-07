@@ -2,6 +2,9 @@ name: ci
 
 on: [push, pull_request]
 
+permissions:
+  contents: write
+
 jobs:
   rust:
     name: deno_lint-${{ matrix.os }}
