@@ -1,4 +1,5 @@
 import type { Handlers, PageProps } from "$fresh/server.ts";
+import { Header } from "../components/Header.tsx";
 import { renderMarkdown } from "../utils/render_markdown.ts";
 import { fromFileUrl, join } from "https://deno.land/std@0.177.0/path/posix.ts";
 
@@ -16,9 +17,12 @@ export const handler: Handlers<string> = {
 
 export default function IgnoringRulesPage(props: PageProps<string>) {
   return (
-    <main
-      dangerouslySetInnerHTML={{ __html: props.data }}
-      class="markdown-body my-8"
-    />
+    <div>
+      <Header active="/ignoring-rules" />
+      <main
+        dangerouslySetInnerHTML={{ __html: props.data }}
+        class="markdown-body my-8"
+      />
+    </div>
   );
 }
