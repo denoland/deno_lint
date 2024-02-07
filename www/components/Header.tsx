@@ -7,17 +7,19 @@ export function Header({ active }: { active: string }) {
   ];
 
   return (
-    <section class="my-8">
-      <h1 class="text-3xl font-bold flex items-center gap-1">
-        <img
-          src="/logo.svg"
-          alt="deno_lint logo"
-          class="h-12 w-12 inline-block mr-2"
-        />
-        deno_lint
-      </h1>
-      <div class="flex flex-wrap justify-between w-full">
-        <div class="mt-4 flex gap-4">
+    <section class="my-8 flex md:flex-row flex-col justify-between md:items-center gap-y-4">
+      <a href="/">
+        <h1 class="flex text-3xl font-bold flex items-center gap-1">
+          <img
+            src="/logo.svg"
+            alt="deno_lint logo"
+            class="h-12 w-12 inline-block mr-2"
+          />
+          deno_lint
+        </h1>
+      </a>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-4">
           {items.map((item) => (
             <a
               href={item.href}
@@ -29,13 +31,12 @@ export function Header({ active }: { active: string }) {
             </a>
           ))}
         </div>
-        <div class="mt-4">
+        <div>
           <a
             href="https://github.com/denoland/deno_lint"
             class="hover:underline flex gap-1 items-center"
           >
-            <IconBrandGithub class="w-6 h-6" />
-            View on GitHub
+            <IconBrandGithub title="View on GitHub" class="w-5 h-5" />
           </a>
         </div>
       </div>

@@ -30,6 +30,15 @@ export default function RulePage(props: PageProps) {
   return (
     <div>
       <Header active={`/rules/${rule.code}`} />
+      <div class="text-sm inline-flex gap-2">
+        <a href="/">
+          <span class="text-blue-500 hover:text-blue-600">All rules</span>
+        </a>
+        <span class="text-gray-500">
+          /
+        </span>
+        <span class="text-gray-500">{rule.code}</span>
+      </div>
       <main>
         <Rule rule={rule} open />
       </main>
