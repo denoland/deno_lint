@@ -6,6 +6,7 @@ import * as $_app from "./routes/_app.tsx";
 import * as $_layout from "./routes/_layout.tsx";
 import * as $ignoring_rules from "./routes/ignoring-rules.tsx";
 import * as $index from "./routes/index.tsx";
+import * as $rules_name_ from "./routes/rules/[name].tsx";
 
 import { type Manifest } from "$fresh/server.ts";
 
@@ -15,6 +16,7 @@ const manifest = {
     "./routes/_layout.tsx": $_layout,
     "./routes/ignoring-rules.tsx": $ignoring_rules,
     "./routes/index.tsx": $index,
+    "./routes/rules/[name].tsx": $rules_name_,
   },
   islands: {},
   baseUrl: import.meta.url,
