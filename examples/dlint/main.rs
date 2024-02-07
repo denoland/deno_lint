@@ -5,13 +5,13 @@ use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
 use deno_ast::MediaType;
-use deno_ast::SourceTextInfo;
-use deno_lint::diagnostic::LintDiagnostic;
+use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
+use core::panic;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -73,19 +73,14 @@ fn run_linter(
   maybe_config: Option<Arc<config::Config>>,
   format: Option<&str>,
 ) -> Result<(), AnyError> {
-  let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+  let cwd = std::env::current_dir()?;
+  let mut paths: Vec<PathBuf> = paths.iter().map(|path| cwd.join(path)).collect();
 
   if let Some(config) = maybe_config.clone() {
     paths.extend(config.get_files()?);
   }
 
   let error_counts = Arc::new(AtomicUsize::new(0));
-
-  struct FileDiagnostics {
-    filename: String,
-    text_info: SourceTextInfo,
-    diagnostics: Vec<LintDiagnostic>,
-  }
 
   let rules = if let Some(config) = maybe_config {
     config.get_rules()
@@ -110,8 +105,10 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
-        filename: file_path.to_string_lossy().to_string(),
+      let (_parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
+        specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(|_| {
+          panic!("Failed to convert path to module specifier: {}", file_path.display())
+        }),
         source_code,
         media_type: MediaType::from_path(file_path),
       })?;
@@ -122,11 +119,7 @@ fn run_linter(
 
       lock.insert(
         file_path,
-        FileDiagnostics {
-          filename: file_path.to_string_lossy().to_string(),
           diagnostics,
-          text_info: parsed_source.text_info().clone(),
-        },
       );
 
       Ok(())
@@ -134,9 +127,7 @@ fn run_linter(
 
   for d in file_diagnostics.lock().unwrap().values() {
     diagnostics::display_diagnostics(
-      &d.diagnostics,
-      &d.text_info,
-      &d.filename,
+      d,
       format,
     );
   }

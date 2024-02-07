@@ -41,7 +41,6 @@ atty = "0.2.14"
 clap = { version = "3", features = ["cargo"] }
 env_logger = "0.10.1"
 globwalk = "0.9.1"
-miette = { version = "4.3.0", features = ["fancy-no-backtrace"] }
 os_pipe = "1.1.5"
 pulldown-cmark = "0.9.3"
 rayon = "1.8.0"
