@@ -1,3 +1,5 @@
+import IconBrandGithub from "https://deno.land/x/tabler_icons_tsx@0.0.5/tsx/brand-github.tsx"
+
 export function Header({ active }: { active: string }) {
   const items = [
     { href: "/", label: "Rule overview" },
@@ -30,8 +32,9 @@ export function Header({ active }: { active: string }) {
         <div class="mt-4">
           <a
             href="https://github.com/denoland/deno_lint"
-            class="hover:underline"
+            class="hover:underline flex gap-1 items-center"
           >
+            <IconBrandGithub class="w-6 h-6" />
             View on GitHub
           </a>
         </div>
