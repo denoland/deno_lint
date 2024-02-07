@@ -1,4 +1,17 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
+use std::borrow::Cow;
+
+use deno_ast::diagnostics::Diagnostic;
+use deno_ast::diagnostics::DiagnosticLevel;
+use deno_ast::diagnostics::DiagnosticLocation;
+use deno_ast::diagnostics::DiagnosticSnippet;
+use deno_ast::diagnostics::DiagnosticSnippetHighlight;
+use deno_ast::diagnostics::DiagnosticSnippetHighlightStyle;
+use deno_ast::diagnostics::DiagnosticSourcePos;
+use deno_ast::diagnostics::DiagnosticSourceRange;
+use deno_ast::ModuleSpecifier;
+use deno_ast::SourceTextInfo;
 use serde::Serialize;
 use serde::Serializer;
 
@@ -39,11 +52,79 @@ pub struct Range {
   pub end: Position,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct LintDiagnostic {
+  pub specifier: ModuleSpecifier,
   pub range: Range,
-  pub filename: String,
+  #[serde(skip)]
+  pub text_info: SourceTextInfo,
   pub message: String,
   pub code: String,
   pub hint: Option<String>,
+}
+
+impl std::fmt::Debug for LintDiagnostic {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("LintDiagnostic")
+      .field("specifier", &self.specifier)
+      .field("range", &self.range)
+      .field("text_info", &"<omitted>")
+      .field("message", &self.message)
+      .field("code", &self.code)
+      .field("hint", &self.hint)
+      .finish()
+  }
+}
+
+impl Diagnostic for LintDiagnostic {
+  fn level(&self) -> DiagnosticLevel {
+    DiagnosticLevel::Error
+  }
+
+  fn code(&self) -> impl std::fmt::Display + '_ {
+    &self.code
+  }
+
+  fn message(&self) -> impl std::fmt::Display + '_ {
+    &self.message
+  }
+
+  fn location(&self) -> DiagnosticLocation {
+    DiagnosticLocation::ModulePosition {
+      specifier: Cow::Borrowed(&self.specifier),
+      text_info: Cow::Borrowed(&self.text_info),
+      source_pos: DiagnosticSourcePos::ByteIndex(self.range.start.byte_index),
+    }
+  }
+
+  fn snippet(&self) -> Option<DiagnosticSnippet<'_>> {
+    let range = DiagnosticSourceRange {
+      start: DiagnosticSourcePos::ByteIndex(self.range.start.byte_index),
+      end: DiagnosticSourcePos::ByteIndex(self.range.end.byte_index),
+    };
+    Some(DiagnosticSnippet {
+      source: Cow::Borrowed(&self.text_info),
+      highlight: DiagnosticSnippetHighlight {
+        range,
+        style: DiagnosticSnippetHighlightStyle::Error,
+        description: None,
+      },
+    })
+  }
+
+  fn hint(&self) -> Option<impl std::fmt::Display + '_> {
+    self.hint.as_ref().map(|h| h as &dyn std::fmt::Display)
+  }
+
+  fn snippet_fixed(&self) -> Option<DiagnosticSnippet<'_>> {
+    None // todo
+  }
+
+  fn info(&self) -> Cow<'_, [std::borrow::Cow<'_, str>]> {
+    Cow::Borrowed(&[])
+  }
+
+  fn docs_url(&self) -> Option<impl std::fmt::Display + '_> {
+    Some(format!("https://lint.deno.land/#{}", &self.code))
+  }
 }

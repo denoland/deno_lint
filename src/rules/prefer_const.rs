@@ -1,14 +1,17 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
-  ArrowExpr, AssignExpr, BlockStmt, BlockStmtOrExpr, CatchClause, Class,
-  Constructor, DoWhileStmt, Expr, ExprStmt, ForHead, ForInStmt, ForOfStmt,
-  ForStmt, Function, Ident, IfStmt, Module, ObjectPatProp, ParamOrTsParamProp,
-  Pat, PatOrExpr, Script, Stmt, SwitchStmt, TsParamPropParam, UpdateExpr,
-  VarDecl, VarDeclKind, VarDeclOrExpr, WhileStmt, WithStmt,
+  ArrayPat, ArrowExpr, AssignExpr, AssignPat, AssignTarget, AssignTargetPat,
+  BindingIdent, BlockStmt, BlockStmtOrExpr, CatchClause, Class, Constructor,
+  DoWhileStmt, Expr, ExprStmt, ForHead, ForInStmt, ForOfStmt, ForStmt,
+  Function, Ident, IfStmt, Invalid, Module, ObjectPat, ObjectPatProp,
+  ParamOrTsParamProp, Pat, RestPat, Script, SimpleAssignTarget, Stmt,
+  SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
+  VarDeclOrExpr, WhileStmt, WithStmt,
 };
 use deno_ast::swc::atoms::JsWord;
 use deno_ast::swc::utils::find_pat_ids;
@@ -622,41 +625,78 @@ fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
       idents.push(i);
     }
   };
-  extract_idents_from_pat_with(pat, &mut op);
+  extract_idents_from_pat_with(pat.into(), &mut op);
+}
+
+#[derive(Copy, Clone)]
+enum PatRef<'a> {
+  Ident(&'a BindingIdent),
+  Array(&'a ArrayPat),
+  Rest(&'a RestPat),
+  Object(&'a ObjectPat),
+  Assign(&'a AssignPat),
+  Invalid(&'a Invalid),
+  Expr(&'a Expr),
+}
+
+impl<'a> From<&'a Pat> for PatRef<'a> {
+  fn from(pat: &'a Pat) -> Self {
+    match pat {
+      Pat::Ident(ident) => PatRef::Ident(ident),
+      Pat::Array(array_pat) => PatRef::Array(array_pat),
+      Pat::Rest(rest_pat) => PatRef::Rest(rest_pat),
+      Pat::Object(object_pat) => PatRef::Object(object_pat),
+      Pat::Assign(assign_pat) => PatRef::Assign(assign_pat),
+      Pat::Invalid(invalid) => PatRef::Invalid(invalid),
+      Pat::Expr(expr) => PatRef::Expr(expr),
+    }
+  }
+}
+
+impl<'a> From<&'a AssignTargetPat> for PatRef<'a> {
+  fn from(pat: &'a AssignTargetPat) -> Self {
+    match pat {
+      AssignTargetPat::Array(array_pat) => PatRef::Array(array_pat),
+      AssignTargetPat::Object(object_pat) => PatRef::Object(object_pat),
+      AssignTargetPat::Invalid(invalid) => PatRef::Invalid(invalid),
+    }
+  }
 }
 
 /// Extracts idents from the Pat recursively and apply the operation to each ident.
-fn extract_idents_from_pat_with<'a, F>(pat: &'a Pat, op: &mut F)
+fn extract_idents_from_pat_with<'a, F>(pat: PatRef<'a>, op: &mut F)
 where
   F: FnMut(ExtractIdentsArgs<'a>),
 {
   match pat {
-    Pat::Ident(ident) => op(ExtractIdentsArgs::Ident(&ident.id)),
-    Pat::Array(array_pat) => {
+    PatRef::Ident(ident) => op(ExtractIdentsArgs::Ident(&ident.id)),
+    PatRef::Array(array_pat) => {
       for elem_pat in array_pat.elems.iter().flatten() {
-        extract_idents_from_pat_with(elem_pat, op);
+        extract_idents_from_pat_with(elem_pat.into(), op);
       }
     }
-    Pat::Rest(rest_pat) => extract_idents_from_pat_with(&rest_pat.arg, op),
-    Pat::Object(object_pat) => {
+    PatRef::Rest(rest_pat) => {
+      extract_idents_from_pat_with((&*rest_pat.arg).into(), op)
+    }
+    PatRef::Object(object_pat) => {
       for prop in &object_pat.props {
         match prop {
           ObjectPatProp::KeyValue(key_value) => {
-            extract_idents_from_pat_with(&key_value.value, op);
+            extract_idents_from_pat_with((&*key_value.value).into(), op);
           }
           ObjectPatProp::Assign(assign) => {
             op(ExtractIdentsArgs::Ident(&assign.key));
           }
           ObjectPatProp::Rest(rest) => {
-            extract_idents_from_pat_with(&rest.arg, op)
+            extract_idents_from_pat_with((&*rest.arg).into(), op)
           }
         }
       }
     }
-    Pat::Assign(assign_pat) => {
-      extract_idents_from_pat_with(&assign_pat.left, op)
+    PatRef::Assign(assign_pat) => {
+      extract_idents_from_pat_with((&*assign_pat.left).into(), op)
     }
-    Pat::Expr(_) => {
+    PatRef::Expr(_) => {
       op(ExtractIdentsArgs::MemberExpr);
     }
     _ => {}
@@ -705,7 +745,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
 
   fn extract_assign_idents<'a>(
     &mut self,
-    pat: &'a Pat,
+    pat: PatRef<'a>,
   ) -> Result<(), ScopeAnalysisError> {
     let mut idents = Vec::new();
     // if `pat` contains member access, variables should be treated as "reassigned"
@@ -787,12 +827,14 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     assign_expr.visit_children_with(self);
 
     let idents: Vec<Ident> = match &assign_expr.left {
-      PatOrExpr::Pat(pat) => find_pat_ids(pat), // find_pat_ids doesn't work for Expression
-      PatOrExpr::Expr(expr) if expr.is_ident() => {
-        let ident = (**expr).clone().expect_ident();
-        vec![ident]
+      AssignTarget::Pat(pat) => find_pat_ids(pat), // find_pat_ids doesn't work for Expression
+      AssignTarget::Simple(expr) => {
+        if let SimpleAssignTarget::Ident(ident) = expr {
+          vec![ident.id.clone()]
+        } else {
+          vec![]
+        }
       }
-      _ => vec![],
     };
 
     if self.process_var_status(idents.iter(), true).is_err() {
@@ -811,22 +853,23 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
     match expr {
       Expr::Assign(assign_expr) => {
         match &assign_expr.left {
-          PatOrExpr::Pat(pat) => {
-            if self.extract_assign_idents(pat).is_err() {
-              self.scope_analysis_error_occurred = true;
-            }
-          }
-          PatOrExpr::Expr(expr) => match &**expr {
-            Expr::Ident(ident) => {
-              if self.process_var_status(iter::once(ident), false).is_err() {
+          AssignTarget::Simple(target) => match target {
+            SimpleAssignTarget::Ident(ident) => {
+              if self
+                .process_var_status(iter::once(&ident.id), false)
+                .is_err()
+              {
                 self.scope_analysis_error_occurred = true;
               }
             }
-            otherwise => {
-              otherwise.visit_children_with(self);
-            }
+            otherwise => otherwise.visit_children_with(self),
           },
-        };
+          AssignTarget::Pat(pat) => {
+            if self.extract_assign_idents(pat.into()).is_err() {
+              self.scope_analysis_error_occurred = true;
+            }
+          }
+        }
         assign_expr.visit_children_with(self);
       }
       _ => expr_stmt.visit_children_with(self),
@@ -898,7 +941,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
           var_decl.visit_with(a);
         }
         ForHead::Pat(pat) => {
-          if a.extract_assign_idents(pat).is_err() {
+          if a.extract_assign_idents((&**pat).into()).is_err() {
             a.scope_analysis_error_occurred = true;
           }
         }
@@ -924,7 +967,7 @@ impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
           var_decl.visit_with(a);
         }
         ForHead::Pat(pat) => {
-          if a.extract_assign_idents(pat).is_err() {
+          if a.extract_assign_idents((&**pat).into()).is_err() {
             a.scope_analysis_error_occurred = true;
           }
         }

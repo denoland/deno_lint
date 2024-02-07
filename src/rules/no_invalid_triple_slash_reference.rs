@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::Program;
 use deno_ast::swc::common::comments::{Comment, CommentKind};
@@ -309,7 +310,7 @@ mod tests {
     // JavaScript
     assert_lint_ok! {
       NoInvalidTripleSlashReference,
-      filename: "foo.js",
+      filename: "file:///foo.js",
       r#"/// <reference types="./mod.d.ts" />"#,
       r#"/// <reference lib="lib" />"#,
       r#"/// <reference path="path" />"#,
@@ -330,7 +331,7 @@ mod tests {
     // TypeScript
     assert_lint_ok! {
       NoInvalidTripleSlashReference,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       r#"/// <reference types="./mod.d.ts" />"#,
       r#"/// <reference path="path" />"#,
       r#"/// <reference lib="lib" />"#,
@@ -355,7 +356,7 @@ mod tests {
     // JavaScript
     assert_lint_err! {
       NoInvalidTripleSlashReference,
-      filename: "foo.js",
+      filename: "file:///foo.js",
       r#"/// <reference foo />"#: [
         {
           line: 1,
@@ -369,7 +370,7 @@ mod tests {
     // TypeScript
     assert_lint_err! {
       NoInvalidTripleSlashReference,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       r#"/// <reference foo />"#: [
         {
           line: 1,

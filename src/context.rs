@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{LintDiagnostic, Position, Range};
 use crate::ignore_directives::{
@@ -9,12 +10,12 @@ use crate::linter::LinterContext;
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::SyntaxContext;
-use deno_ast::MediaType;
 use deno_ast::Scope;
 use deno_ast::SourceTextInfo;
 use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
 };
+use deno_ast::{MediaType, ModuleSpecifier};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
@@ -59,8 +60,8 @@ impl<'view> Context<'view> {
     }
   }
 
-  /// File name on which the lint rule is run
-  pub fn file_name(&self) -> &str {
+  /// File specifier on which the lint rule is run.
+  pub fn specifier(&self) -> &ModuleSpecifier {
     self.parsed_source.specifier()
   }
 
@@ -340,8 +341,9 @@ impl<'view> Context<'view> {
     );
 
     let diagnostic = LintDiagnostic {
+      specifier: self.specifier().clone(),
       range: Range { start, end },
-      filename: self.file_name().to_string(),
+      text_info: self.text_info().clone(),
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,

@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -6,7 +7,6 @@ use deno_ast::view::ImportDecl;
 use deno_ast::{ModuleSpecifier, SourceRanged};
 use derive_more::Display;
 use std::ffi::OsStr;
-use std::path::Path;
 
 #[derive(Debug)]
 pub struct NoExternalImport;
@@ -55,11 +55,13 @@ struct NoExternalImportHandler;
 impl NoExternalImportHandler {
   fn check_import_path(&self, decl: &ImportDecl, ctx: &mut Context) {
     let parsed_src = ModuleSpecifier::parse(decl.src.value());
-    let file_name = Path::new(ctx.file_name())
-      .file_stem()
+    let maybe_file_path = ctx.specifier().to_file_path().ok();
+    let file_stem = maybe_file_path
+      .as_ref()
+      .and_then(|p| p.file_stem())
       .and_then(OsStr::to_str);
 
-    if parsed_src.is_ok() && file_name != Some("deps") {
+    if parsed_src.is_ok() && file_stem != Some("deps") {
       ctx.add_diagnostic_with_hint(
         decl.range(),
         CODE,
@@ -100,7 +102,11 @@ mod tests {
 
     assert_lint_ok! {
       NoExternalImport,
-      filename: "deps.ts",
+      filename: if cfg!(windows) {
+        "file:///c:/deps.ts"
+      } else {
+        "file:///deps.ts"
+      },
       "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'"
     };
   }

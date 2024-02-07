@@ -1,13 +1,14 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::ast_parser::parse_program;
 use crate::context::Context;
 use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::parse_file_ignore_directives;
 use crate::performance_mark::PerformanceMark;
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
-use deno_ast::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
+use deno_ast::{ModuleSpecifier, ParseDiagnostic};
 use std::sync::Arc;
 
 pub struct LinterBuilder {
@@ -99,7 +100,7 @@ impl LinterContext {
 }
 
 pub struct LintFileOptions {
-  pub filename: String,
+  pub specifier: ModuleSpecifier,
   pub source_code: String,
   pub media_type: MediaType,
 }
@@ -128,12 +129,12 @@ impl Linter {
   pub fn lint_file(
     &self,
     options: LintFileOptions,
-  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), Diagnostic> {
+  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), ParseDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint");
 
     let parse_result = {
       let _mark = PerformanceMark::new("ast_parser.parse_program");
-      parse_program(&options.filename, options.media_type, options.source_code)
+      parse_program(options.specifier, options.media_type, options.source_code)
     };
 
     let parsed_source = parse_result?;

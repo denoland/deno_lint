@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
 use deno_ast::SourceTextInfo;

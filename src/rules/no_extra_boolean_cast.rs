@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -147,7 +148,7 @@ impl Handler for NoExtraBooleanCastHandler {
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if callee_is_boolean(&call_expr.callee) {
-      if let Some(ExprOrSpread { expr, .. }) = call_expr.args.get(0) {
+      if let Some(ExprOrSpread { expr, .. }) = call_expr.args.first() {
         check_condition(expr, ctx);
       }
     }
@@ -156,7 +157,7 @@ impl Handler for NoExtraBooleanCastHandler {
   fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
     if expr_callee_is_boolean(&new_expr.callee) {
       if let Some(ExprOrSpread { expr, .. }) =
-        new_expr.args.as_ref().and_then(|a| a.get(0))
+        new_expr.args.as_ref().and_then(|a| a.first())
       {
         check_condition(expr, ctx);
       }

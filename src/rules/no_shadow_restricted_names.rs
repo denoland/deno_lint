@@ -1,10 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{
-  ArrowExpr, AssignExpr, CatchClause, Expr, FnDecl, FnExpr, Ident,
-  ObjectPatProp, Pat, PatOrExpr, VarDecl,
+  ArrowExpr, AssignExpr, AssignTarget, CatchClause, Expr, FnDecl, FnExpr,
+  Ident, ObjectPatProp, Pat, SimpleAssignTarget, VarDecl,
 };
 use deno_ast::SourceRanged;
 use derive_more::Display;
@@ -52,7 +53,7 @@ fn is_restricted_names(ident: &Ident) -> bool {
   )
 }
 
-fn check_pat(pat: &Pat, ctx: &mut Context) {
+fn check_pat(pat: Pat, ctx: &mut Context) {
   match pat {
     Pat::Ident(ident) => {
       check_shadowing(ident.id, ctx);
@@ -63,7 +64,7 @@ fn check_pat(pat: &Pat, ctx: &mut Context) {
     Pat::Array(array_pat) => {
       for el in &array_pat.elems {
         if let Some(pat) = el.as_ref() {
-          check_pat(pat, ctx);
+          check_pat(*pat, ctx);
         }
       }
     }
@@ -71,17 +72,17 @@ fn check_pat(pat: &Pat, ctx: &mut Context) {
       for prop in &object_pat.props {
         match prop {
           ObjectPatProp::Assign(assign) => {
-            check_shadowing(assign.key, ctx);
+            check_shadowing(assign.key.id, ctx);
           }
-          ObjectPatProp::Rest(rest) => check_pat(&rest.arg, ctx),
+          ObjectPatProp::Rest(rest) => check_pat(rest.arg, ctx),
           ObjectPatProp::KeyValue(key_value) => {
-            check_pat(&key_value.value, ctx);
+            check_pat(key_value.value, ctx);
           }
         }
       }
     }
     Pat::Rest(rest_pat) => {
-      check_pat(&rest_pat.arg, ctx);
+      check_pat(rest_pat.arg, ctx);
     }
     _ => {}
   }
@@ -111,7 +112,7 @@ impl Handler for NoShadowRestrictedNamesHandler {
         }
       }
 
-      check_pat(&decl.name, ctx);
+      check_pat(decl.name, ctx);
     }
   }
 
@@ -119,7 +120,7 @@ impl Handler for NoShadowRestrictedNamesHandler {
     check_shadowing(node.ident, ctx);
 
     for param in &node.function.params {
-      check_pat(&param.pat, ctx);
+      check_pat(param.pat, ctx);
     }
   }
 
@@ -129,25 +130,32 @@ impl Handler for NoShadowRestrictedNamesHandler {
     }
 
     for param in &node.function.params {
-      check_pat(&param.pat, ctx);
+      check_pat(param.pat, ctx);
     }
   }
 
   fn arrow_expr(&mut self, node: &ArrowExpr, ctx: &mut Context) {
     for param in &node.params {
-      check_pat(param, ctx);
+      check_pat(*param, ctx);
     }
   }
 
   fn catch_clause(&mut self, node: &CatchClause, ctx: &mut Context) {
     if let Some(param) = node.param.as_ref() {
-      check_pat(param, ctx);
+      check_pat(*param, ctx);
     }
   }
 
   fn assign_expr(&mut self, node: &AssignExpr, ctx: &mut Context) {
-    if let PatOrExpr::Pat(pat) = &node.left {
-      check_pat(pat, ctx);
+    match node.left {
+      AssignTarget::Simple(simple) => {
+        if let SimpleAssignTarget::Ident(ident) = simple {
+          check_shadowing(ident.id, ctx);
+        }
+      }
+      AssignTarget::Pat(pat) => {
+        check_pat(pat.as_pat(), ctx);
+      }
     }
   }
 }

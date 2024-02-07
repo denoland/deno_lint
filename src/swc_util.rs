@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use deno_ast::swc::ast::{
   BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr,
-  MemberProp, Null, Number, PatOrExpr, PrivateName, Prop, PropName,
-  PropOrSpread, Regex, Str, Tpl,
+  MemberProp, Null, Number, PrivateName, Prop, PropName, PropOrSpread, Regex,
+  Str, Tpl,
 };
 use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
-use deno_ast::view as ast_view;
+use deno_ast::view::{self as ast_view};
 use deno_ast::Scope;
 
 /// Extracts regex string from an expression, using ScopeManager.
@@ -23,7 +24,7 @@ pub(crate) fn extract_regex(
     return None;
   }
 
-  match expr_args.get(0) {
+  match expr_args.first() {
     Some(first_arg) => match first_arg.expr {
       ast_view::Expr::Lit(ast_view::Lit::Str(literal)) => {
         Some(literal.inner.value.to_string())
@@ -131,7 +132,7 @@ impl StringRepr for Lit {
 impl StringRepr for Tpl {
   fn string_repr(&self) -> Option<String> {
     if self.exprs.is_empty() {
-      self.quasis.get(0).map(|q| q.raw.to_string())
+      self.quasis.first().map(|q| q.raw.to_string())
     } else {
       None
     }
@@ -288,15 +289,19 @@ impl<'view> StringRepr for ast_view::PropName<'view> {
 }
 
 /// Find `Id`s in the lhs of an assigmnet expression.
-pub(crate) fn find_lhs_ids<I>(n: &PatOrExpr) -> Vec<I>
+pub(crate) fn find_lhs_ids<I>(n: &ast_view::AssignTarget) -> Vec<I>
 where
   I: IdentLike,
 {
   match &n {
-    PatOrExpr::Expr(e) => match &**e {
-      Expr::Ident(i) => vec![I::from_ident(i)],
+    ast_view::AssignTarget::Simple(e) => match e {
+      ast_view::SimpleAssignTarget::Ident(i) => vec![I::from_ident(i.id.inner)],
       _ => vec![],
     },
-    PatOrExpr::Pat(p) => find_pat_ids(p),
+    ast_view::AssignTarget::Pat(p) => match p {
+      ast_view::AssignTargetPat::Array(node) => find_pat_ids(node.inner),
+      ast_view::AssignTargetPat::Object(node) => find_pat_ids(node.inner),
+      ast_view::AssignTargetPat::Invalid(_) => Vec::new(),
+    },
   }
 }
