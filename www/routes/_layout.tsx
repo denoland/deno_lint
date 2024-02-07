@@ -2,6 +2,7 @@
 
 import { PageProps } from "$fresh/server.ts";
 import { CommonHead } from "../components/CommonHead.tsx";
+import { Footer } from "../components/Footer.tsx";
 
 export default function Layout({ Component, state }: PageProps) {
   return (
@@ -10,6 +11,8 @@ export default function Layout({ Component, state }: PageProps) {
         <CommonHead />
         <Component />
       </div>
+
+      <Footer class="mt-8" />
     </div>
   );
 }
