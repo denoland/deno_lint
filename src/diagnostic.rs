@@ -81,12 +81,12 @@ impl Diagnostic for LintDiagnostic {
     DiagnosticLevel::Error
   }
 
-  fn code(&self) -> impl std::fmt::Display + '_ {
-    &self.code
+  fn code(&self) -> Cow<'_, str> {
+    Cow::Borrowed(&self.code)
   }
 
-  fn message(&self) -> impl std::fmt::Display + '_ {
-    &self.message
+  fn message(&self) -> Cow<'_, str> {
+    Cow::Borrowed(&self.message)
   }
 
   fn location(&self) -> DiagnosticLocation {
@@ -112,8 +112,8 @@ impl Diagnostic for LintDiagnostic {
     })
   }
 
-  fn hint(&self) -> Option<impl std::fmt::Display + '_> {
-    self.hint.as_ref().map(|h| h as &dyn std::fmt::Display)
+  fn hint(&self) -> Option<Cow<'_, str>> {
+    self.hint.as_ref().map(|s| Cow::Borrowed(s.as_str()))
   }
 
   fn snippet_fixed(&self) -> Option<DiagnosticSnippet<'_>> {
@@ -124,7 +124,7 @@ impl Diagnostic for LintDiagnostic {
     Cow::Borrowed(&[])
   }
 
-  fn docs_url(&self) -> Option<impl std::fmt::Display + '_> {
-    Some(format!("https://lint.deno.land/#{}", &self.code))
+  fn docs_url(&self) -> Option<Cow<'_, str>> {
+    Some(Cow::Owned(format!("https://lint.deno.land/#{}", &self.code)))
   }
 }
