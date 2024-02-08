@@ -5,6 +5,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
+use deno_ast::diagnostics::Diagnostic;
 use deno_ast::view as ast_view;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
@@ -199,7 +200,13 @@ impl LintErrTester {
     let rule_code = self.rule.code();
     let diagnostics = lint(self.rule, self.src, self.filename);
     if self.errors.len() != diagnostics.len() {
-      eprintln!("Actual diagnostics:\n{:#?}", diagnostics);
+      eprintln!(
+        "Actual diagnostics:\n{:#?}",
+        diagnostics
+          .iter()
+          .map(|d| d.message.to_string())
+          .collect::<Vec<_>>()
+      );
       assert_eq!(
         self.errors.len(),
         diagnostics.len(),
@@ -314,18 +321,21 @@ pub fn assert_diagnostic(
   col: usize,
   source: &str,
 ) {
+  let line_and_column = diagnostic
+    .text_info
+    .line_and_column_index(diagnostic.range.start);
   if diagnostic.code == code
     // todo(dsherret): we should change these to be consistent (ex. both 1-indexed)
-    && diagnostic.range.start.line_index + 1 == line
-    && diagnostic.range.start.column_index == col
+    && line_and_column.line_index + 1 == line
+    && line_and_column.column_index == col
   {
     return;
   }
   panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
-    diagnostic.range.start.line_index + 1,
-    diagnostic.range.start.column_index,
+    line_and_column.line_index + 1,
+    line_and_column.column_index,
     code,
     line,
     col,
@@ -333,6 +343,7 @@ pub fn assert_diagnostic(
   );
 }
 
+#[track_caller]
 fn assert_diagnostic_2(
   diagnostic: &LintDiagnostic,
   code: &str,
@@ -342,6 +353,9 @@ fn assert_diagnostic_2(
   message: &str,
   hint: Option<&str>,
 ) {
+  let line_and_column = diagnostic
+    .text_info
+    .line_and_column_index(diagnostic.range.start);
   assert_eq!(
     code, diagnostic.code,
     "Rule code is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
@@ -349,16 +363,16 @@ fn assert_diagnostic_2(
   );
   assert_eq!(
     line,
-    diagnostic.range.start.line_index + 1,
+    line_and_column.line_index + 1,
     "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
     line,
-    diagnostic.range.start.line_index + 1,
+    line_and_column.line_index + 1,
     source
   );
   assert_eq!(
-    col, diagnostic.range.start.column_index,
+    col, line_and_column.column_index,
     "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    col, diagnostic.range.start.column_index, source
+    col, line_and_column.column_index, source
   );
   assert_eq!(
     message, &diagnostic.message,
@@ -386,7 +400,8 @@ pub fn assert_lint_ok(
     eprintln!("filename {:?}", specifier);
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
-      diagnostics, source
+      diagnostics.iter().map(|d| d.message()).collect::<Vec<_>>(),
+      source
     );
   }
 }

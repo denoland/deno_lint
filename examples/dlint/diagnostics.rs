@@ -27,9 +27,7 @@ fn print_compact(diagnostics: &[LintDiagnostic]) {
   }
 }
 
-fn print_pretty(
-  diagnostics: &[LintDiagnostic],
-) {
+fn print_pretty(diagnostics: &[LintDiagnostic]) {
   for diagnostic in diagnostics {
     eprintln!("{}", diagnostic.display());
   }

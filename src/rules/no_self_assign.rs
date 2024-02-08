@@ -227,28 +227,28 @@ impl NoSelfAssignVisitor {
         ObjectPatProp::Assign(assign_pat_prop),
         PropOrSpread::Prop(Prop::Shorthand(right_ident)),
       ) => {
-          if assign_pat_prop.value.is_none() {
-            self.check_same_ident(assign_pat_prop.key.id, right_ident, ctx);
-          }
+        if assign_pat_prop.value.is_none() {
+          self.check_same_ident(assign_pat_prop.key.id, right_ident, ctx);
+        }
       }
       (
         ObjectPatProp::KeyValue(key_val_pat_prop),
         PropOrSpread::Prop(Prop::KeyValue(right_prop)),
       ) => {
-          let left_name = key_val_pat_prop.key.string_repr();
-          let right_name = right_prop.key.string_repr();
+        let left_name = key_val_pat_prop.key.string_repr();
+        let right_name = right_prop.key.string_repr();
 
-          if let Some(lname) = left_name {
-            if let Some(rname) = right_name {
-              if lname == rname {
-                self.check_pat_and_expr(
-                  key_val_pat_prop.value,
-                  right_prop.value,
-                  ctx,
-                );
-              }
+        if let Some(lname) = left_name {
+          if let Some(rname) = right_name {
+            if lname == rname {
+              self.check_pat_and_expr(
+                key_val_pat_prop.value,
+                right_prop.value,
+                ctx,
+              );
             }
           }
+        }
       }
       _ => {}
     }
@@ -545,13 +545,13 @@ mod tests {
       ],
       "({a, b} = {b, a})": [
         {
-          col: 14,
-          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          col: 11,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
           hint: NoSelfAssignHint::Mistake,
         },
         {
-          col: 11,
-          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
           hint: NoSelfAssignHint::Mistake,
         }
       ],

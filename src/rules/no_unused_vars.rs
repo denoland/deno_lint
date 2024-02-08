@@ -7,8 +7,8 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, AssignExpr, AssignPatProp, AssignTarget, CallExpr, CatchClause,
   ClassDecl, ClassMethod, ClassProp, Constructor, Decl, DefaultDecl,
-  ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr, FnDecl,
-  FnExpr, Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr,
+  Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
   ImportStarAsSpecifier, MemberExpr, MemberProp, MethodKind, ModuleExportName,
   NamedExport, Param, Pat, PrivateMethod, Prop, PropName, SetterProp,
   TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsImportEqualsDecl,

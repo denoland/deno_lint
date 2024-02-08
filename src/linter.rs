@@ -167,8 +167,8 @@ impl Linter {
     // Run `ban-unused-ignore`
     diagnostics.extend(context.ban_unused_ignore(&self.ctx.rules));
 
-    // Finally sort by line the diagnostics originates on
-    diagnostics.sort_by_key(|d| d.range.start.line_index);
+    // Finally sort by position the diagnostics originates on
+    diagnostics.sort_by_key(|d| d.range.start);
 
     diagnostics
   }

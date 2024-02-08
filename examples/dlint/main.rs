@@ -4,6 +4,7 @@ use anyhow::bail;
 use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
+use core::panic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintFileOptions;
@@ -11,7 +12,6 @@ use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
 use log::debug;
 use rayon::prelude::*;
-use core::panic;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -74,7 +74,8 @@ fn run_linter(
   format: Option<&str>,
 ) -> Result<(), AnyError> {
   let cwd = std::env::current_dir()?;
-  let mut paths: Vec<PathBuf> = paths.iter().map(|path| cwd.join(path)).collect();
+  let mut paths: Vec<PathBuf> =
+    paths.iter().map(|path| cwd.join(path)).collect();
 
   if let Some(config) = maybe_config.clone() {
     paths.extend(config.get_files()?);
@@ -105,31 +106,31 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      let (_parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
-        specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(|_| {
-          panic!("Failed to convert path to module specifier: {}", file_path.display())
-        }),
-        source_code,
-        media_type: MediaType::from_path(file_path),
-      })?;
+      let (_parsed_source, diagnostics) =
+        linter.lint_file(LintFileOptions {
+          specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(
+            |_| {
+              panic!(
+                "Failed to convert path to module specifier: {}",
+                file_path.display()
+              )
+            },
+          ),
+          source_code,
+          media_type: MediaType::from_path(file_path),
+        })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
       let mut lock = file_diagnostics.lock().unwrap();
 
-      lock.insert(
-        file_path,
-          diagnostics,
-      );
+      lock.insert(file_path, diagnostics);
 
       Ok(())
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    diagnostics::display_diagnostics(
-      d,
-      format,
-    );
+    diagnostics::display_diagnostics(d, format);
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);
