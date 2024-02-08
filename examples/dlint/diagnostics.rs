@@ -21,7 +21,7 @@ fn print_compact(diagnostics: &[LintDiagnostic]) {
       .line_and_column_display(diagnostic.range.start);
     eprintln!(
       "{}: line {}, col {}, Error - {} ({})",
-      diagnostic.display(),
+      diagnostic.specifier,
       display_index.line_number,
       display_index.column_number,
       diagnostic.message,
