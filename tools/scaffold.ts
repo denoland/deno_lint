@@ -96,6 +96,7 @@ export function genRustContent(
   snakeCasedLintName: string,
 ): string {
   return `// Copyright 2018-${now.getFullYear()} the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
