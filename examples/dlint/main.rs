@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use anyhow::bail;
 use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
+use core::panic;
 use deno_ast::MediaType;
-use deno_ast::SourceTextInfo;
-use deno_lint::diagnostic::LintDiagnostic;
+use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
@@ -72,19 +73,15 @@ fn run_linter(
   maybe_config: Option<Arc<config::Config>>,
   format: Option<&str>,
 ) -> Result<(), AnyError> {
-  let mut paths: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+  let cwd = std::env::current_dir()?;
+  let mut paths: Vec<PathBuf> =
+    paths.iter().map(|path| cwd.join(path)).collect();
 
   if let Some(config) = maybe_config.clone() {
     paths.extend(config.get_files()?);
   }
 
   let error_counts = Arc::new(AtomicUsize::new(0));
-
-  struct FileDiagnostics {
-    filename: String,
-    text_info: SourceTextInfo,
-    diagnostics: Vec<LintDiagnostic>,
-  }
 
   let rules = if let Some(config) = maybe_config {
     config.get_rules()
@@ -109,35 +106,31 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
-        filename: file_path.to_string_lossy().to_string(),
-        source_code,
-        media_type: MediaType::from_path(file_path),
-      })?;
+      let (_parsed_source, diagnostics) =
+        linter.lint_file(LintFileOptions {
+          specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(
+            |_| {
+              panic!(
+                "Failed to convert path to module specifier: {}",
+                file_path.display()
+              )
+            },
+          ),
+          source_code,
+          media_type: MediaType::from_path(file_path),
+        })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
       let mut lock = file_diagnostics.lock().unwrap();
 
-      lock.insert(
-        file_path,
-        FileDiagnostics {
-          filename: file_path.to_string_lossy().to_string(),
-          diagnostics,
-          text_info: parsed_source.text_info().clone(),
-        },
-      );
+      lock.insert(file_path, diagnostics);
 
       Ok(())
     })?;
 
   for d in file_diagnostics.lock().unwrap().values() {
-    diagnostics::display_diagnostics(
-      &d.diagnostics,
-      &d.text_info,
-      &d.filename,
-      format,
-    );
+    diagnostics::display_diagnostics(d, format);
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);

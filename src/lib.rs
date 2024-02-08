@@ -32,8 +32,8 @@ mod lint_tests {
   use crate::linter::*;
   use crate::rules::{get_recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
-  use deno_ast::MediaType;
   use deno_ast::ParsedSource;
+  use deno_ast::{MediaType, ModuleSpecifier};
 
   fn lint(
     source: &str,
@@ -43,7 +43,7 @@ mod lint_tests {
 
     let (_, diagnostics) = linter
       .lint_file(LintFileOptions {
-        filename: "lint_test.ts".to_string(),
+        specifier: ModuleSpecifier::parse("file:///lint_test.ts").unwrap(),
         source_code: source.to_string(),
         media_type: MediaType::TypeScript,
       })

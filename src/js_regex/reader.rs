@@ -62,7 +62,7 @@ impl Reader {
   }
 
   pub fn advance(&mut self) {
-    if self.cps.get(0).is_some() {
+    if self.cps.front().is_some() {
       self.index += 1;
       self.cps.pop_front();
       if let Some(c) = self.at(self.index + self.cps.len()) {
@@ -72,7 +72,7 @@ impl Reader {
   }
 
   pub fn eat(&mut self, cp: char) -> bool {
-    let opt = self.cps.get(0);
+    let opt = self.cps.front();
     if opt.is_some() && *opt.unwrap() == cp {
       self.advance();
       true
@@ -82,7 +82,7 @@ impl Reader {
   }
 
   pub fn eat2(&mut self, cp1: char, cp2: char) -> bool {
-    let (opt1, opt2) = (self.cps.get(0), self.cps.get(1));
+    let (opt1, opt2) = (self.cps.front(), self.cps.get(1));
     if opt1.is_some()
       && opt2.is_some()
       && *opt1.unwrap() == cp1
@@ -98,7 +98,7 @@ impl Reader {
 
   pub fn eat3(&mut self, cp1: char, cp2: char, cp3: char) -> bool {
     let (opt1, opt2, opt3) =
-      (self.cps.get(0), self.cps.get(1), self.cps.get(2));
+      (self.cps.front(), self.cps.get(1), self.cps.get(2));
     if opt1.is_some()
       && opt2.is_some()
       && opt3.is_some()

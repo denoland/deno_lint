@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::Context;
 use super::LintRule;
 use crate::handler::Handler;

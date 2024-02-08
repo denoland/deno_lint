@@ -1,26 +1,23 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
-use super::program_ref;
+
 use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 use crate::Program;
-use crate::ProgramRef;
 
-use deno_ast::swc::ast::AssignExpr;
-use deno_ast::swc::ast::AssignOp;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::ast::Ident;
-use deno_ast::swc::ast::MemberExpr;
-use deno_ast::swc::ast::MemberProp;
-use deno_ast::swc::ast::ObjectPatProp;
-use deno_ast::swc::ast::Pat;
-use deno_ast::swc::ast::PatOrExpr;
-use deno_ast::swc::ast::Prop;
-use deno_ast::swc::ast::PropOrSpread;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::view::AssignExpr;
+use deno_ast::view::AssignOp;
+use deno_ast::view::AssignTarget;
+use deno_ast::view::Expr;
+use deno_ast::view::ExprOrSpread;
+use deno_ast::view::Ident;
+use deno_ast::view::MemberExpr;
+use deno_ast::view::MemberProp;
+use deno_ast::view::ObjectPatProp;
+use deno_ast::view::Pat;
+use deno_ast::view::Prop;
+use deno_ast::view::PropOrSpread;
+use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -56,12 +53,7 @@ impl LintRule for NoSelfAssign {
     context: &mut Context<'view>,
     program: Program<'view>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoSelfAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
-    }
+    NoSelfAssignVisitor.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -70,17 +62,16 @@ impl LintRule for NoSelfAssign {
   }
 }
 
-struct NoSelfAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoSelfAssignVisitor;
 
-impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, range: SourceRange, name: impl ToString) {
-    self.context.add_diagnostic_with_hint(
+impl NoSelfAssignVisitor {
+  fn add_diagnostic(
+    &mut self,
+    range: SourceRange,
+    name: impl ToString,
+    ctx: &mut Context,
+  ) {
+    ctx.add_diagnostic_with_hint(
       range,
       CODE,
       NoSelfAssignMessage::Invalid(name.to_string()),
@@ -108,7 +99,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
       MemberProp::Computed(r_computed),
     ) = (&left.prop, &right.prop)
     {
-      match (&*l_computed.expr, &*r_computed.expr) {
+      match (l_computed.expr, r_computed.expr) {
         (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
           if self.are_same_ident(l_ident, r_ident) {
             return true;
@@ -149,7 +140,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
       return false;
     }
 
-    match (&*left.obj, &*right.obj) {
+    match (left.obj, right.obj) {
       (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
         self.are_same_member(l_member_expr, r_member_expr)
       }
@@ -161,7 +152,12 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     }
   }
 
-  fn check_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) {
+  fn check_same_member(
+    &mut self,
+    left: &MemberExpr,
+    right: &MemberExpr,
+    ctx: &mut Context,
+  ) {
     if self.are_same_member(left, right) {
       let name = match &right.prop {
         MemberProp::Ident(ident) => ident.string_repr(),
@@ -169,39 +165,54 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
         MemberProp::PrivateName(name) => name.string_repr(),
       }
       .expect("Should be identifier");
-      self.add_diagnostic(right.range(), name);
+      self.add_diagnostic(right.range(), name, ctx);
     }
   }
 
   fn are_same_ident(&mut self, left: &Ident, right: &Ident) -> bool {
-    left.sym == right.sym
+    left.sym() == right.sym()
   }
 
-  fn check_same_ident(&mut self, left: &Ident, right: &Ident) {
+  fn check_same_ident(
+    &mut self,
+    left: &Ident,
+    right: &Ident,
+    ctx: &mut Context,
+  ) {
     if self.are_same_ident(left, right) {
-      self.add_diagnostic(right.range(), &right.sym);
+      self.add_diagnostic(right.range(), right.sym(), ctx);
     }
   }
 
-  fn check_expr_and_expr(&mut self, left: &Expr, right: &Expr) {
+  fn check_expr_and_expr(
+    &mut self,
+    left: Expr,
+    right: Expr,
+    ctx: &mut Context,
+  ) {
     match (left, right) {
       (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.check_same_ident(l_ident, r_ident);
+        self.check_same_ident(l_ident, r_ident, ctx);
       }
       (Expr::Member(l_member), Expr::Member(r_member)) => {
-        self.check_same_member(l_member, r_member);
+        self.check_same_member(l_member, r_member, ctx);
       }
       _ => {}
     }
   }
 
-  fn check_pat_and_spread_or_expr(&mut self, left: &Pat, right: &ExprOrSpread) {
-    if right.spread.is_some() {
+  fn check_pat_and_spread_or_expr(
+    &mut self,
+    left: Pat,
+    right: &ExprOrSpread,
+    ctx: &mut Context,
+  ) {
+    if right.spread().is_some() {
       if let Pat::Rest(rest_pat) = left {
-        self.check_pat_and_expr(&rest_pat.arg, &right.expr)
+        self.check_pat_and_expr(rest_pat.arg, right.expr, ctx)
       }
     } else {
-      self.check_pat_and_expr(left, &right.expr);
+      self.check_pat_and_expr(left, right.expr, ctx);
     }
   }
 
@@ -209,34 +220,32 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     &mut self,
     left: &ObjectPatProp,
     right: &PropOrSpread,
+    ctx: &mut Context,
   ) {
     match (left, right) {
       (
         ObjectPatProp::Assign(assign_pat_prop),
-        PropOrSpread::Prop(boxed_prop),
+        PropOrSpread::Prop(Prop::Shorthand(right_ident)),
       ) => {
-        if let Prop::Shorthand(ident) = &**boxed_prop {
-          if assign_pat_prop.value.is_none() {
-            self.check_same_ident(&assign_pat_prop.key, ident);
-          }
+        if assign_pat_prop.value.is_none() {
+          self.check_same_ident(assign_pat_prop.key.id, right_ident, ctx);
         }
       }
       (
         ObjectPatProp::KeyValue(key_val_pat_prop),
-        PropOrSpread::Prop(boxed_prop),
+        PropOrSpread::Prop(Prop::KeyValue(right_prop)),
       ) => {
-        if let Prop::KeyValue(key_value_prop) = &**boxed_prop {
-          let left_name = key_val_pat_prop.key.string_repr();
-          let right_name = key_value_prop.key.string_repr();
+        let left_name = key_val_pat_prop.key.string_repr();
+        let right_name = right_prop.key.string_repr();
 
-          if let Some(lname) = left_name {
-            if let Some(rname) = right_name {
-              if lname == rname {
-                self.check_pat_and_expr(
-                  &key_val_pat_prop.value,
-                  &key_value_prop.value,
-                );
-              }
+        if let Some(lname) = left_name {
+          if let Some(rname) = right_name {
+            if lname == rname {
+              self.check_pat_and_expr(
+                key_val_pat_prop.value,
+                right_prop.value,
+                ctx,
+              );
             }
           }
         }
@@ -245,13 +254,13 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
     }
   }
 
-  fn check_pat_and_expr(&mut self, left: &Pat, right: &Expr) {
+  fn check_pat_and_expr(&mut self, left: Pat, right: Expr, ctx: &mut Context) {
     match (left, right) {
       (Pat::Expr(l_expr), _) => {
-        self.check_expr_and_expr(l_expr, right);
+        self.check_expr_and_expr(l_expr, right, ctx);
       }
       (Pat::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.check_same_ident(&l_ident.id, r_ident);
+        self.check_same_ident(l_ident.id, r_ident, ctx);
       }
       (Pat::Array(l_array_pat), Expr::Array(r_array_lit)) => {
         let end =
@@ -268,13 +277,14 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
 
           if left_elem.is_some() && right_elem.is_some() {
             self.check_pat_and_spread_or_expr(
-              left_elem.as_ref().unwrap(),
+              *left_elem.as_ref().unwrap(),
               right_elem.as_ref().unwrap(),
+              ctx,
             );
           }
 
           if let Some(elem) = right_elem {
-            if elem.spread.is_some() {
+            if elem.spread().is_some() {
               break;
             }
           }
@@ -296,6 +306,7 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
               self.check_object_pat_prop_and_prop_or_spread(
                 &l_obj.props[i],
                 &r_obj.props[j],
+                ctx,
               )
             }
           }
@@ -306,17 +317,15 @@ impl<'c, 'view> NoSelfAssignVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoSelfAssignVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) {
-    if assign_expr.op == AssignOp::Assign {
+impl Handler for NoSelfAssignVisitor {
+  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
+    if assign_expr.op() == AssignOp::Assign {
       match &assign_expr.left {
-        PatOrExpr::Pat(l_pat) => {
-          self.check_pat_and_expr(l_pat, &assign_expr.right);
+        AssignTarget::Simple(l_expr) => {
+          self.check_expr_and_expr(l_expr.as_expr(), assign_expr.right, ctx);
         }
-        PatOrExpr::Expr(l_expr) => {
-          self.check_expr_and_expr(l_expr, &assign_expr.right);
+        AssignTarget::Pat(l_pat) => {
+          self.check_pat_and_expr(l_pat.as_pat(), assign_expr.right, ctx);
         }
       }
     }
@@ -536,13 +545,13 @@ mod tests {
       ],
       "({a, b} = {b, a})": [
         {
-          col: 14,
-          message: variant!(NoSelfAssignMessage, Invalid, "a"),
+          col: 11,
+          message: variant!(NoSelfAssignMessage, Invalid, "b"),
           hint: NoSelfAssignHint::Mistake,
         },
         {
-          col: 11,
-          message: variant!(NoSelfAssignMessage, Invalid, "b"),
+          col: 14,
+          message: variant!(NoSelfAssignMessage, Invalid, "a"),
           hint: NoSelfAssignHint::Mistake,
         }
       ],

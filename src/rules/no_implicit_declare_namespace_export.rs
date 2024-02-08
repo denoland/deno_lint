@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -84,7 +85,7 @@ mod tests {
   fn use_explicit_namespace_export_valid() {
     assert_lint_ok! {
       NoImplicitDeclareNamespaceExport,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       r#"
 namespace foo {
   type X = 1;
@@ -117,7 +118,7 @@ declare namespace empty {}
 
     assert_lint_ok! {
       NoImplicitDeclareNamespaceExport,
-      filename: "foo.d.ts",
+      filename: "file:///foo.d.ts",
 
       r#"
 declare namespace foo {

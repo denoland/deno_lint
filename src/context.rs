@@ -1,6 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::control_flow::ControlFlow;
-use crate::diagnostic::{LintDiagnostic, Position, Range};
+use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
@@ -9,14 +10,13 @@ use crate::linter::LinterContext;
 use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::SyntaxContext;
-use deno_ast::MediaType;
 use deno_ast::Scope;
 use deno_ast::SourceTextInfo;
 use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
 };
+use deno_ast::{MediaType, ModuleSpecifier};
 use std::collections::{HashMap, HashSet};
-use std::time::Instant;
 
 /// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'view> {
@@ -59,8 +59,8 @@ impl<'view> Context<'view> {
     }
   }
 
-  /// File name on which the lint rule is run
-  pub fn file_name(&self) -> &str {
+  /// File specifier on which the lint rule is run.
+  pub fn specifier(&self) -> &ModuleSpecifier {
     self.parsed_source.specifier()
   }
 
@@ -156,7 +156,8 @@ impl<'view> Context<'view> {
         }
       }
 
-      let diagnostic_line = diagnostic.range.start.line_index;
+      let diagnostic_line =
+        diagnostic.text_info.line_index(diagnostic.range.start);
       if diagnostic_line > 0 {
         if let Some(l) =
           self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
@@ -328,31 +329,14 @@ impl<'view> Context<'view> {
     message: impl ToString,
     maybe_hint: Option<String>,
   ) -> LintDiagnostic {
-    let time_start = Instant::now();
-    let text_info = self.text_info();
-    let start = Position::new(
-      range.start.as_byte_index(text_info.range().start),
-      text_info.line_and_column_index(range.start),
-    );
-    let end = Position::new(
-      range.end.as_byte_index(text_info.range().start),
-      text_info.line_and_column_index(range.end),
-    );
-
-    let diagnostic = LintDiagnostic {
-      range: Range { start, end },
-      filename: self.file_name().to_string(),
+    LintDiagnostic {
+      specifier: self.specifier().clone(),
+      range,
+      text_info: self.text_info().clone(),
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,
-    };
-
-    let time_end = Instant::now();
-    debug!(
-      "Context::create_diagnostic took {:?}",
-      time_end - time_start
-    );
-    diagnostic
+    }
   }
 }
 

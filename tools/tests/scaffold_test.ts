@@ -88,6 +88,7 @@ Deno.test("the content of .rs", () => {
   const actual = genRustContent(now, "FooBarBaz", "foo-bar-baz", "foo_bar_baz");
   const expected =
     `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -167,6 +168,7 @@ mod tests {
 Deno.test("the updated content of src/rules.rs", () => {
   const original =
     `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
@@ -201,6 +203,7 @@ mod tests {
   const actual = genPubMod(original, "foo_bar_baz");
   const expected =
     `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;

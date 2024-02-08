@@ -1,23 +1,26 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::Program;
 use crate::ProgramRef;
-use deno_ast::swc::ast::Id;
 use deno_ast::swc::ast::{
-  ArrowExpr, AssignPatProp, CallExpr, CatchClause, ClassDecl, ClassMethod,
-  ClassProp, Constructor, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
-  ExportNamedSpecifier, Expr, FnDecl, FnExpr, Function, Ident,
-  ImportDefaultSpecifier, ImportNamedSpecifier, ImportStarAsSpecifier,
-  MemberExpr, MemberProp, MethodKind, ModuleExportName, NamedExport, Param,
-  Pat, PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
-  TsExprWithTypeArgs, TsImportEqualsDecl, TsInterfaceDecl, TsModuleDecl,
-  TsModuleRef, TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl,
-  TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
+  ArrowExpr, AssignExpr, AssignPatProp, AssignTarget, CallExpr, CatchClause,
+  ClassDecl, ClassMethod, ClassProp, Constructor, Decl, DefaultDecl,
+  ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr,
+  Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
+  ImportStarAsSpecifier, MemberExpr, MemberProp, MethodKind, ModuleExportName,
+  NamedExport, Param, Pat, PrivateMethod, Prop, PropName, SetterProp,
+  TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsImportEqualsDecl,
+  TsInterfaceDecl, TsModuleDecl, TsModuleRef, TsNamespaceDecl,
+  TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
+  VarDeclarator,
 };
+use deno_ast::swc::ast::{Id, SimpleAssignTarget};
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::view::AssignOp;
 use deno_ast::{MediaType, SourceRangedForSpanned};
 use derive_more::Display;
 use if_chain::if_chain;
@@ -257,6 +260,34 @@ impl Visit for Collector {
     }
   }
 
+  fn visit_simple_assign_target(&mut self, n: &SimpleAssignTarget) {
+    match n {
+      SimpleAssignTarget::Ident(ident) => {
+        self.mark_as_usage(&ident.id);
+      }
+      _ => n.visit_children_with(self),
+    }
+  }
+
+  fn visit_assign_expr(&mut self, n: &AssignExpr) {
+    if n.op == AssignOp::Assign {
+      match &n.left {
+        AssignTarget::Simple(target) => {
+          match target {
+            SimpleAssignTarget::Ident(_) => {
+              // ignore and only visit the right
+              n.right.visit_with(self)
+            }
+            _ => n.visit_children_with(self),
+          }
+        }
+        AssignTarget::Pat(_) => n.visit_children_with(self),
+      }
+    } else {
+      n.visit_children_with(self)
+    }
+  }
+
   fn visit_pat(&mut self, pat: &Pat) {
     match pat {
       // Ignore patterns
@@ -305,7 +336,7 @@ impl Visit for Collector {
 
   fn visit_function(&mut self, function: &Function) {
     if_chain! {
-      if let Some(first_param) = function.params.get(0);
+      if let Some(first_param) = function.params.first();
       if let Pat::Ident(ident) = &first_param.pat;
       if ident.type_ann.is_some();
       if ident.id.sym == js_word!("this");
@@ -1413,7 +1444,7 @@ console.log(MyDeps);
     // JSX or TSX
     assert_lint_ok! {
       NoUnusedVars,
-      filename: "foo.tsx",
+      filename: "file:///foo.tsx",
       r#"
 import { TypeA } from './interface';
 export const a = <GenericComponent<TypeA> />;
@@ -1505,6 +1536,13 @@ export default <Component />;
         }
       ],
       "function f() { var a = 1; return function(){ f(++a); }; }": [
+        {
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "f"),
+        }
+      ],
+      "function f() { var a = { prop: 1 }; return function(){ f(a.prop *= 2); }; }": [
         {
           col: 9,
           message: variant!(NoUnusedVarsMessage, NeverUsed, "f"),

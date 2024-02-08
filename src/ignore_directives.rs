@@ -3,6 +3,7 @@ use deno_ast::SourceRanged;
 use deno_ast::SourceRangedForSpanned;
 use deno_ast::SourceTextInfoProvider;
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
 use deno_ast::view as ast_view;
@@ -103,11 +104,11 @@ pub fn parse_file_ignore_directives(
   let (has_shebang, first_item_range) = match program {
     ast_view::Program::Module(module) => (
       module.shebang().is_some(),
-      module.body.get(0).map(SourceRanged::range),
+      module.body.first().map(SourceRanged::range),
     ),
     ast_view::Program::Script(script) => (
       script.shebang().is_some(),
-      script.body.get(0).map(SourceRanged::range),
+      script.body.first().map(SourceRanged::range),
     ),
   };
 

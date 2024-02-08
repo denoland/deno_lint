@@ -1,4 +1,5 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 
@@ -196,7 +197,7 @@ mod tests {
   fn explicit_module_boundary_types_valid() {
     assert_lint_ok! {
       ExplicitModuleBoundaryTypes,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       "function test() { return }",
       "export var fn = function (): number { return 1; }",
       "export var arrowFn = (arg: string): string => `test ${arg}`",
@@ -209,7 +210,7 @@ mod tests {
 
     assert_lint_ok! {
       ExplicitModuleBoundaryTypes,
-      filename: "foo.js",
+      filename: "file:///foo.js",
       "function test() { return }",
       "export var fn = function () { return 1; }",
       "export var arrowFn = (arg) => `test ${arg}`",
@@ -219,7 +220,7 @@ mod tests {
 
     assert_lint_ok! {
       ExplicitModuleBoundaryTypes,
-      filename: "foo.jsx",
+      filename: "file:///foo.jsx",
       "export function Foo(props) {return <div>{props.name}</div>}",
       "export default class Foo { render() { return <div></div>}}"
     };

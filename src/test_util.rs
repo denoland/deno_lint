@@ -5,16 +5,17 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
+use deno_ast::diagnostics::Diagnostic;
 use deno_ast::view as ast_view;
 use deno_ast::MediaType;
+use deno_ast::ModuleSpecifier;
 use deno_ast::ParsedSource;
-use std::path::Path;
 
 #[macro_export]
 macro_rules! assert_lint_ok {
   (
     $rule:expr,
-    filename: $filename:literal,
+    filename: $filename:expr,
     $($src:literal),+
     $(,)?
   ) => {
@@ -25,7 +26,7 @@ macro_rules! assert_lint_ok {
   ($rule:expr, $($src:literal),+ $(,)?) => {
     assert_lint_ok! {
       $rule,
-      filename: "deno_lint_ok_test.ts",
+      filename: "file:///deno_lint_ok_test.ts",
       $($src,)*
     };
   };
@@ -35,7 +36,7 @@ macro_rules! assert_lint_ok {
 macro_rules! assert_lint_err {
   (
     $rule:expr,
-    filename: $filename:literal,
+    filename: $filename:expr,
     $($src:literal : $test:tt),+
     $(,)?
   ) => {
@@ -57,7 +58,7 @@ macro_rules! assert_lint_err {
   ) => {
     assert_lint_err! {
       $rule,
-      filename: "deno_lint_err_test.ts",
+      filename: "file:///deno_lint_err_test.ts",
       $($src: $test,)*
     }
   };
@@ -66,7 +67,7 @@ macro_rules! assert_lint_err {
     $rule: expr,
     $message: expr,
     $hint: expr,
-    filename: $filename:literal,
+    filename: $filename:expr,
     $($src:literal : $test:tt),+
     $(,)?
   ) => {
@@ -92,7 +93,7 @@ macro_rules! assert_lint_err {
       $rule,
       $message,
       $hint,
-      filename: "deno_lint_err_test.ts",
+      filename: "file:///deno_lint_err_test.ts",
       $($src: $test,)*
     }
   };
@@ -136,7 +137,7 @@ macro_rules! parse_err_test {
 
   (
     {
-      filename : $filename:literal,
+      filename : $filename:expr,
       errors : $errors:tt $(,)?
     }
   ) => {{
@@ -198,14 +199,23 @@ impl LintErrTester {
   pub fn run(self) {
     let rule_code = self.rule.code();
     let diagnostics = lint(self.rule, self.src, self.filename);
-    assert_eq!(
-      self.errors.len(),
-      diagnostics.len(),
-      "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
-      self.errors.len(),
-      diagnostics.len(),
-      self.src,
-    );
+    if self.errors.len() != diagnostics.len() {
+      eprintln!(
+        "Actual diagnostics:\n{:#?}",
+        diagnostics
+          .iter()
+          .map(|d| d.message.to_string())
+          .collect::<Vec<_>>()
+      );
+      assert_eq!(
+        self.errors.len(),
+        diagnostics.len(),
+        "{} diagnostics expected, but got {}.\n\nsource:\n{}\n",
+        self.errors.len(),
+        diagnostics.len(),
+        self.src,
+      );
+    }
 
     for (error, diagnostic) in self.errors.iter().zip(&diagnostics) {
       let LintErr {
@@ -280,17 +290,20 @@ impl LintErrBuilder {
   }
 }
 
+#[track_caller]
 fn lint(
   rule: &'static dyn LintRule,
   source: &str,
-  filename: &str,
+  specifier: &str,
 ) -> Vec<LintDiagnostic> {
   let linter = LinterBuilder::default().rules(vec![rule]).build();
 
+  let specifier = ModuleSpecifier::parse(specifier).unwrap();
+  let media_type = MediaType::from_specifier(&specifier);
   let lint_result = linter.lint_file(LintFileOptions {
-    filename: filename.to_string(),
+    specifier,
     source_code: source.to_string(),
-    media_type: MediaType::from_path(Path::new(filename)),
+    media_type,
   });
   match lint_result {
     Ok((_, diagnostics)) => diagnostics,
@@ -308,18 +321,21 @@ pub fn assert_diagnostic(
   col: usize,
   source: &str,
 ) {
+  let line_and_column = diagnostic
+    .text_info
+    .line_and_column_index(diagnostic.range.start);
   if diagnostic.code == code
     // todo(dsherret): we should change these to be consistent (ex. both 1-indexed)
-    && diagnostic.range.start.line_index + 1 == line
-    && diagnostic.range.start.column_index == col
+    && line_and_column.line_index + 1 == line
+    && line_and_column.column_index == col
   {
     return;
   }
   panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.code,
-    diagnostic.range.start.line_index + 1,
-    diagnostic.range.start.column_index,
+    line_and_column.line_index + 1,
+    line_and_column.column_index,
     code,
     line,
     col,
@@ -327,6 +343,7 @@ pub fn assert_diagnostic(
   );
 }
 
+#[track_caller]
 fn assert_diagnostic_2(
   diagnostic: &LintDiagnostic,
   code: &str,
@@ -336,6 +353,9 @@ fn assert_diagnostic_2(
   message: &str,
   hint: Option<&str>,
 ) {
+  let line_and_column = diagnostic
+    .text_info
+    .line_and_column_index(diagnostic.range.start);
   assert_eq!(
     code, diagnostic.code,
     "Rule code is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
@@ -343,16 +363,16 @@ fn assert_diagnostic_2(
   );
   assert_eq!(
     line,
-    diagnostic.range.start.line_index + 1,
+    line_and_column.line_index + 1,
     "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
     line,
-    diagnostic.range.start.line_index + 1,
+    line_and_column.line_index + 1,
     source
   );
   assert_eq!(
-    col, diagnostic.range.start.column_index,
+    col, line_and_column.column_index,
     "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    col, diagnostic.range.start.column_index, source
+    col, line_and_column.column_index, source
   );
   assert_eq!(
     message, &diagnostic.message,
@@ -369,17 +389,19 @@ fn assert_diagnostic_2(
   );
 }
 
+#[track_caller]
 pub fn assert_lint_ok(
   rule: &'static dyn LintRule,
   source: &str,
-  filename: &'static str,
+  specifier: &'static str,
 ) {
-  let diagnostics = lint(rule, source, filename);
+  let diagnostics = lint(rule, source, specifier);
   if !diagnostics.is_empty() {
-    eprintln!("filename {:?}", filename);
+    eprintln!("filename {:?}", specifier);
     panic!(
       "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
-      diagnostics, source
+      diagnostics.iter().map(|d| d.message()).collect::<Vec<_>>(),
+      source
     );
   }
 }
@@ -389,11 +411,11 @@ pub fn assert_lint_not_panic(rule: &'static dyn LintRule, source: &str) {
   let _result = lint(rule, source, TEST_FILE_NAME);
 }
 
-const TEST_FILE_NAME: &str = "lint_test.ts";
+const TEST_FILE_NAME: &str = "file:///lint_test.ts";
 
 pub fn parse(source_code: &str) -> ParsedSource {
   ast_parser::parse_program(
-    TEST_FILE_NAME,
+    ModuleSpecifier::parse(TEST_FILE_NAME).unwrap(),
     MediaType::TypeScript,
     source_code.to_string(),
   )
