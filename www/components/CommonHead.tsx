@@ -8,7 +8,7 @@ export function CommonHead() {
         href="https://cdn.jsdelivr.net/gh/lucacasonato/manual@df7ae27/www/static/markdown.css"
         crossOrigin="anonymous"
       />
-      <link rel="stylesheet" href="extension.css" />
+      <link rel="stylesheet" href="/extension.css" />
     </Head>
   );
 }
