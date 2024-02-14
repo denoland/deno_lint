@@ -55,13 +55,13 @@ impl Handler for NoEmptyInterfaceHandler {
     interface_decl: &TsInterfaceDecl,
     ctx: &mut Context,
   ) {
-    if interface_decl.extends.len() === 0 && interface_decl.body.body.is_empty()
+    if interface_decl.extends.is_empty() && interface_decl.body.body.is_empty()
     {
       ctx.add_diagnostic_with_hint(
         interface_decl.range(),
         CODE,
         NoEmptyInterfaceMessage::EmptyObject,
-        NoEmptyInterfaceHint::RemoveOrAddMember
+        NoEmptyInterfaceHint::RemoveOrAddMember,
       );
     }
   }
