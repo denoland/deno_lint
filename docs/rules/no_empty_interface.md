@@ -1,7 +1,7 @@
 Disallows the declaration of an empty interface
 
-An interface with no members serves no purpose.
-This rule will capture these situations as either unnecessary code or a mistaken empty implementation.
+An interface with no members serves no purpose. This rule will capture these
+situations as either unnecessary code or a mistaken empty implementation.
 
 ### Invalid:
 
