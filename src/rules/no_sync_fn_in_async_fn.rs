@@ -49,11 +49,11 @@ fn extract_symbol<'a>(
     MemberProp::Computed(prop) => match &prop.expr {
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       Expr::Ident(ident) => Some(ident.sym()),
-      Expr::Tpl(Tpl {
-        exprs,
-        quasis,
-        ..
-      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
+      Expr::Tpl(Tpl { exprs, quasis, .. })
+        if exprs.is_empty() && quasis.len() == 1 =>
+      {
+        Some(quasis[0].raw())
+      }
       _ => None,
     },
   }
