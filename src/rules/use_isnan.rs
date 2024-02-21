@@ -100,7 +100,7 @@ impl Handler for UseIsNaNHandler {
       }
     }
 
-    for case in &switch_stmt.cases {
+    for case in switch_stmt.cases {
       if let Some(Expr::Ident(ident)) = &case.test {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(

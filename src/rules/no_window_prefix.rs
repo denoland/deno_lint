@@ -216,11 +216,11 @@ fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a str> {
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       // If it's computed, this MemberExpr looks like `foo[bar]`
       Expr::Ident(_) => None,
-      Expr::Tpl(Tpl {
-        ref exprs,
-        ref quasis,
-        ..
-      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
+      Expr::Tpl(Tpl { exprs, quasis, .. })
+        if exprs.is_empty() && quasis.len() == 1 =>
+      {
+        Some(quasis[0].raw())
+      }
       _ => None,
     },
   }

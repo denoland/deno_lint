@@ -62,14 +62,14 @@ fn check_pat(pat: Pat, ctx: &mut Context) {
       check_shadowing(ident, ctx);
     }
     Pat::Array(array_pat) => {
-      for el in &array_pat.elems {
+      for el in array_pat.elems {
         if let Some(pat) = el.as_ref() {
           check_pat(*pat, ctx);
         }
       }
     }
     Pat::Object(object_pat) => {
-      for prop in &object_pat.props {
+      for prop in object_pat.props {
         match prop {
           ObjectPatProp::Assign(assign) => {
             check_shadowing(assign.key.id, ctx);
@@ -104,7 +104,7 @@ fn report_shadowing(ident: &Ident, ctx: &mut Context) {
 
 impl Handler for NoShadowRestrictedNamesHandler {
   fn var_decl(&mut self, node: &VarDecl, ctx: &mut Context) {
-    for decl in &node.decls {
+    for decl in node.decls {
       if let Pat::Ident(ident) = &decl.name {
         // `undefined` variable declaration without init is have same meaning
         if decl.init.is_none() && *ident.id.sym() == *"undefined" {
@@ -119,7 +119,7 @@ impl Handler for NoShadowRestrictedNamesHandler {
   fn fn_decl(&mut self, node: &FnDecl, ctx: &mut Context) {
     check_shadowing(node.ident, ctx);
 
-    for param in &node.function.params {
+    for param in node.function.params {
       check_pat(param.pat, ctx);
     }
   }
@@ -129,13 +129,13 @@ impl Handler for NoShadowRestrictedNamesHandler {
       check_shadowing(ident, ctx)
     }
 
-    for param in &node.function.params {
+    for param in node.function.params {
       check_pat(param.pat, ctx);
     }
   }
 
   fn arrow_expr(&mut self, node: &ArrowExpr, ctx: &mut Context) {
-    for param in &node.params {
+    for param in node.params {
       check_pat(*param, ctx);
     }
   }

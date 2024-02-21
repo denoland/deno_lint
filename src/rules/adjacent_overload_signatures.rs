@@ -52,11 +52,11 @@ struct AdjacentOverloadSignaturesHandler;
 
 impl Handler for AdjacentOverloadSignaturesHandler {
   fn script(&mut self, script: &ast_view::Script, ctx: &mut Context) {
-    check(&script.body, ctx);
+    check(script.body, ctx);
   }
 
   fn module(&mut self, module: &ast_view::Module, ctx: &mut Context) {
-    check(&module.body, ctx);
+    check(module.body, ctx);
   }
 
   fn ts_module_block(
@@ -64,11 +64,11 @@ impl Handler for AdjacentOverloadSignaturesHandler {
     ts_module_block: &ast_view::TsModuleBlock,
     ctx: &mut Context,
   ) {
-    check(&ts_module_block.body, ctx);
+    check(ts_module_block.body, ctx);
   }
 
   fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
-    check(&class.body, ctx);
+    check(class.body, ctx);
   }
 
   fn ts_type_lit(
@@ -76,7 +76,7 @@ impl Handler for AdjacentOverloadSignaturesHandler {
     ts_type_lit: &ast_view::TsTypeLit,
     ctx: &mut Context,
   ) {
-    check(&ts_type_lit.members, ctx);
+    check(ts_type_lit.members, ctx);
   }
 
   fn ts_interface_body(
@@ -84,7 +84,7 @@ impl Handler for AdjacentOverloadSignaturesHandler {
     ts_interface_body: &ast_view::TsInterfaceBody,
     ctx: &mut Context,
   ) {
-    check(&ts_interface_body.body, ctx);
+    check(ts_interface_body.body, ctx);
   }
 }
 

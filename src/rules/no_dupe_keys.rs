@@ -169,7 +169,7 @@ impl Handler for NoDupeKeysHandler {
     let range = obj_lit.range();
     let mut keys: HashMap<String, PropertyInfo> = HashMap::new();
 
-    for prop in &obj_lit.props {
+    for prop in obj_lit.props {
       if let PropOrSpread::Prop(prop) = prop {
         match prop {
           Prop::Shorthand(ident) => {

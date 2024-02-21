@@ -50,7 +50,7 @@ impl Handler for NoImplicitDeclareNamespaceExportHandler {
         module_decl.body
       {
         if !block.body.is_empty() {
-          let has_named_export = block.body.as_slice().iter().any(|item| {
+          let has_named_export = block.body.iter().any(|item| {
             matches!(
               item,
               ast_view::ModuleItem::ModuleDecl(
@@ -60,7 +60,6 @@ impl Handler for NoImplicitDeclareNamespaceExportHandler {
           });
           let has_non_exported_member = block
             .body
-            .as_slice()
             .iter()
             .any(|item| matches!(item, ast_view::ModuleItem::Stmt(_)));
           if !has_named_export && has_non_exported_member {
