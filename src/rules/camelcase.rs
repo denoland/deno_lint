@@ -417,7 +417,7 @@ impl CamelcaseHandler {
       ast_view::Pat::Ident(ident) => {
         self.check_ident(ident, IdentToCheck::variable(ident.id.inner));
       }
-      ast_view::Pat::Array(ast_view::ArrayPat { ref elems, .. }) => {
+      ast_view::Pat::Array(ast_view::ArrayPat { elems, .. }) => {
         for pat in elems.iter().flatten() {
           self.check_pat(pat);
         }

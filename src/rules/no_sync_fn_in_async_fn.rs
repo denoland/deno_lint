@@ -50,8 +50,8 @@ fn extract_symbol<'a>(
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       Expr::Ident(ident) => Some(ident.sym()),
       Expr::Tpl(Tpl {
-        ref exprs,
-        ref quasis,
+        exprs,
+        quasis,
         ..
       }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
       _ => None,
