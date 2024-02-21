@@ -61,7 +61,7 @@ impl NoEvalHandler {
       }
       // Multiple arguments callee: (0, eval)('var foo = 0;')
       Expr::Seq(seq) => {
-        for expr in &seq.exprs {
+        for expr in seq.exprs {
           if let Expr::Ident(ident) = expr {
             self.maybe_add_diagnostic(*ident, ident.range(), ctx)
           }

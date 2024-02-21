@@ -368,7 +368,7 @@ impl CamelcaseHandler {
 
   fn check_ts_type(&mut self, ty: &ast_view::TsType) {
     if let ast_view::TsType::TsTypeLit(type_lit) = ty {
-      for member in &type_lit.members {
+      for member in type_lit.members {
         self.check_ts_type_element(member);
       }
     }
@@ -425,8 +425,8 @@ impl CamelcaseHandler {
       ast_view::Pat::Rest(ast_view::RestPat { ref arg, .. }) => {
         self.check_pat(arg);
       }
-      ast_view::Pat::Object(ast_view::ObjectPat { ref props, .. }) => {
-        for prop in props {
+      ast_view::Pat::Object(ast_view::ObjectPat { props, .. }) => {
+        for prop in *props {
           match prop {
             ast_view::ObjectPatProp::KeyValue(ast_view::KeyValuePatProp {
               ref key,
@@ -536,13 +536,13 @@ impl Handler for CamelcaseHandler {
       return;
     }
 
-    for decl in &var_decl.decls {
+    for decl in var_decl.decls {
       self.check_pat(&decl.name);
 
       if let Some(expr) = &decl.init {
         match expr {
-          ast_view::Expr::Object(ast_view::ObjectLit { ref props, .. }) => {
-            for prop in props {
+          ast_view::Expr::Object(ast_view::ObjectLit { props, .. }) => {
+            for prop in *props {
               if let ast_view::PropOrSpread::Prop(prop) = prop {
                 match prop {
                   ast_view::Prop::Shorthand(ident) => self.check_ident(
@@ -684,7 +684,7 @@ impl Handler for CamelcaseHandler {
       IdentToCheck::interface(interface_decl.id.inner),
     );
 
-    for ty_el in &interface_decl.body.body {
+    for ty_el in interface_decl.body.body {
       self.check_ts_type_element(ty_el);
     }
   }
@@ -732,7 +732,7 @@ impl Handler for CamelcaseHandler {
 
     self
       .check_ident(&enum_decl.id, IdentToCheck::enum_name(enum_decl.id.inner));
-    for variant in &enum_decl.members {
+    for variant in enum_decl.members {
       if let ast_view::TsEnumMemberId::Ident(id) = &variant.id {
         self.check_ident(id, IdentToCheck::enum_variant(id.inner));
       }

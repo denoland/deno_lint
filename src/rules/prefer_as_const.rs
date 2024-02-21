@@ -113,7 +113,7 @@ impl Handler for PreferAsConstHandler {
   }
 
   fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
-    for decl in &var_decl.decls {
+    for decl in var_decl.decls {
       if let Some(init) = &decl.init {
         if let Pat::Array(ArrayPat { type_ann, .. })
         | Pat::Object(ObjectPat { type_ann, .. })

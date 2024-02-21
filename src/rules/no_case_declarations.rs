@@ -40,7 +40,7 @@ struct NoCaseDeclarationsHandler;
 
 impl Handler for NoCaseDeclarationsHandler {
   fn switch_case(&mut self, switch_case: &SwitchCase, context: &mut Context) {
-    for stmt in &switch_case.cons {
+    for stmt in switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {
           Decl::Fn(_) => true,

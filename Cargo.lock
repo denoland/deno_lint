@@ -31,6 +31,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
+
+[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -115,6 +121,9 @@ name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
+dependencies = [
+ "allocator-api2",
+]
 
 [[package]]
 name = "cc"
@@ -298,9 +307,8 @@ dependencies = [
 [[package]]
 name = "dprint-swc-ext"
 version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebaedd46a16dd179b260a9fcb56be5780814afcb20f615eedde6acf971c9628e"
 dependencies = [
+ "allocator-api2",
  "bumpalo",
  "num-bigint",
  "rustc-hash",

@@ -78,7 +78,7 @@ fn is_constructor_keyword(ident: &Ident) -> bool {
 impl Handler for NoMisusedNewHandler {
   fn ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, ctx: &mut Context) {
     if let TsType::TsTypeLit(lit) = t.type_ann {
-      for member in &lit.members {
+      for member in lit.members {
         if let TsMethodSignature(signature) = &member {
           if let Expr::Ident(ident) = signature.key {
             if is_constructor_keyword(ident) {
@@ -96,7 +96,7 @@ impl Handler for NoMisusedNewHandler {
   }
 
   fn ts_interface_decl(&mut self, n: &TsInterfaceDecl, ctx: &mut Context) {
-    for member in &n.body.body {
+    for member in n.body.body {
       match &member {
         TsMethodSignature(signature) => {
           if let Expr::Ident(ident) = signature.key {
@@ -129,7 +129,7 @@ impl Handler for NoMisusedNewHandler {
   }
 
   fn class_decl(&mut self, expr: &ClassDecl, ctx: &mut Context) {
-    for member in &expr.class.body {
+    for member in expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
           PropName::Ident(ident) => ident.sym().as_ref(),

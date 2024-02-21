@@ -45,3 +45,6 @@ os_pipe = "1.1.5"
 pulldown-cmark = "0.9.3"
 rayon = "1.8.0"
 console_static_text = "0.8.2"
+
+[patch.crates-io]
+dprint-swc-ext = { path = "../dprint-swc-ext/rs-lib" }
