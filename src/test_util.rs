@@ -10,6 +10,8 @@ use deno_ast::view as ast_view;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
 use deno_ast::ParsedSource;
+use deno_ast::SourceTextInfo;
+use deno_ast::TextChange;
 
 #[macro_export]
 macro_rules! assert_lint_ok {
@@ -198,7 +200,7 @@ impl LintErrTester {
   #[track_caller]
   pub fn run(self) {
     let rule_code = self.rule.code();
-    let diagnostics = lint(self.rule, self.src, self.filename);
+    let (parsed_source, diagnostics) = lint(self.rule, self.src, self.filename);
     if self.errors.len() != diagnostics.len() {
       eprintln!(
         "Actual diagnostics:\n{:#?}",
@@ -223,6 +225,7 @@ impl LintErrTester {
         col,
         message,
         hint,
+        fixes,
       } = error;
       assert_diagnostic_2(
         diagnostic,
@@ -232,9 +235,17 @@ impl LintErrTester {
         self.src,
         message,
         hint.as_deref(),
+        fixes,
+        parsed_source.text_info(),
       );
     }
   }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct LintErrFix {
+  pub description: String,
+  pub fixed_code: String,
 }
 
 #[derive(Default)]
@@ -243,6 +254,7 @@ pub struct LintErr {
   pub col: usize,
   pub message: String,
   pub hint: Option<String>,
+  pub fixes: Vec<LintErrFix>,
 }
 
 #[derive(Default)]
@@ -251,6 +263,7 @@ pub struct LintErrBuilder {
   col: Option<usize>,
   message: Option<String>,
   hint: Option<String>,
+  fixes: Vec<LintErrFix>,
 }
 
 impl LintErrBuilder {
@@ -280,12 +293,21 @@ impl LintErrBuilder {
     self
   }
 
+  pub fn fix(&mut self, value: (&'static str, &'static str)) -> &mut Self {
+    self.fixes.push(LintErrFix {
+      description: value.0.to_string(),
+      fixed_code: value.1.to_string(),
+    });
+    self
+  }
+
   pub fn build(self) -> LintErr {
     LintErr {
       line: self.line.unwrap_or(1),
       col: self.col.unwrap_or(0),
       message: self.message.unwrap_or_default(),
       hint: self.hint,
+      fixes: self.fixes,
     }
   }
 }
@@ -295,7 +317,7 @@ fn lint(
   rule: &'static dyn LintRule,
   source: &str,
   specifier: &str,
-) -> Vec<LintDiagnostic> {
+) -> (ParsedSource, Vec<LintDiagnostic>) {
   let linter = LinterBuilder::default().rules(vec![rule]).build();
 
   let specifier = ModuleSpecifier::parse(specifier).unwrap();
@@ -306,7 +328,7 @@ fn lint(
     media_type,
   });
   match lint_result {
-    Ok((_, diagnostics)) => diagnostics,
+    Ok((source, diagnostics)) => (source, diagnostics),
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
       e, source
@@ -343,6 +365,7 @@ pub fn assert_diagnostic(
   );
 }
 
+#[allow(clippy::too_many_arguments)]
 #[track_caller]
 fn assert_diagnostic_2(
   diagnostic: &LintDiagnostic,
@@ -352,6 +375,8 @@ fn assert_diagnostic_2(
   source: &str,
   message: &str,
   hint: Option<&str>,
+  fixes: &[LintErrFix],
+  text_info: &SourceTextInfo,
 ) {
   let line_and_column = diagnostic
     .text_info
@@ -387,6 +412,25 @@ fn assert_diagnostic_2(
     diagnostic.hint.as_deref(),
     source
   );
+  let actual_fixes = diagnostic
+    .quick_fixes
+    .iter()
+    .map(|fix| LintErrFix {
+      description: fix.description.to_string(),
+      fixed_code: deno_ast::apply_text_changes(
+        text_info.text_str(),
+        fix
+          .changes
+          .iter()
+          .map(|change| TextChange {
+            range: change.range.as_byte_range(text_info.range().start),
+            new_text: change.new_text.to_string(),
+          })
+          .collect(),
+      ),
+    })
+    .collect::<Vec<_>>();
+  assert_eq!(actual_fixes, fixes, "Quick fixes did not match.");
 }
 
 #[track_caller]
@@ -395,7 +439,7 @@ pub fn assert_lint_ok(
   source: &str,
   specifier: &'static str,
 ) {
-  let diagnostics = lint(rule, source, specifier);
+  let (_parsed_source, diagnostics) = lint(rule, source, specifier);
   if !diagnostics.is_empty() {
     eprintln!("filename {:?}", specifier);
     panic!(
