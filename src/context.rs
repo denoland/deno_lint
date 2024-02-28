@@ -1,7 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use crate::control_flow::ControlFlow;
-use crate::diagnostic::LintDiagnostic;
+use crate::diagnostic::{LintDiagnostic, LintQuickFix};
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
@@ -211,6 +211,7 @@ impl<'view> Context<'view> {
           CODE,
           format!("Ignore for code \"{}\" was not used.", unused_code),
           None,
+          Vec::new(),
         );
         diagnostics.push(d);
       }
@@ -229,6 +230,7 @@ impl<'view> Context<'view> {
           CODE,
           format!("Ignore for code \"{}\" was not used.", unused_code),
           None,
+          Vec::new(),
         );
         diagnostics.push(d);
       }
@@ -258,6 +260,7 @@ impl<'view> Context<'view> {
           rules::ban_unknown_rule_code::CODE,
           format!("Unknown rule for code \"{}\"", unknown_rule_code),
           None,
+          Vec::new(),
         );
         diagnostics.push(d);
       }
@@ -272,6 +275,7 @@ impl<'view> Context<'view> {
           rules::ban_unknown_rule_code::CODE,
           format!("Unknown rule for code \"{}\"", unknown_rule_code),
           None,
+          Vec::new(),
         );
         diagnostics.push(d);
       }
@@ -306,6 +310,7 @@ impl<'view> Context<'view> {
       code.to_string(),
       message.to_string(),
       None,
+      Vec::new(),
     );
     self.diagnostics.push(diagnostic);
   }
@@ -317,8 +322,26 @@ impl<'view> Context<'view> {
     message: impl ToString,
     hint: impl ToString,
   ) {
+    let diagnostic = self.create_diagnostic(
+      range,
+      code,
+      message,
+      Some(hint.to_string()),
+      Vec::new(),
+    );
+    self.diagnostics.push(diagnostic);
+  }
+
+  pub fn add_diagnostic_with_quick_fixes(
+    &mut self,
+    range: SourceRange,
+    code: impl ToString,
+    message: impl ToString,
+    hint: Option<String>,
+    quick_fixes: Vec<LintQuickFix>,
+  ) {
     let diagnostic =
-      self.create_diagnostic(range, code, message, Some(hint.to_string()));
+      self.create_diagnostic(range, code, message, hint, quick_fixes);
     self.diagnostics.push(diagnostic);
   }
 
@@ -328,6 +351,7 @@ impl<'view> Context<'view> {
     code: impl ToString,
     message: impl ToString,
     maybe_hint: Option<String>,
+    quick_fixes: Vec<LintQuickFix>,
   ) -> LintDiagnostic {
     LintDiagnostic {
       specifier: self.specifier().clone(),
@@ -336,6 +360,7 @@ impl<'view> Context<'view> {
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,
+      quick_fixes,
     }
   }
 }

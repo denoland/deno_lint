@@ -14,6 +14,18 @@ use deno_ast::ModuleSpecifier;
 use deno_ast::SourceRange;
 use deno_ast::SourceTextInfo;
 
+#[derive(Debug, Clone)]
+pub struct LintQuickFixChange {
+  pub new_text: String,
+  pub range: SourceRange,
+}
+
+#[derive(Debug, Clone)]
+pub struct LintQuickFix {
+  pub description: String,
+  pub changes: Vec<LintQuickFixChange>,
+}
+
 #[derive(Clone)]
 pub struct LintDiagnostic {
   pub specifier: ModuleSpecifier,
@@ -22,6 +34,7 @@ pub struct LintDiagnostic {
   pub message: String,
   pub code: String,
   pub hint: Option<String>,
+  pub quick_fixes: Vec<LintQuickFix>,
 }
 
 impl Diagnostic for LintDiagnostic {
