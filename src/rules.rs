@@ -107,6 +107,7 @@ pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
+pub mod verbatim_module_syntax;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Executes lint using `dprint-swc-ecma-ast-view`.
@@ -238,6 +239,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &ban_unused_ignore::BanUnusedIgnore,
     &camelcase::Camelcase,
     &constructor_super::ConstructorSuper,
+    &verbatim_module_syntax::VerbatimModuleSyntax,
     &default_param_last::DefaultParamLast,
     &eqeqeq::Eqeqeq,
     &explicit_function_return_type::ExplicitFunctionReturnType,
