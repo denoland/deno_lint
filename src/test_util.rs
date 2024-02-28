@@ -411,14 +411,25 @@ fn assert_diagnostic_2(
     diagnostic.hint.as_deref(),
     source
   );
-  let actual_fixes = diagnostic.quick_fixes.iter().map(|fix| LintErrFix {
-    description: fix.description.to_string(),
-    fixed_code: deno_ast::apply_text_changes(text_info.text_str(), fix.changes.iter().map(|change| TextChange {
-      range: change.range.as_byte_range(text_info.range().start),
-      new_text: change.new_text.to_string(),
-    }).collect()),
-   }).collect::<Vec<_>>();
-   assert_eq!(actual_fixes, fixes, "Quick fixes did not match.");
+  let actual_fixes = diagnostic
+    .quick_fixes
+    .iter()
+    .map(|fix| LintErrFix {
+      description: fix.description.to_string(),
+      fixed_code: deno_ast::apply_text_changes(
+        text_info.text_str(),
+        fix
+          .changes
+          .iter()
+          .map(|change| TextChange {
+            range: change.range.as_byte_range(text_info.range().start),
+            new_text: change.new_text.to_string(),
+          })
+          .collect(),
+      ),
+    })
+    .collect::<Vec<_>>();
+  assert_eq!(actual_fixes, fixes, "Quick fixes did not match.");
 }
 
 #[track_caller]

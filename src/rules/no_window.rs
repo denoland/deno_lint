@@ -58,7 +58,7 @@ impl NoWindowGlobalHandler {
         changes: vec![LintQuickFixChange {
           new_text: "globalThis".into(),
           range,
-        }]
+        }],
       }],
     );
   }
