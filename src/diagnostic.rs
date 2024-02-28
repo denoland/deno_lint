@@ -16,13 +16,13 @@ use deno_ast::SourceTextInfo;
 
 #[derive(Debug, Clone)]
 pub struct LintQuickFixChange {
-  pub new_text: String,
+  pub new_text: Cow<'static, str>,
   pub range: SourceRange,
 }
 
 #[derive(Debug, Clone)]
 pub struct LintQuickFix {
-  pub description: String,
+  pub description: Cow<'static, str>,
   pub changes: Vec<LintQuickFixChange>,
 }
 

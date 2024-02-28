@@ -2,6 +2,8 @@
 
 use super::Context;
 use super::LintRule;
+use crate::diagnostic::LintQuickFix;
+use crate::diagnostic::LintQuickFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
@@ -19,6 +21,8 @@ const CODE: &str = "no-window-prefix";
 const MESSAGE: &str = "For compatibility between the Window context and the Web Workers, calling Web APIs via `window` is disallowed";
 const HINT: &str =
   "Instead, call this API via `self`, `globalThis`, or no extra prefix";
+const FIX_GLOBAL_THIS_DESC: &str = "Rename window to globalThis";
+const FIX_SELF_DESC: &str = "Rename window to self";
 
 impl LintRule for NoWindowPrefix {
   fn tags(&self) -> &'static [&'static str] {
@@ -241,18 +245,31 @@ impl Handler for NoWindowPrefixHandler {
 
     use deno_ast::view::Expr;
     if_chain! {
-      if let Expr::Ident(obj) = &member_expr.obj;
-      let obj_symbol = obj.sym();
+      if let Expr::Ident(obj_ident) = &member_expr.obj;
+      let obj_symbol = obj_ident.sym();
       if obj_symbol == "window";
-      if ctx.scope().is_global(&obj.inner.to_id());
+      if ctx.scope().is_global(&obj_ident.inner.to_id());
       if let Some(prop_symbol) = extract_symbol(member_expr);
       if PROPERTY_DENY_LIST.contains(prop_symbol);
       then {
-        ctx.add_diagnostic_with_hint(
+        ctx.add_diagnostic_with_quick_fixes(
           member_expr.range(),
           CODE,
           MESSAGE,
-          HINT,
+          Some(HINT.into()),
+          vec![LintQuickFix {
+            description: FIX_GLOBAL_THIS_DESC.into(),
+            changes: vec![LintQuickFixChange {
+              new_text: "globalThis".into(),
+              range: obj_ident.range(),
+            }],
+          }, LintQuickFix {
+            description: FIX_SELF_DESC.into(),
+            changes: vec![LintQuickFixChange {
+              new_text: "self".into(),
+              range: obj_ident.range(),
+            }],
+          }]
         );
       }
     }
@@ -386,28 +403,45 @@ mod tests {
       r#"window.fetch()"#: [
         {
           col: 0,
+          fix: (FIX_GLOBAL_THIS_DESC, "globalThis.fetch()"),
+          fix: (FIX_SELF_DESC, "self.fetch()"),
         }
       ],
       r#"window["fetch"]()"#: [
         {
           col: 0,
+          fix: (FIX_GLOBAL_THIS_DESC, r#"globalThis["fetch"]()"#),
+          fix: (FIX_SELF_DESC, r#"self["fetch"]()"#),
         }
       ],
       r#"window[`fetch`]()"#: [
         {
           col: 0,
+          fix: (FIX_GLOBAL_THIS_DESC, "globalThis[`fetch`]()"),
+          fix: (FIX_SELF_DESC, "self[`fetch`]()"),
         }
       ],
-      r#"
+      "
 function foo() {
   const window = 42;
   return window;
 }
-window.fetch();
-      "#: [
+window.fetch();": [
         {
           col: 0,
           line: 6,
+          fix: (FIX_GLOBAL_THIS_DESC, "
+function foo() {
+  const window = 42;
+  return window;
+}
+globalThis.fetch();"),
+          fix: (FIX_SELF_DESC, "
+function foo() {
+  const window = 42;
+  return window;
+}
+self.fetch();"),
         }
       ],
     };
