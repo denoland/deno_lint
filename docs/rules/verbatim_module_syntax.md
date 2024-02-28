@@ -1,37 +1,45 @@
 Enforces type imports to be declared as type imports.
 
-This rule ensures that the code works when the `verbatimModuleSyntax`
-is enabled. This is useful in library distributing TypeScript as sources
-to work in more scenarios. 
+This rule ensures that the code works when the `verbatimModuleSyntax` compiler
+option is enabled. This is useful in libraries distributing TypeScript code in
+order to work in more scenarios.
 
 ### Invalid:
 
 ```typescript
-import { TypeOnly } from "./a.ts";
+import { Person } from "./person.ts";
 
-const value: TypeOnly = getValue();
-console.log(value);
+const person: Person = {
+  name: "David",
+};
+console.log(person);
 ```
 
 ```typescript
-import { TypeOnly, alterValue } from "./a.ts";
+import { output, Person } from "./person.ts";
 
-const value: TypeOnly = getValue();
-console.log(alterValue(value));
+const person: Person = {
+  name: "David",
+};
+output(person);
 ```
 
 ### Valid:
 
 ```typescript
-import type { TypeOnly } from "./a.ts";
+import type { Person } from "./person.ts";
 
-const value: TypeOnly = getValue();
-console.log(value);
+const person: Person = {
+  name: "David",
+};
+console.log(person);
 ```
 
 ```typescript
-import { type TypeOnly, alterValue } from "./a.ts";
+import { output, type Person } from "./person.ts";
 
-const value: TypeOnly = getValue();
-console.log(alterValue(value));
+const person: Person = {
+  name: "David",
+};
+output(person);
 ```

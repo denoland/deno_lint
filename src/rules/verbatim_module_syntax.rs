@@ -20,9 +20,10 @@ use derive_more::Display;
 pub struct VerbatimModuleSyntax;
 
 const CODE: &str = "verbatim-module-syntax";
+const FIX_DESC: &str = "Add a type keyword";
 
 #[derive(Display)]
-enum ConsistentTypeImportsMessage {
+enum Message {
   #[display(fmt = "All import identifiers are used in type positions")]
   AllIdentsUsedInTypePositions,
   #[display(fmt = "Import identifier only used in type positions")]
@@ -30,7 +31,7 @@ enum ConsistentTypeImportsMessage {
 }
 
 #[derive(Display)]
-enum ConsistentTypeImportsHint {
+enum Hint {
   #[display(
     fmt = "Change `import` to `import type` and optionally add an explicit side effect import"
   )]
@@ -97,7 +98,7 @@ impl LintRule for VerbatimModuleSyntax {
                 let mut changes =
                   Vec::with_capacity(1 + type_only_named_import.len());
                 changes.push(LintQuickFixChange {
-                  new_text: " type".to_string(),
+                  new_text: " type".into(),
                   range: import_token_range.end().range(),
                 });
                 for named_import in type_only_named_import {
@@ -106,20 +107,17 @@ impl LintRule for VerbatimModuleSyntax {
                   let range =
                     SourceRange::new(tokens[0].start(), tokens[1].start());
                   changes.push(LintQuickFixChange {
-                    new_text: "".to_string(),
+                    new_text: "".into(),
                     range,
                   });
                 }
                 context.add_diagnostic_with_quick_fixes(
                   import_token_range,
                   CODE,
-                  ConsistentTypeImportsMessage::AllIdentsUsedInTypePositions,
-                  Some(
-                    ConsistentTypeImportsHint::ChangeImportToImportType
-                      .to_string(),
-                  ),
+                  Message::AllIdentsUsedInTypePositions,
+                  Some(Hint::ChangeImportToImportType.to_string()),
                   vec![LintQuickFix {
-                    description: "Add a type keyword".to_string(),
+                    description: FIX_DESC.into(),
                     changes,
                   }],
                 );
@@ -128,12 +126,12 @@ impl LintRule for VerbatimModuleSyntax {
                   context.add_diagnostic_with_quick_fixes(
                     specifier.range(),
                     CODE,
-                    ConsistentTypeImportsMessage::IdentUsedInTypePositions,
-                    Some(ConsistentTypeImportsHint::AddTypeKeyword.to_string()),
+                    Message::IdentUsedInTypePositions,
+                    Some(Hint::AddTypeKeyword.to_string()),
                     vec![LintQuickFix {
-                      description: "Add a type keyword".to_string(),
+                      description: FIX_DESC.into(),
                       changes: vec![LintQuickFixChange {
-                        new_text: "type ".to_string(),
+                        new_text: "type ".into(),
                         range: specifier.start().range(),
                       }],
                     }],
@@ -180,10 +178,8 @@ impl Visit for UsageCollect {
     // skip
   }
 
-  fn visit_ts_expr_with_type_args(&mut self, _: &TsExprWithTypeArgs) {
-    // skip, not ignored by noop_visit_type for some reason
-    // (see https://github.com/swc-project/swc/discussions/8669)
-  }
+  // todo: remove once https://github.com/swc-project/swc/pull/8677 has landed
+  fn visit_ts_expr_with_type_args(&mut self, _: &TsExprWithTypeArgs) {}
 
   fn visit_import_decl(&mut self, _: &ImportDecl) {
     // skip
@@ -238,86 +234,80 @@ fn get_module_ident(ts_entity_name: &TsEntityName) -> &Ident {
   }
 }
 
-#[derive(Debug, Default)]
-struct AllIdents {
-  idents: AHashSet<Id>,
-}
-
-impl Visit for AllIdents {
-  fn visit_ident(&mut self, n: &Ident) {
-    self.idents.insert(n.to_id());
-  }
-}
-
-// most tests are taken from ESlint, commenting those
-// requiring code path support
 #[cfg(test)]
 mod tests {
   use super::*;
 
   #[test]
-  fn constructor_super_valid() {
+  fn valid() {
     assert_lint_ok! {
       VerbatimModuleSyntax,
-      // non derived classes.
-      "class A { }",
-      "class A { constructor() { } }",
-
-      // inherit from non constructors.
-      // those are valid if we don't define the constructor.
-      "class A extends null { }",
-
-      // derived classes.
-      "class A extends B { }",
-      "class A extends B { constructor() { super(); } }",
-
-      // TODO(magurotuna): control flow analysis is required to handle these cases
-      // "class A extends B { constructor() { if (true) { super(); } else { super(); } } }",
-      // "class A extends B { constructor() { a ? super() : super(); } }",
-      // "class A extends B { constructor() { if (a) super(); else super(); } }",
-      // "class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }",
-      // "class A extends B { constructor() { try {} finally { super(); } } }",
-      // "class A extends B { constructor() { if (a) throw Error(); super(); } }",
-
-      // derived classes.
-      "class A extends (class B {}) { constructor() { super(); } }",
-      "class A extends (B = C) { constructor() { super(); } }",
-      "class A extends (B || C) { constructor() { super(); } }",
-      "class A extends (a ? B : C) { constructor() { super(); } }",
-      "class A extends (B, C) { constructor() { super(); } }",
-
-      // nested.
-      "class A { constructor() { class B extends C { constructor() { super(); } } } }",
-      "class A extends B { constructor() { super(); class C extends D { constructor() { super(); } } } }",
-      "class A extends B { constructor() { super(); class C { constructor() { } } } }",
-
-      // returning value is a substitute of 'super()'.
-      "class A extends B { constructor() { if (true) return a; super(); } }",
-      "class A extends null { constructor() { return a; } }",
-      "class A { constructor() { return a; } }",
-
-      // https://github.com/eslint/eslint/issues/5261
-      "class A extends B { constructor(a) { super(); for (const b of a) { this.a(); } } }",
-
-      // https://github.com/eslint/eslint/issues/5319
-      "class Foo extends Object { constructor(method) { super(); this.method = method || function() {}; } }",
-
-      // https://github.com/denoland/deno_lint/issues/464
-      "declare class DOMException extends Error {
-        constructor(message?: string, name?: string);
-      }"
+      "import type { Type } from 'module'; type Test = Type;",
+      "import type { Type, Other } from 'module'; type Test = Type | Other;",
+      "import { type Type, value } from 'module'; type Test = Type; value();",
+      "import * as value from 'module'; value();",
+      "import type * as value from 'module'; type Test = typeof value;",
+      "import value from 'module'; value();",
+      "import type value from 'module'; type Test = typeof value;",
     };
   }
 
   #[test]
-  fn constructor_super_invalid() {
+  fn invalid() {
     assert_lint_err! {
       VerbatimModuleSyntax,
-      "class A { constructor() { super(); } }": [
+      "import { Type } from 'module'; type Test = Type;": [
         {
-          col: 26,
-          message: MESSAGE,
-          hint: HINT,
+          col: 0,
+          message: Message::AllIdentsUsedInTypePositions,
+          hint: Hint::ChangeImportToImportType,
+          fix: (FIX_DESC, "import type { Type } from 'module'; type Test = Type;"),
+        }
+      ],
+      "import { Type, Other } from 'module'; type Test = Type | Other;": [
+        {
+          col: 0,
+          message: Message::AllIdentsUsedInTypePositions,
+          hint: Hint::ChangeImportToImportType,
+          fix: (FIX_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
+        }
+      ],
+      "import { Type, value } from 'module'; type Test = Type; value();": [
+        {
+          col: 9,
+          message: Message::IdentUsedInTypePositions,
+          hint: Hint::AddTypeKeyword,
+          fix: (FIX_DESC, "import { type Type, value } from 'module'; type Test = Type; value();"),
+        }
+      ],
+      "import { Type, Other, value } from 'module'; type Test = Type | Other; value();": [
+        {
+          col: 9,
+          message: Message::IdentUsedInTypePositions,
+          hint: Hint::AddTypeKeyword,
+          fix: (FIX_DESC, "import { type Type, Other, value } from 'module'; type Test = Type | Other; value();"),
+        },
+        {
+          col: 15,
+          message: Message::IdentUsedInTypePositions,
+          hint: Hint::AddTypeKeyword,
+          fix: (FIX_DESC, "import { Type, type Other, value } from 'module'; type Test = Type | Other; value();"),
+        }
+      ],
+      "import * as value from 'module'; type Test = typeof value;": [
+        {
+          col: 0,
+          message: Message::AllIdentsUsedInTypePositions,
+          hint: Hint::ChangeImportToImportType,
+          fix: (FIX_DESC, "import type * as value from 'module'; type Test = typeof value;"),
+        }
+      ],
+      "import value from 'module'; type Test = typeof value;": [
+        {
+          col: 0,
+          message: Message::AllIdentsUsedInTypePositions,
+          hint: Hint::ChangeImportToImportType,
+          fix: (FIX_DESC, "import type value from 'module'; type Test = typeof value;"),
         }
       ],
     };

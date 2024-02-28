@@ -239,7 +239,6 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &ban_unused_ignore::BanUnusedIgnore,
     &camelcase::Camelcase,
     &constructor_super::ConstructorSuper,
-    &verbatim_module_syntax::VerbatimModuleSyntax,
     &default_param_last::DefaultParamLast,
     &eqeqeq::Eqeqeq,
     &explicit_function_return_type::ExplicitFunctionReturnType,
@@ -332,6 +331,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &triple_slash_reference::TripleSlashReference,
     &use_isnan::UseIsNaN,
     &valid_typeof::ValidTypeof,
+    &verbatim_module_syntax::VerbatimModuleSyntax,
   ]
 }
 
