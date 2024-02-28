@@ -365,6 +365,7 @@ pub fn assert_diagnostic(
   );
 }
 
+#[allow(clippy::too_many_arguments)]
 #[track_caller]
 fn assert_diagnostic_2(
   diagnostic: &LintDiagnostic,
