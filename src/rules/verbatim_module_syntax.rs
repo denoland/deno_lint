@@ -138,7 +138,7 @@ impl VerbatimModuleSyntax {
     context: &mut Context,
     program: Program,
   ) {
-    if named_export.type_only() || named_export.specifiers.is_empty() {
+    if named_export.type_only() || named_export.specifiers.is_empty() || named_export.src.is_some() {
       return;
     }
 
@@ -393,6 +393,7 @@ mod tests {
       "import type { value } from 'module'; export type { value };",
       "import { value, type Type } from 'module'; console.log(value); export type { Type };",
       "import { value, type Type } from 'module'; export { value, type Type };",
+      "export { value } from './value.ts';",
     };
   }
 
