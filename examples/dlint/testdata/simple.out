@@ -5,7 +5,7 @@ error[no-unused-vars]: `hello` is never used
   |          ^^^^^
   = hint: If this is intentional, prefix it with an underscore like `_hello`
 
-  docs: https://lint.deno.land/#no-unused-vars
+  docs: https://lint.deno.land/rules/no-unused-vars
 
 
 error[no-explicit-any]: `any` type is not allowed
@@ -15,7 +15,7 @@ error[no-explicit-any]: `any` type is not allowed
   |                   ^^^
   = hint: Use a specific type other than `any`
 
-  docs: https://lint.deno.land/#no-explicit-any
+  docs: https://lint.deno.land/rules/no-explicit-any
 
 
 Found 2 problems

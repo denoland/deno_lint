@@ -93,7 +93,7 @@ impl Diagnostic for LintDiagnostic {
 
   fn docs_url(&self) -> Option<Cow<'_, str>> {
     Some(Cow::Owned(format!(
-      "https://lint.deno.land/#{}",
+      "https://lint.deno.land/rules/{}",
       &self.code
     )))
   }
