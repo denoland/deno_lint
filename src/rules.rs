@@ -107,6 +107,7 @@ pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
+pub mod verbatim_module_syntax;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Executes lint using `dprint-swc-ecma-ast-view`.
@@ -330,6 +331,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &triple_slash_reference::TripleSlashReference,
     &use_isnan::UseIsNaN,
     &valid_typeof::ValidTypeof,
+    &verbatim_module_syntax::VerbatimModuleSyntax,
   ]
 }
 
