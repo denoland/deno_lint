@@ -220,9 +220,9 @@ checksum = "41b319d1b62ffbd002e057f36bebd1f42b9f97927c9577461d855f3513c4289f"
 
 [[package]]
 name = "deno_ast"
-version = "0.34.0"
+version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84b28da6d573c30a63e4a6b66b91fa32773ed2cf4c0f26aa19b91f6c542b1a57"
+checksum = "a73fa2b215c93d44b55228a6c69aa92ffa200cfa683ebaf45202ecfbd749bf52"
 dependencies = [
  "deno_media_type",
  "deno_terminal",
@@ -307,9 +307,9 @@ dependencies = [
 
 [[package]]
 name = "dprint-swc-ext"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fcd02c378803dba687471a9f1f1b758c33e53f616333faaddbaeb8840d9b6dd"
+checksum = "5bad772f9e49af3a613fcddf1671d1e2e877e0a6d94f2b7162bfea4ac8140bee"
 dependencies = [
  "allocator-api2",
  "bumpalo",
@@ -994,9 +994,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.33.17"
+version = "0.33.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "095c158fe55b36faeebb4274692643a6d7cdc5b7902e1d5968ddbe52b7de1d1c"
+checksum = "c85e8b15d0fb87691e27c8f3cf953748db3ccd2a39e165d6d5275a48fb0d29e3"
 dependencies = [
  "ast_node",
  "better_scoped_tls",
@@ -1019,9 +1019,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.112.2"
+version = "0.112.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "852a48a24a2533de88298c6b25355bc68fdee31ac21cb4fb8939b7001715353c"
+checksum = "36226eb87bfd2f5620bde04f149a4b869ab34e78496d60cb0d8eb9da765d0732"
 dependencies = [
  "bitflags 2.3.3",
  "is-macro",
@@ -1037,9 +1037,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_loader"
-version = "0.45.19"
+version = "0.45.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c16051bce5421992a1b49350735bf4d110f761fd68ae7098af17a64ad639b8d"
+checksum = "d0058cf970880f5382effe43eb2b727a73ba09ae41922fa140c2c3fa6ca9b2d1"
 dependencies = [
  "anyhow",
  "pathdiff",
@@ -1051,9 +1051,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.143.3"
+version = "0.143.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90ff55811ed5de14b05e9a2979bae2bce3c807582f559b4325948463265307d9"
+checksum = "20823cac99a9adbd4c03fb5e126aaccbf92446afedad99252a0e1fc76e2ffc43"
 dependencies = [
  "either",
  "new_debug_unreachable",
@@ -1073,9 +1073,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.137.6"
+version = "0.137.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9489f8f5c6c08e8291bd93eb354aa91903d4eba5eeb72e1b90adf43c8fe7a29"
+checksum = "66539401f619730b26d380a120b91b499f80cbdd9bb15d00aa73bc3a4d4cc394"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.3.3",
@@ -1096,9 +1096,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "0.127.5"
+version = "0.127.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2de25ac5cc8c8375476985e854054f05d9e841886f3c290716a0eec32eedce3"
+checksum = "14482e455df85486d68a51533a31645d511e56df93a35cadf0eabbe7abe96b98"
 dependencies = [
  "indexmap 2.1.0",
  "num_cpus",
@@ -1114,9 +1114,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_visit"
-version = "0.98.2"
+version = "0.98.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdb71511a816c7c84ddc96e6939389be261caf20858486a5e76948551f110e1f"
+checksum = "df0127694c36d656ea9eab5c170cdd8ab398246ae2a335de26961c913a4aca47"
 dependencies = [
  "num-bigint",
  "swc_atoms",
@@ -1150,9 +1150,9 @@ dependencies = [
 
 [[package]]
 name = "swc_visit"
-version = "0.5.8"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b27078d8571abe23aa52ef608dd1df89096a37d867cf691cbb4f4c392322b7c9"
+checksum = "358e246dedeb4ae8efacebcce1360dc2f9b6c0b4c1ad8b737cc60f5b6633691a"
 dependencies = [
  "either",
  "swc_visit_macros",
@@ -1160,9 +1160,9 @@ dependencies = [
 
 [[package]]
 name = "swc_visit_macros"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa8bb05975506741555ea4d10c3a3bdb0e2357cd58e1a4a4332b8ebb4b44c34d"
+checksum = "fbbbb9d77d5112f90ed7ea00477135b16c4370c872b93a0b63b766e8710650ad"
 dependencies = [
  "Inflector",
  "pmutil",

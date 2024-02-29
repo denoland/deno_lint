@@ -1,11 +1,14 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
+use crate::diagnostic::LintFix;
+use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
 
 use deno_ast::view as ast_view;
+use deno_ast::SourceRange;
 use deno_ast::SourceRanged;
 use if_chain::if_chain;
 
@@ -16,6 +19,7 @@ const CODE: &str = "no-window";
 const MESSAGE: &str =
   "window is deprecated and scheduled for removal in Deno 2.0";
 const HINT: &str = "Instead, use `globalThis`";
+const FIX_DESC: &str = "Rename window to globalThis";
 
 impl LintRule for NoWindow {
   fn tags(&self) -> &'static [&'static str] {
@@ -42,6 +46,24 @@ impl LintRule for NoWindow {
 
 struct NoWindowGlobalHandler;
 
+impl NoWindowGlobalHandler {
+  fn add_diagnostic(&self, ctx: &mut Context, range: SourceRange) {
+    ctx.add_diagnostic_with_fixes(
+      range,
+      CODE,
+      MESSAGE,
+      Some(HINT.to_string()),
+      vec![LintFix {
+        description: FIX_DESC.into(),
+        changes: vec![LintFixChange {
+          new_text: "globalThis".into(),
+          range,
+        }],
+      }],
+    );
+  }
+}
+
 impl Handler for NoWindowGlobalHandler {
   fn member_expr(&mut self, expr: &ast_view::MemberExpr, ctx: &mut Context) {
     if expr.parent().is::<ast_view::MemberExpr>() {
@@ -54,12 +76,7 @@ impl Handler for NoWindowGlobalHandler {
       if ident.sym() == "window";
       if ctx.scope().is_global(&ident.inner.to_id());
       then {
-        ctx.add_diagnostic_with_hint(
-          ident.range(),
-          CODE,
-          MESSAGE,
-          HINT,
-        );
+        self.add_diagnostic(ctx, ident.range());
       }
     }
   }
@@ -71,12 +88,7 @@ impl Handler for NoWindowGlobalHandler {
       if ident.sym() == "window";
       if ctx.scope().is_global(&ident.inner.to_id());
       then {
-        ctx.add_diagnostic_with_hint(
-          ident.range(),
-          CODE,
-          MESSAGE,
-          HINT,
-        );
+        self.add_diagnostic(ctx, ident.range());
       }
     }
   }
@@ -117,16 +129,19 @@ mod tests {
       r#"window.fetch()"#: [
         {
           col: 0,
+          fix: (FIX_DESC, "globalThis.fetch()"),
         }
       ],
       r#"window["fetch"]()"#: [
         {
           col: 0,
+          fix: (FIX_DESC, r#"globalThis["fetch"]()"#),
         }
       ],
       r#"window[`fetch`]()"#: [
         {
           col: 0,
+          fix: (FIX_DESC, "globalThis[`fetch`]()"),
         }
       ],
       r#"
@@ -134,11 +149,16 @@ function foo() {
   const window = 42;
   return window;
 }
-window;
-      "#: [
+window;"#: [
         {
           col: 0,
           line: 6,
+          fix: (FIX_DESC, "
+function foo() {
+  const window = 42;
+  return window;
+}
+globalThis;"),
         }
       ],
     };
