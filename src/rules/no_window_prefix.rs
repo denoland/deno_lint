@@ -21,8 +21,7 @@ const CODE: &str = "no-window-prefix";
 const MESSAGE: &str = "For compatibility between the Window context and the Web Workers, calling Web APIs via `window` is disallowed";
 const HINT: &str =
   "Instead, call this API via `self`, `globalThis`, or no extra prefix";
-const FIX_GLOBAL_THIS_DESC: &str = "Rename window to globalThis";
-const FIX_SELF_DESC: &str = "Rename window to self";
+const FIX_DESC: &str = "Rename window to globalThis";
 
 impl LintRule for NoWindowPrefix {
   fn tags(&self) -> &'static [&'static str] {
@@ -258,15 +257,9 @@ impl Handler for NoWindowPrefixHandler {
           MESSAGE,
           Some(HINT.into()),
           vec![LintFix {
-            description: FIX_GLOBAL_THIS_DESC.into(),
+            description: FIX_DESC.into(),
             changes: vec![LintFixChange {
               new_text: "globalThis".into(),
-              range: obj_ident.range(),
-            }],
-          }, LintFix {
-            description: FIX_SELF_DESC.into(),
-            changes: vec![LintFixChange {
-              new_text: "self".into(),
               range: obj_ident.range(),
             }],
           }]
@@ -403,22 +396,19 @@ mod tests {
       r#"window.fetch()"#: [
         {
           col: 0,
-          fix: (FIX_GLOBAL_THIS_DESC, "globalThis.fetch()"),
-          fix: (FIX_SELF_DESC, "self.fetch()"),
+          fix: (FIX_DESC, "globalThis.fetch()"),
         }
       ],
       r#"window["fetch"]()"#: [
         {
           col: 0,
-          fix: (FIX_GLOBAL_THIS_DESC, r#"globalThis["fetch"]()"#),
-          fix: (FIX_SELF_DESC, r#"self["fetch"]()"#),
+          fix: (FIX_DESC, r#"globalThis["fetch"]()"#),
         }
       ],
       r#"window[`fetch`]()"#: [
         {
           col: 0,
-          fix: (FIX_GLOBAL_THIS_DESC, "globalThis[`fetch`]()"),
-          fix: (FIX_SELF_DESC, "self[`fetch`]()"),
+          fix: (FIX_DESC, "globalThis[`fetch`]()"),
         }
       ],
       "
@@ -430,18 +420,12 @@ window.fetch();": [
         {
           col: 0,
           line: 6,
-          fix: (FIX_GLOBAL_THIS_DESC, "
+          fix: (FIX_DESC, "
 function foo() {
   const window = 42;
   return window;
 }
 globalThis.fetch();"),
-          fix: (FIX_SELF_DESC, "
-function foo() {
-  const window = 42;
-  return window;
-}
-self.fetch();"),
         }
       ],
     };
