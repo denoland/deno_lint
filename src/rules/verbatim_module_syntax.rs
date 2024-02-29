@@ -39,7 +39,7 @@ enum Hint {
   )]
   ChangeImportToImportType,
   #[display(
-    fmt = "Change `export` to `export type` and optionally add an explicit side effect import"
+    fmt = "Change `export` to `export type`"
   )]
   ChangeExportToExportType,
   #[display(fmt = "Add a `type` keyword before the identifier")]
