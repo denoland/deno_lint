@@ -340,8 +340,7 @@ impl<'view> Context<'view> {
     hint: Option<String>,
     fixes: Vec<LintFix>,
   ) {
-    let diagnostic =
-      self.create_diagnostic(range, code, message, hint, fixes);
+    let diagnostic = self.create_diagnostic(range, code, message, hint, fixes);
     self.diagnostics.push(diagnostic);
   }
 
