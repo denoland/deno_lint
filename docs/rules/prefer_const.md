@@ -13,8 +13,8 @@ write buggy code. So this lint rule checks if there are [`let`] variables that
 could potentially be declared with [`const`] instead.
 
 Note that this rule does not check for [`var`] variables. Instead,
-[the `no-var` rule](https://lint.deno.land/rules/no-var) is responsible for detecting
-and warning [`var`] variables.
+[the `no-var` rule](https://lint.deno.land/rules/no-var) is responsible for
+detecting and warning [`var`] variables.
 
 [`let`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let
 [`const`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const
