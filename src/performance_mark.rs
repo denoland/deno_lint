@@ -6,22 +6,28 @@ use std::time::Instant;
 ///
 /// When the struct is dropped, `debug!` is used to print the measurement.
 pub struct PerformanceMark {
-  name: String,
-  start: Instant,
+  name: &'static str,
+  start: Option<Instant>,
 }
 
 impl PerformanceMark {
-  pub fn new(name: &str) -> Self {
+  pub fn new(name: &'static str) -> Self {
     Self {
-      name: name.to_string(),
-      start: Instant::now(),
+      name,
+      start: if log::log_enabled!(log::Level::Debug) {
+        Some(Instant::now())
+      } else {
+        None
+      },
     }
   }
 }
 
 impl Drop for PerformanceMark {
   fn drop(&mut self) {
-    let end = Instant::now();
-    debug!("{} took {:#?}", self.name, end - self.start);
+    if let Some(start) = self.start {
+      let end = Instant::now();
+      debug!("{} took {:#?}", self.name, end - start);
+    }
   }
 }
