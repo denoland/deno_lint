@@ -38,9 +38,7 @@ enum Hint {
     fmt = "Change `import` to `import type` and optionally add an explicit side effect import"
   )]
   ChangeImportToImportType,
-  #[display(
-    fmt = "Change `export` to `export type`"
-  )]
+  #[display(fmt = "Change `export` to `export type`")]
   ChangeExportToExportType,
   #[display(fmt = "Add a `type` keyword before the identifier")]
   AddTypeKeyword,
@@ -138,7 +136,10 @@ impl VerbatimModuleSyntax {
     context: &mut Context,
     program: Program,
   ) {
-    if named_export.type_only() || named_export.specifiers.is_empty() || named_export.src.is_some() {
+    if named_export.type_only()
+      || named_export.specifiers.is_empty()
+      || named_export.src.is_some()
+    {
       return;
     }
 
