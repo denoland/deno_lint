@@ -413,7 +413,7 @@ fn assert_diagnostic_2(
     source
   );
   let actual_fixes = diagnostic
-    .quick_fixes
+    .fixes
     .iter()
     .map(|fix| LintErrFix {
       description: fix.description.to_string(),

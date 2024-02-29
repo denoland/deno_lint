@@ -1,7 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use crate::control_flow::ControlFlow;
-use crate::diagnostic::{LintDiagnostic, LintQuickFix};
+use crate::diagnostic::{LintDiagnostic, LintFix};
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
@@ -332,16 +332,15 @@ impl<'view> Context<'view> {
     self.diagnostics.push(diagnostic);
   }
 
-  pub fn add_diagnostic_with_quick_fixes(
+  pub fn add_diagnostic_with_fixes(
     &mut self,
     range: SourceRange,
     code: impl ToString,
     message: impl ToString,
     hint: Option<String>,
-    quick_fixes: Vec<LintQuickFix>,
+    fixes: Vec<LintFix>,
   ) {
-    let diagnostic =
-      self.create_diagnostic(range, code, message, hint, quick_fixes);
+    let diagnostic = self.create_diagnostic(range, code, message, hint, fixes);
     self.diagnostics.push(diagnostic);
   }
 
@@ -351,7 +350,7 @@ impl<'view> Context<'view> {
     code: impl ToString,
     message: impl ToString,
     maybe_hint: Option<String>,
-    quick_fixes: Vec<LintQuickFix>,
+    fixes: Vec<LintFix>,
   ) -> LintDiagnostic {
     LintDiagnostic {
       specifier: self.specifier().clone(),
@@ -360,7 +359,7 @@ impl<'view> Context<'view> {
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,
-      quick_fixes,
+      fixes,
     }
   }
 }

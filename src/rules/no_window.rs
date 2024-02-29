@@ -1,8 +1,8 @@
 // Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
 use super::Context;
 use super::LintRule;
-use crate::diagnostic::LintQuickFix;
-use crate::diagnostic::LintQuickFixChange;
+use crate::diagnostic::LintFix;
+use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
@@ -48,14 +48,14 @@ struct NoWindowGlobalHandler;
 
 impl NoWindowGlobalHandler {
   fn add_diagnostic(&self, ctx: &mut Context, range: SourceRange) {
-    ctx.add_diagnostic_with_quick_fixes(
+    ctx.add_diagnostic_with_fixes(
       range,
       CODE,
       MESSAGE,
       Some(HINT.to_string()),
-      vec![LintQuickFix {
+      vec![LintFix {
         description: FIX_DESC.into(),
-        changes: vec![LintQuickFixChange {
+        changes: vec![LintFixChange {
           new_text: "globalThis".into(),
           range,
         }],
