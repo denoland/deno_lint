@@ -2,8 +2,8 @@
 
 use super::Context;
 use super::LintRule;
-use crate::diagnostic::LintQuickFix;
-use crate::diagnostic::LintQuickFixChange;
+use crate::diagnostic::LintFix;
+use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
@@ -252,20 +252,20 @@ impl Handler for NoWindowPrefixHandler {
       if let Some(prop_symbol) = extract_symbol(member_expr);
       if PROPERTY_DENY_LIST.contains(prop_symbol);
       then {
-        ctx.add_diagnostic_with_quick_fixes(
+        ctx.add_diagnostic_with_fixes(
           member_expr.range(),
           CODE,
           MESSAGE,
           Some(HINT.into()),
-          vec![LintQuickFix {
+          vec![LintFix {
             description: FIX_GLOBAL_THIS_DESC.into(),
-            changes: vec![LintQuickFixChange {
+            changes: vec![LintFixChange {
               new_text: "globalThis".into(),
               range: obj_ident.range(),
             }],
-          }, LintQuickFix {
+          }, LintFix {
             description: FIX_SELF_DESC.into(),
-            changes: vec![LintQuickFixChange {
+            changes: vec![LintFixChange {
               new_text: "self".into(),
               range: obj_ident.range(),
             }],

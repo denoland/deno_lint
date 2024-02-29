@@ -15,15 +15,15 @@ use deno_ast::SourceRange;
 use deno_ast::SourceTextInfo;
 
 #[derive(Debug, Clone)]
-pub struct LintQuickFixChange {
+pub struct LintFixChange {
   pub new_text: Cow<'static, str>,
   pub range: SourceRange,
 }
 
 #[derive(Debug, Clone)]
-pub struct LintQuickFix {
+pub struct LintFix {
   pub description: Cow<'static, str>,
-  pub changes: Vec<LintQuickFixChange>,
+  pub changes: Vec<LintFixChange>,
 }
 
 #[derive(Clone)]
@@ -34,7 +34,7 @@ pub struct LintDiagnostic {
   pub message: String,
   pub code: String,
   pub hint: Option<String>,
-  pub quick_fixes: Vec<LintQuickFix>,
+  pub fixes: Vec<LintFix>,
 }
 
 impl Diagnostic for LintDiagnostic {
