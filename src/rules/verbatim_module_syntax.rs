@@ -23,13 +23,13 @@ const FIX_DESC: &str = "Add a type keyword";
 #[derive(Display)]
 enum Message {
   #[display(fmt = "All import identifiers are used in types")]
-  AllImportIdentsUsedInTypePositions,
+  AllImportIdentsUsedInTypes,
   #[display(fmt = "Import identifier only used in types")]
-  ImportIdentUsedInTypePositions,
+  ImportIdentUsedInTypes,
   #[display(fmt = "All export identifiers are used in types")]
-  AllExportIdentsUsedInTypePositions,
+  AllExportIdentsUsedInTypes,
   #[display(fmt = "Export identifier only used in types")]
-  ExportIdentUsedInTypePositions,
+  ExportIdentUsedInTypes,
 }
 
 #[derive(Display)]
@@ -105,7 +105,7 @@ impl VerbatimModuleSyntax {
       context.add_diagnostic_with_fixes(
         import_token_range,
         CODE,
-        Message::AllImportIdentsUsedInTypePositions,
+        Message::AllImportIdentsUsedInTypes,
         Some(Hint::ChangeImportToImportType.to_string()),
         vec![LintFix {
           description: FIX_DESC.into(),
@@ -117,7 +117,7 @@ impl VerbatimModuleSyntax {
         context.add_diagnostic_with_fixes(
           specifier.range(),
           CODE,
-          Message::ImportIdentUsedInTypePositions,
+          Message::ImportIdentUsedInTypes,
           Some(Hint::AddTypeKeyword.to_string()),
           vec![LintFix {
             description: FIX_DESC.into(),
@@ -183,7 +183,7 @@ impl VerbatimModuleSyntax {
       context.add_diagnostic_with_fixes(
         export_token_range,
         CODE,
-        Message::AllExportIdentsUsedInTypePositions,
+        Message::AllExportIdentsUsedInTypes,
         Some(Hint::ChangeExportToExportType.to_string()),
         vec![LintFix {
           description: FIX_DESC.into(),
@@ -195,7 +195,7 @@ impl VerbatimModuleSyntax {
         context.add_diagnostic_with_fixes(
           specifier.range(),
           CODE,
-          Message::ExportIdentUsedInTypePositions,
+          Message::ExportIdentUsedInTypes,
           Some(Hint::AddTypeKeyword.to_string()),
           vec![LintFix {
             description: FIX_DESC.into(),
@@ -403,7 +403,7 @@ mod tests {
       "import { Type } from 'module'; type Test = Type;": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type { Type } from 'module'; type Test = Type;"),
         }
@@ -411,7 +411,7 @@ mod tests {
       "import { Type, Other } from 'module'; type Test = Type | Other;": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
         }
@@ -419,7 +419,7 @@ mod tests {
       "import { type Type, Other } from 'module'; type Test = Type | Other;": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
         }
@@ -427,7 +427,7 @@ mod tests {
       "import { Type, value } from 'module'; type Test = Type; value();": [
         {
           col: 9,
-          message: Message::ImportIdentUsedInTypePositions,
+          message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { type Type, value } from 'module'; type Test = Type; value();"),
         }
@@ -435,13 +435,13 @@ mod tests {
       "import { Type, Other, value } from 'module'; type Test = Type | Other; value();": [
         {
           col: 9,
-          message: Message::ImportIdentUsedInTypePositions,
+          message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { type Type, Other, value } from 'module'; type Test = Type | Other; value();"),
         },
         {
           col: 15,
-          message: Message::ImportIdentUsedInTypePositions,
+          message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { Type, type Other, value } from 'module'; type Test = Type | Other; value();"),
         }
@@ -449,7 +449,7 @@ mod tests {
       "import * as value from 'module'; type Test = typeof value;": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type * as value from 'module'; type Test = typeof value;"),
         }
@@ -457,7 +457,7 @@ mod tests {
       "import value from 'module'; type Test = typeof value;": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type value from 'module'; type Test = typeof value;"),
         }
@@ -465,7 +465,7 @@ mod tests {
       "type Test = string; export { Test };": [
         {
           col: 20,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "type Test = string; export type { Test };"),
         }
@@ -473,7 +473,7 @@ mod tests {
       "type Test = string; type Test2 = string; export { Test, Test2 };": [
         {
           col: 41,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "type Test = string; type Test2 = string; export type { Test, Test2 };"),
         }
@@ -481,13 +481,13 @@ mod tests {
       "import { type value } from 'module'; export { value };": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type { value } from 'module'; export { value };"),
         },
         {
           col: 37,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "import { type value } from 'module'; export type { value };"),
         }
@@ -495,13 +495,13 @@ mod tests {
       "import { value } from 'module'; export { type value };": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type { value } from 'module'; export { type value };"),
         },
         {
           col: 32,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "import { value } from 'module'; export type { value };"),
         }
@@ -509,7 +509,7 @@ mod tests {
       "import type { value } from 'module'; export { value };": [
         {
           col: 37,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "import type { value } from 'module'; export type { value };"),
         }
@@ -517,7 +517,7 @@ mod tests {
       "import { value } from 'module'; export type { value };": [
         {
           col: 0,
-          message: Message::AllImportIdentsUsedInTypePositions,
+          message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
           fix: (FIX_DESC, "import type { value } from 'module'; export type { value };"),
         }
@@ -525,7 +525,7 @@ mod tests {
       "import { value, type Type } from 'module'; console.log(value); export { Type };": [
         {
           col: 63,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "import { value, type Type } from 'module'; console.log(value); export type { Type };"),
         }
@@ -533,13 +533,13 @@ mod tests {
       "import { value, Type } from 'module'; console.log(value); export { type Type };": [
         {
           col: 16,
-          message: Message::ImportIdentUsedInTypePositions,
+          message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { value, type Type } from 'module'; console.log(value); export { type Type };"),
         },
         {
           col: 58,
-          message: Message::AllExportIdentsUsedInTypePositions,
+          message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
           fix: (FIX_DESC, "import { value, Type } from 'module'; console.log(value); export type { Type };"),
         }
@@ -547,7 +547,7 @@ mod tests {
       "import { value, Type } from 'module'; console.log(value); export type { Type };": [
         {
           col: 16,
-          message: Message::ImportIdentUsedInTypePositions,
+          message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { value, type Type } from 'module'; console.log(value); export type { Type };"),
         }
@@ -555,7 +555,7 @@ mod tests {
       "import { value, type Type } from 'module'; export { value, Type };": [
         {
           col: 59,
-          message: Message::ExportIdentUsedInTypePositions,
+          message: Message::ExportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
         }
@@ -563,7 +563,7 @@ mod tests {
       "import { value, Type } from 'module'; export { value, type Type };": [
         {
           col: 16,
-          message: Message::ImportIdentUsedInTypePositions,
+          message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
         }

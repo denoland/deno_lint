@@ -1,8 +1,8 @@
 Enforces type imports to be declared as type imports.
 
-This rule ensures that the code works when the `verbatimModuleSyntax` compiler
-option is enabled. This is useful in libraries distributing TypeScript code in
-order to work in more scenarios.
+This rule ensures that the code works when the `verbatimModuleSyntax` TypeScript
+compiler option is enabled. This is useful in libraries distributing TypeScript
+code in order to work in more scenarios.
 
 ### Invalid:
 
