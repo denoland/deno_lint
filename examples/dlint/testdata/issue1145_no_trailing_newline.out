@@ -4,7 +4,7 @@ error[no-var]: `var` keyword is not allowed.
 3 | var base
   | ^^^
 
-  docs: https://lint.deno.land/#no-var
+  docs: https://lint.deno.land/rules/no-var
 
 
 error[no-unused-vars]: `base` is never used
@@ -14,7 +14,7 @@ error[no-unused-vars]: `base` is never used
   |     ^^^^
   = hint: If this is intentional, prefix it with an underscore like `_base`
 
-  docs: https://lint.deno.land/#no-unused-vars
+  docs: https://lint.deno.land/rules/no-unused-vars
 
 
 Found 2 problems
