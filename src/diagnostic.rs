@@ -34,6 +34,12 @@ pub struct LintDiagnostic {
   pub message: String,
   pub code: String,
   pub hint: Option<String>,
+  /// Fixes that should be shown in the Deno LSP and also
+  /// used for the `deno lint --fix` flag.
+  ///
+  /// Note: If there are multiple fixes for a diagnostic then
+  /// only the first fix will be used for the `--fix` flag, but
+  /// multiple will be shown in the LSP.
   pub fixes: Vec<LintFix>,
 }
 
