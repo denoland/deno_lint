@@ -1,16 +1,12 @@
 Disallows the declaration of an empty interface
 
-An interface with no members serves no purpose. Either the interface extends
-another interface, in which case the supertype can be used, or it does not
-extend a supertype in which case it is the equivalent to an empty object. This
-rule will capture these situations as either unnecessary code or a mistaken
-empty implementation.
+An interface with no members serves no purpose. This rule will capture these
+situations as either unnecessary code or a mistaken empty implementation.
 
 ### Invalid:
 
 ```typescript
 interface Foo {}
-interface Foo extends Bar {}
 ```
 
 ### Valid:
@@ -24,6 +20,16 @@ interface Bar {
   age: number;
 }
 
-// Using an empty interface as a union type is allowed
+// Using an empty interface with at least one extension are allowed.
+
+// Using an empty interface to change the identity of Baz from type to interface.
+type Baz = { profession: string };
+interface Foo extends Baz {}
+
+// Using an empty interface to extend already existing Foo declaration
+// with members of the Bar interface
+interface Foo extends Bar {}
+
+// Using an empty interface as a union type
 interface Baz extends Foo, Bar {}
 ```

@@ -268,7 +268,7 @@
   },
   {
     "code": "no-empty-interface",
-    "docs": "Disallows the declaration of an empty interface\n\nAn interface with no members serves no purpose. Either the interface extends\nanother interface, in which case the supertype can be used, or it does not\nextend a supertype in which case it is the equivalent to an empty object. This\nrule will capture these situations as either unnecessary code or a mistaken\nempty implementation.\n\n### Invalid:\n\n```typescript\ninterface Foo {}\ninterface Foo extends Bar {}\n```\n\n### Valid:\n\n```typescript\ninterface Foo {\n  name: string;\n}\n\ninterface Bar {\n  age: number;\n}\n\n// Using an empty interface as a union type is allowed\ninterface Baz extends Foo, Bar {}\n```\n",
+    "docs": "Disallows the declaration of an empty interface\n\nAn interface with no members serves no purpose. This rule will capture these\nsituations as either unnecessary code or a mistaken empty implementation.\n\n### Invalid:\n\n```typescript\ninterface Foo {}\n```\n\n### Valid:\n\n```typescript\ninterface Foo {\n  name: string;\n}\n\ninterface Bar {\n  age: number;\n}\n\n// Using an empty interface with at least one extension are allowed.\n\n// Using an empty interface to change the identity of Baz from type to interface.\ntype Baz = { profession: string };\ninterface Foo extends Baz {}\n\n// Using an empty interface to extend already existing Foo declaration\n// with members of the Bar interface\ninterface Foo extends Bar {}\n\n// Using an empty interface as a union type\ninterface Baz extends Foo, Bar {}\n```\n",
     "tags": [
       "recommended"
     ]
