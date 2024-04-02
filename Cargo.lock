@@ -249,7 +249,7 @@ dependencies = [
 
 [[package]]
 name = "deno_lint"
-version = "0.58.0"
+version = "0.58.1"
 dependencies = [
  "ansi_term",
  "anyhow",
