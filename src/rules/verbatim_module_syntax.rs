@@ -6,7 +6,7 @@ use crate::Program;
 use deno_ast::swc::ast::{
   BindingIdent, ExportNamedSpecifier, Id, Ident, ImportDecl, ImportSpecifier,
   JSXElementName, ModuleExportName, NamedExport, TsEntityName,
-  TsExprWithTypeArgs, TsImportEqualsDecl, TsModuleRef,
+  TsImportEqualsDecl, TsModuleRef,
 };
 use deno_ast::swc::common::collections::AHashSet;
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
@@ -294,9 +294,6 @@ impl Visit for IdCollector {
   fn visit_binding_ident(&mut self, _: &BindingIdent) {
     // skip
   }
-
-  // todo: remove once https://github.com/swc-project/swc/pull/8677 has landed
-  fn visit_ts_expr_with_type_args(&mut self, _: &TsExprWithTypeArgs) {}
 
   fn visit_import_decl(&mut self, n: &ImportDecl) {
     if n.type_only {
