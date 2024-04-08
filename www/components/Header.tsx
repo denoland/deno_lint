@@ -33,6 +33,14 @@ export function Header({ active }: { active: string }) {
         </div>
         <div>
           <a
+            href="https://docs.deno.com/runtime/manual/tools/linter"
+            class="hover:underline flex gap-1 items-center"
+          >
+            Docs
+          </a>
+        </div>
+        <div>
+          <a
             href="https://github.com/denoland/deno_lint"
             class="hover:underline flex gap-1 items-center"
           >
