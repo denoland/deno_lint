@@ -1,3 +1,5 @@
+import IconBrandGithub from "https://deno.land/x/tabler_icons_tsx@0.0.5/tsx/brand-github.tsx";
+
 import jsonData from "../../static/docs.json" with { type: "json" };
 
 import { Handlers, PageProps } from "$fresh/server.ts";
@@ -26,6 +28,9 @@ export const handler: Handlers<RuleData> = {
 
 export default function RulePage(props: PageProps) {
   const rule: RuleData = props.data;
+  const ruleSlug = rule.code.replaceAll("-", "_");
+  const sourceLink =
+    `https://github.com/denoland/deno_lint/blob/main/src/rules/${ruleSlug}.rs`;
 
   return (
     <div>
@@ -42,6 +47,15 @@ export default function RulePage(props: PageProps) {
       <main>
         <Rule rule={rule} open />
       </main>
+      <footer>
+        <a class="hover:underline" href={sourceLink}>
+          <IconBrandGithub
+            title="View rule source on GitHub"
+            class="w-5 h-5 mr-1 inline"
+          />
+          Rule source
+        </a>
+      </footer>
     </div>
   );
 }
