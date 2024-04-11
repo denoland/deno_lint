@@ -291,8 +291,9 @@ impl Visit for IdCollector {
     self.id_usage.insert(n.to_id());
   }
 
-  fn visit_binding_ident(&mut self, _: &BindingIdent) {
-    // skip
+  fn visit_binding_ident(&mut self, id: &BindingIdent) {
+    // mark declarations as usages for export declarations
+    self.id_usage.insert(id.id.to_id());
   }
 
   fn visit_import_decl(&mut self, n: &ImportDecl) {
@@ -392,6 +393,8 @@ mod tests {
       "import { value, type Type } from 'module'; console.log(value); export type { Type };",
       "import { value, type Type } from 'module'; export { value, type Type };",
       "export { value } from './value.ts';",
+      "const logger = { setItems }; export { logger };",
+      "class Test {} export { Test };",
     };
   }
 
@@ -565,6 +568,24 @@ mod tests {
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
           fix: (FIX_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
+        }
+      ],
+      "interface Test {}\nexport { Test };": [
+        {
+          line: 2,
+          col: 0,
+          message: Message::AllExportIdentsUsedInTypes,
+          hint: Hint::ChangeExportToExportType,
+          fix: (FIX_DESC, "interface Test {}\nexport type { Test };"),
+        }
+      ],
+      "type Test = 'test';\nexport { Test };": [
+        {
+          line: 2,
+          col: 0,
+          message: Message::AllExportIdentsUsedInTypes,
+          hint: Hint::ChangeExportToExportType,
+          fix: (FIX_DESC, "type Test = 'test';\nexport type { Test };"),
         }
       ],
     };
