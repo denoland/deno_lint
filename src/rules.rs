@@ -108,6 +108,7 @@ pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
 pub mod verbatim_module_syntax;
+pub mod no_boolean_literal_for_arguments;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Executes lint using `dprint-swc-ecma-ast-view`.
