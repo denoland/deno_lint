@@ -9,8 +9,8 @@ pub struct NoBooleanLiteralForArguments;
 
 const CODE: &str = "no-boolean-literal-for-arguments";
 const MESSAGE: &str = "Please create a self-documenting constant instead of \
-passing plain boolean values as parameters";
-const HINT: &str = "const ARG_ONE = true, ARG_TWO = false; yourFunction(ARG_ONE, ARG_TWO)";
+passing plain booleans values as arguments";
+const HINT: &str = "const ARG_ONE = true, ARG_TWO = false;\nyourFunction(ARG_ONE, ARG_TWO)";
 
 impl LintRule for NoBooleanLiteralForArguments {
   fn lint_program_with_ast_view<'view>(&self, context: &mut Context<'view>, program: Program<'view>) {
@@ -36,19 +36,14 @@ struct NoBooleanLiteralForArgumentsVisitor;
 impl Handler for NoBooleanLiteralForArgumentsVisitor {
   fn call_expr(&mut self, call_expression: &CallExpr, ctx: &mut Context) {
     let args = call_expression.args;
-    let amount_of_args = args.len();
-    if amount_of_args < 2 {
-      return;
-    }
-    let mut total_amount_of_bool_args = 0;
-    let is_boolean = |text: &str| -> bool {
+    let is_boolean_literal = |text: &str| -> bool {
       match text {
         "true" | "false" => true,
         _ => false
       }
     };
     for arg in args {
-      if total_amount_of_bool_args > 0 {
+      if is_boolean_literal(arg.text()) {
         ctx.add_diagnostic_with_hint(
          call_expression.range(),
           CODE,
@@ -56,9 +51,6 @@ impl Handler for NoBooleanLiteralForArgumentsVisitor {
           HINT,
         );
         break;
-      }
-      if is_boolean(arg.text()) {
-        total_amount_of_bool_args += 1;
       }
     }
   }
@@ -72,8 +64,6 @@ mod test {
   fn no_boolean_literal_for_arguments_valid() {
     assert_lint_ok! {
       NoBooleanLiteralForArguments,
-      r#"enable(true)"#,
-      r#"enable(false)"#,
       r#"runCMDCommand(command, executionMode)"#,
       r#"
       function formatLog(logData: { level: string, text: string }) {
@@ -82,13 +72,13 @@ mod test {
       formatLog({ level: "INFO", text: "Connected to the DB!" });
       "#,
       r#"
-      function displayInformation(display: boolean) {
+      function displayInformation(display: { renderer: "terminal" | "screen", recursive: boolean }) {
         if (display) {
           renderInformation();
         }
         // TODO!
       }
-      displayInformation(true);
+      displayInformation({ renderer: "terminal", recursive: true });
       "#
     }
   }
@@ -112,6 +102,15 @@ mod test {
       r#"
       runCMD(true, CMD.MODE_ONE)
       "#:[{line: 2, col: 6, message: MESSAGE, hint: HINT}],
-    };
+      r#"
+      function displayInformation(display: boolean) {
+        if (display) {
+          renderInformation();
+        }
+        // TODO!
+      }
+      displayInformation(true);
+      "#:[{line: 8, col: 6, message: MESSAGE, hint: HINT}],
+    }
   }
 }
