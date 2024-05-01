@@ -1,10 +1,8 @@
-use std::any::Any;
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::swc_util::find_lhs_ids;
 use crate::Program;
-use deno_ast::view::{AssignExpr, CallExpr, NodeTrait};
-use deno_ast::{BindingKind, SourceRanged};
+use deno_ast::view::{CallExpr, NodeTrait};
+use deno_ast::{SourceRanged};
 
 #[derive(Debug)]
 pub struct NoBooleanLiteralForArguments;
@@ -29,7 +27,7 @@ impl LintRule for NoBooleanLiteralForArguments {
 
   #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    todo!()
+    include_str!("../../docs/rules/no_boolean_literal_for_arguments.md")
   }
 }
 
@@ -38,10 +36,11 @@ struct NoBooleanLiteralForArgumentsVisitor;
 impl Handler for NoBooleanLiteralForArgumentsVisitor {
   fn call_expr(&mut self, call_expression: &CallExpr, ctx: &mut Context) {
     let args = call_expression.args;
-    if args.len() < 2 {
+    let amount_of_args = args.len();
+    if amount_of_args < 2 {
       return;
     }
-    let mut prev_argument_is_bool = false;
+    let mut total_amount_of_bool_args = 0;
     let is_boolean = |text: &str| -> bool {
       match text {
         "true" | "false" => true,
@@ -49,16 +48,17 @@ impl Handler for NoBooleanLiteralForArgumentsVisitor {
       }
     };
     for arg in args {
-      if prev_argument_is_bool.clone() && is_boolean(arg.text()) {
+      if total_amount_of_bool_args > 0 {
         ctx.add_diagnostic_with_hint(
          call_expression.range(),
           CODE,
           MESSAGE,
           HINT,
         );
+        break;
       }
       if is_boolean(arg.text()) {
-        prev_argument_is_bool = true;
+        total_amount_of_bool_args += 1;
       }
     }
   }
@@ -70,7 +70,27 @@ mod test {
 
   #[test]
   fn no_boolean_literal_for_arguments_valid() {
-
+    assert_lint_ok! {
+      NoBooleanLiteralForArguments,
+      r#"enable(true)"#,
+      r#"enable(false)"#,
+      r#"runCMDCommand(command, executionMode)"#,
+      r#"
+      function formatLog(logData: { level: string, text: string }) {
+        console.log(`[${level}]:${text}`);
+      }
+      formatLog({ level: "INFO", text: "Connected to the DB!" });
+      "#,
+      r#"
+      function displayInformation(display: boolean) {
+        if (display) {
+          renderInformation();
+        }
+        // TODO!
+      }
+      displayInformation(true);
+      "#
+    }
   }
 
   #[test]
@@ -80,6 +100,18 @@ mod test {
       r#"test(true,true)"#:[{line: 1, col: 0, message: MESSAGE, hint: HINT}],
       r#"test(false,true)"#:[{line: 1, col: 0, message: MESSAGE, hint: HINT}],
       r#"test(false,false)"#:[{line: 1, col: 0, message: MESSAGE, hint: HINT}],
+      r#"invoke(true,remoteServerUrl,true)"#:[{line: 1, col: 0, message: MESSAGE, hint: HINT}],
+      r#"
+      function enableLinting(enable: boolean, limitDepth: boolean) {
+        if (enable) {
+          linter.run();
+        }
+      }
+      enableLinting(true,false);
+      "#:[{line: 7, col: 6, message: MESSAGE, hint: HINT}],
+      r#"
+      runCMD(true, CMD.MODE_ONE)
+      "#:[{line: 2, col: 6, message: MESSAGE, hint: HINT}],
     };
   }
 }
