@@ -28,6 +28,7 @@ pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
 pub mod no_await_in_sync_fn;
+pub mod no_boolean_literal_for_arguments;
 pub mod no_case_declarations;
 pub mod no_class_assign;
 pub mod no_compare_neg_zero;
@@ -108,7 +109,6 @@ pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
 pub mod verbatim_module_syntax;
-pub mod no_boolean_literal_for_arguments;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Executes lint using `dprint-swc-ecma-ast-view`.

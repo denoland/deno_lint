@@ -2,7 +2,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{CallExpr, NodeTrait};
-use deno_ast::{SourceRanged};
+use deno_ast::SourceRanged;
 
 #[derive(Debug)]
 pub struct NoBooleanLiteralForArguments;
@@ -10,10 +10,15 @@ pub struct NoBooleanLiteralForArguments;
 const CODE: &str = "no-boolean-literal-for-arguments";
 const MESSAGE: &str = "Please create a self-documenting constant instead of \
 passing plain booleans values as arguments";
-const HINT: &str = "const ARG_ONE = true, ARG_TWO = false;\nyourFunction(ARG_ONE, ARG_TWO)";
+const HINT: &str =
+  "const ARG_ONE = true, ARG_TWO = false;\nyourFunction(ARG_ONE, ARG_TWO)";
 
 impl LintRule for NoBooleanLiteralForArguments {
-  fn lint_program_with_ast_view<'view>(&self, context: &mut Context<'view>, program: Program<'view>) {
+  fn lint_program_with_ast_view<'view>(
+    &self,
+    context: &mut Context<'view>,
+    program: Program<'view>,
+  ) {
     NoBooleanLiteralForArgumentsVisitor.traverse(program, context);
   }
 
@@ -39,13 +44,13 @@ impl Handler for NoBooleanLiteralForArgumentsVisitor {
     let is_boolean_literal = |text: &str| -> bool {
       match text {
         "true" | "false" => true,
-        _ => false
+        _ => false,
       }
     };
     for arg in args {
       if is_boolean_literal(arg.text()) {
         ctx.add_diagnostic_with_hint(
-         call_expression.range(),
+          call_expression.range(),
           CODE,
           MESSAGE,
           HINT,
