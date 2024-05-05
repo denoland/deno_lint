@@ -1,5 +1,4 @@
-// @deno-types="../static/deno_lint.d.ts"
-import init, { run } from "../static/deno_lint.js";
+import { instantiate, run } from "../static/deno_lint.generated.js";
 import { useEffect, useMemo } from "preact/hooks";
 import { type Signal, useComputed, useSignal } from "@preact/signals";
 import Convert from "https://esm.sh/v130/ansi-to-html@0.7.2";
@@ -22,7 +21,10 @@ export default function Linter(props: Props) {
   const initialized = useSignal(false);
 
   useEffect(() => {
-    init(fetch("/deno_lint_bg.wasm")).then(() => {
+    const origin = new URL(location.href).origin;
+    instantiate({
+      url: new URL("deno_lint_bg.wasm", origin),
+    }).then(() => {
       initialized.value = true;
     });
   }, []);
@@ -55,7 +57,7 @@ export default function Linter(props: Props) {
     <div class="h-full">
       <div class="border border-gray-300 dark:border-gray-700 dark:bg-[#1e1e1e] p-4 overflow-x-auto h-full">
         {display.value.kind === "Loading"
-          ? <p>Loading...</p>
+          ? <p>wasm is being loaded...</p>
           : display.value.kind === "LintError"
           ? (
             <>
