@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -100,7 +101,7 @@ fn return_before_super<'a, 'view>(
   constructor: &'a ast_view::Constructor<'view>,
 ) -> Option<&'a ast_view::ReturnStmt<'view>> {
   if let Some(block_stmt) = &constructor.body {
-    for stmt in &block_stmt.stmts {
+    for stmt in block_stmt.stmts {
       if extract_super_range(stmt).is_some() {
         return None;
       }
@@ -188,7 +189,7 @@ struct ConstructorSuperHandler;
 
 impl Handler for ConstructorSuperHandler {
   fn class(&mut self, class: &ast_view::Class, ctx: &mut Context) {
-    for member in &class.body {
+    for member in class.body {
       if let ast_view::ClassMember::Constructor(cons) = member {
         check_constructor(cons, class, ctx);
       }

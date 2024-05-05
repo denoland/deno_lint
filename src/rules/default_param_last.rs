@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -170,23 +171,23 @@ class Foo {
       }],
       r#"function f(a = 5, b = 6, c) {}"#: [
       {
-        col: 18,
+        col: 11,
         message: DefaultParamLastMessage::DefaultLast,
         hint: DefaultParamLastHint::MoveToEnd,
       },
       {
-        col: 11,
+        col: 18,
         message: DefaultParamLastMessage::DefaultLast,
         hint: DefaultParamLastHint::MoveToEnd,
       }],
       r#"function f(a = 5, b, c = 6, d) {}"#: [
       {
-        col: 21,
+        col: 11,
         message: DefaultParamLastMessage::DefaultLast,
         hint: DefaultParamLastHint::MoveToEnd,
       },
       {
-        col: 11,
+        col: 21,
         message: DefaultParamLastMessage::DefaultLast,
         hint: DefaultParamLastHint::MoveToEnd,
       }],

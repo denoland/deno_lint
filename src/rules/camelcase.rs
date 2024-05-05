@@ -1,8 +1,10 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
 
+use deno_ast::view::{Node, NodeKind, NodeTrait};
 use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
@@ -115,6 +117,7 @@ enum IdentToCheck {
     key_name: String,
     value_name: Option<String>,
     has_default: bool,
+    is_destructuring: bool,
   },
   /// Local name and imported name in named import, for example:
   ///
@@ -177,6 +180,7 @@ impl IdentToCheck {
     key_name: &K,
     value_name: Option<&V>,
     has_default: bool,
+    is_destructuring: bool,
   ) -> Self
   where
     K: AsRef<str>,
@@ -186,6 +190,7 @@ impl IdentToCheck {
       key_name: key_name.as_ref().to_string(),
       value_name: value_name.map(|v| v.as_ref().to_string()),
       has_default,
+      is_destructuring,
     }
   }
 
@@ -286,12 +291,20 @@ impl IdentToCheck {
         key_name,
         value_name,
         has_default,
+        is_destructuring: in_var_decl,
       } => {
-        if let Some(value_name) = value_name {
+        let rename_name = if let Some(value_name) = value_name {
+          Some(value_name)
+        } else if *in_var_decl {
+          None
+        } else {
+          Some(key_name)
+        };
+        if let Some(name) = rename_name {
           return format!(
             "Consider renaming `{}` to `{}`",
-            value_name,
-            to_camelcase(value_name),
+            name,
+            to_camelcase(name),
           );
         }
 
@@ -355,7 +368,7 @@ impl CamelcaseHandler {
 
   fn check_ts_type(&mut self, ty: &ast_view::TsType) {
     if let ast_view::TsType::TsTypeLit(type_lit) = ty {
-      for member in &type_lit.members {
+      for member in type_lit.members {
         self.check_ts_type_element(member);
       }
     }
@@ -404,7 +417,7 @@ impl CamelcaseHandler {
       ast_view::Pat::Ident(ident) => {
         self.check_ident(ident, IdentToCheck::variable(ident.id.inner));
       }
-      ast_view::Pat::Array(ast_view::ArrayPat { ref elems, .. }) => {
+      ast_view::Pat::Array(ast_view::ArrayPat { elems, .. }) => {
         for pat in elems.iter().flatten() {
           self.check_pat(pat);
         }
@@ -412,8 +425,8 @@ impl CamelcaseHandler {
       ast_view::Pat::Rest(ast_view::RestPat { ref arg, .. }) => {
         self.check_pat(arg);
       }
-      ast_view::Pat::Object(ast_view::ObjectPat { ref props, .. }) => {
-        for prop in props {
+      ast_view::Pat::Object(ast_view::ObjectPat { props, .. }) => {
+        for prop in *props {
           match prop {
             ast_view::ObjectPatProp::KeyValue(ast_view::KeyValuePatProp {
               ref key,
@@ -427,6 +440,7 @@ impl CamelcaseHandler {
                     &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
                     Some(&value_ident.id.inner),
                     false,
+                    pat_in_var_declarator(pat.into()),
                   ),
                 );
               }
@@ -440,6 +454,7 @@ impl CamelcaseHandler {
                     &key.string_repr().unwrap_or_else(|| "[KEY]".to_string()),
                     Some(&value_ident.id.inner),
                     true,
+                    pat_in_var_declarator(pat.into()),
                   ),
                 );
               }
@@ -453,14 +468,18 @@ impl CamelcaseHandler {
               ..
             }) => {
               let has_default = value.is_some();
-              self.check_ident(
-                key,
-                IdentToCheck::object_pat::<&str, &str>(
-                  &key.inner.as_ref(),
-                  None,
-                  has_default,
-                ),
-              );
+              let in_var_declarator = pat_in_var_declarator(pat.into());
+              if !in_var_declarator {
+                self.check_ident(
+                  key,
+                  IdentToCheck::object_pat::<&str, &str>(
+                    &key.inner.as_ref(),
+                    None,
+                    has_default,
+                    in_var_declarator,
+                  ),
+                );
+              }
             }
             ast_view::ObjectPatProp::Rest(ast_view::RestPat {
               ref arg,
@@ -517,13 +536,13 @@ impl Handler for CamelcaseHandler {
       return;
     }
 
-    for decl in &var_decl.decls {
+    for decl in var_decl.decls {
       self.check_pat(&decl.name);
 
       if let Some(expr) = &decl.init {
         match expr {
-          ast_view::Expr::Object(ast_view::ObjectLit { ref props, .. }) => {
-            for prop in props {
+          ast_view::Expr::Object(ast_view::ObjectLit { props, .. }) => {
+            for prop in *props {
               if let ast_view::PropOrSpread::Prop(prop) = prop {
                 match prop {
                   ast_view::Prop::Shorthand(ident) => self.check_ident(
@@ -587,16 +606,18 @@ impl Handler for CamelcaseHandler {
     let ast_view::ImportNamedSpecifier {
       local, imported, ..
     } = import_named_specifier;
-    self.check_ident(
-      local,
-      IdentToCheck::named_import(
-        local.inner,
-        imported.as_ref().map(|i| match i {
-          ast_view::ModuleExportName::Ident(ident) => ident.sym(),
-          ast_view::ModuleExportName::Str(str) => str.value(),
-        }),
-      ),
-    );
+    if let Some(imported) = &imported {
+      self.check_ident(
+        local,
+        IdentToCheck::named_import(
+          local.inner,
+          Some(match imported {
+            ast_view::ModuleExportName::Ident(ident) => ident.sym(),
+            ast_view::ModuleExportName::Str(str) => str.value(),
+          }),
+        ),
+      );
+    }
   }
 
   fn import_default_specifier(
@@ -663,7 +684,7 @@ impl Handler for CamelcaseHandler {
       IdentToCheck::interface(interface_decl.id.inner),
     );
 
-    for ty_el in &interface_decl.body.body {
+    for ty_el in interface_decl.body.body {
       self.check_ts_type_element(ty_el);
     }
   }
@@ -711,12 +732,34 @@ impl Handler for CamelcaseHandler {
 
     self
       .check_ident(&enum_decl.id, IdentToCheck::enum_name(enum_decl.id.inner));
-    for variant in &enum_decl.members {
+    for variant in enum_decl.members {
       if let ast_view::TsEnumMemberId::Ident(id) = &variant.id {
         self.check_ident(id, IdentToCheck::enum_variant(id.inner));
       }
     }
   }
+}
+
+fn pat_in_var_declarator(pat: Node) -> bool {
+  for ancestor in pat.ancestors() {
+    match ancestor.kind() {
+      NodeKind::VarDeclarator => {
+        return true;
+      }
+      NodeKind::ArrayPat
+      | NodeKind::ObjectPat
+      | NodeKind::AssignPat
+      | NodeKind::AssignPatProp
+      | NodeKind::RestPat
+      | NodeKind::KeyValuePatProp => {
+        // keep going
+      }
+      _ => {
+        return false;
+      }
+    }
+  }
+  false
 }
 
 #[cfg(test)]
@@ -788,6 +831,7 @@ mod tests {
           key_name: s("foo_bar"),
           value_name: None,
           has_default: false,
+          is_destructuring: true,
         },
         "Consider replacing `{ foo_bar }` with `{ foo_bar: fooBar }`",
       ),
@@ -796,6 +840,7 @@ mod tests {
           key_name: s("foo_bar"),
           value_name: Some(s("snake_case")),
           has_default: false,
+          is_destructuring: true,
         },
         "Consider renaming `snake_case` to `snakeCase`",
       ),
@@ -804,14 +849,26 @@ mod tests {
           key_name: s("foo_bar"),
           value_name: None,
           has_default: true,
+          is_destructuring: true,
         },
         "Consider replacing `{ foo_bar = .. }` with `{ foo_bar: fooBar = .. }`",
       ),
       (
         IdentToCheck::ObjectPat {
           key_name: s("foo_bar"),
+          value_name: None,
+          has_default: true,
+          is_destructuring: false,
+        },
+        // not destructuring, so suggest a rename
+        "Consider renaming `foo_bar` to `fooBar`",
+      ),
+      (
+        IdentToCheck::ObjectPat {
+          key_name: s("foo_bar"),
           value_name: Some(s("snake_case")),
           has_default: true,
+          is_destructuring: true,
         },
         "Consider renaming `snake_case` to `snakeCase`",
       ),
@@ -869,9 +926,14 @@ mod tests {
       r#"var { category_id: category } = query;"#,
       r#"var { _leading } = query;"#,
       r#"var { trailing_ } = query;"#,
+      r#"var { or_middle } = query;"#,
+      r#"var { category_id = 1 } = query;"#,
+      r#"var { category_id: { property_test } } = query;"#,
+      r#"const { no_camelcased = false } = bar;"#,
       r#"import { camelCased } from "external module";"#,
       r#"import { _leading } from "external module";"#,
       r#"import { trailing_ } from "external module";"#,
+      r#"import { or_middle } from "external module";"#,
       r#"import { no_camelcased as camelCased } from "external-module";"#,
       r#"import { no_camelcased as _leading } from "external-module";"#,
       r#"import { no_camelcased as trailing_ } from "external-module";"#,
@@ -989,13 +1051,6 @@ mod tests {
               hint: "Consider renaming `category_alias` to `categoryAlias`",
             }
           ],
-    r#"var { category_id } = query;"#: [
-            {
-              col: 6,
-              message: "Identifier 'category_id' is not in camel case.",
-              hint: "Consider replacing `{ category_id }` with `{ category_id: categoryId }`",
-            }
-          ],
     r#"var { category_id: category_id } = query;"#: [
             {
               col: 19,
@@ -1003,32 +1058,11 @@ mod tests {
               hint: "Consider renaming `category_id` to `categoryId`",
             }
           ],
-    r#"var { category_id = 1 } = query;"#: [
-            {
-              col: 6,
-              message: "Identifier 'category_id' is not in camel case.",
-              hint: "Consider replacing `{ category_id = .. }` with `{ category_id: categoryId = .. }`",
-            }
-          ],
-    r#"import no_camelcased from "external-module";"#: [
-            {
-              col: 7,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
-            }
-          ],
     r#"import * as no_camelcased from "external-module";"#: [
             {
               col: 12,
               message: "Identifier 'no_camelcased' is not in camel case.",
               hint: "Consider renaming `no_camelcased` to `noCamelcased`",
-            }
-          ],
-    r#"import { no_camelcased } from "external-module";"#: [
-            {
-              col: 9,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
             }
           ],
     r#"import { no_camelcased as no_camel_cased } from "external module";"#: [
@@ -1043,27 +1077,6 @@ mod tests {
               col: 23,
               message: "Identifier 'no_camel_cased' is not in camel case.",
               hint: "Consider renaming `no_camel_cased` to `noCamelCased`",
-            }
-          ],
-    r#"import { camelCased, no_camelcased } from "external-module";"#: [
-            {
-              col: 21,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
-            }
-          ],
-    r#"import { no_camelcased as camelCased, another_no_camelcased } from "external-module";"#: [
-            {
-              col: 38,
-              message: "Identifier 'another_no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ another_no_camelcased }` with `{ another_no_camelcased as anotherNoCamelcased }`",
-            }
-          ],
-    r#"import camelCased, { no_camelcased } from "external-module";"#: [
-            {
-              col: 21,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased as noCamelcased }`",
             }
           ],
     r#"import no_camelcased, { another_no_camelcased as camelCased } from "external-module";"#: [
@@ -1098,14 +1111,14 @@ mod tests {
             {
               col: 15,
               message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased }` with `{ no_camelcased: noCamelcased }`",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
             }
           ],
     r#"function foo({ no_camelcased = 'default value' }) {};"#: [
             {
               col: 15,
               message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased = .. }` with `{ no_camelcased: noCamelcased = .. }`",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
             }
           ],
     r#"const no_camelcased = 0; function foo({ camelcased_value = no_camelcased }) {}"#: [
@@ -1117,7 +1130,7 @@ mod tests {
             {
               col: 40,
               message: "Identifier 'camelcased_value' is not in camel case.",
-              hint: "Consider replacing `{ camelcased_value = .. }` with `{ camelcased_value: camelcasedValue = .. }`",
+              hint: "Consider renaming `camelcased_value` to `camelcasedValue`",
             }
           ],
     r#"const { bar: no_camelcased } = foo;"#: [
@@ -1141,25 +1154,18 @@ mod tests {
               hint: "Consider renaming `no_camelcased` to `noCamelcased`",
             }
           ],
+    r#"function foo({ isCamelcased: { no_camelcased } }) {};"#: [
+            {
+              col: 31,
+              message: "Identifier 'no_camelcased' is not in camel case.",
+              hint: "Consider renaming `no_camelcased` to `noCamelcased`",
+            }
+          ],
     r#"var { foo: bar_baz = 1 } = quz;"#: [
             {
               col: 11,
               message: "Identifier 'bar_baz' is not in camel case.",
               hint: "Consider renaming `bar_baz` to `barBaz`",
-            }
-          ],
-    r#"const { no_camelcased = false } = bar;"#: [
-            {
-              col: 8,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased = .. }` with `{ no_camelcased: noCamelcased = .. }`",
-            }
-          ],
-    r#"const { no_camelcased = foo_bar } = bar;"#: [
-            {
-              col: 8,
-              message: "Identifier 'no_camelcased' is not in camel case.",
-              hint: "Consider replacing `{ no_camelcased = .. }` with `{ no_camelcased: noCamelcased = .. }`",
             }
           ],
     r#"const f = function no_camelcased() {};"#: [

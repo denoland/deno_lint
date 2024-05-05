@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
@@ -31,6 +32,7 @@ pub mod no_case_declarations;
 pub mod no_class_assign;
 pub mod no_compare_neg_zero;
 pub mod no_cond_assign;
+pub mod no_console;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
@@ -53,11 +55,11 @@ pub mod no_explicit_any;
 pub mod no_external_imports;
 pub mod no_extra_boolean_cast;
 pub mod no_extra_non_null_assertion;
-pub mod no_extra_semi;
 pub mod no_fallthrough;
 pub mod no_func_assign;
 pub mod no_global_assign;
 pub mod no_implicit_declare_namespace_export;
+pub mod no_import_assertions;
 pub mod no_import_assign;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
@@ -75,6 +77,7 @@ pub mod no_prototype_builtins;
 pub mod no_redeclare;
 pub mod no_regex_spaces;
 pub mod no_self_assign;
+pub mod no_self_compare;
 pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
 pub mod no_sparse_arrays;
@@ -90,6 +93,7 @@ pub mod no_unsafe_negation;
 pub mod no_unused_labels;
 pub mod no_unused_vars;
 pub mod no_var;
+pub mod no_window;
 pub mod no_window_prefix;
 pub mod no_with;
 pub mod prefer_as_const;
@@ -103,6 +107,7 @@ pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
 pub mod valid_typeof;
+pub mod verbatim_module_syntax;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// Executes lint using `dprint-swc-ecma-ast-view`.
@@ -251,6 +256,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_class_assign::NoClassAssign,
     &no_compare_neg_zero::NoCompareNegZero,
     &no_cond_assign::NoCondAssign,
+    &no_console::NoConsole,
     &no_const_assign::NoConstAssign,
     &no_constant_condition::NoConstantCondition,
     &no_control_regex::NoControlRegex,
@@ -273,11 +279,11 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_external_imports::NoExternalImport,
     &no_extra_boolean_cast::NoExtraBooleanCast,
     &no_extra_non_null_assertion::NoExtraNonNullAssertion,
-    &no_extra_semi::NoExtraSemi,
     &no_fallthrough::NoFallthrough,
     &no_func_assign::NoFuncAssign,
     &no_global_assign::NoGlobalAssign,
     &no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport,
+    &no_import_assertions::NoImportAssertions,
     &no_import_assign::NoImportAssign,
     &no_inferrable_types::NoInferrableTypes,
     &no_inner_declarations::NoInnerDeclarations,
@@ -295,6 +301,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_redeclare::NoRedeclare,
     &no_regex_spaces::NoRegexSpaces,
     &no_self_assign::NoSelfAssign,
+    &no_self_compare::NoSelfCompare,
     &no_setter_return::NoSetterReturn,
     &no_shadow_restricted_names::NoShadowRestrictedNames,
     &no_sparse_arrays::NoSparseArrays,
@@ -310,6 +317,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_unused_labels::NoUnusedLabels,
     &no_unused_vars::NoUnusedVars,
     &no_var::NoVar,
+    &no_window::NoWindow,
     &no_window_prefix::NoWindowPrefix,
     &no_with::NoWith,
     &prefer_as_const::PreferAsConst,
@@ -323,6 +331,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &triple_slash_reference::TripleSlashReference,
     &use_isnan::UseIsNaN,
     &valid_typeof::ValidTypeof,
+    &verbatim_module_syntax::VerbatimModuleSyntax,
   ]
 }
 

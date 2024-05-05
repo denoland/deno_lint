@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -89,7 +90,7 @@ impl Handler for NoThisBeforeSuperHandler {
     }
 
     if let Some(body) = cons.body {
-      for stmt in &body.stmts {
+      for stmt in body.stmts {
         let mut checker = SuperCallChecker::new(stmt.range());
         checker.traverse(*stmt, ctx);
         match checker.result() {
@@ -184,7 +185,7 @@ impl Handler for SuperCallChecker {
     }
 
     // arguments are evaluated before the callee
-    for arg in &call_expr.args {
+    for arg in call_expr.args {
       self.traverse(arg.as_node(), ctx);
     }
 

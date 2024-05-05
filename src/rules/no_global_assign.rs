@@ -1,16 +1,13 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::program_ref;
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::Program;
-use crate::ProgramRef;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
 use deno_ast::swc::ast::Id;
-use deno_ast::swc::{
-  ast::*,
-  visit::{noop_visit_type, Visit, VisitWith},
-};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
+use deno_ast::{view::*, SourceRanged};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -44,12 +41,7 @@ impl LintRule for NoGlobalAssign {
     context: &mut Context<'view>,
     program: Program<'view>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoGlobalAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    NoGlobalAssignVisitor.traverse(program, context)
   }
 
   #[cfg(feature = "docs")]
@@ -58,21 +50,15 @@ impl LintRule for NoGlobalAssign {
   }
 }
 
-struct NoGlobalAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoGlobalAssignVisitor;
 
-impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn check(&mut self, range: SourceRange, id: Id) {
-    if id.1 != self.context.unresolved_ctxt() {
+impl NoGlobalAssignVisitor {
+  fn check(&mut self, range: SourceRange, id: Id, ctx: &mut Context) {
+    if id.1 != ctx.unresolved_ctxt() {
       return;
     }
 
-    if self.context.scope().var(&id).is_some() {
+    if ctx.scope().var(&id).is_some() {
       return;
     }
 
@@ -82,7 +68,7 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
     if let Some(global) = maybe_global {
       // If global can be overwritten then don't need to report anything
       if !global.1 {
-        self.context.add_diagnostic_with_hint(
+        ctx.add_diagnostic_with_hint(
           range,
           CODE,
           NoGlobalAssignMessage::NotAllowed,
@@ -93,22 +79,18 @@ impl<'c, 'view> NoGlobalAssignVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoGlobalAssignVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, e: &AssignExpr) {
-    let idents: Vec<Ident> = find_lhs_ids(&e.left);
+impl Handler for NoGlobalAssignVisitor {
+  fn assign_expr(&mut self, e: &AssignExpr, ctx: &mut Context) {
+    let idents: Vec<deno_ast::swc::ast::Ident> = find_lhs_ids(&e.left);
 
     for ident in idents {
-      self.check(ident.range(), ident.to_id());
+      self.check(ident.range(), ident.to_id(), ctx);
     }
   }
 
-  fn visit_update_expr(&mut self, e: &UpdateExpr) {
-    if let Expr::Ident(i) = &*e.arg {
-      self.check(e.range(), i.to_id());
-    } else {
-      e.visit_children_with(self);
+  fn update_expr(&mut self, e: &UpdateExpr, ctx: &mut Context) {
+    if let Expr::Ident(i) = e.arg {
+      self.check(e.range(), i.to_id(), ctx);
     }
   }
 }

@@ -1,11 +1,15 @@
 // Copyright 2020-2023 the Deno authors. All rights reserved. MIT license.
 
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
 use crate::rules::get_recommended_rules;
+use deno_ast::MediaType;
+use deno_ast::ModuleSpecifier;
 use deno_ast::SourceRange;
 use deno_ast::SourceRanged as _;
 use deno_ast::SourceTextInfo;
+use deno_ast::StartSourcePos;
 use std::fmt::Display;
 use wasm_bindgen::prelude::*;
 
@@ -18,7 +22,13 @@ pub fn run(filename: String, source_code: String) -> Result<String, String> {
     .rules(get_recommended_rules())
     .build();
   let (parsed_source, diagnostics) = linter
-    .lint(filename.clone(), source_code)
+    .lint_file(LintFileOptions {
+      specifier: ModuleSpecifier::parse("file:///playground.ts").unwrap(),
+      source_code,
+      // TODO(magurotuna): Support other media types (probably we want to  have
+      // selector UI in the playground UI)
+      media_type: MediaType::TypeScript,
+    })
     .map_err(|e| e.to_string())?;
   let file_diagnostics = FileDiagnostics {
     filename,
@@ -91,10 +101,23 @@ impl miette::Diagnostic for MietteDiagnostic<'_> {
   fn labels(
     &self,
   ) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
-    let len = self.lint_diagnostic.range.end.byte_index
-      - self.lint_diagnostic.range.start.byte_index;
-    let start =
-      miette::SourceOffset::from(self.lint_diagnostic.range.start.byte_index);
+    let len = self
+      .lint_diagnostic
+      .range
+      .end
+      .as_byte_index(StartSourcePos::START_SOURCE_POS)
+      - self
+        .lint_diagnostic
+        .range
+        .start
+        .as_byte_index(StartSourcePos::START_SOURCE_POS);
+    let start = miette::SourceOffset::from(
+      self
+        .lint_diagnostic
+        .range
+        .start
+        .as_byte_index(StartSourcePos::START_SOURCE_POS),
+    );
     let len = miette::SourceOffset::from(len);
     let span = miette::SourceSpan::new(start, len);
     let text = self

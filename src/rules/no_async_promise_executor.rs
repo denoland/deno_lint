@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -56,7 +57,7 @@ impl Handler for NoAsyncPromiseExecutorHandler {
       }
 
       if let Some(args) = &new_expr.args {
-        if let Some(first_arg) = args.get(0) {
+        if let Some(first_arg) = args.first() {
           if is_async_function(&first_arg.expr) {
             context.add_diagnostic_with_hint(
               new_expr.range(),

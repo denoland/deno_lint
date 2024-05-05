@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -39,7 +40,7 @@ struct NoCaseDeclarationsHandler;
 
 impl Handler for NoCaseDeclarationsHandler {
   fn switch_case(&mut self, switch_case: &SwitchCase, context: &mut Context) {
-    for stmt in &switch_case.cons {
+    for stmt in switch_case.cons {
       let is_lexical_decl = match stmt {
         Stmt::Decl(decl) => match &decl {
           Decl::Fn(_) => true,

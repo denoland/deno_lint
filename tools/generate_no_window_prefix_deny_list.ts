@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 import { doc } from "https://deno.land/x/deno_doc@v0.13.0/mod.ts";
 
 const windowDoc = await doc(

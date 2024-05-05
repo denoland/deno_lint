@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
@@ -168,7 +169,7 @@ impl Handler for NoDupeKeysHandler {
     let range = obj_lit.range();
     let mut keys: HashMap<String, PropertyInfo> = HashMap::new();
 
-    for prop in &obj_lit.props {
+    for prop in obj_lit.props {
       if let PropOrSpread::Prop(prop) = prop {
         match prop {
           Prop::Shorthand(ident) => {

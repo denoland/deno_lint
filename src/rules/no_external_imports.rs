@@ -1,4 +1,4 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -39,7 +39,7 @@ impl LintRule for NoExternalImport {
     context: &mut Context,
     program: Program,
   ) {
-    let mut handler = NoExternalImportHandler::default();
+    let mut handler = NoExternalImportHandler;
     handler.traverse(program, context);
   }
 
@@ -55,11 +55,14 @@ struct NoExternalImportHandler;
 impl NoExternalImportHandler {
   fn check_import_path(&self, decl: &ImportDecl, ctx: &mut Context) {
     let parsed_src = ModuleSpecifier::parse(decl.src.value());
-    let file_name = Path::new(ctx.file_name())
-      .file_stem()
+    let file_stem = ctx
+      .specifier()
+      .path_segments()
+      .and_then(|mut s| s.next_back())
+      .and_then(|filename| Path::new(filename).file_stem())
       .and_then(OsStr::to_str);
 
-    if parsed_src.is_ok() && file_name != Some("deps") {
+    if parsed_src.is_ok() && file_stem != Some("deps") {
       ctx.add_diagnostic_with_hint(
         decl.range(),
         CODE,
@@ -100,7 +103,11 @@ mod tests {
 
     assert_lint_ok! {
       NoExternalImport,
-      filename: "deps.ts",
+      filename: if cfg!(windows) {
+        "file:///c:/deps.ts"
+      } else {
+        "file:///deps.ts"
+      },
       "import { assertEquals } from 'https://deno.land/std@0.126.0/testing/asserts.ts'"
     };
   }

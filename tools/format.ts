@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-run
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 const check = Deno.args.includes("--check");
 console.log("rustfmt");
 
@@ -35,11 +35,6 @@ const p3 = new Deno.Command("deno", {
   args: [
     "fmt",
     ...checkArgs,
-    "tools",
-    "benchmarks/benchmarks.ts",
-    "www/pages",
-    "docs/rules",
-    "README.md",
   ],
   stdin: "null",
 }).spawn();

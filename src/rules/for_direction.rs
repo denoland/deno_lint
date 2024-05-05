@@ -1,11 +1,14 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::BinaryOp;
 use deno_ast::swc::ast::UpdateOp;
-use deno_ast::view::{AssignExpr, Expr, Pat, PatOrExpr, UnaryOp, UpdateExpr};
+use deno_ast::view::{
+  AssignExpr, AssignTarget, Expr, SimpleAssignTarget, UnaryOp, UpdateExpr,
+};
 use deno_ast::{view as ast_view, SourceRanged};
 
 #[derive(Debug)]
@@ -69,14 +72,10 @@ fn check_assign_direction(
   let update_direction = 0;
 
   let name = match &assign_expr.left {
-    PatOrExpr::Expr(boxed_expr) => match boxed_expr {
-      Expr::Ident(ident) => ident.inner.as_ref(),
-      _ => return update_direction,
-    },
-    PatOrExpr::Pat(boxed_pat) => match boxed_pat {
-      Pat::Ident(ident) => ident.id.inner.as_ref(),
-      _ => return update_direction,
-    },
+    AssignTarget::Simple(SimpleAssignTarget::Ident(ident)) => {
+      ident.inner.as_ref()
+    }
+    _ => return update_direction,
   };
 
   if name == counter_name.as_ref() {

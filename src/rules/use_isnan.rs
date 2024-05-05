@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -99,7 +100,7 @@ impl Handler for UseIsNaNHandler {
       }
     }
 
-    for case in &switch_stmt.cases {
+    for case in switch_stmt.cases {
       if let Some(Expr::Ident(ident)) = &case.test {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(

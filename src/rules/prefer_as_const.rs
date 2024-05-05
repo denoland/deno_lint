@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -112,7 +113,7 @@ impl Handler for PreferAsConstHandler {
   }
 
   fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
-    for decl in &var_decl.decls {
+    for decl in var_decl.decls {
       if let Some(init) = &decl.init {
         if let Pat::Array(ArrayPat { type_ann, .. })
         | Pat::Object(ObjectPat { type_ann, .. })

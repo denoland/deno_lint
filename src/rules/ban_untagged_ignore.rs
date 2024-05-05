@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::Program;
 use deno_ast::SourceRange;
@@ -25,14 +26,16 @@ impl LintRule for BanUntaggedIgnore {
     let mut violated_ranges: Vec<SourceRange> = context
       .file_ignore_directive()
       .iter()
-      .filter_map(|d| d.ignore_all().then(|| d.range()))
+      .filter(|d| d.ignore_all())
+      .map(|d| d.range())
       .collect();
 
     violated_ranges.extend(
       context
         .line_ignore_directives()
         .values()
-        .filter_map(|d| d.ignore_all().then(|| d.range())),
+        .filter(|d| d.ignore_all())
+        .map(|d| d.range()),
     );
 
     for range in violated_ranges {

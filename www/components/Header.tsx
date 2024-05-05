@@ -1,22 +1,42 @@
-import { JSX } from "preact";
+import IconBrandGithub from "https://deno.land/x/tabler_icons_tsx@0.0.5/tsx/brand-github.tsx";
 
-export function Header() {
+export function Header({ active }: { active: string }) {
+  const items = [
+    { href: "/", label: "Rule overview" },
+    { href: "/ignoring-rules", label: "Ignoring rules" },
+  ];
+
   return (
-    <section class="my-8">
-      <h1 class="text-3xl font-bold">deno_lint docs</h1>
-      <div class="flex flex-wrap justify-between w-full">
-        <div class="mt-2">
+    <section class="my-8 flex md:flex-row flex-col justify-between md:items-center gap-y-4">
+      <a href="/">
+        <h1 class="flex text-3xl font-bold flex items-center gap-1">
+          <img
+            src="/logo.svg"
+            alt="deno_lint logo"
+            class="h-12 w-12 inline-block mr-2"
+          />
+          deno_lint
+        </h1>
+      </a>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-4">
+          {items.map((item) => (
+            <a
+              href={item.href}
+              class={`hover:underline ${
+                active === item.href ? "font-bold" : ""
+              }`}
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+        <div>
           <a
-            href="/"
-            class="hover:underline"
+            href="https://docs.deno.com/runtime/manual/tools/linter"
+            class="hover:underline flex gap-1 items-center"
           >
-            Rule overview
-          </a>
-          <a
-            href="/ignoring-rules"
-            class="hover:underline ml-4"
-          >
-            Ignoring rules
+            Docs
           </a>
           <a
             href="/playground"
@@ -25,12 +45,12 @@ export function Header() {
             Playground
           </a>
         </div>
-        <div class="mt-2">
+        <div>
           <a
             href="https://github.com/denoland/deno_lint"
-            class="hover:underline"
+            class="hover:underline flex gap-1 items-center"
           >
-            View on GitHub
+            <IconBrandGithub title="View on GitHub" class="w-5 h-5" />
           </a>
         </div>
       </div>

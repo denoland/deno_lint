@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -74,7 +75,7 @@ mod tests {
   fn no_namespace_valid() {
     assert_lint_ok! {
       NoNamespace,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
 
       r#"declare global {}"#,
       r#"declare module 'foo' {}"#,
@@ -108,7 +109,7 @@ declare namespace foo {
 
     assert_lint_ok! {
       NoNamespace,
-      filename: "test.d.ts",
+      filename: "file:///test.d.ts",
 
       r#"namespace foo {}"#,
       r#"module foo {}"#,

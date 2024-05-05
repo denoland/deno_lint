@@ -84,10 +84,11 @@ considered to be a warning]
 });
 
 Deno.test("the content of .rs", () => {
-  const now = new Date("2022-08-10T14:48:00");
+  const now = new Date("2024-08-10T14:48:00");
   const actual = genRustContent(now, "FooBarBaz", "foo-bar-baz", "foo_bar_baz");
   const expected =
-    `// Copyright 2020-2022 the Deno authors. All rights reserved. MIT license.
+    `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -166,7 +167,8 @@ mod tests {
 
 Deno.test("the updated content of src/rules.rs", () => {
   const original =
-    `// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+    `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;
@@ -200,7 +202,8 @@ mod tests {
 `;
   const actual = genPubMod(original, "foo_bar_baz");
   const expected =
-    `// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+    `// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::context::Context;
 use crate::Program;
 use crate::ProgramRef;

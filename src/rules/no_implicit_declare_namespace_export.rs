@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -49,7 +50,7 @@ impl Handler for NoImplicitDeclareNamespaceExportHandler {
         module_decl.body
       {
         if !block.body.is_empty() {
-          let has_named_export = block.body.as_slice().iter().any(|item| {
+          let has_named_export = block.body.iter().any(|item| {
             matches!(
               item,
               ast_view::ModuleItem::ModuleDecl(
@@ -59,7 +60,6 @@ impl Handler for NoImplicitDeclareNamespaceExportHandler {
           });
           let has_non_exported_member = block
             .body
-            .as_slice()
             .iter()
             .any(|item| matches!(item, ast_view::ModuleItem::Stmt(_)));
           if !has_named_export && has_non_exported_member {
@@ -84,7 +84,7 @@ mod tests {
   fn use_explicit_namespace_export_valid() {
     assert_lint_ok! {
       NoImplicitDeclareNamespaceExport,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       r#"
 namespace foo {
   type X = 1;
@@ -117,7 +117,7 @@ declare namespace empty {}
 
     assert_lint_ok! {
       NoImplicitDeclareNamespaceExport,
-      filename: "foo.d.ts",
+      filename: "file:///foo.d.ts",
 
       r#"
 declare namespace foo {

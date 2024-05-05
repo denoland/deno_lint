@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::Program;
@@ -32,10 +33,6 @@ enum NoInferrableTypesHint {
 }
 
 impl LintRule for NoInferrableTypes {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
-  }
-
   fn code(&self) -> &'static str {
     CODE
   }

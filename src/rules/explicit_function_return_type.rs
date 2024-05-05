@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -85,7 +86,7 @@ mod tests {
 
     assert_lint_ok! {
       ExplicitFunctionReturnType,
-      filename: "foo.js",
+      filename: "file:///foo.js",
       "function foo() { }",
       "const bar = (a) => { }",
       "class Test { set test(value) {} }",
@@ -94,7 +95,7 @@ mod tests {
 
     assert_lint_ok! {
       ExplicitFunctionReturnType,
-      filename: "foo.jsx",
+      filename: "file:///foo.jsx",
       "export function Foo(props) {return <div>{props.name}</div>}",
       "export default class Foo { render() { return <div></div>}}"
     };

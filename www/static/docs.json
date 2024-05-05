@@ -22,7 +22,7 @@
   },
   {
     "code": "ban-unknown-rule-code",
-    "docs": "Warns the usage of unknown rule codes in ignore directives\n\nWe sometimes have to suppress and ignore lint errors for some reasons. We can do\nso using [ignore directives](https://lint.deno.land/ignoring-rules) with rule\nnames that should be ignored like so:\n\n```typescript\n// deno-lint-ignore no-explicit-any no-unused-vars\nconst foo: any = 42;\n```\n\nThis rule checks for the validity of the specified rule names (i.e. whether\n`deno_lint` provides the rule or not).\n\n### Invalid:\n\n```typescript\n// typo\n// deno-lint-ignore no-extra-sem\nexport const a = 42;\n\n// unknown rule name\n// deno-lint-ignore UNKNOWN_RULE_NAME\nconst b = \"b\";\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore no-extra-semi\nexport const a = 42;\n\n// deno-lint-ignore no-unused-vars\nconst b = \"b\";\n```\n",
+    "docs": "Warns the usage of unknown rule codes in ignore directives\n\nWe sometimes have to suppress and ignore lint errors for some reasons. We can do\nso using [ignore directives](https://lint.deno.land/ignoring-rules) with rule\nnames that should be ignored like so:\n\n```typescript\n// deno-lint-ignore no-explicit-any no-unused-vars\nconst foo: any = 42;\n```\n\nThis rule checks for the validity of the specified rule names (i.e. whether\n`deno_lint` provides the rule or not).\n\n### Invalid:\n\n```typescript\n// typo\n// deno-lint-ignore eq-eq-e\nconsole.assert(x == 42);\n\n// unknown rule name\n// deno-lint-ignore UNKNOWN_RULE_NAME\nconst b = \"b\";\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore eq-eq-eq\nconsole.assert(x == 42);\n\n// deno-lint-ignore no-unused-vars\nconst b = \"b\";\n```\n",
     "tags": [
       "recommended"
     ]
@@ -108,7 +108,7 @@
   },
   {
     "code": "guard-for-in",
-    "docs": "Require `for-in` loops to include an `if` statement\n\nLooping over objects with a `for-in` loop will include properties that are\ninherited through the prototype chain. This behavior can lead to unexpected\nitems in your for loop.\n\n### Invalid:\n\n```typescript\nfor (key in obj) {\n  foo(obj, key);\n}\n```\n\n### Valid:\n\n```typescript\nfor (key in obj) {\n  if (Object.hasOwn(obj, key)) {\n    foo(obj, key);\n  }\n}\n```\n\n```typescript\nfor (key in obj) {\n  if (!Object.hasOwn(obj, key)) {\n    continue;\n  }\n  foo(obj, key);\n}\n```\n",
+    "docs": "Require `for-in` loops to include an `if` statement\n\nLooping over objects with a `for-in` loop will include properties that are\ninherited through the prototype chain. This behavior can lead to unexpected\nitems in your for loop.\n\n### Invalid:\n\n```typescript\nfor (const key in obj) {\n  foo(obj, key);\n}\n```\n\n### Valid:\n\n```typescript\nfor (const key in obj) {\n  if (Object.hasOwn(obj, key)) {\n    foo(obj, key);\n  }\n}\n```\n\n```typescript\nfor (const key in obj) {\n  if (!Object.hasOwn(obj, key)) {\n    continue;\n  }\n  foo(obj, key);\n}\n```\n",
     "tags": []
   },
   {
@@ -166,6 +166,11 @@
     ]
   },
   {
+    "code": "no-console",
+    "docs": "Disallows the use of the `console` global.\n\nOftentimes, developers accidentally commit `console.log`/`console.error`\nstatements, left in particularly after debugging. Moreover, using these in code\nmay leak sensitive information to the output or clutter the console with\nunnecessary information. This rule helps maintain clean and secure code by\ndisallowing the use of `console`.\n\nThis rule is especially useful in libraries where you almost never want to\noutput to the console.\n\n### Invalid\n\n```typescript\nconsole.log(\"Debug message\");\nconsole.error(\"Debug message\");\nconsole.debug(obj);\n\nif (debug) console.log(\"Debugging\");\n\nfunction log() {\n  console.log(\"Log\");\n}\n```\n\n### Valid\n\nIt is recommended to explicitly enable the console via a `deno-lint-ignore`\ncomment for any calls where you actually want to use it.\n\n```typescript\nfunction logWarning(message: string) {\n  // deno-lint-ignore no-console\n  console.warn(message);\n}\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-const-assign",
     "docs": "Disallows modifying a variable declared as `const`.\n\nModifying a variable declared as `const` will result in a runtime error.\n\n### Invalid:\n\n```typescript\nconst a = 0;\na = 1;\na += 1;\na++;\n++a;\n```\n\n### Valid:\n\n```typescript\nconst a = 0;\nconst b = a + 1;\n\n// `c` is out of scope on each loop iteration, allowing a new assignment\nfor (const c in [1, 2, 3]) {}\n```\n",
     "tags": []
@@ -200,7 +205,7 @@
   },
   {
     "code": "no-deprecated-deno-api",
-    "docs": "Warns the usage of the deprecated Deno APIs\n\nThe following APIs in `Deno` namespace are now marked as deprecated and will get\nremoved from the namespace in the future.\n\n**IO APIs**\n\n- `Deno.Buffer`\n- `Deno.copy`\n- `Deno.iter`\n- `Deno.iterSync`\n- `Deno.readAll`\n- `Deno.readAllSync`\n- `Deno.writeAll`\n- `Deno.writeAllSync`\n\nThe IO APIs are already available in `std/io` or `std/streams`, so replace these\ndeprecated ones with alternatives from `std`. For more detail, see\n[the tracking issue](https://github.com/denoland/deno/issues/9795).\n\n**Sub Process API**\n\n- `Deno.run`\n\n`Deno.run` was deprecated in favor of `Deno.Command`. See\n[deno#9435](https://github.com/denoland/deno/discussions/9435) for more details.\n\n**Custom Inspector API**\n\n- `Deno.customInspect`\n\n`Deno.customInspect` was deprecated in favor of\n`Symbol.for(\"Deno.customInspect\")`. Replace the usages with this symbol\nexpression. See [deno#9294](https://github.com/denoland/deno/issues/9294) for\nmore details.\n\n**File system API\"\n\n- `Deno.File`\n\n`Deno.File` was deprecated in favor of `Deno.FsFile`. Replace the usages with\nnew class name.\n\n### Invalid:\n\n```typescript\n// buffer\nconst a = Deno.Buffer();\n\n// read\nconst b = await Deno.readAll(reader);\nconst c = Deno.readAllSync(reader);\n\n// write\nawait Deno.writeAll(writer, data);\nDeno.writeAllSync(writer, data);\n\n// iter\nfor await (const x of Deno.iter(xs)) {}\nfor (const y of Deno.iterSync(ys)) {}\n\n// copy\nawait Deno.copy(reader, writer);\n\n// custom inspector\nclass A {\n  [Deno.customInspect]() {\n    return \"This is A\";\n  }\n}\n\nfunction foo(file: Deno.File) {\n  // ...\n}\n```\n\n### Valid:\n\n```typescript\n// buffer\nimport { Buffer } from \"https://deno.land/std/io/buffer.ts\";\nconst a = new Buffer();\n\n// read\nimport { readAll, readAllSync } from \"https://deno.land/std/io/util.ts\";\nconst b = await readAll(reader);\nconst c = readAllSync(reader);\n\n// write\nimport { writeAll, writeAllSync } from \"https://deno.land/std/io/util.ts\";\nawait writeAll(writer, data);\nwriteAllSync(writer, data);\n\n// iter\nimport { iter, iterSync } from \"https://deno.land/std/io/util.ts\";\nfor await (const x of iter(xs)) {}\nfor (const y of iterSync(ys)) {}\n\n// copy\nimport { copy } from \"https://deno.land/std/io/util.ts\";\nawait copy(reader, writer);\n\n// custom inspector\nclass A {\n  [Symbol.for(\"Deno.customInspect\")]() {\n    return \"This is A\";\n  }\n}\n\nfunction foo(file: Deno.FsFile) {\n  // ...\n}\n```\n",
+    "docs": "Warns the usage of the deprecated - Deno APIs\n\nThe following APIs will be removed from the `Deno.*` namespace but have newer\nAPIs to migrate to. See the\n[Deno 1.x to 2.x Migration Guide](https://docs.deno.com/runtime/manual/advanced/migrate_deprecations)\nfor migration instructions.\n\n- `Deno.Buffer`\n- `Deno.Closer`\n- `Deno.close()`\n- `Deno.Conn.rid`\n- `Deno.copy()`\n- `Deno.customInspect`\n- `Deno.File`\n- `Deno.fstatSync()`\n- `Deno.fstat()`\n- `Deno.FsWatcher.rid`\n- `Deno.ftruncateSync()`\n- `Deno.ftruncate()`\n- `Deno.futimeSync()`\n- `Deno.futime()`\n- `Deno.isatty()`\n- `Deno.Listener.rid`\n- `Deno.ListenTlsOptions.certFile`\n- `Deno.ListenTlsOptions.keyFile`\n- `Deno.readAllSync()`\n- `Deno.readAll()`\n- `Deno.Reader`\n- `Deno.ReaderSync`\n- `Deno.readSync()`\n- `Deno.read()`\n- `Deno.run()`\n- `Deno.seekSync()`\n- `Deno.seek()`\n- `Deno.serveHttp()`\n- `Deno.Server`\n- `Deno.shutdown`\n- `Deno.stderr.rid`\n- `Deno.stdin.rid`\n- `Deno.stdout.rid`\n- `Deno.TlsConn.rid`\n- `Deno.UnixConn.rid`\n- `Deno.writeAllSync()`\n- `Deno.writeAll()`\n- `Deno.Writer`\n- `Deno.WriterSync`\n- `Deno.writeSync()`\n- `Deno.write()`\n- `new Deno.FsFile()`\n\nThe following APIs will be removed from the `Deno.*` namespace without\nreplacement.\n\n- `Deno.resources()`\n- `Deno.metrics()`\n",
     "tags": [
       "recommended"
     ]
@@ -263,7 +268,7 @@
   },
   {
     "code": "no-empty-interface",
-    "docs": "Disallows the declaration of an empty interface\n\nAn interface with no members serves no purpose. Either the interface extends\nanother interface, in which case the supertype can be used, or it does not\nextend a supertype in which case it is the equivalent to an empty object. This\nrule will capture these situations as either unnecessary code or a mistaken\nempty implementation.\n\n### Invalid:\n\n```typescript\ninterface Foo {}\ninterface Foo extends Bar {}\n```\n\n### Valid:\n\n```typescript\ninterface Foo {\n  name: string;\n}\n\ninterface Bar {\n  age: number;\n}\n\n// Using an empty interface as a union type is allowed\ninterface Baz extends Foo, Bar {}\n```\n",
+    "docs": "Disallows the declaration of an empty interface\n\nAn interface with no members serves no purpose. This rule will capture these\nsituations as either unnecessary code or a mistaken empty implementation.\n\n### Invalid:\n\n```typescript\ninterface Foo {}\n```\n\n### Valid:\n\n```typescript\ninterface Foo {\n  name: string;\n}\n\ninterface Bar {\n  age: number;\n}\n\n// Using an empty interface with at least one extension are allowed.\n\n// Using an empty interface to change the identity of Baz from type to interface.\ntype Baz = { profession: string };\ninterface Foo extends Baz {}\n\n// Using an empty interface to extend already existing Foo declaration\n// with members of the Bar interface\ninterface Foo extends Bar {}\n\n// Using an empty interface as a union type\ninterface Baz extends Foo, Bar {}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -296,7 +301,7 @@
   },
   {
     "code": "no-external-import",
-    "docs": "Disallows the use of external imports\n\n- what's the motivation of this lint rule?\n  - this rule emits warnings if external modules are imported via URL. \"deps.ts\"\n    and import maps are exception.\n- why is linted code considered bad?\n  - importing external modules just works fine, but it will take time and effort\n    when you want to upgrade those modules if they are imported in multiple\n    places in your project.\n- who should use it?\n  - to avoid it you could use \"deps.ts convention\" or\n    [import maps](https://deno.land/manual/linking_to_external_code/import_maps),\n    where you import all external modules and then re-export them or assign\n    aliases to them.\n  - so if you'd like to follow the \"deps.ts convention\" or to use import maps,\n    this rule is for you.\n\n### Invalid:\n\n```typescript\nimport { assertEquals } from \"https://deno.land/std@0.126.0/testing/asserts.ts\";\n```\n\n### Valid:\n\n```typescript\nimport { assertEquals } from \"./deps.ts\";\n```\n\n```typescript\n// deps.ts\n\nexport {\n  assert,\n  assertEquals,\n  assertStringIncludes,\n} from \"https://deno.land/std@0.126.0/testing/asserts.ts\";\n```\n\nyou can refer to the explanation of this convention here\nhttps://deno.land/manual/linking_to_external_code#it-seems-unwieldy-to-import-urls-everywhere\n",
+    "docs": "Disallows the use of external imports\n\n- what's the motivation of this lint rule?\n  - this rule emits warnings if external modules are imported via URL. \"deps.ts\"\n    and import maps are exception.\n- why is linted code considered bad?\n  - importing external modules just works fine, but it will take time and effort\n    when you want to upgrade those modules if they are imported in multiple\n    places in your project.\n- who should use it?\n  - to avoid it you could use \"deps.ts convention\" or\n    [import maps](https://docs.deno.com/runtime/manual/basics/import_maps),\n    where you import all external modules and then re-export them or assign\n    aliases to them.\n  - so if you'd like to follow the \"deps.ts convention\" or to use import maps,\n    this rule is for you.\n\n### Invalid:\n\n```typescript\nimport { assertEquals } from \"https://deno.land/std@0.126.0/testing/asserts.ts\";\n```\n\n### Valid:\n\n```typescript\nimport { assertEquals } from \"./deps.ts\";\n```\n\n```typescript\n// deps.ts\n\nexport {\n  assert,\n  assertEquals,\n  assertStringIncludes,\n} from \"https://deno.land/std@0.126.0/testing/asserts.ts\";\n```\n\nyou can refer to the explanation of this convention here\nhttps://docs.deno.com/runtime/manual/basics/modules/#it-seems-unwieldy-to-import-urls-everywhere\n",
     "tags": []
   },
   {
@@ -309,13 +314,6 @@
   {
     "code": "no-extra-non-null-assertion",
     "docs": "Disallows unnecessary non-null assertions\n\nNon-null assertions are specified with an `!` saying to the compiler that you\nknow this value is not null. Specifying this operator more than once in a row,\nor in combination with the optional chaining operator (`?`) is confusing and\nunnecessary.\n\n### Invalid:\n\n```typescript\nconst foo: { str: string } | null = null;\nconst bar = foo!!.str;\n\nfunction myFunc(bar: undefined | string) {\n  return bar!!;\n}\nfunction anotherFunc(bar?: { str: string }) {\n  return bar!?.str;\n}\n```\n\n### Valid:\n\n```typescript\nconst foo: { str: string } | null = null;\nconst bar = foo!.str;\n\nfunction myFunc(bar: undefined | string) {\n  return bar!;\n}\nfunction anotherFunc(bar?: { str: string }) {\n  return bar?.str;\n}\n```\n",
-    "tags": [
-      "recommended"
-    ]
-  },
-  {
-    "code": "no-extra-semi",
-    "docs": "<!-- deno-fmt-ignore-file -->\n\nDisallows the use of unnecessary semi-colons\n\nExtra (and unnecessary) semi-colons can cause confusion when reading the code as\nwell as making the code less clean.\n\n### Invalid:\n\n```typescript\nconst x = 5;;\n\nfunction foo() {};\n```\n\n### Valid:\n\n```typescript\nconst x = 5;\n\nfunction foo() {}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -347,6 +345,13 @@
     "tags": []
   },
   {
+    "code": "no-import-assertions",
+    "docs": "Disallows the `assert` keyword for import attributes\n\nES import attributes (previously called import assertions) has been changed to\nuse the `with` keyword. The old syntax using `assert` is still supported, but\ndeprecated.\n\n### Invalid:\n\n```typescript\nimport obj from \"./obj.json\" assert { type: \"json\" };\nimport(\"./obj2.json\", { assert: { type: \"json\" } });\n```\n\n### Valid:\n\n```typescript\nimport obj from \"./obj.json\" with { type: \"json\" };\nimport(\"./obj2.json\", { with: { type: \"json\" } });\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "no-import-assign",
     "docs": "Disallows reassignment of imported module bindings\n\nES module import bindings should be treated as read-only since modifying them\nduring code execution will likely result in runtime errors. It also makes for\npoor code readability and difficult maintenance.\n\n### Invalid:\n\n```typescript\nimport defaultMod, { namedMod } from \"./mod.js\";\nimport * as modNameSpace from \"./mod2.js\";\n\ndefaultMod = 0;\nnamedMod = true;\nmodNameSpace.someExportedMember = \"hello\";\nmodNameSpace = {};\n```\n\n### Valid:\n\n```typescript\nimport defaultMod, { namedMod } from \"./mod.js\";\nimport * as modNameSpace from \"./mod2.js\";\n\n// properties of bound imports may be set\ndefaultMod.prop = 1;\nnamedMod.prop = true;\nmodNameSpace.someExportedMember.prop = \"hello\";\n```\n",
     "tags": [
@@ -356,9 +361,7 @@
   {
     "code": "no-inferrable-types",
     "docs": "Disallows easily inferrable types\n\nVariable initializations to JavaScript primitives (and `null`) are obvious in\ntheir type. Specifying their type can add additional verbosity to the code. For\nexample, with `const x: number = 5`, specifying `number` is unnecessary as it is\nobvious that `5` is a number.\n\n### Invalid:\n\n```typescript\nconst a: bigint = 10n;\nconst b: bigint = BigInt(10);\nconst c: boolean = true;\nconst d: boolean = !0;\nconst e: number = 10;\nconst f: number = Number(\"1\");\nconst g: number = Infinity;\nconst h: number = NaN;\nconst i: null = null;\nconst j: RegExp = /a/;\nconst k: RegExp = RegExp(\"a\");\nconst l: RegExp = new RegExp(\"a\");\nconst m: string = \"str\";\nconst n: string = `str`;\nconst o: string = String(1);\nconst p: symbol = Symbol(\"a\");\nconst q: undefined = undefined;\nconst r: undefined = void someValue;\n\nclass Foo {\n  prop: number = 5;\n}\n\nfunction fn(s: number = 5, t: boolean = true) {}\n```\n\n### Valid:\n\n```typescript\nconst a = 10n;\nconst b = BigInt(10);\nconst c = true;\nconst d = !0;\nconst e = 10;\nconst f = Number(\"1\");\nconst g = Infinity;\nconst h = NaN;\nconst i = null;\nconst j = /a/;\nconst k = RegExp(\"a\");\nconst l = new RegExp(\"a\");\nconst m = \"str\";\nconst n = `str`;\nconst o = String(1);\nconst p = Symbol(\"a\");\nconst q = undefined;\nconst r = void someValue;\n\nclass Foo {\n  prop = 5;\n}\n\nfunction fn(s = 5, t = true) {}\n```\n",
-    "tags": [
-      "recommended"
-    ]
+    "tags": []
   },
   {
     "code": "no-inner-declarations",
@@ -411,12 +414,12 @@
   },
   {
     "code": "no-non-null-asserted-optional-chain",
-    "docs": "",
+    "docs": "Disallow non-null assertions after an optional chain expression\n\n`?.` optional chain expressions provide undefined if an object is `null` or\n`undefined`. Using a `!` non-null assertion to assert the result of an `?.`\noptional chain expression is non-nullable is likely wrong.\n\n### Invalid:\n\n```typescript\nfoo?.bar!;\nfoo?.bar()!;\n```\n\n### Valid:\n\n```typescript\nfoo?.bar;\nfoo?.bar();\n```\n",
     "tags": []
   },
   {
     "code": "no-non-null-assertion",
-    "docs": "",
+    "docs": "Disallow non-null assertions using the `!` postfix operator\n\nTypeScript's `!` non-null assertion operator asserts to the type system that an\nexpression is non-nullable, as in not `null` or `undefined`. Using assertions to\ntell the type system new information is often a sign that code is not fully\ntype-safe. It's generally better to structure program logic so that TypeScript\nunderstands when values may be nullable.\n\n### Invalid:\n\n```typescript\ninterface Example {\n  property?: string;\n}\ndeclare const example: Example;\n\nconst includes = example.property!.includes(\"foo\");\n```\n\n### Valid:\n\n```typescript\ninterface Example {\n  property?: string;\n}\ndeclare const example: Example;\n\nconst includes = example.property?.includes(\"foo\") ?? false;\n```\n",
     "tags": []
   },
   {
@@ -462,6 +465,11 @@
     ]
   },
   {
+    "code": "no-self-compare",
+    "docs": "Disallows comparisons where both sides are exactly the same.\n\nComparing a variable or value against itself is usually an error, either a typo\nor refactoring error. It is confusing to the reader and may potentially\nintroduce a runtime error.\n\n### Invalid:\n\n```typescript\nif (x === x) {\n}\nif (\"x\" === \"x\") {\n}\nif (a.b === a.b) {\n}\nif (a[\"b\"] === a[\"b\"]) {\n}\n```\n\n### Valid:\n\n```typescript\nif (x === y) {\n}\nif (\"x\" === \"y\") {\n}\nif (a.b === a.c) {\n}\nif (a[\"b\"] === a[\"c\"]) {\n}\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-setter-return",
     "docs": "Disallows returning values from setters.\n\nSetters are supposed to be used for setting some value to the property, which\nmeans that returning a value from a setter makes no sense. In fact, returned\nvalues are ignored and cannot ever be used at all although returning a value\nfrom a setter produces no error. This is why static check for this mistake by\nthe linter is quite beneficial.\n\nNote that returning without a value is allowed; this is a useful technique to do\nearly-return from a function.\n\n### Invalid:\n\n```typescript\nconst a = {\n  set foo(x: number) {\n    return \"something\";\n  },\n};\n\nclass B {\n  private set foo(x: number) {\n    return \"something\";\n  }\n}\n\nconst c = {\n  set foo(x: boolean) {\n    if (x) {\n      return 42;\n    }\n  },\n};\n```\n\n### Valid:\n\n```typescript\n// return without a value is allowed since it is used to do early-return\nconst a = {\n  set foo(x: number) {\n    if (x % 2 == 0) {\n      return;\n    }\n  },\n};\n\n// not a setter, but a getter\nclass B {\n  get foo() {\n    return 42;\n  }\n}\n\n// not a setter\nconst c = {\n  set(x: number) {\n    return \"something\";\n  },\n};\n```\n",
     "tags": [
@@ -501,7 +509,7 @@
   },
   {
     "code": "no-throw-literal",
-    "docs": "",
+    "docs": "Disallow throwing literals as exceptions\n\nIt is considered good practice to only `throw` the `Error` object itself or an\nobject using the `Error` object as base objects for user-defined exceptions. The\nfundamental benefit of `Error` objects is that they automatically keep track of\nwhere they were built and originated.\n\n### Invalid:\n\n```typescript\nthrow \"error\";\nthrow 0;\nthrow undefined;\nthrow null;\n```\n\n### Valid:\n\n```typescript\nthrow new Error(\"error\");\n```\n",
     "tags": []
   },
   {
@@ -511,7 +519,7 @@
   },
   {
     "code": "no-undef",
-    "docs": "",
+    "docs": "Disallow the use of undeclared variables\n\n### Invalid:\n\n```typescript\nconst foo = someFunction();\nconst bar = a + 1;\n```\n",
     "tags": []
   },
   {
@@ -530,7 +538,7 @@
   },
   {
     "code": "no-unsafe-negation",
-    "docs": "Disallows the usage of negation operator `!` as the left operand of relational\noperators.\n\n`!` operators appearing in the left operand of the following operators will\nsometimes cause an unexpected behavior because of the operator precedence:\n\n- `in` operator\n- `instanceof` operator\n\nFor example, when developers write a code like `!key in someObject`, most likely\nthey want it to behave just like `!(key in someObject)`, but actually it behaves\nlike `(!key) in someObject`. This lint rule warns such usage of `!` operator so\nit will be less confusing.\n\n### Invalid:\n\n```typescript\nif (!key in object) {}\nif (!foo instanceof Foo) {}\n```\n\n### Valid:\n\n```typescript\nif (!(key in object)) {}\nif (!(foo instanceof Foo)) {}\nif ((!key) in object) {}\nif ((!foo) instanceof Foo) {}\n```\n",
+    "docs": "Disallows the usage of negation operator `!` as the left operand of relational\noperators.\n\n`!` operators appearing in the left operand of the following operators will\nsometimes cause an unexpected behavior because of the operator precedence:\n\n- `in` operator\n- `instanceof` operator\n\nFor example, when developers write a code like `!key in someObject`, most likely\nthey want it to behave just like `!(key in someObject)`, but actually it behaves\nlike `(!key) in someObject`. This lint rule warns such usage of `!` operator so\nit will be less confusing.\n\n### Invalid:\n\n<!-- deno-fmt-ignore -->\n\n```typescript\nif (!key in object) {}\nif (!foo instanceof Foo) {}\n```\n\n### Valid:\n\n```typescript\nif (!(key in object)) {}\nif (!(foo instanceof Foo)) {}\nif ((!key) in object) {}\nif ((!foo) instanceof Foo) {}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -552,6 +560,13 @@
   {
     "code": "no-var",
     "docs": "Enforces the use of block scoped variables over more error prone function scoped\nvariables. Block scoped variables are defined using `const` and `let` keywords.\n\n`const` and `let` keywords ensure the variables defined using these keywords are\nnot accessible outside their block scope. On the other hand, variables defined\nusing `var` keyword are only limited by their function scope.\n\n### Invalid:\n\n```typescript\nvar foo = \"bar\";\n```\n\n### Valid:\n\n```typescript\nconst foo = 1;\nlet bar = 2;\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
+    "code": "no-window",
+    "docs": "Disallows the use of the `window` object.\n\nUsing the `window` global is deprecated and scheduled for removal in Deno 2.0.\nDeno does not have a window and `typeof window === \"undefined\"` is often used to\ntell if the code is running in the browser.\n\n### Invalid:\n\n```typescript\nconst a = await window.fetch(\"https://deno.land\");\n\nconst b = window.Deno.metrics();\nconsole.log(window);\n\nwindow.addEventListener(\"load\", () => {\n  console.log(\"Loaded.\");\n});\n```\n\n### Valid:\n\n```typescript\nconst a1 = await fetch(\"https://deno.land\");\nconst a2 = await globalThis.fetch(\"https://deno.land\");\nconst a3 = await self.fetch(\"https://deno.land\");\n\nconst b1 = Deno.metrics();\nconst b2 = globalThis.Deno.metrics();\nconst b3 = self.Deno.metrics();\nconsole.log(globalThis);\n\naddEventListener(\"load\", () => {\n  console.log(\"Loaded.\");\n});\n```\n",
     "tags": [
       "recommended"
     ]
@@ -584,7 +599,7 @@
   },
   {
     "code": "prefer-const",
-    "docs": "Recommends declaring variables with [`const`] over [`let`].\n\nSince ES2015, JavaScript supports [`let`] and [`const`] for declaring variables.\nIf variables are declared with [`let`], then they become mutable; we can set\nother values to them afterwards. Meanwhile, if declared with [`const`], they are\nimmutable; we cannot perform re-assignment to them.\n\nIn general, to make the codebase more robust, maintainable, and readable, it is\nhighly recommended to use [`const`] instead of [`let`] wherever possible. The\nfewer mutable variables are, the easier it should be to keep track of the\nvariable states while reading through the code, and thus it is less likely to\nwrite buggy code. So this lint rule checks if there are [`let`] variables that\ncould potentially be declared with [`const`] instead.\n\nNote that this rule does not check for [`var`] variables. Instead,\n[the `no-var` rule](https://lint.deno.land/#no-var) is responsible for detecting\nand warning [`var`] variables.\n\n[`let`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let\n[`const`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const\n[`var`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var\n\n### Invalid:\n\n```typescript\nlet a = 0;\n\nlet b = 0;\nsomeOperation(b);\n\n// `const` could be used instead\nfor (let c in someObject) {}\n\n// `const` could be used instead\nfor (let d of someArray) {}\n\n// variable that is uninitialized at first and then assigned in the same scope is NOT allowed\n// because we could simply write it like `const e = 2;` instead\nlet e;\ne = 2;\n```\n\n### Valid:\n\n```typescript\n// uninitialized variable is allowed\nlet a;\n\nlet b = 0;\nb += 1;\n\nlet c = 0;\nc = 1;\n\n// variable that is uninitialized at first and then assigned in the same scope _two or more times_ is allowed\n// because we cannot represent it with `const`\nlet d;\nd = 2;\nd = 3;\n\nconst e = 0;\n\n// `f` is mutated through `f++`\nfor (let f = 0; f < someArray.length; f++) {}\n\n// variable that is initialized (or assigned) in another scope is allowed\nlet g;\nfunction func1() {\n  g = 42;\n}\n\n// conditionally initialized variable is allowed\nlet h;\nif (trueOrFalse) {\n  h = 0;\n}\n```\n",
+    "docs": "Recommends declaring variables with [`const`] over [`let`].\n\nSince ES2015, JavaScript supports [`let`] and [`const`] for declaring variables.\nIf variables are declared with [`let`], then they become mutable; we can set\nother values to them afterwards. Meanwhile, if declared with [`const`], they are\nimmutable; we cannot perform re-assignment to them.\n\nIn general, to make the codebase more robust, maintainable, and readable, it is\nhighly recommended to use [`const`] instead of [`let`] wherever possible. The\nfewer mutable variables are, the easier it should be to keep track of the\nvariable states while reading through the code, and thus it is less likely to\nwrite buggy code. So this lint rule checks if there are [`let`] variables that\ncould potentially be declared with [`const`] instead.\n\nNote that this rule does not check for [`var`] variables. Instead,\n[the `no-var` rule](https://lint.deno.land/rules/no-var) is responsible for\ndetecting and warning [`var`] variables.\n\n[`let`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let\n[`const`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const\n[`var`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/var\n\n### Invalid:\n\n```typescript\nlet a = 0;\n\nlet b = 0;\nsomeOperation(b);\n\n// `const` could be used instead\nfor (let c in someObject) {}\n\n// `const` could be used instead\nfor (let d of someArray) {}\n\n// variable that is uninitialized at first and then assigned in the same scope is NOT allowed\n// because we could simply write it like `const e = 2;` instead\nlet e;\ne = 2;\n```\n\n### Valid:\n\n```typescript\n// uninitialized variable is allowed\nlet a;\n\nlet b = 0;\nb += 1;\n\nlet c = 0;\nc = 1;\n\n// variable that is uninitialized at first and then assigned in the same scope _two or more times_ is allowed\n// because we cannot represent it with `const`\nlet d;\nd = 2;\nd = 3;\n\nconst e = 0;\n\n// `f` is mutated through `f++`\nfor (let f = 0; f < someArray.length; f++) {}\n\n// variable that is initialized (or assigned) in another scope is allowed\nlet g;\nfunction func1() {\n  g = 42;\n}\n\n// conditionally initialized variable is allowed\nlet h;\nif (trueOrFalse) {\n  h = 0;\n}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -603,7 +618,7 @@
   },
   {
     "code": "require-await",
-    "docs": "Disallows async functions that have no await expression\n\nIn general, the primary reason to use async functions is to use await\nexpressions inside. If an async function has no await expression, it is most\nlikely an unintentional mistake.\n\n### Invalid:\n\n```typescript\nasync function f1() {\n  doSomething();\n}\n\nconst f2 = async () => {\n  doSomething();\n};\n\nconst f3 = async () => doSomething();\n\nconst obj = {\n  async method() {\n    doSomething();\n  },\n};\n\nclass MyClass {\n  async method() {\n    doSomething();\n  }\n}\n```\n\n### Valid:\n\n```typescript\nawait asyncFunction();\n\nfunction normalFunction() {\n  doSomething();\n}\n\nasync function f1() {\n  await asyncFunction();\n}\n\nconst f2 = async () => {\n  await asyncFunction();\n};\n\nconst f3 = async () => await asyncFunction();\n\nasync function f4() {\n  for await (const num of asyncIterable) {\n    console.log(num);\n  }\n}\n\n// empty functions are valid\nasync function emptyFunction() {}\nconst emptyArrowFunction = async () => {};\n\n// generators are also valid\nasync function* gen() {\n  console.log(42);\n}\n```\n",
+    "docs": "Disallows async functions that have no await expression or await using\ndeclaration\n\nIn general, the primary reason to use async functions is to use await\nexpressions or await using declarations inside. If an async function has\nneither, it is most likely an unintentional mistake.\n\n### Invalid:\n\n```typescript\nasync function f1() {\n  doSomething();\n}\n\nconst f2 = async () => {\n  doSomething();\n};\n\nconst f3 = async () => doSomething();\n\nconst obj = {\n  async method() {\n    doSomething();\n  },\n};\n\nclass MyClass {\n  async method() {\n    doSomething();\n  }\n}\n```\n\n### Valid:\n\n```typescript\nawait asyncFunction();\n\nfunction normalFunction() {\n  doSomething();\n}\n\nasync function f1() {\n  await asyncFunction();\n}\n\nconst f2 = async () => {\n  await asyncFunction();\n};\n\nconst f3 = async () => await asyncFunction();\n\nasync function f4() {\n  for await (const num of asyncIterable) {\n    console.log(num);\n  }\n}\n\nasync function f5() {\n  using = createResource();\n}\n\n// empty functions are valid\nasync function emptyFunction() {}\nconst emptyArrowFunction = async () => {};\n\n// generators are also valid\nasync function* gen() {\n  console.log(42);\n}\n```\n",
     "tags": [
       "recommended"
     ]
@@ -617,12 +632,12 @@
   },
   {
     "code": "single-var-declarator",
-    "docs": "",
+    "docs": "Disallows multiple variable definitions in the same declaration statement\n\n### Invalid:\n\n```typescript\nconst foo = 1, bar = \"2\";\n```\n\n### Valid:\n\n```typescript\nconst foo = 1;\nconst bar = \"2\";\n```\n",
     "tags": []
   },
   {
     "code": "triple-slash-reference",
-    "docs": "",
+    "docs": "Disallow certain triple slash directives in favor of ES6-style import\ndeclarations\n\nTypeScript's `///` triple-slash references are a way to indicate that types from\nanother module are available in a file. Use of triple-slash reference type\ndirectives is generally discouraged in favor of ECMAScript Module imports. This\nrule reports on the use of `/// <reference path=\"...\" />`,\n`/// <reference types=\"...\" />`, or `/// <reference lib=\"...\" />` directives.\n\n### Invalid:\n\n```typescript\n/// <reference types=\"foo\" />\nimport * as foo from \"foo\";\n```\n\n### Valid:\n\n```typescript\nimport * as foo from \"foo\";\n```\n",
     "tags": []
   },
   {
@@ -637,6 +652,13 @@
     "docs": "Restricts the use of the `typeof` operator to a specific set of string literals.\n\nWhen used with a value the `typeof` operator returns one of the following\nstrings:\n\n- `\"undefined\"`\n- `\"object\"`\n- `\"boolean\"`\n- `\"number\"`\n- `\"string\"`\n- `\"function\"`\n- `\"symbol\"`\n- `\"bigint\"`\n\nThis rule disallows comparison with anything other than one of these string\nliterals when using the `typeof` operator, as this likely represents a typing\nmistake in the string. The rule also disallows comparing the result of a\n`typeof` operation with any non-string literal value, such as `undefined`, which\ncan represent an inadvertent use of a keyword instead of a string. This includes\ncomparing against string variables even if they contain one of the above values\nas this cannot be guaranteed. An exception to this is comparing the results of\ntwo `typeof` operations as these are both guaranteed to return on of the above\nstrings.\n\n### Invalid:\n\n```typescript\n// typo\ntypeof foo === \"strnig\";\ntypeof foo == \"undefimed\";\ntypeof bar != \"nunber\";\ntypeof bar !== \"fucntion\";\n\n// compare with non-string literals\ntypeof foo === undefined;\ntypeof bar == Object;\ntypeof baz === anotherVariable;\ntypeof foo == 5;\n```\n\n### Valid:\n\n```typescript\ntypeof foo === \"undefined\";\ntypeof bar == \"object\";\ntypeof baz === \"string\";\ntypeof bar === typeof qux;\n```\n",
     "tags": [
       "recommended"
+    ]
+  },
+  {
+    "code": "verbatim-module-syntax",
+    "docs": "Enforces type imports to be declared as type imports.\n\nThis rule ensures that the code works when the `verbatimModuleSyntax` TypeScript\ncompiler option is enabled. This is useful in libraries distributing TypeScript\ncode in order to work in more scenarios.\n\n### Invalid:\n\n```typescript\nimport { Person } from \"./person.ts\";\n\nconst person: Person = {\n  name: \"David\",\n};\nconsole.log(person);\n```\n\n```typescript\nimport { output, Person } from \"./person.ts\";\n\nconst person: Person = {\n  name: \"David\",\n};\noutput(person);\n```\n\n### Valid:\n\n```typescript\nimport type { Person } from \"./person.ts\";\n\nconst person: Person = {\n  name: \"David\",\n};\nconsole.log(person);\n```\n\n```typescript\nimport { output, type Person } from \"./person.ts\";\n\nconst person: Person = {\n  name: \"David\",\n};\noutput(person);\n```\n",
+    "tags": [
+      "jsr"
     ]
   }
 ]

@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use deno_ast::{
   lex,
   swc::parser::token::{Token, Word},
@@ -289,20 +290,16 @@ fn colorize_code_block(lang: CodeBlockLang, src: &str) -> String {
                   decorate(&line[range], Attribute::Yellow)
                 }
                 Word::Keyword(_) => decorate(&line[range], Attribute::Cyan),
-                Word::Ident(ident) => {
-                  if ident == *"undefined" {
-                    decorate(&line[range], Attribute::Gray)
-                  } else if ident == *"Infinity" || ident == *"NaN" {
+                Word::Ident(ident) => match ident.as_ref() {
+                  "undefined" => decorate(&line[range], Attribute::Gray),
+                  "Infinity" | "NaN" => {
                     decorate(&line[range], Attribute::Yellow)
-                  } else if matches!(
-                    ident.as_ref(),
-                    "async" | "of" | "enum" | "type" | "interface"
-                  ) {
-                    decorate(&line[range], Attribute::Cyan)
-                  } else {
-                    line[range].to_string()
                   }
-                }
+                  "async" | "of" | "enum" | "type" | "interface" => {
+                    decorate(&line[range], Attribute::Cyan)
+                  }
+                  _ => line[range].to_string(),
+                },
               },
               _ => line[range].to_string(),
             },

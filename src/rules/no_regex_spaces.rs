@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
@@ -85,7 +86,7 @@ impl Handler for NoRegexSpacesHandler {
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
-      if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
+      if let Some(regex) = extract_regex(ctx.scope(), ident, call_expr.args) {
         check_regex(regex.as_str(), call_expr.range(), ctx);
       }
     }

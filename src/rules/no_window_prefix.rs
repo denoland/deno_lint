@@ -1,6 +1,9 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::Context;
 use super::LintRule;
+use crate::diagnostic::LintFix;
+use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
 use crate::Program;
@@ -18,6 +21,7 @@ const CODE: &str = "no-window-prefix";
 const MESSAGE: &str = "For compatibility between the Window context and the Web Workers, calling Web APIs via `window` is disallowed";
 const HINT: &str =
   "Instead, call this API via `self`, `globalThis`, or no extra prefix";
+const FIX_DESC: &str = "Rename window to globalThis";
 
 impl LintRule for NoWindowPrefix {
   fn tags(&self) -> &'static [&'static str] {
@@ -215,11 +219,11 @@ fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a str> {
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       // If it's computed, this MemberExpr looks like `foo[bar]`
       Expr::Ident(_) => None,
-      Expr::Tpl(Tpl {
-        ref exprs,
-        ref quasis,
-        ..
-      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
+      Expr::Tpl(Tpl { exprs, quasis, .. })
+        if exprs.is_empty() && quasis.len() == 1 =>
+      {
+        Some(quasis[0].raw())
+      }
       _ => None,
     },
   }
@@ -240,18 +244,25 @@ impl Handler for NoWindowPrefixHandler {
 
     use deno_ast::view::Expr;
     if_chain! {
-      if let Expr::Ident(obj) = &member_expr.obj;
-      let obj_symbol = obj.sym();
+      if let Expr::Ident(obj_ident) = &member_expr.obj;
+      let obj_symbol = obj_ident.sym();
       if obj_symbol == "window";
-      if ctx.scope().is_global(&obj.inner.to_id());
+      if ctx.scope().is_global(&obj_ident.inner.to_id());
       if let Some(prop_symbol) = extract_symbol(member_expr);
       if PROPERTY_DENY_LIST.contains(prop_symbol);
       then {
-        ctx.add_diagnostic_with_hint(
+        ctx.add_diagnostic_with_fixes(
           member_expr.range(),
           CODE,
           MESSAGE,
-          HINT,
+          Some(HINT.into()),
+          vec![LintFix {
+            description: FIX_DESC.into(),
+            changes: vec![LintFixChange {
+              new_text: "globalThis".into(),
+              range: obj_ident.range(),
+            }],
+          }]
         );
       }
     }
@@ -263,7 +274,7 @@ mod tests {
   use super::*;
 
   #[test]
-  fn no_deprecated_deno_api_valid() {
+  fn no_window_prefix_valid() {
     assert_lint_ok! {
       NoWindowPrefix,
       "fetch();",
@@ -377,7 +388,7 @@ mod tests {
   }
 
   #[test]
-  fn no_deprecated_deno_api_invalid() {
+  fn no_window_prefix_invalid() {
     assert_lint_err! {
       NoWindowPrefix,
       MESSAGE,
@@ -385,28 +396,36 @@ mod tests {
       r#"window.fetch()"#: [
         {
           col: 0,
+          fix: (FIX_DESC, "globalThis.fetch()"),
         }
       ],
       r#"window["fetch"]()"#: [
         {
           col: 0,
+          fix: (FIX_DESC, r#"globalThis["fetch"]()"#),
         }
       ],
       r#"window[`fetch`]()"#: [
         {
           col: 0,
+          fix: (FIX_DESC, "globalThis[`fetch`]()"),
         }
       ],
-      r#"
+      "
 function foo() {
   const window = 42;
   return window;
 }
-window.fetch();
-      "#: [
+window.fetch();": [
         {
           col: 0,
           line: 6,
+          fix: (FIX_DESC, "
+function foo() {
+  const window = 42;
+  return window;
+}
+globalThis.fetch();"),
         }
       ],
     };

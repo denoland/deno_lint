@@ -1,15 +1,11 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
-use super::program_ref;
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
+use crate::handler::{Handler, Traverse};
 use crate::swc_util::find_lhs_ids;
 use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::AssignExpr;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::VisitAll;
-use deno_ast::swc::visit::VisitAllWith;
-use deno_ast::BindingKind;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::view::AssignExpr;
+use deno_ast::{BindingKind, SourceRanged};
 
 #[derive(Debug)]
 pub struct NoClassAssign;
@@ -32,12 +28,7 @@ impl LintRule for NoClassAssign {
     context: &mut Context<'view>,
     program: Program<'view>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoClassAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
-    }
+    NoClassAssignVisitor.traverse(program, context);
   }
 
   #[cfg(feature = "docs")]
@@ -46,26 +37,16 @@ impl LintRule for NoClassAssign {
   }
 }
 
-struct NoClassAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoClassAssignVisitor;
 
-impl<'c, 'view> NoClassAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl<'c, 'view> VisitAll for NoClassAssignVisitor<'c, 'view> {
-  noop_visit_type!();
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) {
+impl Handler for NoClassAssignVisitor {
+  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
     let ids = find_lhs_ids(&assign_expr.left);
     for id in ids {
-      let var = self.context.scope().var(&id);
+      let var = ctx.scope().var(&id);
       if let Some(var) = var {
         if let BindingKind::Class = var.kind() {
-          self.context.add_diagnostic_with_hint(
+          ctx.add_diagnostic_with_hint(
             assign_expr.range(),
             CODE,
             MESSAGE,

@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::extract_regex;
@@ -139,7 +140,7 @@ impl Handler for NoControlRegexHandler {
 
   fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
     if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
-      if let Some(regex) = extract_regex(ctx.scope(), ident, &call_expr.args) {
+      if let Some(regex) = extract_regex(ctx.scope(), ident, call_expr.args) {
         check_regex(regex.as_str(), call_expr.range(), ctx);
       }
     }
@@ -192,19 +193,19 @@ mod tests {
   fn no_control_regex_valid() {
     assert_lint_ok! {
       NoControlRegex,
-      r#"/x1f/"#,
-      r#"/\\x1f/"#,
-      r#"/u001f/"#,
-      r#"/\\u001f/"#,
-      r#"/u{001f}/"#,
-      r#"/\\u{001f}/"#,
-      r#"/u{0001f}/"#,
-      r#"/\\u{0001f}/"#,
-      r#"new RegExp('x1f')"#,
-      r#"RegExp('x1f')"#,
-      r#"new RegExp('[')"#,
-      r#"RegExp('[')"#,
-      r#"new (function foo(){})('\\x1f')"#,
+      r"/x1f/",
+      r"/\\x1f/",
+      r"/u001f/",
+      r"/\\u001f/",
+      r"/u{001f}/",
+      r"/\\u{001f}/",
+      r"/u{0001f}/",
+      r"/\\u{0001f}/",
+      r"new RegExp('x1f')",
+      r"RegExp('x1f')",
+      r"new RegExp('[')",
+      r"RegExp('[')",
+      r"new (function foo(){})('\\x1f')",
     };
   }
 
@@ -212,77 +213,77 @@ mod tests {
   fn no_control_regex_invalid() {
     assert_lint_err! {
       NoControlRegex,
-      r#"/\x1f/"#: [
+      r"/\x1f/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"/\u001f/"#: [
+      r"/\u001f/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"/\u{001f}/"#: [
+      r"/\u{001f}/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"/\u{0001f}/"#: [
+      r"/\u{0001f}/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"/\\\x1f\\x1e/"#: [
+      r"/\\\x1f\\x1e/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"/\\\x1fFOO\\x00/"#: [
+      r"/\\\x1fFOO\\x00/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"/FOO\\\x1fFOO\\x1f/"#: [
+      r"/FOO\\\x1fFOO\\x1f/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"new RegExp('\\x1f\\x1e')"#: [
+      r"new RegExp('\\x1f\\x1e')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"new RegExp('\\x1fFOO\\x00')"#: [
+      r"new RegExp('\\x1fFOO\\x00')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"new RegExp('FOO\\x1fFOO\\x1f')"#: [
+      r"new RegExp('FOO\\x1fFOO\\x1f')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r#"RegExp('\\x1f')"#: [
+      r"RegExp('\\x1f')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),

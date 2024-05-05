@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::Program;
 use deno_ast::swc::common::comments::{Comment, CommentKind};
@@ -95,7 +96,7 @@ impl ReportKind {
 // These regexes should be consistent with how Deno resolves modules.
 // https://github.com/denoland/deno/blob/76e2edc7e1868d7768e259aacbb9a991e1afc462/cli/module_graph.rs
 static TRIPLE_SLASH_REFERENCE_RE: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r#"(?i)^/\s*<reference\s.*?/>"#).unwrap());
+  Lazy::new(|| Regex::new(r"(?i)^/\s*<reference\s.*?/>").unwrap());
 static PATH_REFERENCE_RE: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r#"(?i)\spath\s*=\s*["'](?P<value>[^"']*)["']"#).unwrap()
 });
@@ -309,7 +310,7 @@ mod tests {
     // JavaScript
     assert_lint_ok! {
       NoInvalidTripleSlashReference,
-      filename: "foo.js",
+      filename: "file:///foo.js",
       r#"/// <reference types="./mod.d.ts" />"#,
       r#"/// <reference lib="lib" />"#,
       r#"/// <reference path="path" />"#,
@@ -330,7 +331,7 @@ mod tests {
     // TypeScript
     assert_lint_ok! {
       NoInvalidTripleSlashReference,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       r#"/// <reference types="./mod.d.ts" />"#,
       r#"/// <reference path="path" />"#,
       r#"/// <reference lib="lib" />"#,
@@ -355,7 +356,7 @@ mod tests {
     // JavaScript
     assert_lint_err! {
       NoInvalidTripleSlashReference,
-      filename: "foo.js",
+      filename: "file:///foo.js",
       r#"/// <reference foo />"#: [
         {
           line: 1,
@@ -369,7 +370,7 @@ mod tests {
     // TypeScript
     assert_lint_err! {
       NoInvalidTripleSlashReference,
-      filename: "foo.ts",
+      filename: "file:///foo.ts",
       r#"/// <reference foo />"#: [
         {
           line: 1,

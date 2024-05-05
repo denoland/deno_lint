@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use crate::color::colorize_markdown;
 use deno_lint::rules::get_all_rules;
 use serde::Serialize;

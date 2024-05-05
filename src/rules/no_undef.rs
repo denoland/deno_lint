@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::globals::GLOBALS;
@@ -121,6 +122,14 @@ impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
       self.check(&i.id);
     } else {
       p.visit_children_with(self);
+    }
+  }
+
+  fn visit_simple_assign_target(&mut self, n: &SimpleAssignTarget) {
+    if let SimpleAssignTarget::Ident(i) = n {
+      self.check(i);
+    } else {
+      n.visit_children_with(self);
     }
   }
 

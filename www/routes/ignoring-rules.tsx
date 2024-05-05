@@ -1,6 +1,5 @@
-import { Header } from "../components/Header.tsx";
-import { CommonHead } from "../components/CommonHead.tsx";
 import type { Handlers, PageProps } from "$fresh/server.ts";
+import { Header } from "../components/Header.tsx";
 import { renderMarkdown } from "../utils/render_markdown.ts";
 import { fromFileUrl, join } from "https://deno.land/std@0.177.0/path/posix.ts";
 
@@ -18,15 +17,12 @@ export const handler: Handlers<string> = {
 
 export default function IgnoringRulesPage(props: PageProps<string>) {
   return (
-    <div class="py-6">
-      <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
-        <CommonHead />
-        <Header />
-        <main
-          dangerouslySetInnerHTML={{ __html: props.data }}
-          class="markdown-body my-8"
-        />
-      </div>
+    <div>
+      <Header active="/ignoring-rules" />
+      <main
+        dangerouslySetInnerHTML={{ __html: props.data }}
+        class="markdown-body my-8"
+      />
     </div>
   );
 }

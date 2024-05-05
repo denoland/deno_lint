@@ -1,4 +1,5 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
@@ -48,11 +49,11 @@ fn extract_symbol<'a>(
     MemberProp::Computed(prop) => match &prop.expr {
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       Expr::Ident(ident) => Some(ident.sym()),
-      Expr::Tpl(Tpl {
-        ref exprs,
-        ref quasis,
-        ..
-      }) if exprs.is_empty() && quasis.len() == 1 => Some(quasis[0].raw()),
+      Expr::Tpl(Tpl { exprs, quasis, .. })
+        if exprs.is_empty() && quasis.len() == 1 =>
+      {
+        Some(quasis[0].raw())
+      }
       _ => None,
     },
   }

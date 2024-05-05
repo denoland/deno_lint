@@ -1,9 +1,11 @@
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;
 use deno_ast::view::{
-  ArrayPat, AssignExpr, Expr, Ident, ObjectPat, ObjectPatProp, Pat, PatOrExpr,
+  ArrayPat, AssignExpr, AssignTarget, AssignTargetPat, Ident, ObjectPat,
+  ObjectPatProp, Pat, SimpleAssignTarget,
 };
 use deno_ast::{BindingKind, SourceRange, SourceRanged};
 use derive_more::Display;
@@ -72,7 +74,7 @@ fn check_obj_pat(object: &ObjectPat, range: SourceRange, ctx: &mut Context) {
   if !object.props.is_empty() {
     for prop in object.props.iter() {
       if let ObjectPatProp::Assign(assign_prop) = prop {
-        check_scope_for_const(assign_prop.key.range(), assign_prop.key, ctx);
+        check_scope_for_const(assign_prop.key.range(), assign_prop.key.id, ctx);
       } else if let ObjectPatProp::KeyValue(kv_prop) = prop {
         check_pat(&kv_prop.value, range, ctx);
       }
@@ -104,15 +106,35 @@ fn check_scope_for_const(range: SourceRange, name: &Ident, ctx: &mut Context) {
 impl Handler for NoExAssignHandler {
   fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
     match &assign_expr.left {
-      PatOrExpr::Expr(pat_expr) => {
-        if let Expr::Ident(ident) = pat_expr {
-          check_scope_for_const(assign_expr.range(), ident, ctx);
+      AssignTarget::Simple(target) => match target {
+        SimpleAssignTarget::Ident(ident) => {
+          check_scope_for_const(assign_expr.range(), ident.id, ctx);
         }
-      }
-      PatOrExpr::Pat(boxed_pat) => {
-        check_pat(boxed_pat, assign_expr.range(), ctx)
-      }
-    };
+        SimpleAssignTarget::Member(_)
+        | SimpleAssignTarget::SuperProp(_)
+        | SimpleAssignTarget::Paren(_)
+        | SimpleAssignTarget::OptChain(_)
+        | SimpleAssignTarget::TsAs(_)
+        | SimpleAssignTarget::TsSatisfies(_)
+        | SimpleAssignTarget::TsNonNull(_)
+        | SimpleAssignTarget::TsTypeAssertion(_)
+        | SimpleAssignTarget::TsInstantiation(_)
+        | SimpleAssignTarget::Invalid(_) => {
+          // ignore
+        }
+      },
+      AssignTarget::Pat(pat) => match pat {
+        AssignTargetPat::Array(array) => {
+          check_array_pat(array, assign_expr.range(), ctx);
+        }
+        AssignTargetPat::Object(object) => {
+          check_obj_pat(object, assign_expr.range(), ctx);
+        }
+        AssignTargetPat::Invalid(_) => {
+          // ignore
+        }
+      },
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-write=. --allow-read=.
-// Copyright 2020-2021 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 import { cyan, green, red } from "https://deno.land/std@0.106.0/fmt/colors.ts";
 import { fromFileUrl, join } from "https://deno.land/std@0.106.0/path/mod.ts";
@@ -95,7 +95,8 @@ export function genRustContent(
   kebabCasedLintName: string,
   snakeCasedLintName: string,
 ): string {
-  return `// Copyright 2020-${now.getFullYear()} the Deno authors. All rights reserved. MIT license.
+  return `// Copyright 2018-${now.getFullYear()} the Deno authors. All rights reserved. MIT license.
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::Program;

@@ -1,8 +1,9 @@
-Disallows async functions that have no await expression
+Disallows async functions that have no await expression or await using
+declaration
 
 In general, the primary reason to use async functions is to use await
-expressions inside. If an async function has no await expression, it is most
-likely an unintentional mistake.
+expressions or await using declarations inside. If an async function has
+neither, it is most likely an unintentional mistake.
 
 ### Invalid:
 
@@ -53,6 +54,10 @@ async function f4() {
   for await (const num of asyncIterable) {
     console.log(num);
   }
+}
+
+async function f5() {
+  using = createResource();
 }
 
 // empty functions are valid
