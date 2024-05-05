@@ -1,9 +1,8 @@
 import { useEffect, useRef } from "preact/hooks";
-import { useSignal } from "@preact/signals";
+import { type Signal, useSignal } from "@preact/signals";
 import loader, {
   type Monaco,
 } from "https://esm.sh/v130/@monaco-editor/loader@1.3.3";
-import { type Signal } from "@preact/signals";
 
 type Props = {
   defaultValue?: string;
