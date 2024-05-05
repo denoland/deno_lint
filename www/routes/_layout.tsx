@@ -7,11 +7,10 @@ import { Footer } from "../components/Footer.tsx";
 export default function Layout({ Component, state }: PageProps) {
   return (
     <div class="py-6">
-      <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
+      <div>
         <CommonHead />
         <Component />
       </div>
-
       <Footer class="mt-8" />
     </div>
   );

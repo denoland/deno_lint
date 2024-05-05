@@ -1,6 +1,11 @@
 import { Header } from "../components/Header.tsx";
 import { CommonHead } from "../components/CommonHead.tsx";
 import Playground from "../islands/Playground.tsx";
+import type { LayoutConfig } from "$fresh/server.ts";
+
+export const config: LayoutConfig = {
+  skipInheritedLayouts: true,
+};
 
 export default function PlaygroundPage() {
   return (
