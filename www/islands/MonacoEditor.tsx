@@ -16,7 +16,13 @@ export default function MonacoEditor(props: Props) {
 
   useEffect(() => {
     loader.init().then((monaco) => {
+      monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+        noSemanticValidation: true,
+        noSyntaxValidation: false,
+      });
+
       monaco.editor.setTheme(props.isDarkMode ? "vs-dark" : "vs-light");
+
       const editor = monaco.editor.create(editorRef.current!, {
         value: props.defaultValue,
         language: props.language,
