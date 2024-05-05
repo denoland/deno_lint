@@ -1,20 +1,33 @@
 import { useSignal } from "@preact/signals";
 import MonacoEditor from "./MonacoEditor.tsx";
 import Linter from "./Linter.tsx";
-import { useMemo } from "preact/hooks";
+import { useEffect, useMemo } from "preact/hooks";
 import { IS_BROWSER } from "$fresh/runtime.ts";
 
 export default function Playground() {
   const defaultSource = "let a = 42;";
   const source = useSignal(defaultSource);
-  const isDarkMode = useMemo(() => {
+  const isDarkMode = useSignal(false);
+
+  useEffect(() => {
     if (!IS_BROWSER) {
-      return true;
+      return;
     }
 
-    const preferDark =
-      globalThis.matchMedia("(prefers-color-scheme: dark)").matches;
-    return preferDark;
+    const preferDarkMode = globalThis.matchMedia(
+      "(prefers-color-scheme: dark)",
+    );
+    isDarkMode.value = preferDarkMode.matches;
+
+    const handler = () => {
+      isDarkMode.value = preferDarkMode.matches;
+    };
+
+    preferDarkMode.addEventListener("change", handler);
+
+    return () => {
+      preferDarkMode.removeEventListener("change", handler);
+    };
   }, []);
 
   return (
