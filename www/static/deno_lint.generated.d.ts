@@ -32,6 +32,7 @@ export function instantiateWithInstance(opts?: InstantiateOptions): Promise<Inst
 /**
 * @param {string} filename
 * @param {string} source_code
+* @param {boolean} enable_all_rules
 * @returns {string}
 */
-export function run(filename: string, source_code: string): string;
+export function run(filename: string, source_code: string, enable_all_rules: boolean): string;

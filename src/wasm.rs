@@ -3,6 +3,7 @@
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
+use crate::rules::get_all_rules;
 use crate::rules::get_recommended_rules;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
@@ -17,9 +18,17 @@ use wasm_bindgen::prelude::*;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-pub fn run(filename: String, source_code: String) -> Result<String, String> {
+pub fn run(
+  filename: String,
+  source_code: String,
+  enable_all_rules: bool,
+) -> Result<String, String> {
   let linter = LinterBuilder::default()
-    .rules(get_recommended_rules())
+    .rules(if enable_all_rules {
+      get_all_rules()
+    } else {
+      get_recommended_rules()
+    })
     .build();
   let specifier = ModuleSpecifier::parse(&format!("file:///{filename}"))
     .map_err(|e| e.to_string())?;

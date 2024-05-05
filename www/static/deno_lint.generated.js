@@ -4,7 +4,7 @@
 // deno-fmt-ignore-file
 /// <reference types="./deno_lint.generated.d.ts" />
 
-// source-hash: fef76a37136f707f86dd3e60c4b7b2ab08d42c77
+// source-hash: 23d7e72f1076e5a0ba8ef15124c69c56112dc8d0
 let wasm;
 
 const cachedTextDecoder = typeof TextDecoder !== "undefined"
@@ -125,9 +125,10 @@ function takeObject(idx) {
 /**
  * @param {string} filename
  * @param {string} source_code
+ * @param {boolean} enable_all_rules
  * @returns {string}
  */
-export function run(filename, source_code) {
+export function run(filename, source_code, enable_all_rules) {
   let deferred4_0;
   let deferred4_1;
   try {
@@ -144,7 +145,7 @@ export function run(filename, source_code) {
       wasm.__wbindgen_realloc,
     );
     const len1 = WASM_VECTOR_LEN;
-    wasm.run(retptr, ptr0, len0, ptr1, len1);
+    wasm.run(retptr, ptr0, len0, ptr1, len1, enable_all_rules);
     var r0 = getInt32Memory0()[retptr / 4 + 0];
     var r1 = getInt32Memory0()[retptr / 4 + 1];
     var r2 = getInt32Memory0()[retptr / 4 + 2];

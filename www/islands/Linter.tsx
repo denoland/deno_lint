@@ -8,6 +8,7 @@ import { unreachable } from "@std/assert/unreachable";
 type Props = {
   source: Signal<string>;
   language: Signal<SupportedLanguages>;
+  enableAllRules: Signal<boolean>;
 };
 
 type Display = {
@@ -57,7 +58,11 @@ export default function Linter(props: Props) {
 
     let result;
     try {
-      result = run(filename.value, props.source.value);
+      result = run(
+        filename.value,
+        props.source.value,
+        props.enableAllRules.value,
+      );
     } catch (e) {
       return {
         kind: "LintError",
