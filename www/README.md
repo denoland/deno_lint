@@ -21,10 +21,10 @@ This feature is realized using wasm and its glue code put in the `static`
 directory. To update these files, follow the steps below. (Note: These steps
 assume that you are in the root directory of this repository)
 
-1. Make sure you have `wasm-bindgen-cli` v0.2.81 installed:
+1. Make sure you have `wasm-bindgen-cli` v0.2.92 installed:
 
 ```shell
-cargo install -f wasm-bindgen-cli --version 0.2.81
+cargo install -f wasm-bindgen-cli --version 0.2.92
 ```
 
 2. Build deno_lint for the wasm target.
