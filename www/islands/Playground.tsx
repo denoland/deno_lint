@@ -13,7 +13,7 @@ export default function Playground() {
     }
 
     const preferDark =
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
+      globalThis.matchMedia("(prefers-color-scheme: dark)").matches;
     return preferDark;
   }, []);
 
