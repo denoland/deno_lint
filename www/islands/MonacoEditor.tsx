@@ -4,9 +4,18 @@ import loader, {
   type Monaco,
 } from "https://esm.sh/v130/@monaco-editor/loader@1.3.3";
 
+export const supportedLanguages = [
+  "TypeScript",
+  "JavaScript",
+  "TSX",
+  "JSX",
+] as const;
+
+export type SupportedLanguages = typeof supportedLanguages[number];
+
 type Props = {
   defaultValue?: string;
-  language: string;
+  language: Signal<SupportedLanguages>;
   source: Signal<string>;
   className?: string;
   fontSize?: number;
@@ -26,11 +35,17 @@ export default function MonacoEditor(props: Props) {
         noSyntaxValidation: false,
       });
 
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        jsx: props.language.value === "TSX" || props.language.value === "JSX"
+          ? monaco.languages.typescript.JsxEmit.React
+          : monaco.languages.typescript.JsxEmit.None,
+      });
+
       monaco.editor.setTheme(props.isDarkMode.value ? "vs-dark" : "vs-light");
 
       const editor = monaco.editor.create(editorRef.current!, {
         value: props.defaultValue,
-        language: props.language,
+        language: "typescript",
         fontSize: props.fontSize ?? 16,
         minimap: {
           enabled: false,
@@ -50,6 +65,20 @@ export default function MonacoEditor(props: Props) {
       );
     }
   }, [props.isDarkMode.value]);
+
+  useEffect(() => {
+    if (monacoEditor.value) {
+      monacoEditor.value.languages.typescript.typescriptDefaults
+        .setCompilerOptions(
+          {
+            jsx:
+              props.language.value === "TSX" || props.language.value === "JSX"
+                ? monacoEditor.value.languages.typescript.JsxEmit.React
+                : monacoEditor.value.languages.typescript.JsxEmit.None,
+          },
+        );
+    }
+  }, [props.language.value]);
 
   return <div ref={editorRef} class={props.className}></div>;
 }

@@ -21,13 +21,14 @@ pub fn run(filename: String, source_code: String) -> Result<String, String> {
   let linter = LinterBuilder::default()
     .rules(get_recommended_rules())
     .build();
+  let specifier = ModuleSpecifier::parse(&format!("file:///{filename}"))
+    .map_err(|e| e.to_string())?;
+  let media_type = MediaType::from_specifier(&specifier);
   let (parsed_source, diagnostics) = linter
     .lint_file(LintFileOptions {
-      specifier: ModuleSpecifier::parse("file:///playground.ts").unwrap(),
+      specifier,
       source_code,
-      // TODO(magurotuna): Support other media types (probably we want to  have
-      // selector UI in the playground UI)
-      media_type: MediaType::TypeScript,
+      media_type,
     })
     .map_err(|e| e.to_string())?;
   let file_diagnostics = FileDiagnostics {

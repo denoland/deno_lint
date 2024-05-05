@@ -4,7 +4,7 @@
 // deno-fmt-ignore-file
 /// <reference types="./deno_lint.generated.d.ts" />
 
-// source-hash: bbc32166d46d887b20acae1203d2c38c94c9b47a
+// source-hash: fef76a37136f707f86dd3e60c4b7b2ab08d42c77
 let wasm;
 
 const cachedTextDecoder = typeof TextDecoder !== "undefined"

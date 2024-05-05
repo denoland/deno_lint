@@ -2,9 +2,12 @@ import { instantiate, run } from "../static/deno_lint.generated.js";
 import { useEffect, useMemo } from "preact/hooks";
 import { type Signal, useComputed, useSignal } from "@preact/signals";
 import Convert from "https://esm.sh/v130/ansi-to-html@0.7.2";
+import { type SupportedLanguages } from "./MonacoEditor.tsx";
+import { unreachable } from "@std/assert/unreachable";
 
 type Props = {
   source: Signal<string>;
+  language: Signal<SupportedLanguages>;
 };
 
 type Display = {
@@ -29,6 +32,21 @@ export default function Linter(props: Props) {
     });
   }, []);
 
+  const filename = useComputed(() => {
+    switch (props.language.value) {
+      case "TypeScript":
+        return "playground.ts";
+      case "JavaScript":
+        return "playground.js";
+      case "TSX":
+        return "playground.tsx";
+      case "JSX":
+        return "playground.jsx";
+      default:
+        unreachable();
+    }
+  });
+
   const display = useComputed<Display>(() => {
     if (!initialized.value) {
       return {
@@ -39,7 +57,7 @@ export default function Linter(props: Props) {
 
     let result;
     try {
-      result = run("playground.ts", props.source.value);
+      result = run(filename.value, props.source.value);
     } catch (e) {
       return {
         kind: "LintError",
