@@ -1,7 +1,7 @@
 import { instantiate, run } from "../static/deno_lint.generated.js";
 import { useEffect, useMemo } from "preact/hooks";
 import { type Signal, useComputed, useSignal } from "@preact/signals";
-import Convert from "npm:ansi-to-html@0.7.2";
+import Convert from "ansi-to-html";
 import { type SupportedLanguages } from "./MonacoEditor.tsx";
 import { unreachable } from "@std/assert/unreachable";
 
