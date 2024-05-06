@@ -4,7 +4,7 @@
     "build": "deno run -A dev.ts build",
     "preview": "deno run -A main.ts"
   },
-  "lock": false,
+  "lock": true,
   "compilerOptions": { "jsx": "react-jsx", "jsxImportSource": "preact" },
   "imports": {
     "$fresh/": "https://deno.land/x/fresh@1.6.8/",
