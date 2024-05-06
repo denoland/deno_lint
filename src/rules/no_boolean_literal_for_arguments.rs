@@ -41,9 +41,8 @@ struct NoBooleanLiteralForArgumentsVisitor;
 impl Handler for NoBooleanLiteralForArgumentsVisitor {
   fn call_expr(&mut self, call_expression: &CallExpr, ctx: &mut Context) {
     let args = call_expression.args;
-    let is_boolean_literal = |text: &str| -> bool {
-      matches!(text,"true" | "false")
-    };
+    let is_boolean_literal =
+      |text: &str| -> bool { matches!(text, "true" | "false") };
     for arg in args {
       if is_boolean_literal(arg.text()) {
         ctx.add_diagnostic_with_hint(
