@@ -40,7 +40,7 @@ impl LinterBuilder {
   ///
   /// Defaults to "deno-lint-ignore-file".
   pub fn ignore_file_directive(mut self, directive: &str) -> Self {
-    self.ignore_file_directive = directive.to_owned();
+    directive.clone_into(&mut self.ignore_file_directive);
     self
   }
 
@@ -48,7 +48,7 @@ impl LinterBuilder {
   ///
   /// Defaults to "deno-lint-ignore".
   pub fn ignore_diagnostic_directive(mut self, directive: &str) -> Self {
-    self.ignore_diagnostic_directive = directive.to_owned();
+    directive.clone_into(&mut self.ignore_diagnostic_directive);
     self
   }
 

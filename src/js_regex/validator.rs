@@ -1319,9 +1319,9 @@ impl EcmaRegexValidator {
 
     // UnicodePropertyName `=` UnicodePropertyValue
     if self.eat_unicode_property_name() && self.eat('=') {
-      self.last_key_value = self.last_str_value.clone();
+      self.last_key_value.clone_from(&self.last_str_value);
       if self.eat_unicode_property_value() {
-        self.last_val_value = self.last_str_value.clone();
+        self.last_val_value.clone_from(&self.last_str_value);
         if is_valid_unicode_property(
           self.ecma_version,
           &self.last_key_value,

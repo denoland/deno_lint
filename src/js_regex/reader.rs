@@ -43,7 +43,7 @@ impl Reader {
     u_flag: bool,
   ) {
     self.unicode = u_flag;
-    self.src = source.to_owned();
+    source.clone_into(&mut self.src);
     self.end = end;
     self.rewind(start);
   }
