@@ -35,6 +35,7 @@ export function Header({ active }: { active: ActivePathOptions }) {
               class={`inline-flex gap-1 items-center hover:underline ${
                 active === item.href ? "font-bold" : ""
               }`}
+              target={!item.isInternal ? "_blank" : undefined}
             >
               {item.label}
               {!item.isInternal && <IconExternalLink class="w-4 h-4" />}
