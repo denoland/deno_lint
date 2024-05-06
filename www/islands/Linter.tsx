@@ -80,7 +80,7 @@ export default function Linter(props: Props) {
     <div class="h-full">
       <div class="border border-gray-300 dark:border-gray-700 dark:bg-[#1e1e1e] p-4 overflow-x-auto h-full">
         {display.value.kind === "Loading"
-          ? <p>wasm is being loaded...</p>
+          ? <p>wasm is being loaded, which may take 10 seconds...</p>
           : display.value.kind === "LintError"
           ? (
             <>
