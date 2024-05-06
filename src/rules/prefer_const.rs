@@ -8,7 +8,7 @@ use deno_ast::swc::ast::{
   ArrayPat, ArrowExpr, AssignExpr, AssignPat, AssignTarget, AssignTargetPat,
   BindingIdent, BlockStmt, BlockStmtOrExpr, CatchClause, Class, Constructor,
   DoWhileStmt, Expr, ExprStmt, ForHead, ForInStmt, ForOfStmt, ForStmt,
-  Function, Ident, IfStmt, Invalid, Module, ObjectPat, ObjectPatProp,
+  Function, Ident, IfStmt, Module, ObjectPat, ObjectPatProp,
   ParamOrTsParamProp, Pat, RestPat, Script, SimpleAssignTarget, Stmt,
   SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
   VarDeclOrExpr, WhileStmt, WithStmt,
@@ -124,7 +124,7 @@ fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
         in_other_scope: !is_current_scope,
       });
     }
-    cur_scope = cur.borrow().parent.as_ref().map(Rc::clone);
+    cur_scope = cur.borrow().parent.as_ref().cloned();
     is_current_scope = false;
   }
   None
@@ -319,7 +319,7 @@ impl VariableCollector {
     F: FnOnce(&mut VariableCollector),
   {
     let parent_scope_range = self.cur_scope;
-    let parent_scope = self.scopes.get(&parent_scope_range).map(Rc::clone);
+    let parent_scope = self.scopes.get(&parent_scope_range).cloned();
     let child_scope = RawScope::new(parent_scope);
     self.scopes.insert(
       ScopeRange::Block(node.range()),
@@ -635,8 +635,8 @@ enum PatRef<'a> {
   Rest(&'a RestPat),
   Object(&'a ObjectPat),
   Assign(&'a AssignPat),
-  Invalid(&'a Invalid),
-  Expr(&'a Expr),
+  Invalid,
+  Expr,
 }
 
 impl<'a> From<&'a Pat> for PatRef<'a> {
@@ -647,8 +647,8 @@ impl<'a> From<&'a Pat> for PatRef<'a> {
       Pat::Rest(rest_pat) => PatRef::Rest(rest_pat),
       Pat::Object(object_pat) => PatRef::Object(object_pat),
       Pat::Assign(assign_pat) => PatRef::Assign(assign_pat),
-      Pat::Invalid(invalid) => PatRef::Invalid(invalid),
-      Pat::Expr(expr) => PatRef::Expr(expr),
+      Pat::Invalid(_invalid) => PatRef::Invalid,
+      Pat::Expr(_expr) => PatRef::Expr,
     }
   }
 }
@@ -658,7 +658,7 @@ impl<'a> From<&'a AssignTargetPat> for PatRef<'a> {
     match pat {
       AssignTargetPat::Array(array_pat) => PatRef::Array(array_pat),
       AssignTargetPat::Object(object_pat) => PatRef::Object(object_pat),
-      AssignTargetPat::Invalid(invalid) => PatRef::Invalid(invalid),
+      AssignTargetPat::Invalid(_invalid) => PatRef::Invalid,
     }
   }
 }
@@ -696,7 +696,7 @@ where
     PatRef::Assign(assign_pat) => {
       extract_idents_from_pat_with((&*assign_pat.left).into(), op)
     }
-    PatRef::Expr(_) => {
+    PatRef::Expr => {
       op(ExtractIdentsArgs::MemberExpr);
     }
     _ => {}
@@ -740,7 +740,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn get_scope(&self) -> Option<Scope> {
-    self.scopes.get(&self.cur_scope).map(Rc::clone)
+    self.scopes.get(&self.cur_scope).cloned()
   }
 
   fn extract_assign_idents<'a>(
