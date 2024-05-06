@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { type Signal, useSignal } from "@preact/signals";
-import loader, {
-  type Monaco,
-} from "https://esm.sh/v130/@monaco-editor/loader@1.3.3";
+import loader, { type Monaco } from "npm:@monaco-editor/loader@1.3.3";
 
 export const supportedLanguages = [
   "TypeScript",

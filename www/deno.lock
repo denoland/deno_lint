@@ -6,8 +6,11 @@
       "jsr:@std/assert@^0.213.1": "jsr:@std/assert@0.213.1",
       "jsr:@std/assert@^0.224.0": "jsr:@std/assert@0.224.0",
       "jsr:@std/encoding@0.213": "jsr:@std/encoding@0.213.1",
+      "jsr:@std/json@^0.213.1": "jsr:@std/json@0.213.1",
       "jsr:@std/jsonc@0.213": "jsr:@std/jsonc@0.213.1",
-      "jsr:@std/path@0.213": "jsr:@std/path@0.213.1"
+      "jsr:@std/path@0.213": "jsr:@std/path@0.213.1",
+      "npm:@monaco-editor/loader@1.3.3": "npm:@monaco-editor/loader@1.3.3_monaco-editor@0.48.0",
+      "npm:ansi-to-html@0.7.2": "npm:ansi-to-html@0.7.2"
     },
     "jsr": {
       "@luca/esbuild-deno-loader@0.10.3": {
@@ -27,10 +30,14 @@
       "@std/encoding@0.213.1": {
         "integrity": "fcbb6928713dde941a18ca5db88ca1544d0755ec8fb20fe61e2dc8144b390c62"
       },
+      "@std/json@0.213.1": {
+        "integrity": "f572b1de605d07c4a5602445dac54bfc51b1fb87a3710a17aed2608bfca54e68"
+      },
       "@std/jsonc@0.213.1": {
         "integrity": "5578f21aa583b7eb7317eed077ffcde47b294f1056bdbb9aacec407758637bfe",
         "dependencies": [
-          "jsr:@std/assert@^0.213.1"
+          "jsr:@std/assert@^0.213.1",
+          "jsr:@std/json@^0.213.1"
         ]
       },
       "@std/path@0.213.1": {
@@ -39,7 +46,37 @@
           "jsr:@std/assert@^0.213.1"
         ]
       }
+    },
+    "npm": {
+      "@monaco-editor/loader@1.3.3_monaco-editor@0.48.0": {
+        "integrity": "sha512-6KKF4CTzcJiS8BJwtxtfyYt9shBiEv32ateQ9T4UVogwn4HM/uPo9iJd2Dmbkpz8CM6Y0PDUpjnZzCwC+eYo2Q==",
+        "dependencies": {
+          "monaco-editor": "monaco-editor@0.48.0",
+          "state-local": "state-local@1.0.7"
+        }
+      },
+      "ansi-to-html@0.7.2": {
+        "integrity": "sha512-v6MqmEpNlxF+POuyhKkidusCHWWkaLcGRURzivcU3I9tv7k4JVhFcnukrM5Rlk2rUywdZuzYAZ+kbZqWCnfN3g==",
+        "dependencies": {
+          "entities": "entities@2.2.0"
+        }
+      },
+      "entities@2.2.0": {
+        "integrity": "sha512-p92if5Nz619I0w+akJrLZH0MX0Pb5DX39XOwQTtXSdQQOaYH03S1uIQp4mhOZtAXrxq4ViO67YTiLBo2638o9A==",
+        "dependencies": {}
+      },
+      "monaco-editor@0.48.0": {
+        "integrity": "sha512-goSDElNqFfw7iDHMg8WDATkfcyeLTNpBHQpO8incK6p5qZt5G/1j41X0xdGzpIkGojGXM+QiRQyLjnfDVvrpwA==",
+        "dependencies": {}
+      },
+      "state-local@1.0.7": {
+        "integrity": "sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==",
+        "dependencies": {}
+      }
     }
+  },
+  "redirects": {
+    "https://esm.sh/v135/@types/babel__helper-validator-identifier@~7/index.d.ts": "https://esm.sh/v135/@types/babel__helper-validator-identifier@7.15.2/index.d.ts"
   },
   "remote": {
     "https://deno.land/std@0.177.0/path/_constants.ts": "e49961f6f4f48039c0dfed3c3f93e963ca3d92791c9d478ac5b43183413136e0",
@@ -185,6 +222,7 @@
     "https://deno.land/std@0.216.0/fs/walk.ts": "78e1d01a9f75715614bf8d6e58bd77d9fafb1222c41194e607cd3849d7a0e771",
     "https://deno.land/std@0.216.0/http/server.ts": "6dce295abc169d0956ae00432441331b3425afad4d79e8b3475739be2f04d614",
     "https://deno.land/std@0.216.0/http/status.ts": "ed61b4882af2514a81aefd3245e8df4c47b9a8e54929a903577643d2d1ebf514",
+    "https://deno.land/std@0.216.0/json/common.ts": "33f1a4f39a45e2f9f357823fd0b5cf88b63fb4784b8c9a28f8120f70a20b23e9",
     "https://deno.land/std@0.216.0/jsonc/mod.ts": "82722888823e1af5a8f7918bf810ea581f68081064d529218533acad6cb7c2bc",
     "https://deno.land/std@0.216.0/jsonc/parse.ts": "747a0753289fdbfcb9cb86b709b56348c98abc107fbb0a7f350b87af4425a76a",
     "https://deno.land/std@0.216.0/media_types/_db.ts": "1d695d9fe1c785e523d6de7191b33f33ecc7866db77358a4f966221cca56e2f9",
@@ -321,6 +359,7 @@
     "https://deno.land/x/esbuild@v0.20.2/wasm.js": "5a887c1e38ad1056af11c58d45b6084d33bd33a62afa480d805801739370eed0",
     "https://deno.land/x/fresh@1.6.8/dev.ts": "720dd3a64b62b852db7b6ae471c246c5c605cf4a3091c4cbc802790f36d43e4c",
     "https://deno.land/x/fresh@1.6.8/plugins/twind.ts": "c92e6b839c015248c5a8fd4d7fa484e3b7a2ae9c58d0771cca6a57f83f4aeb28",
+    "https://deno.land/x/fresh@1.6.8/plugins/twind/main.ts": "ece82235c4daf791263456bf10e65ec9c3e9d535c2a87bcd449547126786407d",
     "https://deno.land/x/fresh@1.6.8/plugins/twind/shared.ts": "ad8ccde3874b305be13a996e6f1c774bb9f611505f98a0995f5f7be368c5949c",
     "https://deno.land/x/fresh@1.6.8/runtime.ts": "49f4f70c24d14c5d5e112a671ef0314e438e5cd83eacb4f75c6db2fbdc22b540",
     "https://deno.land/x/fresh@1.6.8/server.ts": "d5817615a3ac822d422627f2cd6f850a31e11f7e73b328a79807f722e6519bac",
@@ -341,7 +380,13 @@
     "https://deno.land/x/fresh@1.6.8/src/runtime/build_id.ts": "8376e70e42ce456dfa6932c638409d2ef1bca4833b4ceba0bf74510080a7f976",
     "https://deno.land/x/fresh@1.6.8/src/runtime/csp.ts": "9ee900e9b0b786057b1009da5976298c202d1b86d1f1e4d2510bde5f06530ac9",
     "https://deno.land/x/fresh@1.6.8/src/runtime/deserializer.ts": "1b83e75fa61c48b074ea121f33647d1ed15c68fa2f2a11b0a7f7a12cd38af627",
+    "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/client.ts": "a9224606e41bc58d81f37b7125650432920a7d136bdf416051e925ac9bbd1f05",
+    "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/deserializer.ts": "e836f44c454e1f67c86eab30f108eb9be05a38489604a24e418b564b77058b96",
+    "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/main.ts": "de3aa5cbd9b3abfa825939b58bc8df088ab183e042c0447b37180f4ea31c613c",
+    "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/main_dev.ts": "d2960e339119e45017954c7cf6798b9e0a3110d173cc378e1e3e7bc84bd68c34",
+    "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/signals.ts": "782c81f97d125ad4f92aa0160dad3a2e8b6ea7a61cec7fdab87bbbbd8c0d215c",
     "https://deno.land/x/fresh@1.6.8/src/runtime/head.ts": "0f9932874497ab6e57ed1ba01d549e843523df4a5d36ef97460e7a43e3132fdc",
+    "https://deno.land/x/fresh@1.6.8/src/runtime/polyfills.ts": "c3de932b2f23df9a4ade1ab4f8890730c0db0a71bf85faa41742a1763631e917",
     "https://deno.land/x/fresh@1.6.8/src/runtime/utils.ts": "4f40630c308e8ea7d53860687905caf1a2f2a46ad8692f24e905a8e996b584c3",
     "https://deno.land/x/fresh@1.6.8/src/server/boot.ts": "969da650e882adba6559af3784b90473d357201345d4e5b24a0cf5e582882d6b",
     "https://deno.land/x/fresh@1.6.8/src/server/build_id.ts": "82d9cb985de6b1e38c3108e5a00667b16e80eedc145d73835d6b44349ebe6389",
