@@ -28,6 +28,7 @@ pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
 pub mod no_await_in_sync_fn;
+pub mod no_boolean_literal_for_arguments;
 pub mod no_case_declarations;
 pub mod no_class_assign;
 pub mod no_compare_neg_zero;
@@ -252,6 +253,7 @@ fn get_all_rules_raw() -> Vec<&'static dyn LintRule> {
     &no_async_promise_executor::NoAsyncPromiseExecutor,
     &no_await_in_loop::NoAwaitInLoop,
     &no_await_in_sync_fn::NoAwaitInSyncFn,
+    &no_boolean_literal_for_arguments::NoBooleanLiteralForArguments,
     &no_case_declarations::NoCaseDeclarations,
     &no_class_assign::NoClassAssign,
     &no_compare_neg_zero::NoCompareNegZero,
