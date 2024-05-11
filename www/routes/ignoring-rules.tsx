@@ -17,7 +17,7 @@ export const handler: Handlers<string> = {
 
 export default function IgnoringRulesPage(props: PageProps<string>) {
   return (
-    <div>
+    <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
       <Header active="/ignoring-rules" />
       <main
         dangerouslySetInnerHTML={{ __html: props.data }}

@@ -26,7 +26,7 @@ pub struct LintFix {
   pub changes: Vec<LintFixChange>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct LintDiagnostic {
   pub specifier: ModuleSpecifier,
   pub range: SourceRange,

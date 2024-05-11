@@ -14,6 +14,7 @@ exclude = [
 
 [lib]
 name = "deno_lint"
+crate-type = ["cdylib", "rlib"]
 
 [[example]]
 name = "dlint"
@@ -23,6 +24,7 @@ test = true
 [features]
 default = []
 docs = []
+wasm = ["wasm-bindgen", "wee_alloc", "miette"]
 
 [dependencies]
 deno_ast = { version = "0.38.0", features = ["scopes", "transforms", "utils", "visit", "view"] }
@@ -34,6 +36,9 @@ once_cell = "1.19.0"
 derive_more = { version = "0.99.17", features = ["display"] }
 anyhow = "1.0.79"
 if_chain = "1.0.2"
+wasm-bindgen = { version = "0.2.92", optional = true }
+wee_alloc = { version = "0.4", optional = true }
+miette = { version = "4.3.0", features = ["fancy-no-backtrace"], optional = true }
 
 [dev-dependencies]
 ansi_term = "0.12.1"

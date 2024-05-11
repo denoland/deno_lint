@@ -72,6 +72,10 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: diff <(./target/release/examples/dlint rules --json) www/static/docs.json
 
+      - name: Check if wasm is up-to-date
+        if : contains(matrix.os, 'ubuntu')
+        run: deno task wasmbuild --check
+
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts

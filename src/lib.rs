@@ -22,9 +22,13 @@ pub mod linter;
 mod performance_mark;
 pub mod rules;
 pub mod swc_util;
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 pub use deno_ast::view::Program;
 pub use deno_ast::view::ProgramRef;
+#[cfg(feature = "wasm")]
+pub use wasm::run;
 
 #[cfg(test)]
 mod lint_tests {

@@ -1,6 +1,7 @@
 {
   "lock": false,
   "tasks": {
+    "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.17.1 --features wasm --out www/static",
     "update-docs": "cargo run --features=docs --example dlint rules --json > www/static/docs.json"
   },
   "exclude": [

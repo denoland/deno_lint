@@ -33,7 +33,7 @@ export default function Home(props: PageProps<RuleData[]>) {
     .filter((rule: RuleData) => rule.code.includes(search));
 
   return (
-    <div>
+    <div class="mx-auto max-w-screen-md px-6 sm:px-6 md:px-8">
       <Header active="/" />
 
       <main class="my-8">

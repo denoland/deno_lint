@@ -6,8 +6,11 @@ import * as $_app from "./routes/_app.tsx";
 import * as $_layout from "./routes/_layout.tsx";
 import * as $ignoring_rules from "./routes/ignoring-rules.tsx";
 import * as $index from "./routes/index.tsx";
+import * as $playground from "./routes/playground.tsx";
 import * as $rules_name_ from "./routes/rules/[name].tsx";
-
+import * as $Linter from "./islands/Linter.tsx";
+import * as $MonacoEditor from "./islands/MonacoEditor.tsx";
+import * as $Playground from "./islands/Playground.tsx";
 import { type Manifest } from "$fresh/server.ts";
 
 const manifest = {
@@ -16,9 +19,14 @@ const manifest = {
     "./routes/_layout.tsx": $_layout,
     "./routes/ignoring-rules.tsx": $ignoring_rules,
     "./routes/index.tsx": $index,
+    "./routes/playground.tsx": $playground,
     "./routes/rules/[name].tsx": $rules_name_,
   },
-  islands: {},
+  islands: {
+    "./islands/Linter.tsx": $Linter,
+    "./islands/MonacoEditor.tsx": $MonacoEditor,
+    "./islands/Playground.tsx": $Playground,
+  },
   baseUrl: import.meta.url,
 } satisfies Manifest;
 
