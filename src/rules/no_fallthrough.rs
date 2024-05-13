@@ -113,20 +113,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
         || matches!(case.cons.as_slice(), [Stmt::Block(b)] if b.stmts.is_empty());
 
       if case_idx + 1 < cases.len() && empty {
-        let range = SourceRange::new(case.start(), cases[case_idx + 1].start());
-        // todo(dsherret): use `range.line_start_fast(context.program)` and
-        // `line_end_fast` when switching to ast_view
-        let range_line_count = range
-          .text_fast(self.context.text_info())
-          .chars()
-          .filter(|c| *c == '\n')
-          .count()
-          + 1;
-        // When the case body contains only new lines `case.cons` will be empty.
-        // This means there are no statements detected so we must detect case
-        // bodies made up of only new lines by counting the total amount of new lines.
-        // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
-        should_emit_err = range_line_count > 2;
+        should_emit_err = false;
       }
 
       prev_range = Some(case.range());
