@@ -186,6 +186,8 @@ mod tests {
       "switch('test') { case 'symbol':\n case 'function': default: b(); }",
       "switch('test') { case 'symbol':\n case 'function':\n default: b(); }",
       "switch('test') { case 'symbol': case 'function': default: b(); }",
+      "switch(foo) { case 1:\n\n default: a(); }",
+      "switch(foo) { case 1:\n// some comment\n default: a(); }",
 
       // https://github.com/denoland/deno_lint/issues/746
       r#"
