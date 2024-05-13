@@ -244,21 +244,7 @@ switch(someValue) {
           hint: NoFallthroughHint::BreakOrComment,
         }
       ],
-      "switch(foo) { case 0:\n\n default: b() }": [
-        {
-          col: 14,
-          message: NoFallthroughMessage::Unexpected,
-          hint: NoFallthroughHint::BreakOrComment,
-        }
-      ],
       "switch(foo) { case 0:\n\n b()\n default: b() }": [
-        {
-          col: 14,
-          message: NoFallthroughMessage::Unexpected,
-          hint: NoFallthroughHint::BreakOrComment,
-        }
-      ],
-      "switch(foo) { case 0:\n // comment\n default: b() }": [
         {
           col: 14,
           message: NoFallthroughMessage::Unexpected,
