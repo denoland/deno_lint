@@ -9,7 +9,7 @@ use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},
 };
-use deno_ast::{SourceRange, SourceRanged, SourceRangedForSpanned};
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -70,7 +70,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
     let mut should_emit_err = false;
     let mut prev_range = None;
 
-    'cases: for (case_idx, case) in cases.iter().enumerate() {
+    'cases: for case in cases.iter() {
       case.visit_with(self);
 
       if should_emit_err {
@@ -112,7 +112,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
       let empty = case.cons.is_empty()
         || matches!(case.cons.as_slice(), [Stmt::Block(b)] if b.stmts.is_empty());
 
-      if case_idx + 1 < cases.len() && empty {
+      if empty {
         should_emit_err = false;
       }
 
