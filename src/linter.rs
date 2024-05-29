@@ -106,6 +106,7 @@ pub struct LintFileOptions {
   pub config: LintConfig,
 }
 
+#[derive(Debug, Clone)]
 pub struct LintConfig {
   pub default_jsx_factory: Option<String>,
   pub default_jsx_fragment_factory: Option<String>,
