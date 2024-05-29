@@ -9,23 +9,24 @@ use deno_ast::swc::ast::{
   ClassDecl, ClassMethod, ClassProp, Constructor, Decl, DefaultDecl,
   ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr,
   Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, MemberExpr, MemberProp, MethodKind, ModuleExportName,
-  NamedExport, Param, Pat, PrivateMethod, Prop, PropName, SetterProp,
-  TsEntityName, TsEnumDecl, TsExprWithTypeArgs, TsImportEqualsDecl,
-  TsInterfaceDecl, TsModuleDecl, TsModuleRef, TsNamespaceDecl,
-  TsPropertySignature, TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl,
-  VarDeclarator,
+  ImportStarAsSpecifier, JSXElementName, JSXFragment, JSXObject, MemberExpr,
+  MemberProp, MethodKind, ModuleExportName, NamedExport, Param, Pat,
+  PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
+  TsExprWithTypeArgs, TsImportEqualsDecl, TsInterfaceDecl, TsModuleDecl,
+  TsModuleRef, TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl,
+  TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use deno_ast::swc::ast::{Id, SimpleAssignTarget};
 use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::view::AssignOp;
-use deno_ast::{MediaType, SourceRangedForSpanned};
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
 use std::iter;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct NoUnusedVars;
@@ -68,14 +69,14 @@ impl LintRule for NoUnusedVars {
     program: Program<'view>,
   ) {
     let program = program_ref(program);
-    // Skip linting this file to avoid emitting false positives about `jsxFactory` and `jsxFragmentFactory`
-    // if it's a JSX or TSX file.
-    // See https://github.com/denoland/deno_lint/pull/664#discussion_r614692736
-    if is_jsx_file(context.media_type()) {
-      return;
-    }
 
-    let mut collector = Collector::default();
+    let mut collector = Collector {
+      cur_defining: vec![],
+      used_types: Default::default(),
+      used_vars: Default::default(),
+      jsx_factory: context.jsx_factory(),
+      jsx_fragment_factory: context.jsx_fragment_factory(),
+    };
     match program {
       ProgramRef::Module(m) => m.visit_with(&mut collector),
       ProgramRef::Script(s) => s.visit_with(&mut collector),
@@ -98,12 +99,7 @@ impl LintRule for NoUnusedVars {
   }
 }
 
-fn is_jsx_file(media_type: MediaType) -> bool {
-  media_type == MediaType::Jsx || media_type == MediaType::Tsx
-}
-
 /// Collects information about variable usages.
-#[derive(Default)]
 struct Collector {
   used_vars: HashSet<Id>,
   used_types: HashSet<Id>,
@@ -118,6 +114,8 @@ struct Collector {
   /// Type of this should be hashset, but we don't have a way to
   /// restore hashset after handling bindings
   cur_defining: Vec<Id>,
+  jsx_factory: Option<Arc<Box<Expr>>>,
+  jsx_fragment_factory: Option<Arc<Box<Expr>>>,
 }
 
 impl Collector {
@@ -258,6 +256,37 @@ impl Visit for Collector {
       Expr::Ident(i) => self.mark_as_usage(i),
       _ => expr.visit_children_with(self),
     }
+  }
+
+  fn visit_jsx_element_name(&mut self, n: &JSXElementName) {
+    if let Some(factory) = self.jsx_factory.take() {
+      factory.visit_with(self)
+    }
+    match n {
+      JSXElementName::Ident(i) => {
+        if !i.sym.starts_with(|c: char| c.is_ascii_lowercase()) {
+          self.mark_as_usage(i)
+        }
+      }
+      JSXElementName::JSXMemberExpr(n) => n.visit_with(self),
+      JSXElementName::JSXNamespacedName(_) => {
+        // This is a string literal.
+      }
+    }
+  }
+
+  fn visit_jsx_object(&mut self, n: &JSXObject) {
+    match n {
+      JSXObject::Ident(i) => self.mark_as_usage(i),
+      JSXObject::JSXMemberExpr(n) => n.visit_with(self),
+    }
+  }
+
+  fn visit_jsx_fragment(&mut self, n: &JSXFragment) {
+    if let Some(factory) = self.jsx_fragment_factory.take() {
+      factory.visit_with(self)
+    }
+    n.visit_children_with(self);
   }
 
   fn visit_simple_assign_target(&mut self, n: &SimpleAssignTarget) {
@@ -495,6 +524,8 @@ impl<'a> IdentKind<'a> {
       | IdentKind::Other(_) => NoUnusedVarsHint::AddPrefix(symbol),
     }
   }
+
+  
 }
 
 impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
@@ -1485,6 +1516,17 @@ import React from "./dummy.ts";
 class Component extends React.Component { render() { return null; } }
 export default <Component />;
       "#,
+
+      r#"
+/** @jsx h */
+import { h } from "./dummy.ts";
+export default <foo />;
+      "#,
+      r#"
+/** @jsxFrag Fragment */
+import { Fragment } from "./dummy.ts";
+export default <></>;
+      "#,
     };
   }
 
@@ -2282,6 +2324,37 @@ export class Foo {
           },
         ],
     };
+
+    // jsx/tsx
+    assert_lint_err! {
+      NoUnusedVars,
+      filename: "file:///foo.tsx",
+      r#"
+import React from 'react';
+export const Foo = () => {
+  return "string";
+}"#: [
+        {
+          line: 2,
+          col: 7,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "React"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "React"),
+        }
+      ],
+      r#"
+/** @jsx h */ /** @jsxFrag Fragment */
+import { h, Fragment } from "preact";
+export const Foo = () => {
+  return <></>;
+}"#: [
+        {
+          line: 3,
+          col: 9,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "h"),
+          hint: variant!(NoUnusedVarsHint, Alias, "h"),
+        }
+      ]
+    }
   }
 
   // TODO(magurotuna): deals with this using ControlFlow

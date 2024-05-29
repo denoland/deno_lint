@@ -1,4 +1,4 @@
-Enforces all variables used at least once.
+Enforces all variables are used at least once.
 
 If there are variables that are declared but not used anywhere, it's most likely
 because of incomplete refactoring. This lint rule detects and warns such unused

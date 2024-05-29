@@ -8,8 +8,10 @@ use crate::ignore_directives::{
 };
 use crate::linter::LinterContext;
 use crate::rules::{self, get_all_rules, LintRule};
+use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::SyntaxContext;
+use deno_ast::swc::common::util::take::Take;
+use deno_ast::swc::common::{SourceMap, Span, SyntaxContext};
 use deno_ast::Scope;
 use deno_ast::SourceTextInfo;
 use deno_ast::{
@@ -17,6 +19,7 @@ use deno_ast::{
 };
 use deno_ast::{MediaType, ModuleSpecifier};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 /// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'view> {
@@ -29,6 +32,8 @@ pub struct Context<'view> {
   control_flow: ControlFlow,
   traverse_flow: TraverseFlow,
   check_unknown_rules: bool,
+  jsx_factory: Option<Arc<Box<Expr>>>,
+  jsx_fragment_factory: Option<Arc<Box<Expr>>>,
 }
 
 impl<'view> Context<'view> {
@@ -37,6 +42,8 @@ impl<'view> Context<'view> {
     parsed_source: ParsedSource,
     program: ast_view::Program<'view>,
     file_ignore_directive: Option<FileIgnoreDirective>,
+    default_jsx_factory: Option<String>,
+    default_jsx_fragment_factory: Option<String>,
   ) -> Self {
     let line_ignore_directives = parse_line_ignore_directives(
       &linter_ctx.ignore_diagnostic_directive,
@@ -45,6 +52,49 @@ impl<'view> Context<'view> {
     let scope = Scope::analyze(program);
     let control_flow =
       ControlFlow::analyze(program, parsed_source.unresolved_context());
+
+    let mut jsx_factory = None;
+    let mut jsx_fragment_factory = None;
+
+    parsed_source.globals().with(|marks| {
+      let top_level_mark = marks.top_level;
+
+      if let Some(leading_comments) = parsed_source.get_leading_comments() {
+        let jsx_directives =
+          deno_ast::swc::transforms::react::JsxDirectives::from_comments(
+            &SourceMap::default(),
+            Span::dummy(),
+            leading_comments,
+            top_level_mark,
+          );
+
+        jsx_factory = jsx_directives.pragma;
+        jsx_fragment_factory = jsx_directives.pragma_frag;
+      }
+
+      if jsx_factory.is_none() {
+        if let Some(factory) = default_jsx_factory {
+          jsx_factory =
+            Some(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+              &SourceMap::default(),
+              "jsx",
+              factory,
+              top_level_mark,
+            ));
+        }
+      }
+      if jsx_fragment_factory.is_none() {
+        if let Some(factory) = default_jsx_fragment_factory {
+          jsx_fragment_factory =
+            Some(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+              &SourceMap::default(),
+              "jsxFragment",
+              factory,
+              top_level_mark,
+            ));
+        }
+      }
+    });
 
     Self {
       file_ignore_directive,
@@ -56,6 +106,8 @@ impl<'view> Context<'view> {
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules: linter_ctx.check_unknown_rules,
+      jsx_factory,
+      jsx_fragment_factory,
     }
   }
 
@@ -105,6 +157,22 @@ impl<'view> Context<'view> {
   /// Control-flow analysis result
   pub fn control_flow(&self) -> &ControlFlow {
     &self.control_flow
+  }
+
+  /// Get the JSX factory expression for this file, if one is specified (via
+  /// pragma or using a default). If this file is not JSX, uses the automatic
+  /// transform, or the default factory is not specified, this will return
+  /// `None`.
+  pub fn jsx_factory(&self) -> Option<Arc<Box<Expr>>> {
+    self.jsx_factory.clone()
+  }
+
+  /// Get the JSX fragment factory expression for this file, if one is specified
+  /// (via pragma or using a default). If this file is not JSX, uses the
+  /// automatic transform, or the default factory is not specified, this will
+  /// return `None`.
+  pub fn jsx_fragment_factory(&self) -> Option<Arc<Box<Expr>>> {
+    self.jsx_fragment_factory.clone()
   }
 
   /// The `SyntaxContext` of any unresolved identifiers

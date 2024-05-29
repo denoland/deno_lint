@@ -118,6 +118,8 @@ fn run_linter(
           ),
           source_code,
           media_type: MediaType::from_path(file_path),
+          default_jsx_factory: Some("React.createElement".to_string()),
+          default_jsx_fragment_factory: Some("React.Fragment".to_string()),
         })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);

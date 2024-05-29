@@ -46,6 +46,8 @@ mod lint_tests {
         specifier: ModuleSpecifier::parse("file:///lint_test.ts").unwrap(),
         source_code: source.to_string(),
         media_type: MediaType::TypeScript,
+        default_jsx_factory: None,
+        default_jsx_fragment_factory: None,
       })
       .expect("Failed to lint");
     diagnostics
@@ -56,8 +58,7 @@ mod lint_tests {
     rules: Vec<&'static dyn LintRule>,
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
-
-    linter.lint_with_ast(parsed_source)
+    linter.lint_with_ast(parsed_source, None, None)
   }
 
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {

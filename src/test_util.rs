@@ -326,6 +326,8 @@ fn lint(
     specifier,
     source_code: source.to_string(),
     media_type,
+    default_jsx_factory: Some("React.createElement".to_owned()),
+    default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
   });
   match lint_result {
     Ok((source, diagnostics)) => (source, diagnostics),
