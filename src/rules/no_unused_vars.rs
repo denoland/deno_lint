@@ -114,7 +114,9 @@ struct Collector {
   /// Type of this should be hashset, but we don't have a way to
   /// restore hashset after handling bindings
   cur_defining: Vec<Id>,
+  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_factory: Option<Arc<Box<Expr>>>,
+  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_fragment_factory: Option<Arc<Box<Expr>>>,
 }
 

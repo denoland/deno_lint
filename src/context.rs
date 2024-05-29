@@ -11,7 +11,7 @@ use crate::rules::{self, get_all_rules, LintRule};
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::util::take::Take;
-use deno_ast::swc::common::{SourceMap, Span, SyntaxContext};
+use deno_ast::swc::common::{SourceMap, SyntaxContext};
 use deno_ast::Scope;
 use deno_ast::SourceTextInfo;
 use deno_ast::{
@@ -32,7 +32,9 @@ pub struct Context<'view> {
   control_flow: ControlFlow,
   traverse_flow: TraverseFlow,
   check_unknown_rules: bool,
+  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_factory: Option<Arc<Box<Expr>>>,
+  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_fragment_factory: Option<Arc<Box<Expr>>>,
 }
 
@@ -63,7 +65,8 @@ impl<'view> Context<'view> {
         let jsx_directives =
           deno_ast::swc::transforms::react::JsxDirectives::from_comments(
             &SourceMap::default(),
-            Span::dummy(),
+            #[allow(clippy::disallowed_types)]
+            deno_ast::swc::common::Span::dummy(),
             leading_comments,
             top_level_mark,
           );
