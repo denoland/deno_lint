@@ -103,6 +103,12 @@ pub struct LintFileOptions {
   pub specifier: ModuleSpecifier,
   pub source_code: String,
   pub media_type: MediaType,
+  pub config: LintConfig,
+}
+
+pub struct LintConfig {
+  pub default_jsx_factory: Option<String>,
+  pub default_jsx_fragment_factory: Option<String>,
 }
 
 impl Linter {
@@ -138,7 +144,11 @@ impl Linter {
     };
 
     let parsed_source = parse_result?;
-    let diagnostics = self.lint_inner(&parsed_source);
+    let diagnostics = self.lint_inner(
+      &parsed_source,
+      options.config.default_jsx_factory,
+      options.config.default_jsx_fragment_factory,
+    );
 
     Ok((parsed_source, diagnostics))
   }
@@ -150,9 +160,14 @@ impl Linter {
   pub fn lint_with_ast(
     &self,
     parsed_source: &ParsedSource,
+    config: LintConfig,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
-    self.lint_inner(parsed_source)
+    self.lint_inner(
+      parsed_source,
+      config.default_jsx_factory,
+      config.default_jsx_fragment_factory,
+    )
   }
 
   // TODO(bartlomieju): this struct does too much - not only it checks for ignored
@@ -173,7 +188,12 @@ impl Linter {
     diagnostics
   }
 
-  fn lint_inner(&self, parsed_source: &ParsedSource) -> Vec<LintDiagnostic> {
+  fn lint_inner(
+    &self,
+    parsed_source: &ParsedSource,
+    default_jsx_factory: Option<String>,
+    default_jsx_fragment_factory: Option<String>,
+  ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_inner");
 
     let diagnostics = parsed_source.with_view(|pg| {
@@ -205,6 +225,8 @@ impl Linter {
         parsed_source.clone(),
         pg,
         file_ignore_directive,
+        default_jsx_factory,
+        default_jsx_fragment_factory,
       );
 
       // Run configured lint rules.
