@@ -524,8 +524,6 @@ impl<'a> IdentKind<'a> {
       | IdentKind::Other(_) => NoUnusedVarsHint::AddPrefix(symbol),
     }
   }
-
-  
 }
 
 impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
