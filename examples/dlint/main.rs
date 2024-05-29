@@ -7,6 +7,7 @@ use clap::Command;
 use core::panic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
+use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
@@ -118,8 +119,10 @@ fn run_linter(
           ),
           source_code,
           media_type: MediaType::from_path(file_path),
-          default_jsx_factory: Some("React.createElement".to_string()),
-          default_jsx_fragment_factory: Some("React.Fragment".to_string()),
+          config: LintConfig {
+            default_jsx_factory: Some("React.createElement".to_string()),
+            default_jsx_fragment_factory: Some("React.Fragment".to_string()),
+          },
         })?;
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);

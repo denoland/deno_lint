@@ -103,6 +103,10 @@ pub struct LintFileOptions {
   pub specifier: ModuleSpecifier,
   pub source_code: String,
   pub media_type: MediaType,
+  pub config: LintConfig,
+}
+
+pub struct LintConfig {
   pub default_jsx_factory: Option<String>,
   pub default_jsx_fragment_factory: Option<String>,
 }
@@ -142,8 +146,8 @@ impl Linter {
     let parsed_source = parse_result?;
     let diagnostics = self.lint_inner(
       &parsed_source,
-      options.default_jsx_factory,
-      options.default_jsx_fragment_factory,
+      options.config.default_jsx_factory,
+      options.config.default_jsx_fragment_factory,
     );
 
     Ok((parsed_source, diagnostics))
@@ -156,14 +160,13 @@ impl Linter {
   pub fn lint_with_ast(
     &self,
     parsed_source: &ParsedSource,
-    default_jsx_factory: Option<String>,
-    default_jsx_fragment_factory: Option<String>,
+    config: LintConfig,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
     self.lint_inner(
       parsed_source,
-      default_jsx_factory,
-      default_jsx_fragment_factory,
+      config.default_jsx_factory,
+      config.default_jsx_fragment_factory,
     )
   }
 

@@ -2,6 +2,7 @@
 
 use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::LintConfig;
 use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
 use crate::rules::LintRule;
@@ -326,8 +327,10 @@ fn lint(
     specifier,
     source_code: source.to_string(),
     media_type,
-    default_jsx_factory: Some("React.createElement".to_owned()),
-    default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
+    config: LintConfig {
+      default_jsx_factory: Some("React.createElement".to_owned()),
+      default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
+    },
   });
   match lint_result {
     Ok((source, diagnostics)) => (source, diagnostics),
