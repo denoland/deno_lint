@@ -132,7 +132,7 @@ impl<'view> Context<'view> {
 
   /// Information about the file text.
   pub fn text_info(&self) -> &SourceTextInfo {
-    self.parsed_source.text_info()
+    self.parsed_source.text_info_lazy()
   }
 
   /// The AST view of the program, which for example can be used for getting

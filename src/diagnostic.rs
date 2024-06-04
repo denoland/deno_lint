@@ -71,11 +71,11 @@ impl Diagnostic for LintDiagnostic {
     };
     Some(DiagnosticSnippet {
       source: Cow::Borrowed(&self.text_info),
-      highlight: DiagnosticSnippetHighlight {
+      highlights: vec![DiagnosticSnippetHighlight {
         range,
         style: DiagnosticSnippetHighlightStyle::Error,
         description: None,
-      },
+      }],
     })
   }
 
