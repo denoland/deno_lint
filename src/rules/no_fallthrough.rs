@@ -9,7 +9,7 @@ use deno_ast::swc::{
   ast::*,
   visit::{noop_visit_type, Visit, VisitWith},
 };
-use deno_ast::{SourceRange, SourceRanged, SourceRangedForSpanned};
+use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -70,7 +70,7 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
     let mut should_emit_err = false;
     let mut prev_range = None;
 
-    'cases: for (case_idx, case) in cases.iter().enumerate() {
+    'cases: for case in cases.iter() {
       case.visit_with(self);
 
       if should_emit_err {
@@ -112,21 +112,8 @@ impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
       let empty = case.cons.is_empty()
         || matches!(case.cons.as_slice(), [Stmt::Block(b)] if b.stmts.is_empty());
 
-      if case_idx + 1 < cases.len() && empty {
-        let range = SourceRange::new(case.start(), cases[case_idx + 1].start());
-        // todo(dsherret): use `range.line_start_fast(context.program)` and
-        // `line_end_fast` when switching to ast_view
-        let range_line_count = range
-          .text_fast(self.context.text_info())
-          .chars()
-          .filter(|c| *c == '\n')
-          .count()
-          + 1;
-        // When the case body contains only new lines `case.cons` will be empty.
-        // This means there are no statements detected so we must detect case
-        // bodies made up of only new lines by counting the total amount of new lines.
-        // If there's more than 2 new lines and `case.cons` is empty this indicates the case body only contains new lines.
-        should_emit_err = range_line_count > 2;
+      if empty {
+        should_emit_err = false;
       }
 
       prev_range = Some(case.range());
@@ -186,6 +173,8 @@ mod tests {
       "switch('test') { case 'symbol':\n case 'function': default: b(); }",
       "switch('test') { case 'symbol':\n case 'function':\n default: b(); }",
       "switch('test') { case 'symbol': case 'function': default: b(); }",
+      "switch(foo) { case 1:\n\n default: a(); }",
+      "switch(foo) { case 1:\n// comment\n default: a(); }",
 
       // https://github.com/denoland/deno_lint/issues/746
       r#"
@@ -255,21 +244,7 @@ switch(someValue) {
           hint: NoFallthroughHint::BreakOrComment,
         }
       ],
-      "switch(foo) { case 0:\n\n default: b() }": [
-        {
-          col: 14,
-          message: NoFallthroughMessage::Unexpected,
-          hint: NoFallthroughHint::BreakOrComment,
-        }
-      ],
       "switch(foo) { case 0:\n\n b()\n default: b() }": [
-        {
-          col: 14,
-          message: NoFallthroughMessage::Unexpected,
-          hint: NoFallthroughHint::BreakOrComment,
-        }
-      ],
-      "switch(foo) { case 0:\n // comment\n default: b() }": [
         {
           col: 14,
           message: NoFallthroughMessage::Unexpected,
