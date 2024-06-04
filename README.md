@@ -137,7 +137,7 @@ Found 7 problems
 ```
 
 For more concrete implementation visit
-[`deno`](https://github.com/denoland/deno/blob/main/cli/tools/lint.rs)
+[`deno`](https://github.com/denoland/deno/blob/main/cli/tools/lint/mod.rs)
 
 ## Developing
 
