@@ -15,7 +15,7 @@ pub(crate) fn parse_program(
   deno_ast::parse_program(deno_ast::ParseParams {
     specifier,
     media_type,
-    text_info: deno_ast::SourceTextInfo::from_string(source_code),
+    text: source_code.into(),
     capture_tokens: true,
     maybe_syntax: Some(syntax),
     scope_analysis: true,

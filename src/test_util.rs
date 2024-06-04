@@ -237,7 +237,7 @@ impl LintErrTester {
         message,
         hint.as_deref(),
         fixes,
-        parsed_source.text_info(),
+        parsed_source.text_info_lazy(),
       );
     }
   }
