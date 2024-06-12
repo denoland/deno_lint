@@ -7,6 +7,7 @@ use clap::Command;
 use core::panic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
+use deno_ast::ParseDiagnosticsError;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
@@ -107,23 +108,28 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      let (_parsed_source, diagnostics) =
-        linter.lint_file(LintFileOptions {
-          specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(
-            |_| {
-              panic!(
-                "Failed to convert path to module specifier: {}",
-                file_path.display()
-              )
-            },
-          ),
-          source_code,
-          media_type: MediaType::from_path(file_path),
-          config: LintConfig {
-            default_jsx_factory: Some("React.createElement".to_string()),
-            default_jsx_fragment_factory: Some("React.Fragment".to_string()),
+      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
+        specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(
+          |_| {
+            panic!(
+              "Failed to convert path to module specifier: {}",
+              file_path.display()
+            )
           },
-        })?;
+        ),
+        source_code,
+        media_type: MediaType::from_path(file_path),
+        config: LintConfig {
+          default_jsx_factory: Some("React.createElement".to_string()),
+          default_jsx_fragment_factory: Some("React.Fragment".to_string()),
+        },
+      })?;
+
+      if !parsed_source.diagnostics().is_empty() {
+        return Err(
+          ParseDiagnosticsError(parsed_source.diagnostics().to_vec()).into(),
+        );
+      }
 
       error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
 
