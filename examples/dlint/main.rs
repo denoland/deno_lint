@@ -125,13 +125,17 @@ fn run_linter(
         },
       })?;
 
+      let mut number_of_errors = diagnostics.len();
       if !parsed_source.diagnostics().is_empty() {
-        return Err(
-          ParseDiagnosticsError(parsed_source.diagnostics().to_vec()).into(),
-        );
+        number_of_errors =
+          number_of_errors + parsed_source.diagnostics().to_vec().len();
+        eprintln!(
+          "{}",
+          ParseDiagnosticsError(parsed_source.diagnostics().to_vec())
+        )
       }
 
-      error_counts.fetch_add(diagnostics.len(), Ordering::Relaxed);
+      error_counts.fetch_add(number_of_errors, Ordering::Relaxed);
 
       let mut lock = file_diagnostics.lock().unwrap();
 
