@@ -127,8 +127,7 @@ fn run_linter(
 
       let mut number_of_errors = diagnostics.len();
       if !parsed_source.diagnostics().is_empty() {
-        number_of_errors =
-          number_of_errors + parsed_source.diagnostics().to_vec().len();
+        number_of_errors += parsed_source.diagnostics().to_vec().len();
         eprintln!(
           "{}",
           ParseDiagnosticsError(parsed_source.diagnostics().to_vec())
