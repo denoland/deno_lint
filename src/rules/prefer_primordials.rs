@@ -276,6 +276,12 @@ const METHOD_TARGETS: &[&str] = &[
   // Array
   "splice",
   "toSpliced",
+  // ArrayBuffer
+  "resize",
+  "transfer",
+  "transferToFixedLength",
+  // SharedArrayBuffer
+  "grow",
   // TypedArray: avoid false positives for Map, Set, WeakMap, and WeakSet
   // "set",
   // DataView
@@ -316,6 +322,13 @@ const GETTER_TARGETS: &[&str] = &[
   "buffer",
   "byteLength",
   "byteOffset",
+  // ArrayBuffer, SharedArrayBuffer
+  "maxByteLength",
+  // ArrayBuffer
+  "detached",
+  "resizable",
+  // SharedArrayBuffer
+  "growable",
   // TypedArray: avoid false positives for Array
   // "length",
 ];
