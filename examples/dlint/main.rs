@@ -5,9 +5,9 @@ use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
 use core::panic;
+use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
-use deno_ast::ParseDiagnosticsError;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
@@ -128,10 +128,11 @@ fn run_linter(
       let mut number_of_errors = diagnostics.len();
       if !parsed_source.diagnostics().is_empty() {
         number_of_errors += parsed_source.diagnostics().to_vec().len();
-        eprintln!(
-          "{}",
-          ParseDiagnosticsError(parsed_source.diagnostics().to_vec())
-        )
+        parsed_source.diagnostics().to_vec().iter().for_each(
+          |parsing_diagnostic| {
+            eprintln!("{}", parsing_diagnostic.display());
+          },
+        );
       }
 
       error_counts.fetch_add(number_of_errors, Ordering::Relaxed);
