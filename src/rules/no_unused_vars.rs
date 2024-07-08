@@ -213,10 +213,7 @@ impl Visit for Collector {
       n.key.visit_with(self);
     }
 
-    n.type_params.visit_with(self);
     n.type_ann.visit_with(self);
-    n.params.visit_with(self);
-    n.init.visit_with(self);
   }
 
   fn visit_ts_type_ref(&mut self, ty: &TsTypeRef) {
