@@ -284,7 +284,9 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_fallthrough::NoFallthrough),
     Box::new(no_func_assign::NoFuncAssign),
     Box::new(no_global_assign::NoGlobalAssign),
-    Box::new(no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport),
+    Box::new(
+      no_implicit_declare_namespace_export::NoImplicitDeclareNamespaceExport,
+    ),
     Box::new(no_import_assertions::NoImportAssertions),
     Box::new(no_import_assign::NoImportAssign),
     Box::new(no_inferrable_types::NoInferrableTypes),
@@ -295,7 +297,9 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_misused_new::NoMisusedNew),
     Box::new(no_namespace::NoNamespace),
     Box::new(no_new_symbol::NoNewSymbol),
-    Box::new(no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain),
+    Box::new(
+      no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain,
+    ),
     Box::new(no_non_null_assertion::NoNonNullAssertion),
     Box::new(no_obj_calls::NoObjCalls),
     Box::new(no_octal::NoOctal),

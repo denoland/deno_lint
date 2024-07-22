@@ -35,10 +35,7 @@ mod lint_tests {
   use deno_ast::ParsedSource;
   use deno_ast::{MediaType, ModuleSpecifier};
 
-  fn lint(
-    source: &str,
-    rules: Vec<Box<dyn LintRule>>,
-  ) -> Vec<LintDiagnostic> {
+  fn lint(source: &str, rules: Vec<Box<dyn LintRule>>) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
     let (_, diagnostics) = linter

@@ -12,12 +12,12 @@ use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::util::take::Take;
 use deno_ast::swc::common::{SourceMap, SyntaxContext};
-use deno_ast::{MultiThreadedComments, Scope};
 use deno_ast::SourceTextInfo;
 use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
 };
 use deno_ast::{MediaType, ModuleSpecifier};
+use deno_ast::{MultiThreadedComments, Scope};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
