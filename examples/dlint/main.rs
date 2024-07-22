@@ -5,6 +5,7 @@ use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
 use core::panic;
+use std::collections::HashSet;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
