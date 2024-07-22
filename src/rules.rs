@@ -142,7 +142,7 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
 
   /// A hash of the internal state of the lint rule. This should be a hash
   /// of what this lint rule depends on.
-  /// 
+  ///
   /// For example, if the lint rules depends on the config file, then this
   /// might be a hash of the config file.
   fn state_hash(&self) -> u64 {
