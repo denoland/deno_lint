@@ -139,6 +139,15 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   fn priority(&self) -> u32 {
     0
   }
+
+  /// A hash of the internal state of the lint rule. This should be a hash
+  /// of what this lint rule depends on.
+  /// 
+  /// For example, if the lint rules depends on the config file, then this
+  /// might be a hash of the config file.
+  fn state_hash(&self) -> u64 {
+    0
+  }
 }
 
 /// TODO(@magurotuna): remove this after all rules get to use ast_view
