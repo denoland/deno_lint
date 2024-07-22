@@ -2422,7 +2422,7 @@ e = 2;
   #[test]
   fn issue1145_panic_while_scope_analysis() {
     test_util::assert_lint_not_panic(
-      &PreferConst,
+      Box::new(PreferConst),
       r#"
 for await (let [[...x] = function() { initCount += 1; }()] of [[values]]) {
   assert(Array.isArray(x));

@@ -14,7 +14,7 @@ use std::sync::Arc;
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  rules: Vec<&'static dyn LintRule>,
+  rules: Vec<Box<dyn LintRule>>,
 }
 
 impl Default for LinterBuilder {
@@ -55,7 +55,7 @@ impl LinterBuilder {
   /// Set a list of rules that will be used for linting.
   ///
   /// Defaults to empty list (no rules will be run by default).
-  pub fn rules(mut self, rules: Vec<&'static dyn LintRule>) -> Self {
+  pub fn rules(mut self, rules: Vec<Box<dyn LintRule>>) -> Self {
     self.rules = rules;
     self
   }
@@ -76,14 +76,14 @@ pub struct LinterContext {
   pub ignore_diagnostic_directive: String,
   pub check_unknown_rules: bool,
   /// Rules are sorted by priority
-  pub rules: Vec<&'static dyn LintRule>,
+  pub rules: Vec<Box<dyn LintRule>>,
 }
 
 impl LinterContext {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    mut rules: Vec<&'static dyn LintRule>,
+    mut rules: Vec<Box<dyn LintRule>>,
   ) -> Self {
     crate::rules::sort_rules_by_priority(&mut rules);
     let check_unknown_rules = rules
@@ -116,7 +116,7 @@ impl Linter {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    rules: Vec<&'static dyn LintRule>,
+    rules: Vec<Box<dyn LintRule>>,
   ) -> Self {
     let ctx = LinterContext::new(
       ignore_file_directive,

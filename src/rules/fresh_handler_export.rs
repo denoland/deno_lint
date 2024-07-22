@@ -79,48 +79,47 @@ impl Handler for Visitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_ok;
 
   #[test]
   fn fresh_handler_export_name() {
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "const handler = {}",
       "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "function handler() {}",
       "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "export const handler = {}",
       "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "export const handlers = {}",
       "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "export function handlers() {}",
       "file:///foo.jsx",
     );
 
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "export const handler = {}",
       "file:///routes/foo.jsx",
     );
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "export function handler() {}",
       "file:///routes/foo.jsx",
     );
-    assert_lint_ok(
-      &FreshHandlerExport,
+    assert_lint_ok!(
+      FreshHandlerExport,
       "export async function handler() {}",
       "file:///routes/foo.jsx",
     );

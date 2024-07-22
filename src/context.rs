@@ -12,7 +12,7 @@ use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::util::take::Take;
 use deno_ast::swc::common::{SourceMap, SyntaxContext};
-use deno_ast::Scope;
+use deno_ast::{MultiThreadedComments, Scope};
 use deno_ast::SourceTextInfo;
 use deno_ast::{
   view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
@@ -125,9 +125,19 @@ impl<'view> Context<'view> {
     self.parsed_source.media_type()
   }
 
+  /// Comment collection.
+  pub fn comments(&self) -> &MultiThreadedComments {
+    self.parsed_source.comments()
+  }
+
   /// Stores diagnostics that are generated while linting
   pub fn diagnostics(&self) -> &[LintDiagnostic] {
     &self.diagnostics
+  }
+
+  /// Parsed source of the program.
+  pub fn parsed_source(&self) -> &ParsedSource {
+    &self.parsed_source
   }
 
   /// Information about the file text.
@@ -250,7 +260,7 @@ impl<'view> Context<'view> {
   /// works for diagnostics reported by other rules.
   pub(crate) fn ban_unused_ignore(
     &self,
-    specified_rules: &[&'static dyn LintRule],
+    specified_rules: &[Box<dyn LintRule>],
   ) -> Vec<LintDiagnostic> {
     const CODE: &str = "ban-unused-ignore";
 

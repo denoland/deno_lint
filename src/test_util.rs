@@ -23,7 +23,7 @@ macro_rules! assert_lint_ok {
     $(,)?
   ) => {
     $(
-      $crate::test_util::assert_lint_ok(&$rule, $src, $filename);
+      $crate::test_util::assert_lint_ok(Box::new($rule), $src, $filename);
     )*
   };
   ($rule:expr, $($src:literal),+ $(,)?) => {
@@ -46,7 +46,7 @@ macro_rules! assert_lint_err {
     $(
       let errors = parse_err_test!($test);
       let tester = $crate::test_util::LintErrTester::new(
-        &$rule,
+        Box::new($rule),
         $src,
         errors,
         $filename,
@@ -77,7 +77,7 @@ macro_rules! assert_lint_err {
     $(
       let errors = parse_err_test!($message, $hint, $test);
       let tester = $crate::test_util::LintErrTester::new(
-        &$rule,
+        Box::new($rule),
         $src,
         errors,
         $filename,
@@ -180,12 +180,12 @@ pub struct LintErrTester {
   src: &'static str,
   errors: Vec<LintErr>,
   filename: &'static str,
-  rule: &'static dyn LintRule,
+  rule: Box<dyn LintRule>,
 }
 
 impl LintErrTester {
   pub fn new(
-    rule: &'static dyn LintRule,
+    rule: Box<dyn LintRule>,
     src: &'static str,
     errors: Vec<LintErr>,
     filename: &'static str,
@@ -315,7 +315,7 @@ impl LintErrBuilder {
 
 #[track_caller]
 fn lint(
-  rule: &'static dyn LintRule,
+  rule: Box<dyn LintRule>,
   source: &str,
   specifier: &str,
 ) -> (ParsedSource, Vec<LintDiagnostic>) {
@@ -440,7 +440,7 @@ fn assert_diagnostic_2(
 
 #[track_caller]
 pub fn assert_lint_ok(
-  rule: &'static dyn LintRule,
+  rule: Box<dyn LintRule>,
   source: &str,
   specifier: &'static str,
 ) {
@@ -456,7 +456,7 @@ pub fn assert_lint_ok(
 }
 
 /// Just run the specified lint on the source code to make sure it doesn't panic.
-pub fn assert_lint_not_panic(rule: &'static dyn LintRule, source: &str) {
+pub fn assert_lint_not_panic(rule: Box<dyn LintRule>, source: &str) {
   let _result = lint(rule, source, TEST_FILE_NAME);
 }
 

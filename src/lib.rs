@@ -37,7 +37,7 @@ mod lint_tests {
 
   fn lint(
     source: &str,
-    rules: Vec<&'static dyn LintRule>,
+    rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
 
@@ -57,7 +57,7 @@ mod lint_tests {
 
   fn lint_with_ast(
     parsed_source: &ParsedSource,
-    rules: Vec<&'static dyn LintRule>,
+    rules: Vec<Box<dyn LintRule>>,
   ) -> Vec<LintDiagnostic> {
     let linter = LinterBuilder::default().rules(rules).build();
     linter.lint_with_ast(
@@ -80,7 +80,7 @@ mod lint_tests {
   }
 
   fn lint_specified_rule(
-    rule: &'static dyn LintRule,
+    rule: Box<dyn LintRule>,
     source: &str,
   ) -> Vec<LintDiagnostic> {
     lint(source, vec![rule])
@@ -138,7 +138,7 @@ export function foo() {
   fn unknown_rules_always_know_available_rules() {
     use crate::rules::camelcase::Camelcase;
     let diagnostics = lint_specified_rule(
-      &Camelcase,
+      Box::new(Camelcase),
       r#"
 // deno-lint-ignore no-explicit-any
 const fooBar: any = 42;
@@ -169,7 +169,7 @@ const fooBar: any = 42;
   fn ban_unused_ignore_not_report_unexecuted_rule() {
     use crate::rules::camelcase::Camelcase;
     let diagnostics = lint_specified_rule(
-      &Camelcase,
+      Box::new(Camelcase),
       r#"
 // deno-lint-ignore no-explicit-any
 const _fooBar = 42;
