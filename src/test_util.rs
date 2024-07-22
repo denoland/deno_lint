@@ -5,6 +5,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintConfig;
 use crate::linter::LintFileOptions;
 use crate::linter::LinterBuilder;
+use crate::rules::get_all_rules;
 use crate::rules::LintRule;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::view as ast_view;
@@ -319,7 +320,15 @@ fn lint(
   source: &str,
   specifier: &str,
 ) -> (ParsedSource, Vec<LintDiagnostic>) {
-  let linter = LinterBuilder::default().rules(vec![rule]).build();
+  let linter = LinterBuilder::default()
+    .rules(
+      vec![rule],
+      get_all_rules()
+        .into_iter()
+        .map(|rule| rule.code())
+        .collect(),
+    )
+    .build();
 
   let specifier = ModuleSpecifier::parse(specifier).unwrap();
   let media_type = MediaType::from_specifier(&specifier);

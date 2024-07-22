@@ -7,7 +7,7 @@ use crate::ignore_directives::{
   LineIgnoreDirective,
 };
 use crate::linter::LinterContext;
-use crate::rules::{self, get_all_rules, LintRule};
+use crate::rules::{self, LintRule};
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::util::take::Take;
@@ -22,15 +22,16 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// `Context` stores all data needed to perform linting of a particular file.
-pub struct Context<'view> {
+pub struct Context<'a> {
   parsed_source: ParsedSource,
   diagnostics: Vec<LintDiagnostic>,
-  program: ast_view::Program<'view>,
+  program: ast_view::Program<'a>,
   file_ignore_directive: Option<FileIgnoreDirective>,
   line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
   scope: Scope,
   control_flow: ControlFlow,
   traverse_flow: TraverseFlow,
+  all_rule_codes: &'a HashSet<&'static str>,
   check_unknown_rules: bool,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_factory: Option<Arc<Box<Expr>>>,
@@ -38,11 +39,11 @@ pub struct Context<'view> {
   jsx_fragment_factory: Option<Arc<Box<Expr>>>,
 }
 
-impl<'view> Context<'view> {
+impl<'a> Context<'a> {
   pub(crate) fn new(
-    linter_ctx: &LinterContext,
+    linter_ctx: &'a LinterContext,
     parsed_source: ParsedSource,
-    program: ast_view::Program<'view>,
+    program: ast_view::Program<'a>,
     file_ignore_directive: Option<FileIgnoreDirective>,
     default_jsx_factory: Option<String>,
     default_jsx_fragment_factory: Option<String>,
@@ -109,6 +110,7 @@ impl<'view> Context<'view> {
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules: linter_ctx.check_unknown_rules,
+      all_rule_codes: &linter_ctx.all_rule_codes,
       jsx_factory,
       jsx_fragment_factory,
     }
@@ -147,7 +149,7 @@ impl<'view> Context<'view> {
 
   /// The AST view of the program, which for example can be used for getting
   /// comments
-  pub fn program(&self) -> ast_view::Program<'view> {
+  pub fn program(&self) -> ast_view::Program<'a> {
     self.program
   }
 
@@ -205,21 +207,21 @@ impl<'view> Context<'view> {
     self.traverse_flow.set_stop_traverse();
   }
 
-  pub fn all_comments(&self) -> impl Iterator<Item = &'view Comment> {
+  pub fn all_comments(&self) -> impl Iterator<Item = &'a Comment> {
     self.program.comment_container().all_comments()
   }
 
   pub fn leading_comments_at(
     &self,
     start: SourcePos,
-  ) -> impl Iterator<Item = &'view Comment> {
+  ) -> impl Iterator<Item = &'a Comment> {
     self.program.comment_container().leading_comments(start)
   }
 
   pub fn trailing_comments_at(
     &self,
     end: SourcePos,
-  ) -> impl Iterator<Item = &'view Comment> {
+  ) -> impl Iterator<Item = &'a Comment> {
     self.program.comment_container().trailing_comments(end)
   }
 
@@ -325,10 +327,8 @@ impl<'view> Context<'view> {
   /// Lint rule implementation for `ban-unknown-rule-code`.
   /// This should be run after all normal rules.
   pub(crate) fn ban_unknown_rule_code(&mut self) -> Vec<LintDiagnostic> {
-    let builtin_all_rule_codes: HashSet<&'static str> =
-      get_all_rules().iter().map(|r| r.code()).collect();
     let is_unknown_rule =
-      |code: &&String| !builtin_all_rule_codes.contains(code.as_str());
+      |code: &&String| !self.all_rule_codes.contains(code.as_str());
 
     let mut diagnostics = Vec::new();
 

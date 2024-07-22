@@ -28,6 +28,8 @@ pub use deno_ast::view::ProgramRef;
 
 #[cfg(test)]
 mod lint_tests {
+  use std::collections::HashSet;
+
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
   use crate::rules::{get_all_rules, recommended_rules, LintRule};
@@ -35,8 +37,14 @@ mod lint_tests {
   use deno_ast::ParsedSource;
   use deno_ast::{MediaType, ModuleSpecifier};
 
-  fn lint(source: &str, rules: Vec<Box<dyn LintRule>>) -> Vec<LintDiagnostic> {
-    let linter = LinterBuilder::default().rules(rules).build();
+  fn lint(
+    source: &str,
+    rules: Vec<Box<dyn LintRule>>,
+    all_rule_names: HashSet<&'static str>,
+  ) -> Vec<LintDiagnostic> {
+    let linter = LinterBuilder::default()
+      .rules(rules, all_rule_names)
+      .build();
 
     let (_, diagnostics) = linter
       .lint_file(LintFileOptions {
@@ -55,8 +63,11 @@ mod lint_tests {
   fn lint_with_ast(
     parsed_source: &ParsedSource,
     rules: Vec<Box<dyn LintRule>>,
+    all_rule_names: HashSet<&'static str>,
   ) -> Vec<LintDiagnostic> {
-    let linter = LinterBuilder::default().rules(rules).build();
+    let linter = LinterBuilder::default()
+      .rules(rules, all_rule_names)
+      .build();
     linter.lint_with_ast(
       parsed_source,
       LintConfig {
@@ -67,20 +78,41 @@ mod lint_tests {
   }
 
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {
-    lint(source, recommended_rules(get_all_rules()))
+    lint(
+      source,
+      recommended_rules(get_all_rules()),
+      get_all_rules()
+        .into_iter()
+        .map(|rule| rule.code())
+        .collect(),
+    )
   }
 
   fn lint_recommended_rules_with_ast(
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
-    lint_with_ast(parsed_source, recommended_rules(get_all_rules()))
+    lint_with_ast(
+      parsed_source,
+      recommended_rules(get_all_rules()),
+      get_all_rules()
+        .into_iter()
+        .map(|rule| rule.code())
+        .collect(),
+    )
   }
 
   fn lint_specified_rule(
     rule: Box<dyn LintRule>,
     source: &str,
   ) -> Vec<LintDiagnostic> {
-    lint(source, vec![rule])
+    lint(
+      source,
+      vec![rule],
+      get_all_rules()
+        .into_iter()
+        .map(|rule| rule.code())
+        .collect(),
+    )
   }
 
   #[test]
@@ -113,7 +145,7 @@ mod lint_tests {
    let _bar_foo = true
  }
       "#;
-    let diagnostics = lint(src, vec![]);
+    let diagnostics = lint(src, vec![], HashSet::new());
     assert!(diagnostics.is_empty());
   }
 
