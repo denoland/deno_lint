@@ -2,7 +2,8 @@
 
 use anyhow::bail;
 use anyhow::Error as AnyError;
-use deno_lint::rules::{get_filtered_rules, LintRule};
+use deno_lint::rules::get_all_rules;
+use deno_lint::rules::{filtered_rules, LintRule};
 use serde::Deserialize;
 use std::path::Path;
 use std::path::PathBuf;
@@ -30,8 +31,9 @@ pub struct Config {
 }
 
 impl Config {
-  pub fn get_rules(&self) -> Vec<&'static dyn LintRule> {
-    get_filtered_rules(
+  pub fn get_rules(&self) -> Vec<Box<dyn LintRule>> {
+    filtered_rules(
+      get_all_rules(),
       Some(self.rules.tags.clone()),
       Some(self.rules.exclude.clone()),
       Some(self.rules.include.clone()),
@@ -144,7 +146,7 @@ fn glob(
 #[cfg(test)]
 mod tests {
   use super::*;
-  use deno_lint::rules::get_recommended_rules;
+  use deno_lint::rules::recommended_rules;
   use std::collections::HashSet;
 
   macro_rules! svec {
@@ -158,7 +160,7 @@ mod tests {
     }}
   }
 
-  fn into_codes(rules: Vec<&'static dyn LintRule>) -> HashSet<&'static str> {
+  fn into_codes(rules: Vec<Box<dyn LintRule>>) -> HashSet<&'static str> {
     rules.iter().map(|rule| rule.code()).collect()
   }
 
@@ -182,7 +184,8 @@ mod tests {
       },
       ..Default::default()
     };
-    let recommended_rules_codes = into_codes(get_recommended_rules());
+    let recommended_rules_codes =
+      into_codes(recommended_rules(get_all_rules()));
     assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
 
     // even if "recommended" is specified in `tags` and `include` contains a rule
@@ -196,7 +199,8 @@ mod tests {
       },
       ..Default::default()
     };
-    let recommended_rules_codes = into_codes(get_recommended_rules());
+    let recommended_rules_codes =
+      into_codes(recommended_rules(get_all_rules()));
     assert_eq!(into_codes(config.get_rules()), recommended_rules_codes);
 
     // `exclude` has higher precedence over `include`

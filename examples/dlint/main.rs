@@ -11,10 +11,12 @@ use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::LinterBuilder;
-use deno_lint::rules::{get_filtered_rules, get_recommended_rules};
+use deno_lint::rules::get_all_rules;
+use deno_lint::rules::{filtered_rules, recommended_rules};
 use log::debug;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -85,23 +87,28 @@ fn run_linter(
 
   let error_counts = Arc::new(AtomicUsize::new(0));
 
+  let all_rules = get_all_rules();
+  let all_rule_names = all_rules
+    .iter()
+    .map(|rule| rule.code())
+    .collect::<HashSet<_>>();
   let rules = if let Some(config) = maybe_config {
     config.get_rules()
   } else if let Some(rule_name) = filter_rule_name {
     let include = vec![rule_name.to_string()];
-    get_filtered_rules(Some(vec![]), None, Some(include))
+    filtered_rules(get_all_rules(), Some(vec![]), None, Some(include))
   } else {
-    get_recommended_rules()
+    recommended_rules(get_all_rules())
   };
-  let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
-  let linter_builder = LinterBuilder::default().rules(rules.clone());
-
-  let linter = linter_builder.build();
   if rules.is_empty() {
     bail!("No lint rules configured");
   } else {
     debug!("Configured rules: {}", rules.len());
   }
+  let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
+  let linter_builder = LinterBuilder::default().rules(rules, all_rule_names);
+
+  let linter = linter_builder.build();
 
   paths
     .par_iter()

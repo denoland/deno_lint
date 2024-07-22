@@ -9,12 +9,14 @@ use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 pub struct LinterBuilder {
   ignore_file_directive: String,
   ignore_diagnostic_directive: String,
-  rules: Vec<&'static dyn LintRule>,
+  rules: Vec<Box<dyn LintRule>>,
+  all_codes: HashSet<&'static str>,
 }
 
 impl Default for LinterBuilder {
@@ -23,6 +25,7 @@ impl Default for LinterBuilder {
       ignore_file_directive: "deno-lint-ignore-file".to_string(),
       ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
       rules: Vec::new(),
+      all_codes: Default::default(),
     }
   }
 }
@@ -33,6 +36,7 @@ impl LinterBuilder {
       self.ignore_file_directive,
       self.ignore_diagnostic_directive,
       self.rules,
+      self.all_codes,
     )
   }
 
@@ -55,8 +59,13 @@ impl LinterBuilder {
   /// Set a list of rules that will be used for linting.
   ///
   /// Defaults to empty list (no rules will be run by default).
-  pub fn rules(mut self, rules: Vec<&'static dyn LintRule>) -> Self {
+  pub fn rules(
+    mut self,
+    rules: Vec<Box<dyn LintRule>>,
+    all_codes: HashSet<&'static str>,
+  ) -> Self {
     self.rules = rules;
+    self.all_codes = all_codes;
     self
   }
 }
@@ -76,14 +85,16 @@ pub struct LinterContext {
   pub ignore_diagnostic_directive: String,
   pub check_unknown_rules: bool,
   /// Rules are sorted by priority
-  pub rules: Vec<&'static dyn LintRule>,
+  pub rules: Vec<Box<dyn LintRule>>,
+  pub all_rule_codes: HashSet<&'static str>,
 }
 
 impl LinterContext {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    mut rules: Vec<&'static dyn LintRule>,
+    mut rules: Vec<Box<dyn LintRule>>,
+    all_rule_codes: HashSet<&'static str>,
   ) -> Self {
     crate::rules::sort_rules_by_priority(&mut rules);
     let check_unknown_rules = rules
@@ -95,6 +106,7 @@ impl LinterContext {
       ignore_diagnostic_directive,
       check_unknown_rules,
       rules,
+      all_rule_codes,
     }
   }
 }
@@ -116,12 +128,14 @@ impl Linter {
   fn new(
     ignore_file_directive: String,
     ignore_diagnostic_directive: String,
-    rules: Vec<&'static dyn LintRule>,
+    rules: Vec<Box<dyn LintRule>>,
+    all_rule_codes: HashSet<&'static str>,
   ) -> Self {
     let ctx = LinterContext::new(
       ignore_file_directive,
       ignore_diagnostic_directive,
       rules,
+      all_rule_codes,
     );
 
     Linter { ctx: Arc::new(ctx) }

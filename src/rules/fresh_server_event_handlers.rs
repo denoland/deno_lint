@@ -130,49 +130,48 @@ impl Handler for Visitor {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_util::assert_lint_ok;
 
   #[test]
   fn no_server_event_handler() {
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<Foo onClick={() => {}} />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<button onClick={() => {}} />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<button onClick={function () {}} />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<button onclick={function () {}} />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<button onClick=\"console.log('hey')\" />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<button online=\"foo\" />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///foo.jsx",
       "<x-foo onClick=\"console.log('hey')\" />",
-      "file:///foo.jsx",
     );
-    assert_lint_ok(
-      &FreshServerEventHandlers,
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///routes/foo/(_islands)/foo.jsx",
       "<button onClick={function () {}} />",
-      "file:///routes/foo/(_islands)/foo.jsx",
     );
 
     assert_lint_err!(FreshServerEventHandlers, filename: "file:///routes/index.tsx",  r#"<button onClick={() => {}} />"#: [
