@@ -30,7 +30,7 @@ pub use deno_ast::view::ProgramRef;
 mod lint_tests {
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
-  use crate::rules::{get_recommended_rules, LintRule};
+  use crate::rules::{get_all_rules, recommended_rules, LintRule};
   use crate::test_util::{assert_diagnostic, parse};
   use deno_ast::ParsedSource;
   use deno_ast::{MediaType, ModuleSpecifier};
@@ -67,13 +67,13 @@ mod lint_tests {
   }
 
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {
-    lint(source, get_recommended_rules())
+    lint(source, recommended_rules(get_all_rules()))
   }
 
   fn lint_recommended_rules_with_ast(
     parsed_source: &ParsedSource,
   ) -> Vec<LintDiagnostic> {
-    lint_with_ast(parsed_source, get_recommended_rules())
+    lint_with_ast(parsed_source, recommended_rules(get_all_rules()))
   }
 
   fn lint_specified_rule(

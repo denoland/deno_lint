@@ -153,8 +153,11 @@ pub fn get_all_rules() -> Vec<Box<dyn LintRule>> {
   get_all_rules_raw()
 }
 
-pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
-  get_all_rules_raw()
+/// Filters the lint rules to only the recommended rules.
+pub fn recommended_rules(
+  all_rules: Vec<Box<dyn LintRule>>,
+) -> Vec<Box<dyn LintRule>> {
+  all_rules
     .into_iter()
     .filter(|r| r.tags().contains(&"recommended"))
     .collect()
@@ -175,7 +178,8 @@ pub fn get_recommended_rules() -> Vec<Box<dyn LintRule>> {
 ///   to the return list
 ///
 /// Before returning the list will sorted alphabetically.
-pub fn get_filtered_rules(
+pub fn filtered_rules(
+  all_rules: Vec<Box<dyn LintRule>>,
   maybe_tags: Option<Vec<String>>,
   maybe_exclude: Option<Vec<String>>,
   maybe_include: Option<Vec<String>>,
@@ -183,7 +187,7 @@ pub fn get_filtered_rules(
   let tags_set =
     maybe_tags.map(|tags| tags.into_iter().collect::<HashSet<_>>());
 
-  let mut rules = get_all_rules_raw()
+  let mut rules = all_rules
     .into_iter()
     .filter(|rule| {
       let mut passes = if let Some(tags_set) = &tags_set {
@@ -349,12 +353,12 @@ mod tests {
 
   #[test]
   fn recommended_rules_sorted_alphabetically() {
-    let mut sorted_recommended_rules = get_recommended_rules();
+    let mut sorted_recommended_rules = recommended_rules(get_all_rules());
     sorted_recommended_rules.sort_by_key(|r| r.code());
 
     for (sorted, unsorted) in sorted_recommended_rules
       .iter()
-      .zip(get_recommended_rules().iter())
+      .zip(recommended_rules(get_all_rules()).iter())
     {
       assert_eq!(sorted.code(), unsorted.code());
     }
@@ -372,34 +376,41 @@ mod tests {
   #[test]
   fn test_get_filtered_rules() {
     // Should return recommended rules when given `recommended` tag.
-    let rules =
-      get_filtered_rules(Some(vec!["recommended".to_string()]), None, None);
-    for (r, rr) in rules.iter().zip(get_recommended_rules().iter()) {
+    let rules = filtered_rules(
+      get_all_rules(),
+      Some(vec!["recommended".to_string()]),
+      None,
+      None,
+    );
+    for (r, rr) in rules.iter().zip(recommended_rules(get_all_rules()).iter()) {
       assert_eq!(r.code(), rr.code());
     }
 
     // Should allow to add more rules to recommended rules.
-    let rules = get_filtered_rules(
+    let rules = filtered_rules(
+      get_all_rules(),
       Some(vec!["recommended".to_string()]),
       None,
       Some(vec!["ban-untagged-todo".to_string()]),
     );
-    assert_eq!(rules.len(), get_recommended_rules().len() + 1);
+    assert_eq!(rules.len(), recommended_rules(get_all_rules()).len() + 1);
 
     // Recommended should allow to exclude some recommended rules and include more on top.
-    let rules = get_filtered_rules(
+    let rules = filtered_rules(
+      get_all_rules(),
       Some(vec!["recommended".to_string()]),
       Some(vec!["ban-ts-comment".to_string()]),
       Some(vec!["ban-untagged-todo".to_string()]),
     );
-    assert_eq!(rules.len(), get_recommended_rules().len());
+    assert_eq!(rules.len(), recommended_rules(get_all_rules()).len());
 
     // Should skip all rules if given empty tags vec.
-    let rules = get_filtered_rules(Some(vec![]), None, None);
+    let rules = filtered_rules(get_all_rules(), Some(vec![]), None, None);
     assert!(rules.is_empty());
 
     // Should still allow to include rules when passed empty tags vec.
-    let rules = get_filtered_rules(
+    let rules = filtered_rules(
+      get_all_rules(),
       Some(vec![]),
       None,
       Some(vec!["ban-untagged-todo".to_string()]),
@@ -407,7 +418,8 @@ mod tests {
     assert_eq!(rules.len(), 1);
 
     // Excluded rules should have priority over included rules.
-    let rules = get_filtered_rules(
+    let rules = filtered_rules(
+      get_all_rules(),
       Some(vec![]),
       Some(vec!["ban-untagged-todo".to_string()]),
       Some(vec!["ban-untagged-todo".to_string()]),
@@ -415,7 +427,8 @@ mod tests {
     assert_eq!(rules.len(), 0);
 
     // Should still allow to include other rules, when other duplicates are excluded.
-    let rules = get_filtered_rules(
+    let rules = filtered_rules(
+      get_all_rules(),
       Some(vec![]),
       Some(vec![
         "ban-untagged-todo".to_string(),
@@ -437,7 +450,7 @@ mod tests {
   fn ensure_lint_rules_are_sharable_across_threads() {
     use std::thread::spawn;
 
-    let rules = Arc::new(get_recommended_rules());
+    let rules = Arc::new(recommended_rules(get_all_rules()));
     let handles = (0..2)
       .map(|_| {
         let rules = Arc::clone(&rules);
