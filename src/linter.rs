@@ -43,9 +43,7 @@ pub(crate) struct LinterContext {
 }
 
 impl LinterContext {
-  fn new(
-    options: LinterOptions,
-  ) -> Self {
+  fn new(options: LinterOptions) -> Self {
     let mut rules = options.rules;
     crate::rules::sort_rules_by_priority(&mut rules);
     let check_unknown_rules = rules
@@ -53,8 +51,12 @@ impl LinterContext {
       .any(|a| a.code() == (BanUnknownRuleCode).code());
 
     LinterContext {
-      ignore_file_directive: options.custom_ignore_file_directive.unwrap_or("deno-lint-ignore-file"),
-      ignore_diagnostic_directive: options.custom_ignore_file_directive.unwrap_or("deno-lint-ignore"),
+      ignore_file_directive: options
+        .custom_ignore_file_directive
+        .unwrap_or("deno-lint-ignore-file"),
+      ignore_diagnostic_directive: options
+        .custom_ignore_file_directive
+        .unwrap_or("deno-lint-ignore"),
       check_unknown_rules,
       rules,
       all_rule_codes: options.all_rule_codes,

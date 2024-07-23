@@ -4,14 +4,14 @@ use anyhow::bail;
 use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
-use deno_lint::linter::Linter;
-use deno_lint::linter::LinterOptions;
 use core::panic;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
+use deno_lint::linter::Linter;
+use deno_lint::linter::LinterOptions;
 use deno_lint::rules::get_all_rules;
 use deno_lint::rules::{filtered_rules, recommended_rules};
 use log::debug;
@@ -109,9 +109,9 @@ fn run_linter(
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
   let linter = Linter::new(LinterOptions {
     rules,
-    all_rule_codes: todo!(),
-    custom_ignore_file_directive: todo!(),
-    custom_ignore_diagnostic_directive: todo!(),
+    all_rule_codes,
+    custom_ignore_file_directive: None,
+    custom_ignore_diagnostic_directive: None,
   });
 
   paths

@@ -324,9 +324,9 @@ fn lint(
   let linter = Linter::new(LinterOptions {
     rules: vec![rule],
     all_rule_codes: get_all_rules()
-    .into_iter()
-    .map(|rule| rule.code())
-    .collect(),
+      .into_iter()
+      .map(|rule| rule.code())
+      .collect(),
     custom_ignore_diagnostic_directive: None,
     custom_ignore_file_directive: None,
   });
