@@ -4,13 +4,14 @@ use anyhow::bail;
 use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
+use deno_lint::linter::Linter;
+use deno_lint::linter::LinterOptions;
 use core::panic;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
-use deno_lint::linter::LinterBuilder;
 use deno_lint::rules::get_all_rules;
 use deno_lint::rules::{filtered_rules, recommended_rules};
 use log::debug;
@@ -88,7 +89,7 @@ fn run_linter(
   let error_counts = Arc::new(AtomicUsize::new(0));
 
   let all_rules = get_all_rules();
-  let all_rule_names = all_rules
+  let all_rule_codes = all_rules
     .iter()
     .map(|rule| rule.code())
     .collect::<HashSet<_>>();
@@ -106,9 +107,12 @@ fn run_linter(
     debug!("Configured rules: {}", rules.len());
   }
   let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
-  let linter_builder = LinterBuilder::default().rules(rules, all_rule_names);
-
-  let linter = linter_builder.build();
+  let linter = Linter::new(LinterOptions {
+    rules,
+    all_rule_codes: todo!(),
+    custom_ignore_file_directive: todo!(),
+    custom_ignore_diagnostic_directive: todo!(),
+  });
 
   paths
     .par_iter()
