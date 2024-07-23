@@ -4,7 +4,8 @@ use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintConfig;
 use crate::linter::LintFileOptions;
-use crate::linter::LinterBuilder;
+use crate::linter::Linter;
+use crate::linter::LinterOptions;
 use crate::rules::get_all_rules;
 use crate::rules::LintRule;
 use deno_ast::diagnostics::Diagnostic;
@@ -320,15 +321,15 @@ fn lint(
   source: &str,
   specifier: &str,
 ) -> (ParsedSource, Vec<LintDiagnostic>) {
-  let linter = LinterBuilder::default()
-    .rules(
-      vec![rule],
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code())
-        .collect(),
-    )
-    .build();
+  let linter = Linter::new(LinterOptions {
+    rules: vec![rule],
+    all_rule_codes: get_all_rules()
+      .into_iter()
+      .map(|rule| rule.code())
+      .collect(),
+    custom_ignore_diagnostic_directive: None,
+    custom_ignore_file_directive: None,
+  });
 
   let specifier = ModuleSpecifier::parse(specifier).unwrap();
   let media_type = MediaType::from_specifier(&specifier);

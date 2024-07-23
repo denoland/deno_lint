@@ -49,7 +49,7 @@ impl<'a> Context<'a> {
     default_jsx_fragment_factory: Option<String>,
   ) -> Self {
     let line_ignore_directives = parse_line_ignore_directives(
-      &linter_ctx.ignore_diagnostic_directive,
+      linter_ctx.ignore_diagnostic_directive,
       program,
     );
     let scope = Scope::analyze(program);

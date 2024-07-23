@@ -40,11 +40,14 @@ mod lint_tests {
   fn lint(
     source: &str,
     rules: Vec<Box<dyn LintRule>>,
-    all_rule_names: HashSet<&'static str>,
+    all_rule_codes: HashSet<&'static str>,
   ) -> Vec<LintDiagnostic> {
-    let linter = LinterBuilder::default()
-      .rules(rules, all_rule_names)
-      .build();
+    let linter = Linter::new(LinterOptions {
+      rules,
+      all_rule_codes,
+      custom_ignore_diagnostic_directive: None,
+      custom_ignore_file_directive: None,
+    });
 
     let (_, diagnostics) = linter
       .lint_file(LintFileOptions {
@@ -63,11 +66,14 @@ mod lint_tests {
   fn lint_with_ast(
     parsed_source: &ParsedSource,
     rules: Vec<Box<dyn LintRule>>,
-    all_rule_names: HashSet<&'static str>,
+    all_rule_codes: HashSet<&'static str>,
   ) -> Vec<LintDiagnostic> {
-    let linter = LinterBuilder::default()
-      .rules(rules, all_rule_names)
-      .build();
+    let linter = Linter::new(LinterOptions {
+      rules,
+      all_rule_codes,
+      custom_ignore_diagnostic_directive: None,
+      custom_ignore_file_directive: None,
+    });
     linter.lint_with_ast(
       parsed_source,
       LintConfig {

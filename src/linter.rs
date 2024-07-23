@@ -10,79 +10,32 @@ use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
 use std::collections::HashSet;
-use std::sync::Arc;
 
-pub struct LinterBuilder {
-  ignore_file_directive: String,
-  ignore_diagnostic_directive: String,
-  rules: Vec<Box<dyn LintRule>>,
-  all_codes: HashSet<&'static str>,
+pub struct LinterOptions {
+  /// Rules to lint with.
+  pub rules: Vec<Box<dyn LintRule>>,
+  /// Collection of all the lint rule codes.
+  pub all_rule_codes: HashSet<&'static str>,
+  /// Defaults to "deno-lint-ignore-file"
+  pub custom_ignore_file_directive: Option<&'static str>,
+  /// Defaults to "deno-lint-ignore"
+  pub custom_ignore_diagnostic_directive: Option<&'static str>,
 }
 
-impl Default for LinterBuilder {
-  fn default() -> Self {
-    Self {
-      ignore_file_directive: "deno-lint-ignore-file".to_string(),
-      ignore_diagnostic_directive: "deno-lint-ignore".to_string(),
-      rules: Vec::new(),
-      all_codes: Default::default(),
-    }
-  }
-}
-
-impl LinterBuilder {
-  pub fn build(self) -> Linter {
-    Linter::new(
-      self.ignore_file_directive,
-      self.ignore_diagnostic_directive,
-      self.rules,
-      self.all_codes,
-    )
-  }
-
-  /// Set name for directive that can be used to skip linting file.
-  ///
-  /// Defaults to "deno-lint-ignore-file".
-  pub fn ignore_file_directive(mut self, directive: &str) -> Self {
-    directive.clone_into(&mut self.ignore_file_directive);
-    self
-  }
-
-  /// Set name for directive that can be used to ignore next line.
-  ///
-  /// Defaults to "deno-lint-ignore".
-  pub fn ignore_diagnostic_directive(mut self, directive: &str) -> Self {
-    directive.clone_into(&mut self.ignore_diagnostic_directive);
-    self
-  }
-
-  /// Set a list of rules that will be used for linting.
-  ///
-  /// Defaults to empty list (no rules will be run by default).
-  pub fn rules(
-    mut self,
-    rules: Vec<Box<dyn LintRule>>,
-    all_codes: HashSet<&'static str>,
-  ) -> Self {
-    self.rules = rules;
-    self.all_codes = all_codes;
-    self
-  }
-}
-
-/// A linter instance. It can be cheaply cloned and shared between threads.
-#[derive(Clone)]
+/// A linter instance.
+#[derive(Debug)]
 pub struct Linter {
-  ctx: Arc<LinterContext>,
+  ctx: LinterContext,
 }
 
 /// A struct defining configuration of a `Linter` instance.
 ///
 /// This struct is passed along and used to construct a specific file context,
 /// just before a particular file is linted.
-pub struct LinterContext {
-  pub ignore_file_directive: String,
-  pub ignore_diagnostic_directive: String,
+#[derive(Debug)]
+pub(crate) struct LinterContext {
+  pub ignore_file_directive: &'static str,
+  pub ignore_diagnostic_directive: &'static str,
   pub check_unknown_rules: bool,
   /// Rules are sorted by priority
   pub rules: Vec<Box<dyn LintRule>>,
@@ -90,23 +43,23 @@ pub struct LinterContext {
 }
 
 impl LinterContext {
-  fn new(
-    ignore_file_directive: String,
-    ignore_diagnostic_directive: String,
-    mut rules: Vec<Box<dyn LintRule>>,
-    all_rule_codes: HashSet<&'static str>,
-  ) -> Self {
+  fn new(options: LinterOptions) -> Self {
+    let mut rules = options.rules;
     crate::rules::sort_rules_by_priority(&mut rules);
     let check_unknown_rules = rules
       .iter()
       .any(|a| a.code() == (BanUnknownRuleCode).code());
 
     LinterContext {
-      ignore_file_directive,
-      ignore_diagnostic_directive,
+      ignore_file_directive: options
+        .custom_ignore_file_directive
+        .unwrap_or("deno-lint-ignore-file"),
+      ignore_diagnostic_directive: options
+        .custom_ignore_file_directive
+        .unwrap_or("deno-lint-ignore"),
       check_unknown_rules,
       rules,
-      all_rule_codes,
+      all_rule_codes: options.all_rule_codes,
     }
   }
 }
@@ -125,20 +78,10 @@ pub struct LintConfig {
 }
 
 impl Linter {
-  fn new(
-    ignore_file_directive: String,
-    ignore_diagnostic_directive: String,
-    rules: Vec<Box<dyn LintRule>>,
-    all_rule_codes: HashSet<&'static str>,
-  ) -> Self {
-    let ctx = LinterContext::new(
-      ignore_file_directive,
-      ignore_diagnostic_directive,
-      rules,
-      all_rule_codes,
-    );
+  pub fn new(options: LinterOptions) -> Self {
+    let ctx = LinterContext::new(options);
 
-    Linter { ctx: Arc::new(ctx) }
+    Linter { ctx }
   }
 
   /// Lint a single file.
@@ -226,7 +169,7 @@ impl Linter {
       // we're gonna check if the file should be ignored, before performing
       // other expensive work like scope or control-flow analysis.
       let file_ignore_directive =
-        parse_file_ignore_directives(&self.ctx.ignore_file_directive, pg);
+        parse_file_ignore_directives(self.ctx.ignore_file_directive, pg);
       if let Some(ignore_directive) = file_ignore_directive.as_ref() {
         if ignore_directive.ignore_all() {
           return vec![];
