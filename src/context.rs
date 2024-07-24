@@ -425,6 +425,12 @@ impl<'a> Context<'a> {
     self.diagnostics.push(diagnostic);
   }
 
+  pub fn add_raw_diagnostic(&mut self, diagnostic: LintDiagnostic) {
+    debug_assert_eq!(diagnostic.specifier, *self.specifier());
+    debug_assert_eq!(diagnostic.text_info.text_str(), self.text_info().text_str());
+    self.diagnostics.push(diagnostic);
+  }
+
   pub(crate) fn create_diagnostic(
     &self,
     range: SourceRange,
