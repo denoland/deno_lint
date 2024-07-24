@@ -47,7 +47,7 @@ pub struct LintDiagnostic {
   /// Additional information displayed beside the highlighted range.
   pub range_description: Option<String>,
   /// Displays additional information at the end of a diagnostic.
-  pub info: Vec<Cow<'static, str>>
+  pub info: Vec<Cow<'static, str>>,
 }
 
 impl Diagnostic for LintDiagnostic {
