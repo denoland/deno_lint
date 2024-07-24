@@ -442,6 +442,8 @@ impl<'a> Context<'a> {
       hint: maybe_hint,
       fixes,
       custom_docs_url: None,
+      range_description: None,
+      info: vec![],
     }
   }
 }

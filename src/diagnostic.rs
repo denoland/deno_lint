@@ -44,6 +44,10 @@ pub struct LintDiagnostic {
   /// URL to the lint rule documentation. By default, the url uses the
   /// code to link to lint.deno.land
   pub custom_docs_url: Option<String>,
+  /// Additional information displayed beside the highlighted range.
+  pub range_description: Option<String>,
+  /// Displays additional information at the end of a diagnostic.
+  pub info: Vec<Cow<'static, str>>
 }
 
 impl Diagnostic for LintDiagnostic {
@@ -77,7 +81,7 @@ impl Diagnostic for LintDiagnostic {
       highlights: vec![DiagnosticSnippetHighlight {
         range,
         style: DiagnosticSnippetHighlightStyle::Error,
-        description: None,
+        description: self.range_description.as_deref().map(Cow::Borrowed),
       }],
     })
   }
@@ -91,7 +95,7 @@ impl Diagnostic for LintDiagnostic {
   }
 
   fn info(&self) -> Cow<'_, [std::borrow::Cow<'_, str>]> {
-    Cow::Borrowed(&[])
+    Cow::Borrowed(&self.info)
   }
 
   fn docs_url(&self) -> Option<Cow<'_, str>> {
