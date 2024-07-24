@@ -41,6 +41,8 @@ pub struct LintDiagnostic {
   /// only the first fix will be used for the `--fix` flag, but
   /// multiple will be shown in the LSP.
   pub fixes: Vec<LintFix>,
+  /// URL to the lint rule documentation. By default, the url uses the
+  /// code to link to lint.deno.land
   pub custom_docs_url: Option<String>,
 }
 
