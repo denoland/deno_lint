@@ -383,7 +383,7 @@ impl<'a> Context<'a> {
   pub fn add_diagnostic(
     &mut self,
     range: SourceRange,
-    code: &'static str,
+    code: impl ToString,
     message: impl ToString,
   ) {
     let diagnostic = self.create_diagnostic(
