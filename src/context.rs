@@ -383,12 +383,12 @@ impl<'a> Context<'a> {
   pub fn add_diagnostic(
     &mut self,
     range: SourceRange,
-    code: impl ToString,
+    code: &'static str,
     message: impl ToString,
   ) {
     let diagnostic = self.create_diagnostic(
       range,
-      code.to_string(),
+      code,
       message.to_string(),
       None,
       Vec::new(),
@@ -399,7 +399,7 @@ impl<'a> Context<'a> {
   pub fn add_diagnostic_with_hint(
     &mut self,
     range: SourceRange,
-    code: impl ToString,
+    code: &'static str,
     message: impl ToString,
     hint: impl ToString,
   ) {
@@ -416,7 +416,7 @@ impl<'a> Context<'a> {
   pub fn add_diagnostic_with_fixes(
     &mut self,
     range: SourceRange,
-    code: impl ToString,
+    code: &'static str,
     message: impl ToString,
     hint: Option<String>,
     fixes: Vec<LintFix>,
@@ -428,7 +428,7 @@ impl<'a> Context<'a> {
   pub(crate) fn create_diagnostic(
     &self,
     range: SourceRange,
-    code: impl ToString,
+    code: &'static str,
     message: impl ToString,
     maybe_hint: Option<String>,
     fixes: Vec<LintFix>,
@@ -438,9 +438,10 @@ impl<'a> Context<'a> {
       range,
       text_info: self.text_info().clone(),
       message: message.to_string(),
-      code: code.to_string(),
+      code: code,
       hint: maybe_hint,
       fixes,
+      custom_docs_url: None,
     }
   }
 }
