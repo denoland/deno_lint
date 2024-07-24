@@ -1,7 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use crate::control_flow::ControlFlow;
-use crate::diagnostic::{LintDiagnostic, LintFix};
+use crate::diagnostic::{
+  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintFix,
+};
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
@@ -234,18 +236,20 @@ impl<'a> Context<'a> {
 
     for diagnostic in self.diagnostics.iter().cloned() {
       if let Some(f) = self.file_ignore_directive.as_mut() {
-        if f.check_used(&diagnostic.code) {
+        if f.check_used(&diagnostic.details.code) {
           continue;
         }
       }
+      let Some(range) = diagnostic.range.as_ref() else {
+        continue;
+      };
 
-      let diagnostic_line =
-        diagnostic.text_info.line_index(diagnostic.range.start);
+      let diagnostic_line = range.text_info.line_index(range.range.start);
       if diagnostic_line > 0 {
         if let Some(l) =
           self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
         {
-          if l.check_used(&diagnostic.code) {
+          if l.check_used(&diagnostic.details.code) {
             continue;
           }
         }
@@ -290,11 +294,13 @@ impl<'a> Context<'a> {
         file_ignore.codes().iter().filter(is_unused_code)
       {
         let d = self.create_diagnostic(
-          file_ignore.range(),
-          CODE,
-          format!("Ignore for code \"{}\" was not used.", unused_code),
-          None,
-          Vec::new(),
+          Some(self.create_diagnostic_range(file_ignore.range())),
+          self.create_diagnostic_details(
+            CODE,
+            format!("Ignore for code \"{}\" was not used.", unused_code),
+            None,
+            Vec::new(),
+          ),
         );
         diagnostics.push(d);
       }
@@ -309,11 +315,13 @@ impl<'a> Context<'a> {
         line_ignore.codes().iter().filter(is_unused_code)
       {
         let d = self.create_diagnostic(
-          line_ignore.range(),
-          CODE,
-          format!("Ignore for code \"{}\" was not used.", unused_code),
-          None,
-          Vec::new(),
+          Some(self.create_diagnostic_range(line_ignore.range())),
+          self.create_diagnostic_details(
+            CODE,
+            format!("Ignore for code \"{}\" was not used.", unused_code),
+            None,
+            Vec::new(),
+          ),
         );
         diagnostics.push(d);
       }
@@ -337,11 +345,13 @@ impl<'a> Context<'a> {
         file_ignore.codes().keys().filter(is_unknown_rule)
       {
         let d = self.create_diagnostic(
-          file_ignore.range(),
-          rules::ban_unknown_rule_code::CODE,
-          format!("Unknown rule for code \"{}\"", unknown_rule_code),
-          None,
-          Vec::new(),
+          Some(self.create_diagnostic_range(file_ignore.range())),
+          self.create_diagnostic_details(
+            rules::ban_unknown_rule_code::CODE,
+            format!("Unknown rule for code \"{}\"", unknown_rule_code),
+            None,
+            Vec::new(),
+          ),
         );
         diagnostics.push(d);
       }
@@ -352,11 +362,13 @@ impl<'a> Context<'a> {
         line_ignore.codes().keys().filter(is_unknown_rule)
       {
         let d = self.create_diagnostic(
-          line_ignore.range(),
-          rules::ban_unknown_rule_code::CODE,
-          format!("Unknown rule for code \"{}\"", unknown_rule_code),
-          None,
-          Vec::new(),
+          Some(self.create_diagnostic_range(line_ignore.range())),
+          self.create_diagnostic_details(
+            rules::ban_unknown_rule_code::CODE,
+            format!("Unknown rule for code \"{}\"", unknown_rule_code),
+            None,
+            Vec::new(),
+          ),
         );
         diagnostics.push(d);
       }
@@ -386,14 +398,15 @@ impl<'a> Context<'a> {
     code: impl ToString,
     message: impl ToString,
   ) {
-    let diagnostic = self.create_diagnostic(
-      range,
-      code,
-      message.to_string(),
-      None,
-      Vec::new(),
+    self.add_diagnostic_details(
+      Some(self.create_diagnostic_range(range)),
+      self.create_diagnostic_details(
+        code,
+        message.to_string(),
+        None,
+        Vec::new(),
+      ),
     );
-    self.diagnostics.push(diagnostic);
   }
 
   pub fn add_diagnostic_with_hint(
@@ -403,14 +416,15 @@ impl<'a> Context<'a> {
     message: impl ToString,
     hint: impl ToString,
   ) {
-    let diagnostic = self.create_diagnostic(
-      range,
-      code,
-      message,
-      Some(hint.to_string()),
-      Vec::new(),
+    self.add_diagnostic_details(
+      Some(self.create_diagnostic_range(range)),
+      self.create_diagnostic_details(
+        code,
+        message,
+        Some(hint.to_string()),
+        Vec::new(),
+      ),
     );
-    self.diagnostics.push(diagnostic);
   }
 
   pub fn add_diagnostic_with_fixes(
@@ -421,29 +435,59 @@ impl<'a> Context<'a> {
     hint: Option<String>,
     fixes: Vec<LintFix>,
   ) {
-    let diagnostic = self.create_diagnostic(range, code, message, hint, fixes);
-    self.diagnostics.push(diagnostic);
+    self.add_diagnostic_details(
+      Some(self.create_diagnostic_range(range)),
+      self.create_diagnostic_details(code, message, hint, fixes),
+    );
+  }
+
+  pub fn add_diagnostic_details(
+    &mut self,
+    maybe_range: Option<LintDiagnosticRange>,
+    details: LintDiagnosticDetails,
+  ) {
+    self
+      .diagnostics
+      .push(self.create_diagnostic(maybe_range, details));
   }
 
   pub(crate) fn create_diagnostic(
     &self,
-    range: SourceRange,
+    maybe_range: Option<LintDiagnosticRange>,
+    details: LintDiagnosticDetails,
+  ) -> LintDiagnostic {
+    LintDiagnostic {
+      specifier: self.specifier().clone(),
+      range: maybe_range,
+      details,
+    }
+  }
+
+  pub(crate) fn create_diagnostic_details(
+    &self,
     code: impl ToString,
     message: impl ToString,
     maybe_hint: Option<String>,
     fixes: Vec<LintFix>,
-  ) -> LintDiagnostic {
-    LintDiagnostic {
-      specifier: self.specifier().clone(),
-      range,
-      text_info: self.text_info().clone(),
+  ) -> LintDiagnosticDetails {
+    LintDiagnosticDetails {
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,
       fixes,
       custom_docs_url: None,
-      range_description: None,
       info: vec![],
+    }
+  }
+
+  pub(crate) fn create_diagnostic_range(
+    &self,
+    range: SourceRange,
+  ) -> LintDiagnosticRange {
+    LintDiagnosticRange {
+      range,
+      text_info: self.text_info().clone(),
+      description: None,
     }
   }
 }
