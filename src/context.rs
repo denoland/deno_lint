@@ -234,7 +234,7 @@ impl<'a> Context<'a> {
 
     for diagnostic in self.diagnostics.iter().cloned() {
       if let Some(f) = self.file_ignore_directive.as_mut() {
-        if f.check_used(diagnostic.code) {
+        if f.check_used(&diagnostic.code) {
           continue;
         }
       }
@@ -245,7 +245,7 @@ impl<'a> Context<'a> {
         if let Some(l) =
           self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
         {
-          if l.check_used(diagnostic.code) {
+          if l.check_used(&diagnostic.code) {
             continue;
           }
         }
@@ -438,7 +438,7 @@ impl<'a> Context<'a> {
       range,
       text_info: self.text_info().clone(),
       message: message.to_string(),
-      code,
+      code: code,
       hint: maybe_hint,
       fixes,
       custom_docs_url: None,

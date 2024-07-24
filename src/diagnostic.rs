@@ -52,7 +52,7 @@ impl Diagnostic for LintDiagnostic {
   }
 
   fn code(&self) -> Cow<'_, str> {
-    Cow::Borrowed(self.code)
+    Cow::Borrowed(&self.code)
   }
 
   fn message(&self) -> Cow<'_, str> {
