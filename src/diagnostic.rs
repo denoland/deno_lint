@@ -32,7 +32,7 @@ pub struct LintDiagnostic {
   pub range: SourceRange,
   pub text_info: SourceTextInfo,
   pub message: String,
-  pub code: &'static str,
+  pub code: String,
   pub hint: Option<String>,
   /// Fixes that should be shown in the Deno LSP and also
   /// used for the `deno lint --fix` flag.
