@@ -41,6 +41,9 @@ pub struct LintDiagnostic {
   /// only the first fix will be used for the `--fix` flag, but
   /// multiple will be shown in the LSP.
   pub fixes: Vec<LintFix>,
+  /// URL to the lint rule documentation. By default, the url uses the
+  /// code to link to lint.deno.land
+  pub custom_docs_url: Option<String>,
 }
 
 impl Diagnostic for LintDiagnostic {
@@ -92,9 +95,13 @@ impl Diagnostic for LintDiagnostic {
   }
 
   fn docs_url(&self) -> Option<Cow<'_, str>> {
-    Some(Cow::Owned(format!(
-      "https://lint.deno.land/rules/{}",
-      &self.code
-    )))
+    if let Some(custom_docs_url) = &self.custom_docs_url {
+      Some(Cow::Borrowed(custom_docs_url))
+    } else {
+      Some(Cow::Owned(format!(
+        "https://lint.deno.land/rules/{}",
+        &self.code
+      )))
+    }
   }
 }

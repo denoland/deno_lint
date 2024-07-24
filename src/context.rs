@@ -388,7 +388,7 @@ impl<'a> Context<'a> {
   ) {
     let diagnostic = self.create_diagnostic(
       range,
-      code.to_string(),
+      code,
       message.to_string(),
       None,
       Vec::new(),
@@ -441,6 +441,7 @@ impl<'a> Context<'a> {
       code: code.to_string(),
       hint: maybe_hint,
       fixes,
+      custom_docs_url: None,
     }
   }
 }
