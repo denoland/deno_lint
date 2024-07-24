@@ -209,7 +209,7 @@ impl LintErrTester {
         "Actual diagnostics:\n{:#?}",
         diagnostics
           .iter()
-          .map(|d| d.message.to_string())
+          .map(|d| d.details.message.to_string())
           .collect::<Vec<_>>()
       );
       assert_eq!(
@@ -358,10 +358,11 @@ pub fn assert_diagnostic(
   col: usize,
   source: &str,
 ) {
-  let line_and_column = diagnostic
+  let diagnostic_range = diagnostic.range.as_ref().unwrap();
+  let line_and_column = diagnostic_range
     .text_info
-    .line_and_column_index(diagnostic.range.start);
-  if diagnostic.code == code
+    .line_and_column_index(diagnostic_range.range.start);
+  if diagnostic.details.code == code
     // todo(dsherret): we should change these to be consistent (ex. both 1-indexed)
     && line_and_column.line_index + 1 == line
     && line_and_column.column_index == col
@@ -370,7 +371,7 @@ pub fn assert_diagnostic(
   }
   panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
-    diagnostic.code,
+    diagnostic.details.code,
     line_and_column.line_index + 1,
     line_and_column.column_index,
     code,
@@ -393,13 +394,14 @@ fn assert_diagnostic_2(
   fixes: &[LintErrFix],
   text_info: &SourceTextInfo,
 ) {
-  let line_and_column = diagnostic
+  let diagnostic_range = diagnostic.range.as_ref().unwrap();
+  let line_and_column = diagnostic_range
     .text_info
-    .line_and_column_index(diagnostic.range.start);
+    .line_and_column_index(diagnostic_range.range.start);
   assert_eq!(
-    code, diagnostic.code,
+    code, diagnostic.details.code,
     "Rule code is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    code, diagnostic.code, source
+    code, diagnostic.details.code, source
   );
   assert_eq!(
     line,
@@ -415,19 +417,20 @@ fn assert_diagnostic_2(
     col, line_and_column.column_index, source
   );
   assert_eq!(
-    message, &diagnostic.message,
+    message, &diagnostic.details.message,
     "Diagnostic message is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    message, &diagnostic.message, source
+    message, &diagnostic.details.message, source
   );
   assert_eq!(
     hint,
-    diagnostic.hint.as_deref(),
+    diagnostic.details.hint.as_deref(),
     "Diagnostic hint is expected to be \"{:?}\", but got \"{:?}\"\n\nsource:\n{}\n",
     hint,
-    diagnostic.hint.as_deref(),
+    diagnostic.details.hint.as_deref(),
     source
   );
   let actual_fixes = diagnostic
+    .details
     .fixes
     .iter()
     .map(|fix| LintErrFix {

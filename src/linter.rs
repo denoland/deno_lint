@@ -6,6 +6,7 @@ use crate::diagnostic::LintDiagnostic;
 use crate::ignore_directives::parse_file_ignore_directives;
 use crate::performance_mark::PerformanceMark;
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
+use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
@@ -140,8 +141,15 @@ impl Linter {
     // Run `ban-unused-ignore`
     diagnostics.extend(context.ban_unused_ignore(&self.ctx.rules));
 
-    // Finally sort by position the diagnostics originates on
-    diagnostics.sort_by_key(|d| d.range.start);
+    // Finally sort by position the diagnostics originates on then by code
+    diagnostics.sort_by(|a, b| {
+      let a_range = a.range.as_ref().map(|r| r.range.start);
+      let b_range = b.range.as_ref().map(|r| r.range.start);
+      match a_range.cmp(&b_range) {
+        std::cmp::Ordering::Equal => a.code().cmp(&b.code()),
+        cmp => cmp,
+      }
+    });
 
     diagnostics
   }
