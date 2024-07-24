@@ -56,8 +56,10 @@ pub struct LintDiagnosticDetails {
 #[derive(Clone)]
 pub struct LintDiagnostic {
   pub specifier: ModuleSpecifier,
-  /// Optional range within the file. Lint diagnostics that don't have a range
-  /// mean there's something wrong with the whole file.
+  /// Optional range within the file.
+  ///
+  /// Diagnostics that don't have a range mean there's something wrong with
+  /// the whole file.
   pub range: Option<LintDiagnosticRange>,
   pub details: LintDiagnosticDetails,
 }
