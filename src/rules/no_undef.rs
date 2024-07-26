@@ -52,7 +52,7 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
     //
     // function foo(Map) { ... }
     //
-    if ident.span.ctxt != self.context.unresolved_ctxt() {
+    if ident.ctxt != self.context.unresolved_ctxt() {
       return;
     }
 

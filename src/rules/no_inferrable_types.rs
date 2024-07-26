@@ -10,7 +10,7 @@ use deno_ast::swc::ast::{
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use deno_ast::swc::ast::{Callee, PropName};
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -45,8 +45,8 @@ impl LintRule for NoInferrableTypes {
     let program = program_ref(program);
     let mut visitor = NoInferrableTypesVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -296,7 +296,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
+impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
   fn visit_function(&mut self, function: &Function) {
     for param in &function.params {
       if let Pat::Assign(assign_pat) = &param.pat {

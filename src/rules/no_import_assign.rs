@@ -120,7 +120,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     }
   }
 
-  fn is_modifier(&self, obj: &Expr, prop: &Ident) -> bool {
+  fn is_modifier(&self, obj: &Expr, prop: &IdentName) -> bool {
     let obj = if let Expr::Ident(obj) = obj {
       obj
     } else {

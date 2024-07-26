@@ -214,7 +214,7 @@ fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a str> {
   use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match &expr.prop {
     MemberProp::Ident(ident) => Some(ident.sym()),
-    MemberProp::PrivateName(name) => Some(name.id.sym()),
+    MemberProp::PrivateName(name) => Some(name.name()),
     MemberProp::Computed(prop) => match &prop.expr {
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       // If it's computed, this MemberExpr looks like `foo[bar]`

@@ -45,3 +45,6 @@ os_pipe = "1.1.5"
 pulldown-cmark = "0.9.3"
 rayon = "1.8.0"
 console_static_text = "0.8.2"
+
+[patch.crates-io]
+deno_ast = { git = 'https://github.com/dsherret/deno_ast.git', branch = "perf_swc_ecma_parser_0_148"}

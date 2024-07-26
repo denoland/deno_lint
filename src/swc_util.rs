@@ -1,9 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use deno_ast::swc::ast::{
-  BigInt, Bool, ComputedPropName, Expr, Ident, JSXText, Lit, MemberExpr,
-  MemberProp, Null, Number, PrivateName, Prop, PropName, PropOrSpread, Regex,
-  Str, Tpl,
+  BigInt, Bool, ComputedPropName, Expr, Ident, IdentName, JSXText, Lit, MemberExpr, MemberProp, Null, Number, PrivateName, Prop, PropName, PropOrSpread, Regex, Str, Tpl
 };
 use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
 use deno_ast::view::{self as ast_view};
@@ -91,6 +89,12 @@ impl StringRepr for Ident {
   }
 }
 
+impl StringRepr for IdentName {
+  fn string_repr(&self) -> Option<String> {
+    Some(self.sym.to_string())
+  }
+}
+
 impl StringRepr for PropOrSpread {
   fn string_repr(&self) -> Option<String> {
     use PropOrSpread::*;
@@ -168,7 +172,7 @@ impl StringRepr for PropName {
 
 impl StringRepr for PrivateName {
   fn string_repr(&self) -> Option<String> {
-    self.id.string_repr()
+    Some(self.name.to_string())
   }
 }
 
@@ -208,6 +212,7 @@ macro_rules! impl_string_repr_for_ast_view {
 
 impl_string_repr_for_ast_view!(
   Ident,
+  IdentName,
   Tpl,
   PrivateName,
   MemberExpr,

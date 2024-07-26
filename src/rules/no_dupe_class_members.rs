@@ -5,8 +5,7 @@ use super::{Context, LintRule};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
-  BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, Ident, Lit,
-  MethodKind, Null, Number, PropName, Str, Tpl,
+  BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, IdentName, Lit, MethodKind, Null, Number, PropName, Str, Tpl
 };
 use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
@@ -146,7 +145,7 @@ impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
 
 fn normalize_prop_name(name: &PropName) -> Option<String> {
   let normalized = match *name {
-    PropName::Ident(Ident { ref sym, .. }) => sym.to_string(),
+    PropName::Ident(IdentName { ref sym, .. }) => sym.to_string(),
     PropName::Str(Str { ref value, .. }) => value.to_string(),
     PropName::Num(Number { ref value, .. }) => value.to_string(),
     PropName::BigInt(BigInt { ref value, .. }) => value.to_string(),

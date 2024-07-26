@@ -7,7 +7,7 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::{Expr, SwitchStmt};
 use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::HashSet;
@@ -46,8 +46,8 @@ impl LintRule for NoDuplicateCase {
     let program = program_ref(program);
     let mut visitor = NoDuplicateCaseVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -67,7 +67,7 @@ impl<'c, 'view> NoDuplicateCaseVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoDuplicateCaseVisitor<'c, 'view> {
+impl<'c, 'view> Visit for NoDuplicateCaseVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {

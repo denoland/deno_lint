@@ -9,7 +9,7 @@ use deno_ast::swc::ast::{
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
 use deno_ast::swc::visit::{
-  noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith,
+  noop_visit_type, Visit, VisitWith
 };
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
@@ -50,8 +50,8 @@ impl LintRule for NoInnerDeclarations {
     let program = program_ref(program);
     let mut valid_visitor = ValidDeclsVisitor::new();
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut valid_visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut valid_visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut valid_visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut valid_visitor),
     }
 
     let mut visitor =
@@ -104,7 +104,7 @@ impl ValidDeclsVisitor {
   }
 }
 
-impl VisitAll for ValidDeclsVisitor {
+impl Visit for ValidDeclsVisitor {
   noop_visit_type!();
 
   fn visit_script(&mut self, item: &Script) {

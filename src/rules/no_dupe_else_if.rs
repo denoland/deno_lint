@@ -6,7 +6,7 @@ use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
 use deno_ast::swc::utils::drop_span;
-use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
+use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::{SourceRange, SourceRangedForSpanned};
 use derive_more::Display;
 use std::collections::HashSet;
@@ -49,8 +49,8 @@ impl LintRule for NoDupeElseIf {
     let program = program_ref(program);
     let mut visitor = NoDupeElseIfVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -77,7 +77,7 @@ impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
+impl<'c, 'view> Visit for NoDupeElseIfVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {

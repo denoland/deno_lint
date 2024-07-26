@@ -11,7 +11,7 @@ use deno_ast::swc::ast::Function;
 use deno_ast::swc::ast::MethodProp;
 use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
-use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::visit::{noop_visit_type, VisitWith};
 use deno_ast::swc::visit::Visit;
 use deno_ast::SourceRangedForSpanned;
 
@@ -94,31 +94,31 @@ impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {
     self.enter_function(&fn_decl.function);
-    deno_ast::swc::visit::visit_fn_decl(self, fn_decl);
+    fn_decl.visit_children_with(self);
     self.exit_function(&fn_decl.function);
   }
 
   fn visit_fn_expr(&mut self, fn_expr: &FnExpr) {
     self.enter_function(&fn_expr.function);
-    deno_ast::swc::visit::visit_fn_expr(self, fn_expr);
+    fn_expr.visit_children_with(self);
     self.exit_function(&fn_expr.function);
   }
 
   fn visit_class_method(&mut self, class_method: &ClassMethod) {
     self.enter_function(&class_method.function);
-    deno_ast::swc::visit::visit_class_method(self, class_method);
+    class_method.visit_children_with(self);
     self.exit_function(&class_method.function);
   }
 
   fn visit_private_method(&mut self, private_method: &PrivateMethod) {
     self.enter_function(&private_method.function);
-    deno_ast::swc::visit::visit_private_method(self, private_method);
+    private_method.visit_children_with(self);
     self.exit_function(&private_method.function);
   }
 
   fn visit_method_prop(&mut self, method_prop: &MethodProp) {
     self.enter_function(&method_prop.function);
-    deno_ast::swc::visit::visit_method_prop(self, method_prop);
+    method_prop.visit_children_with(self);
     self.exit_function(&method_prop.function);
   }
 }
