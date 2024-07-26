@@ -2,10 +2,10 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::swc_util::span_and_ctx_drop;
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Expr, SwitchStmt};
-use deno_ast::swc::utils::drop_span;
 use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SourceRangedForSpanned;
@@ -76,7 +76,7 @@ impl<'c, 'view> Visit for NoDuplicateCaseVisitor<'c, 'view> {
 
     for case in &switch_stmt.cases {
       if let Some(test) = &case.test {
-        let span_dropped_test = drop_span(test.clone());
+        let span_dropped_test = span_and_ctx_drop(test.clone());
         if !seen.insert(span_dropped_test) {
           self.context.add_diagnostic_with_hint(
             case.range(),
@@ -87,6 +87,7 @@ impl<'c, 'view> Visit for NoDuplicateCaseVisitor<'c, 'view> {
         }
       }
     }
+    switch_stmt.visit_children_with(self);
   }
 }
 

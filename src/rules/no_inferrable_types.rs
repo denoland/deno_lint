@@ -311,6 +311,7 @@ impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    function.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr) {
@@ -327,6 +328,7 @@ impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    arr_expr.visit_children_with(self);
   }
 
   fn visit_class_prop(&mut self, prop: &ClassProp) {
@@ -340,6 +342,7 @@ impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    prop.visit_children_with(self);
   }
 
   fn visit_private_prop(&mut self, prop: &PrivateProp) {
@@ -351,6 +354,7 @@ impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
         self.check_ts_type(init, ident_type_ann, prop.range());
       }
     }
+    prop.visit_children_with(self);
   }
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {
@@ -363,6 +367,7 @@ impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    var_decl.visit_children_with(self);
   }
 }
 

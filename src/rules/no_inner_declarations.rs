@@ -111,6 +111,7 @@ impl Visit for ValidDeclsVisitor {
         self.check_decl(decl)
       }
     }
+    item.visit_children_with(self);
   }
 
   fn visit_module_item(&mut self, item: &ModuleItem) {
@@ -132,24 +133,28 @@ impl Visit for ValidDeclsVisitor {
         }
       }
     }
+    item.visit_children_with(self);
   }
 
   fn visit_function(&mut self, function: &Function) {
     if let Some(block) = &function.body {
       self.check_stmts(&block.stmts);
     }
+    function.visit_children_with(self);
   }
 
   fn visit_constructor(&mut self, constructor: &Constructor) {
     if let Some(block) = &constructor.body {
       self.check_stmts(&block.stmts);
     }
+    constructor.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     if let BlockStmtOrExpr::BlockStmt(block) = &*arrow_expr.body {
       self.check_stmts(&block.stmts);
     }
+    arrow_expr.visit_children_with(self);
   }
 }
 

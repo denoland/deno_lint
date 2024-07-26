@@ -151,7 +151,33 @@ impl<'c, 'view: 'c> NoConstantConditionVisitor<'c, 'view> {
         Some(node),
         in_boolean_position,
       ),
-      _ => false,
+      Expr::This(_)
+      | Expr::Update(_)
+      | Expr::Member(_)
+      | Expr::SuperProp(_)
+      | Expr::Cond(_)
+      | Expr::Call(_)
+      | Expr::New(_)
+      | Expr::Ident(_)
+      | Expr::TaggedTpl(_)
+      | Expr::Class(_)
+      | Expr::Yield(_)
+      | Expr::MetaProp(_)
+      | Expr::Await(_)
+      | Expr::JSXMember(_)
+      | Expr::JSXNamespacedName(_)
+      | Expr::JSXEmpty(_)
+      | Expr::JSXElement(_)
+      | Expr::JSXFragment(_)
+      | Expr::TsTypeAssertion(_)
+      | Expr::TsConstAssertion(_)
+      | Expr::TsNonNull(_)
+      | Expr::TsAs(_)
+      | Expr::TsInstantiation(_)
+      | Expr::TsSatisfies(_)
+      | Expr::PrivateName(_)
+      | Expr::OptChain(_)
+      | Expr::Invalid(_) => false,
     }
   }
 
@@ -188,10 +214,12 @@ impl<'c, 'view> Visit for NoConstantConditionVisitor<'c, 'view> {
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr) {
     self.report(&cond_expr.test);
+    cond_expr.visit_children_with(self);
   }
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
     self.report(&if_stmt.test);
+    if_stmt.visit_children_with(self);
   }
 
   /* TODO(bartlomieju): temporarly disabled because
