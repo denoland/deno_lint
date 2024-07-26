@@ -6,7 +6,7 @@ use deno_ast::swc::ast::{
   Lit, MemberExpr, MemberProp, Null, Number, PrivateName, Prop, PropName,
   PropOrSpread, Regex, Str, Tpl,
 };
-use deno_ast::swc::common::{Span, DUMMY_SP};
+use deno_ast::swc::common::DUMMY_SP;
 use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
 use deno_ast::swc::visit::{VisitMut, VisitMutWith};
 use deno_ast::view::{self as ast_view};
@@ -326,7 +326,8 @@ where
 
 pub struct DropSpanAndCtx;
 impl VisitMut for DropSpanAndCtx {
-  fn visit_mut_span(&mut self, span: &mut Span) {
+  #[allow(clippy::disallowed_types)]
+  fn visit_mut_span(&mut self, span: &mut deno_ast::swc::common::Span) {
     *span = DUMMY_SP;
   }
 
