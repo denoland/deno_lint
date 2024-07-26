@@ -8,9 +8,7 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
-use deno_ast::swc::visit::{
-  noop_visit_type, Visit, VisitWith
-};
+use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;

@@ -25,9 +25,7 @@ enum NoCompareNegZeroMessage {
 
 #[derive(Display)]
 enum NoCompareNegZeroHint {
-  #[display(
-    fmt = "Use Object.is(x, -0) instead"
-  )]
+  #[display(fmt = "Use Object.is(x, -0) instead")]
   ObjectIs,
 }
 

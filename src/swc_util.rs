@@ -1,7 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use deno_ast::swc::ast::{
-  BigInt, Bool, ComputedPropName, Expr, Ident, IdentName, JSXText, Lit, MemberExpr, MemberProp, Null, Number, PrivateName, Prop, PropName, PropOrSpread, Regex, Str, Tpl
+  BigInt, Bool, ComputedPropName, Expr, Ident, IdentName, JSXText, Lit,
+  MemberExpr, MemberProp, Null, Number, PrivateName, Prop, PropName,
+  PropOrSpread, Regex, Str, Tpl,
 };
 use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
 use deno_ast::view::{self as ast_view};

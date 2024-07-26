@@ -11,8 +11,8 @@ use deno_ast::swc::ast::Function;
 use deno_ast::swc::ast::MethodProp;
 use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
-use deno_ast::swc::visit::{noop_visit_type, VisitWith};
 use deno_ast::swc::visit::Visit;
+use deno_ast::swc::visit::{noop_visit_type, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
