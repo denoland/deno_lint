@@ -263,9 +263,9 @@ checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
 
 [[package]]
 name = "deno_ast"
-version = "0.41.0"
+version = "0.41.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "544475eb0f3c54a32563da5e795faa59ee2614b14c781fd6d8d6d3bacb630435"
+checksum = "92a7bda04c1d2de161031c10ebf43ac75cfd193e765769f87989a031f8855387"
 dependencies = [
  "deno_media_type",
  "deno_terminal",
