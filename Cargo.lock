@@ -263,8 +263,9 @@ checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
 
 [[package]]
 name = "deno_ast"
-version = "0.40.0"
-source = "git+https://github.com/dsherret/deno_ast.git?branch=perf_swc_ecma_parser_0_148#f8a70f12e6519b937919a7ee08f9c1307b5aee50"
+version = "0.41.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "544475eb0f3c54a32563da5e795faa59ee2614b14c781fd6d8d6d3bacb630435"
 dependencies = [
  "deno_media_type",
  "deno_terminal",
