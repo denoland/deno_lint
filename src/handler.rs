@@ -99,6 +99,7 @@ pub trait Handler {
   fn function(&mut self, _n: &ast_view::Function, _ctx: &mut Context) {}
   fn getter_prop(&mut self, _n: &ast_view::GetterProp, _ctx: &mut Context) {}
   fn ident(&mut self, _n: &ast_view::Ident, _ctx: &mut Context) {}
+  fn ident_name(&mut self, _n: &ast_view::IdentName, _ctx: &mut Context) {}
   fn if_stmt(&mut self, _n: &ast_view::IfStmt, _ctx: &mut Context) {}
   fn import(&mut self, _n: &ast_view::Import, _ctx: &mut Context) {}
   fn import_decl(&mut self, _n: &ast_view::ImportDecl, _ctx: &mut Context) {}
@@ -588,6 +589,7 @@ pub trait Traverse: Handler {
       Function(n) => self.function(n, ctx),
       GetterProp(n) => self.getter_prop(n, ctx),
       Ident(n) => self.ident(n, ctx),
+      IdentName(n) => self.ident_name(n, ctx),
       IfStmt(n) => self.if_stmt(n, ctx),
       Import(n) => self.import(n, ctx),
       ImportDecl(n) => self.import_decl(n, ctx),

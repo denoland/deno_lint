@@ -2,11 +2,11 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::swc_util::span_and_ctx_drop;
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use deno_ast::swc::utils::drop_span;
-use deno_ast::swc::visit::{noop_visit_type, VisitAll, VisitAllWith};
+use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::{SourceRange, SourceRangedForSpanned};
 use derive_more::Display;
 use std::collections::HashSet;
@@ -49,8 +49,8 @@ impl LintRule for NoDupeElseIf {
     let program = program_ref(program);
     let mut visitor = NoDupeElseIfVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -77,7 +77,7 @@ impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
+impl<'c, 'view> Visit for NoDupeElseIfVisitor<'c, 'view> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
@@ -86,7 +86,7 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
     // This check is necessary to avoid outputting the same errors multiple times.
     if !self.checked_ranges.contains(&range) {
       self.checked_ranges.insert(range);
-      let span_dropped_test = drop_span(if_stmt.test.clone());
+      let span_dropped_test = span_and_ctx_drop(if_stmt.test.clone());
       let mut appeared_conditions: Vec<Vec<Vec<Expr>>> = Vec::new();
       append_test(&mut appeared_conditions, *span_dropped_test);
 
@@ -98,7 +98,7 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
         {
           // preserve the range before dropping
           let range = test.range();
-          let span_dropped_test = drop_span(test.clone());
+          let span_dropped_test = span_and_ctx_drop(test.clone());
           let mut current_condition_to_check: Vec<Vec<Vec<Expr>>> =
             mk_condition_to_check(*span_dropped_test.clone())
               .into_iter()
@@ -142,6 +142,8 @@ impl<'c, 'view> VisitAll for NoDupeElseIfVisitor<'c, 'view> {
         }
       }
     }
+
+    if_stmt.visit_children_with(self);
   }
 }
 
@@ -208,10 +210,13 @@ fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
     }
     (Paren(ParenExpr { ref expr, .. }), _) => equal_in_if_else(expr, expr2),
     (_, Paren(ParenExpr { ref expr, .. })) => equal_in_if_else(expr1, expr),
+    (Fn(a), Fn(b)) => {
+      eprintln!("fn:\n{:?}\n{:?}", a, b);
+      a == b
+    }
     (This(_), This(_))
     | (Array(_), Array(_))
     | (Object(_), Object(_))
-    | (Fn(_), Fn(_))
     | (Unary(_), Unary(_))
     | (Update(_), Update(_))
     | (Bin(_), Bin(_))

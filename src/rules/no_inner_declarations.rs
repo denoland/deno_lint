@@ -8,9 +8,7 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
-use deno_ast::swc::visit::{
-  noop_visit_type, Visit, VisitAll, VisitAllWith, VisitWith,
-};
+use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -50,8 +48,8 @@ impl LintRule for NoInnerDeclarations {
     let program = program_ref(program);
     let mut valid_visitor = ValidDeclsVisitor::new();
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut valid_visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut valid_visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut valid_visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut valid_visitor),
     }
 
     let mut visitor =
@@ -104,7 +102,7 @@ impl ValidDeclsVisitor {
   }
 }
 
-impl VisitAll for ValidDeclsVisitor {
+impl Visit for ValidDeclsVisitor {
   noop_visit_type!();
 
   fn visit_script(&mut self, item: &Script) {
@@ -113,6 +111,7 @@ impl VisitAll for ValidDeclsVisitor {
         self.check_decl(decl)
       }
     }
+    item.visit_children_with(self);
   }
 
   fn visit_module_item(&mut self, item: &ModuleItem) {
@@ -134,24 +133,28 @@ impl VisitAll for ValidDeclsVisitor {
         }
       }
     }
+    item.visit_children_with(self);
   }
 
   fn visit_function(&mut self, function: &Function) {
     if let Some(block) = &function.body {
       self.check_stmts(&block.stmts);
     }
+    function.visit_children_with(self);
   }
 
   fn visit_constructor(&mut self, constructor: &Constructor) {
     if let Some(block) = &constructor.body {
       self.check_stmts(&block.stmts);
     }
+    constructor.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     if let BlockStmtOrExpr::BlockStmt(block) = &*arrow_expr.body {
       self.check_stmts(&block.stmts);
     }
+    arrow_expr.visit_children_with(self);
   }
 }
 

@@ -19,15 +19,13 @@ const CODE: &str = "no-compare-neg-zero";
 
 #[derive(Display)]
 enum NoCompareNegZeroMessage {
-  #[display(fmt = NoCompareNegZeroMessage::Unexpected)]
+  #[display(fmt = "Do not compare against -0")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoCompareNegZeroHint {
-  #[display(
-    fmt = NoCompareNegZeroHint::ObjectIs
-  )]
+  #[display(fmt = "Use Object.is(x, -0) instead")]
   ObjectIs,
 }
 

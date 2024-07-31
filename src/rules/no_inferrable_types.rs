@@ -10,7 +10,7 @@ use deno_ast::swc::ast::{
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use deno_ast::swc::ast::{Callee, PropName};
-use deno_ast::swc::visit::{VisitAll, VisitAllWith};
+use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -45,8 +45,8 @@ impl LintRule for NoInferrableTypes {
     let program = program_ref(program);
     let mut visitor = NoInferrableTypesVisitor::new(context);
     match program {
-      ProgramRef::Module(m) => m.visit_all_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_all_with(&mut visitor),
+      ProgramRef::Module(m) => m.visit_with(&mut visitor),
+      ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
 
@@ -296,7 +296,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
+impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
   fn visit_function(&mut self, function: &Function) {
     for param in &function.params {
       if let Pat::Assign(assign_pat) = &param.pat {
@@ -311,6 +311,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    function.visit_children_with(self);
   }
 
   fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr) {
@@ -327,6 +328,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    arr_expr.visit_children_with(self);
   }
 
   fn visit_class_prop(&mut self, prop: &ClassProp) {
@@ -340,6 +342,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    prop.visit_children_with(self);
   }
 
   fn visit_private_prop(&mut self, prop: &PrivateProp) {
@@ -351,6 +354,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
         self.check_ts_type(init, ident_type_ann, prop.range());
       }
     }
+    prop.visit_children_with(self);
   }
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {
@@ -363,6 +367,7 @@ impl<'c, 'view> VisitAll for NoInferrableTypesVisitor<'c, 'view> {
         }
       }
     }
+    var_decl.visit_children_with(self);
   }
 }
 

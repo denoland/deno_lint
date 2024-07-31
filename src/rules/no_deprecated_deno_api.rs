@@ -47,7 +47,7 @@ fn extract_symbol<'a>(
   use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
   match member_prop {
     MemberProp::Ident(ident) => Some(ident.sym()),
-    MemberProp::PrivateName(ident) => Some(ident.id.sym()),
+    MemberProp::PrivateName(ident) => Some(ident.name()),
     MemberProp::Computed(prop) => match &prop.expr {
       Expr::Lit(Lit::Str(s)) => Some(s.value()),
       Expr::Ident(ident) => Some(ident.sym()),
