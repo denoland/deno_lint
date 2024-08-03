@@ -5,10 +5,10 @@ use super::{Context, LintRule};
 use crate::js_regex::*;
 use crate::Program;
 use crate::ProgramRef;
-use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::ast::{Callee, Expr};
 use deno_ast::swc::visit::Visit;
+use deno_ast::swc::visit::{noop_visit_type, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 
@@ -74,18 +74,24 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
     args: &[ExprOrSpread],
     range: SourceRange,
   ) {
-    if let Expr::Ident(ident) = callee {
-      if ident.sym != *"RegExp" || args.is_empty() {
-        return;
-      }
-      if let Some(pattern) = &check_expr_for_string_literal(&args[0].expr) {
-        if args.len() > 1 {
-          if let Some(flags) = &check_expr_for_string_literal(&args[1].expr) {
-            self.check_regex(pattern, flags, range);
-            return;
-          }
+    match callee {
+      Expr::Ident(ident) => {
+        if ident.sym != *"RegExp" || args.is_empty() {
+          return;
         }
-        self.check_regex(pattern, "", range);
+        if let Some(pattern) = &check_expr_for_string_literal(&args[0].expr) {
+          if args.len() > 1 {
+            if let Some(flags) = &check_expr_for_string_literal(&args[1].expr) {
+              self.check_regex(pattern, flags, range);
+              return;
+            }
+          }
+          self.check_regex(pattern, "", range);
+        }
+      }
+      _ => {
+        callee.visit_children_with(self);
+        args.visit_children_with(self);
       }
     }
   }
@@ -120,19 +126,21 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   }
 
   fn visit_call_expr(&mut self, call_expr: &deno_ast::swc::ast::CallExpr) {
-    if let deno_ast::swc::ast::Callee::Expr(expr) = &call_expr.callee {
-      self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
+    match &call_expr.callee {
+      Callee::Super(_) => call_expr.args.visit_children_with(self),
+      Callee::Expr(expr) => {
+        self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
+      }
+      _ => {}
     }
   }
 
   fn visit_new_expr(&mut self, new_expr: &deno_ast::swc::ast::NewExpr) {
-    if new_expr.args.is_some() {
-      self.handle_call_or_new_expr(
-        &new_expr.callee,
-        new_expr.args.as_ref().unwrap(),
-        new_expr.range(),
-      );
-    }
+    self.handle_call_or_new_expr(
+      &new_expr.callee,
+      new_expr.args.as_ref().unwrap_or(&vec![]),
+      new_expr.range(),
+    );
   }
 }
 
@@ -193,6 +201,32 @@ let re = new RegExp('foo', x);",
       r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"
+((_) => [
+  /+/,
+  RegExp('+'),
+  new RegExp('+'),
+])([
+  /+/,
+  RegExp('+'),
+  new RegExp('+'),
+]);": [
+        { line: 3, col: 2, message: MESSAGE, hint: HINT },
+        { line: 4, col: 2, message: MESSAGE, hint: HINT },
+        { line: 5, col: 2, message: MESSAGE, hint: HINT },
+        { line: 7, col: 2, message: MESSAGE, hint: HINT },
+        { line: 8, col: 2, message: MESSAGE, hint: HINT },
+        { line: 9, col: 2, message: MESSAGE, hint: HINT }],
+      r"
+new function () {
+  return /+/;
+};": [{ line: 3, col: 9, message: MESSAGE, hint: HINT }],
+      r"
+class C extends RegExp {
+  constructor() {
+    super(/+/);
+  }
+}": [{ line: 4, col: 10, message: MESSAGE, hint: HINT }],
     }
   }
 }
