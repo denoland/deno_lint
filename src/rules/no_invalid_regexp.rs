@@ -5,8 +5,8 @@ use super::{Context, LintRule};
 use crate::js_regex::*;
 use crate::Program;
 use crate::ProgramRef;
-use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
+use deno_ast::swc::ast::{Callee, Expr};
 use deno_ast::swc::visit::Visit;
 use deno_ast::swc::visit::{noop_visit_type, VisitWith};
 use deno_ast::SourceRange;
@@ -126,8 +126,12 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   }
 
   fn visit_call_expr(&mut self, call_expr: &deno_ast::swc::ast::CallExpr) {
-    if let deno_ast::swc::ast::Callee::Expr(expr) = &call_expr.callee {
-      self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
+    match &call_expr.callee {
+      Callee::Super(_) => call_expr.args.visit_children_with(self),
+      Callee::Expr(expr) => {
+        self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
+      }
+      _ => {}
     }
   }
 
@@ -217,6 +221,12 @@ let re = new RegExp('foo', x);",
 new function () {
   return /+/;
 };": [{ line: 3, col: 9, message: MESSAGE, hint: HINT }],
+      r"
+class C extends RegExp {
+  constructor() {
+    super(/+/);
+  }
+}": [{ line: 4, col: 10, message: MESSAGE, hint: HINT }],
     }
   }
 }
