@@ -132,13 +132,11 @@ impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
   }
 
   fn visit_new_expr(&mut self, new_expr: &deno_ast::swc::ast::NewExpr) {
-    if new_expr.args.is_some() {
-      self.handle_call_or_new_expr(
-        &new_expr.callee,
-        new_expr.args.as_ref().unwrap(),
-        new_expr.range(),
-      );
-    }
+    self.handle_call_or_new_expr(
+      &new_expr.callee,
+      new_expr.args.as_ref().unwrap_or(&vec![]),
+      new_expr.range(),
+    );
   }
 }
 
@@ -215,6 +213,10 @@ let re = new RegExp('foo', x);",
         { line: 7, col: 2, message: MESSAGE, hint: HINT },
         { line: 8, col: 2, message: MESSAGE, hint: HINT },
         { line: 9, col: 2, message: MESSAGE, hint: HINT }],
+      r"
+new function () {
+  return /+/;
+};": [{ line: 3, col: 9, message: MESSAGE, hint: HINT }],
     }
   }
 }
