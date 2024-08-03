@@ -7,8 +7,8 @@ use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::visit::noop_visit_type;
 use deno_ast::swc::visit::Visit;
+use deno_ast::swc::visit::{noop_visit_type, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 
@@ -74,18 +74,24 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
     args: &[ExprOrSpread],
     range: SourceRange,
   ) {
-    if let Expr::Ident(ident) = callee {
-      if ident.sym != *"RegExp" || args.is_empty() {
-        return;
-      }
-      if let Some(pattern) = &check_expr_for_string_literal(&args[0].expr) {
-        if args.len() > 1 {
-          if let Some(flags) = &check_expr_for_string_literal(&args[1].expr) {
-            self.check_regex(pattern, flags, range);
-            return;
-          }
+    match callee {
+      Expr::Ident(ident) => {
+        if ident.sym != *"RegExp" || args.is_empty() {
+          return;
         }
-        self.check_regex(pattern, "", range);
+        if let Some(pattern) = &check_expr_for_string_literal(&args[0].expr) {
+          if args.len() > 1 {
+            if let Some(flags) = &check_expr_for_string_literal(&args[1].expr) {
+              self.check_regex(pattern, flags, range);
+              return;
+            }
+          }
+          self.check_regex(pattern, "", range);
+        }
+      }
+      _ => {
+        callee.visit_children_with(self);
+        args.visit_children_with(self);
       }
     }
   }
@@ -193,6 +199,22 @@ let re = new RegExp('foo', x);",
       r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"
+((_) => [
+  /+/,
+  RegExp('+'),
+  new RegExp('+'),
+])([
+  /+/,
+  RegExp('+'),
+  new RegExp('+'),
+]);": [
+        { line: 3, col: 2, message: MESSAGE, hint: HINT },
+        { line: 4, col: 2, message: MESSAGE, hint: HINT },
+        { line: 5, col: 2, message: MESSAGE, hint: HINT },
+        { line: 7, col: 2, message: MESSAGE, hint: HINT },
+        { line: 8, col: 2, message: MESSAGE, hint: HINT },
+        { line: 9, col: 2, message: MESSAGE, hint: HINT }],
     }
   }
 }
