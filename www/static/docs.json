@@ -584,6 +584,13 @@
     ]
   },
   {
+    "code": "node-builtin-specifier",
+    "docs": "Enforces the use of the `node:` specifier for Node built-in modules.\n\nDeno requires Node built-in modules to be imported with the `node:` specifier.\n\n### Invalid:\n\n```typescript\nimport * as path from \"path\";\nimport * as fs from \"fs\";\nimport * as fsPromises from \"fs/promises\";\n```\n\n### Valid:\n\n```typescript\nimport * as path from \"node:path\";\nimport * as fs from \"node:fs\";\nimport * as fsPromises from \"node:fs/promises\";\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "no-with",
     "docs": "Disallows the usage of `with` statements.\n\nThe `with` statement is discouraged as it may be the source of confusing bugs\nand compatibility issues. For more details, see [with - JavaScript | MDN].\n\n[with - JavaScript | MDN]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/with\n\n### Invalid:\n\n```typescript\nwith (someVar) {\n  console.log(\"foo\");\n}\n```\n",
     "tags": [

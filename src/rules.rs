@@ -97,6 +97,7 @@ pub mod no_var;
 pub mod no_window;
 pub mod no_window_prefix;
 pub mod no_with;
+pub mod node_builtin_specifier;
 pub mod prefer_as_const;
 pub mod prefer_ascii;
 pub mod prefer_const;
@@ -329,6 +330,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_var::NoVar),
     Box::new(no_window::NoWindow),
     Box::new(no_window_prefix::NoWindowPrefix),
+    Box::new(node_builtin_specifier::NodeBuiltinsSpecifier),
     Box::new(no_with::NoWith),
     Box::new(prefer_as_const::PreferAsConst),
     Box::new(prefer_ascii::PreferAscii),
