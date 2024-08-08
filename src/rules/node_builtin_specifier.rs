@@ -67,30 +67,23 @@ impl NodeBuiltinsSpecifierGlobalHandler {
 impl Handler for NodeBuiltinsSpecifierGlobalHandler {
   fn import_decl(&mut self, decl: &ast_view::ImportDecl, ctx: &mut Context) {
     let src = decl.src.inner.value.as_str();
-    if is_bare_node_builtin(&src) {
-      self.add_diagnostic(ctx, &src, decl.src.range());
+    if is_bare_node_builtin(src) {
+      self.add_diagnostic(ctx, src, decl.src.range());
     }
   }
 
   fn call_expr(&mut self, expr: &ast_view::CallExpr, ctx: &mut Context) {
-    match expr.callee {
-      ast_view::Callee::Import(_) => {
-        if let Some(src_expr) = expr.args.first() {
-          match src_expr.expr {
-            ast_view::Expr::Lit(lit) => match lit {
-              ast_view::Lit::Str(str_value) => {
-                let src = str_value.inner.value.as_str();
-                if is_bare_node_builtin(&src) {
-                  self.add_diagnostic(ctx, &src, lit.range());
-                }
-              }
-              _ => {}
-            },
-            _ => {}
+    if let ast_view::Callee::Import(_) = expr.callee {
+      if let Some(src_expr) = expr.args.first() {
+        if let ast_view::Expr::Lit(lit) = src_expr.expr {
+          if let ast_view::Lit::Str(str_value) = lit {
+            let src = str_value.inner.value.as_str();
+            if is_bare_node_builtin(src) {
+              self.add_diagnostic(ctx, src, lit.range());
+            }
           }
         }
       }
-      _ => {}
     }
   }
 }
