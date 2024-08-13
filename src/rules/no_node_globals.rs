@@ -87,12 +87,14 @@ impl FixKind {
       FixKind::Replace(_) => REPLACE_HINT,
     }
   }
+
   fn description(&self) -> &'static str {
     match self {
       FixKind::Import { .. } => IMPORT_FIX_DESC,
       FixKind::Replace(_) => REPLACE_FIX_DESC,
     }
   }
+
   fn to_text(self, newline: AddNewline) -> Cow<'static, str> {
     match self {
       FixKind::Import { module, import } => {
@@ -110,12 +112,16 @@ impl FixKind {
 
 fn program_code_start(program: Program) -> SourcePos {
   match program_ref(program) {
-    ast_view::ProgramRef::Module(m) => {
-      m.body.first().map_or(program.start(), |node| node.start())
-    }
-    ast_view::ProgramRef::Script(s) => {
-      s.body.first().map_or(program.start(), |node| node.start())
-    }
+    ast_view::ProgramRef::Module(m) => m
+      .body
+      .first()
+      .map(|node| node.start())
+      .unwrap_or(program.start()),
+    ast_view::ProgramRef::Script(s) => s
+      .body
+      .first()
+      .map(|node| node.start())
+      .unwrap_or(program.start()),
   }
 }
 
@@ -300,6 +306,18 @@ mod tests {
           fix: (
             IMPORT_FIX_DESC,
             "import { Buffer } from \"node:buffer\";\nconst a = process.env;\nconst b = Buffer;"
+          ),
+        }
+      ],
+      "// A copyright notice\n\nconst a = process.env;": [
+        {
+          col: 10,
+          line: 3,
+          message: MESSAGE,
+          hint: IMPORT_HINT,
+          fix: (
+            IMPORT_FIX_DESC,
+            "// A copyright notice\n\nimport process from \"node:process\";\nconst a = process.env;"
           ),
         }
       ]
