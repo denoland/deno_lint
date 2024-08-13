@@ -178,7 +178,6 @@ impl Handler for NoNodeGlobalsHandler {
       return;
     }
     if id.ctxt() == ctx.unresolved_ctxt() {
-      eprintln!("unresolved: {}", id.sym());
       self.add_diagnostic(ctx, id.range(), NODE_GLOBALS[&*id.sym()]);
     }
   }
