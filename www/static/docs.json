@@ -418,6 +418,13 @@
     ]
   },
   {
+    "code": "no-node-globals",
+    "docs": "Disallows the use of NodeJS global objects.\n\nNodeJS exposes a set of global objects that differs from deno (and the web), so\ncode should not assume they are available. Instead, import the objects from\ntheir defining modules as needed.\n\n### Invalid:\n\n```typescript\n// foo.ts\nconst foo = process.env.FOO; // process is not a global object in deno\n```\n\n### Valid:\n\n```typescript\n// foo.ts\nimport process from \"node:process\";\n\nconst foo = process.env.FOO;\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "no-non-null-asserted-optional-chain",
     "docs": "Disallow non-null assertions after an optional chain expression\n\n`?.` optional chain expressions provide undefined if an object is `null` or\n`undefined`. Using a `!` non-null assertion to assert the result of an `?.`\noptional chain expression is non-nullable is likely wrong.\n\n### Invalid:\n\n```typescript\nfoo?.bar!;\nfoo?.bar()!;\n```\n\n### Valid:\n\n```typescript\nfoo?.bar;\nfoo?.bar();\n```\n",
     "tags": []
