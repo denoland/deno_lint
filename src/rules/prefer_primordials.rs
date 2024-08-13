@@ -798,7 +798,13 @@ function foo(): Array<any> {}
 type p = Promise<void>;
       "#,
       r#"
-#a in A;
+class A {
+  #brand;
+
+  static is(obj) {
+    return #brand in obj;
+  }
+}
       "#,
     };
   }
