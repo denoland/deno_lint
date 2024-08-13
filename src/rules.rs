@@ -70,6 +70,7 @@ pub mod no_irregular_whitespace;
 pub mod no_misused_new;
 pub mod no_namespace;
 pub mod no_new_symbol;
+pub mod no_node_globals;
 pub mod no_non_null_asserted_optional_chain;
 pub mod no_non_null_assertion;
 pub mod no_obj_calls;
@@ -301,6 +302,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_misused_new::NoMisusedNew),
     Box::new(no_namespace::NoNamespace),
     Box::new(no_new_symbol::NoNewSymbol),
+    Box::new(no_node_globals::NoNodeGlobals),
     Box::new(
       no_non_null_asserted_optional_chain::NoNonNullAssertedOptionalChain,
     ),
