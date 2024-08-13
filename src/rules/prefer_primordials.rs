@@ -21,6 +21,8 @@ enum PreferPrimordialsMessage {
   GlobalIntrinsic,
   #[display(fmt = "Don't use the unsafe intrinsic")]
   UnsafeIntrinsic,
+  #[display(fmt = "Use null [[prototype]] object in the define property")]
+  DefineProperty,
   #[display(fmt = "Don't use iterator protocol directly")]
   Iterator,
   #[display(fmt = "Don't use RegExp literal directly")]
@@ -39,6 +41,8 @@ enum PreferPrimordialsHint {
     fmt = "Instead use the safe wrapper from the `primordials` object"
   )]
   UnsafeIntrinsic,
+  #[display(fmt = "Add `__proto__: null` to this object literal")]
+  NullPrototypeObjectLiteral,
   #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
   SafeIterator,
   #[display(fmt = "Wrap `SafeRegExp` from the `primordials` object")]
@@ -366,6 +370,28 @@ impl Handler for PreferPrimordialsHandler {
       scope.var(&ident.inner.to_id()).is_some()
     }
 
+    fn is_null_proto(object_lit: &ast_view::ObjectLit) -> bool {
+      for prop_or_spread in object_lit.props {
+        if_chain! {
+          if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
+          if let ast_view::Prop::KeyValue(key_value_prop) = prop;
+          if matches!(key_value_prop.value, ast_view::Expr::Lit(ast_view::Lit::Null(..)));
+          then {
+            if let ast_view::PropName::Ident(ident) = key_value_prop.key {
+              if ident.sym().as_ref() == "__proto__" {
+                return true
+              }
+            } else if let ast_view::PropName::Str(str) = key_value_prop.key {
+              if str.inner.value.as_ref() == "__proto__" {
+                return true
+              }
+            }
+          }
+        }
+      }
+      false
+    }
+
     if inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(
       ident.as_node(),
       ident.as_node(),
@@ -404,6 +430,51 @@ impl Handler for PreferPrimordialsHandler {
         PreferPrimordialsMessage::UnsafeIntrinsic,
         PreferPrimordialsHint::UnsafeIntrinsic,
       );
+    }
+
+    match &ident.sym().as_ref() {
+      &"ObjectDefineProperty" | &"ReflectDefineProperty" => {
+        if_chain! {
+          if let ast_view::Node::CallExpr(call_expr) = ident.parent();
+          if let Some(expr_or_spread) = call_expr.args.get(2);
+          if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
+          if !is_null_proto(object_lit);
+          then {
+            ctx.add_diagnostic_with_hint(
+              object_lit.range(),
+              CODE,
+              PreferPrimordialsMessage::DefineProperty,
+              PreferPrimordialsHint::NullPrototypeObjectLiteral,
+            );
+          }
+        }
+      }
+      &"ObjectDefineProperties" => {
+        if_chain! {
+          if let ast_view::Node::CallExpr(call_expr) = ident.parent();
+          if let Some(expr_or_spread) = call_expr.args.get(1);
+          if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
+          then {
+            for prop_or_spread in object_lit.props {
+              if_chain! {
+                if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
+                if let ast_view::Prop::KeyValue(key_value_prop) = prop;
+                if let ast_view::Expr::Object(object_lit) = key_value_prop.value;
+                if !is_null_proto(object_lit);
+                then {
+                  ctx.add_diagnostic_with_hint(
+                    object_lit.range(),
+                    CODE,
+                    PreferPrimordialsMessage::DefineProperty,
+                    PreferPrimordialsHint::NullPrototypeObjectLiteral,
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+      _ => (),
     }
   }
 
@@ -688,7 +759,18 @@ const a = {
       "#,
       r#"
 const { ObjectDefineProperty, SymbolToStringTag } = primordials;
-ObjectDefineProperty(o, SymbolToStringTag, { value: "o" });
+ObjectDefineProperty(o, SymbolToStringTag, { __proto__: null, value: "o" });
+      "#,
+      r#"
+const { ReflectDefineProperty, SymbolToStringTag } = primordials;
+ReflectDefineProperty(o, SymbolToStringTag, { __proto__: null, value: "o" });
+      "#,
+      r#"
+const { ObjectDefineProperties } = primordials;
+ObjectDefineProperties(o, {
+  foo: { __proto__: null, value: "o" },
+  bar: { "__proto__": null, value: "o" },
+});
       "#,
       r#"
 const { NumberParseInt } = primordials;
@@ -932,6 +1014,50 @@ ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" });
           col: 24,
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
+        },
+        {
+          line: 3,
+          col: 44,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+      ],
+      r#"
+const { ObjectDefineProperty, SymbolToStringTag } = primordials;
+ObjectDefineProperty(o, SymbolToStringTag, { value: "o" });
+      "#: [
+        {
+          line: 3,
+          col: 43,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+      ],
+      r#"
+const { ObjectDefineProperties } = primordials;
+ObjectDefineProperties(o, {
+  foo: { value: "o" },
+  bar: { __proto__: {}, value: "o" },
+  baz: { ["__proto__"]: null, value: "o" },
+});
+      "#: [
+        {
+          line: 4,
+          col: 7,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+        {
+          line: 5,
+          col: 7,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+        {
+          line: 6,
+          col: 7,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
         },
       ],
       r#"
