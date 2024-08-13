@@ -174,11 +174,11 @@ impl NoNodeGlobalsHandler {
 
 impl Handler for NoNodeGlobalsHandler {
   fn ident(&mut self, id: &ast_view::Ident, ctx: &mut Context) {
-    if !NODE_GLOBALS.contains_key(&*id.sym()) {
+    if !NODE_GLOBALS.contains_key(id.sym()) {
       return;
     }
     if id.ctxt() == ctx.unresolved_ctxt() {
-      self.add_diagnostic(ctx, id.range(), NODE_GLOBALS[&*id.sym()]);
+      self.add_diagnostic(ctx, id.range(), NODE_GLOBALS[id.sym()]);
     }
   }
 

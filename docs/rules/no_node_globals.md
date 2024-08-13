@@ -1,8 +1,8 @@
 Disallows the use of NodeJS global objects.
 
-NodeJS exposes a set of global objects that differs from deno (and the web),
-so code should not assume they are available. Instead, import the objects
-from their defining modules as needed.
+NodeJS exposes a set of global objects that differs from deno (and the web), so
+code should not assume they are available. Instead, import the objects from
+their defining modules as needed.
 
 ### Invalid:
 
