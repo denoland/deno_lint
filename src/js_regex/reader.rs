@@ -2,13 +2,15 @@
 
 use std::collections::VecDeque;
 
+use super::UnicodeChar;
+
 #[derive(Debug, Default)]
 pub struct Reader {
   unicode: bool,
   src: String,
   index: usize,
   end: usize,
-  cps: VecDeque<char>,
+  cps: VecDeque<UnicodeChar>,
 }
 
 impl Reader {
@@ -31,7 +33,7 @@ impl Reader {
     self.index
   }
 
-  pub fn code_point_with_offset(&self, offset: usize) -> Option<char> {
+  pub fn code_point_with_offset(&self, offset: usize) -> Option<UnicodeChar> {
     self.cps.get(offset).cloned()
   }
 
@@ -115,20 +117,14 @@ impl Reader {
     }
   }
 
-  fn at(&self, i: usize) -> Option<char> {
+  fn at(&self, i: usize) -> Option<UnicodeChar> {
     if i >= self.end {
       None
     } else if self.unicode {
       let c = self.src.chars().nth(i).unwrap();
-      Some(c)
+      Some(c.into())
     } else {
-      // TODO: move the conversion out of this method and make it safe
-      unsafe {
-        let c: char = std::char::from_u32_unchecked(
-          self.src.encode_utf16().nth(i).unwrap() as u32,
-        );
-        Some(c)
-      }
+      Some((self.src.encode_utf16().nth(i).unwrap() as u32).into())
     }
   }
 }
@@ -169,19 +165,19 @@ mod tests {
     let mut reader = Reader::new();
     // without unicode flag
     reader.reset("Hello", 0, 5, false);
-    assert_eq!(reader.at(1).unwrap() as u32, 101);
+    assert_eq!(reader.at(1).unwrap().to_u32(), 101);
     reader.reset("􀃃a🩢☃★♲", 0, 6, false);
-    assert_eq!(reader.at(0).unwrap() as u32, 56256);
+    assert_eq!(reader.at(0).unwrap().to_u32(), 56256);
     reader.reset("􀃃ello", 0, 6, false);
-    assert_eq!(reader.at(0).unwrap() as u32, 56256);
+    assert_eq!(reader.at(0).unwrap().to_u32(), 56256);
     reader.reset("􀃃ello", 0, 6, false);
-    assert_eq!(reader.at(1).unwrap() as u32, 56515);
+    assert_eq!(reader.at(1).unwrap().to_u32(), 56515);
     // with unicode flag
     reader.reset("Hello", 0, 5, true);
-    assert_eq!(reader.at(1).unwrap() as u32, 101);
+    assert_eq!(reader.at(1).unwrap().to_u32(), 101);
     reader.reset("􀃃a🩢☃★♲", 0, 6, true);
-    assert_eq!(reader.at(0).unwrap() as u32, 1048771);
+    assert_eq!(reader.at(0).unwrap().to_u32(), 1048771);
     reader.reset("􀃃ello", 0, 6, true);
-    assert_eq!(reader.at(0).unwrap() as u32, 1048771);
+    assert_eq!(reader.at(0).unwrap().to_u32(), 1048771);
   }
 }

@@ -3,7 +3,7 @@
 // This file was generated with ECMAScript specifications.
 // Originally from: https://github.com/mysticatea/regexpp
 
-use super::EcmaVersion;
+use super::{EcmaVersion, UnicodeChar};
 
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
@@ -579,12 +579,12 @@ pub fn is_valid_lone_unicode_property(
       && BIN_PROPERTY_PATTERNS.es2019.contains(value))
 }
 
-pub fn is_large_id_start(cp: char) -> bool {
-  is_in_range(cp as u32, &LARGE_ID_START_RANGES)
+pub fn is_large_id_start(cp: UnicodeChar) -> bool {
+  is_in_range(cp.to_u32(), &LARGE_ID_START_RANGES)
 }
 
-pub fn is_large_id_continue(cp: char) -> bool {
-  is_in_range(cp as u32, &LARGE_ID_CONTINUE_RANGES)
+pub fn is_large_id_continue(cp: UnicodeChar) -> bool {
+  is_in_range(cp.to_u32(), &LARGE_ID_CONTINUE_RANGES)
 }
 
 fn is_in_range(cp: u32, ranges: &[u32]) -> bool {
