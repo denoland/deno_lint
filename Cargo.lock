@@ -312,6 +312,7 @@ dependencies = [
  "log",
  "once_cell",
  "os_pipe",
+ "phf",
  "pulldown-cmark",
  "rayon",
  "regex",
