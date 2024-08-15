@@ -20,10 +20,6 @@ pub struct NoNodeGlobals;
 
 const CODE: &str = "no-node-globals";
 const MESSAGE: &str = "NodeJS globals are not available in Deno";
-const IMPORT_HINT: &str = "Import from the appropriate module instead";
-const IMPORT_FIX_DESC: &str = "Replace node global with module import";
-const REPLACE_FIX_DESC: &str = "Replace node global with corresponding value";
-const REPLACE_HINT: &str = "Use the corresponding value instead";
 
 static NODE_GLOBALS: phf::Map<&'static str, FixKind> = phf::phf_map! {
   "process" => FixKind::Import { module: "node:process", import: "process" },
@@ -81,17 +77,21 @@ enum AddNewline {
 }
 
 impl FixKind {
-  fn hint(&self) -> &'static str {
+  fn hint(&self) -> String {
     match self {
-      FixKind::Import { .. } => IMPORT_HINT,
-      FixKind::Replace(_) => REPLACE_HINT,
+      FixKind::Import { import, module } => {
+        format!("Add `import {} from \"{}\";`", import, module)
+      }
+      FixKind::Replace(new) => format!("Use {new} instead"),
     }
   }
 
-  fn description(&self) -> &'static str {
+  fn description(&self) -> String {
     match self {
-      FixKind::Import { .. } => IMPORT_FIX_DESC,
-      FixKind::Replace(_) => REPLACE_FIX_DESC,
+      FixKind::Import { module, .. } => {
+        format!("Import from \"{module}\"")
+      }
+      FixKind::Replace(new) => format!("Replace with {new}"),
     }
   }
 
@@ -220,9 +220,9 @@ mod tests {
           col: 10,
           line: 2,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import process from \"node:process\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:process\"",
             "import a from 'b';\nimport process from \"node:process\";\nconst e = process.env;"
           ),
         }
@@ -232,9 +232,9 @@ mod tests {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import process from \"node:process\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:process\"",
             "import process from \"node:process\";\nconst a = process;"
           ),
         }
@@ -244,9 +244,9 @@ mod tests {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import { Buffer } from \"node:buffer\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:buffer\"",
             "import { Buffer } from \"node:buffer\";\nconst b = Buffer;"
           ),
         }
@@ -256,9 +256,9 @@ mod tests {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: REPLACE_HINT,
+          hint: "Use globalThis instead",
           fix: (
-            REPLACE_FIX_DESC,
+            "Replace with globalThis",
             "const c = globalThis;"
           ),
         }
@@ -268,9 +268,9 @@ mod tests {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import { setImmediate } from \"node:timers\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:timers\"",
             "import { setImmediate } from \"node:timers\";\nconst d = setImmediate;"
           ),
         }
@@ -280,9 +280,9 @@ mod tests {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import { clearImmediate } from \"node:timers\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:timers\"",
             "import { clearImmediate } from \"node:timers\";\nconst e = clearImmediate;"
           ),
         }
@@ -292,9 +292,9 @@ mod tests {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import process from \"node:process\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:process\"",
             "import process from \"node:process\";\nconst a = process.env;\nconst b = Buffer;"
           ),
         },
@@ -302,9 +302,9 @@ mod tests {
           col: 10,
           line: 2,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import { Buffer } from \"node:buffer\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:buffer\"",
             "import { Buffer } from \"node:buffer\";\nconst a = process.env;\nconst b = Buffer;"
           ),
         }
@@ -314,9 +314,9 @@ mod tests {
           col: 10,
           line: 3,
           message: MESSAGE,
-          hint: IMPORT_HINT,
+          hint: "Add `import process from \"node:process\";`",
           fix: (
-            IMPORT_FIX_DESC,
+            "Import from \"node:process\"",
             "// A copyright notice\n\nimport process from \"node:process\";\nconst a = process.env;"
           ),
         }
