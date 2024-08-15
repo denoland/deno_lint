@@ -4,9 +4,9 @@ use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 
 use super::reader::Reader;
-use super::unicode::*;
+use super::{unicode::*, UnicodeChar};
 
-fn is_syntax_character(cp: char) -> bool {
+fn is_syntax_character(cp: UnicodeChar) -> bool {
   cp == '^'
     || cp == '$'
     || cp == '\\'
@@ -23,19 +23,19 @@ fn is_syntax_character(cp: char) -> bool {
     || cp == '|'
 }
 
-fn is_unicode_property_name_character(cp: char) -> bool {
+fn is_unicode_property_name_character(cp: UnicodeChar) -> bool {
   cp.is_ascii_alphabetic() || cp == '_'
 }
 
-fn is_unicode_property_value_character(cp: char) -> bool {
+fn is_unicode_property_value_character(cp: UnicodeChar) -> bool {
   is_unicode_property_name_character(cp) || cp.is_ascii_digit()
 }
 
-fn is_regexp_identifier_start(cp: char) -> bool {
+fn is_regexp_identifier_start(cp: UnicodeChar) -> bool {
   is_id_start(cp) || cp == '$' || cp == '_'
 }
 
-fn is_regexp_identifier_part(cp: char) -> bool {
+fn is_regexp_identifier_part(cp: UnicodeChar) -> bool {
   is_id_continue(cp) ||
     cp == '$' ||
     cp == '_' ||
@@ -43,32 +43,32 @@ fn is_regexp_identifier_part(cp: char) -> bool {
     cp == '\u{200d}' // unicode zero-width joiner
 }
 
-fn is_id_start(cp: char) -> bool {
-  if (cp as u32) < 0x41 {
+fn is_id_start(cp: UnicodeChar) -> bool {
+  if cp < 0x41 {
     false
-  } else if (cp as u32) < 0x5b {
+  } else if cp < 0x5b {
     true
-  } else if (cp as u32) < 0x61 {
+  } else if cp < 0x61 {
     false
-  } else if (cp as u32) < 0x7b {
+  } else if cp < 0x7b {
     true
   } else {
     is_large_id_start(cp)
   }
 }
 
-fn is_id_continue(cp: char) -> bool {
-  if (cp as u32) < 0x30 {
+fn is_id_continue(cp: UnicodeChar) -> bool {
+  if cp < 0x30 {
     false
-  } else if (cp as u32) < 0x3a {
+  } else if cp < 0x3a {
     true
-  } else if (cp as u32) < 0x41 {
+  } else if cp < 0x41 {
     false
-  } else if (cp as u32) < 0x5b || (cp as u32) == 0x5f {
+  } else if cp < 0x5b || cp == 0x5f {
     true
-  } else if (cp as u32) < 0x61 {
+  } else if cp < 0x61 {
     false
-  } else if (cp as u32) < 0x7b {
+  } else if cp < 0x7b {
     true
   } else {
     is_large_id_start(cp) || is_large_id_continue(cp)
@@ -504,7 +504,7 @@ impl EcmaRegexValidator {
 
     if self.ecma_version >= EcmaVersion::Es2018 {
       self.consume_group_specifier()?;
-    } else if self.code_point_with_offset(0) == Some('?') {
+    } else if self.code_point_value_with_offset(0) == Some('?' as u32) {
       return Err("Invalid group".to_string());
     }
 
@@ -547,8 +547,8 @@ impl EcmaRegexValidator {
   /// ```
   /// Returns `true` if it consumed the next characters successfully.
   fn consume_reverse_solidus_followed_by_c(&mut self) -> bool {
-    if self.code_point_with_offset(0) == Some('\\')
-      && self.code_point_with_offset(1) == Some('c')
+    if self.code_point_value_with_offset(0) == Some('\\' as u32)
+      && self.code_point_value_with_offset(1) == Some('c' as u32)
     {
       self.last_int_value = '\\' as i64;
       self.advance();
@@ -861,7 +861,7 @@ impl EcmaRegexValidator {
     if let Some(cp) = self.code_point_with_offset(0) {
       if cp != '\\' && cp != ']' {
         self.advance();
-        self.last_int_value = cp as i64;
+        self.last_int_value = cp.to_i64();
         return Ok(true);
       }
     }
@@ -870,7 +870,9 @@ impl EcmaRegexValidator {
       if self.consume_class_escape()? {
         return Ok(true);
       }
-      if !self.strict && self.code_point_with_offset(0) == Some('c') {
+      if !self.strict
+        && self.code_point_value_with_offset(0) == Some('c' as u32)
+      {
         self.last_int_value = '\\' as i64;
         return Ok(true);
       }
@@ -911,13 +913,13 @@ impl EcmaRegexValidator {
     // [annexB][~U] `c` ClassControlLetter
     if !self.strict
       && !self.u_flag
-      && self.code_point_with_offset(0) == Some('c')
+      && self.code_point_value_with_offset(0) == Some('c' as u32)
     {
       if let Some(cp) = self.code_point_with_offset(1) {
         if cp.is_ascii_digit() || cp == '_' {
           self.advance();
           self.advance();
-          self.last_int_value = cp as i64 % 0x20;
+          self.last_int_value = cp.to_i64() % 0x20;
           return Ok(true);
         }
       }
@@ -993,22 +995,21 @@ impl EcmaRegexValidator {
       self.advance();
       let cp1 = self.code_point_with_offset(0);
       if cp == '\\' && self.eat_regexp_unicode_escape_sequence(force_u_flag)? {
-        cp = std::char::from_u32(self.last_int_value as u32).unwrap();
+        cp = (self.last_int_value as u32).into();
       } else if force_u_flag
-        && is_lead_surrogate(cp as i64)
+        && is_lead_surrogate(cp.to_i64())
         && cp1.is_some()
-        && is_trail_surrogate(cp1.unwrap() as i64)
+        && is_trail_surrogate(cp1.unwrap().to_i64())
       {
-        cp = std::char::from_u32(combine_surrogate_pair(
-          cp as i64,
-          cp1.unwrap() as i64,
-        ) as u32)
-        .unwrap();
+        cp = UnicodeChar::from(combine_surrogate_pair(
+          cp.to_i64(),
+          cp1.unwrap().to_i64(),
+        ) as u32);
         self.advance();
       }
 
       if is_regexp_identifier_start(cp) {
-        self.last_int_value = cp as i64;
+        self.last_int_value = cp.to_i64();
         return Ok(true);
       }
     }
@@ -1040,25 +1041,25 @@ impl EcmaRegexValidator {
     self.advance();
     let cp1 = self.code_point_with_offset(0);
 
-    if cp == Some('\\')
+    if cp == Some('\\'.into())
       && self.eat_regexp_unicode_escape_sequence(force_u_flag)?
     {
       // TODO: convert unicode code point to char
-      cp = std::char::from_u32(self.last_int_value as u32);
+      cp = Some((self.last_int_value as u32).into());
     } else if force_u_flag
-      && is_lead_surrogate(cp.unwrap() as i64)
-      && is_trail_surrogate(cp1.unwrap() as i64)
+      && is_lead_surrogate(cp.unwrap().to_i64())
+      && is_trail_surrogate(cp1.unwrap().to_i64())
     {
-      cp = std::char::from_u32(combine_surrogate_pair(
-        cp.unwrap() as i64,
-        cp1.unwrap() as i64,
-      ) as u32);
+      cp = Some(UnicodeChar::from(combine_surrogate_pair(
+        cp.unwrap().to_i64(),
+        cp1.unwrap().to_i64(),
+      ) as u32));
       self.advance();
     }
 
     if let Some(c) = cp {
       if is_regexp_identifier_part(c) {
-        self.last_int_value = c as i64;
+        self.last_int_value = c.to_i64();
         return Ok(true);
       }
     }
@@ -1093,7 +1094,7 @@ impl EcmaRegexValidator {
   /// ```
   /// Returns `true` if it ate the next characters successfully.
   fn eat_zero(&mut self) -> bool {
-    if self.code_point_with_offset(0) != Some('0') {
+    if self.code_point_value_with_offset(0) != Some('0' as u32) {
       return false;
     } else if let Some(cp) = self.code_point_with_offset(1) {
       if cp.is_ascii_digit() {
@@ -1149,7 +1150,7 @@ impl EcmaRegexValidator {
     if let Some(cp) = self.code_point_with_offset(0) {
       if cp.is_ascii_alphabetic() {
         self.advance();
-        self.last_int_value = cp as i64 % 0x20;
+        self.last_int_value = cp.to_i64() % 0x20;
         return true;
       }
     }
@@ -1258,14 +1259,14 @@ impl EcmaRegexValidator {
   fn eat_identity_escape(&mut self) -> bool {
     if let Some(cp) = self.code_point_with_offset(0) {
       if self.is_valid_identity_escape(cp) {
-        self.last_int_value = cp as i64;
+        self.last_int_value = cp.to_i64();
         self.advance();
         return true;
       }
     }
     false
   }
-  fn is_valid_identity_escape(&self, cp: char) -> bool {
+  fn is_valid_identity_escape(&self, cp: UnicodeChar) -> bool {
     if self.u_flag {
       is_syntax_character(cp) || cp == '/'
     } else if self.strict {
@@ -1369,7 +1370,7 @@ impl EcmaRegexValidator {
       if !is_unicode_property_name_character(cp) {
         break;
       }
-      self.last_str_value.push(cp);
+      self.last_str_value.push(cp.to_char().unwrap());
       self.advance();
     }
     !self.last_str_value.is_empty()
@@ -1388,7 +1389,7 @@ impl EcmaRegexValidator {
       if !is_unicode_property_value_character(cp) {
         break;
       }
-      self.last_str_value.push(cp);
+      self.last_str_value.push(cp.to_char().unwrap());
       self.advance();
     }
     !self.last_str_value.is_empty()
@@ -1576,10 +1577,13 @@ impl EcmaRegexValidator {
         in_class = false;
       } else if cp == '('
         && !in_class
-        && (self.code_point_with_offset(1) != Some('?')
-          || (self.code_point_with_offset(2) == Some('<')
-            && self.code_point_with_offset(3) != Some('=')
-            && self.code_point_with_offset(3) != Some('!')))
+        && (self.code_point_with_offset(1).map(|c| c.to_u32())
+          != Some('?' as u32)
+          || (self.code_point_value_with_offset(2) == Some('<' as u32)
+            && self.code_point_with_offset(3).map(|c| c.to_u32())
+              != Some('=' as u32)
+            && self.code_point_with_offset(3).map(|c| c.to_u32())
+              != Some('!' as u32)))
       {
         count += 1
       }

@@ -4,7 +4,92 @@ mod reader;
 mod unicode;
 mod validator;
 
+use std::fmt;
+
 pub use validator::{EcmaRegexValidator, EcmaVersion};
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy)]
+pub struct UnicodeChar {
+  value: u32,
+}
+
+impl fmt::Display for UnicodeChar {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.value)
+  }
+}
+
+macro_rules! delegate_if_char {
+  ($($v: vis fn $fn: ident ($self: ident $(,)? $($param: ident : $param_ty : ty),*) $(-> $ret: ty)?);+ $(;)?) => {
+    $(
+      $v fn $fn($self $(, $param : $param_ty)*) $(-> $ret)? {
+        if $self.is_scalar() {
+          return unsafe { char::from_u32_unchecked($self.value) }.$fn($($param),*);
+        }
+        Default::default()
+      }
+    )+
+  };
+}
+
+impl UnicodeChar {
+  /// Returns true if the character is a Unicode scalar value.
+  /// In other words, whether it could be validly represented as a `char` in Rust.
+  pub fn is_scalar(self) -> bool {
+    let v = self.value;
+    (v ^ 0xD800).wrapping_sub(0x800) < 0x110000 - 0x800
+  }
+  delegate_if_char! {
+    pub fn is_digit(self, radix: u32) -> bool;
+    pub fn to_digit(self, radix: u32) -> Option<u32>;
+    pub fn is_ascii_digit(self) -> bool;
+    pub fn is_ascii_alphabetic(self) -> bool;
+    pub fn is_ascii_hexdigit(self) -> bool;
+  }
+  pub fn to_char(self) -> Option<char> {
+    char::from_u32(self.value)
+  }
+}
+
+impl From<char> for UnicodeChar {
+  fn from(value: char) -> Self {
+    Self {
+      value: value as u32,
+    }
+  }
+}
+
+impl From<u32> for UnicodeChar {
+  fn from(value: u32) -> Self {
+    Self { value }
+  }
+}
+
+impl PartialEq<char> for UnicodeChar {
+  fn eq(&self, other: &char) -> bool {
+    self.value == *other as u32
+  }
+}
+
+impl PartialEq<u32> for UnicodeChar {
+  fn eq(&self, other: &u32) -> bool {
+    self.value == *other
+  }
+}
+impl PartialOrd<u32> for UnicodeChar {
+  fn partial_cmp(&self, other: &u32) -> Option<std::cmp::Ordering> {
+    self.value.partial_cmp(other)
+  }
+}
+
+impl UnicodeChar {
+  pub fn to_u32(self) -> u32 {
+    self.value
+  }
+  pub fn to_i64(self) -> i64 {
+    self.value as i64
+  }
+}
 
 #[cfg(test)]
 mod tests {
