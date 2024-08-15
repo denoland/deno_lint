@@ -504,9 +504,7 @@ impl EcmaRegexValidator {
 
     if self.ecma_version >= EcmaVersion::Es2018 {
       self.consume_group_specifier()?;
-    } else if self.code_point_with_offset(0).map(|c| c.to_u32())
-      == Some('?' as u32)
-    {
+    } else if self.code_point_value_with_offset(0) == Some('?' as u32) {
       return Err("Invalid group".to_string());
     }
 
@@ -549,8 +547,8 @@ impl EcmaRegexValidator {
   /// ```
   /// Returns `true` if it consumed the next characters successfully.
   fn consume_reverse_solidus_followed_by_c(&mut self) -> bool {
-    if self.code_point_with_offset(0).map(|c| c.to_u32()) == Some('\\' as u32)
-      && self.code_point_with_offset(1).map(|c| c.to_u32()) == Some('c' as u32)
+    if self.code_point_value_with_offset(0) == Some('\\' as u32)
+      && self.code_point_value_with_offset(1) == Some('c' as u32)
     {
       self.last_int_value = '\\' as i64;
       self.advance();
@@ -873,8 +871,7 @@ impl EcmaRegexValidator {
         return Ok(true);
       }
       if !self.strict
-        && self.code_point_with_offset(0).map(|c| c.to_u32())
-          == Some('c' as u32)
+        && self.code_point_value_with_offset(0) == Some('c' as u32)
       {
         self.last_int_value = '\\' as i64;
         return Ok(true);
@@ -916,7 +913,7 @@ impl EcmaRegexValidator {
     // [annexB][~U] `c` ClassControlLetter
     if !self.strict
       && !self.u_flag
-      && self.code_point_with_offset(0).map(|c| c.to_u32()) == Some('c' as u32)
+      && self.code_point_value_with_offset(0) == Some('c' as u32)
     {
       if let Some(cp) = self.code_point_with_offset(1) {
         if cp.is_ascii_digit() || cp == '_' {
@@ -1582,8 +1579,7 @@ impl EcmaRegexValidator {
         && !in_class
         && (self.code_point_with_offset(1).map(|c| c.to_u32())
           != Some('?' as u32)
-          || (self.code_point_with_offset(2).map(|c| c.to_u32())
-            == Some('<' as u32)
+          || (self.code_point_value_with_offset(2) == Some('<' as u32)
             && self.code_point_with_offset(3).map(|c| c.to_u32())
               != Some('=' as u32)
             && self.code_point_with_offset(3).map(|c| c.to_u32())

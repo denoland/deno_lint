@@ -23,7 +23,7 @@ macro_rules! delegate_if_char {
   ($($v: vis fn $fn: ident (&$self: ident $(,)? $($param: ident : $param_ty : ty),*) $(-> $ret: ty)?);+ $(;)?) => {
     $(
       $v fn $fn($self $(, $param : $param_ty)*) $(-> $ret)? {
-        if !$self.is_surrogate() {
+        if $self.is_scalar() {
           return unsafe { char::from_u32_unchecked($self.value) }.$fn($($param),*);
         }
         Default::default()
@@ -33,9 +33,11 @@ macro_rules! delegate_if_char {
 }
 
 impl UnicodeChar {
-  pub fn is_surrogate(self) -> bool {
+  /// Returns true if the character is a Unicode scalar value.
+  /// In other words, whether it could be validly represented as a `char` in Rust.
+  pub fn is_scalar(self) -> bool {
     let v = self.value;
-    (0xd800..=0xdfff).contains(&v)
+    (v ^ 0xD800).wrapping_sub(0x800) < 0x110000 - 0x800
   }
   delegate_if_char! {
     pub fn is_digit(&self, radix: u32) -> bool;
@@ -45,7 +47,7 @@ impl UnicodeChar {
     pub fn is_ascii_hexdigit(&self) -> bool;
   }
   pub fn to_char(self) -> Option<char> {
-    if !self.is_surrogate() {
+    if self.is_scalar() {
       return Some(unsafe { char::from_u32_unchecked(self.value) });
     }
     None

@@ -37,6 +37,10 @@ impl Reader {
     self.cps.get(offset).cloned()
   }
 
+  pub fn code_point_value_with_offset(&self, offset: usize) -> Option<u32> {
+    self.cps.get(offset).map(|cp| cp.to_u32())
+  }
+
   pub fn reset(
     &mut self,
     source: &str,
