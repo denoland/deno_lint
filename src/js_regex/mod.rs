@@ -20,7 +20,7 @@ impl fmt::Display for UnicodeChar {
 }
 
 macro_rules! delegate_if_char {
-  ($($v: vis fn $fn: ident (&$self: ident $(,)? $($param: ident : $param_ty : ty),*) $(-> $ret: ty)?);+ $(;)?) => {
+  ($($v: vis fn $fn: ident ($self: ident $(,)? $($param: ident : $param_ty : ty),*) $(-> $ret: ty)?);+ $(;)?) => {
     $(
       $v fn $fn($self $(, $param : $param_ty)*) $(-> $ret)? {
         if $self.is_scalar() {
@@ -40,17 +40,14 @@ impl UnicodeChar {
     (v ^ 0xD800).wrapping_sub(0x800) < 0x110000 - 0x800
   }
   delegate_if_char! {
-    pub fn is_digit(&self, radix: u32) -> bool;
-    pub fn to_digit(&self, radix: u32) -> Option<u32>;
-    pub fn is_ascii_digit(&self) -> bool;
-    pub fn is_ascii_alphabetic(&self) -> bool;
-    pub fn is_ascii_hexdigit(&self) -> bool;
+    pub fn is_digit(self, radix: u32) -> bool;
+    pub fn to_digit(self, radix: u32) -> Option<u32>;
+    pub fn is_ascii_digit(self) -> bool;
+    pub fn is_ascii_alphabetic(self) -> bool;
+    pub fn is_ascii_hexdigit(self) -> bool;
   }
   pub fn to_char(self) -> Option<char> {
-    if self.is_scalar() {
-      return Some(unsafe { char::from_u32_unchecked(self.value) });
-    }
-    None
+    char::from_u32(self.value)
   }
 }
 

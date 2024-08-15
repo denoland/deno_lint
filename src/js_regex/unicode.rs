@@ -580,14 +580,14 @@ pub fn is_valid_lone_unicode_property(
 }
 
 pub fn is_large_id_start(cp: UnicodeChar) -> bool {
-  is_in_range(cp.to_u32(), &LARGE_ID_START_RANGES)
+  is_in_range(cp, &LARGE_ID_START_RANGES)
 }
 
 pub fn is_large_id_continue(cp: UnicodeChar) -> bool {
-  is_in_range(cp.to_u32(), &LARGE_ID_CONTINUE_RANGES)
+  is_in_range(cp, &LARGE_ID_CONTINUE_RANGES)
 }
 
-fn is_in_range(cp: u32, ranges: &[u32]) -> bool {
+fn is_in_range(cp: UnicodeChar, ranges: &[u32]) -> bool {
   let mut l = 0;
   let mut r = ranges.len() / 2;
   while l < r {

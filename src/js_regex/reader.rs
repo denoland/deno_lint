@@ -169,19 +169,19 @@ mod tests {
     let mut reader = Reader::new();
     // without unicode flag
     reader.reset("Hello", 0, 5, false);
-    assert_eq!(reader.at(1).unwrap().to_u32(), 101);
+    assert_eq!(reader.at(1).unwrap(), 101);
     reader.reset("􀃃a🩢☃★♲", 0, 6, false);
-    assert_eq!(reader.at(0).unwrap().to_u32(), 56256);
+    assert_eq!(reader.at(0).unwrap(), 56256);
     reader.reset("􀃃ello", 0, 6, false);
-    assert_eq!(reader.at(0).unwrap().to_u32(), 56256);
+    assert_eq!(reader.at(0).unwrap(), 56256);
     reader.reset("􀃃ello", 0, 6, false);
-    assert_eq!(reader.at(1).unwrap().to_u32(), 56515);
+    assert_eq!(reader.at(1).unwrap(), 56515);
     // with unicode flag
     reader.reset("Hello", 0, 5, true);
-    assert_eq!(reader.at(1).unwrap().to_u32(), 101);
+    assert_eq!(reader.at(1).unwrap(), 101);
     reader.reset("􀃃a🩢☃★♲", 0, 6, true);
-    assert_eq!(reader.at(0).unwrap().to_u32(), 1048771);
+    assert_eq!(reader.at(0).unwrap(), 1048771);
     reader.reset("􀃃ello", 0, 6, true);
-    assert_eq!(reader.at(0).unwrap().to_u32(), 1048771);
+    assert_eq!(reader.at(0).unwrap(), 1048771);
   }
 }

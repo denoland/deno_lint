@@ -861,7 +861,7 @@ impl EcmaRegexValidator {
     if let Some(cp) = self.code_point_with_offset(0) {
       if cp != '\\' && cp != ']' {
         self.advance();
-        self.last_int_value = cp.to_u32() as i64;
+        self.last_int_value = cp.to_i64();
         return Ok(true);
       }
     }
@@ -919,7 +919,7 @@ impl EcmaRegexValidator {
         if cp.is_ascii_digit() || cp == '_' {
           self.advance();
           self.advance();
-          self.last_int_value = cp.to_u32() as i64 % 0x20;
+          self.last_int_value = cp.to_i64() % 0x20;
           return Ok(true);
         }
       }
@@ -1094,7 +1094,7 @@ impl EcmaRegexValidator {
   /// ```
   /// Returns `true` if it ate the next characters successfully.
   fn eat_zero(&mut self) -> bool {
-    if self.code_point_with_offset(0).map(|c| c.to_u32()) != Some('0' as u32) {
+    if self.code_point_value_with_offset(0) != Some('0' as u32) {
       return false;
     } else if let Some(cp) = self.code_point_with_offset(1) {
       if cp.is_ascii_digit() {
