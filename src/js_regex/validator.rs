@@ -1373,7 +1373,7 @@ impl EcmaRegexValidator {
       if !is_unicode_property_name_character(cp) {
         break;
       }
-      self.last_str_value.push(cp);
+      self.last_str_value.push(cp.to_char().unwrap());
       self.advance();
     }
     !self.last_str_value.is_empty()
@@ -1392,7 +1392,7 @@ impl EcmaRegexValidator {
       if !is_unicode_property_value_character(cp) {
         break;
       }
-      self.last_str_value.push(cp);
+      self.last_str_value.push(cp.to_char().unwrap());
       self.advance();
     }
     !self.last_str_value.is_empty()
@@ -1580,10 +1580,14 @@ impl EcmaRegexValidator {
         in_class = false;
       } else if cp == '('
         && !in_class
-        && (self.code_point_with_offset(1) != Some('?')
-          || (self.code_point_with_offset(2) == Some('<')
-            && self.code_point_with_offset(3) != Some('=')
-            && self.code_point_with_offset(3) != Some('!')))
+        && (self.code_point_with_offset(1).map(|c| c.to_u32())
+          != Some('?' as u32)
+          || (self.code_point_with_offset(2).map(|c| c.to_u32())
+            == Some('<' as u32)
+            && self.code_point_with_offset(3).map(|c| c.to_u32())
+              != Some('=' as u32)
+            && self.code_point_with_offset(3).map(|c| c.to_u32())
+              != Some('!' as u32)))
       {
         count += 1
       }

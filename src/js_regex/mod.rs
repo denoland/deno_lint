@@ -8,15 +8,9 @@ use std::fmt;
 
 pub use validator::{EcmaRegexValidator, EcmaVersion};
 
-enum UnicodeCharRepr {
-  Char(char),
-  Surrogate(u32),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Copy)]
 pub struct UnicodeChar {
   value: u32,
-  is_surrogate: bool,
 }
 
 impl fmt::Display for UnicodeChar {
@@ -29,7 +23,7 @@ macro_rules! delegate_if_char {
   ($($v: vis fn $fn: ident (&$self: ident $(,)? $($param: ident : $param_ty : ty),*) $(-> $ret: ty)?);+ $(;)?) => {
     $(
       $v fn $fn($self $(, $param : $param_ty)*) $(-> $ret)? {
-        if !$self.is_surrogate {
+        if !$self.is_surrogate() {
           return unsafe { char::from_u32_unchecked($self.value) }.$fn($($param),*);
         }
         Default::default()
@@ -39,6 +33,10 @@ macro_rules! delegate_if_char {
 }
 
 impl UnicodeChar {
+  pub fn is_surrogate(self) -> bool {
+    let v = self.value;
+    (0xd800..=0xdfff).contains(&v)
+  }
   delegate_if_char! {
     pub fn is_digit(&self, radix: u32) -> bool;
     pub fn to_digit(&self, radix: u32) -> Option<u32>;
@@ -47,7 +45,7 @@ impl UnicodeChar {
     pub fn is_ascii_hexdigit(&self) -> bool;
   }
   pub fn to_char(self) -> Option<char> {
-    if !self.is_surrogate {
+    if !self.is_surrogate() {
       return Some(unsafe { char::from_u32_unchecked(self.value) });
     }
     None
@@ -58,28 +56,19 @@ impl From<char> for UnicodeChar {
   fn from(value: char) -> Self {
     Self {
       value: value as u32,
-      is_surrogate: false,
     }
   }
 }
 
 impl From<u32> for UnicodeChar {
   fn from(value: u32) -> Self {
-    Self {
-      value,
-      is_surrogate: char::from_u32(value).is_none(),
-    }
+    Self { value }
   }
 }
 
 impl PartialEq<char> for UnicodeChar {
   fn eq(&self, other: &char) -> bool {
     self.value == *other as u32
-  }
-}
-impl PartialEq<&char> for UnicodeChar {
-  fn eq(&self, other: &&char) -> bool {
-    self.value == **other as u32
   }
 }
 
