@@ -66,10 +66,6 @@ impl NoWindowGlobalHandler {
 
 impl Handler for NoWindowGlobalHandler {
   fn member_expr(&mut self, expr: &ast_view::MemberExpr, ctx: &mut Context) {
-    if expr.parent().is::<ast_view::MemberExpr>() {
-      return;
-    }
-
     use deno_ast::view::Expr;
     if_chain! {
       if let Expr::Ident(ident) = &expr.obj;
@@ -159,6 +155,12 @@ function foo() {
   return window;
 }
 globalThis;"),
+        }
+      ],
+      r#"window.console.log()"#: [
+        {
+          col: 0,
+          fix: (FIX_DESC, "globalThis.console.log()"),
         }
       ],
     };
