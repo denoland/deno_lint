@@ -35,19 +35,19 @@ const CODE: &str = "no-unused-vars";
 
 #[derive(Display)]
 enum NoUnusedVarsMessage {
-  #[display(fmt = "`{}` is never used", _0)]
+  #[display("`{}` is never used", _0)]
   NeverUsed(String),
 }
 
 #[derive(Display)]
 enum NoUnusedVarsHint {
   #[display(
-    fmt = "If this is intentional, prefix it with an underscore like `_{}`",
+    "If this is intentional, prefix it with an underscore like `_{}`",
     _0
   )]
   AddPrefix(String),
   #[display(
-    fmt = "If this is intentional, alias it with an underscore like `{} as _{}`",
+    "If this is intentional, alias it with an underscore like `{} as _{}`",
     _0,
     _0
   )]

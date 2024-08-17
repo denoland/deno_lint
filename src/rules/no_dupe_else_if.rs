@@ -19,16 +19,14 @@ const CODE: &str = "no-dupe-else-if";
 #[derive(Display)]
 enum NoDupeElseIfMessage {
   #[display(
-    fmt = "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain."
+    "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain."
   )]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoDupeElseIfHint {
-  #[display(
-    fmt = "Remove or rework the `else if` condition which is duplicated"
-  )]
+  #[display("Remove or rework the `else if` condition which is duplicated")]
   RemoveOrRework,
 }
 

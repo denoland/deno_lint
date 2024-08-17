@@ -17,7 +17,7 @@ const CODE: &str = "triple-slash-reference";
 
 #[derive(Display)]
 enum TripleSlashReferenceMessage {
-  #[display(fmt = "`triple slash reference` is not allowed")]
+  #[display("`triple slash reference` is not allowed")]
   Unexpected,
 }
 

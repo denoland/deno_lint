@@ -21,13 +21,13 @@ const CODE: &str = "no-extra-non-null-assertion";
 
 #[derive(Display)]
 enum NoExtraNonNullAssertionMessage {
-  #[display(fmt = "Extra non-null assertion is forbidden")]
+  #[display("Extra non-null assertion is forbidden")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoExtraNonNullAssertionHint {
-  #[display(fmt = "Remove the extra non-null assertion operator (`!`)")]
+  #[display("Remove the extra non-null assertion operator (`!`)")]
   Remove,
 }
 

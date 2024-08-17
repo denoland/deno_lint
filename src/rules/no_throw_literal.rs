@@ -14,10 +14,10 @@ const CODE: &str = "no-throw-literal";
 
 #[derive(Display)]
 enum NoThrowLiteralMessage {
-  #[display(fmt = "expected an error object to be thrown")]
+  #[display("expected an error object to be thrown")]
   ErrObjectExpected,
 
-  #[display(fmt = "do not throw undefined")]
+  #[display("do not throw undefined")]
   Undefined,
 }
 

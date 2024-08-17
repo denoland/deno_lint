@@ -17,13 +17,13 @@ const CODE: &str = "no-global-assign";
 
 #[derive(Display)]
 enum NoGlobalAssignMessage {
-  #[display(fmt = "Assignment to global is not allowed")]
+  #[display("Assignment to global is not allowed")]
   NotAllowed,
 }
 
 #[derive(Display)]
 enum NoGlobalAssignHint {
-  #[display(fmt = "Remove the assignment to the global variable")]
+  #[display("Remove the assignment to the global variable")]
   Remove,
 }
 

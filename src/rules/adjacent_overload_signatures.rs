@@ -15,13 +15,13 @@ const CODE: &str = "adjacent-overload-signatures";
 
 #[derive(Display)]
 enum AdjacentOverloadSignaturesMessage {
-  #[display(fmt = "All `{}` signatures should be adjacent", _0)]
+  #[display("All `{}` signatures should be adjacent", _0)]
   ShouldBeAdjacent(String),
 }
 
 #[derive(Display)]
 enum AdjacentOverloadSignaturesHint {
-  #[display(fmt = "Make sure all overloaded signatures are grouped together")]
+  #[display("Make sure all overloaded signatures are grouped together")]
   GroupedTogether,
 }
 
@@ -204,13 +204,13 @@ impl<'a> ExtractMethod for ast_view::TsTypeElement<'a> {
 #[derive(PartialEq, Eq, Hash, Clone, Display)]
 #[allow(clippy::enum_variant_names)]
 enum Method {
-  #[display(fmt = "{}", _0)]
+  #[display("{}", _0)]
   Method(String),
-  #[display(fmt = "{}", _0)]
+  #[display("{}", _0)]
   Static(String),
-  #[display(fmt = "call")]
+  #[display("call")]
   CallSignature,
-  #[display(fmt = "new")]
+  #[display("new")]
   ConstructSignature,
 }
 

@@ -14,13 +14,13 @@ const CODE: &str = "no-delete-var";
 
 #[derive(Display)]
 enum NoDeleteVarMessage {
-  #[display(fmt = "Variables shouldn't be deleted")]
+  #[display("Variables shouldn't be deleted")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoDeleteVarHint {
-  #[display(fmt = "Remove the deletion statement")]
+  #[display("Remove the deletion statement")]
   Remove,
 }
 

@@ -26,15 +26,15 @@ const CODE: &str = "getter-return";
 
 #[derive(Display)]
 enum GetterReturnMessage {
-  #[display(fmt = "Expected to return a value in '{}'.", _0)]
+  #[display("Expected to return a value in '{}'.", _0)]
   Expected(String),
-  #[display(fmt = "Expected '{}' to always return a value.", _0)]
+  #[display("Expected '{}' to always return a value.", _0)]
   ExpectedAlways(String),
 }
 
 #[derive(Display)]
 enum GetterReturnHint {
-  #[display(fmt = "Return a value from the getter function")]
+  #[display("Return a value from the getter function")]
   Return,
 }
 

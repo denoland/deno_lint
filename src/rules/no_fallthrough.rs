@@ -19,14 +19,14 @@ const CODE: &str = "no-fallthrough";
 
 #[derive(Display)]
 enum NoFallthroughMessage {
-  #[display(fmt = "Fallthrough is not allowed")]
+  #[display("Fallthrough is not allowed")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoFallthroughHint {
   #[display(
-    fmt = "Add `break` or comment `/* falls through */` to your case statement"
+    "Add `break` or comment `/* falls through */` to your case statement"
   )]
   BreakOrComment,
 }

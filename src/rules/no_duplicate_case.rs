@@ -19,13 +19,13 @@ const CODE: &str = "no-duplicate-case";
 
 #[derive(Display)]
 enum NoDuplicateCaseMessage {
-  #[display(fmt = "Duplicate values in `case` are not allowed")]
+  #[display("Duplicate values in `case` are not allowed")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoDuplicateCaseHint {
-  #[display(fmt = "Remove or rename the duplicate case clause")]
+  #[display("Remove or rename the duplicate case clause")]
   RemoveOrRename,
 }
 

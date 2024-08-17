@@ -33,13 +33,13 @@ const CODE: &str = "prefer-const";
 
 #[derive(Display)]
 enum PreferConstMessage {
-  #[display(fmt = "`{}` is never reassigned", _0)]
+  #[display("`{}` is never reassigned", _0)]
   NeverReassigned(String),
 }
 
 #[derive(Display)]
 enum PreferConstHint {
-  #[display(fmt = "Use `const` instead")]
+  #[display("Use `const` instead")]
   UseConst,
 }
 

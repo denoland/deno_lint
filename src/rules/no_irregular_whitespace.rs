@@ -16,7 +16,7 @@ const HINT: &str = "Change to a normal space or tab";
 
 #[derive(Display)]
 enum NoIrregularWhitespaceMessage {
-  #[display(fmt = "Irregular whitespace not allowed.")]
+  #[display("Irregular whitespace not allowed.")]
   NotAllowed,
 }
 

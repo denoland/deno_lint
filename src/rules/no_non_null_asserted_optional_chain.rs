@@ -15,7 +15,7 @@ const CODE: &str = "no-non-null-asserted-optional-chain";
 #[derive(Display)]
 enum NoNonNullAssertedOptionalChainMessage {
   #[display(
-    fmt = "Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong."
+    "Optional chain expressions can return undefined by design - using a non-null assertion is unsafe and wrong."
   )]
   WrongAssertion,
 }

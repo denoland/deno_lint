@@ -17,40 +17,38 @@ const CODE: &str = "prefer-primordials";
 
 #[derive(Display)]
 enum PreferPrimordialsMessage {
-  #[display(fmt = "Don't use the global intrinsic")]
+  #[display("Don't use the global intrinsic")]
   GlobalIntrinsic,
-  #[display(fmt = "Don't use the unsafe intrinsic")]
+  #[display("Don't use the unsafe intrinsic")]
   UnsafeIntrinsic,
-  #[display(fmt = "Don't use iterator protocol directly")]
+  #[display("Don't use iterator protocol directly")]
   Iterator,
-  #[display(fmt = "Don't use RegExp literal directly")]
+  #[display("Don't use RegExp literal directly")]
   RegExp,
-  #[display(fmt = "Don't use `instanceof` operator")]
+  #[display("Don't use `instanceof` operator")]
   InstanceOf,
-  #[display(fmt = "Don't use `in` operator")]
+  #[display("Don't use `in` operator")]
   In,
 }
 
 #[derive(Display)]
 enum PreferPrimordialsHint {
-  #[display(fmt = "Instead use the equivalent from the `primordials` object")]
+  #[display("Instead use the equivalent from the `primordials` object")]
   GlobalIntrinsic,
-  #[display(
-    fmt = "Instead use the safe wrapper from the `primordials` object"
-  )]
+  #[display("Instead use the safe wrapper from the `primordials` object")]
   UnsafeIntrinsic,
-  #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
+  #[display("Wrap a SafeIterator from the `primordials` object")]
   SafeIterator,
-  #[display(fmt = "Wrap `SafeRegExp` from the `primordials` object")]
+  #[display("Wrap `SafeRegExp` from the `primordials` object")]
   SafeRegExp,
-  #[display(fmt = "Instead use the object pattern destructuring assignment")]
+  #[display("Instead use the object pattern destructuring assignment")]
   ObjectPattern,
   #[display(
-    fmt = "Instead use `ObjectPrototypeIsPrototypeOf` from the `primordials` object"
+    "Instead use `ObjectPrototypeIsPrototypeOf` from the `primordials` object"
   )]
   InstanceOf,
   #[display(
-    fmt = "Instead use either `ObjectHasOwn` or `ReflectHas` from the `primordials` object"
+    "Instead use either `ObjectHasOwn` or `ReflectHas` from the `primordials` object"
   )]
   In,
 }

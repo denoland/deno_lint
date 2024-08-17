@@ -14,17 +14,17 @@ const CODE: &str = "eqeqeq";
 
 #[derive(Display)]
 enum EqeqeqMessage {
-  #[display(fmt = "expected '===' and instead saw '=='.")]
+  #[display("expected '===' and instead saw '=='.")]
   ExpectedEqual,
-  #[display(fmt = "expected '!==' and instead saw '!='.")]
+  #[display("expected '!==' and instead saw '!='.")]
   ExpectedNotEqual,
 }
 
 #[derive(Display)]
 enum EqeqeqHint {
-  #[display(fmt = "Use '==='")]
+  #[display("Use '==='")]
   UseEqeqeq,
-  #[display(fmt = "Use '!=='")]
+  #[display("Use '!=='")]
   UseNoteqeq,
 }
 

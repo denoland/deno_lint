@@ -16,13 +16,13 @@ will most likely lead to undesired behavior.";
 
 #[derive(Display)]
 enum NoUnsafeFinallyMessage {
-  #[display(fmt = "Unsafe usage of break statement")]
+  #[display("Unsafe usage of break statement")]
   Break,
-  #[display(fmt = "Unsafe usage of continue statement")]
+  #[display("Unsafe usage of continue statement")]
   Continue,
-  #[display(fmt = "Unsafe usage of return statement")]
+  #[display("Unsafe usage of return statement")]
   Return,
-  #[display(fmt = "Unsafe usage of throw statement")]
+  #[display("Unsafe usage of throw statement")]
   Throw,
 }
 

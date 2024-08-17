@@ -13,13 +13,13 @@ const CODE: &str = "explicit-function-return-type";
 
 #[derive(Display)]
 enum ExplicitFunctionReturnTypeMessage {
-  #[display(fmt = "Missing return type on function")]
+  #[display("Missing return type on function")]
   MissingRetType,
 }
 
 #[derive(Display)]
 enum ExplicitFunctionReturnTypeHint {
-  #[display(fmt = "Add a return type to the function signature")]
+  #[display("Add a return type to the function signature")]
   AddRetType,
 }
 

@@ -17,13 +17,13 @@ const CODE: &str = "no-ex-assign";
 
 #[derive(Display)]
 enum NoExAssignMessage {
-  #[display(fmt = "Reassigning exception parameter is not allowed")]
+  #[display("Reassigning exception parameter is not allowed")]
   NotAllowed,
 }
 
 #[derive(Display)]
 enum NoExAssignHint {
-  #[display(fmt = "Use a different variable for the assignment")]
+  #[display("Use a different variable for the assignment")]
   UseDifferent,
 }
 
