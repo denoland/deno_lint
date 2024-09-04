@@ -16,8 +16,7 @@ use if_chain::if_chain;
 pub struct NoWindow;
 
 const CODE: &str = "no-window";
-const MESSAGE: &str =
-  "window is deprecated and scheduled for removal in Deno 2.0";
+const MESSAGE: &str = "Window is no longer available in Deno";
 const HINT: &str = "Instead, use `globalThis`";
 const FIX_DESC: &str = "Rename window to globalThis";
 

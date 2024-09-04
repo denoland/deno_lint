@@ -1,8 +1,8 @@
 Disallows the use of the `window` object.
 
-Using the `window` global is deprecated and scheduled for removal in Deno 2.0.
-Deno does not have a window and `typeof window === "undefined"` is often used to
-tell if the code is running in the browser.
+The `window` global is no longer available in Deno. Deno does not have a window
+and `typeof window === "undefined"` is often used to tell if the code is running
+in the browser.
 
 ### Invalid:
 
