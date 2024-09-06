@@ -17,7 +17,7 @@ const CODE: &str = "no-shadow-restricted-names";
 
 #[derive(Display)]
 enum NoShadowRestrictedNamesMessage {
-  #[display(fmt = "Shadowing of global property {}", _0)]
+  #[display("Shadowing of global property {}", _0)]
   Shadowing(String),
 }
 

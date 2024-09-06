@@ -14,7 +14,7 @@ const CODE: &str = "no-unsafe-negation";
 
 #[derive(Display)]
 enum NoUnsafeNegationMessage {
-  #[display(fmt = "Unexpected negating the left operand of `{}` operator", _0)]
+  #[display("Unexpected negating the left operand of `{}` operator", _0)]
   Unexpected(String),
 }
 

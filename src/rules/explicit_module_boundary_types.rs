@@ -13,19 +13,19 @@ const CODE: &str = "explicit-module-boundary-types";
 
 #[derive(Display)]
 enum ExplicitModuleBoundaryTypesMessage {
-  #[display(fmt = "Missing return type on function")]
+  #[display("Missing return type on function")]
   MissingRetType,
 
-  #[display(fmt = "All arguments should be typed")]
+  #[display("All arguments should be typed")]
   MissingArgType,
 }
 
 #[derive(Display)]
 enum ExplicitModuleBoundaryTypesHint {
-  #[display(fmt = "Add a return type to the function signature")]
+  #[display("Add a return type to the function signature")]
   AddRetType,
 
-  #[display(fmt = "Add types to all the function arguments")]
+  #[display("Add types to all the function arguments")]
   AddArgTypes,
 }
 

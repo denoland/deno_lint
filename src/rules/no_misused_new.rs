@@ -18,21 +18,21 @@ const CODE: &str = "no-misused-new";
 
 #[derive(Display)]
 enum NoMisusedNewMessage {
-  #[display(fmt = "Type aliases cannot be constructed, only classes")]
+  #[display("Type aliases cannot be constructed, only classes")]
   TypeAlias,
-  #[display(fmt = "Interfaces cannot be constructed, only classes")]
+  #[display("Interfaces cannot be constructed, only classes")]
   Interface,
-  #[display(fmt = "Class cannot have method named `new`.")]
+  #[display("Class cannot have method named `new`.")]
   NewMethod,
 }
 
 #[derive(Display)]
 enum NoMisusedNewHint {
-  #[display(fmt = "Consider using a class, not a type")]
+  #[display("Consider using a class, not a type")]
   NotType,
-  #[display(fmt = "Consider using a class, not an interface")]
+  #[display("Consider using a class, not an interface")]
   NotInterface,
-  #[display(fmt = "Rename the method")]
+  #[display("Rename the method")]
   RenameMethod,
 }
 

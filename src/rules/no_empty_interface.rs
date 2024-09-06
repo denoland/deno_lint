@@ -14,13 +14,13 @@ const CODE: &str = "no-empty-interface";
 
 #[derive(Display)]
 enum NoEmptyInterfaceMessage {
-  #[display(fmt = "An empty interface is equivalent to `{{}}`.")]
+  #[display("An empty interface is equivalent to `{{}}`.")]
   EmptyObject,
 }
 
 #[derive(Display)]
 enum NoEmptyInterfaceHint {
-  #[display(fmt = "Remove this interface or add members to this interface.")]
+  #[display("Remove this interface or add members to this interface.")]
   RemoveOrAddMember,
 }
 

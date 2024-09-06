@@ -21,13 +21,13 @@ const CODE: &str = "no-inner-declarations";
 
 #[derive(Display)]
 enum NoInnerDeclarationsMessage {
-  #[display(fmt = "Move {} declaration to {} root", _0, _1)]
+  #[display("Move {} declaration to {} root", _0, _1)]
   Move(String, String),
 }
 
 #[derive(Display)]
 enum NoInnerDeclarationsHint {
-  #[display(fmt = "Move the declaration up into the correct scope")]
+  #[display("Move the declaration up into the correct scope")]
   Move,
 }
 

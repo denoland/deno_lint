@@ -14,7 +14,7 @@ const CODE: &str = "no-sparse-arrays";
 
 #[derive(Display)]
 enum NoSparseArraysMessage {
-  #[display(fmt = "Sparse arrays are not allowed")]
+  #[display("Sparse arrays are not allowed")]
   Disallowed,
 }
 

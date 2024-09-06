@@ -14,7 +14,7 @@ const CODE: &str = "no-non-null-assertion";
 
 #[derive(Display)]
 enum NoNonNullAssertionMessage {
-  #[display(fmt = "do not use non-null assertion")]
+  #[display("do not use non-null assertion")]
   Unexpected,
 }
 

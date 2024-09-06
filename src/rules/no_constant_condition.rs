@@ -17,15 +17,13 @@ const CODE: &str = "no-constant-condition";
 
 #[derive(Display)]
 enum NoConstantConditionMessage {
-  #[display(
-    fmt = "Use of a constant expressions as conditions is not allowed."
-  )]
+  #[display("Use of a constant expressions as conditions is not allowed.")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoConstantConditionHint {
-  #[display(fmt = "Remove the constant expression")]
+  #[display("Remove the constant expression")]
   Remove,
 }
 

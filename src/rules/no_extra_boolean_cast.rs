@@ -19,17 +19,17 @@ const CODE: &str = "no-extra-boolean-cast";
 
 #[derive(Display)]
 enum NoExtraBooleanCastMessage {
-  #[display(fmt = "Redundant Boolean call.")]
+  #[display("Redundant Boolean call.")]
   BooleanCall,
-  #[display(fmt = "Redundant double negation.")]
+  #[display("Redundant double negation.")]
   DoubleNegation,
 }
 
 #[derive(Display)]
 enum NoExtraBooleanCastHint {
-  #[display(fmt = "Remove the Boolean call, it is unnecessary")]
+  #[display("Remove the Boolean call, it is unnecessary")]
   BooleanCall,
-  #[display(fmt = "Remove the double negation (`!!`), it is unnecessary")]
+  #[display("Remove the double negation (`!!`), it is unnecessary")]
   DoubleNegation,
 }
 

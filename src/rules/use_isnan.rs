@@ -14,17 +14,15 @@ const CODE: &str = "use-isnan";
 
 #[derive(Display)]
 enum UseIsNaNMessage {
-  #[display(fmt = "Use the isNaN function to compare with NaN")]
+  #[display("Use the isNaN function to compare with NaN")]
   Comparison,
 
   #[display(
-    fmt = "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch"
+    "'switch(NaN)' can never match a case clause. Use Number.isNaN instead of the switch"
   )]
   SwitchUnmatched,
 
-  #[display(
-    fmt = "'case NaN' can never match. Use Number.isNaN before the switch"
-  )]
+  #[display("'case NaN' can never match. Use Number.isNaN before the switch")]
   CaseUnmatched,
 }
 

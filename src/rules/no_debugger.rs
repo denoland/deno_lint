@@ -14,13 +14,13 @@ const CODE: &str = "no-debugger";
 
 #[derive(Display)]
 enum NoDebuggerMessage {
-  #[display(fmt = "`debugger` statement is not allowed")]
+  #[display("`debugger` statement is not allowed")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoDebuggerHint {
-  #[display(fmt = "Remove the `debugger` statement")]
+  #[display("Remove the `debugger` statement")]
   Remove,
 }
 

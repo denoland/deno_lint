@@ -22,13 +22,13 @@ const CODE: &str = "no-inferrable-types";
 
 #[derive(Display)]
 enum NoInferrableTypesMessage {
-  #[display(fmt = "inferrable types are not allowed")]
+  #[display("inferrable types are not allowed")]
   NotAllowed,
 }
 
 #[derive(Display)]
 enum NoInferrableTypesHint {
-  #[display(fmt = "Remove the type, it is easily inferrable")]
+  #[display("Remove the type, it is easily inferrable")]
   Remove,
 }
 

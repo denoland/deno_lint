@@ -20,13 +20,13 @@ const CODE: &str = "no-dupe-keys";
 
 #[derive(Display)]
 enum NoDupeKeysMessage {
-  #[display(fmt = "Duplicate key '{}'", _0)]
+  #[display("Duplicate key '{}'", _0)]
   Duplicate(String),
 }
 
 #[derive(Display)]
 enum NoDupeKeysHint {
-  #[display(fmt = "Remove or rename the duplicate key")]
+  #[display("Remove or rename the duplicate key")]
   RemoveOrRename,
 }
 

@@ -15,13 +15,13 @@ const CODE: &str = "no-external-import";
 
 #[derive(Display)]
 enum NoExternalImportMessage {
-  #[display(fmt = "Not allowed to import external resources")]
+  #[display("Not allowed to import external resources")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoExternalImportHint {
-  #[display(fmt = "Create a deps.ts file or use import maps")]
+  #[display("Create a deps.ts file or use import maps")]
   CreateDependencyFile,
 }
 

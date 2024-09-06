@@ -16,7 +16,7 @@ const HINT: &str =
 
 #[derive(Display)]
 enum NoSelfCompareMessage {
-  #[display(fmt = "`{}` is compared to itself", _0)]
+  #[display("`{}` is compared to itself", _0)]
   Invalid(String),
 }
 

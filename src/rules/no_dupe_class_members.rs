@@ -22,13 +22,13 @@ const CODE: &str = "no-dupe-class-members";
 
 #[derive(Display)]
 enum NoDupeClassMembersMessage {
-  #[display(fmt = "Duplicate name '{}'", _0)]
+  #[display("Duplicate name '{}'", _0)]
   Duplicate(String),
 }
 
 #[derive(Display)]
 enum NoDupeClassMembersHint {
-  #[display(fmt = "Rename or remove the function with the duplicated name")]
+  #[display("Rename or remove the function with the duplicated name")]
   RenameOrRemove,
 }
 

@@ -13,15 +13,13 @@ const CODE: &str = "default-param-last";
 
 #[derive(Display)]
 enum DefaultParamLastMessage {
-  #[display(fmt = "default parameters should be at last")]
+  #[display("default parameters should be at last")]
   DefaultLast,
 }
 
 #[derive(Display)]
 enum DefaultParamLastHint {
-  #[display(
-    fmt = "Modify the signatures to move default parameter(s) to the end"
-  )]
+  #[display("Modify the signatures to move default parameter(s) to the end")]
   MoveToEnd,
 }
 

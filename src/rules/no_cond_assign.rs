@@ -14,16 +14,14 @@ const CODE: &str = "no-cond-assign";
 
 #[derive(Display)]
 enum NoCondAssignMessage {
-  #[display(
-    fmt = "Expected a conditional expression and instead saw an assignment"
-  )]
+  #[display("Expected a conditional expression and instead saw an assignment")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoCondAssignHint {
   #[display(
-    fmt = "Change assignment (`=`) to comparison (`===`) or move assignment out of condition"
+    "Change assignment (`=`) to comparison (`===`) or move assignment out of condition"
   )]
   ChangeOrMove,
 }

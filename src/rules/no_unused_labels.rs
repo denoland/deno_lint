@@ -14,7 +14,7 @@ const CODE: &str = "no-unused-labels";
 
 #[derive(Display)]
 enum NoUnusedLabelsMessage {
-  #[display(fmt = "`{}` label is never used", _0)]
+  #[display("`{}` label is never used", _0)]
   Unused(String),
 }
 

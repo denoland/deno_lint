@@ -19,25 +19,25 @@ const CODE: &str = "require-await";
 #[derive(Display)]
 enum RequireAwaitMessage {
   #[display(
-    fmt = "Async function '{}' has no 'await' expression or 'await using' declaration.",
+    "Async function '{}' has no 'await' expression or 'await using' declaration.",
     _0
   )]
   Function(String),
   #[display(
-    fmt = "Async function has no 'await' expression or 'await using' declaration."
+    "Async function has no 'await' expression or 'await using' declaration."
   )]
   AnonymousFunction,
   #[display(
-    fmt = "Async arrow function has no 'await' expression or 'await using' declaration."
+    "Async arrow function has no 'await' expression or 'await using' declaration."
   )]
   ArrowFunction,
   #[display(
-    fmt = "Async method '{}' has no 'await' expression or 'await using' declaration.",
+    "Async method '{}' has no 'await' expression or 'await using' declaration.",
     _0
   )]
   Method(String),
   #[display(
-    fmt = "Async method has no 'await' expression or 'await using' declaration."
+    "Async method has no 'await' expression or 'await using' declaration."
   )]
   AnonymousMethod,
 }
@@ -45,7 +45,7 @@ enum RequireAwaitMessage {
 #[derive(Display)]
 enum RequireAwaitHint {
   #[display(
-    fmt = "Remove 'async' keyword from the function or use 'await' expression or 'await using' declaration inside."
+    "Remove 'async' keyword from the function or use 'await' expression or 'await using' declaration inside."
   )]
   RemoveOrUse,
 }

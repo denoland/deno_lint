@@ -27,15 +27,13 @@ const CODE: &str = "no-self-assign";
 
 #[derive(Display)]
 enum NoSelfAssignMessage {
-  #[display(fmt = "`{}` is assigned to itself", _0)]
+  #[display("`{}` is assigned to itself", _0)]
   Invalid(String),
 }
 
 #[derive(Display)]
 enum NoSelfAssignHint {
-  #[display(
-    fmt = "Self assignments have no effect. Perhaps you made a mistake?"
-  )]
+  #[display("Self assignments have no effect. Perhaps you made a mistake?")]
   Mistake,
 }
 

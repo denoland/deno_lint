@@ -15,15 +15,13 @@ const CODE: &str = "no-func-assign";
 
 #[derive(Display)]
 enum NoFuncAssignMessage {
-  #[display(fmt = "Reassigning function declaration is not allowed")]
+  #[display("Reassigning function declaration is not allowed")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoFuncAssignHint {
-  #[display(
-    fmt = "Remove or rework the reassignment of the existing function"
-  )]
+  #[display("Remove or rework the reassignment of the existing function")]
   RemoveOrRework,
 }
 

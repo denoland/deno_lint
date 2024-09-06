@@ -17,14 +17,14 @@ const CODE: &str = "no-const-assign";
 
 #[derive(Display)]
 enum NoConstantAssignMessage {
-  #[display(fmt = "Reassigning constant variable is not allowed")]
+  #[display("Reassigning constant variable is not allowed")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoConstantAssignHint {
   #[display(
-    fmt = "Change `const` declaration to `let` or double check the correct variable is used"
+    "Change `const` declaration to `let` or double check the correct variable is used"
   )]
   Remove,
 }

@@ -18,7 +18,7 @@ const CODE: &str = "no-control-regex";
 #[derive(Display)]
 enum NoControlRegexMessage {
   #[display(
-    fmt = "Unexpected control character(s) in regular expression: \\x{:x}.",
+    "Unexpected control character(s) in regular expression: \\x{:x}.",
     _0
   )]
   Unexpected(u64),
@@ -27,7 +27,7 @@ enum NoControlRegexMessage {
 #[derive(Display)]
 enum NoControlRegexHint {
   #[display(
-    fmt = "Disable the rule if the control character (\\x... or \\u00..) was intentional, otherwise rework your RegExp"
+    "Disable the rule if the control character (\\x... or \\u00..) was intentional, otherwise rework your RegExp"
   )]
   DisableOrRework,
 }

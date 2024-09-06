@@ -15,13 +15,13 @@ const CODE: &str = "no-dupe-args";
 
 #[derive(Display)]
 enum NoDupeArgsMessage {
-  #[display(fmt = "Duplicate arguments not allowed")]
+  #[display("Duplicate arguments not allowed")]
   Unexpected,
 }
 
 #[derive(Display)]
 enum NoDupeArgsHint {
-  #[display(fmt = "Rename or remove the duplicate (e.g. same name) argument")]
+  #[display("Rename or remove the duplicate (e.g. same name) argument")]
   RenameOrRemove,
 }
 
