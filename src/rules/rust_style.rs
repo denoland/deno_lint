@@ -95,18 +95,10 @@ fn to_camelcase(ident_name: &str) -> String {
   ident_name.to_ascii_uppercase()
 }
 
-/// Convert the name of identifier into rust style. If the name is originally in rust style, return
-/// the name as it is. If name starts with uppercase letter, return as is. For more detail, see the test cases below.
-fn to_rust_style(ident_name: &str) -> String {
-  let trimmed_ident = ident_name.trim_matches('_');
-  if let Some(first_char) = trimmed_ident.chars().next() {
-    if first_char.is_uppercase() {
-      return ident_name.to_string();
-    }
-  }
-
+/// Convert the name of identifier into snake case. For more detail, see the test cases below.
+fn to_snake_case(ident_name: &str) -> String {
   static LOWERCASE_UPPERCASE_CHAR_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"([^A-Z])([A-Z])").unwrap());
+    Lazy::new(|| Regex::new(r"([a-z])([A-Z])").unwrap());
 
   let result = LOWERCASE_UPPERCASE_CHAR_RE
     .replace_all(ident_name, |caps: &Captures| {
@@ -114,15 +106,16 @@ fn to_rust_style(ident_name: &str) -> String {
     });
 
   if result != ident_name {
-    return result.into_owned();
+    return result.into_owned().to_ascii_lowercase();
   }
 
-  ident_name.to_string()
+  ident_name.to_ascii_lowercase()
 }
 
 enum IdentToCheck {
   /// Normal variable name e.g. `foo` in `const foo = 42;`
   Variable(String),
+  VariableOrConstant(String),
   /// Object key name, for example:
   ///
   /// ```typescript
@@ -187,6 +180,10 @@ enum IdentToCheck {
 impl IdentToCheck {
   fn variable(name: impl AsRef<str>) -> Self {
     Self::Variable(name.as_ref().to_string())
+  }
+
+  fn variable_or_constant(name: impl AsRef<str>) -> Self {
+    Self::VariableOrConstant(name.as_ref().to_string())
   }
 
   fn object_key(key_name: impl AsRef<str>, is_shorthand: bool) -> Self {
@@ -261,6 +258,7 @@ impl IdentToCheck {
     match self {
       IdentToCheck::Variable(name)
       | IdentToCheck::Function(name)
+      | IdentToCheck::VariableOrConstant(name)
       | IdentToCheck::Class(name)
       | IdentToCheck::TypeAlias(name)
       | IdentToCheck::Interface(name)
@@ -294,7 +292,16 @@ impl IdentToCheck {
   fn to_hint(&self) -> String {
     match self {
       IdentToCheck::Variable(name) | IdentToCheck::Function(name) => {
-        format!("Consider renaming `{}` to `{}`", name, to_rust_style(name))
+        format!("Consider renaming `{}` to `{}`", name, to_snake_case(name))
+      }
+      IdentToCheck::VariableOrConstant(name) => {
+        let snake_cased = to_snake_case(name);
+        format!(
+          "Consider renaming `{}` to `{}` or `{}`",
+          name,
+          snake_cased,
+          snake_cased.to_ascii_uppercase()
+        )
       }
       IdentToCheck::ObjectKey {
         ref key_name,
@@ -302,14 +309,14 @@ impl IdentToCheck {
       } => {
         if *is_shorthand {
           format!(
-            r#"Consider writing `{rust_styled}: {original}` or `"{original}": {original}`"#,
-            rust_styled = to_rust_style(key_name),
+            r#"Consider writing `{snake_cased}: {original}` or `"{original}": {original}`"#,
+            snake_cased = to_snake_case(key_name),
             original = key_name
           )
         } else {
           format!(
-            r#"Consider renaming `{original}` to `{rust_styled}`, or wrapping it in quotation mark like `"{original}"`"#,
-            rust_styled = to_rust_style(key_name),
+            r#"Consider renaming `{original}` to `{snake_cased}`, or wrapping it in quotation mark like `"{original}"`"#,
+            snake_cased = to_snake_case(key_name),
             original = key_name
           )
         }
@@ -356,7 +363,7 @@ impl IdentToCheck {
           return format!(
             "Consider renaming `{}` to `{}`",
             name,
-            to_rust_style(name),
+            to_snake_case(name),
           );
         }
 
@@ -364,14 +371,14 @@ impl IdentToCheck {
           return format!(
             "Consider replacing `{{ {key} = .. }}` with `{{ {key}: {value} = .. }}`",
             key = key_name,
-            value = to_rust_style(key_name),
+            value = to_snake_case(key_name),
           );
         }
 
         format!(
           "Consider replacing `{{ {key} }}` with `{{ {key}: {value} }}`",
           key = key_name,
-          value = to_rust_style(key_name),
+          value = to_snake_case(key_name),
         )
       }
       IdentToCheck::NamedImport { local, imported } => {
@@ -379,13 +386,13 @@ impl IdentToCheck {
           format!(
             "Consider renaming `{}` to `{}`",
             local,
-            to_rust_style(local)
+            to_snake_case(local)
           )
         } else {
           format!(
-            "Consider replacing `{{ {local} }}` with `{{ {local} as {rust_styled_local} }}`",
+            "Consider replacing `{{ {local} }}` with `{{ {local} as {snake_cased_local} }}`",
             local = local,
-            rust_styled_local = to_rust_style(local),
+            snake_cased_local = to_snake_case(local),
           )
         }
       }
@@ -525,21 +532,36 @@ impl RustStyleHandler {
     }
   }
 
-  fn check_pat(&mut self, pat: &ast_view::Pat) {
+  fn check_pat(&mut self, pat: &ast_view::Pat, ctx: &mut Context) {
     match pat {
       ast_view::Pat::Ident(ident) => {
-        self.check_ident_snake_cased(
-          ident,
-          IdentToCheck::variable(ident.id.inner),
-        );
+        //todo: ?ctx always valid?
+        if let Some(v) = ctx.scope().var_by_ident(ident.id) {
+          if let deno_ast::BindingKind::Const = v.kind() {
+            self.check_ident_snake_cased_or_screaming_snake_cased(
+              ident,
+              IdentToCheck::variable_or_constant(ident.id.inner),
+            );
+          } else {
+            self.check_ident_snake_cased(
+              ident,
+              IdentToCheck::variable(ident.id.inner),
+            );
+          }
+        } else {
+          self.check_ident_snake_cased(
+            ident,
+            IdentToCheck::variable(ident.id.inner),
+          );
+        }
       }
       ast_view::Pat::Array(ast_view::ArrayPat { elems, .. }) => {
         for pat in elems.iter().flatten() {
-          self.check_pat(pat);
+          self.check_pat(pat, ctx);
         }
       }
       ast_view::Pat::Rest(ast_view::RestPat { ref arg, .. }) => {
-        self.check_pat(arg);
+        self.check_pat(arg, ctx);
       }
       ast_view::Pat::Object(ast_view::ObjectPat { props, .. }) => {
         for prop in *props {
@@ -575,7 +597,7 @@ impl RustStyleHandler {
                 );
               }
               _ => {
-                self.check_pat(value);
+                self.check_pat(value, ctx);
               }
             },
             ast_view::ObjectPatProp::Assign(ast_view::AssignPatProp {
@@ -601,13 +623,13 @@ impl RustStyleHandler {
               ref arg,
               ..
             }) => {
-              self.check_pat(arg);
+              self.check_pat(arg, ctx);
             }
           }
         }
       }
       ast_view::Pat::Assign(ast_view::AssignPat { ref left, .. }) => {
-        self.check_pat(left);
+        self.check_pat(left, ctx);
       }
       ast_view::Pat::Expr(expr) => {
         if let ast_view::Expr::Ident(ident) = expr {
@@ -629,8 +651,23 @@ impl Handler for RustStyleHandler {
     for ident in idents {
       self.check_ident_snake_cased_or_screaming_snake_cased(
         &ident.range(),
-        IdentToCheck::variable(ident.to_id().0),
+        IdentToCheck::variable_or_constant(ident.to_id().0),
       );
+    }
+  }
+
+  fn class_prop(
+    &mut self,
+    class_prop: &ast_view::ClassProp,
+    _ctx: &mut Context,
+  ) {
+    if class_prop.is_static() {
+      if let ast_view::PropName::Ident(ident) = class_prop.key {
+        self.check_ident_snake_cased_or_screaming_snake_cased(
+          ident,
+          IdentToCheck::variable_or_constant(ident.inner),
+        );
+      }
     }
   }
 
@@ -669,7 +706,7 @@ impl Handler for RustStyleHandler {
     }
 
     for decl in var_decl.decls {
-      self.check_pat(&decl.name);
+      self.check_pat(&decl.name, ctx);
 
       if let Some(expr) = &decl.init {
         match expr {
@@ -733,8 +770,8 @@ impl Handler for RustStyleHandler {
     }
   }
 
-  fn param(&mut self, param: &ast_view::Param, _ctx: &mut Context) {
-    self.check_pat(&param.pat);
+  fn param(&mut self, param: &ast_view::Param, ctx: &mut Context) {
+    self.check_pat(&param.pat, ctx);
   }
 
   fn import_named_specifier(
@@ -982,7 +1019,7 @@ mod tests {
       ("__fooBar_baz__", false),  //not snake
       ("__fooBarBaz__", false),   //camel
       ("Sha3_224", false),        //not snake
-      ("SHA3_224", true),         //screaming snake; todo: should this be true?
+      ("SHA3_224", true),         //screaming snake; todo: ?should this be true?
     ];
 
     for &(input, expected) in tests.iter() {
@@ -1012,24 +1049,24 @@ mod tests {
   }
 
   #[test]
-  fn test_to_rust_style() {
+  fn test_to_snake_case() {
     let tests = [
       ("fooBar", "foo_bar"),
       ("foo_bar", "foo_bar"),
-      ("FooBar", "FooBar"),
-      ("_FooBar", "_FooBar"),
+      ("FooBar", "foo_bar"),
+      ("_FooBar", "_foo_bar"),
       ("fooBarBaz", "foo_bar_baz"),
       ("_fooBarBaz", "_foo_bar_baz"),
       ("__fooBarBaz__", "__foo_bar_baz__"),
-      ("Sha3_224", "Sha3_224"),
-      ("SHA3_224", "SHA3_224"),
-      ("_leading", "_leading"),
-      ("trailing_", "trailing_"),
-      ("_bothends_", "_bothends_"),
+      ("Sha3_224", "sha3_224"),
+      ("SHA3_224", "sha3_224"),
+      ("_leadingCamel", "_leading_camel"),
+      ("trailingCamel_", "trailing_camel_"),
+      ("_bothendsCamel_", "_bothends_camel_"),
     ];
 
     for &(input, expected) in tests.iter() {
-      assert_eq!(expected, to_rust_style(input));
+      assert_eq!(expected, to_snake_case(input));
     }
   }
 
@@ -1047,6 +1084,10 @@ mod tests {
       (
         IdentToCheck::Function(s("fooBar")),
         "Consider renaming `fooBar` to `foo_bar`",
+      ),
+      (
+        IdentToCheck::VariableOrConstant(s("fooBar")),
+        "Consider renaming `fooBar` to `foo_bar` or `FOO_BAR`",
       ),
       (
         IdentToCheck::Class(s("foo_bar")),
@@ -1140,7 +1181,11 @@ mod tests {
       r#"new DoSomething()"#,// new
       r#"foo.do_something()"#,
       r#"var foo = bar.baz_boom;"#,
+      r#"var foo = bar.BAZ_BOOM;"#,// new
+      r#"var foo = bar.bazBoom;"#,// new
       r#"var foo = bar.baz_boom.something;"#,
+      r#"var foo = bar.BAZ_BOOM.something;"#,// new
+      r#"var foo = bar.bazBoom.something;"#,// new
       r#"foo.boom_pow.qux = bar.baz_boom.something;"#,
       r#"if (bar.baz_boom) {}"#,
       r#"var obj = { key: foo.bar_baz };"#,
@@ -1293,6 +1338,12 @@ mod tests {
       r#"type Foo = { snake_case: number; };"#,
       r#"interface Foo { snake_case: number; };"#,
       r#"namespace FooBar { const snake_case = 42; }"#,
+
+      //new variable or constant test cases:
+      r#"const snake_case = 42;"#,
+      r#"const SCREAMING_SNAKE_CASE = 42;"#,
+      r#"class FooBar { static snake_case = 42; }"#,
+      r#"class FooBar { static SCREAMING_SNAKE_CASE = 42; }"#,
     };
   }
 
@@ -1533,7 +1584,7 @@ mod tests {
         {
           col: 6,
           message: "Identifier 'camelCased' is not in rust style.",
-          hint: "Consider renaming `camelCased` to `camel_cased`",
+          hint: "Consider renaming `camelCased` to `camel_cased` or `CAMEL_CASED`",
         },
         {
           col: 37,
@@ -1699,7 +1750,7 @@ mod tests {
         {
           col: 25,
           message: "Identifier 'camelCase' is not in rust style.",
-          hint: "Consider renaming `camelCase` to `camel_case`",
+          hint: "Consider renaming `camelCase` to `camel_case` or `CAMEL_CASE`",
         }
       ],
       r#"enum foo_bar { VariantOne }"#: [
@@ -1722,21 +1773,21 @@ mod tests {
           col: 0,
 
           message: "Identifier 'firstName' is not in rust style.",
-          hint: "Consider renaming `firstName` to `first_name`",
+          hint: "Consider renaming `firstName` to `first_name` or `FIRST_NAME`",
         }
       ],
       r#"__myPrivateVariable = "Hoshimiya""#: [
         {
           col: 0,
           message: "Identifier '__myPrivateVariable' is not in rust style.",
-          hint: "Consider renaming `__myPrivateVariable` to `__my_private_variable`",
+          hint: "Consider renaming `__myPrivateVariable` to `__my_private_variable` or `__MY_PRIVATE_VARIABLE`",
         }
       ],
       r#"myPrivateVariable_ = "Hoshimiya""#: [
         {
           col: 0,
           message: "Identifier 'myPrivateVariable_' is not in rust style.",
-          hint: "Consider renaming `myPrivateVariable_` to `my_private_variable_`",
+          hint: "Consider renaming `myPrivateVariable_` to `my_private_variable_` or `MY_PRIVATE_VARIABLE_`",
         }
       ],
       r#"function doSomething(){}"#: [
@@ -1842,6 +1893,28 @@ mod tests {
           col: 4,
           message: "Identifier 'camelCased' is not in rust style.",
           hint: "Consider renaming `camelCased` to `camel_cased`",
+        }
+      ],
+      //new invalid variable or constant test cases:
+      r#"var UpperCamelCased = 42"#: [
+        {
+          col: 4,
+          message: "Identifier 'UpperCamelCased' is not in rust style.",
+          hint: "Consider renaming `UpperCamelCased` to `upper_camel_cased`",
+        }
+      ],
+      r#"class FooBar { static camelCase = 42; }"#: [
+        {
+          col: 22,
+          message: "Identifier 'camelCase' is not in rust style.",
+          hint: "Consider renaming `camelCase` to `camel_case` or `CAMEL_CASE`",
+        }
+      ],
+      r#"class FooBar { static UpperCamelCased = 42; }"#: [
+        {
+          col: 22,
+          message: "Identifier 'UpperCamelCased' is not in rust style.",
+          hint: "Consider renaming `UpperCamelCased` to `upper_camel_cased` or `UPPER_CAMEL_CASED`",
         }
       ],
     };

@@ -5,8 +5,9 @@ Consistency in a code base is key for readability and maintainability. This rule
 is useful for deno projects that call rust functions via FFI. It attempts to
 unify naming conventions and enforces declarations and object property names
 which you create to be\
-in UpperCamelCase/PascalCase for classes, types, interfaces\
-and in snake_case for functions, methods, variables.
+in UpperCamelCase/PascalCase for classes, types, interfaces,\
+in snake_case for functions, methods, variables\
+and in SCREAMING_SNAKE_CASE for static class properties and constants.
 
 Of note:
 
