@@ -1,14 +1,18 @@
-Enforces the use of camelCase in variable names
+Enforces the use of Rust-style naming conventions, see
+https://rust-lang.github.io/api-guidelines/naming.html
 
 Consistency in a code base is key for readability and maintainability. This rule
-enforces variable declarations and object property names which you create to be
-in camelCase.
+is useful for deno projects that call rust functions via FFI. It attempts to
+unify naming conventions and enforces declarations and object property names
+which you create to be\
+in UpperCamelCase/PascalCase for classes, types, interfaces\
+and in snake_case for functions, methods, variables.
 
 Of note:
 
 - `_` is allowed at the start or end of a variable
 - All uppercase variable names (e.g. constants) may have `_` in their name
-- If you have to use a snake_case key in an object for some reasons, wrap it in
+- If you have to use a camelCase key in an object for some reasons, wrap it in
   quotation mark
 - This rule also applies to variables imported or exported via ES modules, but
   not to object properties of those variables
@@ -16,58 +20,69 @@ Of note:
 ### Invalid:
 
 ```typescript
-let first_name = "Ichigo";
-const obj1 = { last_name: "Hoshimiya" };
-const obj2 = { first_name };
-const { last_name } = obj1;
+let firstName = "Ichigo";
+const obj1 = { lastName: "Hoshimiya" };
+const obj2 = { firstName };
+const { lastName } = obj1;
 
-function do_something() {}
-function foo({ snake_case = "default value" }) {}
+function doSomething() {}
+function foo({ camelCase = "default value" }) {}
 
 class snake_case_class {}
+class camelCaseClass {}
 class Also_Not_Valid_Class {}
 
-import { not_camelCased } from "external-module.js";
-export * as not_camelCased from "mod.ts";
+import { camelCased } from "external-module.js";
+export * as camelCased from "mod.ts";
 
 enum snake_case_enum {
   snake_case_variant,
 }
 
+enum camelCasedEnum {
+  camelCasedVariant,
+}
+
 type snake_case_type = { some_property: number };
+
+type camelCasedType = { someProperty: number };
 
 interface snake_case_interface {
   some_property: number;
+}
+
+interface camelCasedInterface {
+  someProperty: number;
 }
 ```
 
 ### Valid:
 
 ```typescript
-let firstName = "Ichigo";
+let first_name = "Ichigo";
 const FIRST_NAME = "Ichigo";
-const __myPrivateVariable = "Hoshimiya";
-const myPrivateVariable_ = "Hoshimiya";
-const obj1 = { "last_name": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
-const obj2 = { "first_name": first_name };
-const { last_name: lastName } = obj;
+const __my_private_variable = "Hoshimiya";
+const my_private_variable_ = "Hoshimiya";
+const obj1 = { "lastName": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
+const obj2 = { "firstName": firstName };
+const { lastName: last_name } = obj;
 
-function doSomething() {} // function declarations must be camelCase but...
-do_something(); // ...snake_case function calls are allowed
-function foo({ snake_case: camelCase = "default value" }) {}
+function do_something() {} // function declarations must be snake_case but...
+doSomething(); // ...camel_case function calls are allowed
+function foo({ camelCase: snake_case = "default value" }) {}
 
 class PascalCaseClass {}
 
-import { not_camelCased as camelCased } from "external-module.js";
-export * as camelCased from "mod.ts";
+import { camelCased as not_camel_cased } from "external-module.js";
+export * as not_camel_cased from "mod.ts";
 
 enum PascalCaseEnum {
   PascalCaseVariant,
 }
 
-type PascalCaseType = { someProperty: number };
+type PascalCaseType = { some_property: number };
 
 interface PascalCaseInterface {
-  someProperty: number;
+  some_property: number;
 }
 ```
