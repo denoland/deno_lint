@@ -1344,6 +1344,28 @@ mod tests {
       r#"const SCREAMING_SNAKE_CASE = 42;"#,
       r#"class FooBar { static snake_case = 42; }"#,
       r#"class FooBar { static SCREAMING_SNAKE_CASE = 42; }"#,
+
+      r#"class STILL_VALID_CLASS {}"#,// considered UpperCamelCased
+
+      //doc test cases:
+      r#"let first_name = "Ichigo";"#,
+      r#"const FIRST_NAME = "Ichigo";"#,
+      r#"const __my_private_variable = "Hoshimiya";"#,
+      r#"const my_private_variable_ = "Hoshimiya";"#,
+      r#"const obj1 = { "lastName": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid"#,
+      r#"const obj2 = { "firstName": firstName };"#,
+      r#"const { lastName } = obj1; //valid, because one has no control over the identifier"#,// valid, see #1187
+      r#"const { lastName: last_name } = obj;"#,
+      r#"function do_something() {} // function declarations must be snake_case but..."#,
+      r#"doSomething(); // ...camel_case function calls are allowed"#,
+      r#"function foo({ camelCase: snake_case = "default value" }) {}"#,
+      r#"class PascalCaseClass {}"#,
+      r#"import { camelCased } from "external-module.js"; //valid, because one has no control over the identifier"#,// valid, see #1187
+      r#"import { camelCased as not_camel_cased } from "external-module.js";"#,
+      r#"export * as not_camel_cased from "mod.ts";"#,
+      r#"enum PascalCaseEnum { PascalCaseVariant }"#,
+      r#"type PascalCaseType = { some_property: number };"#,
+      r#"interface PascalCaseInterface { some_property: number; }"#,
     };
   }
 
@@ -1916,6 +1938,132 @@ mod tests {
           message: "Identifier 'UpperCamelCased' is not in rust style.",
           hint: "Consider renaming `UpperCamelCased` to `upper_camel_cased` or `UPPER_CAMEL_CASED`",
         }
+      ],
+      //doc test cases:
+      r#"let firstName = "Ichigo";"#: [
+        {
+          col: 4,
+          message: "Identifier 'firstName' is not in rust style.",
+          hint: "Consider renaming `firstName` to `first_name`",
+        },
+      ],
+      r#"const obj1 = { lastName: "Hoshimiya" };"#: [
+        {
+          col: 15,
+          message: "Identifier 'lastName' is not in rust style.",
+          hint: "Consider renaming `lastName` to `last_name`, or wrapping it in quotation mark like `\"lastName\"`",
+        },
+      ],
+      r#"const obj2 = { firstName };"#: [
+        {
+          col: 15,
+          message: "Identifier 'firstName' is not in rust style.",
+          hint: "Consider writing `first_name: firstName` or `\"firstName\": firstName`",
+        },
+      ],
+      r#"function doSomething() {}"#: [
+        {
+          col: 9,
+          message: "Identifier 'doSomething' is not in rust style.",
+          hint: "Consider renaming `doSomething` to `do_something`",
+        },
+      ],
+      r#"function foo({ camelCase = "default value" }) {}"#: [
+        {
+          col: 15,
+          message: "Identifier 'camelCase' is not in rust style.",
+          hint: "Consider renaming `camelCase` to `camel_case`",
+        },
+      ],
+      r#"class snake_case_class {}"#: [
+        {
+          col: 6,
+          message: "Identifier 'snake_case_class' is not in rust style.",
+          hint: "Consider renaming `snake_case_class` to `SnakeCaseClass`",
+        },
+      ],
+      r#"class camelCaseClass {}"#: [
+        {
+          col: 6,
+          message: "Identifier 'camelCaseClass' is not in rust style.",
+          hint: "Consider renaming `camelCaseClass` to `CamelCaseClass`",
+        },
+      ],
+      r#"class Also_Not_Valid_Class {}"#: [
+        {
+          col: 6,
+          message: "Identifier 'Also_Not_Valid_Class' is not in rust style.",
+          hint: "Consider renaming `Also_Not_Valid_Class` to `ALSO_NOT_VALID_CLASS`",
+        },
+      ],
+      r#"export * as camelCased from "mod.ts";"#: [
+        {
+          col: 12,
+          message: "Identifier 'camelCased' is not in rust style.",
+          hint: "Consider renaming `camelCased` to `camel_cased`",
+        },
+      ],
+      r#"enum snake_case_enum { snake_case_variant }"#: [
+        {
+          col: 5,
+          message: "Identifier 'snake_case_enum' is not in rust style.",
+          hint: "Consider renaming `snake_case_enum` to `SnakeCaseEnum`",
+        },
+        {
+          col: 23,
+          message: "Identifier 'snake_case_variant' is not in rust style.",
+          hint: "Consider renaming `snake_case_variant` to `SnakeCaseVariant`",
+        },
+      ],
+      r#"enum camelCasedEnum { camelCasedVariant }"#: [
+        {
+          col: 5,
+          message: "Identifier 'camelCasedEnum' is not in rust style.",
+          hint: "Consider renaming `camelCasedEnum` to `CamelCasedEnum`",
+        },
+        {
+          col: 22,
+          message: "Identifier 'camelCasedVariant' is not in rust style.",
+          hint: "Consider renaming `camelCasedVariant` to `CamelCasedVariant`",
+        },
+      ],
+      r#"type snake_case_type = { some_property: number };"#: [
+        {
+          col: 5,
+          message: "Identifier 'snake_case_type' is not in rust style.",
+          hint: "Consider renaming `snake_case_type` to `SnakeCaseType`",
+        },
+      ],
+      r#"type camelCasedType = { someProperty: number };"#: [
+        {
+          col: 5,
+          message: "Identifier 'camelCasedType' is not in rust style.",
+          hint: "Consider renaming `camelCasedType` to `CamelCasedType`",
+        },
+        {
+          col: 24,
+          message: "Identifier 'someProperty' is not in rust style.",
+          hint: "Consider renaming `someProperty` to `some_property`, or wrapping it in quotation mark like `\"someProperty\"`",
+        },
+      ],
+      r#"interface snake_case_interface { some_property: number; }"#: [
+        {
+          col: 10,
+          message: "Identifier 'snake_case_interface' is not in rust style.",
+          hint: "Consider renaming `snake_case_interface` to `SnakeCaseInterface`",
+        },
+      ],
+      r#"interface camelCasedInterface { someProperty: number; }"#: [
+        {
+          col: 10,
+          message: "Identifier 'camelCasedInterface' is not in rust style.",
+          hint: "Consider renaming `camelCasedInterface` to `CamelCasedInterface`",
+        },
+        {
+          col: 32,
+          message: "Identifier 'someProperty' is not in rust style.",
+          hint: "Consider renaming `someProperty` to `some_property`, or wrapping it in quotation mark like `\"someProperty\"`",
+        },
       ],
     };
   }
