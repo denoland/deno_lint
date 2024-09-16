@@ -64,7 +64,7 @@ const __my_private_variable = "Hoshimiya";
 const my_private_variable_ = "Hoshimiya";
 const obj1 = { "lastName": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
 const obj2 = { "firstName": firstName };
-const { lastName } = obj1; //valid, because one has no control over the identifier
+const { lastName } = obj1; // valid, because one has no control over the identifier
 const { lastName: last_name } = obj;
 
 function do_something() {} // function declarations must be snake_case but...
@@ -73,7 +73,7 @@ function foo({ camelCase: snake_case = "default value" }) {}
 
 class PascalCaseClass {}
 
-import { camelCased } from "external-module.js"; //valid, because one has no control over the identifier
+import { camelCased } from "external-module.js"; // valid, because one has no control over the identifier
 import { camelCased as not_camel_cased } from "external-module.js";
 export * as not_camel_cased from "mod.ts";
 
