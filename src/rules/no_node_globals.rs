@@ -22,6 +22,7 @@ const CODE: &str = "no-node-globals";
 const MESSAGE: &str = "NodeJS globals are not available in Deno";
 
 static NODE_GLOBALS: phf::Map<&'static str, FixKind> = phf::phf_map! {
+  "process" => FixKind::Import { module: "node:process", import: "process" },
   "Buffer" => FixKind::Import { module: "node:buffer", import: "{ Buffer }" },
   "global" => FixKind::Replace("globalThis"),
   "setImmediate" => FixKind::Import { module: "node:timers", import: "{ setImmediate }" },
@@ -200,6 +201,8 @@ mod tests {
   fn valid() {
     assert_lint_ok! {
       NoNodeGlobals,
+      "import process from 'node:process';\nconst a = process.env;",
+      "const process = { env: {} };\nconst a = process.env;",
       "import { Buffer } from 'node:buffer';\nconst b = Buffer;",
       "const Buffer = {};\nconst b = Buffer;",
       "const global = globalThis;\nconst c = global;",
@@ -212,6 +215,30 @@ mod tests {
   fn invalid() {
     assert_lint_err! {
       NoNodeGlobals,
+      "import a from 'b';\nconst e = process.env;": [
+        {
+          col: 10,
+          line: 2,
+          message: MESSAGE,
+          hint: "Add `import process from \"node:process\";`",
+          fix: (
+            "Import from \"node:process\"",
+            "import a from 'b';\nimport process from \"node:process\";\nconst e = process.env;"
+          ),
+        }
+      ],
+      "const a = process;": [
+        {
+          col: 10,
+          line: 1,
+          message: MESSAGE,
+          hint: "Add `import process from \"node:process\";`",
+          fix: (
+            "Import from \"node:process\"",
+            "import process from \"node:process\";\nconst a = process;"
+          ),
+        }
+      ],
       "const b = Buffer;": [
         {
           col: 10,
@@ -260,15 +287,15 @@ mod tests {
           ),
         }
       ],
-      "const a = setImmediate;\nconst b = Buffer;": [
+      "const a = process.env;\nconst b = Buffer;": [
         {
           col: 10,
           line: 1,
           message: MESSAGE,
-          hint: "Add `import { setImmediate } from \"node:timers\";`",
+          hint: "Add `import process from \"node:process\";`",
           fix: (
-            "Import from \"node:timers\"",
-            "import { setImmediate } from \"node:timers\";\nconst a = setImmediate;\nconst b = Buffer;"
+            "Import from \"node:process\"",
+            "import process from \"node:process\";\nconst a = process.env;\nconst b = Buffer;"
           ),
         },
         {
@@ -278,19 +305,19 @@ mod tests {
           hint: "Add `import { Buffer } from \"node:buffer\";`",
           fix: (
             "Import from \"node:buffer\"",
-            "import { Buffer } from \"node:buffer\";\nconst a = setImmediate;\nconst b = Buffer;"
+            "import { Buffer } from \"node:buffer\";\nconst a = process.env;\nconst b = Buffer;"
           ),
         }
       ],
-      "// A copyright notice\n\nconst a = setImmediate;": [
+      "// A copyright notice\n\nconst a = process.env;": [
         {
           col: 10,
           line: 3,
           message: MESSAGE,
-          hint: "Add `import { setImmediate } from \"node:timers\";`",
+          hint: "Add `import process from \"node:process\";`",
           fix: (
-            "Import from \"node:timers\"",
-            "// A copyright notice\n\nimport { setImmediate } from \"node:timers\";\nconst a = setImmediate;"
+            "Import from \"node:process\"",
+            "// A copyright notice\n\nimport process from \"node:process\";\nconst a = process.env;"
           ),
         }
       ]

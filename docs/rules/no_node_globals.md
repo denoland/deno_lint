@@ -8,14 +8,14 @@ their defining modules as needed.
 
 ```typescript
 // foo.ts
-const buf = Buffer.from("foo", "utf-8"); // Buffer is not a global object in deno
+const foo = process.env.FOO; // process is not a global object in deno
 ```
 
 ### Valid:
 
 ```typescript
 // foo.ts
-import { Buffer } from "node:buffer";
+import process from "node:process";
 
-const foo = Buffer.from("foo", "utf-8");
+const foo = process.env.FOO;
 ```
