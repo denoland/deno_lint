@@ -419,7 +419,7 @@
   },
   {
     "code": "no-node-globals",
-    "docs": "Disallows the use of NodeJS global objects.\n\nNodeJS exposes a set of global objects that differs from deno (and the web), so\ncode should not assume they are available. Instead, import the objects from\ntheir defining modules as needed.\n\n### Invalid:\n\n```typescript\n// foo.ts\nconst foo = process.env.FOO; // process is not a global object in deno\n```\n\n### Valid:\n\n```typescript\n// foo.ts\nimport process from \"node:process\";\n\nconst foo = process.env.FOO;\n```\n",
+    "docs": "Disallows the use of NodeJS global objects.\n\nNodeJS exposes a set of global objects that differs from deno (and the web), so\ncode should not assume they are available. Instead, import the objects from\ntheir defining modules as needed.\n\n### Invalid:\n\n```typescript\n// foo.ts\nconst buf = Buffer.from(\"foo\", \"utf-8\"); // Buffer is not a global object in deno\n```\n\n### Valid:\n\n```typescript\n// foo.ts\nimport { Buffer } from \"node:buffer\";\n\nconst foo = Buffer.from(\"foo\", \"utf-8\");\n```\n",
     "tags": [
       "recommended"
     ]
