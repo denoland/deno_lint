@@ -1,7 +1,8 @@
 Disallows the use of NodeJS process global.
 
-NodeJS and Deno expose process global but they are hard to statically analyze by tools, so
-code should not assume they are available. Instead, import process from "node:process" instead.
+NodeJS and Deno expose process global but they are hard to statically analyze by
+tools, so code should not assume they are available. Instead, import process
+from "node:process" instead.
 
 ### Invalid:
 
