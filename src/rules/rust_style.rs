@@ -76,7 +76,7 @@ fn is_upper_camel_cased(ident_name: &str) -> bool {
 
 /// Convert the name of identifier into camel case. If the name is originally in camel case, return
 /// the name as it is. For more detail, see the test cases below.
-fn to_camelcase(ident_name: &str) -> String {
+fn to_camel_case(ident_name: &str) -> String {
   if !is_underscored(ident_name) {
     return ident_name.to_string();
   }
@@ -93,6 +93,21 @@ fn to_camelcase(ident_name: &str) -> String {
   }
 
   ident_name.to_ascii_uppercase()
+}
+
+fn to_upper_camel_case(ident_name: &str) -> String {
+  let camel_cased = to_camel_case(ident_name);
+  static FIRST_CHAR_LOWERCASE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^_*[a-z]").unwrap());
+
+  let result = FIRST_CHAR_LOWERCASE
+    .replace(&camel_cased, |caps: &Captures| caps[0].to_ascii_uppercase());
+
+  if result != ident_name {
+    return result.into_owned();
+  }
+
+  ident_name.to_string()
 }
 
 /// Convert the name of identifier into snake case. For more detail, see the test cases below.
@@ -129,6 +144,8 @@ enum IdentToCheck {
   },
   /// Function name e.g. `foo` in `function foo() {}`
   Function(String),
+  /// Function name e.g. `foo` in `function foo() {}` or `Foo` in `function Foo() {}`
+  FunctionOrComponent(String),
   /// Class name e.g. `Foo` in `class Foo {}`
   Class(String),
   /// Type alias e.g. `Foo` in `type Foo = string;`
@@ -197,6 +214,10 @@ impl IdentToCheck {
     Self::Function(name.as_ref().to_string())
   }
 
+  fn function_or_component(name: impl AsRef<str>) -> Self {
+    Self::FunctionOrComponent(name.as_ref().to_string())
+  }
+
   fn class(name: impl AsRef<str>) -> Self {
     Self::Class(name.as_ref().to_string())
   }
@@ -258,6 +279,7 @@ impl IdentToCheck {
     match self {
       IdentToCheck::Variable(name)
       | IdentToCheck::Function(name)
+      | IdentToCheck::FunctionOrComponent(name)
       | IdentToCheck::VariableOrConstant(name)
       | IdentToCheck::Class(name)
       | IdentToCheck::TypeAlias(name)
@@ -294,6 +316,14 @@ impl IdentToCheck {
       IdentToCheck::Variable(name) | IdentToCheck::Function(name) => {
         format!("Consider renaming `{}` to `{}`", name, to_snake_case(name))
       }
+      IdentToCheck::FunctionOrComponent(name) => {
+        format!(
+          "Consider renaming `{}` to `{}` or `{}`",
+          name,
+          to_snake_case(name),
+          to_upper_camel_case(name)
+        )
+      }
       IdentToCheck::VariableOrConstant(name) => {
         let snake_cased = to_snake_case(name);
         format!(
@@ -328,10 +358,6 @@ impl IdentToCheck {
       | IdentToCheck::EnumVariant(name)
       | IdentToCheck::Namespace(name)
       | IdentToCheck::Module(name) => {
-        let camel_cased = to_camelcase(name);
-        static FIRST_CHAR_LOWERCASE: Lazy<Regex> =
-          Lazy::new(|| Regex::new(r"^[a-z]").unwrap());
-
         // The following names should be in pascal case
         // - class
         // - type alias
@@ -340,11 +366,11 @@ impl IdentToCheck {
         // - enum variant
         // - namespace
         // - module
-        let pascal_cased = FIRST_CHAR_LOWERCASE
-          .replace(&camel_cased, |caps: &Captures| {
-            caps[0].to_ascii_uppercase()
-          });
-        format!("Consider renaming `{}` to `{}`", name, pascal_cased)
+        format!(
+          "Consider renaming `{}` to `{}`",
+          name,
+          to_upper_camel_case(name)
+        )
       }
       IdentToCheck::ObjectPat {
         key_name,
@@ -474,6 +500,21 @@ impl RustStyleHandler {
     }
   }
 
+  /// Check if this ident is snake cased or screaming snake cased only when it's not yet visited.
+  fn check_ident_snake_cased_or_upper_camel_cased<S: SourceRanged>(
+    &mut self,
+    range: &S,
+    ident: IdentToCheck,
+  ) {
+    let range = range.range();
+    if self.visited.insert(range)
+      && !is_snake_cased(ident.get_ident_name())
+      && !is_upper_camel_cased(ident.get_ident_name())
+    {
+      self.errors.insert(range, ident);
+    }
+  }
+
   fn check_ts_type(&mut self, ty: &ast_view::TsType) {
     if let ast_view::TsType::TsTypeLit(type_lit) = ty {
       for member in type_lit.members {
@@ -538,10 +579,27 @@ impl RustStyleHandler {
         //todo: ?ctx always valid?
         if let Some(v) = ctx.scope().var_by_ident(ident.id) {
           if let deno_ast::BindingKind::Const = v.kind() {
-            self.check_ident_snake_cased_or_screaming_snake_cased(
-              ident,
-              IdentToCheck::variable_or_constant(ident.id.inner),
-            );
+            match ident.parent() {
+              ast_view::Node::VarDeclarator(ast_view::VarDeclarator {
+                init: Some(ast_view::Expr::Fn(_)),
+                ..
+              })
+              | ast_view::Node::VarDeclarator(ast_view::VarDeclarator {
+                init: Some(ast_view::Expr::Arrow(_)),
+                ..
+              }) => {
+                self.check_ident_snake_cased_or_upper_camel_cased(
+                  ident,
+                  IdentToCheck::function_or_component(ident.id.inner),
+                );
+              }
+              _ => {
+                self.check_ident_snake_cased_or_screaming_snake_cased(
+                  ident,
+                  IdentToCheck::variable_or_constant(ident.id.inner),
+                );
+              }
+            }
           } else {
             self.check_ident_snake_cased(
               ident,
@@ -677,9 +735,9 @@ impl Handler for RustStyleHandler {
       return;
     }
 
-    self.check_ident_snake_cased(
+    self.check_ident_snake_cased_or_upper_camel_cased(
       &fn_decl.ident,
-      IdentToCheck::function(fn_decl.ident.inner),
+      IdentToCheck::function_or_component(fn_decl.ident.inner),
     );
   }
 
@@ -1028,7 +1086,7 @@ mod tests {
   }
 
   #[test]
-  fn test_to_camelcase() {
+  fn test_to_camel_case() {
     let tests = [
       ("foo_bar", "fooBar"),
       ("fooBar", "fooBar"),
@@ -1044,7 +1102,7 @@ mod tests {
     ];
 
     for &(input, expected) in tests.iter() {
-      assert_eq!(expected, to_camelcase(input));
+      assert_eq!(expected, to_camel_case(input));
     }
   }
 
@@ -1071,6 +1129,27 @@ mod tests {
   }
 
   #[test]
+  fn test_to_upper_camel_case() {
+    let tests = [
+      ("foo_bar", "FooBar"),
+      ("fooBar", "FooBar"),
+      ("FooBar", "FooBar"),
+      ("foo_bar_baz", "FooBarBaz"),
+      ("_foo_bar_baz", "_FooBarBaz"),
+      ("__foo_bar_baz__", "__FooBarBaz__"),
+      ("Sha3_224", "SHA3_224"),
+      ("SHA3_224", "SHA3_224"),
+      ("_leading", "_Leading"),
+      ("trailing_", "Trailing_"),
+      ("_bothEnds_", "_BothEnds_"),
+    ];
+
+    for &(input, expected) in tests.iter() {
+      assert_eq!(expected, to_upper_camel_case(input));
+    }
+  }
+
+  #[test]
   fn test_to_hint() {
     fn s(s: &str) -> String {
       s.to_string()
@@ -1084,6 +1163,10 @@ mod tests {
       (
         IdentToCheck::Function(s("fooBar")),
         "Consider renaming `fooBar` to `foo_bar`",
+      ),
+      (
+        IdentToCheck::FunctionOrComponent(s("fooBar")),
+        "Consider renaming `fooBar` to `foo_bar` or `FooBar`",
       ),
       (
         IdentToCheck::VariableOrConstant(s("fooBar")),
@@ -1345,6 +1428,11 @@ mod tests {
       r#"class FooBar { static snake_case = 42; }"#,
       r#"class FooBar { static SCREAMING_SNAKE_CASE = 42; }"#,
 
+      //new function or component test cases:
+      r#"function ComponentTest(){}"#,
+      r#"const Component = function do_something() {};"#,
+      r#"const ComponentTest = () => {};"#,
+
       r#"class STILL_VALID_CLASS {}"#,// considered UpperCamelCased
 
       //doc test cases:
@@ -1384,7 +1472,7 @@ mod tests {
         {
           col: 9,
           message: "Identifier 'fooBar' is not in rust style.",
-          hint: "Consider renaming `fooBar` to `foo_bar`",
+          hint: "Consider renaming `fooBar` to `foo_bar` or `FooBar`",
         }
       ],
       // r#"var foo = { bar_baz: boom.bam_pow }"#: [
@@ -1816,7 +1904,7 @@ mod tests {
         {
           col: 9,
           message: "Identifier 'doSomething' is not in rust style.",
-          hint: "Consider renaming `doSomething` to `do_something`",
+          hint: "Consider renaming `doSomething` to `do_something` or `DoSomething`",
         }
       ],
       r#"import { no_camelcased as camelCased } from "external-module";"#: [
@@ -1965,7 +2053,7 @@ mod tests {
         {
           col: 9,
           message: "Identifier 'doSomething' is not in rust style.",
-          hint: "Consider renaming `doSomething` to `do_something`",
+          hint: "Consider renaming `doSomething` to `do_something` or `DoSomething`",
         },
       ],
       r#"function foo({ camelCase = "default value" }) {}"#: [
