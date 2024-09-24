@@ -719,14 +719,52 @@ impl Handler for RustStyleHandler {
     class_prop: &ast_view::ClassProp,
     _ctx: &mut Context,
   ) {
-    if class_prop.is_static() {
-      if let ast_view::PropName::Ident(ident) = class_prop.key {
+    if let ast_view::PropName::Ident(ident) = class_prop.key {
+      if class_prop.is_static() {
         self.check_ident_snake_cased_or_screaming_snake_cased(
           ident,
           IdentToCheck::variable_or_constant(ident.inner),
         );
+      } else {
+        self
+          .check_ident_snake_cased(ident, IdentToCheck::variable(ident.inner));
       }
     }
+  }
+
+  fn private_prop(
+    &mut self,
+    private_prop: &ast_view::PrivateProp,
+    _ctx: &mut Context,
+  ) {
+    let ident = private_prop.key;
+    if private_prop.is_static() {
+      self.check_ident_snake_cased_or_screaming_snake_cased(
+        ident,
+        IdentToCheck::variable_or_constant(ident.name()),
+      );
+    } else {
+      self.check_ident_snake_cased(ident, IdentToCheck::variable(ident.name()));
+    }
+  }
+
+  fn class_method(
+    &mut self,
+    class_method: &ast_view::ClassMethod,
+    _ctx: &mut Context,
+  ) {
+    if let ast_view::PropName::Ident(ident) = class_method.key {
+      self.check_ident_snake_cased(ident, IdentToCheck::function(ident.inner));
+    }
+  }
+
+  fn private_method(
+    &mut self,
+    private_method: &ast_view::PrivateMethod,
+    _ctx: &mut Context,
+  ) {
+    let ident = private_method.key;
+    self.check_ident_snake_cased(ident, IdentToCheck::function(ident.name()));
   }
 
   fn fn_decl(&mut self, fn_decl: &ast_view::FnDecl, ctx: &mut Context) {
@@ -2025,6 +2063,35 @@ mod tests {
           col: 22,
           message: "Identifier 'UpperCamelCased' is not in rust style.",
           hint: "Consider renaming `UpperCamelCased` to `upper_camel_cased` or `UPPER_CAMEL_CASED`",
+        }
+      ],
+      //new invalid class property or method test cases:
+      r#"const c = class { camelCased = 1; }"#: [
+        {
+          col: 18,
+          message: "Identifier 'camelCased' is not in rust style.",
+          hint: "Consider renaming `camelCased` to `camel_cased`",
+        }
+      ],
+      r#"const c = class { #camelCased = 1; }"#: [
+        {
+          col: 18,
+          message: "Identifier 'camelCased' is not in rust style.",
+          hint: "Consider renaming `camelCased` to `camel_cased`",
+        }
+      ],
+      r#"const c = class { camelCased() {}; }"#: [
+        {
+          col: 18,
+          message: "Identifier 'camelCased' is not in rust style.",
+          hint: "Consider renaming `camelCased` to `camel_cased`",
+        }
+      ],
+      r#"const c = class { #camelCased() {}; }"#: [
+        {
+          col: 18,
+          message: "Identifier 'camelCased' is not in rust style.",
+          hint: "Consider renaming `camelCased` to `camel_cased`",
         }
       ],
       //doc test cases:
