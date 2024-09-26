@@ -19,7 +19,6 @@ Of note:
 let first_name = "Ichigo";
 const obj1 = { last_name: "Hoshimiya" };
 const obj2 = { first_name };
-const { last_name } = obj1;
 
 function do_something() {}
 function foo({ snake_case = "default value" }) {}
@@ -27,7 +26,6 @@ function foo({ snake_case = "default value" }) {}
 class snake_case_class {}
 class Also_Not_Valid_Class {}
 
-import { not_camelCased } from "external-module.js";
 export * as not_camelCased from "mod.ts";
 
 enum snake_case_enum {
@@ -50,6 +48,7 @@ const __myPrivateVariable = "Hoshimiya";
 const myPrivateVariable_ = "Hoshimiya";
 const obj1 = { "last_name": "Hoshimiya" }; // if an object key is wrapped in quotation mark, then it's valid
 const obj2 = { "first_name": first_name };
+const { last_name } = obj1; // valid, because one has no control over the identifier
 const { last_name: lastName } = obj;
 
 function doSomething() {} // function declarations must be camelCase but...
@@ -58,6 +57,7 @@ function foo({ snake_case: camelCase = "default value" }) {}
 
 class PascalCaseClass {}
 
+import { not_camelCased } from "external-module.js"; // valid, because one has no control over the identifier
 import { not_camelCased as camelCased } from "external-module.js";
 export * as camelCased from "mod.ts";
 
