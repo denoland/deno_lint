@@ -21,6 +21,10 @@ enum PreferPrimordialsMessage {
   GlobalIntrinsic,
   #[display(fmt = "Don't use the unsafe intrinsic")]
   UnsafeIntrinsic,
+  #[display(fmt = "Use null [[prototype]] object in the define property")]
+  DefineProperty,
+  #[display(fmt = "Use null [[prototype]] object in the default parameter")]
+  ObjectAssignInDefaultParameter,
   #[display(fmt = "Don't use iterator protocol directly")]
   Iterator,
   #[display(fmt = "Don't use RegExp literal directly")]
@@ -39,6 +43,8 @@ enum PreferPrimordialsHint {
     fmt = "Instead use the safe wrapper from the `primordials` object"
   )]
   UnsafeIntrinsic,
+  #[display(fmt = "Add `__proto__: null` to this object literal")]
+  NullPrototypeObjectLiteral,
   #[display(fmt = "Wrap a SafeIterator from the `primordials` object")]
   SafeIterator,
   #[display(fmt = "Wrap `SafeRegExp` from the `primordials` object")]
@@ -333,6 +339,28 @@ const GETTER_TARGETS: &[&str] = &[
   // "length",
 ];
 
+fn is_null_proto(object_lit: &ast_view::ObjectLit) -> bool {
+  for prop_or_spread in object_lit.props {
+    if_chain! {
+      if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
+      if let ast_view::Prop::KeyValue(key_value_prop) = prop;
+      if matches!(key_value_prop.value, ast_view::Expr::Lit(ast_view::Lit::Null(..)));
+      then {
+        if let ast_view::PropName::Ident(ident) = key_value_prop.key {
+          if ident.sym().as_ref() == "__proto__" {
+            return true
+          }
+        } else if let ast_view::PropName::Str(str) = key_value_prop.key {
+          if str.inner.value.as_ref() == "__proto__" {
+            return true
+          }
+        }
+      }
+    }
+  }
+  false
+}
+
 struct PreferPrimordialsHandler;
 
 impl Handler for PreferPrimordialsHandler {
@@ -404,6 +432,51 @@ impl Handler for PreferPrimordialsHandler {
         PreferPrimordialsMessage::UnsafeIntrinsic,
         PreferPrimordialsHint::UnsafeIntrinsic,
       );
+    }
+
+    match &ident.sym().as_ref() {
+      &"ObjectDefineProperty" | &"ReflectDefineProperty" => {
+        if_chain! {
+          if let ast_view::Node::CallExpr(call_expr) = ident.parent();
+          if let Some(expr_or_spread) = call_expr.args.get(2);
+          if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
+          if !is_null_proto(object_lit);
+          then {
+            ctx.add_diagnostic_with_hint(
+              object_lit.range(),
+              CODE,
+              PreferPrimordialsMessage::DefineProperty,
+              PreferPrimordialsHint::NullPrototypeObjectLiteral,
+            );
+          }
+        }
+      }
+      &"ObjectDefineProperties" => {
+        if_chain! {
+          if let ast_view::Node::CallExpr(call_expr) = ident.parent();
+          if let Some(expr_or_spread) = call_expr.args.get(1);
+          if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
+          then {
+            for prop_or_spread in object_lit.props {
+              if_chain! {
+                if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
+                if let ast_view::Prop::KeyValue(key_value_prop) = prop;
+                if let ast_view::Expr::Object(object_lit) = key_value_prop.value;
+                if !is_null_proto(object_lit);
+                then {
+                  ctx.add_diagnostic_with_hint(
+                    object_lit.range(),
+                    CODE,
+                    PreferPrimordialsMessage::DefineProperty,
+                    PreferPrimordialsHint::NullPrototypeObjectLiteral,
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+      _ => (),
     }
   }
 
@@ -485,6 +558,37 @@ impl Handler for PreferPrimordialsHandler {
           CODE,
           PreferPrimordialsMessage::GlobalIntrinsic,
           PreferPrimordialsHint::GlobalIntrinsic,
+        );
+      }
+    }
+  }
+
+  fn object_lit(
+    &mut self,
+    object_lit: &ast_view::ObjectLit,
+    ctx: &mut Context,
+  ) {
+    fn inside_param(orig: ast_view::Node, node: ast_view::Node) -> bool {
+      if let Some(param) = node.to::<ast_view::Param>() {
+        return param.range().contains(&orig.range());
+      }
+
+      match node.parent() {
+        None => false,
+        Some(parent) => inside_param(orig, parent),
+      }
+    }
+
+    if_chain! {
+      if !is_null_proto(object_lit);
+      if matches!(object_lit.parent(), ast_view::Node::AssignPat(_) | ast_view::Node::AssignPatProp(_));
+      if inside_param(object_lit.as_node(), object_lit.as_node());
+      then {
+        ctx.add_diagnostic_with_hint(
+          object_lit.range(),
+          CODE,
+          PreferPrimordialsMessage::ObjectAssignInDefaultParameter,
+          PreferPrimordialsHint::NullPrototypeObjectLiteral,
         );
       }
     }
@@ -688,7 +792,22 @@ const a = {
       "#,
       r#"
 const { ObjectDefineProperty, SymbolToStringTag } = primordials;
-ObjectDefineProperty(o, SymbolToStringTag, { value: "o" });
+ObjectDefineProperty(o, SymbolToStringTag, { __proto__: null, value: "o" });
+      "#,
+      r#"
+const { ReflectDefineProperty, SymbolToStringTag } = primordials;
+ReflectDefineProperty(o, SymbolToStringTag, { __proto__: null, value: "o" });
+      "#,
+      r#"
+const { ObjectDefineProperties } = primordials;
+ObjectDefineProperties(o, {
+  foo: { __proto__: null, value: "o" },
+  bar: { "__proto__": null, value: "o" },
+});
+      "#,
+      r#"
+function foo(o = { __proto__: null }) {}
+function bar({ o = { __proto__: null } }) {}
       "#,
       r#"
 const { NumberParseInt } = primordials;
@@ -933,6 +1052,67 @@ ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" });
           message: PreferPrimordialsMessage::GlobalIntrinsic,
           hint: PreferPrimordialsHint::GlobalIntrinsic,
         },
+        {
+          line: 3,
+          col: 44,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+      ],
+      r#"
+const { ObjectDefineProperty, SymbolToStringTag } = primordials;
+ObjectDefineProperty(o, SymbolToStringTag, { value: "o" });
+      "#: [
+        {
+          line: 3,
+          col: 43,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+      ],
+      r#"
+const { ObjectDefineProperties } = primordials;
+ObjectDefineProperties(o, {
+  foo: { value: "o" },
+  bar: { __proto__: {}, value: "o" },
+  baz: { ["__proto__"]: null, value: "o" },
+});
+      "#: [
+        {
+          line: 4,
+          col: 7,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+        {
+          line: 5,
+          col: 7,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+        {
+          line: 6,
+          col: 7,
+          message: PreferPrimordialsMessage::DefineProperty,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+      ],
+      r#"
+function foo(o = {}) {}
+function bar({ o = {} }) {}
+      "#: [
+        {
+          line: 2,
+          col: 17,
+          message: PreferPrimordialsMessage::ObjectAssignInDefaultParameter,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        },
+        {
+          line: 3,
+          col: 19,
+          message: PreferPrimordialsMessage::ObjectAssignInDefaultParameter,
+          hint: PreferPrimordialsHint::NullPrototypeObjectLiteral,
+        }
       ],
       r#"
 const { Number } = primordials;
