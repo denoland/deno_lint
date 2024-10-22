@@ -503,20 +503,6 @@
     ]
   },
   {
-    "code": "no-sloppy-imports",
-    "docs": "Enforces specifying explicit references to paths in module specifiers.\n\nNon-explicit specifiers are ambiguous and require probing for the correct file\npath on every run, which has a performance overhead.\n\nNote: This lint rule is only active when using `--unstable-sloppy-imports`.\n\n### Invalid:\n\n```typescript\nimport { add } from \"./math/add\";\nimport { ConsoleLogger } from \"./loggers\";\n```\n\n### Valid:\n\n```typescript\nimport { add } from \"./math/add.ts\";\nimport { ConsoleLogger } from \"./loggers/index.ts\";\n```\n",
-    "tags": [
-      "recommended"
-    ]
-  },
-  {
-    "code": "no-slow-types",
-    "docs": "Enforces using types that are explicit or can be simply inferred.\n\nRead more: https://jsr.io/docs/about-slow-types\n",
-    "tags": [
-      "jsr"
-    ]
-  },
-  {
     "code": "no-sparse-arrays",
     "docs": "Disallows sparse arrays\n\nSparse arrays are arrays that contain _empty slots_, which later could be\nhandled either as `undefined` value or skipped by array methods, and this may\nlead to unexpected behavior:\n\n```typescript\n[1, , 2].join(); // => '1,,2'\n[1, undefined, 2].join(); // => '1,,2'\n\n[1, , 2].flatMap((item) => item); // => [1, 2]\n[1, undefined, 2].flatMap((item) => item); // => [1, undefined, 2]\n```\n\n### Invalid:\n\n```typescript\nconst items = [\"foo\", , \"bar\"];\n```\n\n### Valid:\n\n```typescript\nconst items = [\"foo\", \"bar\"];\n```\n",
     "tags": []
