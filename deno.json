@@ -1,7 +1,8 @@
 {
   "lock": false,
   "tasks": {
-    "update-docs": "cargo run --features=docs --example dlint rules --json > www/static/docs.json"
+    "update-docs": "cargo run --features=docs --example dlint rules --json > www/static/docs.json",
+    "update-schemas": "deno run --allow-run --allow-read=schemas --allow-write=schemas tools/generate_schemas.ts"
   },
   "exclude": [
     "target",
