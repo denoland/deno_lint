@@ -1091,7 +1091,7 @@ mod variable_collector_tests {
   fn collect(src: &str) -> VariableCollector {
     let parsed_source = test_util::parse(src);
     let mut v = VariableCollector::new();
-    v.visit_program(parsed_source.program_ref());
+    parsed_source.program_ref().visit_with(&mut v);
     v
   }
 
