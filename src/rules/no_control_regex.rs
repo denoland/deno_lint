@@ -71,8 +71,7 @@ fn is_control_char(ch: u64) -> bool {
 }
 
 fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
-  let mut iter = regex.chars().peekable();
-  while let Some(ch) = iter.next() {
+  for ch in regex.chars() {
     let cp: u64 = ch.into();
     if is_control_char(cp) {
       add_diagnostic(range, cp, ctx);
