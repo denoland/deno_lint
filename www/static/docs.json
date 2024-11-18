@@ -195,6 +195,14 @@
     ]
   },
   {
+    "code": "no-danger",
+    "docs": "Prevent the use of `dangerouslySetInnerHTML` which can lead to XSS\nvulnerabilities if used incorrectly.\n\n### Invalid:\n\n```tsx\nconst hello = <div dangerouslySetInnerHTML={{ __html: \"Hello World!\" }} />;\n```\n\n### Valid:\n\n```tsx\nconst hello = <div>Hello World!</div>;\n```\n",
+    "tags": [
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "no-debugger",
     "docs": "Disallows the use of the `debugger` statement\n\n`debugger` is a statement which is meant for stopping the javascript execution\nenvironment and start the debugger at the statement. Modern debuggers and\ntooling no longer need this statement and leaving it in can cause the execution\nof your code to stop in production.\n\n### Invalid:\n\n```typescript\nfunction isLongString(x: string) {\n  debugger;\n  return x.length > 100;\n}\n```\n\n### Valid:\n\n```typescript\nfunction isLongString(x: string) {\n  return x.length > 100; // set breakpoint here instead\n}\n```\n",
     "tags": [
