@@ -128,6 +128,14 @@
     ]
   },
   {
+    "code": "jsx-curly-braces",
+    "docs": "Ensure consistent use of curly braces around JSX expressions.\n\n### Invalid:\n\n```tsx\nconst foo = <Foo foo=<div /> />;\nconst foo = <Foo str={\"foo\"} />;\nconst foo = <div>{\"foo\"}</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <Foo foo={<div />} />;\nconst foo = <Foo str=\"foo\" />;\nconst foo = <div>foo</div>;\n```\n",
+    "tags": [
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "jsx-no-comment-text-nodes",
     "docs": "Prevent comment strings being accidentally passed as text in JSX.\n\n### Invalid:\n\n```tsx\nconst foo = <div>// comment</div>;\nconst foo = <div>/* comment */</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <div>{/* comment */}</div>;\n```\n",
     "tags": [
