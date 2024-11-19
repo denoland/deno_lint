@@ -27,6 +27,7 @@ pub mod getter_return;
 pub mod guard_for_in;
 pub mod jsx_boolean_value;
 pub mod jsx_curly_braces;
+pub mod jsx_key;
 pub mod jsx_no_comment_text_nodes;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
@@ -263,6 +264,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(guard_for_in::GuardForIn),
     Box::new(jsx_boolean_value::JSXBooleanValue),
     Box::new(jsx_curly_braces::JSXCurlyBraces),
+    Box::new(jsx_key::JSXKey),
     Box::new(jsx_no_comment_text_nodes::JSXNoCommentTextNodes),
     Box::new(no_array_constructor::NoArrayConstructor),
     Box::new(no_async_promise_executor::NoAsyncPromiseExecutor),
