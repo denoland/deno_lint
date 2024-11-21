@@ -136,6 +136,14 @@
     ]
   },
   {
+    "code": "jsx-key",
+    "docs": "Ensure the `key` attribute is present when passing iterables into JSX. It allows\nframeworks to optimize checking the order of elements.\n\n### Invalid:\n\n```tsx\nconst foo = [<div>foo</div>];\nconst foo = [<>foo</>];\n[1, 2, 3].map(() => <div />);\nArray.from([1, 2, 3], () => <div />);\n```\n\n### Valid:\n\n```tsx\nconst foo = [<div key=\"a\">foo</div>];\nconst foo = [<Fragment key=\"b\">foo</Fragment>];\n[1, 2, 3].map((x) => <div key={x} />);\nArray.from([1, 2, 3], (x) => <div key={x} />);\n```\n",
+    "tags": [
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "jsx-no-comment-text-nodes",
     "docs": "Prevent comment strings being accidentally passed as text in JSX.\n\n### Invalid:\n\n```tsx\nconst foo = <div>// comment</div>;\nconst foo = <div>/* comment */</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <div>{/* comment */}</div>;\n```\n",
     "tags": [
@@ -144,8 +152,8 @@
     ]
   },
   {
-    "code": "jsx-key",
-    "docs": "Ensure the `key` attribute is present when passing iterables into JSX. It allows\nframeworks to optimize checking the order of elements.\n\n### Invalid:\n\n```tsx\nconst foo = [<div>foo</div>];\nconst foo = [<>foo</>];\n[1, 2, 3].map(() => <div />);\nArray.from([1, 2, 3], () => <div />);\n```\n\n### Valid:\n\n```tsx\nconst foo = [<div key=\"a\">foo</div>];\nconst foo = [<Fragment key=\"b\">foo</Fragment>];\n[1, 2, 3].map((x) => <div key={x} />);\nArray.from([1, 2, 3], (x) => <div key={x} />);\n```\n",
+    "code": "jsx-no-duplicate-props",
+    "docs": "Disallow duplicated JSX props. Later props will always overwrite earlier props\noften leading to unexpected results.\n\n### Invalid:\n\n```tsx\n<div id=\"1\" id=\"2\" />;\n<App a a />;\n<App a {...b} a />;\n```\n\n### Valid:\n\n```tsx\n<div id=\"1\" />\n<App a />\n<App a {...b} />\n<App {...b} b />\n```\n",
     "tags": [
       "react",
       "jsx"
