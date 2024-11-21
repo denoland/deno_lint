@@ -36,6 +36,7 @@ pub mod jsx_no_target_blank;
 pub mod jsx_no_unescaped_entities;
 pub mod jsx_no_useless_fragment;
 pub mod jsx_props_no_spread_multi;
+pub mod jsx_void_dom_elements_no_children;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
@@ -280,6 +281,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(jsx_no_unescaped_entities::JSXNoUnescapedEntities),
     Box::new(jsx_no_useless_fragment::JSXNoUselessFragment),
     Box::new(jsx_props_no_spread_multi::JSXPropsNoSpreadMulti),
+    Box::new(jsx_void_dom_elements_no_children::JSXVoidDomElementsNoChildren),
     Box::new(no_array_constructor::NoArrayConstructor),
     Box::new(no_async_promise_executor::NoAsyncPromiseExecutor),
     Box::new(no_await_in_loop::NoAwaitInLoop),
