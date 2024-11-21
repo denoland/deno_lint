@@ -144,6 +144,14 @@
     ]
   },
   {
+    "code": "jsx-no-children-prop",
+    "docs": "Pass children as JSX children instead of as an attribute.\n\n### Invalid:\n\n```tsx\n<div children=\"foo\" />\n<div children={[<Foo />, <Bar />]} />\n```\n\n### Valid:\n\n```tsx\n<div>foo</div>\n<div><Foo /><Bar /></div>\n```\n",
+    "tags": [
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "jsx-no-comment-text-nodes",
     "docs": "Prevent comment strings being accidentally passed as text in JSX.\n\n### Invalid:\n\n```tsx\nconst foo = <div>// comment</div>;\nconst foo = <div>/* comment */</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <div>{/* comment */}</div>;\n```\n",
     "tags": [
