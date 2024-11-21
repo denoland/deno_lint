@@ -188,6 +188,16 @@
     ]
   },
   {
+    "code": "jsx-no-unescaped-entities",
+    "docs": "Using unescaped entities is often a coding mistake where the developer wanted to\npass a JSX element instead. This rule ensures an explicit text form must be\nused.\n\n### Invalid:\n\n```tsx\n<div>></div>;\n```\n\n### Valid:\n\n```tsx\n<div>&gt;</div>\n<div>{\">\"}</div>\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx",
+      "fresh"
+    ]
+  },
+  {
     "code": "jsx-no-useless-fragment",
     "docs": "Fragments are only necessary at the top of a JSX \"block\" and only when there are\nmultiple children. Fragments are not needed in other scenarios.\n\n### Invalid:\n\n```tsx\n<></>\n<><div /></>\n<><App /></>\n<p>foo <>bar</></p>\n```\n\n### Valid:\n\n```tsx\n<>{foo}</>\n<><div /><div /></>\n<>foo <div /></>\n<p>foo bar</p>\n```\n",
     "tags": [
