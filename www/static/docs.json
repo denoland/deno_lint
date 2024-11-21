@@ -112,6 +112,14 @@
     "tags": []
   },
   {
+    "code": "jsx-void-dom-elements-no-children",
+    "docs": "Ensure that void elements in HTML don't have any children as that is not valid\nHTML. See [MDN](https://developer.mozilla.org/en-US/docs/Glossary/Void_element)\nfor more information.\n\n### Invalid:\n\n```tsx\n<br>foo</br>\n<img src=\"a.jpg\">foo</img>\n```\n\n### Valid:\n\n```tsx\n<br />\n<img src=\"a.jpg\" />\n```\n",
+    "tags": [
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "no-array-constructor",
     "docs": "Enforce conventional usage of array construction\n\nArray construction is conventionally done via literal notation such as `[]` or\n`[1, 2, 3]`. Using the `new Array()` is discouraged as is `new Array(1, 2, 3)`.\nThere are two reasons for this. The first is that a single supplied argument\ndefines the array length, while multiple arguments instead populate the array of\nno fixed size. This confusion is avoided when pre-populated arrays are only\ncreated using literal notation. The second argument to avoiding the `Array`\nconstructor is that the `Array` global may be redefined.\n\nThe one exception to this rule is when creating a new array of fixed size, e.g.\n`new Array(6)`. This is the conventional way to create arrays of fixed length.\n\n### Invalid:\n\n```typescript\n// This is 4 elements, not a size 100 array of 3 elements\nconst a = new Array(100, 1, 2, 3);\n\nconst b = new Array(); // use [] instead\n```\n\n### Valid:\n\n```typescript\nconst a = new Array(100);\nconst b = [];\nconst c = [1, 2, 3];\n```\n",
     "tags": [
