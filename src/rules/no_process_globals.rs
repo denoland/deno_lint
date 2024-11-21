@@ -15,18 +15,18 @@ use deno_ast::SourceRanged;
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
-pub struct NoProcessGlobal;
+pub struct NoProcessGlobals;
 
 const CODE: &str = "no-process-globals";
 const MESSAGE: &str = "NodeJS process global is discouraged in Deno";
 
-impl LintRule for NoProcessGlobal {
+impl LintRule for NoProcessGlobals {
   fn lint_program_with_ast_view<'view>(
     &self,
     context: &mut Context<'view>,
     program: Program<'view>,
   ) {
-    NoProcessGlobalHandler {
+    NoProcessGlobalsHandler {
       most_recent_import_range: None,
     }
     .traverse(program, context);
@@ -46,7 +46,7 @@ impl LintRule for NoProcessGlobal {
   }
 }
 
-struct NoProcessGlobalHandler {
+struct NoProcessGlobalsHandler {
   most_recent_import_range: Option<SourceRange>,
 }
 
@@ -65,7 +65,7 @@ fn program_code_start(program: Program) -> SourcePos {
   }
 }
 
-impl NoProcessGlobalHandler {
+impl NoProcessGlobalsHandler {
   fn fix_change(&self, ctx: &mut Context) -> LintFixChange {
     // If the fix is an import, we want to insert it after the last import
     // statement. If there are no import statements, we want to insert it at
@@ -103,7 +103,7 @@ impl NoProcessGlobalHandler {
   }
 }
 
-impl Handler for NoProcessGlobalHandler {
+impl Handler for NoProcessGlobalsHandler {
   fn ident(&mut self, id: &ast_view::Ident, ctx: &mut Context) {
     if id.sym() != "process" {
       return;
@@ -125,7 +125,7 @@ mod tests {
   #[test]
   fn valid() {
     assert_lint_ok! {
-      NoProcessGlobal,
+      NoProcessGlobals,
       "import process from 'node:process';\nconst a = process.env;",
       "const process = { env: {} };\nconst a = process.env;",
     }
@@ -134,7 +134,7 @@ mod tests {
   #[test]
   fn invalid() {
     assert_lint_err! {
-      NoProcessGlobal,
+      NoProcessGlobals,
       "import a from 'b';\nconst e = process.env;": [
         {
           col: 10,
