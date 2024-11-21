@@ -17,7 +17,7 @@ use deno_ast::SourceRangedForSpanned;
 #[derive(Debug)]
 pub struct NoProcessGlobal;
 
-const CODE: &str = "no-process-global";
+const CODE: &str = "no-process-globals";
 const MESSAGE: &str = "NodeJS process global is discouraged in Deno";
 
 impl LintRule for NoProcessGlobal {
@@ -42,7 +42,7 @@ impl LintRule for NoProcessGlobal {
 
   #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_process_global.md")
+    include_str!("../../docs/rules/no_process_globals.md")
   }
 }
 
