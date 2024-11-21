@@ -24,6 +24,7 @@ pub mod fresh_handler_export;
 pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
+pub mod jsx_no_duplicate_props;
 pub mod jsx_props_no_spread_multi;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
@@ -257,6 +258,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(fresh_server_event_handlers::FreshServerEventHandlers),
     Box::new(getter_return::GetterReturn),
     Box::new(guard_for_in::GuardForIn),
+    Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
     Box::new(jsx_props_no_spread_multi::JSXPropsNoSpreadMulti),
     Box::new(no_array_constructor::NoArrayConstructor),
     Box::new(no_async_promise_executor::NoAsyncPromiseExecutor),
