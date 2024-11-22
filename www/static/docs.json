@@ -116,7 +116,8 @@
     "docs": "Ensure that void elements in HTML don't have any children as that is not valid\nHTML. See [MDN](https://developer.mozilla.org/en-US/docs/Glossary/Void_element)\nfor more information.\n\n### Invalid:\n\n```tsx\n<br>foo</br>\n<img src=\"a.jpg\">foo</img>\n```\n\n### Valid:\n\n```tsx\n<br />\n<img src=\"a.jpg\" />\n```\n",
     "tags": [
       "react",
-      "jsx"
+      "jsx",
+      "fresh"
     ]
   },
   {
