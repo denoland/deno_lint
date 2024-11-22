@@ -123,11 +123,9 @@ impl Handler for RulesOfHooksHandler {
         self.parent_kind.push(ParentKind::Bin);
       }
       Node::ArrowExpr(_) => {
-        if let Some(last) = self.parent_kind.last() {
-          if let ParentKind::Var(name) = last {
-            self.parent_kind.push(ParentKind::Fn((name.to_string(), 0)));
-            return;
-          }
+        if let Some(ParentKind::Var(name)) = self.parent_kind.last() {
+          self.parent_kind.push(ParentKind::Fn((name.to_string(), 0)));
+          return;
         }
 
         self.parent_kind.push(ParentKind::Unknown);
@@ -183,7 +181,7 @@ impl Handler for RulesOfHooksHandler {
   }
 
   fn call_expr(&mut self, node: &CallExpr, ctx: &mut Context) {
-    if is_hook_call(&node) {
+    if is_hook_call(node) {
       if self.parent_kind.is_empty() {
         ctx.add_diagnostic_with_hint(
           node.range(),
@@ -261,10 +259,8 @@ impl Handler for RulesOfHooksHandler {
 }
 
 fn is_hook_call(call_expr: &CallExpr) -> bool {
-  if let Callee::Expr(callee) = call_expr.callee {
-    if let Expr::Ident(id) = callee {
-      return id.sym().starts_with("use");
-    }
+  if let Callee::Expr(Expr::Ident(id)) = call_expr.callee {
+    return id.sym().starts_with("use");
   }
 
   false
