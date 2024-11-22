@@ -116,7 +116,8 @@
     "docs": "Using JSX children together with `dangerouslySetInnerHTML` is invalid as they\nwill be ignored.\n\n### Invalid:\n\n```tsx\n<div dangerouslySetInnerHTML={{ __html: \"<h1>hello</h1>\" }}>\n  <h1>this will never be rendered</h1>\n</div>;\n```\n\n### Valid:\n\n```tsx\n<div dangerouslySetInnerHTML={{ __html: \"<h1>hello</h1>\" }} />;\n```\n",
     "tags": [
       "react",
-      "jsx"
+      "jsx",
+      "fresh"
     ]
   },
   {
