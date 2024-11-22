@@ -64,10 +64,8 @@ struct JSXKeyHandler;
 
 impl Handler for JSXKeyHandler {
   fn array_lit(&mut self, node: &ArrayLit, ctx: &mut Context) {
-    for elem in node.elems {
-      if let Some(elem) = elem {
-        check_expr(ctx, &elem.expr);
-      }
+    for elem in node.elems.iter().flatten() {
+      check_expr(ctx, &elem.expr);
     }
   }
 
@@ -103,7 +101,7 @@ impl Handler for JSXKeyHandler {
           if id.sym() == "Array" {
             if let MemberProp::Ident(member_id) = member.prop {
               if member_id.sym() == "from" {
-                if let Some(el) = node.args.iter().nth(1) {
+                if let Some(el) = node.args.get(1) {
                   check_callback(ctx, &el.expr);
                 }
               }
@@ -181,7 +179,7 @@ fn check_stmt(ctx: &mut Context, stmt: &Stmt) {
 fn check_expr(ctx: &mut Context, expr: &Expr) {
   match expr {
     Expr::JSXElement(jsx_el) => {
-      if !has_key_jsx_attr(&jsx_el.opening.attrs) {
+      if !has_key_jsx_attr(jsx_el.opening.attrs) {
         ctx.add_diagnostic_with_hint(
           jsx_el.opening.range(),
           CODE,
