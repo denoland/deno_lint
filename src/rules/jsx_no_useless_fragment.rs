@@ -45,13 +45,11 @@ impl Handler for JSXNoUselessFragmentHandler {
     if node.children.is_empty() {
       ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
     } else if node.children.len() == 1 {
-      if let Some(first) = &node.children.first() {
-        match first {
-          JSXElementChild::JSXElement(_) | JSXElementChild::JSXFragment(_) => {
-            ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
-          }
-          _ => {}
-        }
+      if let Some(
+        JSXElementChild::JSXElement(_) | JSXElementChild::JSXFragment(_),
+      ) = &node.children.first()
+      {
+        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
       }
     }
   }
