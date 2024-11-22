@@ -122,7 +122,7 @@ impl Handler for HasButtonTypeHandler {
                               Expr::Lit(lit) => {
                                 check_literal_value(ctx, &lit);
                               }
-                              Expr::Tpl(tpl) => check_tpl(ctx, &tpl),
+                              Expr::Tpl(tpl) => check_tpl(ctx, tpl),
                               _ => ctx.add_diagnostic_with_hint(
                                 cond_expr.cons.range(),
                                 CODE,
@@ -135,7 +135,7 @@ impl Handler for HasButtonTypeHandler {
                               Expr::Lit(lit) => {
                                 check_literal_value(ctx, &lit);
                               }
-                              Expr::Tpl(tpl) => check_tpl(ctx, &tpl),
+                              Expr::Tpl(tpl) => check_tpl(ctx, tpl),
                               _ => ctx.add_diagnostic_with_hint(
                                 cond_expr.alt.range(),
                                 CODE,
@@ -147,7 +147,7 @@ impl Handler for HasButtonTypeHandler {
                           Expr::Lit(lit) => {
                             check_literal_value(ctx, &lit);
                           }
-                          Expr::Tpl(tpl) => check_tpl(ctx, &tpl),
+                          Expr::Tpl(tpl) => check_tpl(ctx, tpl),
                           _ => {
                             ctx.add_diagnostic_with_hint(
                               attr_value.range(),
