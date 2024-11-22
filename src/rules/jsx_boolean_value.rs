@@ -44,18 +44,9 @@ impl Handler for JSXBooleanValueHandler {
   fn jsx_attr(&mut self, node: &JSXAttr, ctx: &mut Context) {
     if let Some(value) = node.value {
       if let JSXAttrValue::JSXExprContainer(expr) = value {
-        if let JSXExpr::Expr(expr) = expr.expr {
-          if let Expr::Lit(lit) = expr {
-            if let Lit::Bool(lit_bool) = lit {
-              if lit_bool.value() {
-                ctx.add_diagnostic_with_hint(
-                  value.range(),
-                  CODE,
-                  MESSAGE,
-                  HINT,
-                );
-              }
-            }
+        if let JSXExpr::Expr(Expr::Lit(Lit::Bool(lit_bool))) = expr.expr {
+          if lit_bool.value() {
+            ctx.add_diagnostic_with_hint(value.range(), CODE, MESSAGE, HINT);
           }
         }
       }
