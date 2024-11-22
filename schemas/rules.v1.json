@@ -92,6 +92,7 @@
     "no-unsafe-negation",
     "no-unused-labels",
     "no-unused-vars",
+    "no-unversioned-import",
     "no-var",
     "no-window",
     "no-window-prefix",

@@ -577,6 +577,11 @@
     ]
   },
   {
+    "code": "no-unversioned-import",
+    "docs": "Ensure that inline dependency imports have a version specifier.\n\n### Invalid:\n\n```ts\nimport foo from \"npm:chalk\";\nimport foo from \"jsr:@std/path\";\n```\n\n### Valid:\n\n```ts\nimport foo from \"npm:chalk@5.3.0\";\nimport foo from \"npm:chalk@^5.3.0\";\nimport foo from \"jsr:@std/path@1.0.8\";\nimport foo from \"jsr:@std/path@^1.0.8\";\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-var",
     "docs": "Enforces the use of block scoped variables over more error prone function scoped\nvariables. Block scoped variables are defined using `const` and `let` keywords.\n\n`const` and `let` keywords ensure the variables defined using these keywords are\nnot accessible outside their block scope. On the other hand, variables defined\nusing `var` keyword are only limited by their function scope.\n\n### Invalid:\n\n```typescript\nvar foo = \"bar\";\n```\n\n### Valid:\n\n```typescript\nconst foo = 1;\nlet bar = 2;\n```\n",
     "tags": [
