@@ -76,24 +76,20 @@ impl Handler for JSXCurlyBracesHandler {
   fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
     for child in node.children {
       if let JSXElementChild::JSXExprContainer(child_expr) = child {
-        if let JSXExpr::Expr(expr) = child_expr.expr {
-          if let Expr::Lit(lit) = expr {
-            if let Lit::Str(lit_str) = lit {
-              ctx.add_diagnostic_with_fixes(
-                child.range(),
-                CODE,
-                DiagnosticKind::CurlyChild.message(),
-                Some(DiagnosticKind::CurlyChild.hint().to_string()),
-                vec![LintFix {
-                  description: "Remove curly braces around JSX child".into(),
-                  changes: vec![LintFixChange {
-                    new_text: lit_str.value().to_string().into(),
-                    range: child.range(),
-                  }],
-                }],
-              )
-            }
-          }
+        if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = child_expr.expr {
+          ctx.add_diagnostic_with_fixes(
+            child.range(),
+            CODE,
+            DiagnosticKind::CurlyChild.message(),
+            Some(DiagnosticKind::CurlyChild.hint().to_string()),
+            vec![LintFix {
+              description: "Remove curly braces around JSX child".into(),
+              changes: vec![LintFixChange {
+                new_text: lit_str.value().to_string().into(),
+                range: child.range(),
+              }],
+            }],
+          )
         }
       }
     }
@@ -103,25 +99,21 @@ impl Handler for JSXCurlyBracesHandler {
     if let Some(value) = node.value {
       match value {
         JSXAttrValue::JSXExprContainer(expr) => {
-          if let JSXExpr::Expr(expr) = expr.expr {
-            if let Expr::Lit(lit) = expr {
-              if let Lit::Str(lit_str) = lit {
-                ctx.add_diagnostic_with_fixes(
-                  value.range(),
-                  CODE,
-                  DiagnosticKind::CurlyAttribute.message(),
-                  Some(DiagnosticKind::CurlyAttribute.hint().to_string()),
-                  vec![LintFix {
-                    description:
-                      "Remove curly braces around JSX attribute value".into(),
-                    changes: vec![LintFixChange {
-                      new_text: format!("\"{}\"", lit_str.value()).into(),
-                      range: value.range(),
-                    }],
-                  }],
-                );
-              }
-            }
+          if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = expr.expr {
+            ctx.add_diagnostic_with_fixes(
+              value.range(),
+              CODE,
+              DiagnosticKind::CurlyAttribute.message(),
+              Some(DiagnosticKind::CurlyAttribute.hint().to_string()),
+              vec![LintFix {
+                description: "Remove curly braces around JSX attribute value"
+                  .into(),
+                changes: vec![LintFixChange {
+                  new_text: format!("\"{}\"", lit_str.value()).into(),
+                  range: value.range(),
+                }],
+              }],
+            );
           }
         }
         JSXAttrValue::JSXElement(jsx_el) => {
