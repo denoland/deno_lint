@@ -759,6 +759,15 @@
     ]
   },
   {
+    "code": "rules-of-hooks",
+    "docs": "Ensure that (P)React hooks are only called inside component functions and not\ncalled conditionally. A hook is a function that starts with `use`\n\n### Invalid:\n\n```tsx\n// BAD: Called conditionally\nfunction Component() {\n  if (cond) {\n    const [count, setCount] = useState(0);\n  }\n  // ...\n}\n\n// BAD: Called in a loop\nfunction Component() {\n  for (let i = 0; i < 10; i++) {\n    const [count, setCount] = useState(0);\n  }\n  // ...\n}\n\n// BAD: Called after conditional return\nfunction Component() {\n  if (cond) {\n    return;\n  }\n\n  const [count, setCount] = useState(0);\n  // ...\n}\n\n// BAD: Called inside event handler\nfunction Component() {\n  function onClick() {\n    const [count, setCount] = useState(0);\n  }\n\n  return <button onClick={onClick}>click me</button>;\n}\n\n// BAD: Called inside useMemo\nfunction Component() {\n  const value = useMemo(() => {\n    const [count, setCount] = useState(0);\n    return count;\n  });\n}\n\n// BAD: Called inside try/catch\nfunction Component() {\n  try {\n    const [count, setCount] = useState(0);\n  } catch {\n    const [count, setCount] = useState(0);\n  }\n\n  // ...\n}\n```\n\n### Valid:\n\n```tsx\nfunction Component() {\n  const [count, setCount] = useState(0);\n  // ...\n}\n\nfunction useCustomHook() {\n  const [count, setCount] = useState(0);\n  // ...\n}\n```\n",
+    "tags": [
+      "react",
+      "jsx",
+      "fresh"
+    ]
+  },
+  {
     "code": "single-var-declarator",
     "docs": "Disallows multiple variable definitions in the same declaration statement\n\n### Invalid:\n\n```typescript\nconst foo = 1, bar = \"2\";\n```\n\n### Valid:\n\n```typescript\nconst foo = 1;\nconst bar = \"2\";\n```\n",
     "tags": []
