@@ -116,7 +116,8 @@
     "docs": "Prevent comment strings being accidentally passed as text in JSX.\n\n### Invalid:\n\n```tsx\nconst foo = <div>// comment</div>;\nconst foo = <div>/* comment */</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <div>{/* comment */}</div>;\n```\n",
     "tags": [
       "react",
-      "jsx"
+      "jsx",
+      "fresh"
     ]
   },
   {
