@@ -32,6 +32,7 @@
     "no-const-assign",
     "no-constant-condition",
     "no-control-regex",
+    "no-danger",
     "no-debugger",
     "no-delete-var",
     "no-deprecated-deno-api",
