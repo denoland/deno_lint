@@ -45,10 +45,9 @@ impl Handler for JSXNoDangerWithChildrenHandler {
     for attr in node.opening.attrs {
       if let JSXAttrOrSpread::JSXAttr(attr) = attr {
         if let JSXAttrName::Ident(id) = attr.name {
-          if id.sym() == "dangerouslySetInnerHTML" {
-            if !node.children.is_empty() {
-              ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
-            }
+          if id.sym() == "dangerouslySetInnerHTML" && !node.children.is_empty()
+          {
+            ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
           }
         }
       }
