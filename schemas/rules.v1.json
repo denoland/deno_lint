@@ -19,6 +19,7 @@
     "fresh-server-event-handlers",
     "getter-return",
     "guard-for-in",
+    "jsx-boolean-value",
     "no-array-constructor",
     "no-async-promise-executor",
     "no-await-in-loop",
