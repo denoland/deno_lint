@@ -364,6 +364,11 @@
     ]
   },
   {
+    "code": "no-import-prefix",
+    "docs": "Ensure that all dependencies are declared in either `deno.json` or\n`package.json`.\n\n### Invalid:\n\n```ts\nimport foo from \"https://deno.land/std/path/mod.ts\";\nimport foo from \"jsr:@std/path\";\nimport foo from \"npm:preact\";\n```\n\n### Valid:\n\n```ts\n// Mapped in `deno.json` or `package.json`\nimport foo from \"@std/path\";\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-inferrable-types",
     "docs": "Disallows easily inferrable types\n\nVariable initializations to JavaScript primitives (and `null`) are obvious in\ntheir type. Specifying their type can add additional verbosity to the code. For\nexample, with `const x: number = 5`, specifying `number` is unnecessary as it is\nobvious that `5` is a number.\n\n### Invalid:\n\n```typescript\nconst a: bigint = 10n;\nconst b: bigint = BigInt(10);\nconst c: boolean = true;\nconst d: boolean = !0;\nconst e: number = 10;\nconst f: number = Number(\"1\");\nconst g: number = Infinity;\nconst h: number = NaN;\nconst i: null = null;\nconst j: RegExp = /a/;\nconst k: RegExp = RegExp(\"a\");\nconst l: RegExp = new RegExp(\"a\");\nconst m: string = \"str\";\nconst n: string = `str`;\nconst o: string = String(1);\nconst p: symbol = Symbol(\"a\");\nconst q: undefined = undefined;\nconst r: undefined = void someValue;\n\nclass Foo {\n  prop: number = 5;\n}\n\nfunction fn(s: number = 5, t: boolean = true) {}\n```\n\n### Valid:\n\n```typescript\nconst a = 10n;\nconst b = BigInt(10);\nconst c = true;\nconst d = !0;\nconst e = 10;\nconst f = Number(\"1\");\nconst g = Infinity;\nconst h = NaN;\nconst i = null;\nconst j = /a/;\nconst k = RegExp(\"a\");\nconst l = new RegExp(\"a\");\nconst m = \"str\";\nconst n = `str`;\nconst o = String(1);\nconst p = Symbol(\"a\");\nconst q = undefined;\nconst r = void someValue;\n\nclass Foo {\n  prop = 5;\n}\n\nfunction fn(s = 5, t = true) {}\n```\n",
     "tags": []

@@ -62,6 +62,7 @@ pub mod no_global_assign;
 pub mod no_implicit_declare_namespace_export;
 pub mod no_import_assertions;
 pub mod no_import_assign;
+pub mod no_import_prefix;
 pub mod no_inferrable_types;
 pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
@@ -295,6 +296,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     ),
     Box::new(no_import_assertions::NoImportAssertions),
     Box::new(no_import_assign::NoImportAssign),
+    Box::new(no_import_prefix::NoImportPrefix),
     Box::new(no_inferrable_types::NoInferrableTypes),
     Box::new(no_inner_declarations::NoInnerDeclarations),
     Box::new(no_invalid_regexp::NoInvalidRegexp),
