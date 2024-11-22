@@ -620,6 +620,15 @@
     "tags": []
   },
   {
+    "code": "no-string-refs",
+    "docs": "String `refs` are deprecated and should not be used. Use callback-based refs or\n`useRef` instead.\n\n### Invalid:\n\n```tsx\n<div ref=\"foo\" />\n<App ref=\"foo\" />\n```\n\n### Valid:\n\n```tsx\n<div ref={(c) => {}} />;\n\nfunction Foo() {\n  const ref = useRef();\n  return <Bar ref={ref} />;\n}\n```\n",
+    "tags": [
+      "react",
+      "jsx",
+      "fresh"
+    ]
+  },
+  {
     "code": "no-sync-fn-in-async-fn",
     "docs": "Disallow sync function inside async function\n\nUsing sync functions like `Deno.readTextFileSync` blocks the deno event loop so\nit's not recommended to use it inside of an async function, because it stops\nprogress of all other async tasks.\n\n### Invalid:\n\n```javascript\nasync function foo() {\n  Deno.readTextFileSync(\"\");\n}\n\nconst fooFn = async function foo() {\n  Deno.readTextFileSync(\"\");\n};\n\nconst fooFn = async () => {\n  Deno.readTextFileSync(\"\");\n};\n```\n\n### Valid:\n\n```javascript\nasync function foo() {\n  await Deno.readTextFile(\"\");\n}\n\nfunction foo() {\n  Deno.readTextFileSync(\"\");\n}\n\nconst fooFn = function foo() {\n  Deno.readTextFileSync(\"\");\n};\n\nconst fooFn = () => {\n  Deno.readTextFileSync(\"\");\n};\n```\n",
     "tags": []
