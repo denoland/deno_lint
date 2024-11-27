@@ -75,7 +75,7 @@ pub mod no_non_null_asserted_optional_chain;
 pub mod no_non_null_assertion;
 pub mod no_obj_calls;
 pub mod no_octal;
-pub mod no_process_global;
+pub mod no_process_globals;
 pub mod no_prototype_builtins;
 pub mod no_redeclare;
 pub mod no_regex_spaces;
@@ -310,7 +310,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_non_null_assertion::NoNonNullAssertion),
     Box::new(no_obj_calls::NoObjCalls),
     Box::new(no_octal::NoOctal),
-    Box::new(no_process_global::NoProcessGlobal),
+    Box::new(no_process_globals::NoProcessGlobals),
     Box::new(no_prototype_builtins::NoPrototypeBuiltins),
     Box::new(no_redeclare::NoRedeclare),
     Box::new(no_regex_spaces::NoRegexSpaces),
