@@ -45,7 +45,7 @@ enum DiagnosticKind {
 impl DiagnosticKind {
   fn message(&self) -> &'static str {
     match *self {
-      DiagnosticKind::MissingKey => "Missing 'key' prop for element",
+      DiagnosticKind::MissingKey => "Missing 'key' prop for an element",
       DiagnosticKind::MissingFragKey => "Missing 'key' prop for Fragemnt",
     }
   }
