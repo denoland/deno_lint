@@ -13,7 +13,7 @@ const CODE: &str = "jsx-void-dom-elements-no-children";
 
 impl LintRule for JSXVoidDomElementsNoChildren {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx", "fresh"]
+    &["recommended", "react", "jsx", "fresh"]
   }
 
   fn code(&self) -> &'static str {
