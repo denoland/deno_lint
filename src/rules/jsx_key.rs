@@ -98,15 +98,17 @@ impl Handler for JSXKeyHandler {
           check_callback(ctx, &callback.expr)
         }
       } else if let Expr::Member(member) = callee {
-        if let Expr::Ident(id) = member.obj {
-          if id.sym() == "Array" {
-            if let MemberProp::Ident(member_id) = member.prop {
-              if member_id.sym() == "from" {
-                if let Some(el) = node.args.get(1) {
-                  check_callback(ctx, &el.expr);
-                }
-              }
-            }
+        let Expr::Ident(id) = member.obj else {
+          return;
+        };
+
+        let MemberProp::Ident(member_id) = member.prop else {
+          return;
+        };
+
+        if id.sym() == "Array" && member_id.sym() == "from" {
+          if let Some(el) = node.args.get(1) {
+            check_callback(ctx, &el.expr);
           }
         }
       }
