@@ -2,7 +2,8 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::Program;
+use crate::tags::Tags;
+use crate::{tags, Program};
 use deno_ast::view::{Expr, JSXAttr, JSXAttrValue, JSXExpr, Lit};
 use deno_ast::SourceRanged;
 
@@ -12,8 +13,8 @@ pub struct JSXBooleanValue;
 const CODE: &str = "jsx-boolean-value";
 
 impl LintRule for JSXBooleanValue {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
   }
 
   fn code(&self) -> &'static str {
