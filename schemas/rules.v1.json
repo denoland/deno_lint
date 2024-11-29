@@ -24,6 +24,7 @@
     "jsx-curly-braces",
     "jsx-no-children-prop",
     "jsx-no-duplicate-props",
+    "jsx-no-useless-fragment",
     "jsx-props-no-spread-multi",
     "jsx-void-dom-elements-no-children",
     "no-array-constructor",

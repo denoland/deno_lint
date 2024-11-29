@@ -31,6 +31,7 @@ pub mod jsx_boolean_value;
 pub mod jsx_curly_braces;
 pub mod jsx_no_children_prop;
 pub mod jsx_no_duplicate_props;
+pub mod jsx_no_useless_fragment;
 pub mod jsx_props_no_spread_multi;
 pub mod jsx_void_dom_elements_no_children;
 pub mod no_array_constructor;
@@ -270,6 +271,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(jsx_curly_braces::JSXCurlyBraces),
     Box::new(jsx_no_children_prop::JSXNoChildrenProp),
     Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
+    Box::new(jsx_no_useless_fragment::JSXNoUselessFragment),
     Box::new(jsx_props_no_spread_multi::JSXPropsNoSpreadMulti),
     Box::new(jsx_void_dom_elements_no_children::JSXVoidDomElementsNoChildren),
     Box::new(no_array_constructor::NoArrayConstructor),
