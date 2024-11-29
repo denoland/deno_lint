@@ -46,10 +46,10 @@ impl LintRule for ValidTypeof {
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/valid_typeof.md")
   }
-  
+
   fn priority(&self) -> u32 {
-        0
-      }
+    0
+  }
 }
 
 struct ValidTypeofVisitor<'c, 'view> {

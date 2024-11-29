@@ -2,10 +2,10 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
-use crate::{js_regex::*, tags};
 use crate::tags::Tags;
 use crate::Program;
 use crate::ProgramRef;
+use crate::{js_regex::*, tags};
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
 use deno_ast::swc::visit::noop_visit_type;

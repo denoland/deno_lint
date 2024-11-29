@@ -369,7 +369,7 @@ mod tests {
 
   use crate::tags;
 
-use super::*;
+  use super::*;
 
   #[test]
   fn recommended_rules_sorted_alphabetically() {

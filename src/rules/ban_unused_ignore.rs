@@ -1,7 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::{tags::{self, Tags}, Program};
+use crate::{
+  tags::{self, Tags},
+  Program,
+};
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
