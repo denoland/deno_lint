@@ -112,6 +112,15 @@
     "tags": []
   },
   {
+    "code": "jsx-curly-braces",
+    "docs": "Ensure consistent use of curly braces around JSX expressions.\n\n### Invalid:\n\n```tsx\nconst foo = <Foo foo=<div /> />;\nconst foo = <Foo str={\"foo\"} />;\nconst foo = <div>{\"foo\"}</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <Foo foo={<div />} />;\nconst foo = <Foo str=\"foo\" />;\nconst foo = <div>foo</div>;\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "jsx-no-children-prop",
     "docs": "Pass children as JSX children instead of as an attribute.\n\n### Invalid:\n\n```tsx\n<div children=\"foo\" />\n<div children={[<Foo />, <Bar />]} />\n```\n\n### Valid:\n\n```tsx\n<div>foo</div>\n<div><Foo /><Bar /></div>\n```\n",
     "tags": [
