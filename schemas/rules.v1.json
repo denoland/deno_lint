@@ -8,6 +8,7 @@
     "ban-untagged-ignore",
     "ban-untagged-todo",
     "ban-unused-ignore",
+    "button-has-type",
     "camelcase",
     "constructor-super",
     "default-param-last",
