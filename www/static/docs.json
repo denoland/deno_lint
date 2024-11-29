@@ -50,6 +50,7 @@
     "code": "button-has-type",
     "docs": "Checks that a `<button>` JSX element has a valid `type` attribute. The default\nvalue is `\"submit\"` which is often not the desired behavior.\n\n### Invalid:\n\n```tsx\n<button />\n<button type=\"foo\" />\n<button type={condition ? \"foo\" : \"bar\"} />\n<button type={foo} />\n<button type={2} />\n```\n\n### Valid:\n\n```tsx\n<button type=\"submit\" />\n<button type=\"button\" />\n<button type=\"reset\" />\n<button type={condition ? \"button\" : \"submit\"} />\n```\n",
     "tags": [
+      "recommended",
       "react",
       "jsx",
       "fresh"
