@@ -115,6 +115,7 @@
     "code": "jsx-no-duplicate-props",
     "docs": "Disallow duplicated JSX props. Later props will always overwrite earlier props\noften leading to unexpected results.\n\n### Invalid:\n\n```tsx\n<div id=\"1\" id=\"2\" />;\n<App a a />;\n<App a {...b} a />;\n```\n\n### Valid:\n\n```tsx\n<div id=\"1\" />\n<App a />\n<App a {...b} />\n<App {...b} b />\n```\n",
     "tags": [
+      "recommended",
       "react",
       "jsx"
     ]
