@@ -16,7 +16,7 @@ const CODE: &str = "jsx-props-no-spread-multi";
 
 impl LintRule for JSXPropsNoSpreadMulti {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx"]
+    &["recommended", "react", "jsx"]
   }
 
   fn code(&self) -> &'static str {
