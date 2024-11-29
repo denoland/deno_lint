@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
   ArrayLit, BlockStmtOrExpr, CallExpr, Callee, Expr, JSXAttrName,
@@ -15,8 +16,8 @@ pub struct JSXKey;
 const CODE: &str = "jsx-key";
 
 impl LintRule for JSXKey {
-  fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
   }
 
   fn code(&self) -> &'static str {
