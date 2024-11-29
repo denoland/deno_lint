@@ -58,7 +58,7 @@ impl DiagnosticKind {
         "Missing value for button's `type` attribute"
       }
       DiagnosticKind::WrongValue => {
-        "Incorrect value for button `type` attribute"
+        "Incorrect value for button's `type` attribute"
       }
     }
   }
