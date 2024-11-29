@@ -122,6 +122,24 @@
     ]
   },
   {
+    "code": "jsx-no-duplicate-props",
+    "docs": "Disallow duplicated JSX props. Later props will always overwrite earlier props\noften leading to unexpected results.\n\n### Invalid:\n\n```tsx\n<div id=\"1\" id=\"2\" />;\n<App a a />;\n<App a {...b} a />;\n```\n\n### Valid:\n\n```tsx\n<div id=\"1\" />\n<App a />\n<App a {...b} />\n<App {...b} b />\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx"
+    ]
+  },
+  {
+    "code": "jsx-props-no-spread-multi",
+    "docs": "Spreading the same expression twice is typically a mistake and causes\nunnecessary computations.\n\n### Invalid:\n\n```tsx\n<div {...foo} {...foo} />\n<div {...foo} a {...foo} />\n<Foo {...foo.bar} {...foo.bar} />\n```\n\n### Valid:\n\n```tsx\n<div {...foo} />\n<div {...foo.bar} a />\n<Foo {...foo.bar} />\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "no-array-constructor",
     "docs": "Enforce conventional usage of array construction\n\nArray construction is conventionally done via literal notation such as `[]` or\n`[1, 2, 3]`. Using the `new Array()` is discouraged as is `new Array(1, 2, 3)`.\nThere are two reasons for this. The first is that a single supplied argument\ndefines the array length, while multiple arguments instead populate the array of\nno fixed size. This confusion is avoided when pre-populated arrays are only\ncreated using literal notation. The second argument to avoiding the `Array`\nconstructor is that the `Array` global may be redefined.\n\nThe one exception to this rule is when creating a new array of fixed size, e.g.\n`new Array(6)`. This is the conventional way to create arrays of fixed length.\n\n### Invalid:\n\n```typescript\n// This is 4 elements, not a size 100 array of 3 elements\nconst a = new Array(100, 1, 2, 3);\n\nconst b = new Array(); // use [] instead\n```\n\n### Valid:\n\n```typescript\nconst a = new Array(100);\nconst b = [];\nconst c = [1, 2, 3];\n```\n",
     "tags": [
@@ -202,6 +220,15 @@
     "docs": "Disallows the use ascii control characters in regular expressions\n\nControl characters are invisible characters in the ASCII range of 0-31. It is\nuncommon to use these in a regular expression and more often it is a mistake in\nthe regular expression.\n\n### Invalid:\n\n```typescript\n// Examples using ASCII (31) Carriage Return (hex x0d)\nconst pattern1 = /\\x0d/;\nconst pattern2 = /\\u000d/;\nconst pattern3 = new RegExp(\"\\\\x0d\");\nconst pattern4 = new RegExp(\"\\\\u000d\");\n```\n\n### Valid:\n\n```typescript\n// Examples using ASCII (32) Space (hex x20)\nconst pattern1 = /\\x20/;\nconst pattern2 = /\\u0020/;\nconst pattern3 = new RegExp(\"\\\\x20\");\nconst pattern4 = new RegExp(\"\\\\u0020\");\n```\n",
     "tags": [
       "recommended"
+    ]
+  },
+  {
+    "code": "no-danger",
+    "docs": "Prevent the use of `dangerouslySetInnerHTML` which can lead to XSS\nvulnerabilities if used incorrectly.\n\n### Invalid:\n\n```tsx\nconst hello = <div dangerouslySetInnerHTML={{ __html: \"Hello World!\" }} />;\n```\n\n### Valid:\n\n```tsx\nconst hello = <div>Hello World!</div>;\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx"
     ]
   },
   {

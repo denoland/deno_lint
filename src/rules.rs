@@ -25,6 +25,8 @@ pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
 pub mod jsx_no_children_prop;
+pub mod jsx_no_duplicate_props;
+pub mod jsx_props_no_spread_multi;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
@@ -38,6 +40,7 @@ pub mod no_console;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
+pub mod no_danger;
 pub mod no_debugger;
 pub mod no_delete_var;
 pub mod no_deprecated_deno_api;
@@ -257,6 +260,8 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(getter_return::GetterReturn),
     Box::new(guard_for_in::GuardForIn),
     Box::new(jsx_no_children_prop::JSXNoChildrenProp),
+    Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
+    Box::new(jsx_props_no_spread_multi::JSXPropsNoSpreadMulti),
     Box::new(no_array_constructor::NoArrayConstructor),
     Box::new(no_async_promise_executor::NoAsyncPromiseExecutor),
     Box::new(no_await_in_loop::NoAwaitInLoop),
@@ -270,6 +275,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_const_assign::NoConstAssign),
     Box::new(no_constant_condition::NoConstantCondition),
     Box::new(no_control_regex::NoControlRegex),
+    Box::new(no_danger::NoDanger),
     Box::new(no_debugger::NoDebugger),
     Box::new(no_delete_var::NoDeleteVar),
     Box::new(no_deprecated_deno_api::NoDeprecatedDenoApi),
