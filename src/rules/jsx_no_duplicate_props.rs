@@ -15,7 +15,7 @@ const CODE: &str = "jsx-no-duplicate-props";
 
 impl LintRule for JSXNoDuplicateProps {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx"]
+    &["recommended", "react", "jsx"]
   }
 
   fn code(&self) -> &'static str {
