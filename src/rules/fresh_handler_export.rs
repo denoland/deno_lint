@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 
 use deno_ast::view::{Decl, Pat, Program};
 use deno_ast::SourceRanged;
@@ -15,8 +16,8 @@ const MESSAGE: &str =
 const HINT: &str = "Did you mean \"handler\"?";
 
 impl LintRule for FreshHandlerExport {
-  fn tags(&self) -> &'static [&'static str] {
-    &["fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::FRESH]
   }
 
   fn code(&self) -> &'static str {

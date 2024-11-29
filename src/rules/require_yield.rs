@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::ClassMethod;
@@ -22,8 +23,8 @@ const CODE: &str = "require-yield";
 const MESSAGE: &str = "Generator function has no `yield`";
 
 impl LintRule for RequireYield {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

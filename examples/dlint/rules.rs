@@ -2,13 +2,14 @@
 
 use crate::color::colorize_markdown;
 use deno_lint::rules::get_all_rules;
+use deno_lint::tags;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct Rule {
   code: &'static str,
   docs: &'static str,
-  tags: &'static [&'static str],
+  tags: Vec<&'static str>,
 }
 
 pub fn get_all_rules_metadata() -> Vec<Rule> {
@@ -17,7 +18,7 @@ pub fn get_all_rules_metadata() -> Vec<Rule> {
     .map(|rule| Rule {
       code: rule.code(),
       docs: rule.docs(),
-      tags: rule.tags(),
+      tags: rule.tags().iter().map(|tag| tag.display()).collect(),
     })
     .collect()
 }
@@ -89,7 +90,7 @@ impl RuleFormatter for PrettyFormatter {
         list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
         list.extend(rules.iter().map(|r| {
           let mut s = format!(" - {}", r.code);
-          if r.tags.contains(&"recommended") {
+          if r.tags.contains(&tags::RECOMMENDED.display()) {
             s += " ✔️";
           }
           s

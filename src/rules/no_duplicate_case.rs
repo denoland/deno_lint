@@ -3,6 +3,7 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::span_and_ctx_drop;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Expr, SwitchStmt};
@@ -30,8 +31,8 @@ enum NoDuplicateCaseHint {
 }
 
 impl LintRule for NoDuplicateCase {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
