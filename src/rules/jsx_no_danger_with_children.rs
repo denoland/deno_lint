@@ -56,8 +56,6 @@ impl Handler for JSXNoDangerWithChildrenHandler {
   }
 }
 
-// most tests are taken from ESlint, commenting those
-// requiring code path support
 #[cfg(test)]
 mod tests {
   use super::*;
