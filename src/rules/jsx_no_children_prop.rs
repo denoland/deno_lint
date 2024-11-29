@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{JSXAttrName, JSXAttrOrSpread, JSXOpeningElement};
 use deno_ast::SourceRanged;
@@ -12,8 +13,8 @@ pub struct JSXNoChildrenProp;
 const CODE: &str = "jsx-no-children-prop";
 
 impl LintRule for JSXNoChildrenProp {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx", "fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {

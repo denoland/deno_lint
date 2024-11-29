@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::view::ImportDecl;
 use deno_ast::{ModuleSpecifier, SourceRanged};
@@ -26,7 +27,7 @@ enum NoExternalImportHint {
 }
 
 impl LintRule for NoExternalImport {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 

@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{JSXElement, JSXElementName};
 use deno_ast::SourceRanged;
@@ -12,8 +13,8 @@ pub struct JSXVoidDomElementsNoChildren;
 const CODE: &str = "jsx-void-dom-elements-no-children";
 
 impl LintRule for JSXVoidDomElementsNoChildren {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx", "fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {

@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{JSXAttrOrSpread, JSXOpeningElement, NodeTrait};
 use deno_ast::{SourceRange, SourceRanged};
@@ -15,8 +16,8 @@ pub struct JSXPropsNoSpreadMulti;
 const CODE: &str = "jsx-props-no-spread-multi";
 
 impl LintRule for JSXPropsNoSpreadMulti {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
   }
 
   fn code(&self) -> &'static str {

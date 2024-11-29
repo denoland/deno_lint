@@ -6,6 +6,8 @@ use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 
 use deno_ast::view as ast_view;
@@ -24,8 +26,8 @@ const HINT: &str =
 const FIX_DESC: &str = "Rename window to globalThis";
 
 impl LintRule for NoWindowPrefix {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

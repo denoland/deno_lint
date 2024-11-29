@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
   Expr, JSXAttr, JSXAttrValue, JSXElement, JSXElementChild, JSXExpr, Lit,
@@ -16,8 +17,8 @@ pub struct JSXCurlyBraces;
 const CODE: &str = "jsx-curly-braces";
 
 impl LintRule for JSXCurlyBraces {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
   }
 
   fn code(&self) -> &'static str {

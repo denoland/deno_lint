@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::TsEntityName;
 use deno_ast::{view as ast_view, SourceRanged};
@@ -74,8 +75,8 @@ impl TryFrom<&str> for BannedType {
 }
 
 impl LintRule for BanTypes {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
