@@ -19,6 +19,7 @@
     "fresh-server-event-handlers",
     "getter-return",
     "guard-for-in",
+    "jsx-no-children-prop",
     "jsx-no-duplicate-props",
     "jsx-props-no-spread-multi",
     "no-array-constructor",
