@@ -17,7 +17,7 @@ const CODE: &str = "jsx-curly-braces";
 
 impl LintRule for JSXCurlyBraces {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx"]
+    &["recommended", "react", "jsx"]
   }
 
   fn code(&self) -> &'static str {
