@@ -54,7 +54,7 @@ impl DiagnosticKind {
     match *self {
       DiagnosticKind::MissingKey => "Add a 'key' prop",
       DiagnosticKind::MissingFragKey => {
-        "Use the <Fragment key=\"..\"> syntax instead"
+        "Use the `<Fragment key=\"..\">` syntax instead"
       }
     }
   }
