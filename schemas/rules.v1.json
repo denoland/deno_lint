@@ -19,6 +19,7 @@
     "fresh-server-event-handlers",
     "getter-return",
     "guard-for-in",
+    "jsx-boolean-value",
     "jsx-curly-braces",
     "jsx-no-children-prop",
     "jsx-no-duplicate-props",

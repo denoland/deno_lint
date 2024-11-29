@@ -112,6 +112,15 @@
     "tags": []
   },
   {
+    "code": "jsx-boolean-value",
+    "docs": "Enforce a consistent JSX boolean value style. Passing `true` as the boolean\nvalue can be omitted with the shorthand syntax.\n\n### Invalid:\n\n```tsx\nconst foo = <Foo isFoo={true} />;\nconst foo = <Foo isFoo={false} />;\n```\n\n### Valid:\n\n```tsx\nconst foo = <Foo isFoo />;\nconst foo = <Foo isFoo={false} />;\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "jsx-curly-braces",
     "docs": "Ensure consistent use of curly braces around JSX expressions.\n\n### Invalid:\n\n```tsx\nconst foo = <Foo foo=<div /> />;\nconst foo = <Foo str={\"foo\"} />;\nconst foo = <div>{\"foo\"}</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <Foo foo={<div />} />;\nconst foo = <Foo str=\"foo\" />;\nconst foo = <div>foo</div>;\n```\n",
     "tags": [

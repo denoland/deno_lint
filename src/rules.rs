@@ -24,6 +24,7 @@ pub mod fresh_handler_export;
 pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
+pub mod jsx_boolean_value;
 pub mod jsx_curly_braces;
 pub mod jsx_no_children_prop;
 pub mod jsx_no_duplicate_props;
@@ -261,6 +262,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(fresh_server_event_handlers::FreshServerEventHandlers),
     Box::new(getter_return::GetterReturn),
     Box::new(guard_for_in::GuardForIn),
+    Box::new(jsx_boolean_value::JSXBooleanValue),
     Box::new(jsx_curly_braces::JSXCurlyBraces),
     Box::new(jsx_no_children_prop::JSXNoChildrenProp),
     Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
