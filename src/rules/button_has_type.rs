@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
   Expr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName, JSXExpr,
@@ -15,8 +16,8 @@ pub struct ButtonHasType;
 const CODE: &str = "button-has-type";
 
 impl LintRule for ButtonHasType {
-  fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx", "fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
@@ -82,116 +83,124 @@ impl Handler for HasButtonTypeHandler {
     ctx: &mut Context,
   ) {
     if let JSXElementName::Ident(id) = node.name {
-      if id.sym() == "button" {
-        let mut found = false;
-        for attr in node.attrs {
-          if let JSXAttrOrSpread::JSXAttr(attr) = attr {
-            if let JSXAttrName::Ident(name) = attr.name {
-              if name.sym() == "type" {
-                found = true;
+      if id.sym() != "button" {
+        return;
+      }
 
-                if let Some(attr_value) = attr.value {
-                  let kind = DiagnosticKind::WrongValue;
-                  match attr_value {
-                    JSXAttrValue::Lit(lit) => {
-                      if let Lit::Str(lit_str) = lit {
-                        let value = lit_str.value();
-                        if !is_valid_value(value) {
-                          ctx.add_diagnostic_with_hint(
-                            attr_value.range(),
-                            CODE,
-                            kind.message(),
-                            kind.hint(),
-                          );
-                        }
-                      } else {
-                        ctx.add_diagnostic_with_hint(
-                          attr_value.range(),
-                          CODE,
-                          kind.message(),
-                          kind.hint(),
-                        );
-                      }
-                    }
-                    JSXAttrValue::JSXExprContainer(expr) => {
-                      if let JSXExpr::Expr(expr) = expr.expr {
-                        match expr {
-                          Expr::Cond(cond_expr) => {
-                            match cond_expr.cons {
-                              Expr::Lit(lit) => {
-                                check_literal_value(ctx, &lit);
-                              }
-                              Expr::Tpl(tpl) => check_tpl(ctx, tpl),
-                              _ => ctx.add_diagnostic_with_hint(
-                                cond_expr.cons.range(),
-                                CODE,
-                                kind.message(),
-                                kind.hint(),
-                              ),
-                            };
+      let mut found = false;
+      for attr in node.attrs {
+        let JSXAttrOrSpread::JSXAttr(attr) = attr else {
+          continue;
+        };
 
-                            match cond_expr.alt {
-                              Expr::Lit(lit) => {
-                                check_literal_value(ctx, &lit);
-                              }
-                              Expr::Tpl(tpl) => check_tpl(ctx, tpl),
-                              _ => ctx.add_diagnostic_with_hint(
-                                cond_expr.alt.range(),
-                                CODE,
-                                kind.message(),
-                                kind.hint(),
-                              ),
-                            };
-                          }
-                          Expr::Lit(lit) => {
-                            check_literal_value(ctx, &lit);
-                          }
-                          Expr::Tpl(tpl) => check_tpl(ctx, tpl),
-                          _ => {
-                            ctx.add_diagnostic_with_hint(
-                              attr_value.range(),
-                              CODE,
-                              kind.message(),
-                              kind.hint(),
-                            );
-                          }
-                        }
-                      }
-                    }
-                    _ => {
-                      let kind = DiagnosticKind::WrongValue;
-                      ctx.add_diagnostic_with_hint(
-                        attr_value.range(),
-                        CODE,
-                        kind.message(),
-                        kind.hint(),
-                      );
-                    }
+        let JSXAttrName::Ident(name) = attr.name else {
+          continue;
+        };
+
+        if name.sym() == "type" {
+          found = true;
+
+          if let Some(attr_value) = attr.value {
+            let kind = DiagnosticKind::WrongValue;
+            match attr_value {
+              JSXAttrValue::Lit(lit) => {
+                if let Lit::Str(lit_str) = lit {
+                  let value = lit_str.value();
+                  if !is_valid_value(value) {
+                    ctx.add_diagnostic_with_hint(
+                      attr_value.range(),
+                      CODE,
+                      kind.message(),
+                      kind.hint(),
+                    );
                   }
                 } else {
-                  let kind = DiagnosticKind::MissingValue;
                   ctx.add_diagnostic_with_hint(
-                    attr.name.range(),
+                    attr_value.range(),
                     CODE,
                     kind.message(),
                     kind.hint(),
                   );
-                  return;
+                }
+              }
+              JSXAttrValue::JSXExprContainer(expr) => {
+                let JSXExpr::Expr(expr) = expr.expr else {
+                  continue;
                 };
+
+                match expr {
+                  Expr::Cond(cond_expr) => {
+                    match cond_expr.cons {
+                      Expr::Lit(lit) => {
+                        check_literal_value(ctx, &lit);
+                      }
+                      Expr::Tpl(tpl) => check_tpl(ctx, tpl),
+                      _ => ctx.add_diagnostic_with_hint(
+                        cond_expr.cons.range(),
+                        CODE,
+                        kind.message(),
+                        kind.hint(),
+                      ),
+                    };
+
+                    match cond_expr.alt {
+                      Expr::Lit(lit) => {
+                        check_literal_value(ctx, &lit);
+                      }
+                      Expr::Tpl(tpl) => check_tpl(ctx, tpl),
+                      _ => ctx.add_diagnostic_with_hint(
+                        cond_expr.alt.range(),
+                        CODE,
+                        kind.message(),
+                        kind.hint(),
+                      ),
+                    };
+                  }
+                  Expr::Lit(lit) => {
+                    check_literal_value(ctx, &lit);
+                  }
+                  Expr::Tpl(tpl) => check_tpl(ctx, tpl),
+                  _ => {
+                    ctx.add_diagnostic_with_hint(
+                      attr_value.range(),
+                      CODE,
+                      kind.message(),
+                      kind.hint(),
+                    );
+                  }
+                }
+              }
+              _ => {
+                let kind = DiagnosticKind::WrongValue;
+                ctx.add_diagnostic_with_hint(
+                  attr_value.range(),
+                  CODE,
+                  kind.message(),
+                  kind.hint(),
+                );
               }
             }
-          }
+          } else {
+            let kind = DiagnosticKind::MissingValue;
+            ctx.add_diagnostic_with_hint(
+              attr.name.range(),
+              CODE,
+              kind.message(),
+              kind.hint(),
+            );
+            return;
+          };
         }
+      }
 
-        if !found {
-          let kind = DiagnosticKind::MissingTypeAttr;
-          ctx.add_diagnostic_with_hint(
-            node.range(),
-            CODE,
-            kind.message(),
-            kind.hint(),
-          );
-        }
+      if !found {
+        let kind = DiagnosticKind::MissingTypeAttr;
+        ctx.add_diagnostic_with_hint(
+          node.range(),
+          CODE,
+          kind.message(),
+          kind.hint(),
+        );
       }
     }
   }
