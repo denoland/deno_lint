@@ -3,6 +3,7 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::BinExpr;
@@ -20,8 +21,8 @@ const CODE: &str = "valid-typeof";
 const MESSAGE: &str = "Invalid typeof comparison value";
 
 impl LintRule for ValidTypeof {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -44,6 +45,10 @@ impl LintRule for ValidTypeof {
   #[cfg(feature = "docs")]
   fn docs(&self) -> &'static str {
     include_str!("../../docs/rules/valid_typeof.md")
+  }
+
+  fn priority(&self) -> u32 {
+    0
   }
 }
 

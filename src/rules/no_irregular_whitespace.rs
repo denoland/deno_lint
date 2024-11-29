@@ -1,6 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::{RootNode, SourceRangedForSpanned};
 use deno_ast::{SourceRange, SourceRanged};
@@ -40,8 +41,8 @@ fn test_for_whitespace(value: &str) -> Vec<Matches> {
 }
 
 impl LintRule for NoIrregularWhitespace {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
