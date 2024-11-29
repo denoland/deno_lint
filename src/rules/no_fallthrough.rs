@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::common::comments::Comment;
@@ -32,8 +33,8 @@ enum NoFallthroughHint {
 }
 
 impl LintRule for NoFallthrough {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

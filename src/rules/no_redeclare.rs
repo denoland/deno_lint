@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Id;
@@ -20,8 +21,8 @@ const CODE: &str = "no-redeclare";
 const MESSAGE: &str = "Redeclaration is not allowed";
 
 impl LintRule for NoRedeclare {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

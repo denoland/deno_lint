@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
 use deno_ast::{SourceRanged, SourceRangedForSpanned};
@@ -12,8 +13,8 @@ pub struct NoEmpty;
 const CODE: &str = "no-empty";
 
 impl LintRule for NoEmpty {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

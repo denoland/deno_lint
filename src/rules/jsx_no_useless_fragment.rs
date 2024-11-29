@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{JSXElement, JSXElementChild, JSXFragment};
 use deno_ast::SourceRanged;
@@ -12,8 +13,8 @@ pub struct JSXNoUselessFragment;
 const CODE: &str = "jsx-no-useless-fragment";
 
 impl LintRule for JSXNoUselessFragment {
-  fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx", "fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {

@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::Number;
 use deno_ast::SourceRanged;
@@ -16,8 +17,8 @@ const MESSAGE: &str = "Numeric literals beginning with `0` are not allowed";
 const HINT: &str = "To express octal numbers, use `0o` as a prefix instead";
 
 impl LintRule for NoOctal {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

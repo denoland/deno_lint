@@ -1,7 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::Program;
+use crate::{
+  tags::{self, Tags},
+  Program,
+};
 
 /// This is a dummy struct just for having the docs.
 /// The actual implementation resides in [`Context`].
@@ -9,8 +12,8 @@ use crate::Program;
 pub struct BanUnusedIgnore;
 
 impl LintRule for BanUnusedIgnore {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

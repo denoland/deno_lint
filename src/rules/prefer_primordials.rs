@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::Scope;
@@ -62,7 +63,7 @@ enum PreferPrimordialsHint {
 }
 
 impl LintRule for PreferPrimordials {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 
