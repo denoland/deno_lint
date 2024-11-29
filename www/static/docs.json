@@ -150,7 +150,7 @@
   },
   {
     "code": "jsx-void-dom-elements-no-children",
-    "docs": "Ensure that void elements in HTML don't have any children as that is not valid\nHTML. See [`Void element` article on MDN](https://developer.mozilla.org/en-US/docs/Glossary/Void_element)\nfor more information.\n\n### Invalid:\n\n```tsx\n<br>foo</br>\n<img src=\"a.jpg\">foo</img>\n```\n\n### Valid:\n\n```tsx\n<br />\n<img src=\"a.jpg\" />\n```\n",
+    "docs": "Ensure that void elements in HTML don't have any children as that is not valid\nHTML. See\n[`Void element` article on MDN](https://developer.mozilla.org/en-US/docs/Glossary/Void_element)\nfor more information.\n\n### Invalid:\n\n```tsx\n<br>foo</br>\n<img src=\"a.jpg\">foo</img>\n```\n\n### Valid:\n\n```tsx\n<br />\n<img src=\"a.jpg\" />\n```\n",
     "tags": [
       "recommended",
       "react",
