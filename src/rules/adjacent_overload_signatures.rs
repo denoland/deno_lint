@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
@@ -26,8 +27,8 @@ enum AdjacentOverloadSignaturesHint {
 }
 
 impl LintRule for AdjacentOverloadSignatures {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

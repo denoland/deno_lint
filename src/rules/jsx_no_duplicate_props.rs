@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{JSXAttrName, JSXAttrOrSpread, JSXOpeningElement};
 use deno_ast::SourceRanged;
@@ -14,8 +15,8 @@ pub struct JSXNoDuplicateProps;
 const CODE: &str = "jsx-no-duplicate-props";
 
 impl LintRule for JSXNoDuplicateProps {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
   }
 
   fn code(&self) -> &'static str {

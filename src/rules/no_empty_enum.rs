@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 
@@ -12,8 +13,8 @@ const CODE: &str = "no-empty-enum";
 const MESSAGE: &str = "An empty enum is equivalent to `{}`. Remove this enum or add members to this enum.";
 
 impl LintRule for NoEmptyEnum {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

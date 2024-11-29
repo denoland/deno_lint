@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -55,8 +56,8 @@ enum NoUnusedVarsHint {
 }
 
 impl LintRule for NoUnusedVars {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

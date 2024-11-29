@@ -1,5 +1,6 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 
 use deno_ast::view as ast_view;
@@ -13,7 +14,7 @@ const MESSAGE: &str = "`console` usage is not allowed.";
 const CODE: &str = "no-console";
 
 impl LintRule for NoConsole {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 

@@ -1,6 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use crate::context::Context;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 use crate::ProgramRef;
 use std::cmp::Ordering;
@@ -131,7 +133,7 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   fn code(&self) -> &'static str;
 
   /// Returns the tags this rule belongs to, e.g. `recommended`
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 
@@ -167,7 +169,7 @@ pub fn recommended_rules(
 ) -> Vec<Box<dyn LintRule>> {
   all_rules
     .into_iter()
-    .filter(|r| r.tags().contains(&"recommended"))
+    .filter(|r| r.tags().contains(&tags::RECOMMENDED))
     .collect()
 }
 
@@ -365,7 +367,9 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
 mod tests {
   use std::sync::Arc;
 
-  use super::*;
+  use crate::tags;
+
+use super::*;
 
   #[test]
   fn recommended_rules_sorted_alphabetically() {
@@ -472,7 +476,7 @@ mod tests {
         let rules = Arc::clone(&rules);
         spawn(move || {
           for rule in rules.iter() {
-            assert!(rule.tags().contains(&"recommended"));
+            assert!(rule.tags().contains(&tags::RECOMMENDED));
           }
         })
       })

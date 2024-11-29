@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::find_lhs_ids;
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::AssignExpr;
 use deno_ast::{BindingKind, SourceRanged};
@@ -28,8 +29,8 @@ enum NoFuncAssignHint {
 }
 
 impl LintRule for NoFuncAssign {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

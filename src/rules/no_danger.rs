@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{JSXAttr, JSXAttrName};
 use deno_ast::SourceRanged;
@@ -12,8 +13,8 @@ pub struct NoDanger;
 const CODE: &str = "no-danger";
 
 impl LintRule for NoDanger {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended", "react", "jsx"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
   }
 
   fn code(&self) -> &'static str {
