@@ -22,6 +22,7 @@
     "guard-for-in",
     "jsx-boolean-value",
     "jsx-curly-braces",
+    "jsx-key",
     "jsx-no-children-prop",
     "jsx-no-danger-with-children",
     "jsx-no-duplicate-props",

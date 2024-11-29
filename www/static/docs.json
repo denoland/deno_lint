@@ -140,6 +140,15 @@
     ]
   },
   {
+    "code": "jsx-key",
+    "docs": "Ensure the `key` attribute is present when passing iterables into JSX. It allows\nframeworks to optimize checking the order of elements.\n\n### Invalid:\n\n```tsx\nconst foo = [<div>foo</div>];\nconst foo = [<>foo</>];\n[1, 2, 3].map(() => <div />);\nArray.from([1, 2, 3], () => <div />);\n```\n\n### Valid:\n\n```tsx\nconst foo = [<div key=\"a\">foo</div>];\nconst foo = [<Fragment key=\"b\">foo</Fragment>];\n[1, 2, 3].map((x) => <div key={x} />);\nArray.from([1, 2, 3], (x) => <div key={x} />);\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx"
+    ]
+  },
+  {
     "code": "jsx-no-children-prop",
     "docs": "Pass children as JSX children instead of as an attribute.\n\n### Invalid:\n\n```tsx\n<div children=\"foo\" />\n<div children={[<Foo />, <Bar />]} />\n```\n\n### Valid:\n\n```tsx\n<div>foo</div>\n<div><Foo /><Bar /></div>\n```\n",
     "tags": [
