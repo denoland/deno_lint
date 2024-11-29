@@ -68,8 +68,7 @@ impl DiagnosticKind {
       DiagnosticKind::MissingTypeAttr => {
         "Add a `type` attribute with a value of `button`, `submit` or `reset`"
       }
-      DiagnosticKind::MissingValue => "The value of the `type` attribute must be one of `button`, `submit` or `reset`",
-      DiagnosticKind::WrongValue => "The value of the `type` attribute must be one of `button`, `submit` or `reset`",
+      DiagnosticKind::MissingValue | DiagnosticKind::WrongValue => "The value of the `type` attribute must be one of `button`, `submit` or `reset`",
     }
   }
 }
