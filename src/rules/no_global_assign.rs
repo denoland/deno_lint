@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
 use deno_ast::swc::ast::Id;
@@ -28,8 +29,8 @@ enum NoGlobalAssignHint {
 }
 
 impl LintRule for NoGlobalAssign {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

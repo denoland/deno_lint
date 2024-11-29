@@ -1,6 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::comments::CommentKind;
@@ -68,8 +70,8 @@ impl BanTsComment {
 }
 
 impl LintRule for BanTsComment {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

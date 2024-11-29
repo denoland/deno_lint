@@ -3,6 +3,8 @@
 use super::program_ref;
 use super::Context;
 use super::LintRule;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Decl;
@@ -19,8 +21,8 @@ const CODE: &str = "no-unreachable";
 const MESSAGE: &str = "This statement is unreachable";
 
 impl LintRule for NoUnreachable {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {

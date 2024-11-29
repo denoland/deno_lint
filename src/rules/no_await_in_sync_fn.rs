@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::{view as ast_view, SourceRanged};
@@ -14,8 +15,8 @@ const MESSAGE: &str = "Unexpected `await` inside a non-async function.";
 const HINT: &str = "Remove `await` in the function body or change the function to an async function.";
 
 impl LintRule for NoAwaitInSyncFn {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
