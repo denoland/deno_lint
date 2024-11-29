@@ -13,7 +13,7 @@ const CODE: &str = "jsx-boolean-value";
 
 impl LintRule for JSXBooleanValue {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx"]
+    &["recommended", "react", "jsx"]
   }
 
   fn code(&self) -> &'static str {
