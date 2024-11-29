@@ -13,7 +13,7 @@ const CODE: &str = "jsx-no-children-prop";
 
 impl LintRule for JSXNoChildrenProp {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx", "fresh"]
+    &["recommended", "react", "jsx", "fresh"]
   }
 
   fn code(&self) -> &'static str {
