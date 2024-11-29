@@ -13,7 +13,7 @@ const CODE: &str = "no-danger";
 
 impl LintRule for NoDanger {
   fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx"]
+    &["recommended", "react", "jsx"]
   }
 
   fn code(&self) -> &'static str {

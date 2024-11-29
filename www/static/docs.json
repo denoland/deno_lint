@@ -198,6 +198,7 @@
     "code": "no-danger",
     "docs": "Prevent the use of `dangerouslySetInnerHTML` which can lead to XSS\nvulnerabilities if used incorrectly.\n\n### Invalid:\n\n```tsx\nconst hello = <div dangerouslySetInnerHTML={{ __html: \"Hello World!\" }} />;\n```\n\n### Valid:\n\n```tsx\nconst hello = <div>Hello World!</div>;\n```\n",
     "tags": [
+      "recommended",
       "react",
       "jsx"
     ]
