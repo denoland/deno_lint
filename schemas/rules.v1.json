@@ -23,6 +23,7 @@
     "jsx-boolean-value",
     "jsx-curly-braces",
     "jsx-no-children-prop",
+    "jsx-no-danger-with-children",
     "jsx-no-duplicate-props",
     "jsx-no-useless-fragment",
     "jsx-props-no-spread-multi",
