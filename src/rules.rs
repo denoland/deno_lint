@@ -108,6 +108,7 @@ pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
 pub mod no_unused_vars;
+pub mod no_useless_rename;
 pub mod no_var;
 pub mod no_window;
 pub mod no_window_prefix;
@@ -354,6 +355,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_unsafe_negation::NoUnsafeNegation),
     Box::new(no_unused_labels::NoUnusedLabels),
     Box::new(no_unused_vars::NoUnusedVars),
+    Box::new(no_useless_rename::NoUselessRename),
     Box::new(no_var::NoVar),
     Box::new(no_window::NoWindow),
     Box::new(no_window_prefix::NoWindowPrefix),
