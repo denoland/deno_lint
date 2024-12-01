@@ -681,6 +681,11 @@
     ]
   },
   {
+    "code": "no-useless-rename",
+    "docs": "Disallow useless rename operations where both the original and new name are\nexactly the same. This is often a leftover from a refactoring procedure and can\nbe safely removed.\n\n### Invalid:\n\n```ts\nimport { foo as foo } from \"foo\";\nconst { foo: foo } = obj;\nexport { foo as foo };\n```\n\n### Valid:\n\n```ts\nimport { foo as bar } from \"foo\";\nconst { foo: bar } = obj;\nexport { foo as bar };\n```\n",
+    "tags": []
+  },
+  {
     "code": "no-var",
     "docs": "Enforces the use of block scoped variables over more error prone function scoped\nvariables. Block scoped variables are defined using `const` and `let` keywords.\n\n`const` and `let` keywords ensure the variables defined using these keywords are\nnot accessible outside their block scope. On the other hand, variables defined\nusing `var` keyword are only limited by their function scope.\n\n### Invalid:\n\n```typescript\nvar foo = \"bar\";\n```\n\n### Valid:\n\n```typescript\nconst foo = 1;\nlet bar = 2;\n```\n",
     "tags": [

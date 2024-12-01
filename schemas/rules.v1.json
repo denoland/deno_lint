@@ -103,6 +103,7 @@
     "no-unsafe-negation",
     "no-unused-labels",
     "no-unused-vars",
+    "no-useless-rename",
     "no-var",
     "no-window",
     "no-window-prefix",
