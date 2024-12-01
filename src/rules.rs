@@ -120,6 +120,7 @@ pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
 pub mod require_await;
 pub mod require_yield;
+pub mod rules_of_hooks;
 pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
@@ -367,6 +368,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(prefer_primordials::PreferPrimordials),
     Box::new(require_await::RequireAwait),
     Box::new(require_yield::RequireYield),
+    Box::new(rules_of_hooks::RulesOfHooks),
     Box::new(single_var_declarator::SingleVarDeclarator),
     Box::new(triple_slash_reference::TripleSlashReference),
     Box::new(use_isnan::UseIsNaN),

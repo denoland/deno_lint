@@ -115,6 +115,7 @@
     "prefer-primordials",
     "require-await",
     "require-yield",
+    "rules-of-hooks",
     "single-var-declarator",
     "triple-slash-reference",
     "use-isnan",
