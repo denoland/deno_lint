@@ -449,7 +449,7 @@
     ]
   },
   {
-    "code": "no-process-global",
+    "code": "no-process-globals",
     "docs": "Disallows the use of NodeJS `process` global.\n\nNodeJS and Deno expose `process` global but they are hard to statically analyze\nby tools, so code should not assume they are available. Instead,\n`import process from \"node:process\"`.\n\n### Invalid:\n\n```typescript\n// foo.ts\nconst foo = process.env.FOO;\n```\n\n### Valid:\n\n```typescript\n// foo.ts\nimport process from \"node:process\";\n\nconst foo = process.env.FOO;\n```\n",
     "tags": [
       "recommended"
