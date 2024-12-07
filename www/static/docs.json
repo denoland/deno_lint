@@ -28,6 +28,11 @@
     ]
   },
   {
+    "code": "ban-untagged-deprecation",
+    "docs": "`@deprecated` tags must provide additional information, such as the reason for\ndeprecation or suggested alternatives.\n\n### Invalid:\n\n```typescript\n/**\n * @deprecated\n */\nexport function oldFunction(): void {}\n```\n\n### Valid:\n\n```typescript\n/**\n * @deprecated since version 2.0. Use `newFunction` instead.\n */\nexport function oldFunction(): void {}\n```\n",
+    "tags": []
+  },
+  {
     "code": "ban-untagged-ignore",
     "docs": "Requires `deno-lint-ignore` to be annotated with one or more rule names.\n\nIgnoring all rules can mask unexpected or future problems. Therefore you need to\nexplicitly specify which rule(s) are to be ignored.\n\n### Invalid:\n\n```typescript\n// deno-lint-ignore\nexport function duplicateArgumentsFn(a, b, a) {}\n```\n\n### Valid:\n\n```typescript\n// deno-lint-ignore no-dupe-args\nexport function duplicateArgumentsFn(a, b, a) {}\n```\n",
     "tags": [
