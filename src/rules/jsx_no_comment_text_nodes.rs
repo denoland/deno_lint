@@ -42,7 +42,6 @@ struct JSXNoCommentTextNodesHandler;
 
 impl Handler for JSXNoCommentTextNodesHandler {
   fn jsx_text(&mut self, node: &JSXText, ctx: &mut Context) {
-    //
     let value = &node.inner.value;
     if value.starts_with("//") || value.starts_with("/*") {
       ctx.add_diagnostic(node.range(), CODE, MESSAGE);
