@@ -1,4 +1,4 @@
-Ensure that (P)React hooks are only called inside component functions and not
+Ensure that React/Preact hooks are only called inside component functions and not
 called conditionally. A hook is a function that starts with `use`
 
 ### Invalid:
