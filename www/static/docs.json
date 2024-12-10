@@ -159,6 +159,16 @@
     ]
   },
   {
+    "code": "jsx-no-comment-text-nodes",
+    "docs": "Prevent comment strings being accidentally passed as text in JSX.\n\n### Invalid:\n\n```tsx\nconst foo = <div>// comment</div>;\nconst foo = <div>/* comment */</div>;\n```\n\n### Valid:\n\n```tsx\nconst foo = <div>{/* comment */}</div>;\n```\n",
+    "tags": [
+      "recommended",
+      "react",
+      "jsx",
+      "fresh"
+    ]
+  },
+  {
     "code": "jsx-no-danger-with-children",
     "docs": "Using JSX children together with `dangerouslySetInnerHTML` is invalid as they\nwill be ignored.\n\n### Invalid:\n\n```tsx\n<div dangerouslySetInnerHTML={{ __html: \"<h1>hello</h1>\" }}>\n  <h1>this will never be rendered</h1>\n</div>;\n```\n\n### Valid:\n\n```tsx\n<div dangerouslySetInnerHTML={{ __html: \"<h1>hello</h1>\" }} />;\n```\n",
     "tags": [
