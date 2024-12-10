@@ -1,5 +1,5 @@
 Ensure that React/Preact hooks are only called inside component functions and not
-called conditionally. A hook is a function that starts with `use`
+called conditionally. A hook is a function that starts with `use` prefix.
 
 ### Invalid:
 
