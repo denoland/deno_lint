@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, Node, Pat};
 use deno_ast::SourceRanged;
@@ -12,8 +13,8 @@ pub struct RulesOfHooks;
 const CODE: &str = "rules-of-hooks";
 
 impl LintRule for RulesOfHooks {
-  fn tags(&self) -> &'static [&'static str] {
-    &["react", "jsx", "fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
