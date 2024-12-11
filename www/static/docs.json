@@ -734,6 +734,13 @@
     ]
   },
   {
+    "code": "node-builtin-specifier",
+    "docs": "Enforces the use of the `node:` specifier for Node built-in modules.\n\nDeno requires Node built-in modules to be imported with the `node:` specifier.\n\n### Invalid:\n\n```typescript\nimport * as path from \"path\";\nimport * as fs from \"fs\";\nimport * as fsPromises from \"fs/promises\";\n```\n\n### Valid:\n\n```typescript\nimport * as path from \"node:path\";\nimport * as fs from \"node:fs\";\nimport * as fsPromises from \"node:fs/promises\";\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "prefer-as-const",
     "docs": "Recommends using const assertion (`as const`) over explicitly specifying literal\ntypes or using type assertion.\n\nWhen declaring a new variable of a primitive literal type, there are three ways:\n\n1. adding an explicit type annotation\n2. using normal type assertion (like `as \"foo\"`, or `<\"foo\">`)\n3. using const assertion (`as const`)\n\nThis lint rule suggests using const assertion because it will generally lead to\na safer code. For more details about const assertion, see\n[the official handbook](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-4.html#const-assertions).\n\n### Invalid:\n\n```typescript\nlet a: 2 = 2; // type annotation\nlet b = 2 as 2; // type assertion\nlet c = <2> 2; // type assertion\nlet d = { foo: 1 as 1 }; // type assertion\n```\n\n### Valid:\n\n```typescript\nlet a = 2 as const;\nlet b = 2 as const;\nlet c = 2 as const;\nlet d = { foo: 1 as const };\n\nlet x = 2;\nlet y: string = \"hello\";\nlet z: number = someVariable;\n```\n",
     "tags": [
