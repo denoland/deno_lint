@@ -201,4 +201,3 @@ Before submitting, please make sure the following is done:
    1. Run `cargo build --example dlint --all-features`
    2. Update docs by running the generated binary with these arguments
       `./target/debug/examples/dlint rules --json > www/static/docs.json`
-   3. Update schema via `deno task update-schemas`

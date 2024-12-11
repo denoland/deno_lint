@@ -73,10 +73,6 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: diff <(./target/release/examples/dlint rules --json) www/static/docs.json
 
-      - name: Check if schemas are up-to-date
-        if: contains(matrix.os, 'ubuntu')
-        run: deno run --allow-run --allow-read=schemas --allow-write=schemas tools/generate_schemas.ts --check
-
       - name: Benchmarks
         if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts
