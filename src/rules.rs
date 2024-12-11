@@ -12,6 +12,7 @@ pub mod adjacent_overload_signatures;
 pub mod ban_ts_comment;
 pub mod ban_types;
 pub mod ban_unknown_rule_code;
+pub mod ban_untagged_deprecation;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
 pub mod ban_unused_ignore;
@@ -258,6 +259,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(ban_ts_comment::BanTsComment),
     Box::new(ban_types::BanTypes),
     Box::new(ban_unknown_rule_code::BanUnknownRuleCode),
+    Box::new(ban_untagged_deprecation::BanUntaggedDeprecation),
     Box::new(ban_untagged_ignore::BanUntaggedIgnore),
     Box::new(ban_untagged_todo::BanUntaggedTodo),
     Box::new(ban_unused_ignore::BanUnusedIgnore),
