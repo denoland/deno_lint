@@ -5,6 +5,7 @@
     "ban-ts-comment",
     "ban-types",
     "ban-unknown-rule-code",
+    "ban-untagged-deprecation",
     "ban-untagged-ignore",
     "ban-untagged-todo",
     "ban-unused-ignore",
