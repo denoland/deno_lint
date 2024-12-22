@@ -19,13 +19,13 @@ Deno.serve((req) => {
     // TODO(bartlomieju): verify the anchor is not changed or use
     // "go" url
     return Response.redirect(
-      `https://docs.deno.com/runtime/reference/cli/lint/#ignore-directives`,
+      `https://docs.deno.com/go/lint-ignore`,
       301,
     );
   }
 
   return Response.redirect(
     "https://docs.deno.com/runtime/reference/cli/lint/",
-    304,
+    301,
   );
 });
