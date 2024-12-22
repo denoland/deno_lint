@@ -197,7 +197,5 @@ Before submitting, please make sure the following is done:
 3. Ensure `cargo test` passes.
 4. Format your code with `deno run --allow-run tools/format.ts`
 5. Make sure `deno run --allow-run --allow-env tools/lint.ts` passes.
-6. If you've added a new rule:
-   1. Run `cargo build --example dlint --all-features`
-   2. Update docs by running the generated binary with these arguments
-      `./target/debug/examples/dlint rules --json > www/static/docs.json`
+6. If you've added a new rule, open a PR to
+   https://github.com/denoland/deno-docs with a documentation for a rule.
