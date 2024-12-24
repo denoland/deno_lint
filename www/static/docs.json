@@ -521,6 +521,13 @@
     ]
   },
   {
+    "code": "no-legacy-type-assertion",
+    "docs": "Disallows the use of legacy `<Type> value` type assertion syntax in TypeScript\ncode.\n\n`<Type> value` casting syntax is considered to be outdated because it does not\nwork in JSX. Instead, you should use `value as Type`.\n\n### Invalid:\n\n```typescript\nconst foo = <Foo> bar;\n```\n\n### Valid:\n\n```typescript\nconst foo = bar as Foo;\n```\n",
+    "tags": [
+      "recommended"
+    ]
+  },
+  {
     "code": "no-misused-new",
     "docs": "Disallows defining `constructor`s for interfaces or `new` for classes\n\nSpecifying a `constructor` for an interface or defining a `new` method for a\nclass is incorrect and should be avoided.\n\n### Invalid:\n\n```typescript\nclass C {\n  new(): C;\n}\n\ninterface I {\n  constructor(): void;\n}\n```\n\n### Valid:\n\n```typescript\nclass C {\n  constructor() {}\n}\n\ninterface I {\n  new (): C;\n}\n```\n",
     "tags": [

@@ -82,6 +82,7 @@ pub mod no_inner_declarations;
 pub mod no_invalid_regexp;
 pub mod no_invalid_triple_slash_reference;
 pub mod no_irregular_whitespace;
+pub mod no_legacy_type_assertion;
 pub mod no_misused_new;
 pub mod no_namespace;
 pub mod no_new_symbol;
@@ -330,6 +331,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_invalid_regexp::NoInvalidRegexp),
     Box::new(no_invalid_triple_slash_reference::NoInvalidTripleSlashReference),
     Box::new(no_irregular_whitespace::NoIrregularWhitespace),
+    Box::new(no_legacy_type_assertion::NoLegacyTypeAssertion),
     Box::new(no_misused_new::NoMisusedNew),
     Box::new(no_namespace::NoNamespace),
     Box::new(no_new_symbol::NoNewSymbol),
