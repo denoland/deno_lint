@@ -1,13 +1,33 @@
-/// <reference no-default-lib="true" />
-/// <reference lib="dom" />
-/// <reference lib="dom.iterable" />
-/// <reference lib="dom.asynciterable" />
-/// <reference lib="deno.ns" />
+const rulePat = new URLPattern({
+  pathname: "/rules/:rule",
+}, {
+  ignoreCase: true,
+});
 
-import { start } from "$fresh/server.ts";
-import manifest from "./fresh.gen.ts";
+Deno.serve((req) => {
+  const url = new URL(req.url);
 
-import twindPlugin from "$fresh/plugins/twind.ts";
-import twindConfig from "./twind.config.ts";
+  const ruleMatch = rulePat.exec(req.url);
+  const maybeRule = ruleMatch?.pathname.groups.rule;
 
-await start(manifest, { plugins: [twindPlugin(twindConfig)] });
+  if (maybeRule) {
+    return Response.redirect(
+      `https://docs.deno.com/lint/rules/${maybeRule}`,
+      301,
+    );
+  }
+
+  if (url.pathname.startsWith("/ignoring-rules")) {
+    // TODO(bartlomieju): verify the anchor is not changed or use
+    // "go" url
+    return Response.redirect(
+      `https://docs.deno.com/go/lint-ignore`,
+      301,
+    );
+  }
+
+  return Response.redirect(
+    "https://docs.deno.com/runtime/reference/cli/lint/",
+    301,
+  );
+});
