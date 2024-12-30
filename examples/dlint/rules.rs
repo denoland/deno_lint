@@ -67,9 +67,7 @@ impl RuleFormatter for PrettyFormatter {
 
       // Certain rule name is specified.
       // Print its documentation richly.
-      [rule] => {
-        Ok(format!("Documentation: {}", rule.docs))
-      }
+      [rule] => Ok(format!("Documentation: {}", rule.docs)),
 
       // No rule name is specified.
       // Print the list of all rules.
