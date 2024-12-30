@@ -30,11 +30,6 @@ impl LintRule for NoAwaitInSyncFn {
   ) {
     NoAwaitInSyncFnHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_await_in_sync_fn.md")
-  }
 }
 
 struct NoAwaitInSyncFnHandler;

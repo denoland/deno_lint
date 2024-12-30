@@ -51,11 +51,6 @@ impl LintRule for NoConstantCondition {
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_constant_condition.md")
-  }
 }
 
 struct NoConstantConditionVisitor<'c, 'view> {

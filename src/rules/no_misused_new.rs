@@ -53,11 +53,6 @@ impl LintRule for NoMisusedNew {
   fn code(&self) -> &'static str {
     CODE
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_misused_new.md")
-  }
 }
 
 struct NoMisusedNewHandler;

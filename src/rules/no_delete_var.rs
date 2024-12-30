@@ -41,11 +41,6 @@ impl LintRule for NoDeleteVar {
   ) {
     NoDeleteVarHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_delete_var.md")
-  }
 }
 
 struct NoDeleteVarHandler;

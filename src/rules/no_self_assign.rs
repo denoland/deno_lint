@@ -56,11 +56,6 @@ impl LintRule for NoSelfAssign {
   ) {
     NoSelfAssignVisitor.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_self_assign.md")
-  }
 }
 
 struct NoSelfAssignVisitor;

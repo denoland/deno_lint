@@ -28,11 +28,6 @@ impl LintRule for JSXNoUselessFragment {
   ) {
     JSXNoUselessFragmentHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_no_useless_fragment.md")
-  }
 }
 
 const MESSAGE: &str = "Unnecessary Fragment detected";

@@ -32,11 +32,6 @@ impl LintRule for JSXCurlyBraces {
   ) {
     JSXCurlyBracesHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_curly_braces.md")
-  }
 }
 
 enum DiagnosticKind {

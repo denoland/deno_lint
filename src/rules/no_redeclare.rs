@@ -44,11 +44,6 @@ impl LintRule for NoRedeclare {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_redeclare.md")
-  }
 }
 
 struct NoRedeclareVisitor<'c, 'view> {

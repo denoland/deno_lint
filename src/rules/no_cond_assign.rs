@@ -45,11 +45,6 @@ impl LintRule for NoCondAssign {
   ) {
     NoCondAssignHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_cond_assign.md")
-  }
 }
 
 struct NoCondAssignHandler;

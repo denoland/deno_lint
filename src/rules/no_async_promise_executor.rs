@@ -31,11 +31,6 @@ impl LintRule for NoAsyncPromiseExecutor {
   ) {
     NoAsyncPromiseExecutorHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_async_promise_executor.md")
-  }
 }
 
 fn is_async_function(expr: &Expr) -> bool {

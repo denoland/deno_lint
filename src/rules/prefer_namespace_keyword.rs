@@ -31,11 +31,6 @@ impl LintRule for PreferNamespaceKeyword {
   ) {
     PreferNamespaceKeywordHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/prefer_namespace_keyword.md")
-  }
 }
 
 struct PreferNamespaceKeywordHandler;

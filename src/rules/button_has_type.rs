@@ -31,11 +31,6 @@ impl LintRule for ButtonHasType {
   ) {
     HasButtonTypeHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/button_has_type.md")
-  }
 }
 
 enum DiagnosticKind {

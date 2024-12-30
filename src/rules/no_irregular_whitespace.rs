@@ -84,11 +84,6 @@ impl LintRule for NoIrregularWhitespace {
 
     check_range(SourceRange::new(last_end, file_range.end));
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_irregular_whitespace.md")
-  }
 }
 
 #[cfg(test)]

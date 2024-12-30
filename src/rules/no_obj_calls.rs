@@ -32,11 +32,6 @@ impl LintRule for NoObjCalls {
   ) {
     NoObjCallsHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_obj_calls.md")
-  }
 }
 
 struct NoObjCallsHandler;

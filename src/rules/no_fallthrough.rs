@@ -53,11 +53,6 @@ impl LintRule for NoFallthrough {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_fallthrough.md")
-  }
 }
 
 struct NoFallthroughVisitor<'c, 'view> {

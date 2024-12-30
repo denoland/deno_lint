@@ -34,11 +34,6 @@ impl LintRule for Camelcase {
     handler.traverse(program, context);
     handler.report_errors(context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/camelcase.md")
-  }
 }
 
 /// Check if it contains underscores, except for leading and trailing ones

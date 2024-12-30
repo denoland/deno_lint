@@ -29,11 +29,6 @@ impl LintRule for JSXNoUnescapedEntities {
   ) {
     JSXNoUnescapedEntitiesHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_no_unescaped_entities.md")
-  }
 }
 
 const MESSAGE: &str = "Found one or more unescaped entities in JSX text";

@@ -53,12 +53,6 @@ Deno.test(
         await Deno.remove(rsPath);
       }
 
-      console.log(`Deleting docs/rules/${filename}.md...`);
-      const mdPath = `./docs/rules/${filename}.md`;
-      if (await exists(mdPath)) {
-        await Deno.remove(mdPath);
-      }
-
       console.log("Cleanup finished");
     }
   },

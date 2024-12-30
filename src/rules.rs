@@ -146,11 +146,6 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
     &[]
   }
 
-  /// Returns the documentation string for this rule, describing what this rule is for with several
-  /// examples.
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str;
-
   /// The lower the return value is, the earlier this rule will be run.
   ///
   /// By default it is 0. Some rules might want to defer being run to the end

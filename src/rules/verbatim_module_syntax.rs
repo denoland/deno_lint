@@ -253,11 +253,6 @@ impl LintRule for VerbatimModuleSyntax {
       }
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/verbatim_module_syntax.md")
-  }
 }
 
 /// This struct is partly lifted and adapted from:

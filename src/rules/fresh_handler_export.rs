@@ -31,11 +31,6 @@ impl LintRule for FreshHandlerExport {
   ) {
     Visitor.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/fresh_handler_export.md")
-  }
 }
 
 struct Visitor;

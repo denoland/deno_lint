@@ -72,7 +72,7 @@ which provides programmatic API as well as Webpack loader for `deno_lint`.
 
 ```shell
 # Build standalone binary
-$ cargo build --example dlint --features="docs"
+$ cargo build --example dlint
 
 $ ./target/debug/examples/dlint --help
 

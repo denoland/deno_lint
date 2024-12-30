@@ -30,11 +30,6 @@ impl LintRule for NoNewSymbol {
   ) {
     NoNewSymbolHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_new_symbol.md")
-  }
 }
 
 struct NoNewSymbolHandler;

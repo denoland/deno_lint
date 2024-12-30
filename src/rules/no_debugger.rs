@@ -41,11 +41,6 @@ impl LintRule for NoDebugger {
   ) {
     NoDebuggerHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_debugger.md")
-  }
 }
 
 struct NoDebuggerHandler;

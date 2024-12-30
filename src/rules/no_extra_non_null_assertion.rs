@@ -49,11 +49,6 @@ impl LintRule for NoExtraNonNullAssertion {
   ) {
     NoExtraNonNullAssertionHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_extra_non_null_assertion.md")
-  }
 }
 
 struct NoExtraNonNullAssertionHandler;

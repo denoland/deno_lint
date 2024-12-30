@@ -29,11 +29,6 @@ impl LintRule for RulesOfHooks {
     let mut handler = RulesOfHooksHandler::new();
     handler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/rules_of_hooks.md")
-  }
 }
 
 enum DiagnosticKind {

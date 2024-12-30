@@ -54,11 +54,6 @@ impl LintRule for NoDupeElseIf {
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_else_if.md")
-  }
 }
 
 /// A visitor to check the `no-dupe-else-if` rule.

@@ -34,11 +34,6 @@ impl LintRule for FreshServerEventHandlers {
   ) {
     Visitor.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/fresh_server_event_handlers.md")
-  }
 }
 
 struct Visitor;

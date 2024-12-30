@@ -94,11 +94,6 @@ impl LintRule for BanTsComment {
       self.report(context, range, kind);
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/ban_ts_comment.md")
-  }
 }
 
 /// Returns `None` if the comment includes no directives.

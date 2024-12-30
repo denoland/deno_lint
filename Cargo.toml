@@ -17,12 +17,10 @@ name = "deno_lint"
 
 [[example]]
 name = "dlint"
-required-features = ["docs"]
 test = true
 
 [features]
 default = []
-docs = []
 
 [dependencies]
 deno_ast = { version = "0.44.0", features = ["scopes", "transforms", "utils", "visit", "view", "react"] }

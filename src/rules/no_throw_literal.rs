@@ -33,11 +33,6 @@ impl LintRule for NoThrowLiteral {
   ) {
     NoThrowLiteralHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_throw_literal.md")
-  }
 }
 
 struct NoThrowLiteralHandler;

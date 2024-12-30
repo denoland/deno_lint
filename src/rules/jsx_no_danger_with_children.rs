@@ -28,11 +28,6 @@ impl LintRule for JSXNoDangerWithChildren {
   ) {
     JSXNoDangerWithChildrenHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_no_danger_with_children.md")
-  }
 }
 
 const MESSAGE: &str =

@@ -28,11 +28,6 @@ impl LintRule for JSXNoChildrenProp {
   ) {
     JSXNoChildrenPropHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_no_children_prop.md")
-  }
 }
 
 const MESSAGE: &str = "Avoid passing children as a prop";
