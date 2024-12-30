@@ -1,4 +1,6 @@
-const rulePat = new URLPattern("https://lint.deno.land/rules/:rule", {
+const rulePat = new URLPattern({
+  pathname: "/rules/:rule",
+}, {
   ignoreCase: true,
 });
 
