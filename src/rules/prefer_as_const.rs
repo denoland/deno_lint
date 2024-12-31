@@ -46,11 +46,6 @@ impl LintRule for PreferAsConst {
   ) {
     PreferAsConstHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/prefer_as_const.md")
-  }
 }
 
 struct PreferAsConstHandler;

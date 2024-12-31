@@ -45,11 +45,6 @@ impl LintRule for PreferAscii {
       context.add_diagnostic_with_hint(range, CODE, MESSAGE, hint(c));
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/prefer_ascii.md")
-  }
 }
 
 #[cfg(test)]

@@ -41,11 +41,6 @@ impl LintRule for NoProcessGlobal {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED]
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_process_global.md")
-  }
 }
 
 struct NoProcessGlobalHandler {

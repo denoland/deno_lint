@@ -39,11 +39,6 @@ impl LintRule for ExplicitFunctionReturnType {
     }
     ExplicitFunctionReturnTypeHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/explicit_function_return_type.md")
-  }
 }
 
 struct ExplicitFunctionReturnTypeHandler;

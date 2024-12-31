@@ -29,11 +29,6 @@ impl LintRule for NoVar {
   ) {
     NoVarHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_var.md")
-  }
 }
 
 struct NoVarHandler;

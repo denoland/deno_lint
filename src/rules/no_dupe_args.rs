@@ -44,11 +44,6 @@ impl LintRule for NoDupeArgs {
     handler.traverse(program, context);
     handler.report_errors(context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_args.md")
-  }
 }
 
 #[derive(Default)]

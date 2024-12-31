@@ -126,7 +126,7 @@ impl Diagnostic for LintDiagnostic {
       Some(Cow::Borrowed(custom_docs_url))
     } else {
       Some(Cow::Owned(format!(
-        "https://lint.deno.land/rules/{}",
+        "https://docs.deno.com/lint/rules/{}",
         &self.details.code
       )))
     }

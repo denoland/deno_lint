@@ -31,11 +31,6 @@ impl LintRule for JSXPropsNoSpreadMulti {
   ) {
     JSXPropsNoSpreadMultiHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_props_no_spread_multi.md")
-  }
 }
 
 const MESSAGE: &str = "Duplicate spread attribute found";

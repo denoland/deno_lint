@@ -41,11 +41,6 @@ impl LintRule for NoUnreachable {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_unreachable.md")
-  }
 }
 
 struct NoUnreachableVisitor<'c, 'view> {

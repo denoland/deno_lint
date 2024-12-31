@@ -54,11 +54,6 @@ impl LintRule for NoDupeClassMembers {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_class_members.md")
-  }
 }
 
 struct NoDupeClassMembersVisitor<'c, 'view> {

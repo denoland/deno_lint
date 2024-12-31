@@ -31,11 +31,6 @@ impl LintRule for ForDirection {
   ) {
     ForDirectionHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/for_direction.md")
-  }
 }
 
 const MESSAGE: &str = "Update clause moves variable in the wrong direction";

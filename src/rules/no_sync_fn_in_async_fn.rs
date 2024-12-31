@@ -31,11 +31,6 @@ impl LintRule for NoSyncFnInAsyncFn {
   ) {
     NoSyncFnInAsyncFnHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_sync_fn_in_async_fn.md")
-  }
 }
 
 /// Extracts a symbol from the given member prop if the symbol is statically determined (otherwise,

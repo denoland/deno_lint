@@ -49,11 +49,6 @@ impl LintRule for NoNodeGlobals {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED]
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_node_globals.md")
-  }
 }
 
 struct NoNodeGlobalsHandler {

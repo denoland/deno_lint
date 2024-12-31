@@ -14,23 +14,20 @@ if (import.meta.main) {
   const { snake, kebab, pascal } = convert(Deno.args[0]);
 
   const thisPath = fromFileUrl(import.meta.url);
-  const mdPath = join(thisPath, "../../docs/rules", `${snake}.md`);
   const rsPath = join(thisPath, "../../src/rules", `${snake}.rs`);
   const rulesRsPath = join(thisPath, "../../src/rules.rs");
 
-  const md = genMarkdownContent(kebab);
   const rs = genRustContent(new Date(), pascal, kebab, snake);
   const pubmod = genPubMod(await Deno.readTextFile(rulesRsPath), snake);
 
   await Promise.all([
     Deno.writeTextFile(rsPath, rs),
-    Deno.writeTextFile(mdPath, md),
     Deno.writeTextFile(rulesRsPath, pubmod),
   ]);
 
   console.log(green("SUCCESS"), `finished to scaffold for ${cyan(kebab)}!`);
   console.log(
-    `Next, open ${cyan(`docs/rules/${snake}.md`)} and ${
+    `Next, open ${
       cyan(
         `src/rules/${snake}.rs`,
       )
@@ -121,11 +118,6 @@ impl LintRule for ${pascalCasedLintName} {
     program: Program<'_>,
   ) {
     ${pascalCasedLintName}Handler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/${snakeCasedLintName}.md")
   }
 }
 

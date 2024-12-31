@@ -42,11 +42,6 @@ impl LintRule for ValidTypeof {
     }
   }
 
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/valid_typeof.md")
-  }
-
   fn priority(&self) -> u32 {
     0
   }

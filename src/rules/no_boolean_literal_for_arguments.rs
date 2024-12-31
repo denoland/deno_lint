@@ -30,11 +30,6 @@ impl LintRule for NoBooleanLiteralForArguments {
   fn tags(&self) -> Tags {
     &[]
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_boolean_literal_for_arguments.md")
-  }
 }
 
 struct NoBooleanLiteralForArgumentsVisitor;

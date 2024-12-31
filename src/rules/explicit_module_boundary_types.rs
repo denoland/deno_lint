@@ -45,11 +45,6 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     }
     ExplicitModuleBoundaryTypesHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/explicit_module_boundary_types.md")
-  }
 }
 
 struct ExplicitModuleBoundaryTypesHandler;

@@ -41,11 +41,6 @@ impl LintRule for NoInvalidRegexp {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_invalid_regexp.md")
-  }
 }
 
 fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {

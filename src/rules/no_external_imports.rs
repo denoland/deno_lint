@@ -43,11 +43,6 @@ impl LintRule for NoExternalImport {
     let mut handler = NoExternalImportHandler;
     handler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_external_imports.md")
-  }
 }
 
 #[derive(Default)]

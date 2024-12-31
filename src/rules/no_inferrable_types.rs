@@ -49,11 +49,6 @@ impl LintRule for NoInferrableTypes {
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_inferrable_types.md")
-  }
 }
 
 struct NoInferrableTypesVisitor<'c, 'view> {

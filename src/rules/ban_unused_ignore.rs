@@ -28,11 +28,6 @@ impl LintRule for BanUnusedIgnore {
     // noop
   }
 
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/ban_unused_ignore.md")
-  }
-
   // This rule should be run last.
   fn priority(&self) -> u32 {
     u32::MAX

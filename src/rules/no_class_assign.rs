@@ -31,11 +31,6 @@ impl LintRule for NoClassAssign {
   ) {
     NoClassAssignVisitor.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_class_assign.md")
-  }
 }
 
 struct NoClassAssignVisitor;

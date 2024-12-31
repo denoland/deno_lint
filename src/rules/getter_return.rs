@@ -61,11 +61,6 @@ impl LintRule for GetterReturn {
     }
     visitor.report();
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/getter_return.md")
-  }
 }
 
 struct GetterReturnVisitor<'c, 'view> {

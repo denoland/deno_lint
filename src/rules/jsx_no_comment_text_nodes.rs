@@ -28,11 +28,6 @@ impl LintRule for JSXNoCommentTextNodes {
   ) {
     JSXNoCommentTextNodesHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/jsx_no_comment_text_nodes.md")
-  }
 }
 
 const MESSAGE: &str =
