@@ -18,6 +18,7 @@ pub mod ban_unused_ignore;
 pub mod button_has_type;
 pub mod camelcase;
 pub mod constructor_super;
+pub mod curly;
 pub mod default_param_last;
 pub mod eqeqeq;
 pub mod explicit_function_return_type;
@@ -259,6 +260,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(button_has_type::ButtonHasType),
     Box::new(camelcase::Camelcase),
     Box::new(constructor_super::ConstructorSuper),
+    Box::new(curly::Curly),
     Box::new(default_param_last::DefaultParamLast),
     Box::new(eqeqeq::Eqeqeq),
     Box::new(explicit_function_return_type::ExplicitFunctionReturnType),
