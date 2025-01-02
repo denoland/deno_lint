@@ -9,7 +9,7 @@ use crate::ignore_directives::{
   LineIgnoreDirective,
 };
 use crate::linter::LinterContext;
-use crate::rules::{self, LintRule};
+use crate::rules;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::util::take::Take;
@@ -20,6 +20,7 @@ use deno_ast::{
 };
 use deno_ast::{MediaType, ModuleSpecifier};
 use deno_ast::{MultiThreadedComments, Scope};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -33,7 +34,6 @@ pub struct Context<'a> {
   scope: Scope,
   control_flow: ControlFlow,
   traverse_flow: TraverseFlow,
-  all_rule_codes: &'a HashSet<&'static str>,
   check_unknown_rules: bool,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_factory: Option<Arc<Box<Expr>>>,
@@ -112,7 +112,6 @@ impl<'a> Context<'a> {
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules: linter_ctx.check_unknown_rules,
-      all_rule_codes: &linter_ctx.all_rule_codes,
       jsx_factory,
       jsx_fragment_factory,
     }
@@ -266,7 +265,7 @@ impl<'a> Context<'a> {
   /// works for diagnostics reported by other rules.
   pub(crate) fn ban_unused_ignore(
     &self,
-    specified_rules: &[Box<dyn LintRule>],
+    known_rules_codes: &HashSet<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     const CODE: &str = "ban-unused-ignore";
 
@@ -280,10 +279,8 @@ impl<'a> Context<'a> {
       return vec![];
     }
 
-    let executed_builtin_codes: HashSet<&'static str> =
-      specified_rules.iter().map(|r| r.code()).collect();
     let is_unused_code = |&(code, status): &(&String, &CodeStatus)| {
-      let is_unknown = !executed_builtin_codes.contains(code.as_str());
+      let is_unknown = !known_rules_codes.contains(code.as_str());
       !status.used && !is_unknown
     };
 
@@ -334,15 +331,17 @@ impl<'a> Context<'a> {
   // struct.
   /// Lint rule implementation for `ban-unknown-rule-code`.
   /// This should be run after all normal rules.
-  pub(crate) fn ban_unknown_rule_code(&mut self) -> Vec<LintDiagnostic> {
-    let is_unknown_rule =
-      |code: &&String| !self.all_rule_codes.contains(code.as_str());
-
+  pub(crate) fn ban_unknown_rule_code(
+    &mut self,
+    enabled_rules: &HashSet<Cow<'static, str>>,
+  ) -> Vec<LintDiagnostic> {
     let mut diagnostics = Vec::new();
 
     if let Some(file_ignore) = self.file_ignore_directive.as_ref() {
-      for unknown_rule_code in
-        file_ignore.codes().keys().filter(is_unknown_rule)
+      for unknown_rule_code in file_ignore
+        .codes()
+        .keys()
+        .filter(|code| !enabled_rules.contains(code.as_str()))
       {
         let d = self.create_diagnostic(
           Some(self.create_diagnostic_range(file_ignore.range())),
@@ -358,8 +357,10 @@ impl<'a> Context<'a> {
     }
 
     for line_ignore in self.line_ignore_directives.values() {
-      for unknown_rule_code in
-        line_ignore.codes().keys().filter(is_unknown_rule)
+      for unknown_rule_code in line_ignore
+        .codes()
+        .keys()
+        .filter(|code| !enabled_rules.contains(code.as_str()))
       {
         let d = self.create_diagnostic(
           Some(self.create_diagnostic_range(line_ignore.range())),
@@ -449,6 +450,10 @@ impl<'a> Context<'a> {
     self
       .diagnostics
       .push(self.create_diagnostic(maybe_range, details));
+  }
+
+  pub fn add_external_diagnostics(&mut self, diagnostics: &[LintDiagnostic]) {
+    self.diagnostics.extend_from_slice(diagnostics);
   }
 
   pub(crate) fn create_diagnostic(
