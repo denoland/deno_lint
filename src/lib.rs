@@ -28,6 +28,7 @@ pub use deno_ast::view::ProgramRef;
 
 #[cfg(test)]
 mod lint_tests {
+  use std::borrow::Cow;
   use std::collections::HashSet;
 
   use crate::diagnostic::LintDiagnostic;
@@ -40,7 +41,7 @@ mod lint_tests {
   fn lint(
     source: &str,
     rules: Vec<Box<dyn LintRule>>,
-    all_rule_codes: HashSet<&'static str>,
+    all_rule_codes: HashSet<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     let linter = Linter::new(LinterOptions {
       rules,
@@ -58,6 +59,7 @@ mod lint_tests {
           default_jsx_factory: None,
           default_jsx_fragment_factory: None,
         },
+        external_linter: None,
       })
       .expect("Failed to lint");
     diagnostics
@@ -66,7 +68,7 @@ mod lint_tests {
   fn lint_with_ast(
     parsed_source: &ParsedSource,
     rules: Vec<Box<dyn LintRule>>,
-    all_rule_codes: HashSet<&'static str>,
+    all_rule_codes: HashSet<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     let linter = Linter::new(LinterOptions {
       rules,
@@ -80,6 +82,7 @@ mod lint_tests {
         default_jsx_factory: None,
         default_jsx_fragment_factory: None,
       },
+      None,
     )
   }
 
@@ -89,7 +92,7 @@ mod lint_tests {
       recommended_rules(get_all_rules()),
       get_all_rules()
         .into_iter()
-        .map(|rule| rule.code())
+        .map(|rule| rule.code().into())
         .collect(),
     )
   }
@@ -102,7 +105,7 @@ mod lint_tests {
       recommended_rules(get_all_rules()),
       get_all_rules()
         .into_iter()
-        .map(|rule| rule.code())
+        .map(|rule| rule.code().into())
         .collect(),
     )
   }
@@ -116,7 +119,7 @@ mod lint_tests {
       vec![rule],
       get_all_rules()
         .into_iter()
-        .map(|rule| rule.code())
+        .map(|rule| rule.code().into())
         .collect(),
     )
   }

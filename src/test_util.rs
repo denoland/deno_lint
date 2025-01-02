@@ -325,7 +325,7 @@ fn lint(
     rules: vec![rule],
     all_rule_codes: get_all_rules()
       .into_iter()
-      .map(|rule| rule.code())
+      .map(|rule| rule.code().into())
       .collect(),
     custom_ignore_diagnostic_directive: None,
     custom_ignore_file_directive: None,
@@ -341,6 +341,7 @@ fn lint(
       default_jsx_factory: Some("React.createElement".to_owned()),
       default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
     },
+    external_linter: None,
   });
   match lint_result {
     Ok((source, diagnostics)) => (source, diagnostics),

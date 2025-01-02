@@ -91,7 +91,7 @@ fn run_linter(
   let all_rules = get_all_rules();
   let all_rule_codes = all_rules
     .iter()
-    .map(|rule| rule.code())
+    .map(|rule| rule.code().into())
     .collect::<HashSet<_>>();
   let rules = if let Some(config) = maybe_config {
     config.get_rules()
@@ -134,6 +134,7 @@ fn run_linter(
           default_jsx_factory: Some("React.createElement".to_string()),
           default_jsx_fragment_factory: Some("React.Fragment".to_string()),
         },
+        external_linter: None,
       })?;
 
       let mut number_of_errors = diagnostics.len();
