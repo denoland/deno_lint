@@ -27,7 +27,7 @@ Deno.serve((req) => {
   }
 
   return Response.redirect(
-    "https://docs.deno.com/runtime/reference/cli/lint/",
+    "https://docs.deno.com/lint/",
     301,
   );
 });
