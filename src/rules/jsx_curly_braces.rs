@@ -170,6 +170,10 @@ mod tests {
     </div>"#,
       r#"<div>foo{" "}
       bar</div>"#,
+      r#"<div>
+        foo{" "}
+        <span />
+      </div>"#,
     };
   }
 
