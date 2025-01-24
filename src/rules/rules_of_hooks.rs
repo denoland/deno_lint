@@ -201,7 +201,6 @@ impl Handler for RulesOfHooksHandler {
                 DiagnosticKind::Conditionally.hint(),
               );
             } else if !is_hook_or_component_name(name) {
-              eprintln!("====");
               ctx.add_diagnostic_with_hint(
                 node.range(),
                 CODE,
