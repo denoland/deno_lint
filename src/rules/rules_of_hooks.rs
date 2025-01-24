@@ -190,18 +190,8 @@ impl Handler for RulesOfHooksHandler {
       for item in self.parent_kind.iter().rev() {
         match item {
           ParentKind::Unknown => break,
-          ParentKind::Var(name) => {
-            if !is_hook_or_component_name(name) {
-              ctx.add_diagnostic_with_hint(
-                node.range(),
-                CODE,
-                DiagnosticKind::OutsideComponent.message(),
-                DiagnosticKind::OutsideComponent.hint(),
-              );
-            }
+          ParentKind::Var(_) => continue,
 
-            break;
-          }
           ParentKind::Fn((name, cond_count)) => {
             if *cond_count > 0 {
               ctx.add_diagnostic_with_hint(
@@ -289,8 +279,11 @@ mod tests {
       r#"export const Foo = () => { useState(0) }"#,
       r#"export function Foo() { useState(0) }"#,
       r#"const Foo = () => { useState(0) }"#,
+      r#"const useFoo = () => { useState(0) }"#,
       r#"function foo() { return function Foo() { useState(0) }}"#,
       r#"function foo() { return () => { useState(0) }}"#,
+      r#"function useFoo() { useState(0) }"#,
+      r#"function useFoo() { const foo = useState(0); }"#
     };
   }
 
@@ -367,6 +360,13 @@ mod tests {
           col: 23,
           message: DiagnosticKind::TryCatch.message(),
           hint: DiagnosticKind::TryCatch.hint(),
+        }
+      ],
+      r#"function foo() { const foo = useState(0); }"#: [
+        {
+          col: 29,
+          message: DiagnosticKind::OutsideComponent.message(),
+          hint: DiagnosticKind::OutsideComponent.hint(),
         }
       ],
     };
