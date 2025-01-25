@@ -50,6 +50,7 @@ impl LintRule for NoTsIgnore {
   }
 }
 
+#[cfg(test)]
 mod tests {
   use super::*;
 
