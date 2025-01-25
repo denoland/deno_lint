@@ -87,6 +87,34 @@ console.log('hello');
         hint: HINT,
       }
     ],
+      r#"// @ts-ignore"# : [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"/// @ts-ignore"# : [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"//@ts-ignore"# : [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
+      r#"// @ts-ignore    "# : [
+        {
+          col: 0,
+          message: MESSAGE,
+          hint: HINT,
+        },
+      ],
     }
   }
 }
