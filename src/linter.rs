@@ -71,8 +71,9 @@ pub struct ExternalLinterResult {
   pub diagnostics: Vec<LintDiagnostic>,
   pub rules: Vec<String>,
 }
+
 pub type ExternalLinterCb =
-  Arc<dyn Fn(ParsedSource) -> Result<ExternalLinterResult, anyhow::Error>>;
+  Arc<dyn Fn(ParsedSource) -> Option<ExternalLinterResult>>;
 
 pub struct LintFileOptions {
   pub specifier: ModuleSpecifier,
@@ -233,11 +234,10 @@ impl Linter {
 
       let mut external_rule_codes = vec![];
       if let Some(cb) = maybe_external_linter {
-        let result = cb(parsed_source.clone());
-        // TODO(bartlomijue): get rid of this unwrap
-        let external_linter_result = result.unwrap();
-        context.add_external_diagnostics(&external_linter_result.diagnostics);
-        external_rule_codes = external_linter_result.rules;
+        if let Some(external_linter_result) = cb(parsed_source.clone()) {
+          context.add_external_diagnostics(&external_linter_result.diagnostics);
+          external_rule_codes = external_linter_result.rules;
+        }
       }
 
       self.collect_diagnostics(context, external_rule_codes)
