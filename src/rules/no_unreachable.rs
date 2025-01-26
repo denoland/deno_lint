@@ -3,6 +3,8 @@
 use super::program_ref;
 use super::Context;
 use super::LintRule;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Decl;
@@ -19,8 +21,8 @@ const CODE: &str = "no-unreachable";
 const MESSAGE: &str = "This statement is unreachable";
 
 impl LintRule for NoUnreachable {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -38,11 +40,6 @@ impl LintRule for NoUnreachable {
       ProgramRef::Module(m) => visitor.visit_module(m),
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_unreachable.md")
   }
 }
 

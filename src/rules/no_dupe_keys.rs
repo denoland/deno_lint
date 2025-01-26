@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
   GetterProp, KeyValueProp, MethodProp, ObjectLit, Prop, PropOrSpread,
@@ -31,8 +32,8 @@ enum NoDupeKeysHint {
 }
 
 impl LintRule for NoDupeKeys {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -45,11 +46,6 @@ impl LintRule for NoDupeKeys {
     program: Program,
   ) {
     NoDupeKeysHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_keys.md")
   }
 }
 

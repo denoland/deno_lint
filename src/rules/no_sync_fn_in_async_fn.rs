@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::{view as ast_view, SourceRanged};
@@ -15,7 +16,7 @@ const MESSAGE: &str =
   "Sync fn is used inside an async fn, this blocks deno event loop";
 
 impl LintRule for NoSyncFnInAsyncFn {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 
@@ -29,11 +30,6 @@ impl LintRule for NoSyncFnInAsyncFn {
     program: Program<'_>,
   ) {
     NoSyncFnInAsyncFnHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_sync_fn_in_async_fn.md")
   }
 }
 

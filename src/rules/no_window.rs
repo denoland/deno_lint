@@ -5,6 +5,8 @@ use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 
 use deno_ast::view as ast_view;
@@ -21,8 +23,8 @@ const HINT: &str = "Instead, use `globalThis`";
 const FIX_DESC: &str = "Rename window to globalThis";
 
 impl LintRule for NoWindow {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -35,11 +37,6 @@ impl LintRule for NoWindow {
     program: Program<'_>,
   ) {
     NoWindowGlobalHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_window_global.md")
   }
 }
 

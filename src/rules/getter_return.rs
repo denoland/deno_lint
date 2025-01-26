@@ -3,6 +3,7 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -39,8 +40,8 @@ enum GetterReturnHint {
 }
 
 impl LintRule for GetterReturn {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -59,11 +60,6 @@ impl LintRule for GetterReturn {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
     visitor.report();
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/getter_return.md")
   }
 }
 

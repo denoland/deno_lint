@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::swc::ast::{
   BindingIdent, ExportNamedSpecifier, Id, Ident, ImportDecl, ImportSpecifier,
@@ -212,8 +213,8 @@ impl VerbatimModuleSyntax {
 }
 
 impl LintRule for VerbatimModuleSyntax {
-  fn tags(&self) -> &'static [&'static str] {
-    &["jsr"]
+  fn tags(&self) -> Tags {
+    &[tags::JSR]
   }
 
   fn code(&self) -> &'static str {
@@ -251,11 +252,6 @@ impl LintRule for VerbatimModuleSyntax {
         ast_view::ModuleItem::Stmt(_) => {}
       }
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/verbatim_module_syntax.md")
   }
 }
 

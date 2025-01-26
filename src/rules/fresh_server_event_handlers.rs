@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 
 use deno_ast::view::{
   Expr, JSXAttrName, JSXAttrValue, JSXElementName, JSXExpr, Program,
@@ -18,8 +19,8 @@ const HINT: &str =
   "Remove this property or turn the enclosing component into an island";
 
 impl LintRule for FreshServerEventHandlers {
-  fn tags(&self) -> &'static [&'static str] {
-    &["fresh"]
+  fn tags(&self) -> Tags {
+    &[tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
@@ -32,11 +33,6 @@ impl LintRule for FreshServerEventHandlers {
     program: Program,
   ) {
     Visitor.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/fresh_server_event_handlers.md")
   }
 }
 

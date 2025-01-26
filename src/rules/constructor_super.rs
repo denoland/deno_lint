@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRange, SourceRanged};
 use if_chain::if_chain;
@@ -14,8 +15,8 @@ const CODE: &str = "constructor-super";
 // This rule currently differs from the ESlint implementation
 // as there is currently no way of handling code paths in dlint
 impl LintRule for ConstructorSuper {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -28,11 +29,6 @@ impl LintRule for ConstructorSuper {
     program: Program,
   ) {
     ConstructorSuperHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/constructor_super.md")
   }
 }
 

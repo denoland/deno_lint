@@ -3,6 +3,7 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::span_and_ctx_drop;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Expr, SwitchStmt};
@@ -30,8 +31,8 @@ enum NoDuplicateCaseHint {
 }
 
 impl LintRule for NoDuplicateCase {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -49,11 +50,6 @@ impl LintRule for NoDuplicateCase {
       ProgramRef::Module(m) => m.visit_with(&mut visitor),
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_duplicate_case.md")
   }
 }
 

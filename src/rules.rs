@@ -1,6 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use crate::context::Context;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 use crate::ProgramRef;
 use std::cmp::Ordering;
@@ -13,6 +15,7 @@ pub mod ban_unknown_rule_code;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
 pub mod ban_unused_ignore;
+pub mod button_has_type;
 pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
@@ -24,6 +27,17 @@ pub mod fresh_handler_export;
 pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
+pub mod jsx_boolean_value;
+pub mod jsx_curly_braces;
+pub mod jsx_key;
+pub mod jsx_no_children_prop;
+pub mod jsx_no_comment_text_nodes;
+pub mod jsx_no_danger_with_children;
+pub mod jsx_no_duplicate_props;
+pub mod jsx_no_unescaped_entities;
+pub mod jsx_no_useless_fragment;
+pub mod jsx_props_no_spread_multi;
+pub mod jsx_void_dom_elements_no_children;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
@@ -37,6 +51,7 @@ pub mod no_console;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
+pub mod no_danger;
 pub mod no_debugger;
 pub mod no_delete_var;
 pub mod no_deprecated_deno_api;
@@ -95,6 +110,7 @@ pub mod no_unsafe_finally;
 pub mod no_unsafe_negation;
 pub mod no_unused_labels;
 pub mod no_unused_vars;
+pub mod no_useless_rename;
 pub mod no_var;
 pub mod no_window;
 pub mod no_window_prefix;
@@ -106,6 +122,7 @@ pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
 pub mod require_await;
 pub mod require_yield;
+pub mod rules_of_hooks;
 pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
@@ -125,14 +142,9 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   fn code(&self) -> &'static str;
 
   /// Returns the tags this rule belongs to, e.g. `recommended`
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
-
-  /// Returns the documentation string for this rule, describing what this rule is for with several
-  /// examples.
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str;
 
   /// The lower the return value is, the earlier this rule will be run.
   ///
@@ -161,7 +173,7 @@ pub fn recommended_rules(
 ) -> Vec<Box<dyn LintRule>> {
   all_rules
     .into_iter()
-    .filter(|r| r.tags().contains(&"recommended"))
+    .filter(|r| r.tags().contains(&tags::RECOMMENDED))
     .collect()
 }
 
@@ -244,6 +256,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(ban_untagged_ignore::BanUntaggedIgnore),
     Box::new(ban_untagged_todo::BanUntaggedTodo),
     Box::new(ban_unused_ignore::BanUnusedIgnore),
+    Box::new(button_has_type::ButtonHasType),
     Box::new(camelcase::Camelcase),
     Box::new(constructor_super::ConstructorSuper),
     Box::new(default_param_last::DefaultParamLast),
@@ -255,6 +268,17 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(fresh_server_event_handlers::FreshServerEventHandlers),
     Box::new(getter_return::GetterReturn),
     Box::new(guard_for_in::GuardForIn),
+    Box::new(jsx_boolean_value::JSXBooleanValue),
+    Box::new(jsx_curly_braces::JSXCurlyBraces),
+    Box::new(jsx_key::JSXKey),
+    Box::new(jsx_no_children_prop::JSXNoChildrenProp),
+    Box::new(jsx_no_comment_text_nodes::JSXNoCommentTextNodes),
+    Box::new(jsx_no_danger_with_children::JSXNoDangerWithChildren),
+    Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
+    Box::new(jsx_no_unescaped_entities::JSXNoUnescapedEntities),
+    Box::new(jsx_no_useless_fragment::JSXNoUselessFragment),
+    Box::new(jsx_props_no_spread_multi::JSXPropsNoSpreadMulti),
+    Box::new(jsx_void_dom_elements_no_children::JSXVoidDomElementsNoChildren),
     Box::new(no_array_constructor::NoArrayConstructor),
     Box::new(no_async_promise_executor::NoAsyncPromiseExecutor),
     Box::new(no_await_in_loop::NoAwaitInLoop),
@@ -268,6 +292,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_const_assign::NoConstAssign),
     Box::new(no_constant_condition::NoConstantCondition),
     Box::new(no_control_regex::NoControlRegex),
+    Box::new(no_danger::NoDanger),
     Box::new(no_debugger::NoDebugger),
     Box::new(no_delete_var::NoDeleteVar),
     Box::new(no_deprecated_deno_api::NoDeprecatedDenoApi),
@@ -330,6 +355,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_unsafe_negation::NoUnsafeNegation),
     Box::new(no_unused_labels::NoUnusedLabels),
     Box::new(no_unused_vars::NoUnusedVars),
+    Box::new(no_useless_rename::NoUselessRename),
     Box::new(no_var::NoVar),
     Box::new(no_window::NoWindow),
     Box::new(no_window_prefix::NoWindowPrefix),
@@ -341,6 +367,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(prefer_primordials::PreferPrimordials),
     Box::new(require_await::RequireAwait),
     Box::new(require_yield::RequireYield),
+    Box::new(rules_of_hooks::RulesOfHooks),
     Box::new(single_var_declarator::SingleVarDeclarator),
     Box::new(triple_slash_reference::TripleSlashReference),
     Box::new(use_isnan::UseIsNaN),
@@ -352,6 +379,8 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
 #[cfg(test)]
 mod tests {
   use std::sync::Arc;
+
+  use crate::tags;
 
   use super::*;
 
@@ -460,7 +489,7 @@ mod tests {
         let rules = Arc::clone(&rules);
         spawn(move || {
           for rule in rules.iter() {
-            assert!(rule.tags().contains(&"recommended"));
+            assert!(rule.tags().contains(&tags::RECOMMENDED));
           }
         })
       })

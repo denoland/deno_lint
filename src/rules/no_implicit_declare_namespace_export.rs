@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 
@@ -15,7 +16,7 @@ use";
 const HINT: &str = "Try adding an `export {};` to the top of the namespace to disable this behavior";
 
 impl LintRule for NoImplicitDeclareNamespaceExport {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 
@@ -29,11 +30,6 @@ impl LintRule for NoImplicitDeclareNamespaceExport {
     program: Program<'_>,
   ) {
     NoImplicitDeclareNamespaceExportHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_implicit_declare_namespace_export.md")
   }
 }
 

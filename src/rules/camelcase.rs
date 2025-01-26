@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::tags::Tags;
 
 use deno_ast::view::{Node, NodeKind, NodeTrait};
 use deno_ast::{view as ast_view, SourceRange, SourceRanged};
@@ -16,7 +17,7 @@ pub struct Camelcase;
 const CODE: &str = "camelcase";
 
 impl LintRule for Camelcase {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 
@@ -32,11 +33,6 @@ impl LintRule for Camelcase {
     let mut handler = CamelcaseHandler::default();
     handler.traverse(program, context);
     handler.report_errors(context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/camelcase.md")
   }
 }
 

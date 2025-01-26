@@ -1,14 +1,14 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use crate::color::colorize_markdown;
 use deno_lint::rules::get_all_rules;
+use deno_lint::tags;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct Rule {
   code: &'static str,
-  docs: &'static str,
-  tags: &'static [&'static str],
+  docs: String,
+  tags: Vec<&'static str>,
 }
 
 pub fn get_all_rules_metadata() -> Vec<Rule> {
@@ -16,8 +16,8 @@ pub fn get_all_rules_metadata() -> Vec<Rule> {
     .iter()
     .map(|rule| Rule {
       code: rule.code(),
-      docs: rule.docs(),
-      tags: rule.tags(),
+      docs: format!("https://docs.deno.com/lint/rules/{}", rule.code()),
+      tags: rule.tags().iter().map(|tag| tag.display()).collect(),
     })
     .collect()
 }
@@ -67,19 +67,7 @@ impl RuleFormatter for PrettyFormatter {
 
       // Certain rule name is specified.
       // Print its documentation richly.
-      [rule] => {
-        let md = if rule.docs.is_empty() {
-          format!("documentation for `{}` is not available", rule.code)
-        } else {
-          format!("# {code}\n\n{docs}", code = rule.code, docs = rule.docs)
-        };
-
-        if atty::is(atty::Stream::Stdout) {
-          Ok(colorize_markdown(&md))
-        } else {
-          Ok(md)
-        }
-      }
+      [rule] => Ok(format!("Documentation: {}", rule.docs)),
 
       // No rule name is specified.
       // Print the list of all rules.
@@ -89,7 +77,7 @@ impl RuleFormatter for PrettyFormatter {
         list.push("Available rules (trailing ✔️ mark indicates it is included in the recommended rule set):".to_string());
         list.extend(rules.iter().map(|r| {
           let mut s = format!(" - {}", r.code);
-          if r.tags.contains(&"recommended") {
+          if r.tags.contains(&tags::RECOMMENDED.display()) {
             s += " ✔️";
           }
           s

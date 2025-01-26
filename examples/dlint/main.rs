@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-mod color;
 mod config;
 mod diagnostics;
 mod rules;

@@ -2,9 +2,10 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
-use crate::js_regex::*;
+use crate::tags::Tags;
 use crate::Program;
 use crate::ProgramRef;
+use crate::{js_regex::*, tags};
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
 use deno_ast::swc::visit::noop_visit_type;
@@ -20,8 +21,8 @@ const MESSAGE: &str = "Invalid RegExp literal";
 const HINT: &str = "Rework regular expression to be a valid";
 
 impl LintRule for NoInvalidRegexp {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -39,11 +40,6 @@ impl LintRule for NoInvalidRegexp {
       ProgramRef::Module(m) => visitor.visit_module(m),
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_invalid_regexp.md")
   }
 }
 

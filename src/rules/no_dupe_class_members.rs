@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -33,8 +34,8 @@ enum NoDupeClassMembersHint {
 }
 
 impl LintRule for NoDupeClassMembers {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -52,11 +53,6 @@ impl LintRule for NoDupeClassMembers {
       ProgramRef::Module(m) => visitor.visit_module(m),
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_class_members.md")
   }
 }
 

@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{Expr, NewExpr, ParenExpr};
 use deno_ast::SourceRanged;
@@ -15,8 +16,8 @@ const HINT: &str =
   "Remove `async` from executor function and adjust promise code as needed";
 
 impl LintRule for NoAsyncPromiseExecutor {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -29,11 +30,6 @@ impl LintRule for NoAsyncPromiseExecutor {
     program: Program,
   ) {
     NoAsyncPromiseExecutorHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_async_promise_executor.md")
   }
 }
 

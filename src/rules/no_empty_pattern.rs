@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
@@ -18,8 +19,8 @@ const HINT: &str =
   "Add variable to pattern or apply correct default value syntax with `=`";
 
 impl LintRule for NoEmptyPattern {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -37,11 +38,6 @@ impl LintRule for NoEmptyPattern {
       ProgramRef::Module(m) => visitor.visit_module(m),
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_empty_pattern.md")
   }
 }
 
