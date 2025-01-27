@@ -15,7 +15,7 @@ const CODE: &str = "react-rules-of-hooks";
 
 impl LintRule for ReactRulesOfHooks {
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
+    &[tags::REACT, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
