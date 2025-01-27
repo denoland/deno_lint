@@ -70,9 +70,30 @@ struct JSXCurlyBracesHandler;
 
 impl Handler for JSXCurlyBracesHandler {
   fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
-    for child in node.children {
+    let mut child_iter = node.children.iter().peekable();
+
+    let mut skip_count = 0;
+    while let Some(child) = child_iter.next() {
+      if skip_count > 0 {
+        skip_count -= 1;
+        continue;
+      }
+
       if let JSXElementChild::JSXExprContainer(child_expr) = child {
         if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = child_expr.expr {
+          // Allowed if this node is at the end of a line
+          // <div>{" "}
+          // </div>
+          if let Some(next) = child_iter.peek() {
+            let line = ctx.text_info().line_index(child.end());
+            let line_next_child = ctx.text_info().line_index(next.end());
+
+            if line < line_next_child {
+              skip_count += 1;
+              continue;
+            }
+          }
+
           ctx.add_diagnostic_with_fixes(
             child.range(),
             CODE,
@@ -145,6 +166,14 @@ mod tests {
       JSXCurlyBraces,
       filename: "file:///foo.jsx",
       "<div foo={2} />",
+      r#"<div>foo{" "}
+    </div>"#,
+      r#"<div>foo{" "}
+      bar</div>"#,
+      r#"<div>
+        foo{" "}
+        <span />
+      </div>"#,
     };
   }
 
