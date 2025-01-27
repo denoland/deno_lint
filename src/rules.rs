@@ -50,7 +50,6 @@ pub mod no_console;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
-pub mod no_danger;
 pub mod no_debugger;
 pub mod no_delete_var;
 pub mod no_deprecated_deno_api;
@@ -119,6 +118,7 @@ pub mod prefer_ascii;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
+pub mod react_no_danger;
 pub mod react_no_danger_with_children;
 pub mod require_await;
 pub mod require_yield;
@@ -292,7 +292,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_const_assign::NoConstAssign),
     Box::new(no_constant_condition::NoConstantCondition),
     Box::new(no_control_regex::NoControlRegex),
-    Box::new(no_danger::ReactNoDanger),
+    Box::new(react_no_danger::ReactNoDanger),
     Box::new(no_debugger::NoDebugger),
     Box::new(no_delete_var::NoDeleteVar),
     Box::new(no_deprecated_deno_api::NoDeprecatedDenoApi),
