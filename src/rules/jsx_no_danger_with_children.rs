@@ -38,7 +38,7 @@ const MESSAGE: &str =
 const HINT: &str = "Remove the JSX children";
 
 static IGNORE_TEXT: Lazy<regex::Regex> =
-  Lazy::new(|| regex::Regex::new(r#"\n\s+"#).unwrap());
+  Lazy::new(|| regex::Regex::new(r#"^\n\s+$"#).unwrap());
 
 struct JSXNoDangerWithChildrenHandler;
 
