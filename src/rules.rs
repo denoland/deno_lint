@@ -292,7 +292,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_const_assign::NoConstAssign),
     Box::new(no_constant_condition::NoConstantCondition),
     Box::new(no_control_regex::NoControlRegex),
-    Box::new(no_danger::NoDanger),
+    Box::new(no_danger::ReactNoDanger),
     Box::new(no_debugger::NoDebugger),
     Box::new(no_delete_var::NoDeleteVar),
     Box::new(no_deprecated_deno_api::NoDeprecatedDenoApi),
