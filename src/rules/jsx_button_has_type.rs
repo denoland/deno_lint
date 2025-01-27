@@ -11,11 +11,11 @@ use deno_ast::view::{
 use deno_ast::{view as ast_view, SourceRanged};
 
 #[derive(Debug)]
-pub struct ButtonHasType;
+pub struct JSXButtonHasType;
 
-const CODE: &str = "button-has-type";
+const CODE: &str = "jsx-button-has-type";
 
-impl LintRule for ButtonHasType {
+impl LintRule for JSXButtonHasType {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
@@ -255,7 +255,7 @@ mod tests {
   #[test]
   fn button_has_type_valid() {
     assert_lint_ok! {
-      ButtonHasType,
+      JSXButtonHasType,
       filename: "file:///foo.jsx",
       // non derived classes.
       r#"<button type="button" />"#,
@@ -284,7 +284,7 @@ mod tests {
       DiagnosticKind::MissingValue.message_and_hint();
 
     assert_lint_err! {
-      ButtonHasType,
+      JSXButtonHasType,
       filename: "file:///foo.jsx",
       "<button />": [
         {

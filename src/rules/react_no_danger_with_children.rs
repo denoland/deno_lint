@@ -11,13 +11,13 @@ use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
-pub struct JSXNoDangerWithChildren;
+pub struct ReactNoDangerWithChildren;
 
-const CODE: &str = "jsx-no-danger-with-children";
+const CODE: &str = "react-no-danger-with-children";
 
-impl LintRule for JSXNoDangerWithChildren {
+impl LintRule for ReactNoDangerWithChildren {
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
+    &[tags::REACT, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
@@ -79,7 +79,7 @@ mod tests {
   #[test]
   fn jsx_no_danger_with_children_valid() {
     assert_lint_ok! {
-      JSXNoDangerWithChildren,
+      ReactNoDangerWithChildren,
       filename: "file:///foo.jsx",
       r#"<div dangerouslySetInnerHTML={{ __html: "foo" }} />"#,
       r#"<div dangerouslySetInnerHTML={{ __html: "foo" }}></div>"#,
@@ -91,7 +91,7 @@ mod tests {
   #[test]
   fn jsx_no_danger_with_children_invalid() {
     assert_lint_err! {
-      JSXNoDangerWithChildren,
+      ReactNoDangerWithChildren,
       filename: "file:///foo.jsx",
       r#"<div dangerouslySetInnerHTML={{ __html: "foo" }}>foo</div>"#: [
         {
