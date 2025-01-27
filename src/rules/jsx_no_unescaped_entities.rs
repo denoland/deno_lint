@@ -32,7 +32,7 @@ impl LintRule for JSXNoUnescapedEntities {
 }
 
 const MESSAGE: &str = "Found one or more unescaped entities in JSX text";
-const HINT: &str = "Escape the '\">} characters respectively";
+const HINT: &str = "Escape the >} characters respectively";
 
 struct JSXNoUnescapedEntitiesHandler;
 
@@ -41,15 +41,11 @@ impl Handler for JSXNoUnescapedEntitiesHandler {
     for child in node.children {
       if let JSXElementChild::JSXText(jsx_text) = child {
         let text = jsx_text.raw().as_str();
-        let new_text = text
-          .replace('>', "&gt;")
-          .replace('"', "&quot;")
-          .replace('\'', "&apos;")
-          .replace('}', "&#125;");
+        let new_text = text.replace('>', "&gt;").replace('}', "&#125;");
 
         if text != new_text {
           ctx.add_diagnostic_with_fixes(
-            node.range(),
+            jsx_text.range(),
             CODE,
             MESSAGE,
             Some(HINT.to_string()),
@@ -78,6 +74,7 @@ mod tests {
       filename: "file:///foo.jsx",
       r#"<div>&gt;</div>"#,
       r#"<div>{">"}</div>"#,
+      r#"<div>{"}"}</div>"#,
     };
   }
 
@@ -86,14 +83,14 @@ mod tests {
     assert_lint_err! {
       JSXNoUnescapedEntities,
       filename: "file:///foo.jsx",
-      r#"<div>'">}</div>"#: [
+      r#"<div>>}</div>"#: [
         {
-          col: 0,
+          col: 5,
           message: MESSAGE,
           hint: HINT,
           fix: (
             "Escape entities in the text node",
-            "<div>&apos;&quot;&gt;&#125;</div>"
+            "<div>&gt;&#125;</div>"
           )
         }
       ]
