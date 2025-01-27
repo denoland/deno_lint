@@ -39,7 +39,7 @@ impl Handler for NoDangerHandler {
   fn jsx_attr(&mut self, node: &JSXAttr, ctx: &mut Context) {
     if let JSXAttrName::Ident(name) = node.name {
       if name.sym() == "dangerouslySetInnerHTML" {
-        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(name.range(), CODE, MESSAGE, HINT);
       }
     }
   }

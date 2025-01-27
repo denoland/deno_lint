@@ -184,7 +184,7 @@ impl Handler for HasButtonTypeHandler {
       if !found && !has_spread {
         let kind = DiagnosticKind::MissingTypeAttr;
         ctx.add_diagnostic_with_hint(
-          node.range(),
+          node.name.range(),
           CODE,
           kind.message(),
           kind.hint(),
@@ -288,7 +288,7 @@ mod tests {
       filename: "file:///foo.jsx",
       "<button />": [
         {
-          col: 0,
+          col: 1,
           message: missing_type_message,
           hint: missing_type_hint,
         }

@@ -63,7 +63,7 @@ impl Handler for JSXNoDangerWithChildrenHandler {
               .collect::<Vec<_>>();
 
             if !filtered.is_empty() {
-              ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+              ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
             }
           }
         }
@@ -95,7 +95,7 @@ mod tests {
       filename: "file:///foo.jsx",
       r#"<div dangerouslySetInnerHTML={{ __html: "foo" }}>foo</div>"#: [
         {
-          col: 0,
+          col: 5,
           message: MESSAGE,
           hint: HINT
         }
