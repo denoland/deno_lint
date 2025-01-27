@@ -14,7 +14,7 @@ const CODE: &str = "react-no-danger";
 
 impl LintRule for ReactNoDanger {
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
+    &[tags::REACT, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
