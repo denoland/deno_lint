@@ -256,7 +256,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(ban_untagged_ignore::BanUntaggedIgnore),
     Box::new(ban_untagged_todo::BanUntaggedTodo),
     Box::new(ban_unused_ignore::BanUnusedIgnore),
-    Box::new(button_has_type::ButtonHasType),
+    Box::new(button_has_type::JSXButtonHasType),
     Box::new(camelcase::Camelcase),
     Box::new(constructor_super::ConstructorSuper),
     Box::new(default_param_last::DefaultParamLast),
