@@ -367,7 +367,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(prefer_primordials::PreferPrimordials),
     Box::new(require_await::RequireAwait),
     Box::new(require_yield::RequireYield),
-    Box::new(rules_of_hooks::RulesOfHooks),
+    Box::new(rules_of_hooks::ReactRulesOfHooks),
     Box::new(single_var_declarator::SingleVarDeclarator),
     Box::new(triple_slash_reference::TripleSlashReference),
     Box::new(use_isnan::UseIsNaN),

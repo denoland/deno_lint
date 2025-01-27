@@ -9,11 +9,11 @@ use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
-pub struct RulesOfHooks;
+pub struct ReactRulesOfHooks;
 
-const CODE: &str = "rules-of-hooks";
+const CODE: &str = "react-rules-of-hooks";
 
-impl LintRule for RulesOfHooks {
+impl LintRule for ReactRulesOfHooks {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
@@ -279,7 +279,7 @@ mod tests {
   #[test]
   fn rules_of_hooks_valid() {
     assert_lint_ok! {
-      RulesOfHooks,
+      ReactRulesOfHooks,
       filename: "file:///foo.jsx",
       r#"function Foo() { useState(0) }"#,
       r#"function useFoo() { useState(0) }"#,
@@ -302,7 +302,7 @@ function doAThing() {
   #[test]
   fn rules_of_hooks_invalid() {
     assert_lint_err! {
-      RulesOfHooks,
+      ReactRulesOfHooks,
       filename: "file:///foo.jsx",
       r#"function foo() { useState(0) }"#: [
         {
