@@ -1,8 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use std::collections::HashSet;
 use deno_ast::{diagnostics::Diagnostic, SourceTextInfo};
 use deno_lint::diagnostic::LintDiagnostic;
+use std::collections::HashSet;
 
 pub fn display_diagnostics(
   diagnostics: &[LintDiagnostic],

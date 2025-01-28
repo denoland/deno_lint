@@ -166,8 +166,8 @@ fn run_linter(
     diagnostics::display_diagnostics(d, format);
     if fix {
       let info = SourceTextInfo::new(source_code.clone().into());
-      let code = apply_lint_fixes(&info, d).expect("failed to apply_lint_fixes");
-      std::fs::write(file_path, code)?;
+      let s = apply_lint_fixes(&info, d).expect("failed to apply_lint_fixes");
+      std::fs::write(file_path, s)?;
     }
   }
 
