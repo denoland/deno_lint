@@ -6,15 +6,16 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, Node, Pat};
 use deno_ast::SourceRanged;
+use once_cell::sync::Lazy;
 
 #[derive(Debug)]
-pub struct RulesOfHooks;
+pub struct ReactRulesOfHooks;
 
-const CODE: &str = "rules-of-hooks";
+const CODE: &str = "react-rules-of-hooks";
 
-impl LintRule for RulesOfHooks {
+impl LintRule for ReactRulesOfHooks {
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
+    &[tags::REACT, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
@@ -244,16 +245,23 @@ impl Handler for RulesOfHooksHandler {
   }
 }
 
+static HOOK_NAME: Lazy<regex::Regex> =
+  Lazy::new(|| regex::Regex::new(r#"^use[A-Z0-9]"#).unwrap());
+
+fn is_hook_name(text: &str) -> bool {
+  text == "use" || HOOK_NAME.is_match(text)
+}
+
 fn is_hook_call(call_expr: &CallExpr) -> bool {
   if let Callee::Expr(Expr::Ident(id)) = call_expr.callee {
-    return id.sym().starts_with("use");
+    return is_hook_name(id.sym());
   }
 
   false
 }
 
 fn is_hook_or_component_name(name: &str) -> bool {
-  if name.starts_with("use") {
+  if is_hook_name(name) {
     return true;
   }
 
@@ -271,7 +279,7 @@ mod tests {
   #[test]
   fn rules_of_hooks_valid() {
     assert_lint_ok! {
-      RulesOfHooks,
+      ReactRulesOfHooks,
       filename: "file:///foo.jsx",
       r#"function Foo() { useState(0) }"#,
       r#"function useFoo() { useState(0) }"#,
@@ -283,14 +291,18 @@ mod tests {
       r#"function foo() { return function Foo() { useState(0) }}"#,
       r#"function foo() { return () => { useState(0) }}"#,
       r#"function useFoo() { useState(0) }"#,
-      r#"function useFoo() { const foo = useState(0); }"#
+      r#"function useFoo() { const foo = useState(0); }"#,
+      r#"function userHook() {}
+function doAThing() {
+  userHook()
+}"#
     };
   }
 
   #[test]
   fn rules_of_hooks_invalid() {
     assert_lint_err! {
-      RulesOfHooks,
+      ReactRulesOfHooks,
       filename: "file:///foo.jsx",
       r#"function foo() { useState(0) }"#: [
         {

@@ -8,13 +8,13 @@ use deno_ast::view::{JSXAttr, JSXAttrName};
 use deno_ast::SourceRanged;
 
 #[derive(Debug)]
-pub struct NoDanger;
+pub struct ReactNoDanger;
 
-const CODE: &str = "no-danger";
+const CODE: &str = "react-no-danger";
 
-impl LintRule for NoDanger {
+impl LintRule for ReactNoDanger {
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED, tags::REACT, tags::JSX]
+    &[tags::REACT, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
@@ -39,7 +39,7 @@ impl Handler for NoDangerHandler {
   fn jsx_attr(&mut self, node: &JSXAttr, ctx: &mut Context) {
     if let JSXAttrName::Ident(name) = node.name {
       if name.sym() == "dangerouslySetInnerHTML" {
-        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(name.range(), CODE, MESSAGE, HINT);
       }
     }
   }
@@ -54,7 +54,7 @@ mod tests {
   #[test]
   fn no_danger_valid() {
     assert_lint_ok! {
-      NoDanger,
+      ReactNoDanger,
       filename: "file:///foo.jsx",
       // non derived classes.
       r#"<div />"#,
@@ -64,7 +64,7 @@ mod tests {
   #[test]
   fn no_danger_invalid() {
     assert_lint_err! {
-      NoDanger,
+      ReactNoDanger,
       filename: "file:///foo.jsx",
       "<div dangerouslySetInnerHTML />": [
         {

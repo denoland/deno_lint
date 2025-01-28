@@ -11,11 +11,11 @@ use deno_ast::view::{
 use deno_ast::{view as ast_view, SourceRanged};
 
 #[derive(Debug)]
-pub struct ButtonHasType;
+pub struct JSXButtonHasType;
 
-const CODE: &str = "button-has-type";
+const CODE: &str = "jsx-button-has-type";
 
-impl LintRule for ButtonHasType {
+impl LintRule for JSXButtonHasType {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
   }
@@ -83,8 +83,10 @@ impl Handler for HasButtonTypeHandler {
       }
 
       let mut found = false;
+      let mut has_spread = false;
       for attr in node.attrs {
         let JSXAttrOrSpread::JSXAttr(attr) = attr else {
+          has_spread = true;
           continue;
         };
 
@@ -156,23 +158,14 @@ impl Handler for HasButtonTypeHandler {
                   }
                   Expr::Tpl(tpl) => check_tpl(ctx, tpl),
                   _ => {
-                    ctx.add_diagnostic_with_hint(
-                      attr_value.range(),
-                      CODE,
-                      kind.message(),
-                      kind.hint(),
-                    );
+                    // We can't reliably check these cases without
+                    // type information. Therefore, we ignore them.
                   }
                 }
               }
               _ => {
-                let kind = DiagnosticKind::WrongValue;
-                ctx.add_diagnostic_with_hint(
-                  attr_value.range(),
-                  CODE,
-                  kind.message(),
-                  kind.hint(),
-                );
+                // We can't reliably check these cases without
+                // type information. Therefore, we ignore them.
               }
             }
           } else {
@@ -188,10 +181,10 @@ impl Handler for HasButtonTypeHandler {
         }
       }
 
-      if !found {
+      if !found && !has_spread {
         let kind = DiagnosticKind::MissingTypeAttr;
         ctx.add_diagnostic_with_hint(
-          node.range(),
+          node.name.range(),
           CODE,
           kind.message(),
           kind.hint(),
@@ -262,7 +255,7 @@ mod tests {
   #[test]
   fn button_has_type_valid() {
     assert_lint_ok! {
-      ButtonHasType,
+      JSXButtonHasType,
       filename: "file:///foo.jsx",
       // non derived classes.
       r#"<button type="button" />"#,
@@ -275,6 +268,9 @@ mod tests {
       r#"<button type={condition ? "submit" : "button"} />"#,
       r#"<button type={condition ? 'submit' : 'button'} />"#,
       r#"<button type={condition ? `submit` : `button`} />"#,
+      r#"<button type={foo} />"#,
+      r#"<button type={foo()} />"#,
+      r#"<button {...props} />"#,
     };
   }
 
@@ -288,11 +284,11 @@ mod tests {
       DiagnosticKind::MissingValue.message_and_hint();
 
     assert_lint_err! {
-      ButtonHasType,
+      JSXButtonHasType,
       filename: "file:///foo.jsx",
       "<button />": [
         {
-          col: 0,
+          col: 1,
           message: missing_type_message,
           hint: missing_type_hint,
         }
@@ -305,13 +301,6 @@ mod tests {
         }
       ],
       "<button type='foo' />": [
-        {
-          col: 13,
-          message: wrong_value_message,
-          hint: wrong_value_hint,
-        }
-      ],
-      "<button type={foo} />": [
         {
           col: 13,
           message: wrong_value_message,

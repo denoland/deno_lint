@@ -15,7 +15,6 @@ pub mod ban_unknown_rule_code;
 pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
 pub mod ban_unused_ignore;
-pub mod button_has_type;
 pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
@@ -28,11 +27,11 @@ pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
 pub mod jsx_boolean_value;
+pub mod jsx_button_has_type;
 pub mod jsx_curly_braces;
 pub mod jsx_key;
 pub mod jsx_no_children_prop;
 pub mod jsx_no_comment_text_nodes;
-pub mod jsx_no_danger_with_children;
 pub mod jsx_no_duplicate_props;
 pub mod jsx_no_unescaped_entities;
 pub mod jsx_no_useless_fragment;
@@ -51,7 +50,6 @@ pub mod no_console;
 pub mod no_const_assign;
 pub mod no_constant_condition;
 pub mod no_control_regex;
-pub mod no_danger;
 pub mod no_debugger;
 pub mod no_delete_var;
 pub mod no_deprecated_deno_api;
@@ -120,9 +118,11 @@ pub mod prefer_ascii;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
+pub mod react_no_danger;
+pub mod react_no_danger_with_children;
+pub mod react_rules_of_hooks;
 pub mod require_await;
 pub mod require_yield;
-pub mod rules_of_hooks;
 pub mod single_var_declarator;
 pub mod triple_slash_reference;
 pub mod use_isnan;
@@ -256,7 +256,6 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(ban_untagged_ignore::BanUntaggedIgnore),
     Box::new(ban_untagged_todo::BanUntaggedTodo),
     Box::new(ban_unused_ignore::BanUnusedIgnore),
-    Box::new(button_has_type::ButtonHasType),
     Box::new(camelcase::Camelcase),
     Box::new(constructor_super::ConstructorSuper),
     Box::new(default_param_last::DefaultParamLast),
@@ -269,11 +268,11 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(getter_return::GetterReturn),
     Box::new(guard_for_in::GuardForIn),
     Box::new(jsx_boolean_value::JSXBooleanValue),
+    Box::new(jsx_button_has_type::JSXButtonHasType),
     Box::new(jsx_curly_braces::JSXCurlyBraces),
     Box::new(jsx_key::JSXKey),
     Box::new(jsx_no_children_prop::JSXNoChildrenProp),
     Box::new(jsx_no_comment_text_nodes::JSXNoCommentTextNodes),
-    Box::new(jsx_no_danger_with_children::JSXNoDangerWithChildren),
     Box::new(jsx_no_duplicate_props::JSXNoDuplicateProps),
     Box::new(jsx_no_unescaped_entities::JSXNoUnescapedEntities),
     Box::new(jsx_no_useless_fragment::JSXNoUselessFragment),
@@ -292,7 +291,6 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_const_assign::NoConstAssign),
     Box::new(no_constant_condition::NoConstantCondition),
     Box::new(no_control_regex::NoControlRegex),
-    Box::new(no_danger::NoDanger),
     Box::new(no_debugger::NoDebugger),
     Box::new(no_delete_var::NoDeleteVar),
     Box::new(no_deprecated_deno_api::NoDeprecatedDenoApi),
@@ -365,9 +363,11 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(prefer_const::PreferConst),
     Box::new(prefer_namespace_keyword::PreferNamespaceKeyword),
     Box::new(prefer_primordials::PreferPrimordials),
+    Box::new(react_no_danger::ReactNoDanger),
+    Box::new(react_no_danger_with_children::ReactNoDangerWithChildren),
+    Box::new(react_rules_of_hooks::ReactRulesOfHooks),
     Box::new(require_await::RequireAwait),
     Box::new(require_yield::RequireYield),
-    Box::new(rules_of_hooks::RulesOfHooks),
     Box::new(single_var_declarator::SingleVarDeclarator),
     Box::new(triple_slash_reference::TripleSlashReference),
     Box::new(use_isnan::UseIsNaN),

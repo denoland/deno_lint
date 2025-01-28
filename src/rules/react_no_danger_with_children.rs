@@ -4,17 +4,20 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
 use crate::Program;
-use deno_ast::view::{JSXAttrName, JSXAttrOrSpread, JSXElement};
+use deno_ast::view::{
+  JSXAttrName, JSXAttrOrSpread, JSXElement, JSXElementChild,
+};
 use deno_ast::SourceRanged;
+use once_cell::sync::Lazy;
 
 #[derive(Debug)]
-pub struct JSXNoDangerWithChildren;
+pub struct ReactNoDangerWithChildren;
 
-const CODE: &str = "jsx-no-danger-with-children";
+const CODE: &str = "react-no-danger-with-children";
 
-impl LintRule for JSXNoDangerWithChildren {
+impl LintRule for ReactNoDangerWithChildren {
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED, tags::REACT, tags::JSX, tags::FRESH]
+    &[tags::REACT, tags::FRESH]
   }
 
   fn code(&self) -> &'static str {
@@ -34,6 +37,9 @@ const MESSAGE: &str =
   "Using JSX children together with 'dangerouslySetInnerHTML' is invalid";
 const HINT: &str = "Remove the JSX children";
 
+static IGNORE_TEXT: Lazy<regex::Regex> =
+  Lazy::new(|| regex::Regex::new(r#"^\n\s+$"#).unwrap());
+
 struct JSXNoDangerWithChildrenHandler;
 
 impl Handler for JSXNoDangerWithChildrenHandler {
@@ -41,9 +47,24 @@ impl Handler for JSXNoDangerWithChildrenHandler {
     for attr in node.opening.attrs {
       if let JSXAttrOrSpread::JSXAttr(attr) = attr {
         if let JSXAttrName::Ident(id) = attr.name {
-          if id.sym() == "dangerouslySetInnerHTML" && !node.children.is_empty()
-          {
-            ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+          if id.sym() == "dangerouslySetInnerHTML" {
+            let filtered = node
+              .children
+              .iter()
+              .filter(|child| {
+                if let JSXElementChild::JSXText(text) = child {
+                  if IGNORE_TEXT.is_match(text.value()) {
+                    return false;
+                  }
+                }
+
+                true
+              })
+              .collect::<Vec<_>>();
+
+            if !filtered.is_empty() {
+              ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
+            }
           }
         }
       }
@@ -58,20 +79,23 @@ mod tests {
   #[test]
   fn jsx_no_danger_with_children_valid() {
     assert_lint_ok! {
-      JSXNoDangerWithChildren,
+      ReactNoDangerWithChildren,
       filename: "file:///foo.jsx",
       r#"<div dangerouslySetInnerHTML={{ __html: "foo" }} />"#,
+      r#"<div dangerouslySetInnerHTML={{ __html: "foo" }}></div>"#,
+      r#"<div dangerouslySetInnerHTML={{ __html: "foo" }}>
+      </div>"#,
     };
   }
 
   #[test]
   fn jsx_no_danger_with_children_invalid() {
     assert_lint_err! {
-      JSXNoDangerWithChildren,
+      ReactNoDangerWithChildren,
       filename: "file:///foo.jsx",
       r#"<div dangerouslySetInnerHTML={{ __html: "foo" }}>foo</div>"#: [
         {
-          col: 0,
+          col: 5,
           message: MESSAGE,
           hint: HINT
         }
