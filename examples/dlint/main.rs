@@ -8,12 +8,14 @@ use core::panic;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
+use deno_ast::SourceTextInfo;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::Linter;
 use deno_lint::linter::LinterOptions;
 use deno_lint::rules::get_all_rules;
 use deno_lint::rules::{filtered_rules, recommended_rules};
+use diagnostics::apply_lint_fixes;
 use log::debug;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -67,6 +69,11 @@ fn create_cli_app<'a>() -> Command<'a> {
               "pretty" => Ok(()),
               _ => Err("Output format must be compact or pretty")
             }),
+        ).arg(
+          Arg::new("FIX")
+            .long("fix")
+            .help("Fix any linting errors for rules that support it")
+            .takes_value(false)
         )
     )
 }
@@ -76,6 +83,7 @@ fn run_linter(
   filter_rule_name: Option<&str>,
   maybe_config: Option<Arc<config::Config>>,
   format: Option<&str>,
+  fix: bool,
 ) -> Result<(), AnyError> {
   let cwd = std::env::current_dir()?;
   let mut paths: Vec<PathBuf> =
@@ -127,7 +135,7 @@ fn run_linter(
             )
           },
         ),
-        source_code,
+        source_code: source_code.clone(),
         media_type: MediaType::from_path(file_path),
         config: LintConfig {
           default_jsx_factory: Some("React.createElement".to_string()),
@@ -149,13 +157,18 @@ fn run_linter(
 
       let mut lock = file_diagnostics.lock().unwrap();
 
-      lock.insert(file_path, diagnostics);
+      lock.insert(file_path, (source_code, diagnostics));
 
       Ok(())
     })?;
 
-  for d in file_diagnostics.lock().unwrap().values() {
+  for (file_path, (source_code, d)) in file_diagnostics.lock().unwrap().iter() {
     diagnostics::display_diagnostics(d, format);
+    if fix {
+      let info = SourceTextInfo::new(source_code.clone().into());
+      let code = apply_lint_fixes(&info, d).expect("failed to apply_lint_fixes");
+      std::fs::write(file_path, code)?;
+    }
   }
 
   let err_count = error_counts.load(Ordering::Relaxed);
@@ -198,11 +211,15 @@ fn main() -> Result<(), AnyError> {
         .unwrap_or_default()
         .map(|p| p.to_string())
         .collect();
+
+      let fix = run_matches.is_present("FIX");
+
       run_linter(
         paths,
         run_matches.value_of("RULE_CODE"),
         maybe_config,
         run_matches.value_of("FORMAT"),
+        fix,
       )?;
     }
     Some(("rules", rules_matches)) => {
