@@ -10,13 +10,15 @@ use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
+use std::borrow::Cow;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub struct LinterOptions {
   /// Rules to lint with.
   pub rules: Vec<Box<dyn LintRule>>,
   /// Collection of all the lint rule codes.
-  pub all_rule_codes: HashSet<&'static str>,
+  pub all_rule_codes: HashSet<Cow<'static, str>>,
   /// Defaults to "deno-lint-ignore-file"
   pub custom_ignore_file_directive: Option<&'static str>,
   /// Defaults to "deno-lint-ignore"
@@ -40,7 +42,7 @@ pub(crate) struct LinterContext {
   pub check_unknown_rules: bool,
   /// Rules are sorted by priority
   pub rules: Vec<Box<dyn LintRule>>,
-  pub all_rule_codes: HashSet<&'static str>,
+  pub all_rule_codes: HashSet<Cow<'static, str>>,
 }
 
 impl LinterContext {
@@ -65,11 +67,27 @@ impl LinterContext {
   }
 }
 
+#[derive(Default)]
+pub struct ExternalLinterResult {
+  pub diagnostics: Vec<LintDiagnostic>,
+  pub rules: Vec<Cow<'static, str>>,
+}
+
+/// Perform a run of "external linter" on a parsed source file.
+///
+/// Since we are working on an already parsed file, this callback
+/// is infallible. If an error handling needs to be performed by the
+/// external linter, it should be handled externally bt that linter,
+///  and an empty [`ExternalLinterResult`] should be returned.
+pub type ExternalLinterCb =
+  Arc<dyn Fn(ParsedSource) -> Option<ExternalLinterResult>>;
+
 pub struct LintFileOptions {
   pub specifier: ModuleSpecifier,
   pub source_code: String,
   pub media_type: MediaType,
   pub config: LintConfig,
+  pub external_linter: Option<ExternalLinterCb>,
 }
 
 #[derive(Debug, Clone)]
@@ -107,6 +125,7 @@ impl Linter {
       &parsed_source,
       options.config.default_jsx_factory,
       options.config.default_jsx_fragment_factory,
+      options.external_linter,
     );
 
     Ok((parsed_source, diagnostics))
@@ -120,26 +139,40 @@ impl Linter {
     &self,
     parsed_source: &ParsedSource,
     config: LintConfig,
+    maybe_external_linter: Option<ExternalLinterCb>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
     self.lint_inner(
       parsed_source,
       config.default_jsx_factory,
       config.default_jsx_fragment_factory,
+      maybe_external_linter,
     )
   }
 
   // TODO(bartlomieju): this struct does too much - not only it checks for ignored
   // lint rules, it also runs 2 additional rules. These rules should be rewritten
   // to use a regular way of writing a rule and not live on the `Context` struct.
-  fn collect_diagnostics(&self, mut context: Context) -> Vec<LintDiagnostic> {
+  fn collect_diagnostics(
+    &self,
+    mut context: Context,
+    external_rule_codes: Vec<Cow<'static, str>>,
+  ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::collect_diagnostics");
 
     let mut diagnostics = context.check_ignore_directive_usage();
+
+    let mut all_rules = self.ctx.all_rule_codes.clone();
+    all_rules.extend(external_rule_codes.iter().cloned());
+    let enabled_rules: HashSet<Cow<'static, str>> = external_rule_codes
+      .into_iter()
+      .chain(self.ctx.rules.iter().map(|r| r.code().into()))
+      .collect();
+
     // Run `ban-unknown-rule-code`
-    diagnostics.extend(context.ban_unknown_rule_code());
+    diagnostics.extend(context.ban_unknown_rule_code(&all_rules));
     // Run `ban-unused-ignore`
-    diagnostics.extend(context.ban_unused_ignore(&self.ctx.rules));
+    diagnostics.extend(context.ban_unused_ignore(&enabled_rules));
 
     // Finally sort by position the diagnostics originates on then by code
     diagnostics.sort_by(|a, b| {
@@ -159,6 +192,7 @@ impl Linter {
     parsed_source: &ParsedSource,
     default_jsx_factory: Option<String>,
     default_jsx_fragment_factory: Option<String>,
+    maybe_external_linter: Option<ExternalLinterCb>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_inner");
 
@@ -200,7 +234,15 @@ impl Linter {
         rule.lint_program_with_ast_view(&mut context, pg);
       }
 
-      self.collect_diagnostics(context)
+      let mut external_rule_codes = vec![];
+      if let Some(cb) = maybe_external_linter {
+        if let Some(external_linter_result) = cb(parsed_source.clone()) {
+          context.add_external_diagnostics(&external_linter_result.diagnostics);
+          external_rule_codes = external_linter_result.rules;
+        }
+      }
+
+      self.collect_diagnostics(context, external_rule_codes)
     });
 
     diagnostics
