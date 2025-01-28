@@ -67,11 +67,18 @@ impl LinterContext {
   }
 }
 
+#[derive(Default)]
 pub struct ExternalLinterResult {
   pub diagnostics: Vec<LintDiagnostic>,
-  pub rules: Vec<String>,
+  pub rules: Vec<Cow<'static, str>>,
 }
 
+/// Perform a run of "external linter" on a parsed source file.
+///
+/// Since we are working on an already parsed file, this callback
+/// is infallible. If an error handling needs to be performed by the
+/// external linter, it should be handled externally bt that linter,
+///  and an empty [`ExternalLinterResult`] should be returned.
 pub type ExternalLinterCb =
   Arc<dyn Fn(ParsedSource) -> Option<ExternalLinterResult>>;
 
@@ -149,21 +156,16 @@ impl Linter {
   fn collect_diagnostics(
     &self,
     mut context: Context,
-    external_rule_codes: Vec<String>,
+    external_rule_codes: Vec<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::collect_diagnostics");
 
     let mut diagnostics = context.check_ignore_directive_usage();
 
     let mut all_rules = self.ctx.all_rule_codes.clone();
-    all_rules.extend(
-      external_rule_codes
-        .iter()
-        .map(|code| code.to_string().into()),
-    );
+    all_rules.extend(external_rule_codes.iter().cloned());
     let enabled_rules: HashSet<Cow<'static, str>> = external_rule_codes
       .into_iter()
-      .map(|code| code.into())
       .chain(self.ctx.rules.iter().map(|r| r.code().into()))
       .collect();
 

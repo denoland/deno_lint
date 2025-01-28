@@ -87,14 +87,19 @@ mod lint_tests {
     )
   }
 
+  fn get_all_rules_codes() -> HashSet<Cow<'static, str>> {
+    get_all_rules()
+      .into_iter()
+      .map(|rule| rule.code())
+      .map(Cow::from)
+      .collect()
+  }
+
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {
     lint(
       source,
       recommended_rules(get_all_rules()),
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code().into())
-        .collect(),
+      get_all_rules_codes(),
     )
   }
 
@@ -104,10 +109,7 @@ mod lint_tests {
     lint_with_ast(
       parsed_source,
       recommended_rules(get_all_rules()),
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code().into())
-        .collect(),
+      get_all_rules_codes(),
     )
   }
 
@@ -115,14 +117,7 @@ mod lint_tests {
     rule: Box<dyn LintRule>,
     source: &str,
   ) -> Vec<LintDiagnostic> {
-    lint(
-      source,
-      vec![rule],
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code().into())
-        .collect(),
-    )
+    lint(source, vec![rule], get_all_rules_codes())
   }
 
   #[test]

@@ -452,6 +452,10 @@ impl<'a> Context<'a> {
       .push(self.create_diagnostic(maybe_range, details));
   }
 
+  /// Add fully constructed diagnostics.
+  ///
+  /// This function can be used by the "external linter" to provide its own
+  /// diagnostics.
   pub fn add_external_diagnostics(&mut self, diagnostics: &[LintDiagnostic]) {
     self.diagnostics.extend_from_slice(diagnostics);
   }

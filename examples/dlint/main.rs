@@ -16,6 +16,7 @@ use deno_lint::rules::get_all_rules;
 use deno_lint::rules::{filtered_rules, recommended_rules};
 use log::debug;
 use rayon::prelude::*;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -90,7 +91,8 @@ fn run_linter(
   let all_rules = get_all_rules();
   let all_rule_codes = all_rules
     .iter()
-    .map(|rule| rule.code().into())
+    .map(|rule| rule.code())
+    .map(Cow::from)
     .collect::<HashSet<_>>();
   let rules = if let Some(config) = maybe_config {
     config.get_rules()

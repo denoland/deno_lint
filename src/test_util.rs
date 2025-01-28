@@ -1,5 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
+use std::borrow::Cow;
+
 use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintConfig;
@@ -325,7 +327,8 @@ fn lint(
     rules: vec![rule],
     all_rule_codes: get_all_rules()
       .into_iter()
-      .map(|rule| rule.code().into())
+      .map(|rule| rule.code())
+      .map(Cow::from)
       .collect(),
     custom_ignore_diagnostic_directive: None,
     custom_ignore_file_directive: None,
