@@ -33,7 +33,6 @@ derive_more = { version = "0.99.17", features = ["display"] }
 anyhow = "1.0.79"
 if_chain = "1.0.2"
 phf = { version = "0.11.2", features = ["macros"] }
-thiserror = "2.0"
 
 [dev-dependencies]
 ansi_term = "0.12.1"
