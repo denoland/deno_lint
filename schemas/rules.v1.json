@@ -83,7 +83,7 @@
     "no-non-null-assertion",
     "no-obj-calls",
     "no-octal",
-    "no-process-globals",
+    "no-process-global",
     "no-prototype-builtins",
     "no-redeclare",
     "no-regex-spaces",
