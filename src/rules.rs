@@ -114,6 +114,7 @@ pub mod no_window;
 pub mod no_window_prefix;
 pub mod no_with;
 pub mod prefer_as_const;
+pub mod non_generic_typed_array;
 pub mod prefer_ascii;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
