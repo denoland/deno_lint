@@ -120,6 +120,7 @@ mod tests {
       NonGenericTypedArray,
       "type Test = Uint8Array<ArrayBuffer>;",
       "type Test = Uint8Array<ArrayBufferLike>;",
+      "type Test = NonUint8Array;",
       "function test(): Uint8Array<ArrayBufferLike> {}",
 
       // ok to accept a wide input type
@@ -148,6 +149,14 @@ mod tests {
           fix: (FIX_DESC_ARRAY_BUFFER, "function test(): Uint8Array<ArrayBuffer> {}"),
           fix: (FIX_DESC_ARRAY_BUFFER_LIKE, "function test(): Uint8Array<ArrayBufferLike> {}"),
           fix: (FIX_DESC_SHARED_ARRAY_BUFFER, "function test(): Uint8Array<SharedArrayBuffer> {}"),
+        }
+      ],
+      r#"function test(): Float64Array {}"#: [
+        {
+          col: 17,
+          fix: (FIX_DESC_ARRAY_BUFFER, "function test(): Float64Array<ArrayBuffer> {}"),
+          fix: (FIX_DESC_ARRAY_BUFFER_LIKE, "function test(): Float64Array<ArrayBufferLike> {}"),
+          fix: (FIX_DESC_SHARED_ARRAY_BUFFER, "function test(): Float64Array<SharedArrayBuffer> {}"),
         }
       ],
     };
