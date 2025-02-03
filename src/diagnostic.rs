@@ -53,6 +53,13 @@ pub struct LintDiagnosticDetails {
   pub info: Vec<Cow<'static, str>>,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub enum LintDiagnosticSeverity {
+  #[default]
+  Error,
+  Warning,
+}
+
 #[derive(Clone)]
 pub struct LintDiagnostic {
   pub specifier: ModuleSpecifier,
@@ -62,11 +69,15 @@ pub struct LintDiagnostic {
   /// the whole file.
   pub range: Option<LintDiagnosticRange>,
   pub details: LintDiagnosticDetails,
+  pub severity: LintDiagnosticSeverity,
 }
 
 impl Diagnostic for LintDiagnostic {
   fn level(&self) -> DiagnosticLevel {
-    DiagnosticLevel::Error
+    match self.severity {
+      LintDiagnosticSeverity::Error => DiagnosticLevel::Error,
+      LintDiagnosticSeverity::Warning => DiagnosticLevel::Warning,
+    }
   }
 
   fn code(&self) -> Cow<'_, str> {
