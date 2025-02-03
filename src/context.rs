@@ -2,7 +2,8 @@
 
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{
-  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintFix,
+  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange,
+  LintDiagnosticSeverity, LintFix,
 };
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
@@ -298,6 +299,7 @@ impl<'a> Context<'a> {
             None,
             Vec::new(),
           ),
+          LintDiagnosticSeverity::default(),
         );
         diagnostics.push(d);
       }
@@ -319,6 +321,7 @@ impl<'a> Context<'a> {
             None,
             Vec::new(),
           ),
+          LintDiagnosticSeverity::default(),
         );
         diagnostics.push(d);
       }
@@ -351,6 +354,7 @@ impl<'a> Context<'a> {
             None,
             Vec::new(),
           ),
+          LintDiagnosticSeverity::default(),
         );
         diagnostics.push(d);
       }
@@ -370,6 +374,7 @@ impl<'a> Context<'a> {
             None,
             Vec::new(),
           ),
+          LintDiagnosticSeverity::default(),
         );
         diagnostics.push(d);
       }
@@ -407,6 +412,8 @@ impl<'a> Context<'a> {
         None,
         Vec::new(),
       ),
+      // Todo: support custom severity for each rule or custom configuration
+      LintDiagnosticSeverity::default(),
     );
   }
 
@@ -425,6 +432,8 @@ impl<'a> Context<'a> {
         Some(hint.to_string()),
         Vec::new(),
       ),
+      // Todo: support custom severity for each rule or custom configuration
+      LintDiagnosticSeverity::default(),
     );
   }
 
@@ -439,6 +448,7 @@ impl<'a> Context<'a> {
     self.add_diagnostic_details(
       Some(self.create_diagnostic_range(range)),
       self.create_diagnostic_details(code, message, hint, fixes),
+      LintDiagnosticSeverity::default(),
     );
   }
 
@@ -446,10 +456,13 @@ impl<'a> Context<'a> {
     &mut self,
     maybe_range: Option<LintDiagnosticRange>,
     details: LintDiagnosticDetails,
+    severity: LintDiagnosticSeverity,
   ) {
-    self
-      .diagnostics
-      .push(self.create_diagnostic(maybe_range, details));
+    self.diagnostics.push(self.create_diagnostic(
+      maybe_range,
+      details,
+      severity,
+    ));
   }
 
   /// Add fully constructed diagnostics.
@@ -464,11 +477,13 @@ impl<'a> Context<'a> {
     &self,
     maybe_range: Option<LintDiagnosticRange>,
     details: LintDiagnosticDetails,
+    severity: LintDiagnosticSeverity,
   ) -> LintDiagnostic {
     LintDiagnostic {
       specifier: self.specifier().clone(),
       range: maybe_range,
       details,
+      severity,
     }
   }
 
