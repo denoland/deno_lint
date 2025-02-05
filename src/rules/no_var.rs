@@ -4,7 +4,7 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
 use crate::Program;
-use deno_ast::view::{NodeTrait, VarDecl, VarDeclKind};
+use deno_ast::view::{NodeKind, NodeTrait, VarDecl, VarDeclKind};
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
@@ -35,6 +35,10 @@ struct NoVarHandler;
 
 impl Handler for NoVarHandler {
   fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
+    if var_decl.parent().kind() == NodeKind::TsModuleBlock {
+      return;
+    }
+
     if var_decl.decl_kind() == VarDeclKind::Var {
       let range = var_decl.tokens().first().unwrap().range();
       ctx.add_diagnostic(range, CODE, MESSAGE);
@@ -48,7 +52,18 @@ mod tests {
 
   #[test]
   fn no_var_valid() {
-    assert_lint_ok!(NoVar, r#"let foo = 0; const bar = 1"#,);
+    assert_lint_ok!(
+      NoVar,
+      r#"let foo = 0; const bar = 1"#,
+      r#"declare global {
+  namespace globalThis {
+    var test: string
+  }
+}"#,
+  r#"declare global {
+  var test: string
+}"#,
+    );
   }
 
   #[test]
@@ -72,7 +87,7 @@ mod tests {
           col: 26,
           message: MESSAGE,
         }
-      ]
+      ],
     );
   }
 }
