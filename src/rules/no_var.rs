@@ -60,7 +60,7 @@ mod tests {
     var test: string
   }
 }"#,
-  r#"declare global {
+      r#"declare global {
   var test: string
 }"#,
     );
