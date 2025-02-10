@@ -2,7 +2,8 @@
 
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{
-  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintFix,
+  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintDocsUrl,
+  LintFix,
 };
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
@@ -484,7 +485,7 @@ impl<'a> Context<'a> {
       code: code.to_string(),
       hint: maybe_hint,
       fixes,
-      custom_docs_url: None,
+      custom_docs_url: LintDocsUrl::Default,
       info: vec![],
     }
   }
