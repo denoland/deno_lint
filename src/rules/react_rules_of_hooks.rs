@@ -72,7 +72,7 @@ enum ParentKind {
   Loop,
   TryCatch,
   Var(String), // var decl with identifier
-  VarOther, // var decl with other pattern (e.g. array, object)
+  VarOther,    // var decl with other pattern (e.g. array, object)
   Unknown,
 }
 
