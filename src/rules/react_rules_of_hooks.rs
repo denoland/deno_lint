@@ -71,7 +71,8 @@ enum ParentKind {
   ExportDefault,
   Loop,
   TryCatch,
-  Var(String),
+  Var(String), // var decl with identifier
+  VarOther, // var decl with other pattern (e.g. array, object)
   Unknown,
 }
 
@@ -136,7 +137,7 @@ impl Handler for RulesOfHooksHandler {
             .parent_kind
             .push(ParentKind::Var(id.id.sym().to_string()))
         } else {
-          self.parent_kind.push(ParentKind::Unknown)
+          self.parent_kind.push(ParentKind::VarOther)
         }
       }
       Node::IfStmt(_) => {
@@ -191,7 +192,7 @@ impl Handler for RulesOfHooksHandler {
       for item in self.parent_kind.iter().rev() {
         match item {
           ParentKind::Unknown => break,
-          ParentKind::Var(_) => continue,
+          ParentKind::Var(_) | ParentKind::VarOther => continue,
 
           ParentKind::Fn((name, cond_count)) => {
             if *cond_count > 0 {
@@ -332,9 +333,30 @@ function doAThing() {
           hint: DiagnosticKind::Conditionally.hint(),
         }
       ],
+      r#"function Foo() { if (cond) { const [state, setState] = useState(0) } }"#: [
+        {
+          col: 55,
+          message: DiagnosticKind::Conditionally.message(),
+          hint: DiagnosticKind::Conditionally.hint(),
+        }
+      ],
+      r#"function Foo() { if (cond) { const { value, setValue } = useCustomHook() } }"#: [
+        {
+          col: 57,
+          message: DiagnosticKind::Conditionally.message(),
+          hint: DiagnosticKind::Conditionally.hint(),
+        }
+      ],
       r#"function Foo() { for (let i = 0; i < 10; i++) { useState(0) } }"#: [
         {
           col: 48,
+          message: DiagnosticKind::Loop.message(),
+          hint: DiagnosticKind::Loop.hint(),
+        }
+      ],
+      r#"function Foo() { for (let i = 0; i < 10; i++) { const [state, setState] = useState(0) } }"#: [
+        {
+          col: 74,
           message: DiagnosticKind::Loop.message(),
           hint: DiagnosticKind::Loop.hint(),
         }
@@ -363,6 +385,13 @@ function doAThing() {
       r#"function Foo() { if (cond) { return } useState(0) }"#: [
         {
           col: 38,
+          message: DiagnosticKind::Conditionally.message(),
+          hint: DiagnosticKind::Conditionally.hint(),
+        }
+      ],
+      r#"function Foo() { if (cond) { return } const [state, setState] = useState(0) }"#: [
+        {
+          col: 64,
           message: DiagnosticKind::Conditionally.message(),
           hint: DiagnosticKind::Conditionally.hint(),
         }
