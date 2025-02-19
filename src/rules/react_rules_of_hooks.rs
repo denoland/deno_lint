@@ -67,7 +67,8 @@ impl DiagnosticKind {
 enum ParentKind {
   Fn((String, usize)),
   Bin,
-  Cond,
+  // Bool indicates if condition is terminal (= has return statement)
+  Cond(bool),
   ExportDefault,
   Loop,
   TryCatch,
@@ -95,6 +96,23 @@ impl RulesOfHooksHandler {
       }
     }
   }
+
+  fn maybe_mark_cond_terminal(&mut self) {
+    if let Some(last) = self.parent_kind.last_mut() {
+      if let ParentKind::Cond(_) = last {
+        *last = ParentKind::Cond(true)
+      }
+    }
+  }
+
+  fn maybe_decrease_cond_counter(&mut self) {
+    if let Some(last) = self.parent_kind.last_mut() {
+      if let ParentKind::Fn((name, count)) = last {
+        let new_count = *count - 1;
+        *last = ParentKind::Fn((name.to_string(), new_count))
+      }
+    }
+  }
 }
 
 impl Handler for RulesOfHooksHandler {
@@ -114,7 +132,7 @@ impl Handler for RulesOfHooksHandler {
       }
       Node::CondExpr(_) => {
         self.maybe_increase_cond_counter();
-        self.parent_kind.push(ParentKind::Cond);
+        self.parent_kind.push(ParentKind::Cond(false));
       }
       Node::BinExpr(_) => {
         self.maybe_increase_cond_counter();
@@ -142,7 +160,7 @@ impl Handler for RulesOfHooksHandler {
       }
       Node::IfStmt(_) => {
         self.maybe_increase_cond_counter();
-        self.parent_kind.push(ParentKind::Cond);
+        self.parent_kind.push(ParentKind::Cond(false));
       }
       Node::ForInStmt(_)
       | Node::ForOfStmt(_)
@@ -153,18 +171,25 @@ impl Handler for RulesOfHooksHandler {
       Node::TryStmt(_) => {
         self.parent_kind.push(ParentKind::TryCatch);
       }
+      Node::ReturnStmt(_) => self.maybe_mark_cond_terminal(),
       _ => {}
     }
   }
 
   fn on_exit_node(&mut self, node: Node, _ctx: &mut Context) {
     match node {
+      Node::IfStmt(_) => {
+        if let Some(ParentKind::Cond(terminal)) = self.parent_kind.pop() {
+          if !terminal {
+            self.maybe_decrease_cond_counter();
+          }
+        }
+      }
       Node::FnDecl(_)
       | Node::ArrowExpr(_)
       | Node::BinExpr(_)
       | Node::CondExpr(_)
       | Node::VarDeclarator(_)
-      | Node::IfStmt(_)
       | Node::ForInStmt(_)
       | Node::ForOfStmt(_)
       | Node::FnExpr(_)
@@ -230,7 +255,7 @@ impl Handler for RulesOfHooksHandler {
             );
             break;
           }
-          ParentKind::Bin | ParentKind::Cond => {
+          ParentKind::Bin | ParentKind::Cond(_) => {
             ctx.add_diagnostic_with_hint(
               node.range(),
               CODE,
@@ -296,7 +321,19 @@ mod tests {
       r#"function userHook() {}
 function doAThing() {
   userHook()
-}"#
+}"#,
+      r#"function Foo() {
+  if (condition) {
+    bar = 1;
+  }
+  const [foo, setFoo] = useState(false);
+}"#,
+      r#"function Foo() {
+  if (condition) {
+    bar.map(x => { return 2; })
+  }
+  const [foo, setFoo] = useState(false);
+}"#,
     };
   }
 
