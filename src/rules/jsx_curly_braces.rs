@@ -18,7 +18,7 @@ pub struct JSXCurlyBraces;
 
 const CODE: &str = "jsx-curly-braces";
 
-const IGNORE_CHARS: Lazy<Regex> = Lazy::new(|| Regex::new(r"[{}<>]").unwrap());
+static IGNORE_CHARS: Lazy<Regex> = Lazy::new(|| Regex::new(r"[{}<>]").unwrap());
 
 impl LintRule for JSXCurlyBraces {
   fn tags(&self) -> Tags {
