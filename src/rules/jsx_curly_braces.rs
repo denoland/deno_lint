@@ -10,11 +10,15 @@ use deno_ast::view::{
   NodeTrait,
 };
 use deno_ast::SourceRanged;
+use once_cell::sync::Lazy;
+use regex::Regex;
 
 #[derive(Debug)]
 pub struct JSXCurlyBraces;
 
 const CODE: &str = "jsx-curly-braces";
+
+static IGNORE_CHARS: Lazy<Regex> = Lazy::new(|| Regex::new(r"[{}<>]").unwrap());
 
 impl LintRule for JSXCurlyBraces {
   fn tags(&self) -> Tags {
@@ -81,6 +85,11 @@ impl Handler for JSXCurlyBracesHandler {
 
       if let JSXElementChild::JSXExprContainer(child_expr) = child {
         if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = child_expr.expr {
+          // Ignore entities which would require escaping.
+          if IGNORE_CHARS.is_match(lit_str.inner.value.as_str()) {
+            continue;
+          }
+
           // Allowed if this node is at the end of a line
           // <div>{" "}
           // </div>
@@ -174,6 +183,14 @@ mod tests {
         foo{" "}
         <span />
       </div>"#,
+      r#"<div>foo{"<"}</div>"#,
+      r#"<div>foo{">"}</div>"#,
+      r#"<div>foo{"}"}</div>"#,
+      r#"<div>foo{"{"}</div>"#,
+      r#"<div>foo{"foo <"}</div>"#,
+      r#"<div>foo{"foo >"}</div>"#,
+      r#"<div>foo{"foo }"}</div>"#,
+      r#"<div>foo{"foo {"}</div>"#,
     };
   }
 
