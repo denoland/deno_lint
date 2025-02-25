@@ -10,7 +10,7 @@ use deno_ast::swc::ast::{
   TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
 };
 use deno_ast::swc::ast::{Callee, PropName};
-use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;

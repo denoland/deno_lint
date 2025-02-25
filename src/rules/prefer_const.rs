@@ -14,10 +14,10 @@ use deno_ast::swc::ast::{
   SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
   VarDeclOrExpr, WhileStmt, WithStmt,
 };
-use deno_ast::swc::atoms::JsWord;
+use deno_ast::swc::atoms::Atom;
 use deno_ast::swc::utils::find_pat_ids;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::{Visit, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
@@ -82,7 +82,7 @@ type Scope = Rc<RefCell<RawScope>>;
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<JsWord, SourceRange>,
+  variables: BTreeMap<Atom, SourceRange>,
 }
 
 impl RawScope {

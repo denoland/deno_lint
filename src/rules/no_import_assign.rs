@@ -9,7 +9,7 @@ use deno_ast::BindingKind;
 use deno_ast::{
   swc::{
     ast::*,
-    visit::{noop_visit_type, Visit, VisitWith},
+    ecma_visit::{noop_visit_type, Visit, VisitWith},
   },
   SourceRange, SourceRangedForSpanned,
 };

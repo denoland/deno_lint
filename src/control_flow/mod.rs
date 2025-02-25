@@ -8,7 +8,7 @@ use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::utils::ExprCtx;
 use deno_ast::swc::{
   utils::{ExprExt, Value},
-  visit::{noop_visit_type, Visit, VisitWith},
+  ecma_visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::view;
 use deno_ast::SourcePos;
@@ -34,6 +34,8 @@ impl ControlFlow {
       expr_ctxt: ExprCtx {
         unresolved_ctxt,
         is_unresolved_ref_safe: false,
+        in_strict: true,
+        remaining_depth: 4, // this is the swc default
       },
     };
     match program {
@@ -622,7 +624,7 @@ impl Visit for Analyzer<'_> {
             forced_end = Some(end);
           }
           Some(test) => {
-            if matches!(test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
+            if matches!(test.cast_to_bool(expr_ctxt), (_, Value::Known(true)))
             {
               a.mark_as_end(n.start(), end);
               forced_end = Some(end);
@@ -676,7 +678,7 @@ impl Visit for Analyzer<'_> {
       n.body.visit_with(a);
 
       let unconditionally_enter =
-        matches!(n.test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)));
+        matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)));
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
       let has_break = matches!(a.scope.found_break, Some(None));
@@ -709,7 +711,7 @@ impl Visit for Analyzer<'_> {
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
       let infinite_loop =
-        matches!(n.test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
+        matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)))
           && a.scope.found_break.is_none();
       let has_break = matches!(a.scope.found_break, Some(None));
 

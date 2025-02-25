@@ -7,7 +7,7 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::{SourceRange, SourceRangedForSpanned};
 use derive_more::Display;
 use std::collections::HashSet;

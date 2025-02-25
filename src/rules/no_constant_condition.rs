@@ -6,7 +6,7 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;

@@ -18,16 +18,15 @@ use deno_ast::swc::ast::{
   TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use deno_ast::swc::ast::{Id, SimpleAssignTarget};
-use deno_ast::swc::atoms::js_word;
 use deno_ast::swc::utils::find_pat_ids;
-use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{Visit, VisitWith};
 use deno_ast::view::AssignOp;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use if_chain::if_chain;
 use std::collections::HashSet;
 use std::iter;
-use std::sync::Arc;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct NoUnusedVars;
@@ -111,9 +110,9 @@ struct Collector {
   /// restore hashset after handling bindings
   cur_defining: Vec<Id>,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_factory: Option<Arc<Box<Expr>>>,
+  jsx_factory: Option<Rc<Box<Expr>>>,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_fragment_factory: Option<Arc<Box<Expr>>>,
+  jsx_fragment_factory: Option<Rc<Box<Expr>>>,
 }
 
 impl Collector {
@@ -363,7 +362,7 @@ impl Visit for Collector {
       if let Some(first_param) = function.params.first();
       if let Pat::Ident(ident) = &first_param.pat;
       if ident.type_ann.is_some();
-      if ident.id.sym == js_word!("this");
+      if ident.id.sym.as_str() == "this";
       then {
         // If the first parameter of a function is `this` keyword with type annotated, it is a
         // fake parameter specifying what type `this` becomes inside the function body.

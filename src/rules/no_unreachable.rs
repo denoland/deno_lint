@@ -10,8 +10,8 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::Decl;
 use deno_ast::swc::ast::Stmt;
 use deno_ast::swc::ast::VarDeclKind;
-use deno_ast::swc::visit::Visit;
-use deno_ast::swc::visit::VisitWith;
+use deno_ast::swc::ecma_visit::Visit;
+use deno_ast::swc::ecma_visit::VisitWith;
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]

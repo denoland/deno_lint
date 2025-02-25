@@ -1,5 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
+use std::collections::HashSet;
+
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
 use crate::tags::{self, Tags};
@@ -9,8 +11,7 @@ use deno_ast::swc::ast::{
   JSXElementName, ModuleExportName, NamedExport, TsEntityName,
   TsImportEqualsDecl, TsModuleRef,
 };
-use deno_ast::swc::common::collections::AHashSet;
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::view::NodeTrait;
 use deno_ast::{
   view as ast_view, SourceRange, SourceRanged, SourceRangedForSpanned,
@@ -259,9 +260,9 @@ impl LintRule for VerbatimModuleSyntax {
 /// https://github.com/swc-project/swc/blob/d8186fb94efb150b50d96519f0b8c5740d15b92f/crates/swc_ecma_transforms_typescript/src/strip_import_export.rs#L9C1-L100C2
 #[derive(Debug, Default)]
 struct IdCollector {
-  id_usage: AHashSet<Id>,
-  export_value_id_usage: AHashSet<Id>,
-  import_value_id_usage: AHashSet<Id>,
+  id_usage: HashSet<Id>,
+  export_value_id_usage: HashSet<Id>,
+  import_value_id_usage: HashSet<Id>,
 }
 
 impl IdCollector {

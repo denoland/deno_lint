@@ -6,8 +6,8 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]

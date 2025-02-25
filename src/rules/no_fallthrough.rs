@@ -8,7 +8,7 @@ use crate::ProgramRef;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::{
   ast::*,
-  visit::{noop_visit_type, Visit, VisitWith},
+  ecma_visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
