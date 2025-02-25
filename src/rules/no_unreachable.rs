@@ -53,7 +53,7 @@ impl<'c, 'view> NoUnreachableVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
+impl Visit for NoUnreachableVisitor<'_, '_> {
   fn visit_stmt(&mut self, stmt: &Stmt) {
     stmt.visit_children_with(self);
 

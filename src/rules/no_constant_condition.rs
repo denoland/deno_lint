@@ -205,7 +205,7 @@ fn check_short_circuit(expr: &Expr, operator: BinaryOp) -> bool {
   }
 }
 
-impl<'c, 'view> Visit for NoConstantConditionVisitor<'c, 'view> {
+impl Visit for NoConstantConditionVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr) {

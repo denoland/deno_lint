@@ -494,7 +494,7 @@ enum IdentKind<'a> {
   Other(&'a Ident),
 }
 
-impl<'a> IdentKind<'a> {
+impl IdentKind<'_> {
   fn inner(&self) -> &Ident {
     match *self {
       IdentKind::NamedImport(ident) => ident,
@@ -520,7 +520,7 @@ impl<'a> IdentKind<'a> {
   }
 }
 
-impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
+impl NoUnusedVarVisitor<'_, '_> {
   fn handle_id(&mut self, ident: IdentKind) {
     let inner = ident.inner();
     if inner.sym.starts_with('_') {
@@ -539,7 +539,7 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoUnusedVarVisitor<'c, 'view> {
+impl Visit for NoUnusedVarVisitor<'_, '_> {
   fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
     let declared_idents: Vec<Ident> = find_pat_ids(&expr.params);
 

@@ -795,7 +795,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
+impl Visit for PreferConstVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_module(&mut self, module: &Module) {

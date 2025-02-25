@@ -274,8 +274,7 @@ impl<'a> Context<'a> {
     // exit without running this rule.
     if self
       .file_ignore_directive
-      .as_ref()
-      .map_or(false, |file_ignore| file_ignore.has_code(CODE))
+      .as_ref().is_some_and(|file_ignore| file_ignore.has_code(CODE))
     {
       return vec![];
     }

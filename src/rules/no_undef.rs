@@ -74,7 +74,7 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
+impl Visit for NoUndefVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_member_expr(&mut self, e: &MemberExpr) {

@@ -63,7 +63,7 @@ impl<'c, 'view> NoDuplicateCaseVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoDuplicateCaseVisitor<'c, 'view> {
+impl Visit for NoDuplicateCaseVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {

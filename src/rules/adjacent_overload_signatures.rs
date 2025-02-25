@@ -126,14 +126,14 @@ trait ExtractMethod {
   fn get_method(&self) -> Option<Method>;
 }
 
-impl<'a> ExtractMethod for ast_view::ExportDecl<'a> {
+impl ExtractMethod for ast_view::ExportDecl<'_> {
   fn get_method(&self) -> Option<Method> {
     let method_name = extract_ident_from_decl(&self.decl);
     method_name.map(Method::Method)
   }
 }
 
-impl<'a> ExtractMethod for ast_view::Stmt<'a> {
+impl ExtractMethod for ast_view::Stmt<'_> {
   fn get_method(&self) -> Option<Method> {
     let method_name = match self {
       ast_view::Stmt::Decl(ref decl) => extract_ident_from_decl(decl),
@@ -143,7 +143,7 @@ impl<'a> ExtractMethod for ast_view::Stmt<'a> {
   }
 }
 
-impl<'a> ExtractMethod for ast_view::ModuleItem<'a> {
+impl ExtractMethod for ast_view::ModuleItem<'_> {
   fn get_method(&self) -> Option<Method> {
     use deno_ast::view::{ModuleDecl, ModuleItem};
     match self {
@@ -156,7 +156,7 @@ impl<'a> ExtractMethod for ast_view::ModuleItem<'a> {
   }
 }
 
-impl<'a> ExtractMethod for ast_view::ClassMember<'a> {
+impl ExtractMethod for ast_view::ClassMember<'_> {
   fn get_method(&self) -> Option<Method> {
     use deno_ast::view::{ClassMember, ClassMethod};
     match self {
@@ -177,7 +177,7 @@ impl<'a> ExtractMethod for ast_view::ClassMember<'a> {
   }
 }
 
-impl<'a> ExtractMethod for ast_view::TsTypeElement<'a> {
+impl ExtractMethod for ast_view::TsTypeElement<'_> {
   fn get_method(&self) -> Option<Method> {
     use deno_ast::view::{Expr, Lit, TsMethodSignature, TsTypeElement};
     match self {

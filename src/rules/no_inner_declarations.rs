@@ -173,7 +173,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
+impl NoInnerDeclarationsVisitor<'_, '_> {
   fn add_diagnostic(&mut self, range: SourceRange, kind: &str) {
     let root = if self.in_function {
       "function"
@@ -190,7 +190,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
+impl Visit for NoInnerDeclarationsVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {

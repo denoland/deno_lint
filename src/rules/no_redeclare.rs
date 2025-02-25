@@ -52,7 +52,7 @@ struct NoRedeclareVisitor<'c, 'view> {
   bindings: HashSet<Id>,
 }
 
-impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
+impl NoRedeclareVisitor<'_, '_> {
   fn declare(&mut self, i: &Ident) {
     let id = i.to_id();
 
@@ -62,7 +62,7 @@ impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
+impl Visit for NoRedeclareVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, f: &FnDecl) {

@@ -354,7 +354,7 @@ fn process_function<'a, N>(
 }
 
 fn is_body_empty(maybe_body: Option<&deno_ast::view::BlockStmt>) -> bool {
-  maybe_body.map_or(true, |body| body.stmts.is_empty())
+  maybe_body.is_none_or(|body| body.stmts.is_empty())
 }
 
 #[cfg(test)]

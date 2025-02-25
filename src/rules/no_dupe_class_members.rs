@@ -75,7 +75,7 @@ impl<'c, 'view> NoDupeClassMembersVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoDupeClassMembersVisitor<'c, 'view> {
+impl Visit for NoDupeClassMembersVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class) {
@@ -112,7 +112,7 @@ impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
   }
 }
 
-impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
+impl Visit for ClassVisitor<'_, '_, '_> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class) {

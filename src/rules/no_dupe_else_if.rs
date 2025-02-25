@@ -73,7 +73,7 @@ impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoDupeElseIfVisitor<'c, 'view> {
+impl Visit for NoDupeElseIfVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {

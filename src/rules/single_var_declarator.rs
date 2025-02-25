@@ -50,7 +50,7 @@ impl<'c, 'view> SingleVarDeclaratorVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
+impl Visit for SingleVarDeclaratorVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {

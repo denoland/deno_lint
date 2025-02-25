@@ -51,7 +51,7 @@ impl<'c, 'view> NoEmptyPatternVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
+impl Visit for NoEmptyPatternVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_object_pat_prop(&mut self, obj_pat_prop: &ObjectPatProp) {

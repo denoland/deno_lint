@@ -57,7 +57,7 @@ impl<'c, 'view> ValidTypeofVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
+impl Visit for ValidTypeofVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr) {
@@ -78,8 +78,7 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
           }
           Tpl(tpl) => {
             if tpl
-              .string_repr()
-              .map_or(false, |s| !is_valid_typeof_string(&s))
+              .string_repr().is_some_and(|s| !is_valid_typeof_string(&s))
             {
               self.context.add_diagnostic(tpl.range(), CODE, MESSAGE);
             }

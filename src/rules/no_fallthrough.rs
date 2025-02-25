@@ -59,7 +59,7 @@ struct NoFallthroughVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
 }
 
-impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
+impl Visit for NoFallthroughVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase]) {

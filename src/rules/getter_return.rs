@@ -269,7 +269,7 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
+impl Visit for GetterReturnVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {

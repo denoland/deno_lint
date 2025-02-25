@@ -541,7 +541,7 @@ impl Handler for PreferPrimordialsHandler {
       // Don't check left side of assignment expressions
       // e.g. `foo.bar = 1`
       if !matches!(member_expr.parent(), Node::AssignExpr(assign_expr)
-        if assign_expr.left.to::<ast_view::MemberExpr>().map_or(false, |expr| ptr::eq(expr, member_expr))
+        if assign_expr.left.to::<ast_view::MemberExpr>().is_some_and(|expr| ptr::eq(expr, member_expr))
       );
       // Don't check call expressions
       // e.g. `foo.bar()`

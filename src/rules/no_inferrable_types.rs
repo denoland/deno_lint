@@ -291,7 +291,7 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoInferrableTypesVisitor<'c, 'view> {
+impl Visit for NoInferrableTypesVisitor<'_, '_> {
   fn visit_function(&mut self, function: &Function) {
     for param in &function.params {
       if let Pat::Assign(assign_pat) = &param.pat {

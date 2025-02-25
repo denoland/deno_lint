@@ -79,7 +79,7 @@ impl<'c, 'view> RequireYieldVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
+impl Visit for RequireYieldVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr) {
