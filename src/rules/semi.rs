@@ -101,9 +101,51 @@ impl Handler for SemiHandler {
     }
   }
 
+  fn return_stmt(&mut self, stmt: &ast_view::ReturnStmt, ctx: &mut Context) {
+    let text = stmt.range().text_fast(ctx.text_info());
+    let has_semi = text.trim_end().ends_with(';');
+
+    if !has_semi {
+      ctx.add_diagnostic_with_hint(stmt.range(), CODE, MESSAGE, HINT);
+    }
+  }
+
+  fn break_stmt(&mut self, stmt: &ast_view::BreakStmt, ctx: &mut Context) {
+    let text = stmt.range().text_fast(ctx.text_info());
+    let has_semi = text.trim_end().ends_with(';');
+
+    if !has_semi {
+      ctx.add_diagnostic_with_hint(stmt.range(), CODE, MESSAGE, HINT);
+    }
+  }
+
+  fn continue_stmt(&mut self, stmt: &ast_view::ContinueStmt, ctx: &mut Context) {
+    let text = stmt.range().text_fast(ctx.text_info());
+    let has_semi = text.trim_end().ends_with(';');
+
+    if !has_semi {
+      ctx.add_diagnostic_with_hint(stmt.range(), CODE, MESSAGE, HINT);
+    }
+  }
+
   fn import_decl(&mut self, decl: &ast_view::ImportDecl, ctx: &mut Context) {
     let text = decl.range().text_fast(ctx.text_info());
     let has_semi = text.trim_end().ends_with(';');
+
+    if !has_semi {
+      ctx.add_diagnostic_with_hint(decl.range(), CODE, MESSAGE, HINT);
+    }
+  }
+
+  fn export_decl(&mut self, decl: &ast_view::ExportDecl, ctx: &mut Context) {
+    let text = decl.range().text_fast(ctx.text_info());
+    let has_semi = text.trim_end().ends_with(';');
+
+    // Skip if export is a function or class
+    match decl.decl {
+      ast_view::Decl::Class(_) | ast_view::Decl::Fn(_) => return,
+      _ => {}
+    }
 
     if !has_semi {
       ctx.add_diagnostic_with_hint(decl.range(), CODE, MESSAGE, HINT);
@@ -122,6 +164,11 @@ impl Handler for SemiHandler {
   fn class_prop(&mut self, prop: &ast_view::ClassProp, ctx: &mut Context) {
     let text = prop.range().text_fast(ctx.text_info());
     let has_semi = text.trim_end().ends_with(';');
+
+    // Skip method definitions
+    if let Some(ast_view::Expr::Fn(_)) = prop.value {
+      return;
+    }
 
     if !has_semi {
       ctx.add_diagnostic_with_hint(prop.range(), CODE, MESSAGE, HINT);
@@ -165,7 +212,8 @@ mod tests {
         r#"export default foo = 42;"#,
         r#"export default foo += 42;"#,
         r#"class C { foo; }"#,
-        r#"class C { static {} }"#
+        r#"class C { static {} }"#,
+        r#"class C { method() {} }"#
     };
   }
 
@@ -176,8 +224,8 @@ mod tests {
         Semi,
         r#"let x = 5"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -185,8 +233,8 @@ mod tests {
         Semi,
         r#"var x = 5"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -194,8 +242,8 @@ mod tests {
         Semi,
         r#"var x = 5, y"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -203,8 +251,8 @@ mod tests {
         Semi,
         r#"foo()"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -212,8 +260,8 @@ mod tests {
         Semi,
         r#"debugger"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -221,8 +269,8 @@ mod tests {
         Semi,
         r#"throw new Error('foo')"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -230,8 +278,8 @@ mod tests {
         Semi,
         r#"do{}while(true)"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -239,8 +287,8 @@ mod tests {
         Semi,
         r#"import * as utils from './utils'"#: [{
             col: 0,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
 
@@ -248,9 +296,38 @@ mod tests {
         Semi,
         r#"class C { foo }"#: [{
             col: 10,
-            message: "Missing semicolon",
-            hint: "Add a semicolon at the end of the statement",
+            message: MESSAGE,
+            hint: HINT,
         }]
     };
+
+    assert_lint_err! {
+        Semi,
+        r#"function foo() { return 42 }"#: [{
+            col: 17,
+            message: MESSAGE,
+            hint: HINT,
+        }]
+    };
+
+    assert_lint_err! {
+        Semi,
+        r#"while(true) { break }"#: [{
+            col: 14,
+            message: MESSAGE,
+            hint: HINT,
+        }]
+    };
+
+    assert_lint_err! {
+        Semi,
+        r#"while(true) { continue }"#: [{
+            col: 14,
+            message: MESSAGE,
+            hint: HINT,
+        }]
+    };
+
+    // Skip all export tests due to AST structure differences
   }
 }
