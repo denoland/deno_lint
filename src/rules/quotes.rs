@@ -39,12 +39,12 @@ struct QuotesHandler;
 impl Handler for QuotesHandler {
   fn str(&mut self, lit: &ast_view::Str, ctx: &mut Context) {
     let raw_str = lit.range().text_fast(ctx.text_info());
-    
+
     // Skip if template literal
     if raw_str.starts_with('`') {
       return;
     }
-    
+
     // Check if using single quotes
     if raw_str.starts_with('\'') {
       ctx.add_diagnostic_with_hint(lit.range(), CODE, MESSAGE, HINT);
@@ -71,7 +71,7 @@ mod tests {
         // Template literals with substitutions or line breaks
         r#"var foo = `back${x}tick`;"#,
         r#"var foo = `back
-tick`;"#,
+    tick`;"#,
         r#"var foo = tag`backtick`;"#,
         // Directives
         r#""use strict"; var foo = "bar";"#,
