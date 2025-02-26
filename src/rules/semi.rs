@@ -119,7 +119,11 @@ impl Handler for SemiHandler {
     }
   }
 
-  fn continue_stmt(&mut self, stmt: &ast_view::ContinueStmt, ctx: &mut Context) {
+  fn continue_stmt(
+    &mut self,
+    stmt: &ast_view::ContinueStmt,
+    ctx: &mut Context,
+  ) {
     let text = stmt.range().text_fast(ctx.text_info());
     let has_semi = text.trim_end().ends_with(';');
 
