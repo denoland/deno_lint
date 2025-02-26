@@ -118,6 +118,7 @@ pub mod prefer_ascii;
 pub mod prefer_const;
 pub mod prefer_namespace_keyword;
 pub mod prefer_primordials;
+pub mod quotes;
 pub mod react_no_danger;
 pub mod react_no_danger_with_children;
 pub mod react_rules_of_hooks;
@@ -363,6 +364,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(prefer_const::PreferConst),
     Box::new(prefer_namespace_keyword::PreferNamespaceKeyword),
     Box::new(prefer_primordials::PreferPrimordials),
+    Box::new(quotes::Quotes),
     Box::new(react_no_danger::ReactNoDanger),
     Box::new(react_no_danger_with_children::ReactNoDangerWithChildren),
     Box::new(react_rules_of_hooks::ReactRulesOfHooks),
