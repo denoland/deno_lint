@@ -18,8 +18,8 @@ use deno_ast::swc::ast::{
   TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use deno_ast::swc::ast::{Id, SimpleAssignTarget};
-use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::swc::ecma_visit::{Visit, VisitWith};
+use deno_ast::swc::utils::find_pat_ids;
 use deno_ast::view::AssignOp;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;

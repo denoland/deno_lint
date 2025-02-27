@@ -7,8 +7,8 @@ use deno_ast::swc::ast::*;
 use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::utils::ExprCtx;
 use deno_ast::swc::{
-  utils::{ExprExt, Value},
   ecma_visit::{noop_visit_type, Visit, VisitWith},
+  utils::{ExprExt, Value},
 };
 use deno_ast::view;
 use deno_ast::SourcePos;
@@ -84,7 +84,8 @@ impl Metadata {
   /// Returns true if a node prevents further execution.
   pub fn stops_execution(&self) -> bool {
     self
-      .end.is_some_and(|d| matches!(d, End::Forced { .. } | End::Break))
+      .end
+      .is_some_and(|d| matches!(d, End::Forced { .. } | End::Break))
   }
 
   /// Returns true if a node doesn't prevent further execution.
@@ -567,7 +568,8 @@ impl Visit for Analyzer<'_> {
   fn visit_stmt(&mut self, n: &Stmt) {
     let scope_end = self
       .scope
-      .end.is_some_and(|d| matches!(d, End::Forced { .. } | End::Break));
+      .end
+      .is_some_and(|d| matches!(d, End::Forced { .. } | End::Break));
 
     let unreachable = if scope_end {
       // Although execution is ended, we should handle hoisting.
@@ -622,8 +624,7 @@ impl Visit for Analyzer<'_> {
             forced_end = Some(end);
           }
           Some(test) => {
-            if matches!(test.cast_to_bool(expr_ctxt), (_, Value::Known(true)))
-            {
+            if matches!(test.cast_to_bool(expr_ctxt), (_, Value::Known(true))) {
               a.mark_as_end(n.start(), end);
               forced_end = Some(end);
             }

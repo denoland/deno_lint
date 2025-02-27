@@ -78,7 +78,8 @@ impl Visit for ValidTypeofVisitor<'_, '_> {
           }
           Tpl(tpl) => {
             if tpl
-              .string_repr().is_some_and(|s| !is_valid_typeof_string(&s))
+              .string_repr()
+              .is_some_and(|s| !is_valid_typeof_string(&s))
             {
               self.context.add_diagnostic(tpl.range(), CODE, MESSAGE);
             }

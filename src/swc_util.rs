@@ -7,8 +7,8 @@ use deno_ast::swc::ast::{
   PropOrSpread, Regex, Str, Tpl,
 };
 use deno_ast::swc::common::DUMMY_SP;
-use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
 use deno_ast::swc::ecma_visit::{VisitMut, VisitMutWith};
+use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
 use deno_ast::view::{self as ast_view};
 use deno_ast::Scope;
 

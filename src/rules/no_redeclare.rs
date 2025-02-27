@@ -8,7 +8,7 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::Id;
 use deno_ast::swc::ecma_visit::noop_visit_type;
 use deno_ast::swc::{
-  ast::*, utils::find_pat_ids, ecma_visit::Visit, ecma_visit::VisitWith,
+  ast::*, ecma_visit::Visit, ecma_visit::VisitWith, utils::find_pat_ids,
 };
 use deno_ast::SourceRangedForSpanned;
 

@@ -61,7 +61,8 @@ impl Handler for NoAwaitInLoopHandler {
           //           ^^^^^^^^^^^^^^^^^^^ <---------- `init` part
           stmt
             .init
-            .as_ref().is_none_or(|init| !init.range().contains(&await_expr.range()))
+            .as_ref()
+            .is_none_or(|init| !init.range().contains(&await_expr.range()))
         }
         WhileStmt(_) | DoWhileStmt(_) => true,
         _ => {

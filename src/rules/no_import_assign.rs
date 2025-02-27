@@ -126,7 +126,8 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     if self
       .context
       .scope()
-      .var(&obj.to_id()).is_some_and(|v| !v.kind().is_import())
+      .var(&obj.to_id())
+      .is_some_and(|v| !v.kind().is_import())
     {
       return false;
     }
