@@ -9,7 +9,7 @@ use deno_ast::BindingKind;
 use deno_ast::{
   swc::{
     ast::*,
-    visit::{noop_visit_type, Visit, VisitWith},
+    ecma_visit::{noop_visit_type, Visit, VisitWith},
   },
   SourceRange, SourceRangedForSpanned,
 };
@@ -55,7 +55,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
 
   fn check(&mut self, range: SourceRange, i: &Ident, is_assign_to_prop: bool) {
     let var = self.context.scope().var(&i.to_id());
-    if var.map_or(false, |v| v.kind() == BindingKind::NamespaceImport) {
+    if var.is_some_and(|v| v.kind() == BindingKind::NamespaceImport) {
       self
         .context
         .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
@@ -63,7 +63,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
     }
 
     if !is_assign_to_prop
-      && var.map_or(false, |v| v.kind() == BindingKind::ValueImport)
+      && var.is_some_and(|v| v.kind() == BindingKind::ValueImport)
     {
       self
         .context
@@ -127,7 +127,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
       .context
       .scope()
       .var(&obj.to_id())
-      .map_or(false, |v| !v.kind().is_import())
+      .is_some_and(|v| !v.kind().is_import())
     {
       return false;
     }
@@ -181,7 +181,7 @@ impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoImportAssignVisitor<'c, 'view> {
+impl Visit for NoImportAssignVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_pat(&mut self, n: &Pat) {

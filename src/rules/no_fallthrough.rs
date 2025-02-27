@@ -8,7 +8,7 @@ use crate::ProgramRef;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::{
   ast::*,
-  visit::{noop_visit_type, Visit, VisitWith},
+  ecma_visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -59,7 +59,7 @@ struct NoFallthroughVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
 }
 
-impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
+impl Visit for NoFallthroughVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase]) {

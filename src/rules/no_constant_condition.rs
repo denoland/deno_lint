@@ -6,7 +6,7 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -205,7 +205,7 @@ fn check_short_circuit(expr: &Expr, operator: BinaryOp) -> bool {
   }
 }
 
-impl<'c, 'view> Visit for NoConstantConditionVisitor<'c, 'view> {
+impl Visit for NoConstantConditionVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr) {

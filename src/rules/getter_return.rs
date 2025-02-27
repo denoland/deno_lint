@@ -12,9 +12,9 @@ use deno_ast::swc::ast::{
   MethodProp, ObjectLit, OptCall, OptChainBase, PrivateMethod, Prop, PropName,
   PropOrSpread, ReturnStmt,
 };
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
-use deno_ast::swc::visit::VisitWith;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
+use deno_ast::swc::ecma_visit::VisitWith;
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -269,7 +269,7 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
+impl Visit for GetterReturnVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {

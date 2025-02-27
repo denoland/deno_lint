@@ -8,8 +8,8 @@ use crate::ProgramRef;
 use crate::{js_regex::*, tags};
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 
@@ -108,7 +108,7 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoInvalidRegexpVisitor<'c, 'view> {
+impl Visit for NoInvalidRegexpVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_regex(&mut self, regex: &deno_ast::swc::ast::Regex) {

@@ -23,7 +23,7 @@ use deno_ast::{MediaType, ModuleSpecifier};
 use deno_ast::{MultiThreadedComments, Scope};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::rc::Rc;
 
 /// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'a> {
@@ -37,9 +37,9 @@ pub struct Context<'a> {
   traverse_flow: TraverseFlow,
   check_unknown_rules: bool,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_factory: Option<Arc<Box<Expr>>>,
+  jsx_factory: Option<Rc<Box<Expr>>>,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_fragment_factory: Option<Arc<Box<Expr>>>,
+  jsx_fragment_factory: Option<Rc<Box<Expr>>>,
 }
 
 impl<'a> Context<'a> {
@@ -81,24 +81,26 @@ impl<'a> Context<'a> {
 
       if jsx_factory.is_none() {
         if let Some(factory) = default_jsx_factory {
-          jsx_factory =
-            Some(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+          jsx_factory = Some(Rc::new(
+            deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsx",
-              factory,
+              Rc::new(factory),
               top_level_mark,
-            ));
+            ),
+          ));
         }
       }
       if jsx_fragment_factory.is_none() {
         if let Some(factory) = default_jsx_fragment_factory {
-          jsx_fragment_factory =
-            Some(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+          jsx_fragment_factory = Some(Rc::new(
+            deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsxFragment",
-              factory,
+              Rc::new(factory),
               top_level_mark,
-            ));
+            ),
+          ));
         }
       }
     });
@@ -180,7 +182,7 @@ impl<'a> Context<'a> {
   /// pragma or using a default). If this file is not JSX, uses the automatic
   /// transform, or the default factory is not specified, this will return
   /// `None`.
-  pub fn jsx_factory(&self) -> Option<Arc<Box<Expr>>> {
+  pub fn jsx_factory(&self) -> Option<Rc<Box<Expr>>> {
     self.jsx_factory.clone()
   }
 
@@ -188,7 +190,7 @@ impl<'a> Context<'a> {
   /// (via pragma or using a default). If this file is not JSX, uses the
   /// automatic transform, or the default factory is not specified, this will
   /// return `None`.
-  pub fn jsx_fragment_factory(&self) -> Option<Arc<Box<Expr>>> {
+  pub fn jsx_fragment_factory(&self) -> Option<Rc<Box<Expr>>> {
     self.jsx_fragment_factory.clone()
   }
 
@@ -275,7 +277,7 @@ impl<'a> Context<'a> {
     if self
       .file_ignore_directive
       .as_ref()
-      .map_or(false, |file_ignore| file_ignore.has_code(CODE))
+      .is_some_and(|file_ignore| file_ignore.has_code(CODE))
     {
       return vec![];
     }

@@ -11,7 +11,7 @@ use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
 use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
 use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
-use deno_ast::swc::visit::{noop_visit_type, Visit};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit};
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl<'c, 'view> ValidTypeofVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
+impl Visit for ValidTypeofVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_bin_expr(&mut self, bin_expr: &BinExpr) {
@@ -79,7 +79,7 @@ impl<'c, 'view> Visit for ValidTypeofVisitor<'c, 'view> {
           Tpl(tpl) => {
             if tpl
               .string_repr()
-              .map_or(false, |s| !is_valid_typeof_string(&s))
+              .is_some_and(|s| !is_valid_typeof_string(&s))
             {
               self.context.add_diagnostic(tpl.range(), CODE, MESSAGE);
             }

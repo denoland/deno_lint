@@ -325,6 +325,12 @@ pub trait Handler {
     _ctx: &mut Context,
   ) {
   }
+  fn ts_import_call_options(
+    &mut self,
+    _n: &ast_view::TsImportCallOptions,
+    _ctx: &mut Context,
+  ) {
+  }
   fn ts_import_equal_decl(
     &mut self,
     _n: &ast_view::TsImportEqualsDecl,
@@ -663,6 +669,7 @@ pub trait Traverse: Handler {
       TsExternalModuleRef(n) => self.ts_external_module_ref(n, ctx),
       TsFnType(n) => self.ts_fn_type(n, ctx),
       TsGetterSignature(n) => self.ts_getter_signature(n, ctx),
+      TsImportCallOptions(n) => self.ts_import_call_options(n, ctx),
       TsImportEqualsDecl(n) => self.ts_import_equal_decl(n, ctx),
       TsImportType(n) => self.ts_import_type(n, ctx),
       TsIndexSignature(n) => self.ts_index_signature(n, ctx),

@@ -9,7 +9,7 @@ use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -173,7 +173,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
+impl NoInnerDeclarationsVisitor<'_, '_> {
   fn add_diagnostic(&mut self, range: SourceRange, kind: &str) {
     let root = if self.in_function {
       "function"
@@ -190,7 +190,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
+impl Visit for NoInnerDeclarationsVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {

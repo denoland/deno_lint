@@ -5,8 +5,8 @@ use super::{Context, LintRule};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::VarDecl;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 
@@ -50,7 +50,7 @@ impl<'c, 'view> SingleVarDeclaratorVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
+impl Visit for SingleVarDeclaratorVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {

@@ -10,8 +10,8 @@ use crate::ProgramRef;
 use deno_ast::swc::ast::Decl;
 use deno_ast::swc::ast::Stmt;
 use deno_ast::swc::ast::VarDeclKind;
-use deno_ast::swc::visit::Visit;
-use deno_ast::swc::visit::VisitWith;
+use deno_ast::swc::ecma_visit::Visit;
+use deno_ast::swc::ecma_visit::VisitWith;
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl<'c, 'view> NoUnreachableVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoUnreachableVisitor<'c, 'view> {
+impl Visit for NoUnreachableVisitor<'_, '_> {
   fn visit_stmt(&mut self, stmt: &Stmt) {
     stmt.visit_children_with(self);
 

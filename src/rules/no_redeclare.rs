@@ -6,9 +6,9 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::Id;
-use deno_ast::swc::visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::noop_visit_type;
 use deno_ast::swc::{
-  ast::*, utils::find_pat_ids, visit::Visit, visit::VisitWith,
+  ast::*, ecma_visit::Visit, ecma_visit::VisitWith, utils::find_pat_ids,
 };
 use deno_ast::SourceRangedForSpanned;
 
@@ -52,7 +52,7 @@ struct NoRedeclareVisitor<'c, 'view> {
   bindings: HashSet<Id>,
 }
 
-impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
+impl NoRedeclareVisitor<'_, '_> {
   fn declare(&mut self, i: &Ident) {
     let id = i.to_id();
 
@@ -62,7 +62,7 @@ impl<'c, 'view> NoRedeclareVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoRedeclareVisitor<'c, 'view> {
+impl Visit for NoRedeclareVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, f: &FnDecl) {
