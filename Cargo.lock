@@ -187,7 +187,7 @@ version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47a00bd3837aa7e8dc15766ded788486eba8aee03dab4e56f7c7051012a81c23"
 dependencies = [
- "unicode-width",
+ "unicode-width 0.1.13",
  "vte",
 ]
 
@@ -263,7 +263,7 @@ checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
 [[package]]
 name = "deno_ast"
 version = "0.45.1"
-source = "git+https://github.com/dsherret/deno_ast?rev=77e6be69bedf1d93389f3c78f55c692f3eb91a2e#77e6be69bedf1d93389f3c78f55c692f3eb91a2e"
+source = "git+https://github.com/dsherret/deno_ast?rev=69305a5ea48d15096f863c9b5da22d8498146e66#69305a5ea48d15096f863c9b5da22d8498146e66"
 dependencies = [
  "deno_error",
  "deno_media_type",
@@ -291,7 +291,7 @@ dependencies = [
  "swc_visit_macros",
  "text_lines",
  "thiserror",
- "unicode-width",
+ "unicode-width 0.2.0",
  "url",
 ]
 
@@ -474,7 +474,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14dbbfd5c71d70241ecf9e6f13737f7b5ce823821063188d7e46c41d371eebd5"
 dependencies = [
- "unicode-width",
+ "unicode-width 0.1.13",
 ]
 
 [[package]]
@@ -1306,7 +1306,7 @@ dependencies = [
  "swc_eq_ignore_macros",
  "swc_visit",
  "tracing",
- "unicode-width",
+ "unicode-width 0.1.13",
  "url",
 ]
 
@@ -1716,6 +1716,12 @@ name = "unicode-width"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
+
+[[package]]
+name = "unicode-width"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
 name = "url"

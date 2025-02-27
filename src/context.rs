@@ -81,24 +81,26 @@ impl<'a> Context<'a> {
 
       if jsx_factory.is_none() {
         if let Some(factory) = default_jsx_factory {
-          jsx_factory =
-            Some(Rc::new(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+          jsx_factory = Some(Rc::new(
+            deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsx",
               Rc::new(factory),
               top_level_mark,
-            )));
+            ),
+          ));
         }
       }
       if jsx_fragment_factory.is_none() {
         if let Some(factory) = default_jsx_fragment_factory {
-          jsx_fragment_factory =
-            Some(Rc::new(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+          jsx_fragment_factory = Some(Rc::new(
+            deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsxFragment",
               Rc::new(factory),
               top_level_mark,
-            )));
+            ),
+          ));
         }
       }
     });
