@@ -342,6 +342,18 @@ function doAThing() {
         useCustomHook(val ?? 0);
         useState(0);
       }"#,
+      r#"function Foo() {
+        useCustomHook(val && 0);
+        useState(0);
+      }"#,
+      r#"function Foo() {
+        useCustomHook(val || 0);
+        useState(0);
+      }"#,
+      r#"function Foo() {
+        useCustomHook(val > 0);
+        useState(0);
+      }"#,
     };
   }
 
