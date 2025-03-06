@@ -185,9 +185,13 @@ impl Handler for RulesOfHooksHandler {
           }
         }
       }
+      Node::BinExpr(_) => {
+        if let Some(ParentKind::Bin) = self.parent_kind.pop() {
+          self.maybe_decrease_cond_counter();
+        }
+      }
       Node::FnDecl(_)
       | Node::ArrowExpr(_)
-      | Node::BinExpr(_)
       | Node::CondExpr(_)
       | Node::VarDeclarator(_)
       | Node::ForInStmt(_)
@@ -334,6 +338,22 @@ function doAThing() {
   }
   const [foo, setFoo] = useState(false);
 }"#,
+      r#"function Foo() {
+        useCustomHook(val ?? 0);
+        useState(0);
+      }"#,
+      r#"function Foo() {
+        useCustomHook(val && 0);
+        useState(0);
+      }"#,
+      r#"function Foo() {
+        useCustomHook(val || 0);
+        useState(0);
+      }"#,
+      r#"function Foo() {
+        useCustomHook(val > 0);
+        useState(0);
+      }"#,
     };
   }
 
