@@ -50,7 +50,7 @@ impl BannedType {
         r#"If you want a type meaning "any object", use `object` instead. Or if you want a type meaning "any value", you probably want `unknown` instead."#
       }
       EmptyObjectLiteral => {
-        r#"If you want a type that means "empty object", use `Record<string | number | symbol, never>` instead"#
+        r#"If you want a type that means "empty object", use `Record<PropertyKey, never>` instead"#
       }
     }
   }
