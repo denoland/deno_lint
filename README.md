@@ -141,7 +141,8 @@ For more concrete implementation visit
 
 ## Developing
 
-Make sure to have latest stable version of Rust installed (see [rust-toolchain.toml](./rust-toolchain.toml)).
+Make sure to have latest stable version of Rust installed, see
+[rust-toolchain.toml](./rust-toolchain.toml).
 
 ```shell
 // check version
