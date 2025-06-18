@@ -3,7 +3,6 @@
 mod reader;
 mod unicode;
 mod validator;
-
 use std::fmt;
 
 pub use validator::{EcmaRegexValidator, EcmaVersion};
@@ -94,30 +93,34 @@ impl UnicodeChar {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use validator::UnicodeMode;
 
   #[test]
   fn valid_flags() {
-    let validator = EcmaRegexValidator::new(EcmaVersion::Es2022);
-    assert_eq!(validator.validate_flags("gimuys"), Ok(()));
-    assert_eq!(validator.validate_flags("gimuy"), Ok(()));
-    assert_eq!(validator.validate_flags("gim"), Ok(()));
-    assert_eq!(validator.validate_flags("g"), Ok(()));
-    assert_eq!(validator.validate_flags("i"), Ok(()));
-    assert_eq!(validator.validate_flags("m"), Ok(()));
-    assert_eq!(validator.validate_flags("s"), Ok(()));
-    assert_eq!(validator.validate_flags("u"), Ok(()));
-    assert_eq!(validator.validate_flags("y"), Ok(()));
-    assert_eq!(validator.validate_flags("d"), Ok(()));
+    let validator = EcmaRegexValidator::new(EcmaVersion::Es2024);
+    assert_eq!(validator.validate_flags(""), Ok(UnicodeMode::None));
 
-    assert_eq!(validator.validate_flags("gy"), Ok(()));
-    assert_eq!(validator.validate_flags("iy"), Ok(()));
-    assert_eq!(validator.validate_flags("my"), Ok(()));
-    assert_eq!(validator.validate_flags("uy"), Ok(()));
+    assert_eq!(validator.validate_flags("gimuys"), Ok(UnicodeMode::Unicode));
+    assert_eq!(validator.validate_flags("gimuy"), Ok(UnicodeMode::Unicode));
+    assert_eq!(validator.validate_flags("gim"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("g"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("i"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("m"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("s"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("u"), Ok(UnicodeMode::Unicode));
+    assert_eq!(validator.validate_flags("v"), Ok(UnicodeMode::UnicodeSets));
+    assert_eq!(validator.validate_flags("y"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("d"), Ok(UnicodeMode::None));
+
+    assert_eq!(validator.validate_flags("gy"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("iy"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("my"), Ok(UnicodeMode::None));
+    assert_eq!(validator.validate_flags("uy"), Ok(UnicodeMode::Unicode));
   }
 
   #[test]
   fn duplicate_flags() {
-    let validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
+    let validator = EcmaRegexValidator::new(EcmaVersion::Es2024);
     assert_eq!(
       validator.validate_flags("gimgu"),
       Err("Duplicated flag g".to_string())
@@ -151,6 +154,14 @@ mod tests {
       validator.validate_flags("yy"),
       Err("Duplicated flag y".to_string())
     );
+    assert_eq!(
+      validator.validate_flags("uv"),
+      Err("Cannot use u and v flags together".to_string())
+    );
+    assert_eq!(
+      validator.validate_flags("dgimsuvy"),
+      Err("Cannot use u and v flags together".to_string())
+    );
   }
 
   #[test]
@@ -177,821 +188,2150 @@ mod tests {
   #[test]
   fn validate_pattern_test() {
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_eq!(validator.validate_pattern("", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[abc]de|fg", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[abc]de|fg", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^.$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^.$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("foo\\[bar", false), Ok(()));
-    assert_eq!(validator.validate_pattern("foo\\[bar", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\w+\\s", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(\\w+), (\\w+)", false), Ok(()));
+    assert_eq!(validator.validate_pattern("", UnicodeMode::None), Ok(()));
     assert_eq!(
-      validator.validate_pattern("\\/\\/.*|\\/\\*[^]*\\*\\/", false),
+      validator.validate_pattern("[abc]de|fg", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(\\d{1,2})-(\\d{1,2})-(\\d{4})", false),
+      validator.validate_pattern("[abc]de|fg", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("^.$", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("^.$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("foo\\[bar", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("foo\\[bar", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\w+\\s", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(\\w+), (\\w+)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("\\/\\/.*|\\/\\*[^]*\\*\\/", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("(\\d{1,2})-(\\d{1,2})-(\\d{4})", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
       validator.validate_pattern(
         "(?:\\d{3}|\\(\\d{3}\\))([-\\/\\.])\\d{3}\\1\\d{4}",
-        false
+        UnicodeMode::None
       ),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)", false), Ok(()));
+    assert_eq!(validator.validate_pattern("https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)", UnicodeMode::None), Ok(()));
 
     assert_eq!(
-      validator.validate_pattern("\\p{Script=Greek}", true),
+      validator.validate_pattern("\\p{Script=Greek}", UnicodeMode::Unicode),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("\\p{Alphabetic}", true), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("\\p{Alphabetic}", UnicodeMode::Unicode),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("\\", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a**", false), Ok(()));
-    assert_ne!(validator.validate_pattern("++a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("?a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a***", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a++", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a+++", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a???", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a????", false), Ok(()));
-    assert_ne!(validator.validate_pattern("*a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("**a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("+a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[{-z]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[a--z]", false), Ok(()));
+    assert_ne!(validator.validate_pattern("\\", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("a**", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("++a", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("?a", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("a***", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("a++", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("a+++", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a???", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a????", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("*a", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("**a", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("+a", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("[{-z]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[a--z]", UnicodeMode::None),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("0{2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("x{1}{1,}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("x{1,2}{1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("x{1,}{1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("x{0,1}{1,}", false), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("0{2,1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("x{1}{1,}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("x{1,2}{1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("x{1,}{1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("x{0,1}{1,}", UnicodeMode::None),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("\\1(\\P{P\0[}()/", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("\\1(\\P{P\0[}()/", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn character_range_order() {
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("^[z-a]$", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-ac-e]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[c-eb-a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[a-dc-b]", false), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("^[z-a]$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-ac-e]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[c-eb-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[a-dc-b]", UnicodeMode::None),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("[\\10b-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\ad-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\bd-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\Bd-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\db-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\Db-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\sb-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\Sb-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\wb-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\Wb-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\0b-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\td-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\nd-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\vd-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\fd-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\rd-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c0001d-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\x0061d-G]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0061d-G]", false), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("[\\10b-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\ad-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\bd-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\Bd-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\db-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\Db-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\sb-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\Sb-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\wb-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\Wb-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\0b-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\td-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\nd-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\vd-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\fd-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\rd-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c0001d-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\x0061d-G]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0061d-G]", UnicodeMode::None),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("[b-G\\10]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\b]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\B]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\d]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\D]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\s]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\S]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\w]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\W]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-G\\0]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\t]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\n]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\v]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\f]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\r]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\c0001]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\x0061]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[d-G\\u0061]", false), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("[b-G\\10]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\b]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\B]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\d]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\D]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\s]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\S]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\w]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\W]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-G\\0]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\t]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\n]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\v]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\f]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\r]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\c0001]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\x0061]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[d-G\\u0061]", UnicodeMode::None),
+      Ok(())
+    );
   }
 
   #[test]
   fn unicode_quantifier_without_atom() {
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("*", true), Ok(()));
-    assert_ne!(validator.validate_pattern("+", true), Ok(()));
-    assert_ne!(validator.validate_pattern("?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1,}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1,2}", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1,}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1,2}", UnicodeMode::Unicode),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("*?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("+?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("??", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1}?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1,}?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1,2}?", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("*?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("+?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("??", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1,}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1,2}?", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn unicode_incomplete_quantifier() {
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("a{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1,", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1,2", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("a{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1,", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1,2", UnicodeMode::Unicode),
+      Ok(())
+    );
 
-    assert_ne!(validator.validate_pattern("{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1,", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{1,2", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1,", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{1,2", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn unicode_single_bracket() {
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("(", true), Ok(()));
-    assert_ne!(validator.validate_pattern(")", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[", true), Ok(()));
-    assert_ne!(validator.validate_pattern("]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("}", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(")", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("}", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn unicode_escapes() {
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_eq!(validator.validate_pattern("\\u{10ffff}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u{110000}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{110000}", false), Ok(()));
     assert_eq!(
-      validator.validate_pattern("foo\\ud803\\ude6dbar", true),
+      validator.validate_pattern("\\u{10ffff}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u{110000}", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(\u{12345}|\u{23456}).\\1", true),
+      validator.validate_pattern("\\u{110000}", UnicodeMode::None),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("\u{12345}{3}", true), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("foo\\ud803\\ude6dbar", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("(\u{12345}|\u{23456}).\\1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\u{12345}{3}", UnicodeMode::Unicode),
+      Ok(())
+    );
 
     // unicode escapes in character classes
     assert_eq!(
-      validator.validate_pattern("[\\u0062-\\u0066]oo", false),
+      validator.validate_pattern("[\\u0062-\\u0066]oo", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\u0062-\\u0066]oo", true),
+      validator.validate_pattern("[\\u0062-\\u0066]oo", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\u{0062}-\\u{0066}]oo", true),
+      validator
+        .validate_pattern("[\\u{0062}-\\u{0066}]oo", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\u{62}-\\u{00000066}]oo", true),
+      validator
+        .validate_pattern("[\\u{62}-\\u{00000066}]oo", UnicodeMode::Unicode),
       Ok(())
     );
 
     // invalid escapes
     assert_eq!(
-      validator.validate_pattern("first\\u\\x\\z\\8\\9second", false),
+      validator
+        .validate_pattern("first\\u\\x\\z\\8\\9second", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\u\\x\\z\\8\\9]", false),
+      validator.validate_pattern("[\\u\\x\\z\\8\\9]", UnicodeMode::None),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("/\\u/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\u12/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\ufoo/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\x/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\xfoo/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\z/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\8/u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("/\\9/u", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("/\\u/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\u12/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\ufoo/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\x/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\xfoo/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\z/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\8/u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("/\\9/u", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn basic_valid() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/visitor/full.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_eq!(validator.validate_pattern("foo", false), Ok(()));
-    assert_eq!(validator.validate_pattern("foo|bar", false), Ok(()));
-    assert_eq!(validator.validate_pattern("||||", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^|$|\\b|\\B", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=foo)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?!)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?!foo)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a)*", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a)+", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a)?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a){", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a){}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a){a}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a){1}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a){1,}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=a){1,2}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a*", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a+", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{a}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,2}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,2", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{2,1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a*?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a+?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a??", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{}?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{a}?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1}?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,}?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,2}?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,2?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("a{2,1?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("👍🚀❇️", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^", false), Ok(()));
-    assert_eq!(validator.validate_pattern("$", false), Ok(()));
-    assert_eq!(validator.validate_pattern(".", false), Ok(()));
-    assert_eq!(validator.validate_pattern("]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("{", false), Ok(()));
-    assert_eq!(validator.validate_pattern("}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("|", false), Ok(()));
-    assert_eq!(validator.validate_pattern("${1,2", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(a)\\1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\1(a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?:a)\\1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(a)\\2", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?:a)\\2", false), Ok(()));
+    assert_eq!(validator.validate_pattern("foo", UnicodeMode::None), Ok(()));
     assert_eq!(
-      validator.validate_pattern("(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\10", false),
+      validator.validate_pattern("foo|bar", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11", false),
+      validator.validate_pattern("||||", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^|$|\\b|\\B", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=foo)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?!)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?!foo)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a)*", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a)+", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a)?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a){", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a){}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a){a}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a){1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a){1,}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?=a){1,2}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("a*", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a+", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a?", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a{", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a{}", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("a{a}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("a{1", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("a{1,}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,2}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,2", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{2,1", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("a*?", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a+?", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a??", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("a{?", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("a{}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{a}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,2}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,2?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{2,1?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("👍🚀❇️", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("^", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("$", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern(".", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("]", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("{", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("}", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("|", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("${1,2", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("\\1", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("(a)\\1", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\1(a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?:a)\\1", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(a)\\2", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?:a)\\2", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\10",
+        UnicodeMode::None
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11",
+        UnicodeMode::None
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11",
+        UnicodeMode::None
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?:a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("\\d", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\D", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\s", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\S", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\w", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\W", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\f", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\n", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\r", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\t", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\v", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("\\cA", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\cz", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\c1", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("\\c", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\0", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\u", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("\\u1", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u12", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u123", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u1234", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u12345", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{z", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{a}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{20", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{20}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{10FFFF}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{110000}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{00000001}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\377", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\400", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("\\^", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\$", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\.", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\+", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\?", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\(", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\)", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\[", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\]", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\{", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\}", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\|", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\/", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("\\a", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("[]", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("[^-a-b-]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("[-]", UnicodeMode::None), Ok(()));
+    assert_eq!(validator.validate_pattern("[a]", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("[--]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-a-]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a-]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a-b]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-a-b-]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[---]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a-b--/]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\b-\\n]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[b\\-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\d]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\D]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\s]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\S]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\w]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\W]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\f]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\n]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\r]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\t]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\v]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\cA]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\cz]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\c1]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\c]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\0]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\x]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\xz]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\x1]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\x12]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\x123]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u1]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u12]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u123]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u1234]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u12345]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{z]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{a}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{20]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{20}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{10FFFF}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{110000}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{00000001}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\77]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\377]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\400]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\^]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\$]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\.]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\+]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\?]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\(]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\)]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\[]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\]]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\{]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\|]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\/]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\d-\\uFFFF]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\D-\\uFFFF]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\s-\\uFFFF]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\S-\\uFFFF]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\w-\\uFFFF]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\W-\\uFFFF]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\d]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\D]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\s]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\S]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\w]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\W]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\u0001]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{2-\\u{1}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\a-\\z]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[0-9--/]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\c0-]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\c_]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9]*$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9]+$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[a-zA-Z]*$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[a-zA-Z]+$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9a-zA-Z]*$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
       validator
-        .validate_pattern("(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11", false),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("(?:a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\d", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\D", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\s", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\S", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\w", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\W", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\f", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\n", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\r", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\t", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\v", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\cA", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\cz", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\c1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\c", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\0", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u12", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u123", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u1234", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u12345", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{z", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{a}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{20", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{20}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{10FFFF}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{110000}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{00000001}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\377", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\400", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\^", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\.", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\+", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\?", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\(", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\[", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\{", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\|", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\/", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\a", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[^-a-b-]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[-]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[a]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[--]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[-a]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[-a-]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[a-]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[a-b]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[-a-b-]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[---]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[a-b--/]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\b-\\n]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[b\\-a]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\d]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\D]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\s]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\S]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\w]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\W]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\f]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\n]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\r]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\t]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\v]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\cA]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\cz]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\c1]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\c]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\0]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\x]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\xz]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\x1]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\x12]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\x123]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u1]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u12]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u123]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u1234]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u12345]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{z]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{a}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{20]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{20}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{10FFFF}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{110000}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{00000001}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\77]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\377]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\400]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\^]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\$]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\.]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\+]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\?]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\(]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\)]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\[]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\]]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\{]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\|]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\/]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\a]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\d-\\uFFFF]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\D-\\uFFFF]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\s-\\uFFFF]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\S-\\uFFFF]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\w-\\uFFFF]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\W-\\uFFFF]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u0000-\\d]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u0000-\\D]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u0000-\\s]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u0000-\\S]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u0000-\\w]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u0000-\\W]", false), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("[\\u0000-\\u0001]", false),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("[\\u{2-\\u{1}]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\a-\\z]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[0-9--/]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\c0-]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\c_]", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9]*$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9]+$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[a-zA-Z]*$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[a-zA-Z]+$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9a-zA-Z]*$", false), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("^[a-zA-Z0-9!-/:-@\\[-`{-~]*$", false),
+        .validate_pattern("^[a-zA-Z0-9!-/:-@\\[-`{-~]*$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^([a-zA-Z0-9]{8,})$", false),
+      validator.validate_pattern("^([a-zA-Z0-9]{8,})$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^([a-zA-Z0-9]{6,8})$", false),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("^([0-9]{0,8})$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9]{8}$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^https?:\\/\\/", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^\\d{3}-\\d{4}$", false), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("^\\d{1,3}(.\\d{1,3}){3}$", false),
+      validator.validate_pattern("^([a-zA-Z0-9]{6,8})$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^([1-9][0-9]*|0)(\\.[0-9]+)?$", false),
+      validator.validate_pattern("^([0-9]{0,8})$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^-?([1-9][0-9]*|0)(\\.[0-9]+)?$", false),
+      validator.validate_pattern("^[0-9]{8}$", UnicodeMode::None),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("^[ぁ-んー]*$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[ァ-ンヴー]*$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^[ｧ-ﾝﾞﾟ\\-]*$", false), Ok(()));
     assert_eq!(
-      validator.validate_pattern("^[^\\x20-\\x7e]*$", false),
+      validator.validate_pattern("^https?:\\/\\/", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^\\d{3}-\\d{4}$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^\\d{1,3}(.\\d{1,3}){3}$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("^([1-9][0-9]*|0)(\\.[0-9]+)?$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("^-?([1-9][0-9]*|0)(\\.[0-9]+)?$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[ぁ-んー]*$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[ァ-ンヴー]*$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[ｧ-ﾝﾞﾟ\\-]*$", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[^\\x20-\\x7e]*$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
       validator.validate_pattern(
         "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*$",
-        false
+        UnicodeMode::None
       ),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("^((4\\d{3})|(5[1-5]\\d{2})|(6011))([- ])?\\d{4}([- ])?\\d{4}([- ])?\\d{4}|3[4,7]\\d{13}$", false), Ok(()));
-    assert_eq!(validator.validate_pattern("^\\s*|\\s*$", false), Ok(()));
+    assert_eq!(validator.validate_pattern("^((4\\d{3})|(5[1-5]\\d{2})|(6011))([- ])?\\d{4}([- ])?\\d{4}([- ])?\\d{4}|3[4,7]\\d{13}$", UnicodeMode::None), Ok(()));
     assert_eq!(
-      validator.validate_pattern("[\\d][\\12-\\14]{1,}[^\\d]", false),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("([a ]\\b)*\\b", false), Ok(()));
-    assert_eq!(validator.validate_pattern("foo", true), Ok(()));
-    assert_eq!(validator.validate_pattern("foo|bar", true), Ok(()));
-    assert_eq!(validator.validate_pattern("||||", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^|$|\\b|\\B", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?=foo)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?!)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?!foo)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a*", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a+", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,2}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a*?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a+?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a??", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1}?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,}?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("a{1,2}?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("👍🚀❇️", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^", true), Ok(()));
-    assert_eq!(validator.validate_pattern("$", true), Ok(()));
-    assert_eq!(validator.validate_pattern(".", true), Ok(()));
-    assert_eq!(validator.validate_pattern("|", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(a)\\1", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\1(a)", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\10", true),
+      validator.validate_pattern("^\\s*|\\s*$", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("(?:a)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\d", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\D", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\s", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\S", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\w", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\W", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\f", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\n", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\r", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\t", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\v", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\cA", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\cz", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\0", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u1234", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u12345", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{a}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{20}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{10FFFF}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\u{00000001}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\^", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\.", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\+", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\?", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\(", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\[", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\{", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\|", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\/", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[^-a-b-]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[-]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[a]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[--]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[-a]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[-a-]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[a-]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[a-b]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[-a-b-]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[---]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[a-b--/]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\b-\\n]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[b\\-a]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\d]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\D]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\s]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\S]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\w]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\W]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\f]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\n]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\r]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\t]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\v]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\cA]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\cz]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\0]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\x12]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\x123]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u1234]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u12345]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{a}]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{20}]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{10FFFF}]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\u{00000001}]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\^]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\$]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\.]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\+]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\?]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\(]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\)]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\[]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\]]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\{]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\}]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\|]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[\\/]", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("[\\u0000-\\u0001]", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("[\\u{1}-\\u{2}]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[0-9--/]", true), Ok(()));
-    assert_eq!(validator.validate_pattern("[🌷-🌸]", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("[\\u0000-🌸-\\u0000]", true),
+      validator
+        .validate_pattern("[\\d][\\12-\\14]{1,}[^\\d]", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\u0000-\\u{1f338}-\\u0000]", true),
+      validator.validate_pattern("([a ]\\b)*\\b", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\u0000-\\ud83c\\udf38-\\u0000]", true),
+      validator.validate_pattern("foo", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("[\\uD834\\uDF06-\\uD834\\uDF08a-z]", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("^[0-9]*$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9]+$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[a-zA-Z]*$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[a-zA-Z]+$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9a-zA-Z]*$", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("^[a-zA-Z0-9!-/:-@\\[-`{-~]*$", true),
+      validator.validate_pattern("foo|bar", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^([a-zA-Z0-9]{8,})$", true),
+      validator.validate_pattern("||||", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^([a-zA-Z0-9]{6,8})$", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("^([0-9]{0,8})$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[0-9]{8}$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^https?:\\/\\/", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^\\d{3}-\\d{4}$", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("^\\d{1,3}(.\\d{1,3}){3}$", true),
+      validator.validate_pattern("^|$|\\b|\\B", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^([1-9][0-9]*|0)(\\.[0-9]+)?$", true),
+      validator.validate_pattern("(?=)", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("^-?([1-9][0-9]*|0)(\\.[0-9]+)?$", true),
+      validator.validate_pattern("(?=foo)", UnicodeMode::Unicode),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("^[ぁ-んー]*$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[ァ-ンヴー]*$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^[ｧ-ﾝﾞﾟ\\-]*$", true), Ok(()));
     assert_eq!(
-      validator.validate_pattern("^[^\\x20-\\x7e]*$", true),
+      validator.validate_pattern("(?!)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?!foo)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,2}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a*?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a+?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a??", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("a{1,2}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("👍🚀❇️", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(".", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("|", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(a)\\1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\1(a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\10",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?:a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\d", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\D", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\s", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\S", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\w", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\W", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\f", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\n", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\r", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\t", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\v", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\cA", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\cz", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\0", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u1234", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u12345", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{a}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{20}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{10FFFF}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\u{00000001}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\^", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\.", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\(", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\[", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\|", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\/", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[^-a-b-]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[--]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-a-]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a-]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a-b]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[-a-b-]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[---]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[a-b--/]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\b-\\n]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[b\\-a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\d]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\D]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\s]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\S]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\w]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\W]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\f]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\n]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\r]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\t]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\v]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\cA]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\cz]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\0]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\x12]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\x123]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u1234]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u12345]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{a}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{20}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{10FFFF}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{00000001}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\^]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\$]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\.]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\+]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\?]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\(]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\)]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\[]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\]]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\{]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\|]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\/]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-\\u0001]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u{1}-\\u{2}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[0-9--/]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[🌷-🌸]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("[\\u0000-🌸-\\u0000]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("[\\u0000-\\u{1f338}-\\u0000]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "[\\u0000-\\ud83c\\udf38-\\u0000]",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "[\\uD834\\uDF06-\\uD834\\uDF08a-z]",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9]+$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[a-zA-Z]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[a-zA-Z]+$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9a-zA-Z]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("^[a-zA-Z0-9!-/:-@\\[-`{-~]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^([a-zA-Z0-9]{8,})$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^([a-zA-Z0-9]{6,8})$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^([0-9]{0,8})$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[0-9]{8}$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^https?:\\/\\/", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^\\d{3}-\\d{4}$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("^\\d{1,3}(.\\d{1,3}){3}$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "^([1-9][0-9]*|0)(\\.[0-9]+)?$",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "^-?([1-9][0-9]*|0)(\\.[0-9]+)?$",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[ぁ-んー]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[ァ-ンヴー]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[ｧ-ﾝﾞﾟ\\-]*$", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("^[^\\x20-\\x7e]*$", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
       validator.validate_pattern(
         "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*$",
-        true
+        UnicodeMode::Unicode
       ),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("^((4\\d{3})|(5[1-5]\\d{2})|(6011))([- ])?\\d{4}([- ])?\\d{4}([- ])?\\d{4}|3[4,7]\\d{13}$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("^\\s*|\\s*$", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<=a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<=a)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<!a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<!a)", true), Ok(()));
+    assert_eq!(validator.validate_pattern("^((4\\d{3})|(5[1-5]\\d{2})|(6011))([- ])?\\d{4}([- ])?\\d{4}([- ])?\\d{4}|3[4,7]\\d{13}$", UnicodeMode::Unicode), Ok(()));
     assert_eq!(
-      validator.validate_pattern("(?<=(?<a>\\w){3})f", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("((?<=\\w{3}))f", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("(?<a>(?<=\\w{3}))f", true),
+      validator.validate_pattern("^\\s*|\\s*$", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<!(?<a>\\d){3})f", true),
+      validator.validate_pattern("(?<=a)", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<!(?<a>\\D){3})f|f", true),
+      validator.validate_pattern("(?<=a)", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<a>(?<!\\D{3}))f|f", true),
+      validator.validate_pattern("(?<!a)", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<=(?<a>\\w){3})f", false),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("((?<=\\w{3}))f", false), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("(?<a>(?<=\\w{3}))f", false),
+      validator.validate_pattern("(?<!a)", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<!(?<a>\\d){3})f", false),
+      validator.validate_pattern("(?<=(?<a>\\w){3})f", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<a>(?<!\\D{3}))f|f", false),
+      validator.validate_pattern("((?<=\\w{3}))f", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<=(?<fst>.)|(?<snd>.))", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("(a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\k", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\k<a>", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)\\k<a>", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)\\k<a>", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)\\1", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)\\1", true), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)\\2", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)(?<b>a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("(?<a>a)(?<b>a)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\k<a>(?<a>a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\k<a>(?<a>a)", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\1(?<a>a)", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\1(?<a>a)", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("(?<$abc>a)\\k<$abc>", true),
-      Ok(())
-    );
-    assert_eq!(validator.validate_pattern("(?<あ>a)\\k<あ>", true), Ok(()));
-    assert_eq!(
-      validator.validate_pattern("(?<𠮷>a)\\k<\\u{20bb7}>", true),
+      validator.validate_pattern("(?<a>(?<=\\w{3}))f", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<\\uD842\\uDFB7>a)\\k<\\u{20bb7}>", true),
+      validator.validate_pattern("(?<!(?<a>\\d){3})f", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<\\u{20bb7}>a)\\k<\\uD842\\uDFB7>", true),
+      validator.validate_pattern("(?<!(?<a>\\D){3})f|f", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<abc>a)\\k<\\u0061\\u0062\\u0063>", true),
+      validator.validate_pattern("(?<a>(?<!\\D{3}))f|f", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("(?<\\u0061\\u0062\\u0063>a)\\k<abc>", true),
+      validator.validate_pattern("(?<=(?<a>\\w){3})f", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("((?<=\\w{3}))f", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>(?<=\\w{3}))f", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<!(?<a>\\d){3})f", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>(?<!\\D{3}))f|f", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("(?<=(?<fst>.)|(?<snd>.))", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("(a)", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("(?<a>)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("\\k", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("\\k<a>", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)\\k<a>", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)\\k<a>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)\\1", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)\\1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)\\2", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)(?<b>a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<a>a)(?<b>a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\k<a>(?<a>a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\k<a>(?<a>a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\1(?<a>a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\1(?<a>a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<$abc>a)\\k<$abc>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("(?<あ>a)\\k<あ>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("(?<𠮷>a)\\k<\\u{20bb7}>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(?<\\uD842\\uDFB7>a)\\k<\\u{20bb7}>",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(?<\\u{20bb7}>a)\\k<\\uD842\\uDFB7>",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(?<abc>a)\\k<\\u0061\\u0062\\u0063>",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(?<\\u0061\\u0062\\u0063>a)\\k<abc>",
+        UnicodeMode::Unicode
+      ),
       Ok(())
     );
     assert_eq!(
       validator.validate_pattern(
         "(?<\\u0061\\u0062\\u0063>a)\\k<\\u{61}\\u{62}\\u{63}>",
-        true
+        UnicodeMode::Unicode
       ),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("(?<a1>a)\\k<a1>", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\p", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\p{", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\p{ASCII", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\p{ASCII}", false), Ok(()));
-    assert_eq!(validator.validate_pattern("\\p{ASCII}", true), Ok(()));
-    assert_eq!(validator.validate_pattern("\\p{Emoji}", true), Ok(()));
     assert_eq!(
-      validator.validate_pattern("\\p{General_Category=Letter}", true),
+      validator.validate_pattern("(?<a1>a)\\k<a1>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(validator.validate_pattern("\\p", UnicodeMode::None), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("\\p{", UnicodeMode::None),
       Ok(())
     );
     assert_eq!(
-      validator.validate_pattern("\\p{Script=Hiragana}", true),
+      validator.validate_pattern("\\p{ASCII", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\p{ASCII}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\p{ASCII}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\p{Emoji}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator
+        .validate_pattern("\\p{General_Category=Letter}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern("\\p{Script=Hiragana}", UnicodeMode::Unicode),
       Ok(())
     );
     assert_eq!(
       validator.validate_pattern(
         "[\\p{Script=Hiragana}\\-\\p{Script=Katakana}]",
-        true
+        UnicodeMode::Unicode
       ),
       Ok(())
     );
-    assert_eq!(validator.validate_pattern("\\P{Letter}", true), Ok(()));
+    assert_eq!(
+      validator.validate_pattern("\\P{Letter}", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn basic_invalid() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/basic-invalid.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es5);
-    assert_ne!(validator.validate_pattern("(", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=foo", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?!", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?!foo", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(a{2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1}?", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(*)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("+", false), Ok(()));
-    assert_ne!(validator.validate_pattern("?", false), Ok(()));
-    assert_ne!(validator.validate_pattern(")", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[", false), Ok(()));
-    assert_ne!(validator.validate_pattern("^*", false), Ok(()));
-    assert_ne!(validator.validate_pattern("$*", false), Ok(()));
-    assert_ne!(validator.validate_pattern("${1,2}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("${2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("\\2(a)(", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(:a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[a-b--+]", false), Ok(()));
+    assert_ne!(validator.validate_pattern("(", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("(?", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("(?=", UnicodeMode::None), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\u0001-\\u0000]", false),
+      validator.validate_pattern("(?=foo", UnicodeMode::None),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("[\\u{1}-\\u{2}]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{2}-\\u{1}]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\z-\\a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[0-9--+]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c-a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[🌷-🌸]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[🌸-🌷]", false), Ok(()));
+    assert_ne!(validator.validate_pattern("(?!", UnicodeMode::None), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\uD834\\uDF06-\\uD834\\uDF08a-z]", false),
+      validator.validate_pattern("(?!foo", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(a{2,1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(*)", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("+", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("?", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern(")", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("[", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("^*", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("$*", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("${1,2}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("${2,1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\2(a)(", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(?a", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(?:", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?:a", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(:a", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("[b-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[a-b--+]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0001-\\u0000]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{1}-\\u{2}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{2}-\\u{1}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\z-\\a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[0-9--+]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[🌷-🌸]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[🌸-🌷]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "[\\uD834\\uDF06-\\uD834\\uDF08a-z]",
+        UnicodeMode::None
+      ),
       Ok(())
     );
   }
@@ -1000,53 +2340,116 @@ mod tests {
   fn basic_invalid_2015() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/basic-invalid-2015.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2015);
-    assert_ne!(validator.validate_pattern("(", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=foo", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?!", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?!foo", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(a{2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1}?", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(*)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("+", false), Ok(()));
-    assert_ne!(validator.validate_pattern("?", false), Ok(()));
-    assert_ne!(validator.validate_pattern(")", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[", false), Ok(()));
-    assert_ne!(validator.validate_pattern("^*", false), Ok(()));
-    assert_ne!(validator.validate_pattern("$*", false), Ok(()));
-    assert_ne!(validator.validate_pattern("${1,2}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("${2,1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("\\2(a)(", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(:a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[a-b--+]", false), Ok(()));
+    assert_ne!(validator.validate_pattern("(", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("(?", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("(?=", UnicodeMode::None), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\u0001-\\u0000]", false),
+      validator.validate_pattern("(?=foo", UnicodeMode::None),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("[\\u{1}-\\u{2}]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{2}-\\u{1}]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\z-\\a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[0-9--+]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c-a]", false), Ok(()));
-    assert_ne!(validator.validate_pattern("[🌷-🌸]", false), Ok(()));
+    assert_ne!(validator.validate_pattern("(?!", UnicodeMode::None), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\u0000-🌸-\\u0000]", false),
+      validator.validate_pattern("(?!foo", UnicodeMode::None),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("[\\u0000-\\ud83c\\udf38-\\u0000]", false),
+      validator.validate_pattern("a{2,1}", UnicodeMode::None),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("[🌸-🌷]", false), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\uD834\\uDF06-\\uD834\\uDF08a-z]", false),
+      validator.validate_pattern("(a{2,1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1}?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(*)", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("+", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("?", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern(")", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("[", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("^*", UnicodeMode::None), Ok(()));
+    assert_ne!(validator.validate_pattern("$*", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("${1,2}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("${2,1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\2(a)(", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(?a", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(?:", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?:a", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(:a", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("[b-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[a-b--+]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0001-\\u0000]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{1}-\\u{2}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{2}-\\u{1}]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\z-\\a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[0-9--+]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c-a]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[🌷-🌸]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-🌸-\\u0000]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "[\\u0000-\\ud83c\\udf38-\\u0000]",
+        UnicodeMode::None
+      ),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[🌸-🌷]", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "[\\uD834\\uDF06-\\uD834\\uDF08a-z]",
+        UnicodeMode::None
+      ),
       Ok(())
     );
   }
@@ -1055,124 +2458,452 @@ mod tests {
   fn basic_invalid_2015_unicode() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/basic-invalid-2015-u.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2015);
-    assert_ne!(validator.validate_pattern("(", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=foo", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?!", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?!foo", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a)*", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a)+", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a)?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a){", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a){}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a){a}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a){1}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a){1,}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?=a){1,2}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{a}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1,", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1,2", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(a{2,1}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{}?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{a}?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1,?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{1,2?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1}?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("a{2,1?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(*)", true), Ok(()));
-    assert_ne!(validator.validate_pattern("+", true), Ok(()));
-    assert_ne!(validator.validate_pattern("?", true), Ok(()));
-    assert_ne!(validator.validate_pattern(")", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[", true), Ok(()));
-    assert_ne!(validator.validate_pattern("]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("^*", true), Ok(()));
-    assert_ne!(validator.validate_pattern("$*", true), Ok(()));
-    assert_ne!(validator.validate_pattern("${1,2", true), Ok(()));
-    assert_ne!(validator.validate_pattern("${1,2}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("${2,1}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\2(a)(", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:a)\\1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(a)\\2", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:a)\\2", true), Ok(()));
     assert_ne!(
-      validator.validate_pattern("(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11", true),
+      validator.validate_pattern("(", UnicodeMode::Unicode),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("(?a", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?a)", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?:a", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(:a", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\c1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\c", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u1", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u12", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u123", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u{z", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u{20", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\u{110000}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\377", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\400", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\a", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[b-a]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[a-b--+]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c1]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\x]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\xz]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\x1]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u1]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u12]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u123]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{z]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{20]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{110000}]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\77]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\377]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\400]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\a]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\d-\\uFFFF]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\D-\\uFFFF]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\s-\\uFFFF]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\S-\\uFFFF]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\w-\\uFFFF]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\W-\\uFFFF]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0000-\\d]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0000-\\D]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0000-\\s]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0000-\\S]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0000-\\w]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u0000-\\W]", true), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\u0001-\\u0000]", true),
+      validator.validate_pattern("(?", UnicodeMode::Unicode),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("[\\u{2}-\\u{1}]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\u{2-\\u{1}]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\a-\\z]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\z-\\a]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[0-9--+]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c-a]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c0-]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[\\c_]", true), Ok(()));
-    assert_ne!(validator.validate_pattern("[🌸-🌷]", true), Ok(()));
     assert_ne!(
-      validator.validate_pattern("[\\d][\\12-\\14]{1,}[^\\d]", true),
+      validator.validate_pattern("(?=", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=foo", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?!", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?!foo", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a)*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a)+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a)?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a){", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a){}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a){a}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a){1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a){1,}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?=a){1,2}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{a}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1,", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1,2", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(a{2,1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{a}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1,?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{1,2?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1}?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("a{2,1?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(*)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(")", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("^*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("$*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("${1,2", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("${1,2}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("${2,1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\2(a)(", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?:a)\\1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(a)\\2", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?:a)\\2", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\\11",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?a", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?:", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?:a", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(:a", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\c1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\c", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u1", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u12", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u123", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u{z", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u{20", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\u{110000}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\377", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\400", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\a", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[b-a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[a-b--+]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c1]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\x]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\xz]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\x1]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u1]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u12]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u123]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{z]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{20]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{110000}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\77]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\377]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\400]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\d-\\uFFFF]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\D-\\uFFFF]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\s-\\uFFFF]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\S-\\uFFFF]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\w-\\uFFFF]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\W-\\uFFFF]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-\\d]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-\\D]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-\\s]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-\\S]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-\\w]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0000-\\W]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u0001-\\u0000]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{2}-\\u{1}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\u{2-\\u{1}]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\a-\\z]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\z-\\a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[0-9--+]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c-a]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c0-]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[\\c_]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("[🌸-🌷]", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator
+        .validate_pattern("[\\d][\\12-\\14]{1,}[^\\d]", UnicodeMode::Unicode),
       Ok(())
     );
   }
@@ -1181,90 +2912,238 @@ mod tests {
   fn lookbehind_assertion_invalid_2017() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/lookbehind-assertion-invalid-2017.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2017);
-    assert_ne!(validator.validate_pattern("(?<a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a)", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?<a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn lookbehind_assertion_invalid_2018() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/lookbehind-assertion-invalid-2018.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("(?<a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a)", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)?", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)+", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)+", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)*", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a)*", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a){1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<=a){1}", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)?", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)?", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)+", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)+", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)*", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a)*", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a){1}", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<!a){1}", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?<a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)+", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)*", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a)*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a){1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<=a){1}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)?", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)?", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)+", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)+", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)*", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a)*", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a){1}", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<!a){1}", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn named_capturing_group_invalid_2017() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/named-capturing-group-invalid-2017.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2017);
-    assert_ne!(validator.validate_pattern("\\k", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\k<a>", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<a", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<a>", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<a>", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("\\k", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\k<a>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<a", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<a", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<a>", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<a>", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn named_capturing_group_invalid_2018() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/named-capturing-group-invalid-2018.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("(?a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("\\k", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\k<a>", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<a", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<a", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\2", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<b>", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)\\k<b>", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)(?<a>a)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<a>a)(?<a>a)", true), Ok(()));
+    assert_ne!(validator.validate_pattern("(?a", UnicodeMode::None), Ok(()));
     assert_ne!(
-      validator.validate_pattern("(?<a>a)(?<\\u{61}>a)", true),
+      validator.validate_pattern("(?a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(validator.validate_pattern("(?<", UnicodeMode::None), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?<)", UnicodeMode::None),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("(?<a>a)(?<\\u0061>a)", true),
-      Ok(())
-    );
-    assert_ne!(validator.validate_pattern("(?<☀>a)\\k<☀>", true), Ok(()));
-    assert_ne!(
-      validator.validate_pattern("(?<\\u0020>a)\\k<\\u0020>", true),
+      validator.validate_pattern("(?<a)", UnicodeMode::None),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("(?<\\u0061\\u0062\\u0063>a)\\k<abd>", true),
+      validator.validate_pattern("\\k", UnicodeMode::Unicode),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("(?<11>a)\\k<11>", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("\\k<a>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<a", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<a", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\2", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<b>", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)\\k<b>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)(?<a>a)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)(?<a>a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)(?<\\u{61}>a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<a>a)(?<\\u0061>a)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<☀>a)\\k<☀>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator
+        .validate_pattern("(?<\\u0020>a)\\k<\\u0020>", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "(?<\\u0061\\u0062\\u0063>a)\\k<abd>",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<11>a)\\k<11>", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
@@ -1272,66 +3151,103 @@ mod tests {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/unicode-group-names-invalid.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2020);
     assert_ne!(
-      validator.validate_pattern("(?<\\ud83d\\ude80>.)", false),
+      validator.validate_pattern("(?<\\ud83d\\ude80>.)", UnicodeMode::None),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("(?<\\ud83d\\ude80>.)", true),
+      validator.validate_pattern("(?<\\ud83d\\ude80>.)", UnicodeMode::Unicode),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("(?<\\u{1f680}>.)", false),
+      validator.validate_pattern("(?<\\u{1f680}>.)", UnicodeMode::None),
       Ok(())
     );
-    assert_ne!(validator.validate_pattern("(?<\\u{1f680}>.)", true), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<🚀>.)", false), Ok(()));
-    assert_ne!(validator.validate_pattern("(?<🚀>.)", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("(?<\\u{1f680}>.)", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<🚀>.)", UnicodeMode::None),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("(?<🚀>.)", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn unicode_property_escape_invalid_2017() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/unicode-property-escape-invalid-2017.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2017);
-    assert_ne!(validator.validate_pattern("\\p", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\p{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\p{ASCII", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\p{ASCII}", true), Ok(()));
+    assert_ne!(
+      validator.validate_pattern("\\p", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\p{", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\p{ASCII", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\p{ASCII}", UnicodeMode::Unicode),
+      Ok(())
+    );
   }
 
   #[test]
   fn unicode_property_escape_invalid_2018() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/unicode-property-escape-invalid-2018.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
-    assert_ne!(validator.validate_pattern("\\p", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\p{", true), Ok(()));
-    assert_ne!(validator.validate_pattern("\\p{ASCII", true), Ok(()));
     assert_ne!(
-      validator.validate_pattern("\\p{General_Category}", true),
+      validator.validate_pattern("\\p", UnicodeMode::Unicode),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("\\p{General_Category=}", true),
+      validator.validate_pattern("\\p{", UnicodeMode::Unicode),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("\\p{General_Category", true),
+      validator.validate_pattern("\\p{ASCII", UnicodeMode::Unicode),
       Ok(())
     );
     assert_ne!(
-      validator.validate_pattern("\\p{General_Category=", true),
-      Ok(())
-    );
-    assert_ne!(
-      validator.validate_pattern("\\p{General_Category=Letter", true),
-      Ok(())
-    );
-    assert_ne!(
-      validator.validate_pattern("\\p{General_Category=Hiragana}", true),
+      validator.validate_pattern("\\p{General_Category}", UnicodeMode::Unicode),
       Ok(())
     );
     assert_ne!(
       validator
-        .validate_pattern("[\\p{Script=Hiragana}-\\p{Script=Katakana}]", true),
+        .validate_pattern("\\p{General_Category=}", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\p{General_Category", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern("\\p{General_Category=", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator
+        .validate_pattern("\\p{General_Category=Letter", UnicodeMode::Unicode),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "\\p{General_Category=Hiragana}",
+        UnicodeMode::Unicode
+      ),
+      Ok(())
+    );
+    assert_ne!(
+      validator.validate_pattern(
+        "[\\p{Script=Hiragana}-\\p{Script=Katakana}]",
+        UnicodeMode::Unicode
+      ),
       Ok(())
     );
   }

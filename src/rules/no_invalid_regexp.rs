@@ -18,7 +18,7 @@ pub struct NoInvalidRegexp;
 
 const CODE: &str = "no-invalid-regexp";
 const MESSAGE: &str = "Invalid RegExp literal";
-const HINT: &str = "Rework regular expression to be a valid";
+const HINT: &str = "Rework regular expression to be valid";
 
 impl LintRule for NoInvalidRegexp {
   fn tags(&self) -> Tags {
@@ -60,7 +60,7 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
   fn new(context: &'c mut Context<'view>) -> Self {
     Self {
       context,
-      validator: EcmaRegexValidator::new(EcmaVersion::Es2022),
+      validator: EcmaRegexValidator::new(EcmaVersion::Es2024),
     }
   }
 
@@ -87,24 +87,20 @@ impl<'c, 'view> NoInvalidRegexpVisitor<'c, 'view> {
   }
 
   fn check_regex(&mut self, pattern: &str, flags: &str, range: SourceRange) {
-    if self.check_for_invalid_flags(flags)
-      || (!flags.is_empty()
-        && self.check_for_invalid_pattern(pattern, flags.contains('u')))
-      || (self.check_for_invalid_pattern(pattern, true)
-        && self.check_for_invalid_pattern(pattern, false))
-    {
-      self
-        .context
-        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
+    if let Err(err) = self.validate(pattern, flags) {
+      self.context.add_diagnostic_with_hint(
+        range,
+        CODE,
+        format!("{MESSAGE}: {err}"),
+        HINT,
+      );
     }
   }
 
-  fn check_for_invalid_flags(&self, flags: &str) -> bool {
-    self.validator.validate_flags(flags).is_err()
-  }
-
-  fn check_for_invalid_pattern(&mut self, source: &str, u_flag: bool) -> bool {
-    self.validator.validate_pattern(source, u_flag).is_err()
+  fn validate(&mut self, pattern: &str, flags: &str) -> Result<(), String> {
+    self
+      .validator
+      .validate_pattern(pattern, self.validator.validate_flags(flags)?)
   }
 }
 
@@ -173,7 +169,10 @@ var foo = new RegExp('a', '');
 /(a)bc[de]/.test('abcd');
 /(a)bc[de]/u;
 let x = new FooBar('\\');
-let re = new RegExp('foo', x);",
+let re = new RegExp('foo', x);
+/[\p{N}--0]/gv;
+/[\p{L}--\p{Ll}]/v;
+new RegExp('[\\p{L}--0]', 'v');",
     };
   }
 
@@ -181,14 +180,16 @@ let re = new RegExp('foo', x);",
   fn no_invalid_regexp_invalid() {
     assert_lint_err! {
       NoInvalidRegexp,
-      r"RegExp('[');": [{ col: 0, message: MESSAGE, hint: HINT }],
-      r"RegExp('.', 'z');": [{ col: 0, message: MESSAGE, hint: HINT }],
-      r"new RegExp(')');": [{ col: 0, message: MESSAGE, hint: HINT }],
-      r"new RegExp('\\');": [{ col: 0, message: MESSAGE, hint: HINT }],
-      r"var foo = new RegExp('(', '');": [{ col: 10, message: MESSAGE, hint: HINT }],
-      r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
-      r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
-      r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r"RegExp('[');": [{ col: 0, message: format!("{MESSAGE}: Unterminated character class"), hint: HINT }],
+      r"RegExp('.', 'z');": [{ col: 0, message: format!("{MESSAGE}: Invalid flag z"), hint: HINT }],
+      r"new RegExp(')');": [{ col: 0, message: format!("{MESSAGE}: Unmatched ')'"), hint: HINT }],
+      r"new RegExp('\\');": [{ col: 0, message: format!("{MESSAGE}: \\ at end of pattern"), hint: HINT }],
+      r"var foo = new RegExp('(', '');": [{ col: 10, message: format!("{MESSAGE}: Unterminated group"), hint: HINT }],
+      r"/(?<a>a)\k</": [{ col: 0, message: format!("{MESSAGE}: Invalid capture group name"), hint: HINT }],
+      r"/(?<!a){1}/": [{ col: 0, message: format!("{MESSAGE}: Nothing to repeat"), hint: HINT }],
+      r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: format!("{MESSAGE}: Invalid escape"), hint: HINT }],
+      r"/(?:)/uv": [{ col: 0, message: format!("{MESSAGE}: Cannot use u and v flags together"), hint: HINT }],
+      r"/[\p{L}--0]/u": [{ col: 0, message: format!("{MESSAGE}: Invalid character class"), hint: HINT }],
     }
   }
 }
