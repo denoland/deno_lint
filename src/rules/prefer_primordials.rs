@@ -708,20 +708,24 @@ impl Handler for PreferPrimordialsHandler {
   fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
     use ast_view::BinaryOp;
 
-    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
-      ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
-        CODE,
-        PreferPrimordialsMessage::InstanceOf,
-        PreferPrimordialsHint::InstanceOf,
-      );
-    } else if matches!(bin_expr.op(), BinaryOp::In) {
-      ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
-        CODE,
-        PreferPrimordialsMessage::In,
-        PreferPrimordialsHint::In,
-      );
+    match bin_expr.op() {
+      BinaryOp::InstanceOf => {
+        ctx.add_diagnostic_with_hint(
+          bin_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::InstanceOf,
+          PreferPrimordialsHint::InstanceOf,
+        );
+      }
+      BinaryOp::In if !bin_expr.left.is::<ast_view::PrivateName>() => {
+        ctx.add_diagnostic_with_hint(
+          bin_expr.range(),
+          CODE,
+          PreferPrimordialsMessage::In,
+          PreferPrimordialsHint::In,
+        );
+      }
+      _ => {}
     }
   }
 }
@@ -907,6 +911,15 @@ function foo(): Array<any> {}
       "#,
       r#"
 type p = Promise<void>;
+      "#,
+      r#"
+class A {
+  #brand;
+
+  static is(obj) {
+    return #brand in obj;
+  }
+}
       "#,
     };
   }
@@ -1283,6 +1296,13 @@ new DataView(new ArrayBuffer(10)).byteOffset;
         },
       ],
       r#""a" in A"#: [
+        {
+          col: 0,
+          message: PreferPrimordialsMessage::In,
+          hint: PreferPrimordialsHint::In,
+        },
+      ],
+      r#"a in A"#: [
         {
           col: 0,
           message: PreferPrimordialsMessage::In,
