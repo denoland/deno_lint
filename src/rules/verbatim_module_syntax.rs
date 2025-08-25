@@ -33,7 +33,9 @@ enum Message {
   AllExportIdentsUsedInTypes,
   #[display(fmt = "Export identifier only used in types")]
   ExportIdentUsedInTypes,
-  #[display(fmt = "Empty export declaration elided without verbatim-module-syntax")]
+  #[display(
+    fmt = "Empty export declaration elided without verbatim-module-syntax"
+  )]
   ExportDeclarationElided,
 }
 
@@ -143,8 +145,7 @@ impl VerbatimModuleSyntax {
     context: &mut Context,
     program: Program,
   ) {
-    if named_export.type_only()
-    {
+    if named_export.type_only() {
       return;
     }
 
@@ -161,7 +162,13 @@ impl VerbatimModuleSyntax {
           ""
         };
         let changes = Vec::from([LintFixChange {
-          new_text: format!("import {0}{1}{0}{2}", quote_kind, src.value(), semicolon).into(),
+          new_text: format!(
+            "import {0}{1}{0}{2}",
+            quote_kind,
+            src.value(),
+            semicolon
+          )
+          .into(),
           range: named_export.range(),
         }]);
         context.add_diagnostic_with_fixes(
