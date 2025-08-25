@@ -19,7 +19,8 @@ use deno_ast::{
 use derive_more::Display;
 
 const CODE: &str = "verbatim-module-syntax";
-const FIX_DESC: &str = "Add a type keyword";
+const FIX_ADD_TYPE_KEYWORD_DESC: &str = "Add a type keyword";
+const FIX_USE_IMPORT_DECL_DESC: &str = "Use an import declaration";
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Display)]
@@ -32,6 +33,10 @@ enum Message {
   AllExportIdentsUsedInTypes,
   #[display(fmt = "Export identifier only used in types")]
   ExportIdentUsedInTypes,
+  #[display(
+    fmt = "Empty export declaration elided without verbatim-module-syntax"
+  )]
+  ExportDeclarationElided,
 }
 
 #[derive(Display)]
@@ -44,6 +49,8 @@ enum Hint {
   ChangeExportToExportType,
   #[display(fmt = "Add a `type` keyword before the identifier")]
   AddTypeKeyword,
+  #[display(fmt = "Change to side effect import for consistent behavior")]
+  ChangeSideEffectImport,
 }
 
 #[derive(Debug)]
@@ -108,7 +115,7 @@ impl VerbatimModuleSyntax {
         Message::AllImportIdentsUsedInTypes,
         Some(Hint::ChangeImportToImportType.to_string()),
         vec![LintFix {
-          description: FIX_DESC.into(),
+          description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
           changes,
         }],
       );
@@ -120,7 +127,7 @@ impl VerbatimModuleSyntax {
           Message::ImportIdentUsedInTypes,
           Some(Hint::AddTypeKeyword.to_string()),
           vec![LintFix {
-            description: FIX_DESC.into(),
+            description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
             changes: vec![LintFixChange {
               new_text: "type ".into(),
               range: specifier.start().range(),
@@ -138,10 +145,48 @@ impl VerbatimModuleSyntax {
     context: &mut Context,
     program: Program,
   ) {
-    if named_export.type_only()
-      || named_export.specifiers.is_empty()
-      || named_export.src.is_some()
-    {
+    if named_export.type_only() {
+      return;
+    }
+
+    if named_export.specifiers.is_empty() {
+      if let Some(src) = &named_export.src {
+        let quote_kind = if src.text_fast(program).starts_with("'") {
+          '\''
+        } else {
+          '\"'
+        };
+        let semicolon = if named_export.text_fast(program).ends_with(';') {
+          ";"
+        } else {
+          ""
+        };
+        let changes = Vec::from([LintFixChange {
+          new_text: format!(
+            "import {0}{1}{0}{2}",
+            quote_kind,
+            src.value(),
+            semicolon
+          )
+          .into(),
+          range: named_export.range(),
+        }]);
+        context.add_diagnostic_with_fixes(
+          named_export.range(),
+          CODE,
+          Message::ExportDeclarationElided,
+          Some(Hint::ChangeSideEffectImport.to_string()),
+          vec![LintFix {
+            description: FIX_USE_IMPORT_DECL_DESC.into(),
+            changes,
+          }],
+        );
+
+        return;
+      }
+    }
+
+    if named_export.specifiers.is_empty() || named_export.src.is_some() {
       return;
     }
 
@@ -189,7 +234,7 @@ impl VerbatimModuleSyntax {
         Message::AllExportIdentsUsedInTypes,
         Some(Hint::ChangeExportToExportType.to_string()),
         vec![LintFix {
-          description: FIX_DESC.into(),
+          description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
           changes,
         }],
       );
@@ -201,7 +246,7 @@ impl VerbatimModuleSyntax {
           Message::ExportIdentUsedInTypes,
           Some(Hint::AddTypeKeyword.to_string()),
           vec![LintFix {
-            description: FIX_DESC.into(),
+            description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
             changes: vec![LintFixChange {
               new_text: "type ".into(),
               range: specifier.start().range(),
@@ -390,6 +435,7 @@ mod tests {
       "import { value, type Type } from 'module'; console.log(value); export type { Type };",
       "import { value, type Type } from 'module'; export { value, type Type };",
       "export { value } from './value.ts';",
+      "export {};",
       "const logger = { setItems }; export { logger };",
       "class Test {} export { Test };",
     };
@@ -404,7 +450,7 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type { Type } from 'module'; type Test = Type;"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { Type } from 'module'; type Test = Type;"),
         }
       ],
       "import { Type, Other } from 'module'; type Test = Type | Other;": [
@@ -412,7 +458,7 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
         }
       ],
       "import { type Type, Other } from 'module'; type Test = Type | Other;": [
@@ -420,7 +466,7 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { Type, Other } from 'module'; type Test = Type | Other;"),
         }
       ],
       "import { Type, value } from 'module'; type Test = Type; value();": [
@@ -428,7 +474,7 @@ mod tests {
           col: 9,
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { type Type, value } from 'module'; type Test = Type; value();"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { type Type, value } from 'module'; type Test = Type; value();"),
         }
       ],
       "import { Type, Other, value } from 'module'; type Test = Type | Other; value();": [
@@ -436,13 +482,13 @@ mod tests {
           col: 9,
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { type Type, Other, value } from 'module'; type Test = Type | Other; value();"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { type Type, Other, value } from 'module'; type Test = Type | Other; value();"),
         },
         {
           col: 15,
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { Type, type Other, value } from 'module'; type Test = Type | Other; value();"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { Type, type Other, value } from 'module'; type Test = Type | Other; value();"),
         }
       ],
       "import * as value from 'module'; type Test = typeof value;": [
@@ -450,7 +496,7 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type * as value from 'module'; type Test = typeof value;"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type * as value from 'module'; type Test = typeof value;"),
         }
       ],
       "import value from 'module'; type Test = typeof value;": [
@@ -458,7 +504,7 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type value from 'module'; type Test = typeof value;"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type value from 'module'; type Test = typeof value;"),
         }
       ],
       "type Test = string; export { Test };": [
@@ -466,7 +512,7 @@ mod tests {
           col: 20,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "type Test = string; export type { Test };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "type Test = string; export type { Test };"),
         }
       ],
       "type Test = string; type Test2 = string; export { Test, Test2 };": [
@@ -474,7 +520,7 @@ mod tests {
           col: 41,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "type Test = string; type Test2 = string; export type { Test, Test2 };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "type Test = string; type Test2 = string; export type { Test, Test2 };"),
         }
       ],
       "import { type value } from 'module'; export { value };": [
@@ -482,13 +528,13 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type { value } from 'module'; export { value };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { value } from 'module'; export { value };"),
         },
         {
           col: 37,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "import { type value } from 'module'; export type { value };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { type value } from 'module'; export type { value };"),
         }
       ],
       "import { value } from 'module'; export { type value };": [
@@ -496,13 +542,13 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type { value } from 'module'; export { type value };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { value } from 'module'; export { type value };"),
         },
         {
           col: 32,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "import { value } from 'module'; export type { value };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value } from 'module'; export type { value };"),
         }
       ],
       "import type { value } from 'module'; export { value };": [
@@ -510,7 +556,7 @@ mod tests {
           col: 37,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "import type { value } from 'module'; export type { value };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { value } from 'module'; export type { value };"),
         }
       ],
       "import { value } from 'module'; export type { value };": [
@@ -518,7 +564,7 @@ mod tests {
           col: 0,
           message: Message::AllImportIdentsUsedInTypes,
           hint: Hint::ChangeImportToImportType,
-          fix: (FIX_DESC, "import type { value } from 'module'; export type { value };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import type { value } from 'module'; export type { value };"),
         }
       ],
       "import { value, type Type } from 'module'; console.log(value); export { Type };": [
@@ -526,7 +572,7 @@ mod tests {
           col: 63,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "import { value, type Type } from 'module'; console.log(value); export type { Type };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value, type Type } from 'module'; console.log(value); export type { Type };"),
         }
       ],
       "import { value, Type } from 'module'; console.log(value); export { type Type };": [
@@ -534,13 +580,13 @@ mod tests {
           col: 16,
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { value, type Type } from 'module'; console.log(value); export { type Type };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value, type Type } from 'module'; console.log(value); export { type Type };"),
         },
         {
           col: 58,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "import { value, Type } from 'module'; console.log(value); export type { Type };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value, Type } from 'module'; console.log(value); export type { Type };"),
         }
       ],
       "import { value, Type } from 'module'; console.log(value); export type { Type };": [
@@ -548,7 +594,7 @@ mod tests {
           col: 16,
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { value, type Type } from 'module'; console.log(value); export type { Type };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value, type Type } from 'module'; console.log(value); export type { Type };"),
         }
       ],
       "import { value, type Type } from 'module'; export { value, Type };": [
@@ -556,7 +602,7 @@ mod tests {
           col: 59,
           message: Message::ExportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
         }
       ],
       "import { value, Type } from 'module'; export { value, type Type };": [
@@ -564,7 +610,31 @@ mod tests {
           col: 16,
           message: Message::ImportIdentUsedInTypes,
           hint: Hint::AddTypeKeyword,
-          fix: (FIX_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "import { value, type Type } from 'module'; export { value, type Type };"),
+        }
+      ],
+      "export { } from 'module';": [
+        {
+          col: 0,
+          message: Message::ExportDeclarationElided,
+          hint: Hint::ChangeSideEffectImport,
+          fix: (FIX_USE_IMPORT_DECL_DESC, "import 'module';"),
+        }
+      ],
+      "export { } from \"module\";": [
+        {
+          col: 0,
+          message: Message::ExportDeclarationElided,
+          hint: Hint::ChangeSideEffectImport,
+          fix: (FIX_USE_IMPORT_DECL_DESC, "import \"module\";"),
+        }
+      ],
+      "export { } from \"module\"": [
+        {
+          col: 0,
+          message: Message::ExportDeclarationElided,
+          hint: Hint::ChangeSideEffectImport,
+          fix: (FIX_USE_IMPORT_DECL_DESC, "import \"module\""),
         }
       ],
       "interface Test {}\nexport { Test };": [
@@ -573,7 +643,7 @@ mod tests {
           col: 0,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "interface Test {}\nexport type { Test };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "interface Test {}\nexport type { Test };"),
         }
       ],
       "type Test = 'test';\nexport { Test };": [
@@ -582,7 +652,7 @@ mod tests {
           col: 0,
           message: Message::AllExportIdentsUsedInTypes,
           hint: Hint::ChangeExportToExportType,
-          fix: (FIX_DESC, "type Test = 'test';\nexport type { Test };"),
+          fix: (FIX_ADD_TYPE_KEYWORD_DESC, "type Test = 'test';\nexport type { Test };"),
         }
       ],
     };
