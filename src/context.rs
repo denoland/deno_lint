@@ -85,7 +85,7 @@ impl<'a> Context<'a> {
             deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsx",
-              Rc::new(factory),
+              factory.into(),
               top_level_mark,
             ),
           ));
@@ -97,7 +97,7 @@ impl<'a> Context<'a> {
             deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsxFragment",
-              Rc::new(factory),
+              factory.into(),
               top_level_mark,
             ),
           ));

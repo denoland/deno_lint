@@ -153,11 +153,6 @@ mod tests {
       "let foo: 'bar';",
       "let foo = { bar };",
       "let foo: 'baz' = 'baz' as const;",
-
-      // https://github.com/denoland/deno_lint/issues/567
-      "const",
-      "let",
-      "var",
     };
   }
 
