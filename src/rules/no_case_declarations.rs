@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{Decl, Stmt, SwitchCase, VarDeclKind};
 use deno_ast::SourceRanged;
@@ -14,8 +15,8 @@ const MESSAGE: &str = "Unexpected declaration in case";
 const HINT: &str = "Wrap switch case and default blocks in brackets";
 
 impl LintRule for NoCaseDeclarations {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -28,11 +29,6 @@ impl LintRule for NoCaseDeclarations {
     program: Program,
   ) {
     NoCaseDeclarationsHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_case_declarations.md")
   }
 }
 

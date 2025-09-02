@@ -2,14 +2,15 @@
 
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{
-  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintFix,
+  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintDocsUrl,
+  LintFix,
 };
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
 };
 use crate::linter::LinterContext;
-use crate::rules::{self, LintRule};
+use crate::rules;
 use deno_ast::swc::ast::Expr;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::common::util::take::Take;
@@ -20,8 +21,9 @@ use deno_ast::{
 };
 use deno_ast::{MediaType, ModuleSpecifier};
 use deno_ast::{MultiThreadedComments, Scope};
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::rc::Rc;
 
 /// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'a> {
@@ -33,12 +35,11 @@ pub struct Context<'a> {
   scope: Scope,
   control_flow: ControlFlow,
   traverse_flow: TraverseFlow,
-  all_rule_codes: &'a HashSet<&'static str>,
   check_unknown_rules: bool,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_factory: Option<Arc<Box<Expr>>>,
+  jsx_factory: Option<Rc<Box<Expr>>>,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_fragment_factory: Option<Arc<Box<Expr>>>,
+  jsx_fragment_factory: Option<Rc<Box<Expr>>>,
 }
 
 impl<'a> Context<'a> {
@@ -80,24 +81,26 @@ impl<'a> Context<'a> {
 
       if jsx_factory.is_none() {
         if let Some(factory) = default_jsx_factory {
-          jsx_factory =
-            Some(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+          jsx_factory = Some(Rc::new(
+            deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsx",
-              factory,
+              factory.into(),
               top_level_mark,
-            ));
+            ),
+          ));
         }
       }
       if jsx_fragment_factory.is_none() {
         if let Some(factory) = default_jsx_fragment_factory {
-          jsx_fragment_factory =
-            Some(deno_ast::swc::transforms::react::parse_expr_for_jsx(
+          jsx_fragment_factory = Some(Rc::new(
+            deno_ast::swc::transforms::react::parse_expr_for_jsx(
               &SourceMap::default(),
               "jsxFragment",
-              factory,
+              factory.into(),
               top_level_mark,
-            ));
+            ),
+          ));
         }
       }
     });
@@ -112,7 +115,6 @@ impl<'a> Context<'a> {
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules: linter_ctx.check_unknown_rules,
-      all_rule_codes: &linter_ctx.all_rule_codes,
       jsx_factory,
       jsx_fragment_factory,
     }
@@ -180,7 +182,7 @@ impl<'a> Context<'a> {
   /// pragma or using a default). If this file is not JSX, uses the automatic
   /// transform, or the default factory is not specified, this will return
   /// `None`.
-  pub fn jsx_factory(&self) -> Option<Arc<Box<Expr>>> {
+  pub fn jsx_factory(&self) -> Option<Rc<Box<Expr>>> {
     self.jsx_factory.clone()
   }
 
@@ -188,7 +190,7 @@ impl<'a> Context<'a> {
   /// (via pragma or using a default). If this file is not JSX, uses the
   /// automatic transform, or the default factory is not specified, this will
   /// return `None`.
-  pub fn jsx_fragment_factory(&self) -> Option<Arc<Box<Expr>>> {
+  pub fn jsx_fragment_factory(&self) -> Option<Rc<Box<Expr>>> {
     self.jsx_fragment_factory.clone()
   }
 
@@ -266,7 +268,7 @@ impl<'a> Context<'a> {
   /// works for diagnostics reported by other rules.
   pub(crate) fn ban_unused_ignore(
     &self,
-    specified_rules: &[Box<dyn LintRule>],
+    known_rules_codes: &HashSet<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     const CODE: &str = "ban-unused-ignore";
 
@@ -275,15 +277,13 @@ impl<'a> Context<'a> {
     if self
       .file_ignore_directive
       .as_ref()
-      .map_or(false, |file_ignore| file_ignore.has_code(CODE))
+      .is_some_and(|file_ignore| file_ignore.has_code(CODE))
     {
       return vec![];
     }
 
-    let executed_builtin_codes: HashSet<&'static str> =
-      specified_rules.iter().map(|r| r.code()).collect();
     let is_unused_code = |&(code, status): &(&String, &CodeStatus)| {
-      let is_unknown = !executed_builtin_codes.contains(code.as_str());
+      let is_unknown = !known_rules_codes.contains(code.as_str());
       !status.used && !is_unknown
     };
 
@@ -334,15 +334,17 @@ impl<'a> Context<'a> {
   // struct.
   /// Lint rule implementation for `ban-unknown-rule-code`.
   /// This should be run after all normal rules.
-  pub(crate) fn ban_unknown_rule_code(&mut self) -> Vec<LintDiagnostic> {
-    let is_unknown_rule =
-      |code: &&String| !self.all_rule_codes.contains(code.as_str());
-
+  pub(crate) fn ban_unknown_rule_code(
+    &mut self,
+    enabled_rules: &HashSet<Cow<'static, str>>,
+  ) -> Vec<LintDiagnostic> {
     let mut diagnostics = Vec::new();
 
     if let Some(file_ignore) = self.file_ignore_directive.as_ref() {
-      for unknown_rule_code in
-        file_ignore.codes().keys().filter(is_unknown_rule)
+      for unknown_rule_code in file_ignore
+        .codes()
+        .keys()
+        .filter(|code| !enabled_rules.contains(code.as_str()))
       {
         let d = self.create_diagnostic(
           Some(self.create_diagnostic_range(file_ignore.range())),
@@ -358,8 +360,10 @@ impl<'a> Context<'a> {
     }
 
     for line_ignore in self.line_ignore_directives.values() {
-      for unknown_rule_code in
-        line_ignore.codes().keys().filter(is_unknown_rule)
+      for unknown_rule_code in line_ignore
+        .codes()
+        .keys()
+        .filter(|code| !enabled_rules.contains(code.as_str()))
       {
         let d = self.create_diagnostic(
           Some(self.create_diagnostic_range(line_ignore.range())),
@@ -451,6 +455,14 @@ impl<'a> Context<'a> {
       .push(self.create_diagnostic(maybe_range, details));
   }
 
+  /// Add fully constructed diagnostics.
+  ///
+  /// This function can be used by the "external linter" to provide its own
+  /// diagnostics.
+  pub fn add_external_diagnostics(&mut self, diagnostics: &[LintDiagnostic]) {
+    self.diagnostics.extend_from_slice(diagnostics);
+  }
+
   pub(crate) fn create_diagnostic(
     &self,
     maybe_range: Option<LintDiagnosticRange>,
@@ -475,7 +487,7 @@ impl<'a> Context<'a> {
       code: code.to_string(),
       hint: maybe_hint,
       fixes,
-      custom_docs_url: None,
+      custom_docs_url: LintDocsUrl::Default,
       info: vec![],
     }
   }

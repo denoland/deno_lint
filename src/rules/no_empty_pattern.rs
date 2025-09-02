@@ -2,11 +2,12 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{ArrayPat, ObjectPat, ObjectPatProp};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
@@ -18,8 +19,8 @@ const HINT: &str =
   "Add variable to pattern or apply correct default value syntax with `=`";
 
 impl LintRule for NoEmptyPattern {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -38,11 +39,6 @@ impl LintRule for NoEmptyPattern {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_empty_pattern.md")
-  }
 }
 
 struct NoEmptyPatternVisitor<'c, 'view> {
@@ -55,7 +51,7 @@ impl<'c, 'view> NoEmptyPatternVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoEmptyPatternVisitor<'c, 'view> {
+impl Visit for NoEmptyPatternVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_object_pat_prop(&mut self, obj_pat_prop: &ObjectPatProp) {

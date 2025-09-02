@@ -6,6 +6,8 @@ use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
+use crate::tags;
+use crate::tags::Tags;
 use crate::Program;
 use std::borrow::Cow;
 
@@ -44,13 +46,8 @@ impl LintRule for NoNodeGlobals {
     CODE
   }
 
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_node_globals.md")
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 }
 

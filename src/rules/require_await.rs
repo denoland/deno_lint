@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 
 use deno_ast::swc::parser::token::{Token, Word};
 use deno_ast::view::{NodeTrait, Program};
@@ -51,8 +52,8 @@ enum RequireAwaitHint {
 }
 
 impl LintRule for RequireAwait {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -65,11 +66,6 @@ impl LintRule for RequireAwait {
     program: Program,
   ) {
     RequireAwaitHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/require_await.md")
   }
 }
 
@@ -358,7 +354,7 @@ fn process_function<'a, N>(
 }
 
 fn is_body_empty(maybe_body: Option<&deno_ast::view::BlockStmt>) -> bool {
-  maybe_body.map_or(true, |body| body.stmts.is_empty())
+  maybe_body.is_none_or(|body| body.stmts.is_empty())
 }
 
 #[cfg(test)]

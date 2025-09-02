@@ -7,8 +7,8 @@ use deno_ast::swc::ast::*;
 use deno_ast::swc::common::SyntaxContext;
 use deno_ast::swc::utils::ExprCtx;
 use deno_ast::swc::{
+  ecma_visit::{noop_visit_type, Visit, VisitWith},
   utils::{ExprExt, Value},
-  visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::view;
 use deno_ast::SourcePos;
@@ -34,6 +34,8 @@ impl ControlFlow {
       expr_ctxt: ExprCtx {
         unresolved_ctxt,
         is_unresolved_ref_safe: false,
+        in_strict: true,
+        remaining_depth: 4, // this is the swc default
       },
     };
     match program {
@@ -83,12 +85,12 @@ impl Metadata {
   pub fn stops_execution(&self) -> bool {
     self
       .end
-      .map_or(false, |d| matches!(d, End::Forced { .. } | End::Break))
+      .is_some_and(|d| matches!(d, End::Forced { .. } | End::Break))
   }
 
   /// Returns true if a node doesn't prevent further execution.
   pub fn continues_execution(&self) -> bool {
-    self.end.map_or(true, |d| d == End::Continue)
+    self.end.is_none_or(|d| d == End::Continue)
   }
 }
 
@@ -241,7 +243,7 @@ impl Analyzer<'_> {
       let mut child = Analyzer {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind.clone()),
-        expr_ctxt: self.expr_ctxt.clone(),
+        expr_ctxt: self.expr_ctxt,
       };
       match kind {
         BlockKind::Function => {}
@@ -567,7 +569,7 @@ impl Visit for Analyzer<'_> {
     let scope_end = self
       .scope
       .end
-      .map_or(false, |d| matches!(d, End::Forced { .. } | End::Break));
+      .is_some_and(|d| matches!(d, End::Forced { .. } | End::Break));
 
     let unreachable = if scope_end {
       // Although execution is ended, we should handle hoisting.
@@ -604,7 +606,7 @@ impl Visit for Analyzer<'_> {
     n.test.visit_with(self);
 
     let mut forced_end = None;
-    let expr_ctxt = self.expr_ctxt.clone();
+    let expr_ctxt = self.expr_ctxt;
 
     self.with_child_scope(BlockKind::Loop, n.body.start(), |a| {
       n.body.visit_with(a);
@@ -622,8 +624,7 @@ impl Visit for Analyzer<'_> {
             forced_end = Some(end);
           }
           Some(test) => {
-            if matches!(test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
-            {
+            if matches!(test.cast_to_bool(expr_ctxt), (_, Value::Known(true))) {
               a.mark_as_end(n.start(), end);
               forced_end = Some(end);
             }
@@ -670,15 +671,15 @@ impl Visit for Analyzer<'_> {
 
   fn visit_while_stmt(&mut self, n: &WhileStmt) {
     let body_lo = n.body.start();
-    let expr_ctxt = self.expr_ctxt.clone();
+    let expr_ctxt = self.expr_ctxt;
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(a);
 
       let unconditionally_enter =
-        matches!(n.test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)));
+        matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)));
       let end_reason = a.get_end_reason(body_lo);
-      let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
+      let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
       let has_break = matches!(a.scope.found_break, Some(None));
 
       if unconditionally_enter && return_or_throw && !has_break {
@@ -701,15 +702,15 @@ impl Visit for Analyzer<'_> {
 
   fn visit_do_while_stmt(&mut self, n: &DoWhileStmt) {
     let body_lo = n.body.start();
-    let expr_ctxt = self.expr_ctxt.clone();
+    let expr_ctxt = self.expr_ctxt;
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
       n.body.visit_with(a);
 
       let end_reason = a.get_end_reason(body_lo);
-      let return_or_throw = end_reason.map_or(false, |e| e.is_forced());
+      let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
       let infinite_loop =
-        matches!(n.test.cast_to_bool(&expr_ctxt), (_, Value::Known(true)))
+        matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)))
           && a.scope.found_break.is_none();
       let has_break = matches!(a.scope.found_break, Some(None));
 

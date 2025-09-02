@@ -2,7 +2,8 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
-use crate::Program;
+use crate::tags::Tags;
+use crate::{tags, Program};
 use deno_ast::view::{BinExpr, BinaryOp, Expr, Ident, SwitchStmt};
 use deno_ast::SourceRanged;
 use derive_more::Display;
@@ -29,8 +30,8 @@ enum UseIsNaNMessage {
 }
 
 impl LintRule for UseIsNaN {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -43,11 +44,6 @@ impl LintRule for UseIsNaN {
     program: Program,
   ) {
     UseIsNaNHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/use_isnan.md")
   }
 }
 

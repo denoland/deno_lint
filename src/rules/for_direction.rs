@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::swc::ast::AssignOp;
 use deno_ast::swc::ast::BinaryOp;
@@ -15,8 +16,8 @@ use deno_ast::{view as ast_view, SourceRanged};
 pub struct ForDirection;
 
 impl LintRule for ForDirection {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -29,11 +30,6 @@ impl LintRule for ForDirection {
     program: Program,
   ) {
     ForDirectionHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/for_direction.md")
   }
 }
 

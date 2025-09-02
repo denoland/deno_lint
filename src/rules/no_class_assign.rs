@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::find_lhs_ids;
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::AssignExpr;
 use deno_ast::{BindingKind, SourceRanged};
@@ -15,8 +16,8 @@ const MESSAGE: &str = "Reassigning class declaration is not allowed";
 const HINT: &str = "Do you have the right variable here?";
 
 impl LintRule for NoClassAssign {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -29,11 +30,6 @@ impl LintRule for NoClassAssign {
     program: Program<'view>,
   ) {
     NoClassAssignVisitor.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_class_assign.md")
   }
 }
 

@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
   ArrayPat, AssignExpr, AssignTarget, AssignTargetPat, Ident, ObjectPat,
@@ -28,8 +29,8 @@ enum NoExAssignHint {
 }
 
 impl LintRule for NoExAssign {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -42,11 +43,6 @@ impl LintRule for NoExAssign {
     program: Program,
   ) {
     NoExAssignHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_ex_assign.md")
   }
 }
 

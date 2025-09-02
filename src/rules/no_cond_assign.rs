@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{CondExpr, DoWhileStmt, Expr, ForStmt, IfStmt, WhileStmt};
 use deno_ast::{SourceRange, SourceRanged};
@@ -29,8 +30,8 @@ enum NoCondAssignHint {
 }
 
 impl LintRule for NoCondAssign {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -43,11 +44,6 @@ impl LintRule for NoCondAssign {
     program: Program<'_>,
   ) {
     NoCondAssignHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_cond_assign.md")
   }
 }
 

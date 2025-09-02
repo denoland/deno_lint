@@ -114,11 +114,6 @@ impl LintRule for FooBarBaz {
   ) {
     FooBarBazHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/foo_bar_baz.md")
-  }
 }
 
 struct FooBarBazHandler;

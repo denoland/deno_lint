@@ -25,11 +25,6 @@ impl LintRule for NoAwaitInLoop {
   ) {
     NoAwaitInLoopHandler.traverse(program, context);
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_await_in_loop.md")
-  }
 }
 
 struct NoAwaitInLoopHandler;
@@ -67,7 +62,7 @@ impl Handler for NoAwaitInLoopHandler {
           stmt
             .init
             .as_ref()
-            .map_or(true, |init| !init.range().contains(&await_expr.range()))
+            .is_none_or(|init| !init.range().contains(&await_expr.range()))
         }
         WhileStmt(_) | DoWhileStmt(_) => true,
         _ => {

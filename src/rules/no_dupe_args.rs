@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{ArrowExpr, Function, Param, Pat};
 use deno_ast::{SourceRange, SourceRanged};
@@ -26,8 +27,8 @@ enum NoDupeArgsHint {
 }
 
 impl LintRule for NoDupeArgs {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -42,11 +43,6 @@ impl LintRule for NoDupeArgs {
     let mut handler = NoDupeArgsHandler::default();
     handler.traverse(program, context);
     handler.report_errors(context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_args.md")
   }
 }
 

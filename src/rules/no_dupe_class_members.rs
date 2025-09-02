@@ -2,13 +2,14 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, IdentName, Lit,
   MethodKind, Null, Number, PropName, Str, Tpl,
 };
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -33,8 +34,8 @@ enum NoDupeClassMembersHint {
 }
 
 impl LintRule for NoDupeClassMembers {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -52,11 +53,6 @@ impl LintRule for NoDupeClassMembers {
       ProgramRef::Module(m) => visitor.visit_module(m),
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_class_members.md")
   }
 }
 
@@ -79,7 +75,7 @@ impl<'c, 'view> NoDupeClassMembersVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoDupeClassMembersVisitor<'c, 'view> {
+impl Visit for NoDupeClassMembersVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class) {
@@ -116,7 +112,7 @@ impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
   }
 }
 
-impl<'a, 'b, 'view> Visit for ClassVisitor<'a, 'b, 'view> {
+impl Visit for ClassVisitor<'_, '_, '_> {
   noop_visit_type!();
 
   fn visit_class(&mut self, class: &Class) {

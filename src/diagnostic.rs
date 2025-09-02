@@ -34,6 +34,14 @@ pub struct LintDiagnosticRange {
   pub description: Option<String>,
 }
 
+#[derive(Clone, Default)]
+pub enum LintDocsUrl {
+  #[default]
+  Default,
+  None,
+  Custom(String),
+}
+
 #[derive(Clone)]
 pub struct LintDiagnosticDetails {
   pub message: String,
@@ -48,7 +56,7 @@ pub struct LintDiagnosticDetails {
   pub fixes: Vec<LintFix>,
   /// URL to the lint rule documentation. By default, the url uses the
   /// code to link to lint.deno.land
-  pub custom_docs_url: Option<String>,
+  pub custom_docs_url: LintDocsUrl,
   /// Displays additional information at the end of a diagnostic.
   pub info: Vec<Cow<'static, str>>,
 }
@@ -122,13 +130,13 @@ impl Diagnostic for LintDiagnostic {
   }
 
   fn docs_url(&self) -> Option<Cow<'_, str>> {
-    if let Some(custom_docs_url) = &self.details.custom_docs_url {
-      Some(Cow::Borrowed(custom_docs_url))
-    } else {
-      Some(Cow::Owned(format!(
-        "https://lint.deno.land/rules/{}",
+    match &self.details.custom_docs_url {
+      LintDocsUrl::Default => Some(Cow::Owned(format!(
+        "https://docs.deno.com/lint/rules/{}",
         &self.details.code
-      )))
+      ))),
+      LintDocsUrl::Custom(url) => Some(Cow::Borrowed(url)),
+      LintDocsUrl::None => None,
     }
   }
 }

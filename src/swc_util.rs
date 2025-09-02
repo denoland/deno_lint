@@ -7,8 +7,8 @@ use deno_ast::swc::ast::{
   PropOrSpread, Regex, Str, Tpl,
 };
 use deno_ast::swc::common::DUMMY_SP;
+use deno_ast::swc::ecma_visit::{VisitMut, VisitMutWith};
 use deno_ast::swc::utils::{find_pat_ids, ident::IdentLike};
-use deno_ast::swc::visit::{VisitMut, VisitMutWith};
 use deno_ast::view::{self as ast_view};
 use deno_ast::Scope;
 
@@ -230,7 +230,7 @@ impl_string_repr_for_ast_view!(
   JSXText,
 );
 
-impl<'view> StringRepr for ast_view::PropOrSpread<'view> {
+impl StringRepr for ast_view::PropOrSpread<'_> {
   fn string_repr(&self) -> Option<String> {
     use deno_ast::view::PropOrSpread::*;
     match self {
@@ -240,7 +240,7 @@ impl<'view> StringRepr for ast_view::PropOrSpread<'view> {
   }
 }
 
-impl<'view> StringRepr for ast_view::Prop<'view> {
+impl StringRepr for ast_view::Prop<'_> {
   fn string_repr(&self) -> Option<String> {
     use deno_ast::view::Prop::*;
     match self {
@@ -254,7 +254,7 @@ impl<'view> StringRepr for ast_view::Prop<'view> {
   }
 }
 
-impl<'view> StringRepr for ast_view::Lit<'view> {
+impl StringRepr for ast_view::Lit<'_> {
   fn string_repr(&self) -> Option<String> {
     use deno_ast::view::Lit::*;
     match self {
@@ -269,7 +269,7 @@ impl<'view> StringRepr for ast_view::Lit<'view> {
   }
 }
 
-impl<'view> StringRepr for ast_view::Expr<'view> {
+impl StringRepr for ast_view::Expr<'_> {
   fn string_repr(&self) -> Option<String> {
     use deno_ast::view::Expr::*;
     match self {
@@ -281,7 +281,7 @@ impl<'view> StringRepr for ast_view::Expr<'view> {
   }
 }
 
-impl<'view> StringRepr for ast_view::PropName<'view> {
+impl StringRepr for ast_view::PropName<'_> {
   fn string_repr(&self) -> Option<String> {
     use deno_ast::view::PropName::*;
     match self {

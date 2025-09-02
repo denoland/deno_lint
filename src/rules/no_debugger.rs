@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::DebuggerStmt;
 use deno_ast::SourceRanged;
@@ -25,8 +26,8 @@ enum NoDebuggerHint {
 }
 
 impl LintRule for NoDebugger {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -39,11 +40,6 @@ impl LintRule for NoDebugger {
     program: Program,
   ) {
     NoDebuggerHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_debugger.md")
   }
 }
 

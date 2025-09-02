@@ -1,6 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::swc::common::comments::{Comment, CommentKind};
 use deno_ast::MediaType;
@@ -14,8 +15,8 @@ pub struct NoInvalidTripleSlashReference;
 const CODE: &str = "no-invalid-triple-slash-reference";
 
 impl LintRule for NoInvalidTripleSlashReference {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -41,11 +42,6 @@ impl LintRule for NoInvalidTripleSlashReference {
         report_kind.as_hint(),
       );
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_invalid_triple_slash_reference.md")
   }
 }
 

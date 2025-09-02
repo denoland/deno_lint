@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::ClassMethod;
@@ -11,8 +12,8 @@ use deno_ast::swc::ast::Function;
 use deno_ast::swc::ast::MethodProp;
 use deno_ast::swc::ast::PrivateMethod;
 use deno_ast::swc::ast::YieldExpr;
-use deno_ast::swc::visit::Visit;
-use deno_ast::swc::visit::{noop_visit_type, VisitWith};
+use deno_ast::swc::ecma_visit::Visit;
+use deno_ast::swc::ecma_visit::{noop_visit_type, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 
 #[derive(Debug)]
@@ -22,8 +23,8 @@ const CODE: &str = "require-yield";
 const MESSAGE: &str = "Generator function has no `yield`";
 
 impl LintRule for RequireYield {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -41,11 +42,6 @@ impl LintRule for RequireYield {
       ProgramRef::Module(m) => visitor.visit_module(m),
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/require_yield.md")
   }
 }
 
@@ -83,7 +79,7 @@ impl<'c, 'view> RequireYieldVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for RequireYieldVisitor<'c, 'view> {
+impl Visit for RequireYieldVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_yield_expr(&mut self, _yield_expr: &YieldExpr) {

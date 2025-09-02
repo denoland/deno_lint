@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, ExprOrSpread, NewExpr};
 use deno_ast::{SourceRange, SourceRanged};
@@ -14,8 +15,8 @@ const MESSAGE: &str = "Array Constructor is not allowed";
 const HINT: &str = "Use array literal notation (e.g. []) or single argument specifying array size only (e.g. new Array(5)";
 
 impl LintRule for NoArrayConstructor {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -28,11 +29,6 @@ impl LintRule for NoArrayConstructor {
     program: Program,
   ) {
     NoArrayConstructorHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_array_constructor.md")
   }
 }
 

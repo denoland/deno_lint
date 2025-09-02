@@ -16,13 +16,13 @@ use deno_lint::rules::get_all_rules;
 use deno_lint::rules::{filtered_rules, recommended_rules};
 use log::debug;
 use rayon::prelude::*;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-mod color;
 mod config;
 mod diagnostics;
 mod rules;
@@ -92,6 +92,7 @@ fn run_linter(
   let all_rule_codes = all_rules
     .iter()
     .map(|rule| rule.code())
+    .map(Cow::from)
     .collect::<HashSet<_>>();
   let rules = if let Some(config) = maybe_config {
     config.get_rules()
@@ -134,6 +135,7 @@ fn run_linter(
           default_jsx_factory: Some("React.createElement".to_string()),
           default_jsx_fragment_factory: Some("React.Fragment".to_string()),
         },
+        external_linter: None,
       })?;
 
       let mut number_of_errors = diagnostics.len();
