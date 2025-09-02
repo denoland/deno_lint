@@ -24,5 +24,6 @@ pub const FRESH: Tag = Tag("fresh");
 pub const JSR: Tag = Tag("jsr");
 pub const REACT: Tag = Tag("react");
 pub const JSX: Tag = Tag("jsx");
+pub const WORKSPACE: Tag = Tag("workspace");
 
-pub const ALL_TAGS: Tags = &[RECOMMENDED, FRESH, JSR, REACT, JSX];
+pub const ALL_TAGS: Tags = &[RECOMMENDED, FRESH, JSR, REACT, JSX, WORKSPACE];
