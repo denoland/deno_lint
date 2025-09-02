@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{Tags, WORKSPACE};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, ImportDecl, Lit};
 use deno_ast::SourceRanged;
@@ -15,8 +16,8 @@ const MESSAGE: &str =
 const HINT: &str = "Add it to the 'imports' section in 'deno.json' instead";
 
 impl LintRule for NoImportPrefix {
-  fn tags(&self) -> &'static [&'static str] {
-    &["workspace"]
+  fn tags(&self) -> Tags {
+    &[WORKSPACE]
   }
 
   fn code(&self) -> &'static str {
@@ -29,11 +30,6 @@ impl LintRule for NoImportPrefix {
     program: Program<'_>,
   ) {
     NoImportPrefixHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_import_prefix.md")
   }
 }
 
