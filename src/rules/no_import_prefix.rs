@@ -16,7 +16,7 @@ const HINT: &str = "Add it to the 'imports' section in 'deno.json' instead";
 
 impl LintRule for NoImportPrefix {
   fn tags(&self) -> &'static [&'static str] {
-    &[]
+    &["workspace"]
   }
 
   fn code(&self) -> &'static str {
