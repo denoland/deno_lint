@@ -12,7 +12,7 @@ pub struct NoImportPrefix;
 
 const CODE: &str = "no-import-prefix";
 const MESSAGE: &str =
-  "Inline 'npm:', 'jsr:' or 'http:' dependency not allowed";
+  "Inline 'npm:', 'jsr:' or 'https:' dependency not allowed";
 const HINT: &str = "Add it as a dependency in a deno.json or package.json instead and reference it here via its bare specifier";
 
 impl LintRule for NoImportPrefix {
