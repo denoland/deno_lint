@@ -2,11 +2,10 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{Tags, RECOMMENDED};
 use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, ImportDecl, Lit};
 use deno_ast::SourceRanged;
-use once_cell::sync::Lazy;
-use regex::Regex;
 
 #[derive(Debug)]
 pub struct NoUnversionedImport;
@@ -16,8 +15,8 @@ const MESSAGE: &str = "Missing version in specifier";
 const HINT: &str = "Add a version at the end";
 
 impl LintRule for NoUnversionedImport {
-  fn tags(&self) -> &'static [&'static str] {
-    &[]
+  fn tags(&self) -> Tags {
+    &[RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -30,11 +29,6 @@ impl LintRule for NoUnversionedImport {
     program: Program<'_>,
   ) {
     NoUnversionedImportHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_unversioned_import.md")
   }
 }
 
@@ -60,19 +54,22 @@ impl Handler for NoUnversionedImportHandler {
   }
 }
 
-static NPM_REG: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r"^npm:(@.+\/[^@]+|[^@]+)$").unwrap());
-static JSR_REG: Lazy<Regex> =
-  Lazy::new(|| Regex::new(r"^jsr:@.+\/[^@]+$").unwrap());
-
 fn is_unversioned(s: &str) -> bool {
-  if s.starts_with("npm:") {
-    return NPM_REG.is_match(s);
-  } else if s.starts_with("jsr:") {
-    return JSR_REG.is_match(s);
+  if let Some(req_ref) = get_package_req_ref(s) {
+    req_ref.req.version_req.version_text() == "*"
+  } else {
+    false
   }
+}
 
-  false
+fn get_package_req_ref(s: &str) -> Option<deno_semver::package::PackageReqReference> {
+  if let Ok(req_ref) = deno_semver::npm::NpmPackageReqReference::from_str(s) {
+    Some(req_ref.into_inner())
+  } else if let Ok(req_ref) = deno_semver::jsr::JsrPackageReqReference::from_str(s) {
+    Some(req_ref.into_inner())
+  } else {
+    None
+  }
 }
 
 #[cfg(test)]
@@ -89,6 +86,7 @@ mod tests {
       r#"import foo from "../foo";"#,
       r#"import foo from "~/foo";"#,
       r#"import foo from "npm:foo@1.2.3";"#,
+      r#"import foo from "npm:foo@latest";"#,
       r#"import foo from "npm:foo@^1.2.3";"#,
       r#"import foo from "npm:@foo/bar@1.2.3";"#,
       r#"import foo from "npm:@foo/bar@^1.2.3";"#,
