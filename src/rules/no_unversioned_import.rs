@@ -62,10 +62,14 @@ fn is_unversioned(s: &str) -> bool {
   }
 }
 
-fn get_package_req_ref(s: &str) -> Option<deno_semver::package::PackageReqReference> {
+fn get_package_req_ref(
+  s: &str,
+) -> Option<deno_semver::package::PackageReqReference> {
   if let Ok(req_ref) = deno_semver::npm::NpmPackageReqReference::from_str(s) {
     Some(req_ref.into_inner())
-  } else if let Ok(req_ref) = deno_semver::jsr::JsrPackageReqReference::from_str(s) {
+  } else if let Ok(req_ref) =
+    deno_semver::jsr::JsrPackageReqReference::from_str(s)
+  {
     Some(req_ref.into_inner())
   } else {
     None
