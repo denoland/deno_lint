@@ -12,7 +12,7 @@ pub struct NoUnversionedImport;
 
 const CODE: &str = "no-unversioned-import";
 const MESSAGE: &str = "Missing version in specifier";
-const HINT: &str = "Add a version at the end";
+const HINT: &str = "Add a version requirement after the package name";
 
 impl LintRule for NoUnversionedImport {
   fn tags(&self) -> Tags {
