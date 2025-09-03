@@ -2,6 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -13,10 +14,10 @@ use deno_ast::swc::ast::{
   SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
   VarDeclOrExpr, WhileStmt, WithStmt,
 };
-use deno_ast::swc::atoms::JsWord;
+use deno_ast::swc::atoms::Atom;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::{Visit, VisitWith};
 use deno_ast::swc::utils::find_pat_ids;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::{Visit, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
@@ -44,8 +45,8 @@ enum PreferConstHint {
 }
 
 impl LintRule for PreferConst {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -74,11 +75,6 @@ impl LintRule for PreferConst {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/prefer_const.md")
-  }
 }
 
 type Scope = Rc<RefCell<RawScope>>;
@@ -86,7 +82,7 @@ type Scope = Rc<RefCell<RawScope>>;
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<JsWord, SourceRange>,
+  variables: BTreeMap<Atom, SourceRange>,
 }
 
 impl RawScope {
@@ -799,7 +795,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for PreferConstVisitor<'c, 'view> {
+impl Visit for PreferConstVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_module(&mut self, module: &Module) {

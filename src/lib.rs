@@ -22,12 +22,14 @@ pub mod linter;
 mod performance_mark;
 pub mod rules;
 pub mod swc_util;
+pub mod tags;
 
 pub use deno_ast::view::Program;
 pub use deno_ast::view::ProgramRef;
 
 #[cfg(test)]
 mod lint_tests {
+  use std::borrow::Cow;
   use std::collections::HashSet;
 
   use crate::diagnostic::LintDiagnostic;
@@ -40,7 +42,7 @@ mod lint_tests {
   fn lint(
     source: &str,
     rules: Vec<Box<dyn LintRule>>,
-    all_rule_codes: HashSet<&'static str>,
+    all_rule_codes: HashSet<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     let linter = Linter::new(LinterOptions {
       rules,
@@ -58,6 +60,7 @@ mod lint_tests {
           default_jsx_factory: None,
           default_jsx_fragment_factory: None,
         },
+        external_linter: None,
       })
       .expect("Failed to lint");
     diagnostics
@@ -66,7 +69,7 @@ mod lint_tests {
   fn lint_with_ast(
     parsed_source: &ParsedSource,
     rules: Vec<Box<dyn LintRule>>,
-    all_rule_codes: HashSet<&'static str>,
+    all_rule_codes: HashSet<Cow<'static, str>>,
   ) -> Vec<LintDiagnostic> {
     let linter = Linter::new(LinterOptions {
       rules,
@@ -80,17 +83,23 @@ mod lint_tests {
         default_jsx_factory: None,
         default_jsx_fragment_factory: None,
       },
+      None,
     )
+  }
+
+  fn get_all_rules_codes() -> HashSet<Cow<'static, str>> {
+    get_all_rules()
+      .into_iter()
+      .map(|rule| rule.code())
+      .map(Cow::from)
+      .collect()
   }
 
   fn lint_recommended_rules(source: &str) -> Vec<LintDiagnostic> {
     lint(
       source,
       recommended_rules(get_all_rules()),
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code())
-        .collect(),
+      get_all_rules_codes(),
     )
   }
 
@@ -100,10 +109,7 @@ mod lint_tests {
     lint_with_ast(
       parsed_source,
       recommended_rules(get_all_rules()),
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code())
-        .collect(),
+      get_all_rules_codes(),
     )
   }
 
@@ -111,14 +117,7 @@ mod lint_tests {
     rule: Box<dyn LintRule>,
     source: &str,
   ) -> Vec<LintDiagnostic> {
-    lint(
-      source,
-      vec![rule],
-      get_all_rules()
-        .into_iter()
-        .map(|rule| rule.code())
-        .collect(),
-    )
+    lint(source, vec![rule], get_all_rules_codes())
   }
 
   #[test]

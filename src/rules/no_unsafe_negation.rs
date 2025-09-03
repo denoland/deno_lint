@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRanged};
 use derive_more::Display;
@@ -21,8 +22,8 @@ enum NoUnsafeNegationMessage {
 const HINT: &str = "Add parentheses to clarify which range the negation operator should be applied to";
 
 impl LintRule for NoUnsafeNegation {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -35,11 +36,6 @@ impl LintRule for NoUnsafeNegation {
     program: Program,
   ) {
     NoUnsafeNegationHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_unsafe_negation.md")
   }
 }
 

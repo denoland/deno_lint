@@ -2,10 +2,11 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -30,8 +31,8 @@ enum NoConstantConditionHint {
 }
 
 impl LintRule for NoConstantCondition {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -49,11 +50,6 @@ impl LintRule for NoConstantCondition {
       ProgramRef::Module(m) => m.visit_with(&mut visitor),
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_constant_condition.md")
   }
 }
 
@@ -209,7 +205,7 @@ fn check_short_circuit(expr: &Expr, operator: BinaryOp) -> bool {
   }
 }
 
-impl<'c, 'view> Visit for NoConstantConditionVisitor<'c, 'view> {
+impl Visit for NoConstantConditionVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_cond_expr(&mut self, cond_expr: &CondExpr) {

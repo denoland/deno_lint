@@ -72,7 +72,7 @@ which provides programmatic API as well as Webpack loader for `deno_lint`.
 
 ```shell
 # Build standalone binary
-$ cargo build --example dlint --features="docs"
+$ cargo build --example dlint
 
 $ ./target/debug/examples/dlint --help
 
@@ -141,12 +141,12 @@ For more concrete implementation visit
 
 ## Developing
 
-Make sure to have latest stable version of Rust installed (1.56.0).
+Make sure to have latest stable version of Rust installed, see
+[rust-toolchain.toml](./rust-toolchain.toml).
 
 ```shell
 // check version
 $ rustc --version
-rustc 1.56.0 (09c42c458 2021-10-18)
 
 // build all targets
 $ cargo build --all-targets
@@ -197,7 +197,5 @@ Before submitting, please make sure the following is done:
 3. Ensure `cargo test` passes.
 4. Format your code with `deno run --allow-run tools/format.ts`
 5. Make sure `deno run --allow-run --allow-env tools/lint.ts` passes.
-6. If you've added a new rule:
-   1. Run `cargo build --example dlint --all-features`
-   2. Update docs by running the generated binary with these arguments
-      `./target/debug/examples/dlint rules --json > www/static/docs.json`
+6. If you've added a new rule, open a PR to
+   https://github.com/denoland/deno-docs with a documentation for a rule.

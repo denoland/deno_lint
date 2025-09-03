@@ -3,6 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 use crate::Program;
 
 use deno_ast::view::AssignExpr;
@@ -40,8 +41,8 @@ enum NoSelfAssignHint {
 }
 
 impl LintRule for NoSelfAssign {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -54,11 +55,6 @@ impl LintRule for NoSelfAssign {
     program: Program<'view>,
   ) {
     NoSelfAssignVisitor.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_self_assign.md")
   }
 }
 

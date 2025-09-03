@@ -1,7 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::Program;
+use crate::{
+  tags::{self, Tags},
+  Program,
+};
 use deno_ast::SourceRange;
 
 #[derive(Debug)]
@@ -10,8 +13,8 @@ pub struct BanUntaggedIgnore;
 const CODE: &str = "ban-untagged-ignore";
 
 impl LintRule for BanUntaggedIgnore {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -46,11 +49,6 @@ impl LintRule for BanUntaggedIgnore {
         "Add one or more lint rule names.  E.g. // deno-lint-ignore adjacent-overload-signatures",
       )
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/ban_untagged_ignore.md")
   }
 }
 

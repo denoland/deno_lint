@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::swc::parser::token::{IdentLike, KnownIdent, Token, Word};
 use deno_ast::view as ast_view;
@@ -17,8 +18,8 @@ const MESSAGE: &str =
 const HINT: &str = "Instead use the `with` keyword";
 
 impl LintRule for NoImportAssertions {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -31,11 +32,6 @@ impl LintRule for NoImportAssertions {
     program: Program<'_>,
   ) {
     NoImportAssertionsHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_import_assertions.md")
   }
 }
 

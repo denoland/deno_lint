@@ -7,7 +7,7 @@ use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::{
   ast::*,
-  visit::{noop_visit_type, Visit, VisitWith},
+  ecma_visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SourceRangedForSpanned;
 
@@ -30,11 +30,6 @@ impl LintRule for NoUndef {
       ProgramRef::Module(m) => m.visit_with(&mut visitor),
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_undef.md")
   }
 }
 
@@ -79,7 +74,7 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoUndefVisitor<'c, 'view> {
+impl Visit for NoUndefVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_member_expr(&mut self, e: &MemberExpr) {

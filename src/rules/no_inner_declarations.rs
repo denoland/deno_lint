@@ -2,13 +2,14 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
   ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
   ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
 };
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -32,8 +33,8 @@ enum NoInnerDeclarationsHint {
 }
 
 impl LintRule for NoInnerDeclarations {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -58,11 +59,6 @@ impl LintRule for NoInnerDeclarations {
       ProgramRef::Module(m) => m.visit_with(&mut visitor),
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_inner_declarations.md")
   }
 }
 
@@ -177,7 +173,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
+impl NoInnerDeclarationsVisitor<'_, '_> {
   fn add_diagnostic(&mut self, range: SourceRange, kind: &str) {
     let root = if self.in_function {
       "function"
@@ -194,7 +190,7 @@ impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoInnerDeclarationsVisitor<'c, 'view> {
+impl Visit for NoInnerDeclarationsVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {

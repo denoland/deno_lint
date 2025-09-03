@@ -5,8 +5,8 @@ use super::{Context, LintRule};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::VarDecl;
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 
@@ -38,11 +38,6 @@ impl LintRule for SingleVarDeclarator {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/single_var_declarator.md")
-  }
 }
 
 struct SingleVarDeclaratorVisitor<'c, 'view> {
@@ -55,7 +50,7 @@ impl<'c, 'view> SingleVarDeclaratorVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for SingleVarDeclaratorVisitor<'c, 'view> {
+impl Visit for SingleVarDeclaratorVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_var_decl(&mut self, var_decl: &VarDecl) {

@@ -2,12 +2,13 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::common::comments::Comment;
 use deno_ast::swc::{
   ast::*,
-  visit::{noop_visit_type, Visit, VisitWith},
+  ecma_visit::{noop_visit_type, Visit, VisitWith},
 };
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -32,8 +33,8 @@ enum NoFallthroughHint {
 }
 
 impl LintRule for NoFallthrough {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -52,18 +53,13 @@ impl LintRule for NoFallthrough {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_fallthrough.md")
-  }
 }
 
 struct NoFallthroughVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
 }
 
-impl<'c, 'view> Visit for NoFallthroughVisitor<'c, 'view> {
+impl Visit for NoFallthroughVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_switch_cases(&mut self, cases: &[SwitchCase]) {

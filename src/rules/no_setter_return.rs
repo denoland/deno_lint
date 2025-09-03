@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::{view as ast_view, SourceRanged};
@@ -13,8 +14,8 @@ const CODE: &str = "no-setter-return";
 const MESSAGE: &str = "Setter cannot return a value";
 
 impl LintRule for NoSetterReturn {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -27,11 +28,6 @@ impl LintRule for NoSetterReturn {
     program: Program<'_>,
   ) {
     NoSetterReturnHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_setter_return.md")
   }
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "deno_lint"
-version = "0.68.0"
+version = "0.79.0"
 edition = "2021"
 description = "lint for deno"
 authors = ["the Deno authors"]
@@ -17,15 +17,13 @@ name = "deno_lint"
 
 [[example]]
 name = "dlint"
-required-features = ["docs"]
 test = true
 
 [features]
 default = []
-docs = []
 
 [dependencies]
-deno_ast = { version = "0.43.0", features = ["scopes", "transforms", "utils", "visit", "view", "react"] }
+deno_ast = { version = "0.50.0", features = ["scopes", "transforms", "utils", "visit", "view", "react"] }
 log = "0.4.20"
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.111"

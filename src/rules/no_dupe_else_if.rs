@@ -3,10 +3,11 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::span_and_ctx_drop;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use deno_ast::swc::visit::{noop_visit_type, Visit, VisitWith};
+use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
 use deno_ast::{SourceRange, SourceRangedForSpanned};
 use derive_more::Display;
 use std::collections::HashSet;
@@ -33,8 +34,8 @@ enum NoDupeElseIfHint {
 }
 
 impl LintRule for NoDupeElseIf {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -52,11 +53,6 @@ impl LintRule for NoDupeElseIf {
       ProgramRef::Module(m) => m.visit_with(&mut visitor),
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_dupe_else_if.md")
   }
 }
 
@@ -77,7 +73,7 @@ impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoDupeElseIfVisitor<'c, 'view> {
+impl Visit for NoDupeElseIfVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {

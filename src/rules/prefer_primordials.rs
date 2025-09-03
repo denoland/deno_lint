@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::view::NodeTrait;
 use deno_ast::Scope;
@@ -62,7 +63,7 @@ enum PreferPrimordialsHint {
 }
 
 impl LintRule for PreferPrimordials {
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
   }
 
@@ -76,11 +77,6 @@ impl LintRule for PreferPrimordials {
     program: Program<'_>,
   ) {
     PreferPrimordialsHandler.traverse(program, context);
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/prefer_primordials.md")
   }
 }
 
@@ -545,7 +541,7 @@ impl Handler for PreferPrimordialsHandler {
       // Don't check left side of assignment expressions
       // e.g. `foo.bar = 1`
       if !matches!(member_expr.parent(), Node::AssignExpr(assign_expr)
-        if assign_expr.left.to::<ast_view::MemberExpr>().map_or(false, |expr| ptr::eq(expr, member_expr))
+        if assign_expr.left.to::<ast_view::MemberExpr>().is_some_and(|expr| ptr::eq(expr, member_expr))
       );
       // Don't check call expressions
       // e.g. `foo.bar()`

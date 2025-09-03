@@ -1,5 +1,6 @@
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::Tags;
 use crate::Program;
 use deno_ast::view::{CallExpr, NodeTrait};
 use deno_ast::SourceRanged;
@@ -26,13 +27,8 @@ impl LintRule for NoBooleanLiteralForArguments {
     CODE
   }
 
-  fn tags(&self) -> &'static [&'static str] {
+  fn tags(&self) -> Tags {
     &[]
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_boolean_literal_for_arguments.md")
   }
 }
 

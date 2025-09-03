@@ -39,11 +39,6 @@ impl LintRule for BanUntaggedTodo {
       context.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/ban_untagged_todo.md")
-  }
 }
 
 /// Returns `true` if the comment should be reported.

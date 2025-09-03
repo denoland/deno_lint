@@ -3,6 +3,7 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::StringRepr;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
@@ -11,9 +12,9 @@ use deno_ast::swc::ast::{
   MethodProp, ObjectLit, OptCall, OptChainBase, PrivateMethod, Prop, PropName,
   PropOrSpread, ReturnStmt,
 };
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::Visit;
-use deno_ast::swc::visit::VisitWith;
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::Visit;
+use deno_ast::swc::ecma_visit::VisitWith;
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
@@ -39,8 +40,8 @@ enum GetterReturnHint {
 }
 
 impl LintRule for GetterReturn {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -59,11 +60,6 @@ impl LintRule for GetterReturn {
       ProgramRef::Script(s) => visitor.visit_script(s),
     }
     visitor.report();
-  }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/getter_return.md")
   }
 }
 
@@ -273,7 +269,7 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for GetterReturnVisitor<'c, 'view> {
+impl Visit for GetterReturnVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_fn_decl(&mut self, fn_decl: &FnDecl) {

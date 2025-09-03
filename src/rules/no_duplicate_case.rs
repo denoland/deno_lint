@@ -3,11 +3,12 @@
 use super::program_ref;
 use super::{Context, LintRule};
 use crate::swc_util::span_and_ctx_drop;
+use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{Expr, SwitchStmt};
-use deno_ast::swc::visit::noop_visit_type;
-use deno_ast::swc::visit::{Visit, VisitWith};
+use deno_ast::swc::ecma_visit::noop_visit_type;
+use deno_ast::swc::ecma_visit::{Visit, VisitWith};
 use deno_ast::SourceRangedForSpanned;
 use derive_more::Display;
 use std::collections::HashSet;
@@ -30,8 +31,8 @@ enum NoDuplicateCaseHint {
 }
 
 impl LintRule for NoDuplicateCase {
-  fn tags(&self) -> &'static [&'static str] {
-    &["recommended"]
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn code(&self) -> &'static str {
@@ -50,11 +51,6 @@ impl LintRule for NoDuplicateCase {
       ProgramRef::Script(s) => s.visit_with(&mut visitor),
     }
   }
-
-  #[cfg(feature = "docs")]
-  fn docs(&self) -> &'static str {
-    include_str!("../../docs/rules/no_duplicate_case.md")
-  }
 }
 
 struct NoDuplicateCaseVisitor<'c, 'view> {
@@ -67,7 +63,7 @@ impl<'c, 'view> NoDuplicateCaseVisitor<'c, 'view> {
   }
 }
 
-impl<'c, 'view> Visit for NoDuplicateCaseVisitor<'c, 'view> {
+impl Visit for NoDuplicateCaseVisitor<'_, '_> {
   noop_visit_type!();
 
   fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
