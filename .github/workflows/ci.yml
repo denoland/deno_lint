@@ -47,6 +47,9 @@ jobs:
       - name: Test
         run: cargo test --locked --release --all-targets --all-features
 
+      - name: Benchmarks
+        run: deno run -A --quiet benchmarks/benchmarks.ts
+
       - name: Pre-release (linux)
         if: |
           contains(matrix.os, 'ubuntu')
@@ -110,6 +113,3 @@ jobs:
 
       - name: Test
         run: deno test --unstable --allow-read=. --allow-write=. --allow-run --allow-env ./tools
-
-      - name: Benchmarks
-        run: deno run -A --quiet benchmarks/benchmarks.ts
