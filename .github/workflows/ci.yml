@@ -2,6 +2,9 @@ name: ci
 
 on: [push, pull_request]
 
+permissions:
+  contents: write
+
 jobs:
   rust:
     name: deno_lint-${{ matrix.os }}
@@ -29,25 +32,45 @@ jobs:
           persist-credentials: false
 
       - uses: dsherret/rust-toolchain-file@v1
+
       - name: Install Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: canary
 
+      - name: Install Node.js
+        if: contains(matrix.os, 'ubuntu')
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install npm packages
+        if: contains(matrix.os, 'ubuntu')
+        run: npm install --ci
+        working-directory: benchmarks
+
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Format
+        if: contains(matrix.os, 'ubuntu')
+        run: deno run --allow-run ./tools/format.ts --check
+
       - name: Build
         run: cargo build --locked --release --all-targets --all-features
 
+      - name: Test
+        run: |
+          cargo test --locked --release --all-targets --all-features
+          deno test --unstable --allow-read=. --allow-write=. --allow-run --allow-env ./tools
+
       - name: Lint
+        if: contains(matrix.os, 'ubuntu')
         run: deno run --allow-run --allow-env ./tools/lint.ts --release
 
-      - name: Test
-        run: cargo test --locked --release --all-targets --all-features
-
       - name: Benchmarks
+        if: contains(matrix.os, 'ubuntu')
         run: deno run -A --quiet benchmarks/benchmarks.ts
 
       - name: Pre-release (linux)
@@ -83,33 +106,3 @@ jobs:
             target/release/examples/dlint-x86_64-unknown-linux-gnu.zip
             target/release/examples/dlint-x86_64-apple-darwin.zip
           draft: true
-
-  javascript:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clone repository
-        uses: actions/checkout@v5
-        with:
-          submodules: true
-          persist-credentials: false
-      - uses: dsherret/rust-toolchain-file@v1
-      - name: Install Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: canary
-      - name: Install Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "20"
-      - name: Install npm packages
-        run: npm install --ci
-        working-directory: benchmarks
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Format
-        run: deno run --allow-run ./tools/format.ts --check
-
-      - name: Test
-        run: deno test --unstable --allow-read=. --allow-write=. --allow-run --allow-env ./tools
