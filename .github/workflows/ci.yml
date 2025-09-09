@@ -29,6 +29,10 @@ jobs:
           persist-credentials: false
 
       - uses: dsherret/rust-toolchain-file@v1
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: canary
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -36,6 +40,9 @@ jobs:
 
       - name: Build
         run: cargo build --locked --release --all-targets --all-features
+
+      - name: Lint
+        run: deno run --allow-run --allow-env ./tools/lint.ts --release
 
       - name: Test
         run: cargo test --locked --release --all-targets --all-features
@@ -84,9 +91,9 @@ jobs:
           persist-credentials: false
       - uses: dsherret/rust-toolchain-file@v1
       - name: Install Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: canary
       - name: Install Node.js
         uses: actions/setup-node@v5
         with:
@@ -103,9 +110,6 @@ jobs:
 
       - name: Test
         run: deno test --unstable --allow-read=. --allow-write=. --allow-run --allow-env ./tools
-
-      - name: Lint
-        run: deno run --allow-run --allow-env ./tools/lint.ts --release
 
       - name: Benchmarks
         run: deno run -A --quiet benchmarks/benchmarks.ts
