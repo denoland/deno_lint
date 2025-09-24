@@ -191,6 +191,23 @@ switch(someValue) {
     console.log(42);
 }
       "#,
+      r#"
+switch(foo) {
+  case true:
+    switch (bar) {
+      case true:
+      default:
+        return true;
+    }
+  default:
+    switch (bar) {
+      case true:
+        return true;
+      default:
+        return false;
+    }
+}
+      "#
     };
   }
 
