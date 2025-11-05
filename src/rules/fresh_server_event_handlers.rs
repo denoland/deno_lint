@@ -51,9 +51,7 @@ impl Handler for Visitor {
       return;
     };
     let segments = path_segments.collect::<Vec<_>>();
-    if !segments.contains(&"routes")
-      || segments.contains(&"(_islands)")
-    {
+    if !segments.contains(&"routes") || segments.contains(&"(_islands)") {
       return;
     }
 
