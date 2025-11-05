@@ -27,7 +27,7 @@ static IRREGULAR_WHITESPACE: Lazy<Regex> = Lazy::new(|| {
 static IRREGULAR_LINE_TERMINATORS: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"[\u2028\u2029]").unwrap());
 
-fn test_for_whitespace(value: &str) -> Vec<Matches> {
+fn test_for_whitespace(value: &str) -> Vec<Matches<'_, '_>> {
   let mut matches_vector: Vec<Matches> = vec![];
   if IRREGULAR_WHITESPACE.is_match(value) {
     let matches = IRREGULAR_WHITESPACE.find_iter(value);

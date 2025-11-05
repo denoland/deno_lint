@@ -85,7 +85,7 @@ impl Diagnostic for LintDiagnostic {
     Cow::Borrowed(&self.details.message)
   }
 
-  fn location(&self) -> DiagnosticLocation {
+  fn location(&self) -> DiagnosticLocation<'_> {
     match &self.range {
       Some(range) => DiagnosticLocation::ModulePosition {
         specifier: Cow::Borrowed(&self.specifier),
