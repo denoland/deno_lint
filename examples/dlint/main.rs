@@ -237,7 +237,7 @@ mod tests {
 
   // TODO(bartlomieju): this code is copy-pasted from `deno/test_util/src/lib.rs`
 
-  pub fn strip_ansi_codes(s: &str) -> std::borrow::Cow<str> {
+  pub fn strip_ansi_codes(s: &str) -> std::borrow::Cow<'_, str> {
     console_static_text::ansi::strip_ansi_codes(s)
   }
 
