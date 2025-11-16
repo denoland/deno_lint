@@ -306,6 +306,12 @@ impl Visit for Collector {
         }
         AssignTarget::Pat(_) => n.visit_children_with(self),
       }
+
+      if let Expr::New(new_expr) = &*n.right {
+        self.without_cur_defining(|a| {
+          new_expr.visit_children_with(a);
+        });
+      }
     } else {
       n.visit_children_with(self)
     }
@@ -2376,6 +2382,27 @@ export const Foo = () => {
           hint: variant!(NoUnusedVarsHint, AddPrefix, "name"),
         }
       ]
+    };
+  }
+
+  #[test]
+  fn no_unused_vars_static_init_is_usage() {
+    assert_lint_err! {
+      NoUnusedVars,
+      "let foo: Foo;
+class Foo {
+  instance;
+  static {
+    foo = new Foo();
+  }
+}
+": [
+        {
+          col: 4,
+          message: variant!(NoUnusedVarsMessage, NeverUsed, "foo"),
+          hint: variant!(NoUnusedVarsHint, AddPrefix, "foo"),
+        }
+      ],
     };
   }
 
