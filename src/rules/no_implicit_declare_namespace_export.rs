@@ -10,9 +10,7 @@ use deno_ast::{view as ast_view, SourceRanged};
 pub struct NoImplicitDeclareNamespaceExport;
 
 const CODE: &str = "no-implicit-declare-namespace-export";
-const MESSAGE: &str =
-  "Implicit exports in ambient namespaces are discouraged to
-use";
+const MESSAGE: &str = "Implicit exports in ambient namespaces are discouraged to use";
 const HINT: &str = "Try adding an `export {};` to the top of the namespace to disable this behavior";
 
 impl LintRule for NoImplicitDeclareNamespaceExport {
