@@ -84,7 +84,7 @@ impl Handler for NoImportAssertionsHandler {
                   }
                 },
                 ast_view::PropName::Str(str) => {
-                  if str.value().as_ref() == "assert" {
+                  if str.value().as_str() == Some("assert") {
                     ctx.add_diagnostic_with_hint(
                       str.range(),
                       CODE,

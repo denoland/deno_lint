@@ -45,8 +45,8 @@ impl LintRule for NoInvalidRegexp {
 
 fn check_expr_for_string_literal(expr: &Expr) -> Option<String> {
   if let Expr::Lit(deno_ast::swc::ast::Lit::Str(pattern_string)) = expr {
-    let s: &str = &pattern_string.value;
-    return Some(s.to_owned());
+    let s = pattern_string.value.to_string_lossy();
+    return Some(s.into_owned());
   }
   None
 }

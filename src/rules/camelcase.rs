@@ -607,9 +607,11 @@ impl Handler for CamelcaseHandler {
         local,
         IdentToCheck::named_import(
           local.inner,
-          Some(match imported {
-            ast_view::ModuleExportName::Ident(ident) => ident.sym(),
-            ast_view::ModuleExportName::Str(str) => str.value(),
+          Some(&match imported {
+            ast_view::ModuleExportName::Ident(ident) => ident.sym().to_string(),
+            ast_view::ModuleExportName::Str(str) => {
+              str.value().to_string_lossy().to_string()
+            }
           }),
         ),
       );

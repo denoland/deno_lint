@@ -347,7 +347,7 @@ fn is_null_proto(object_lit: &ast_view::ObjectLit) -> bool {
             return true
           }
         } else if let ast_view::PropName::Str(str) = key_value_prop.key {
-          if str.inner.value.as_ref() == "__proto__" {
+          if str.inner.value.as_str() == Some("__proto__") {
             return true
           }
         }

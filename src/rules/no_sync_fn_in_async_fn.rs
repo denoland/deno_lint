@@ -43,7 +43,7 @@ fn extract_symbol<'a>(
     MemberProp::Ident(ident) => Some(ident.sym()),
     MemberProp::PrivateName(ident) => Some(ident.name()),
     MemberProp::Computed(prop) => match &prop.expr {
-      Expr::Lit(Lit::Str(s)) => Some(s.value()),
+      Expr::Lit(Lit::Str(s)) => s.value().as_str(),
       Expr::Ident(ident) => Some(ident.sym()),
       Expr::Tpl(Tpl { exprs, quasis, .. })
         if exprs.is_empty() && quasis.len() == 1 =>

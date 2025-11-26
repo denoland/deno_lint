@@ -36,7 +36,7 @@ struct NoUnversionedImportHandler;
 
 impl Handler for NoUnversionedImportHandler {
   fn import_decl(&mut self, node: &ImportDecl, ctx: &mut Context) {
-    if is_unversioned(node.src.value()) {
+    if is_unversioned(&node.src.value().to_string_lossy()) {
       ctx.add_diagnostic_with_hint(node.src.range(), CODE, MESSAGE, HINT);
     }
   }
@@ -45,7 +45,7 @@ impl Handler for NoUnversionedImportHandler {
     if let Callee::Import(_) = node.callee {
       if let Some(arg) = node.args.first() {
         if let Expr::Lit(Lit::Str(lit)) = arg.expr {
-          if is_unversioned(lit.value()) {
+          if is_unversioned(&lit.value().to_string_lossy()) {
             ctx.add_diagnostic_with_hint(arg.range(), CODE, MESSAGE, HINT);
           }
         }

@@ -50,7 +50,8 @@ struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
   fn check_import_path(&self, decl: &ImportDecl, ctx: &mut Context) {
-    let parsed_src = ModuleSpecifier::parse(decl.src.value());
+    let parsed_src =
+      ModuleSpecifier::parse(&decl.src.value().to_string_lossy());
     let maybe_file_path = ctx.specifier().to_file_path().ok();
     let file_stem = maybe_file_path
       .as_ref()

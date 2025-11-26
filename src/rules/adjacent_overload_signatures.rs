@@ -185,7 +185,9 @@ impl ExtractMethod for ast_view::TsTypeElement<'_> {
         ref key, ..
       }) => match key {
         Expr::Ident(ident) => Some(Method::Method(ident.sym().to_string())),
-        Expr::Lit(Lit::Str(s)) => Some(Method::Method(s.value().to_string())),
+        Expr::Lit(Lit::Str(s)) => {
+          Some(Method::Method(s.value().to_string_lossy().to_string()))
+        }
         _ => None,
       },
       TsTypeElement::TsCallSignatureDecl(_) => Some(Method::CallSignature),
