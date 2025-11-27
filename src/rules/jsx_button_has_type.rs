@@ -100,18 +100,9 @@ impl Handler for HasButtonTypeHandler {
           if let Some(attr_value) = attr.value {
             let kind = DiagnosticKind::WrongValue;
             match attr_value {
-              JSXAttrValue::Lit(lit) => {
-                if let Lit::Str(lit_str) = lit {
-                  let value = lit_str.value();
-                  if !is_valid_value(value) {
-                    ctx.add_diagnostic_with_hint(
-                      attr_value.range(),
-                      CODE,
-                      kind.message(),
-                      kind.hint(),
-                    );
-                  }
-                } else {
+              JSXAttrValue::Str(lit_str) => {
+                let value = lit_str.value().to_string_lossy();
+                if !is_valid_value(&value) {
                   ctx.add_diagnostic_with_hint(
                     attr_value.range(),
                     CODE,
@@ -227,8 +218,8 @@ fn check_literal_value(ctx: &mut Context, lit: &Lit) {
 
   match lit {
     Lit::Str(lit_str) => {
-      let value = lit_str.value();
-      if !is_valid_value(value) {
+      let value = lit_str.value().to_string_lossy();
+      if !is_valid_value(&value) {
         ctx.add_diagnostic_with_hint(
           lit.range(),
           CODE,

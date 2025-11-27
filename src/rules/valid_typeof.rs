@@ -72,7 +72,7 @@ impl Visit for ValidTypeofVisitor<'_, '_> {
         match operand {
           Unary(unary) if unary.op == TypeOf => {}
           Lit(Str(str)) => {
-            if !is_valid_typeof_string(&str.value) {
+            if !is_valid_typeof_string(&str.value.to_string_lossy()) {
               self.context.add_diagnostic(str.range(), CODE, MESSAGE);
             }
           }

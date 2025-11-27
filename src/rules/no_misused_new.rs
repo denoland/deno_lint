@@ -1,5 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
+use std::borrow::Cow;
+
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
@@ -128,8 +130,8 @@ impl Handler for NoMisusedNewHandler {
     for member in expr.class.body {
       if let ClassMember::Method(method) = member {
         let method_name = match &method.key {
-          PropName::Ident(ident) => ident.sym().as_ref(),
-          PropName::Str(str_) => str_.value().as_ref(),
+          PropName::Ident(ident) => Cow::Borrowed(ident.sym().as_ref()),
+          PropName::Str(str_) => str_.value().to_string_lossy(),
           _ => continue,
         };
 

@@ -143,11 +143,15 @@ impl Visit for ClassVisitor<'_, '_, '_> {
 fn normalize_prop_name(name: &PropName) -> Option<String> {
   let normalized = match *name {
     PropName::Ident(IdentName { ref sym, .. }) => sym.to_string(),
-    PropName::Str(Str { ref value, .. }) => value.to_string(),
+    PropName::Str(Str { ref value, .. }) => {
+      value.to_string_lossy().into_owned()
+    }
     PropName::Num(Number { ref value, .. }) => value.to_string(),
     PropName::BigInt(BigInt { ref value, .. }) => value.to_string(),
     PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-      Expr::Lit(Lit::Str(Str { ref value, .. })) => value.to_string(),
+      Expr::Lit(Lit::Str(Str { ref value, .. })) => {
+        value.to_string_lossy().into_owned()
+      }
       Expr::Lit(Lit::Bool(Bool { ref value, .. })) => value.to_string(),
       Expr::Lit(Lit::Null(Null { .. })) => "null".to_string(),
       Expr::Lit(Lit::Num(Number { ref value, .. })) => value.to_string(),

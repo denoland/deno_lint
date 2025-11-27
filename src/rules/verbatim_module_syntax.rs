@@ -165,7 +165,7 @@ impl VerbatimModuleSyntax {
           new_text: format!(
             "import {0}{1}{0}{2}",
             quote_kind,
-            src.value(),
+            src.value().to_string_lossy(),
             semicolon
           )
           .into(),

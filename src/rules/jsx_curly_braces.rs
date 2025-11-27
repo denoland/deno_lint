@@ -86,7 +86,7 @@ impl Handler for JSXCurlyBracesHandler {
       if let JSXElementChild::JSXExprContainer(child_expr) = child {
         if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = child_expr.expr {
           // Ignore entities which would require escaping.
-          if IGNORE_CHARS.is_match(lit_str.inner.value.as_str()) {
+          if IGNORE_CHARS.is_match(&lit_str.inner.value.to_string_lossy()) {
             continue;
           }
 
@@ -111,7 +111,7 @@ impl Handler for JSXCurlyBracesHandler {
             vec![LintFix {
               description: "Remove curly braces around JSX child".into(),
               changes: vec![LintFixChange {
-                new_text: lit_str.value().to_string().into(),
+                new_text: lit_str.value().to_string_lossy().into_owned().into(),
                 range: child.range(),
               }],
             }],
@@ -135,7 +135,11 @@ impl Handler for JSXCurlyBracesHandler {
                 description: "Remove curly braces around JSX attribute value"
                   .into(),
                 changes: vec![LintFixChange {
-                  new_text: format!("\"{}\"", lit_str.value()).into(),
+                  new_text: format!(
+                    "\"{}\"",
+                    lit_str.value().to_string_lossy()
+                  )
+                  .into(),
                   range: value.range(),
                 }],
               }],

@@ -213,7 +213,7 @@ fn extract_symbol<'a>(expr: &'a ast_view::MemberExpr) -> Option<&'a str> {
     MemberProp::Ident(ident) => Some(ident.sym()),
     MemberProp::PrivateName(name) => Some(name.name()),
     MemberProp::Computed(prop) => match &prop.expr {
-      Expr::Lit(Lit::Str(s)) => Some(s.value()),
+      Expr::Lit(Lit::Str(s)) => s.value().as_str(),
       // If it's computed, this MemberExpr looks like `foo[bar]`
       Expr::Ident(_) => None,
       Expr::Tpl(Tpl { exprs, quasis, .. })
