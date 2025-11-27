@@ -2,6 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
   ArrayPat, AssignExpr, AssignTarget, AssignTargetPat, Expr, Ident, ObjectPat,
@@ -31,6 +32,10 @@ enum NoConstantAssignHint {
 impl LintRule for NoConstAssign {
   fn code(&self) -> &'static str {
     CODE
+  }
+
+  fn tags(&self) -> Tags {
+    &[tags::RECOMMENDED]
   }
 
   fn lint_program_with_ast_view<'view>(
