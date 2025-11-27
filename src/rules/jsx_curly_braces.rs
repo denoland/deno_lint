@@ -111,7 +111,7 @@ impl Handler for JSXCurlyBracesHandler {
             vec![LintFix {
               description: "Remove curly braces around JSX child".into(),
               changes: vec![LintFixChange {
-                new_text: lit_str.value().to_string_lossy().to_string().into(),
+                new_text: lit_str.value().to_string_lossy().into_owned().into(),
                 range: child.range(),
               }],
             }],

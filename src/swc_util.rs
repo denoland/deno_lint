@@ -30,7 +30,7 @@ pub(crate) fn extract_regex(
   match expr_args.first() {
     Some(first_arg) => match first_arg.expr {
       ast_view::Expr::Lit(ast_view::Lit::Str(literal)) => {
-        Some(literal.inner.value.to_string_lossy().to_string())
+        Some(literal.inner.value.to_string_lossy().into_owned())
       }
       ast_view::Expr::Lit(ast_view::Lit::Regex(regex)) => {
         Some(regex.inner.exp.to_string())

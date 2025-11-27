@@ -610,7 +610,7 @@ impl Handler for CamelcaseHandler {
           Some(&match imported {
             ast_view::ModuleExportName::Ident(ident) => ident.sym().to_string(),
             ast_view::ModuleExportName::Str(str) => {
-              str.value().to_string_lossy().to_string()
+              str.value().to_string_lossy().into_owned()
             }
           }),
         ),
