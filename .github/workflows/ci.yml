@@ -15,8 +15,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        # macos-13 is x86_64
-        os: [macos-13, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest]
 
     env:
       CARGO_INCREMENTAL: 0
