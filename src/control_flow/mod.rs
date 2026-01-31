@@ -479,13 +479,25 @@ impl Visit for Analyzer<'_> {
         .iter()
         .filter_map(|case| self.get_end_reason(case.start()))
         .try_fold(
-          End::Forced {
-            ret: false,
-            throw: false,
-            infinite_loop: false,
+          (
+            End::Forced {
+              ret: false,
+              throw: false,
+              infinite_loop: false,
+            },
+            // record if previous is continue
+            false,
+          ),
+          |acc, cur| {
+            if matches!(cur, End::Continue) {
+              Some((acc.0, true))
+            } else {
+              acc.0.merge_forced(cur).map(|acc| (acc, false))
+            }
           },
-          |acc, cur| acc.merge_forced(cur),
-        );
+        )
+        // None if last is continue
+        .and_then(|(acc, last_continue)| (!last_continue).then_some(acc));
 
       match forced_end {
         Some(e) if has_default => e,
