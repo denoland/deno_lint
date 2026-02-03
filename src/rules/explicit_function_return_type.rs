@@ -62,6 +62,17 @@ impl Handler for ExplicitFunctionReturnTypeHandler {
       );
     }
   }
+
+  fn arrow_expr(&mut self, arrow: &ast_view::ArrowExpr, context: &mut Context) {
+    if arrow.return_type.is_none() {
+      context.add_diagnostic_with_hint(
+        arrow.range(),
+        CODE,
+        ExplicitFunctionReturnTypeMessage::MissingRetType,
+        ExplicitFunctionReturnTypeHint::AddRetType,
+      );
+    }
+  }
 }
 
 #[cfg(test)]
@@ -73,10 +84,12 @@ mod tests {
     assert_lint_ok! {
       ExplicitFunctionReturnType,
       "function fooTyped(): void { }",
-      "const bar = (a: string) => { }",
       "const barTyped = (a: string): Promise<void> => { }",
       "class Test { set test(value: string) {} }",
       "const obj = { set test(value: string) {} };",
+      "const arrow = (a: string): void => { }",
+      "const arrow = (): number => 0",
+      "const arrow = async (): Promise<void> => {}",
     };
 
     assert_lint_ok! {
@@ -124,7 +137,25 @@ function a() {
         message: ExplicitFunctionReturnTypeMessage::MissingRetType,
         hint: ExplicitFunctionReturnTypeHint::AddRetType,
       },
-      ]
+      ],
+      r#"const arrow = (a: string) => { }"#: [
+      {
+        col: 14,
+        message: ExplicitFunctionReturnTypeMessage::MissingRetType,
+        hint: ExplicitFunctionReturnTypeHint::AddRetType,
+      }],
+      r#"const arrow = () => 0"#: [
+      {
+        col: 14,
+        message: ExplicitFunctionReturnTypeMessage::MissingRetType,
+        hint: ExplicitFunctionReturnTypeHint::AddRetType,
+      }],
+      r#"const arrow = async () => { }"#: [
+      {
+        col: 14,
+        message: ExplicitFunctionReturnTypeMessage::MissingRetType,
+        hint: ExplicitFunctionReturnTypeHint::AddRetType,
+      }]
     }
   }
 }
