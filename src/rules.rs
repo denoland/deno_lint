@@ -103,6 +103,7 @@ pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
 pub mod no_top_level_await;
+pub mod no_ts_ignore;
 pub mod no_undef;
 pub mod no_unreachable;
 pub mod no_unsafe_finally;
@@ -350,6 +351,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_this_before_super::NoThisBeforeSuper),
     Box::new(no_throw_literal::NoThrowLiteral),
     Box::new(no_top_level_await::NoTopLevelAwait),
+    Box::new(no_ts_ignore::NoTsIgnore),
     Box::new(no_undef::NoUndef),
     Box::new(no_unreachable::NoUnreachable),
     Box::new(no_unsafe_finally::NoUnsafeFinally),
