@@ -1,16 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::{
-  ast::*,
-  ecma_visit::{noop_visit_type, Visit, VisitWith},
+use deno_ast::oxc::ast::ast::{
+  Comment, Program, Statement, SwitchStatement,
 };
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::span::GetSpan;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -41,40 +37,43 @@ impl LintRule for NoFallthrough {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoFallthroughVisitor { context };
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    let mut handler = NoFallthroughHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoFallthroughVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoFallthroughHandler;
 
-impl Visit for NoFallthroughVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_switch_cases(&mut self, cases: &[SwitchCase]) {
+impl Handler<'_> for NoFallthroughHandler {
+  fn switch_statement(
+    &mut self,
+    switch_stmt: &SwitchStatement,
+    context: &mut Context,
+  ) {
+    let cases = &switch_stmt.cases;
     let mut should_emit_err = false;
-    let mut prev_range = None;
+    let mut prev_span = None;
 
-    'cases: for case in cases.iter() {
-      case.visit_with(self);
-
+    for case in cases.iter() {
       if should_emit_err {
-        let comments = self.context.leading_comments_at(case.start());
-        if !allow_fall_through(comments) {
-          if let Some(prev_range) = prev_range.take() {
-            self.context.add_diagnostic_with_hint(
-              prev_range,
+        // Check for leading comments on this case that allow fallthrough
+        let comments: Vec<&Comment> = context
+          .all_comments()
+          .filter(|c| c.span.end <= case.span.start)
+          .collect();
+        let leading_allows = comments.iter().rev().any(|comment| {
+          let text = context.comment_text(comment);
+          allow_fall_through_text(text)
+        });
+        if !leading_allows {
+          if let Some(prev) = prev_span.take() {
+            context.add_diagnostic_with_hint(
+              prev,
               CODE,
               NoFallthroughMessage::Unexpected,
               NoFallthroughHint::BreakOrComment,
@@ -86,46 +85,58 @@ impl Visit for NoFallthroughVisitor<'_, '_> {
       let mut stops_exec = false;
 
       // Handle return / throw / break / continue
-      for (idx, stmt) in case.cons.iter().enumerate() {
-        let last = idx + 1 == case.cons.len();
-        let metadata = self.context.control_flow().meta(stmt.start());
-        stops_exec |= metadata.map(|v| v.stops_execution()).unwrap_or(false);
+      for (idx, stmt) in case.consequent.iter().enumerate() {
+        let last = idx + 1 == case.consequent.len();
+        let metadata = context.control_flow().meta(stmt.span().start);
+        stops_exec |=
+          metadata.map(|v| v.stops_execution()).unwrap_or(false);
+        // break/continue statements stop execution for fallthrough purposes
+        // even if the control flow analysis doesn't mark them (e.g. `continue`
+        // inside a switch that targets the outer loop).
+        if matches!(
+          stmt,
+          Statement::BreakStatement(_) | Statement::ContinueStatement(_)
+        ) {
+          stops_exec = true;
+        }
         if stops_exec {
           should_emit_err = false;
         }
 
         if last {
-          let comments = self.context.trailing_comments_at(stmt.end());
-          if allow_fall_through(comments) {
+          // Check for trailing comments after this statement that allow fallthrough
+          let trailing_allows = context.all_comments().any(|comment| {
+            comment.span.start >= stmt.span().end
+              && comment.span.end <= case.span.end
+              && allow_fall_through_text(context.comment_text(comment))
+          });
+          if trailing_allows {
             should_emit_err = false;
-            // User comment beats everything
-            prev_range = Some(case.range());
-            continue 'cases;
+            continue;
           }
         }
       }
 
-      let empty = case.cons.is_empty()
-        || matches!(case.cons.as_slice(), [Stmt::Block(b)] if b.stmts.is_empty());
+      let empty = case.consequent.is_empty()
+        || matches!(
+          case.consequent.as_slice(),
+          [Statement::BlockStatement(b)] if b.body.is_empty()
+        );
 
       if empty {
         should_emit_err = false;
       }
 
-      prev_range = Some(case.range());
+      prev_span = Some(case.span);
     }
   }
 }
 
-fn allow_fall_through<'c>(
-  mut comments: impl Iterator<Item = &'c Comment>,
-) -> bool {
-  comments.any(|comment| {
-    let l = comment.text.to_ascii_lowercase();
-    l.contains("fallthrough")
-      || l.contains("falls through")
-      || l.contains("fall through")
-  })
+fn allow_fall_through_text(text: &str) -> bool {
+  let l = text.to_ascii_lowercase();
+  l.contains("fallthrough")
+    || l.contains("falls through")
+    || l.contains("fall through")
 }
 
 #[cfg(test)]

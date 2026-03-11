@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, Ident, NewExpr};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  CallExpression, Expression, NewExpression, Program,
+};
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoObjCalls;
@@ -25,41 +26,55 @@ impl LintRule for NoObjCalls {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoObjCallsHandler.traverse(program, context);
+    let mut handler = NoObjCallsHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoObjCallsHandler;
 
-fn check_callee(callee: &Ident, range: SourceRange, ctx: &mut Context) {
-  if matches!(
-    callee.sym().as_ref(),
-    "Math" | "JSON" | "Reflect" | "Atomics"
-  ) && ctx.scope().var(&callee.to_id()).is_none()
-  {
-    ctx.add_diagnostic(
-      range,
-      "no-obj-calls",
-      get_message(callee.sym().as_ref()),
-    );
+fn check_callee(
+  ident: &deno_ast::oxc::ast::ast::IdentifierReference,
+  span: Span,
+  ctx: &mut Context,
+) {
+  let name = ident.name.as_str();
+  if !matches!(name, "Math" | "JSON" | "Reflect" | "Atomics") {
+    return;
   }
+  // Check if the identifier resolves to a local binding via OXC scoping.
+  if let Some(ref_id) = ident.reference_id.get() {
+    let reference = ctx.scoping().get_reference(ref_id);
+    if reference.symbol_id().is_some() {
+      return; // Shadowed by a local binding
+    }
+  }
+  ctx.add_diagnostic(span, "no-obj-calls", get_message(name));
 }
 
-impl Handler for NoObjCallsHandler {
-  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let Callee::Expr(Expr::Ident(ident)) = call_expr.callee {
-      check_callee(ident, call_expr.range(), ctx);
+impl Handler<'_> for NoObjCallsHandler {
+  fn call_expression(
+    &mut self,
+    call_expr: &CallExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &call_expr.callee {
+      check_callee(ident, call_expr.span, ctx);
     }
   }
 
-  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
-    if let Expr::Ident(ident) = new_expr.callee {
-      check_callee(ident, new_expr.range(), ctx);
+  fn new_expression(
+    &mut self,
+    new_expr: &NewExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      check_callee(ident, new_expr.span, ctx);
     }
   }
 }

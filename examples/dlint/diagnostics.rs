@@ -19,7 +19,7 @@ fn print_compact(diagnostics: &[LintDiagnostic]) {
     match &diagnostic.range {
       Some(range) => {
         let display_index =
-          range.text_info.line_and_column_display(range.range.start);
+          range.text_info.line_and_column_display(range.range.start as usize);
         eprintln!(
           "{}: line {}, col {}, Error - {} ({})",
           diagnostic.specifier,

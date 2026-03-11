@@ -3,11 +3,8 @@
 use super::{Context, LintRule};
 use crate::tags;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{Comment, CommentKind, Program};
+use deno_ast::oxc::span::Span;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -57,11 +54,11 @@ impl BanTsComment {
   fn report(
     &self,
     context: &mut Context,
-    range: SourceRange,
+    span: Span,
     kind: DirectiveKind,
   ) {
     context.add_diagnostic_with_hint(
-      range,
+      span,
       CODE,
       kind.as_message(),
       kind.as_hint(),
@@ -78,29 +75,31 @@ impl LintRule for BanTsComment {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    _program: Program,
+    context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
     let mut violated_comment_ranges = Vec::new();
 
     violated_comment_ranges.extend(context.all_comments().filter_map(|c| {
-      let kind = check_comment(c)?;
-      Some((c.range(), kind))
+      let kind = check_comment(c, context)?;
+      Some((c.span, kind))
     }));
 
-    for (range, kind) in violated_comment_ranges {
-      self.report(context, range, kind);
+    for (span, kind) in violated_comment_ranges {
+      self.report(context, span, kind);
     }
   }
 }
 
 /// Returns `None` if the comment includes no directives.
-fn check_comment(comment: &Comment) -> Option<DirectiveKind> {
+fn check_comment(comment: &Comment, ctx: &Context) -> Option<DirectiveKind> {
   if comment.kind != CommentKind::Line {
     return None;
   }
+
+  let text = ctx.comment_text(comment);
 
   static EXPECT_ERROR_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^/*\s*@ts-expect-error\s*$").unwrap());
@@ -109,13 +108,13 @@ fn check_comment(comment: &Comment) -> Option<DirectiveKind> {
   static NOCHECK_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^/*\s*@ts-nocheck\s*$").unwrap());
 
-  if EXPECT_ERROR_REGEX.is_match(&comment.text) {
+  if EXPECT_ERROR_REGEX.is_match(text) {
     return Some(DirectiveKind::ExpectError);
   }
-  if IGNORE_REGEX.is_match(&comment.text) {
+  if IGNORE_REGEX.is_match(text) {
     return Some(DirectiveKind::Ignore);
   }
-  if NOCHECK_REGEX.is_match(&comment.text) {
+  if NOCHECK_REGEX.is_match(text) {
     return Some(DirectiveKind::Nocheck);
   }
 

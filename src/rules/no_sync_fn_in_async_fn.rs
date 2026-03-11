@@ -1,12 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRanged};
-use if_chain::if_chain;
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, ComputedMemberExpression, Expression, Function,
+  PrivateFieldExpression, Program, StaticMemberExpression,
+};
 
 #[derive(Debug)]
 pub struct NoSyncFnInAsyncFn;
@@ -24,85 +24,175 @@ impl LintRule for NoSyncFnInAsyncFn {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoSyncFnInAsyncFnHandler.traverse(program, context);
+    let mut handler = NoSyncFnInAsyncFnHandler {
+      async_fn_depth: 0,
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-/// Extracts a symbol from the given member prop if the symbol is statically determined (otherwise,
-/// return `None`).
-fn extract_symbol<'a>(
-  member_prop: &'a ast_view::MemberProp,
+/// Extracts a property name from a static member expression property.
+fn extract_static_prop_name<'a>(
+  member: &'a StaticMemberExpression<'a>,
 ) -> Option<&'a str> {
-  use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
-  match member_prop {
-    MemberProp::Ident(ident) => Some(ident.sym()),
-    MemberProp::PrivateName(ident) => Some(ident.name()),
-    MemberProp::Computed(prop) => match &prop.expr {
-      Expr::Lit(Lit::Str(s)) => s.value().as_str(),
-      Expr::Ident(ident) => Some(ident.sym()),
-      Expr::Tpl(Tpl { exprs, quasis, .. })
-        if exprs.is_empty() && quasis.len() == 1 =>
-      {
-        Some(quasis[0].raw())
-      }
-      _ => None,
-    },
+  Some(member.property.name.as_str())
+}
+
+/// Extracts a property name from a computed member expression.
+fn extract_computed_prop_name<'a>(
+  member: &'a ComputedMemberExpression<'a>,
+) -> Option<&'a str> {
+  match &member.expression {
+    Expression::StringLiteral(s) => Some(s.value.as_str()),
+    Expression::Identifier(ident) => Some(ident.name.as_str()),
+    Expression::TemplateLiteral(tpl)
+      if tpl.expressions.is_empty() && tpl.quasis.len() == 1 =>
+    {
+      Some(tpl.quasis[0].value.raw.as_str())
+    }
+    _ => None,
   }
 }
 
-struct NoSyncFnInAsyncFnHandler;
+fn check_deno_sync_call(
+  obj: &Expression,
+  prop_symbol: Option<&str>,
+  span: deno_ast::oxc::span::Span,
+  async_fn_depth: u32,
+  ctx: &mut Context,
+) {
+  if async_fn_depth == 0 {
+    return;
+  }
 
-impl Handler for NoSyncFnInAsyncFnHandler {
-  fn member_expr(
-    &mut self,
-    member_expr: &ast_view::MemberExpr,
-    ctx: &mut Context,
-  ) {
-    fn inside_async_fn(node: ast_view::Node) -> bool {
-      use deno_ast::view::Node::*;
-      match node {
-        FnDecl(decl) => decl.function.is_async(),
-        FnExpr(decl) => decl.function.is_async(),
-        ArrowExpr(decl) => decl.is_async(),
-        _ => {
-          let parent = match node.parent() {
-            Some(p) => p,
-            None => return false,
-          };
-          inside_async_fn(parent)
-        }
-      }
-    }
-
-    // Not check chained member expressions (e.g. `foo.bar.baz`)
-    if member_expr.parent().is::<ast_view::MemberExpr>() {
+  if let Expression::Identifier(ident) = obj {
+    if ident.name.as_str() != "Deno" {
       return;
     }
 
-    use deno_ast::view::Expr;
-    if_chain! {
-      if let Expr::Ident(obj) = &member_expr.obj;
-      if ctx.scope().is_global(&obj.inner.to_id());
-      let obj_symbol: &str = obj.sym();
-      if obj_symbol == "Deno";
-      if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
-      if let Some(async_name) = prop_symbol.strip_suffix("Sync");
-      if inside_async_fn(member_expr.as_node());
-      then {
+    if let Some(prop) = prop_symbol {
+      if let Some(async_name) = prop.strip_suffix("Sync") {
         ctx.add_diagnostic_with_hint(
-          member_expr.range(),
+          span,
           CODE,
           MESSAGE,
-          format!("Consider changing this to an async equivalent: `await Deno.{}(..)`",
-            async_name),
+          format!(
+            "Consider changing this to an async equivalent: `await Deno.{}(..)`",
+            async_name
+          ),
         );
       }
     }
+  }
+}
+
+struct NoSyncFnInAsyncFnHandler {
+  async_fn_depth: u32,
+}
+
+impl Handler<'_> for NoSyncFnInAsyncFnHandler {
+  fn function(&mut self, n: &Function, _ctx: &mut Context) {
+    if n.r#async {
+      self.async_fn_depth += 1;
+    }
+  }
+
+  fn function_exit(&mut self, n: &Function, _ctx: &mut Context) {
+    if n.r#async {
+      self.async_fn_depth -= 1;
+    }
+  }
+
+  fn arrow_function_expression(
+    &mut self,
+    n: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    if n.r#async {
+      self.async_fn_depth += 1;
+    }
+  }
+
+  fn arrow_function_expression_exit(
+    &mut self,
+    n: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    if n.r#async {
+      self.async_fn_depth -= 1;
+    }
+  }
+
+  fn static_member_expression(
+    &mut self,
+    member: &StaticMemberExpression,
+    ctx: &mut Context,
+  ) {
+    // Skip chained member expressions (e.g. `foo.bar.baz` — only check the outermost)
+    if matches!(&member.object, Expression::StaticMemberExpression(_)
+      | Expression::ComputedMemberExpression(_)
+      | Expression::PrivateFieldExpression(_))
+    {
+      return;
+    }
+
+    let prop = extract_static_prop_name(member);
+    check_deno_sync_call(
+      &member.object,
+      prop,
+      member.span,
+      self.async_fn_depth,
+      ctx,
+    );
+  }
+
+  fn computed_member_expression(
+    &mut self,
+    member: &ComputedMemberExpression,
+    ctx: &mut Context,
+  ) {
+    if matches!(&member.object, Expression::StaticMemberExpression(_)
+      | Expression::ComputedMemberExpression(_)
+      | Expression::PrivateFieldExpression(_))
+    {
+      return;
+    }
+
+    let prop = extract_computed_prop_name(member);
+    check_deno_sync_call(
+      &member.object,
+      prop,
+      member.span,
+      self.async_fn_depth,
+      ctx,
+    );
+  }
+
+  fn private_field_expression(
+    &mut self,
+    member: &PrivateFieldExpression,
+    ctx: &mut Context,
+  ) {
+    if matches!(&member.object, Expression::StaticMemberExpression(_)
+      | Expression::ComputedMemberExpression(_)
+      | Expression::PrivateFieldExpression(_))
+    {
+      return;
+    }
+
+    let prop = Some(member.field.name.as_str());
+    check_deno_sync_call(
+      &member.object,
+      prop,
+      member.span,
+      self.async_fn_depth,
+      ctx,
+    );
   }
 }
 

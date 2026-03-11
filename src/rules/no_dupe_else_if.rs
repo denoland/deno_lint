@@ -1,14 +1,15 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
-use crate::swc_util::span_and_ctx_drop;
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{BinExpr, BinaryOp, Expr, IfStmt, ParenExpr, Stmt};
-use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
-use deno_ast::{SourceRange, SourceRangedForSpanned};
+use deno_ast::oxc::ast::ast::{
+  Expression, IfStatement, Program, Statement,
+};
+use deno_ast::oxc::span::ContentEq;
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::oxc::span::Span;
+use deno_ast::oxc::syntax::operator::LogicalOperator;
 use derive_more::Display;
 use std::collections::HashSet;
 
@@ -42,63 +43,40 @@ impl LintRule for NoDupeElseIf {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoDupeElseIfVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    let mut handler = NoDupeElseIfHandler {
+      checked_spans: HashSet::new(),
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-/// A visitor to check the `no-dupe-else-if` rule.
-/// Determination logic is ported from ESLint's implementation. For more, see:
-/// [eslint/no-dupe-else-if.js](https://github.com/eslint/eslint/blob/master/lib/rules/no-dupe-else-if.js).
-struct NoDupeElseIfVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-  checked_ranges: HashSet<SourceRange>,
+struct NoDupeElseIfHandler {
+  checked_spans: HashSet<Span>,
 }
 
-impl<'c, 'view> NoDupeElseIfVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self {
-      context,
-      checked_ranges: HashSet::new(),
-    }
-  }
-}
-
-impl Visit for NoDupeElseIfVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
-    let range = if_stmt.test.range();
+impl Handler<'_> for NoDupeElseIfHandler {
+  fn if_statement(&mut self, if_stmt: &IfStatement, ctx: &mut Context) {
+    let test_span = if_stmt.test.span();
 
     // This check is necessary to avoid outputting the same errors multiple times.
-    if !self.checked_ranges.contains(&range) {
-      self.checked_ranges.insert(range);
-      let span_dropped_test = span_and_ctx_drop(if_stmt.test.clone());
-      let mut appeared_conditions: Vec<Vec<Vec<Expr>>> = Vec::new();
-      append_test(&mut appeared_conditions, *span_dropped_test);
+    if !self.checked_spans.contains(&test_span) {
+      self.checked_spans.insert(test_span);
+      let mut appeared_conditions: Vec<Vec<Vec<&Expression>>> = Vec::new();
+      append_test(&mut appeared_conditions, &if_stmt.test);
 
-      let mut next = if_stmt.alt.as_ref();
+      let mut next = if_stmt.alternate.as_ref();
       while let Some(cur) = next {
-        if let Stmt::If(IfStmt {
-          ref test, ref alt, ..
-        }) = &**cur
-        {
-          // preserve the range before dropping
-          let range = test.range();
-          let span_dropped_test = span_and_ctx_drop(test.clone());
-          let mut current_condition_to_check: Vec<Vec<Vec<Expr>>> =
-            mk_condition_to_check(*span_dropped_test.clone())
+        if let Statement::IfStatement(inner_if) = cur {
+          let span = inner_if.test.span();
+          let mut current_condition_to_check: Vec<Vec<Vec<&Expression>>> =
+            mk_condition_to_check(&inner_if.test)
               .into_iter()
-              .map(split_by_or_then_and)
+              .map(|e| split_by_or_then_and(e))
               .collect();
 
           for ap_cond in &appeared_conditions {
@@ -120,8 +98,8 @@ impl Visit for NoDupeElseIfVisitor<'_, '_> {
               .iter()
               .any(|or_operands| or_operands.is_empty())
             {
-              self.context.add_diagnostic_with_hint(
-                range,
+              ctx.add_diagnostic_with_hint(
+                span,
                 CODE,
                 NoDupeElseIfMessage::Unexpected,
                 NoDupeElseIfHint::RemoveOrRework,
@@ -130,124 +108,111 @@ impl Visit for NoDupeElseIfVisitor<'_, '_> {
             }
           }
 
-          self.checked_ranges.insert(range);
-          append_test(&mut appeared_conditions, *span_dropped_test);
-          next = alt.as_ref();
+          self.checked_spans.insert(span);
+          append_test(&mut appeared_conditions, &inner_if.test);
+          next = inner_if.alternate.as_ref();
         } else {
           break;
         }
       }
     }
-
-    if_stmt.visit_children_with(self);
   }
 }
 
-fn mk_condition_to_check(cond: Expr) -> Vec<Expr> {
+/// Unwrap parenthesized expressions
+fn unwrap_parens<'a>(expr: &'a Expression<'a>) -> &'a Expression<'a> {
+  match expr {
+    Expression::ParenthesizedExpression(paren) => {
+      unwrap_parens(&paren.expression)
+    }
+    _ => expr,
+  }
+}
+
+fn mk_condition_to_check<'a>(
+  cond: &'a Expression<'a>,
+) -> Vec<&'a Expression<'a>> {
+  let cond = unwrap_parens(cond);
   match cond {
-    Expr::Bin(BinExpr {
-      op: BinaryOp::LogicalAnd,
-      ..
-    }) => {
-      let mut c = vec![cond.clone()];
+    Expression::LogicalExpression(logical)
+      if logical.operator == LogicalOperator::And =>
+    {
+      let mut c = vec![cond];
       c.append(&mut split_by_and(cond));
       c
     }
-    Expr::Paren(ParenExpr { expr, .. }) => mk_condition_to_check(*expr),
     _ => vec![cond],
   }
 }
 
-fn split_by_bin_op(op_to_split: BinaryOp, expr: Expr) -> Vec<Expr> {
+fn split_by_logical_op<'a>(
+  op_to_split: LogicalOperator,
+  expr: &'a Expression<'a>,
+) -> Vec<&'a Expression<'a>> {
+  let expr = unwrap_parens(expr);
   match expr {
-    Expr::Bin(BinExpr {
-      op, left, right, ..
-    }) if op == op_to_split => {
-      let mut ret = split_by_bin_op(op_to_split, *left);
-      ret.append(&mut split_by_bin_op(op_to_split, *right));
+    Expression::LogicalExpression(logical) if logical.operator == op_to_split => {
+      let mut ret = split_by_logical_op(op_to_split, &logical.left);
+      ret.append(&mut split_by_logical_op(op_to_split, &logical.right));
       ret
     }
-    Expr::Paren(ParenExpr { expr, .. }) => split_by_bin_op(op_to_split, *expr),
     _ => vec![expr],
   }
 }
 
-fn split_by_or(expr: Expr) -> Vec<Expr> {
-  split_by_bin_op(BinaryOp::LogicalOr, expr)
+fn split_by_or<'a>(expr: &'a Expression<'a>) -> Vec<&'a Expression<'a>> {
+  split_by_logical_op(LogicalOperator::Or, expr)
 }
 
-fn split_by_and(expr: Expr) -> Vec<Expr> {
-  split_by_bin_op(BinaryOp::LogicalAnd, expr)
+fn split_by_and<'a>(expr: &'a Expression<'a>) -> Vec<&'a Expression<'a>> {
+  split_by_logical_op(LogicalOperator::And, expr)
 }
 
-fn split_by_or_then_and(expr: Expr) -> Vec<Vec<Expr>> {
+fn split_by_or_then_and<'a>(
+  expr: &'a Expression<'a>,
+) -> Vec<Vec<&'a Expression<'a>>> {
   split_by_or(expr).into_iter().map(split_by_and).collect()
 }
 
-fn is_subset(arr_a: &[Expr], arr_b: &[Expr]) -> bool {
+fn is_subset(arr_a: &[&Expression], arr_b: &[&Expression]) -> bool {
   arr_a
     .iter()
     .all(|a| arr_b.iter().any(|b| equal_in_if_else(a, b)))
 }
 
-/// Determines whether the two given `Expr`s are considered to be equal in if-else condition
-/// context. Note that `expr1` and `expr2` must be span-dropped to be compared properly.
-fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
-  use deno_ast::swc::ast::Expr::*;
-  match (expr1, expr2) {
-    (Bin(ref bin1), Bin(ref bin2))
-      if matches!(bin1.op, BinaryOp::LogicalOr | BinaryOp::LogicalAnd)
-        && bin1.op == bin2.op =>
+/// Determines whether the two given expressions are considered equal
+/// in if-else condition context. Uses ContentEq for structural comparison
+/// (ignoring spans), with special handling for logical operators where
+/// operand order doesn't matter.
+fn equal_in_if_else(expr1: &Expression, expr2: &Expression) -> bool {
+  let expr1 = unwrap_parens(expr1);
+  let expr2 = unwrap_parens(expr2);
+
+  // Special case for logical AND/OR: operand order doesn't matter
+  if let (
+    Expression::LogicalExpression(log1),
+    Expression::LogicalExpression(log2),
+  ) = (expr1, expr2)
+  {
+    if matches!(
+      log1.operator,
+      LogicalOperator::Or | LogicalOperator::And
+    ) && log1.operator == log2.operator
     {
-      equal_in_if_else(&bin1.left, &bin2.left)
-        && equal_in_if_else(&bin1.right, &bin2.right)
-        || equal_in_if_else(&bin1.left, &bin2.right)
-          && equal_in_if_else(&bin1.right, &bin2.left)
+      return (equal_in_if_else(&log1.left, &log2.left)
+        && equal_in_if_else(&log1.right, &log2.right))
+        || (equal_in_if_else(&log1.left, &log2.right)
+          && equal_in_if_else(&log1.right, &log2.left));
     }
-    (Paren(ParenExpr { ref expr, .. }), _) => equal_in_if_else(expr, expr2),
-    (_, Paren(ParenExpr { ref expr, .. })) => equal_in_if_else(expr1, expr),
-    (Fn(a), Fn(b)) => {
-      eprintln!("fn:\n{:?}\n{:?}", a, b);
-      a == b
-    }
-    (This(_), This(_))
-    | (Array(_), Array(_))
-    | (Object(_), Object(_))
-    | (Unary(_), Unary(_))
-    | (Update(_), Update(_))
-    | (Bin(_), Bin(_))
-    | (Assign(_), Assign(_))
-    | (Member(_), Member(_))
-    | (Cond(_), Cond(_))
-    | (Call(_), Call(_))
-    | (New(_), New(_))
-    | (Seq(_), Seq(_))
-    | (Ident(_), Ident(_))
-    | (Lit(_), Lit(_))
-    | (Tpl(_), Tpl(_))
-    | (TaggedTpl(_), TaggedTpl(_))
-    | (Arrow(_), Arrow(_))
-    | (Class(_), Class(_))
-    | (Yield(_), Yield(_))
-    | (MetaProp(_), MetaProp(_))
-    | (Await(_), Await(_))
-    | (JSXMember(_), JSXMember(_))
-    | (JSXNamespacedName(_), JSXNamespacedName(_))
-    | (JSXEmpty(_), JSXEmpty(_))
-    | (JSXElement(_), JSXElement(_))
-    | (JSXFragment(_), JSXFragment(_))
-    | (TsTypeAssertion(_), TsTypeAssertion(_))
-    | (TsConstAssertion(_), TsConstAssertion(_))
-    | (TsNonNull(_), TsNonNull(_))
-    | (TsAs(_), TsAs(_))
-    | (PrivateName(_), PrivateName(_))
-    | (OptChain(_), OptChain(_))
-    | (Invalid(_), Invalid(_)) => expr1 == expr2,
-    _ => false,
   }
+
+  expr1.content_eq(expr2)
 }
 
-fn append_test(appeared_conditions: &mut Vec<Vec<Vec<Expr>>>, expr: Expr) {
+fn append_test<'a>(
+  appeared_conditions: &mut Vec<Vec<Vec<&'a Expression<'a>>>>,
+  expr: &'a Expression<'a>,
+) {
   appeared_conditions.push(split_by_or_then_and(expr));
 }
 

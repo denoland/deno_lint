@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{Expr, NewExpr, ParenExpr};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct NoAsyncPromiseExecutor;
@@ -24,44 +22,60 @@ impl LintRule for NoAsyncPromiseExecutor {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoAsyncPromiseExecutorHandler.traverse(program, context);
+    let mut handler = NoAsyncPromiseExecutorHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-fn is_async_function(expr: &Expr) -> bool {
+fn is_async_function(expr: &Expression) -> bool {
   match expr {
-    Expr::Fn(fn_expr) => fn_expr.function.is_async(),
-    Expr::Arrow(arrow_expr) => arrow_expr.is_async(),
-    Expr::Paren(ParenExpr { ref expr, .. }) => is_async_function(expr),
+    Expression::FunctionExpression(fn_expr) => fn_expr.r#async,
+    Expression::ArrowFunctionExpression(arrow_expr) => arrow_expr.r#async,
+    Expression::ParenthesizedExpression(paren) => {
+      is_async_function(&paren.expression)
+    }
+    _ => false,
+  }
+}
+
+fn is_async_argument(arg: &Argument) -> bool {
+  match arg {
+    Argument::FunctionExpression(fn_expr) => fn_expr.r#async,
+    Argument::ArrowFunctionExpression(arrow_expr) => arrow_expr.r#async,
+    Argument::ParenthesizedExpression(paren) => {
+      is_async_function(&paren.expression)
+    }
     _ => false,
   }
 }
 
 struct NoAsyncPromiseExecutorHandler;
 
-impl Handler for NoAsyncPromiseExecutorHandler {
-  fn new_expr(&mut self, new_expr: &NewExpr, context: &mut Context) {
-    if let Expr::Ident(ident) = &new_expr.callee {
-      let name = ident.inner.as_ref();
+impl Handler<'_> for NoAsyncPromiseExecutorHandler {
+  fn new_expression(
+    &mut self,
+    new_expr: &NewExpression,
+    context: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      let name = ident.name.as_str();
       if name != "Promise" {
         return;
       }
 
-      if let Some(args) = &new_expr.args {
-        if let Some(first_arg) = args.first() {
-          if is_async_function(&first_arg.expr) {
-            context.add_diagnostic_with_hint(
-              new_expr.range(),
-              CODE,
-              MESSAGE,
-              HINT,
-            );
-          }
+      if let Some(first_arg) = new_expr.arguments.first() {
+        if is_async_argument(first_arg) {
+          context.add_diagnostic_with_hint(
+            new_expr.span,
+            CODE,
+            MESSAGE,
+            HINT,
+          );
         }
       }
     }

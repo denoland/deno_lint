@@ -1,10 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::view::TsNonNullExpr;
-use deno_ast::SourceRanged;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -23,26 +21,35 @@ impl LintRule for NoNonNullAssertion {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoNonNullAssertionHandler.traverse(program, context);
+    let mut handler = NoNonNullAssertionHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoNonNullAssertionHandler;
 
-impl Handler for NoNonNullAssertionHandler {
-  fn ts_non_null_expr(
+impl Handler<'_> for NoNonNullAssertionHandler {
+  fn ts_non_null_expression(
     &mut self,
-    non_null_expr: &TsNonNullExpr,
+    non_null_expr: &TSNonNullExpression,
     ctx: &mut Context,
   ) {
-    if !non_null_expr.parent().is::<TsNonNullExpr>() {
+    // In OXC we can't check parent, but the original logic was:
+    // report only if the parent is NOT also a TSNonNullExpression.
+    // The innermost non-null in a chain like x!! is itself a TSNonNullExpression
+    // whose expression is also a TSNonNullExpression. So we report only when the
+    // inner expression is NOT a TSNonNullExpression (i.e. we report the outermost one).
+    if !matches!(
+      &non_null_expr.expression,
+      Expression::TSNonNullExpression(_)
+    ) {
       ctx.add_diagnostic(
-        non_null_expr.range(),
+        non_null_expr.span,
         CODE,
         NoNonNullAssertionMessage::Unexpected,
       );

@@ -1,11 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::{tags, Program};
-use deno_ast::view::{BinExpr, BinaryOp, Expr, Ident, SwitchStmt};
-use deno_ast::SourceRanged;
+use crate::tags;
+use deno_ast::oxc::ast::ast::{
+  BinaryExpression, BinaryOperator, Expression, IdentifierReference, Program,
+  SwitchStatement,
+};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -38,45 +40,50 @@ impl LintRule for UseIsNaN {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    UseIsNaNHandler.traverse(program, context);
+    let mut handler = UseIsNaNHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct UseIsNaNHandler;
 
-fn is_nan_identifier(ident: &Ident) -> bool {
-  *ident.sym() == *"NaN"
+fn is_nan_identifier(ident: &IdentifierReference) -> bool {
+  ident.name == "NaN"
 }
 
-impl Handler for UseIsNaNHandler {
-  fn bin_expr(&mut self, bin_expr: &BinExpr, ctx: &mut Context) {
-    if bin_expr.op() == BinaryOp::EqEq
-      || bin_expr.op() == BinaryOp::NotEq
-      || bin_expr.op() == BinaryOp::EqEqEq
-      || bin_expr.op() == BinaryOp::NotEqEq
-      || bin_expr.op() == BinaryOp::Lt
-      || bin_expr.op() == BinaryOp::LtEq
-      || bin_expr.op() == BinaryOp::Gt
-      || bin_expr.op() == BinaryOp::GtEq
+impl Handler<'_> for UseIsNaNHandler {
+  fn binary_expression(
+    &mut self,
+    bin_expr: &BinaryExpression,
+    ctx: &mut Context,
+  ) {
+    if bin_expr.operator == BinaryOperator::Equality
+      || bin_expr.operator == BinaryOperator::Inequality
+      || bin_expr.operator == BinaryOperator::StrictEquality
+      || bin_expr.operator == BinaryOperator::StrictInequality
+      || bin_expr.operator == BinaryOperator::LessThan
+      || bin_expr.operator == BinaryOperator::LessEqualThan
+      || bin_expr.operator == BinaryOperator::GreaterThan
+      || bin_expr.operator == BinaryOperator::GreaterEqualThan
     {
-      if let Expr::Ident(ident) = bin_expr.left {
+      if let Expression::Identifier(ident) = &bin_expr.left {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(
-            bin_expr.range(),
+            bin_expr.span,
             CODE,
             UseIsNaNMessage::Comparison,
           );
         }
       }
-      if let Expr::Ident(ident) = bin_expr.right {
+      if let Expression::Identifier(ident) = &bin_expr.right {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(
-            bin_expr.range(),
+            bin_expr.span,
             CODE,
             UseIsNaNMessage::Comparison,
           );
@@ -85,22 +92,26 @@ impl Handler for UseIsNaNHandler {
     }
   }
 
-  fn switch_stmt(&mut self, switch_stmt: &SwitchStmt, ctx: &mut Context) {
-    if let Expr::Ident(ident) = switch_stmt.discriminant {
+  fn switch_statement(
+    &mut self,
+    switch_stmt: &SwitchStatement,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &switch_stmt.discriminant {
       if is_nan_identifier(ident) {
         ctx.add_diagnostic(
-          switch_stmt.range(),
+          switch_stmt.span,
           CODE,
           UseIsNaNMessage::SwitchUnmatched,
         );
       }
     }
 
-    for case in switch_stmt.cases {
-      if let Some(Expr::Ident(ident)) = &case.test {
+    for case in &switch_stmt.cases {
+      if let Some(Expression::Identifier(ident)) = &case.test {
         if is_nan_identifier(ident) {
           ctx.add_diagnostic(
-            case.range(),
+            case.span,
             CODE,
             UseIsNaNMessage::CaseUnmatched,
           );

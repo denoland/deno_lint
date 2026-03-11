@@ -2,10 +2,7 @@
 
 use super::{Context, LintRule};
 
-use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::comments::CommentKind;
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{Comment, CommentKind, Program};
 use derive_more::Display;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -22,9 +19,9 @@ enum TripleSlashReferenceMessage {
 }
 
 impl TripleSlashReference {
-  fn report(&self, context: &mut Context, range: SourceRange) {
+  fn report(&self, context: &mut Context, span: deno_ast::oxc::span::Span) {
     context.add_diagnostic(
-      range,
+      span,
       CODE,
       TripleSlashReferenceMessage::Unexpected,
     );
@@ -36,39 +33,41 @@ impl LintRule for TripleSlashReference {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    _program: deno_ast::view::Program<'view>,
+    context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
-    let mut violated_comment_ranges = Vec::new();
+    let mut violated_comment_spans = Vec::new();
 
-    violated_comment_ranges.extend(context.all_comments().filter_map(|c| {
-      if check_comment(c) {
-        Some(c.range())
+    violated_comment_spans.extend(context.all_comments().filter_map(|c| {
+      if check_comment(c, context) {
+        Some(c.span)
       } else {
         None
       }
     }));
 
-    for range in violated_comment_ranges {
-      self.report(context, range);
+    for span in violated_comment_spans {
+      self.report(context, span);
     }
   }
 }
 
 /// Returns `true` if the comment should be reported.
-fn check_comment(comment: &Comment) -> bool {
+fn check_comment(comment: &Comment, ctx: &Context) -> bool {
   if comment.kind != CommentKind::Line {
     return false;
   }
+
+  let text = ctx.comment_text(comment);
 
   static TSR_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"^/\s*<reference\s*(types|path|lib)\s*=\s*["|'](.*)["|']"#)
       .unwrap()
   });
 
-  TSR_REGEX.is_match(&comment.text)
+  TSR_REGEX.is_match(text)
 }
 
 #[cfg(test)]

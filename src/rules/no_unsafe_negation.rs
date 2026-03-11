@@ -1,12 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
-use if_chain::if_chain;
 
 #[derive(Debug)]
 pub struct NoUnsafeNegation;
@@ -30,31 +28,39 @@ impl LintRule for NoUnsafeNegation {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoUnsafeNegationHandler.traverse(program, context);
+    let mut handler = NoUnsafeNegationHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoUnsafeNegationHandler;
 
-impl Handler for NoUnsafeNegationHandler {
-  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
-    use deno_ast::view::{BinaryOp, Expr, UnaryOp};
-    if_chain! {
-      if matches!(bin_expr.op(), BinaryOp::In | BinaryOp::InstanceOf);
-      if let Expr::Unary(unary_expr) = &bin_expr.left;
-      if unary_expr.op() == UnaryOp::Bang;
-      then {
-        ctx.add_diagnostic_with_hint(
-          bin_expr.range(),
-          CODE,
-          NoUnsafeNegationMessage::Unexpected(bin_expr.op().to_string()),
-          HINT,
-        );
+impl Handler<'_> for NoUnsafeNegationHandler {
+  fn binary_expression(
+    &mut self,
+    bin_expr: &BinaryExpression,
+    ctx: &mut Context,
+  ) {
+    if matches!(
+      bin_expr.operator,
+      BinaryOperator::In | BinaryOperator::Instanceof
+    ) {
+      if let Expression::UnaryExpression(unary_expr) = &bin_expr.left {
+        if unary_expr.operator == UnaryOperator::LogicalNot {
+          ctx.add_diagnostic_with_hint(
+            bin_expr.span,
+            CODE,
+            NoUnsafeNegationMessage::Unexpected(
+              bin_expr.operator.as_str().to_string(),
+            ),
+            HINT,
+          );
+        }
       }
     }
   }

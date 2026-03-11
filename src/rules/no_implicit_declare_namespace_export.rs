@@ -1,10 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  Program, Statement, TSModuleDeclaration, TSModuleDeclarationBody,
+};
 
 #[derive(Debug)]
 pub struct NoImplicitDeclareNamespaceExport;
@@ -24,43 +25,55 @@ impl LintRule for NoImplicitDeclareNamespaceExport {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoImplicitDeclareNamespaceExportHandler.traverse(program, context);
+    let mut handler = NoImplicitDeclareNamespaceExportHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoImplicitDeclareNamespaceExportHandler;
 
-impl Handler for NoImplicitDeclareNamespaceExportHandler {
-  fn ts_module_decl(
+impl Handler<'_> for NoImplicitDeclareNamespaceExportHandler {
+  fn ts_module_declaration(
     &mut self,
-    module_decl: &ast_view::TsModuleDecl,
+    module_decl: &TSModuleDeclaration,
     ctx: &mut Context,
   ) {
-    if module_decl.inner.declare {
-      if let Some(ast_view::TsNamespaceBody::TsModuleBlock(block)) =
-        module_decl.body
+    if module_decl.declare {
+      if let Some(TSModuleDeclarationBody::TSModuleBlock(block)) =
+        &module_decl.body
       {
         if !block.body.is_empty() {
-          let has_named_export = block.body.iter().any(|item| {
-            matches!(
+          // An `export { ... }` (with or without specifiers, but no inline declaration)
+          // acts as an explicit export control mechanism in ambient namespaces.
+          // e.g. `export {}` disables implicit exports; `export { Y }` means the user
+          // controls what is exported. An inline `export type Y = 2` does NOT count.
+          let has_specifier_export = block.body.iter().any(|item| {
+            if let Statement::ExportNamedDeclaration(e) = item {
+              e.declaration.is_none()
+            } else {
+              false
+            }
+          });
+          let has_non_exported_member = block.body.iter().any(|item| {
+            !matches!(
               item,
-              ast_view::ModuleItem::ModuleDecl(
-                ast_view::ModuleDecl::ExportNamed(_)
-              )
+              Statement::ExportNamedDeclaration(_)
+                | Statement::ExportDefaultDeclaration(_)
+                | Statement::ExportAllDeclaration(_)
+                | Statement::ImportDeclaration(_)
+                | Statement::TSExportAssignment(_)
+                | Statement::TSNamespaceExportDeclaration(_)
+                | Statement::TSImportEqualsDeclaration(_)
             )
           });
-          let has_non_exported_member = block
-            .body
-            .iter()
-            .any(|item| matches!(item, ast_view::ModuleItem::Stmt(_)));
-          if !has_named_export && has_non_exported_member {
+          if !has_specifier_export && has_non_exported_member {
             ctx.add_diagnostic_with_hint(
-              module_decl.range(),
+              module_decl.span,
               CODE,
               MESSAGE,
               HINT,

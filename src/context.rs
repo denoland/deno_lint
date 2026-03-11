@@ -9,112 +9,74 @@ use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
 };
-use crate::linter::LinterContext;
+use crate::linter::{LintConfig, LinterContext};
 use crate::rules;
-use deno_ast::swc::ast::Expr;
-use deno_ast::swc::common::comments::Comment;
-use deno_ast::swc::common::util::take::Take;
-use deno_ast::swc::common::{SourceMap, SyntaxContext};
+use deno_ast::oxc::ast::ast::Comment;
+use deno_ast::oxc::ast::ast::Program;
+use deno_ast::oxc::span::Span;
+use deno_ast::oxc::semantic::{Scoping, SemanticBuilder};
+use deno_ast::ParsedSource;
+use deno_ast::Scope;
 use deno_ast::SourceTextInfo;
-use deno_ast::{
-  view as ast_view, ParsedSource, RootNode, SourcePos, SourceRange,
-};
 use deno_ast::{MediaType, ModuleSpecifier};
-use deno_ast::{MultiThreadedComments, Scope};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 /// `Context` stores all data needed to perform linting of a particular file.
 pub struct Context<'a> {
-  parsed_source: ParsedSource,
+  parsed_source: &'a ParsedSource<'a>,
   diagnostics: Vec<LintDiagnostic>,
-  program: ast_view::Program<'a>,
   file_ignore_directive: Option<FileIgnoreDirective>,
   line_ignore_directives: HashMap<usize, LineIgnoreDirective>,
   scope: Scope,
   control_flow: ControlFlow,
   traverse_flow: TraverseFlow,
   check_unknown_rules: bool,
-  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_factory: Option<Rc<Box<Expr>>>,
-  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_fragment_factory: Option<Rc<Box<Expr>>>,
+  /// OXC semantic scoping information (symbol table + scope tree).
+  /// Populated by running SemanticBuilder on the program.
+  scoping: Scoping,
+  /// The resolved JSX factory name (e.g. "React.createElement").
+  /// Determined from @jsx pragma comment or config default.
+  jsx_factory: Option<String>,
+  /// The resolved JSX fragment factory name (e.g. "React.Fragment").
+  /// Determined from @jsxFrag pragma comment or config default.
+  jsx_fragment_factory: Option<String>,
 }
 
 impl<'a> Context<'a> {
   pub(crate) fn new(
-    linter_ctx: &'a LinterContext,
-    parsed_source: ParsedSource,
-    program: ast_view::Program<'a>,
+    linter_ctx: &LinterContext,
+    parsed_source: &'a ParsedSource<'a>,
+    config: &LintConfig,
     file_ignore_directive: Option<FileIgnoreDirective>,
-    default_jsx_factory: Option<String>,
-    default_jsx_fragment_factory: Option<String>,
   ) -> Self {
     let line_ignore_directives = parse_line_ignore_directives(
       linter_ctx.ignore_diagnostic_directive,
-      program,
+      parsed_source,
     );
-    let scope = Scope::analyze(program);
-    let control_flow =
-      ControlFlow::analyze(program, parsed_source.unresolved_context());
+    let scope = Scope::analyze(parsed_source.program());
+    let control_flow = ControlFlow::analyze(parsed_source);
 
-    let mut jsx_factory = None;
-    let mut jsx_fragment_factory = None;
+    // Run OXC semantic analysis to populate symbol_id and reference_id
+    // on AST nodes (BindingIdentifier and IdentifierReference).
+    let semantic_ret =
+      SemanticBuilder::new().build(parsed_source.program());
+    let scoping = semantic_ret.semantic.into_scoping();
 
-    parsed_source.globals().with(|marks| {
-      let top_level_mark = marks.top_level;
-
-      if let Some(leading_comments) = parsed_source.get_leading_comments() {
-        let jsx_directives =
-          deno_ast::swc::transforms::react::JsxDirectives::from_comments(
-            &SourceMap::default(),
-            #[allow(clippy::disallowed_types)]
-            deno_ast::swc::common::Span::dummy(),
-            leading_comments,
-            top_level_mark,
-          );
-
-        jsx_factory = jsx_directives.pragma;
-        jsx_fragment_factory = jsx_directives.pragma_frag;
-      }
-
-      if jsx_factory.is_none() {
-        if let Some(factory) = default_jsx_factory {
-          jsx_factory = Some(Rc::new(
-            deno_ast::swc::transforms::react::parse_expr_for_jsx(
-              &SourceMap::default(),
-              "jsx",
-              factory.into(),
-              top_level_mark,
-            ),
-          ));
-        }
-      }
-      if jsx_fragment_factory.is_none() {
-        if let Some(factory) = default_jsx_fragment_factory {
-          jsx_fragment_factory = Some(Rc::new(
-            deno_ast::swc::transforms::react::parse_expr_for_jsx(
-              &SourceMap::default(),
-              "jsxFragment",
-              factory.into(),
-              top_level_mark,
-            ),
-          ));
-        }
-      }
-    });
+    // Resolve JSX factory from pragma comments, falling back to config defaults.
+    let (jsx_factory, jsx_fragment_factory) =
+      resolve_jsx_pragmas(parsed_source, config);
 
     Self {
       file_ignore_directive,
       line_ignore_directives,
       scope,
       control_flow,
-      program,
       parsed_source,
       diagnostics: Vec::new(),
       traverse_flow: TraverseFlow::default(),
       check_unknown_rules: linter_ctx.check_unknown_rules,
+      scoping,
       jsx_factory,
       jsx_fragment_factory,
     }
@@ -131,9 +93,9 @@ impl<'a> Context<'a> {
     self.parsed_source.media_type()
   }
 
-  /// Comment collection.
-  pub fn comments(&self) -> &MultiThreadedComments {
-    self.parsed_source.comments()
+  /// The source text of the file.
+  pub fn source_text(&self) -> &'a str {
+    self.parsed_source.text()
   }
 
   /// Stores diagnostics that are generated while linting
@@ -142,8 +104,8 @@ impl<'a> Context<'a> {
   }
 
   /// Parsed source of the program.
-  pub fn parsed_source(&self) -> &ParsedSource {
-    &self.parsed_source
+  pub fn parsed_source(&self) -> &'a ParsedSource<'a> {
+    self.parsed_source
   }
 
   /// Information about the file text.
@@ -151,10 +113,9 @@ impl<'a> Context<'a> {
     self.parsed_source.text_info_lazy()
   }
 
-  /// The AST view of the program, which for example can be used for getting
-  /// comments
-  pub fn program(&self) -> ast_view::Program<'a> {
-    self.program
+  /// The AST program.
+  pub fn program(&self) -> &'a Program<'a> {
+    self.parsed_source.program()
   }
 
   /// File-level ignore directive (`deno-lint-ignore-file`)
@@ -173,30 +134,60 @@ impl<'a> Context<'a> {
     &self.scope
   }
 
+  /// OXC semantic scoping info (symbol table + scope tree + references).
+  pub fn scoping(&self) -> &Scoping {
+    &self.scoping
+  }
+
+  /// Resolve an `IdentifierReference` to its declaration's `BindingKind`
+  /// using OXC's semantic analysis. Returns `None` if unresolved (global).
+  pub fn binding_kind_of_ident_ref(
+    &self,
+    ident: &deno_ast::oxc::ast::ast::IdentifierReference,
+  ) -> Option<deno_ast::BindingKind> {
+    let ref_id = ident.reference_id.get()?;
+    let reference = self.scoping.get_reference(ref_id);
+    let symbol_id = reference.symbol_id()?;
+    let flags = self.scoping.symbol_flags(symbol_id);
+    Some(deno_ast::BindingKind::from_symbol_flags(flags))
+  }
+
+  /// The resolved JSX factory expression (e.g. "React.createElement").
+  pub fn jsx_factory(&self) -> Option<&str> {
+    self.jsx_factory.as_deref()
+  }
+
+  /// The resolved JSX fragment factory expression (e.g. "React.Fragment").
+  pub fn jsx_fragment_factory(&self) -> Option<&str> {
+    self.jsx_fragment_factory.as_deref()
+  }
+
   /// Control-flow analysis result
   pub fn control_flow(&self) -> &ControlFlow {
     &self.control_flow
   }
 
-  /// Get the JSX factory expression for this file, if one is specified (via
-  /// pragma or using a default). If this file is not JSX, uses the automatic
-  /// transform, or the default factory is not specified, this will return
-  /// `None`.
-  pub fn jsx_factory(&self) -> Option<Rc<Box<Expr>>> {
-    self.jsx_factory.clone()
+  /// Get all comments in the source file.
+  pub fn all_comments(
+    &self,
+  ) -> impl Iterator<Item = &'a Comment> {
+    self.parsed_source.comments().iter()
   }
 
-  /// Get the JSX fragment factory expression for this file, if one is specified
-  /// (via pragma or using a default). If this file is not JSX, uses the
-  /// automatic transform, or the default factory is not specified, this will
-  /// return `None`.
-  pub fn jsx_fragment_factory(&self) -> Option<Rc<Box<Expr>>> {
-    self.jsx_fragment_factory.clone()
+  /// Get leading comments before a given byte position.
+  pub fn leading_comments_at(
+    &self,
+    pos: u32,
+  ) -> impl Iterator<Item = &'a Comment> {
+    self.parsed_source.comments().iter().filter(move |c| {
+      c.span.end <= pos
+    })
   }
 
-  /// The `SyntaxContext` of any unresolved identifiers
-  pub(crate) fn unresolved_ctxt(&self) -> SyntaxContext {
-    self.parsed_source.unresolved_context()
+  /// Get the text content of a comment (excluding the // or /* */ delimiters).
+  pub fn comment_text(&self, comment: &Comment) -> &str {
+    let span = comment.content_span();
+    &self.source_text()[span.start as usize..span.end as usize]
   }
 
   pub(crate) fn assert_traverse_init(&self) {
@@ -209,24 +200,6 @@ impl<'a> Context<'a> {
 
   pub(crate) fn stop_traverse(&mut self) {
     self.traverse_flow.set_stop_traverse();
-  }
-
-  pub fn all_comments(&self) -> impl Iterator<Item = &'a Comment> {
-    self.program.comment_container().all_comments()
-  }
-
-  pub fn leading_comments_at(
-    &self,
-    start: SourcePos,
-  ) -> impl Iterator<Item = &'a Comment> {
-    self.program.comment_container().leading_comments(start)
-  }
-
-  pub fn trailing_comments_at(
-    &self,
-    end: SourcePos,
-  ) -> impl Iterator<Item = &'a Comment> {
-    self.program.comment_container().trailing_comments(end)
   }
 
   /// Mark ignore directives as used if that directive actually suppresses some
@@ -246,7 +219,8 @@ impl<'a> Context<'a> {
         continue;
       };
 
-      let diagnostic_line = range.text_info.line_index(range.range.start);
+      let diagnostic_line =
+        range.text_info.line_index(range.range.start as usize);
       if diagnostic_line > 0 {
         if let Some(l) =
           self.line_ignore_directives.get_mut(&(diagnostic_line - 1))
@@ -307,10 +281,6 @@ impl<'a> Context<'a> {
     }
 
     for line_ignore in self.line_ignore_directives.values() {
-      // We do nothing special even if the line-level ignore directive contains
-      // `ban-unused-ignore`. `ban-unused-ignore` can be ignored only via the
-      // file-level directive.
-
       for (unused_code, _status) in
         line_ignore.codes().iter().filter(is_unused_code)
       {
@@ -330,7 +300,7 @@ impl<'a> Context<'a> {
     diagnostics
   }
 
-  // TODO(bartlomieju): this should be a regular lint rule, not a mathod on this
+  // TODO(bartlomieju): this should be a regular lint rule, not a method on this
   // struct.
   /// Lint rule implementation for `ban-unknown-rule-code`.
   /// This should be run after all normal rules.
@@ -398,12 +368,12 @@ impl<'a> Context<'a> {
 
   pub fn add_diagnostic(
     &mut self,
-    range: SourceRange,
+    span: Span,
     code: impl ToString,
     message: impl ToString,
   ) {
     self.add_diagnostic_details(
-      Some(self.create_diagnostic_range(range)),
+      Some(self.create_diagnostic_range(span)),
       self.create_diagnostic_details(
         code,
         message.to_string(),
@@ -415,13 +385,13 @@ impl<'a> Context<'a> {
 
   pub fn add_diagnostic_with_hint(
     &mut self,
-    range: SourceRange,
+    span: Span,
     code: impl ToString,
     message: impl ToString,
     hint: impl ToString,
   ) {
     self.add_diagnostic_details(
-      Some(self.create_diagnostic_range(range)),
+      Some(self.create_diagnostic_range(span)),
       self.create_diagnostic_details(
         code,
         message,
@@ -433,14 +403,14 @@ impl<'a> Context<'a> {
 
   pub fn add_diagnostic_with_fixes(
     &mut self,
-    range: SourceRange,
+    span: Span,
     code: impl ToString,
     message: impl ToString,
     hint: Option<String>,
     fixes: Vec<LintFix>,
   ) {
     self.add_diagnostic_details(
-      Some(self.create_diagnostic_range(range)),
+      Some(self.create_diagnostic_range(span)),
       self.create_diagnostic_details(code, message, hint, fixes),
     );
   }
@@ -494,14 +464,79 @@ impl<'a> Context<'a> {
 
   pub(crate) fn create_diagnostic_range(
     &self,
-    range: SourceRange,
+    span: Span,
   ) -> LintDiagnosticRange {
     LintDiagnosticRange {
-      range,
+      range: span,
       text_info: self.text_info().clone(),
       description: None,
     }
   }
+}
+
+/// Resolve JSX pragma and fragment pragma from source comments, falling back
+/// to the provided `LintConfig` defaults.
+///
+/// Searches for `@jsx` and `@jsxFrag` directives in leading comments, e.g.:
+/// ```js
+/// /** @jsx h */
+/// /** @jsxFrag Fragment */
+/// ```
+fn resolve_jsx_pragmas(
+  parsed_source: &ParsedSource<'_>,
+  config: &LintConfig,
+) -> (Option<String>, Option<String>) {
+  let mut jsx_factory: Option<String> = None;
+  let mut jsx_fragment_factory: Option<String> = None;
+
+  let source_text = parsed_source.text();
+
+  for comment in parsed_source.comments().iter() {
+    let span = comment.content_span();
+    let text = &source_text[span.start as usize..span.end as usize];
+
+    // Look for @jsx pragma
+    if jsx_factory.is_none() {
+      if let Some(pos) = text.find("@jsx ") {
+        let rest = &text[pos + 5..];
+        // Take the next non-whitespace token
+        let pragma = rest.trim_start().split_whitespace().next();
+        if let Some(pragma) = pragma {
+          // Filter out @jsxFrag which also starts with @jsx
+          if !text[pos..].starts_with("@jsxFrag") {
+            jsx_factory = Some(pragma.to_string());
+          }
+        }
+      }
+    }
+
+    // Look for @jsxFrag pragma
+    if jsx_fragment_factory.is_none() {
+      if let Some(pos) = text.find("@jsxFrag ") {
+        let rest = &text[pos + 9..];
+        let pragma = rest.trim_start().split_whitespace().next();
+        if let Some(pragma) = pragma {
+          jsx_fragment_factory = Some(pragma.to_string());
+        }
+      }
+    }
+  }
+
+  // Fall back to config defaults
+  if jsx_factory.is_none() {
+    jsx_factory = config.default_jsx_factory.clone();
+  }
+  if jsx_fragment_factory.is_none() {
+    jsx_fragment_factory = config.default_jsx_fragment_factory.clone();
+  }
+
+  (jsx_factory, jsx_fragment_factory)
+}
+
+/// Extract the leftmost identifier from a dotted expression like "React.createElement".
+/// Returns "React" for "React.createElement", "h" for "h", etc.
+pub(crate) fn leftmost_identifier(expr: &str) -> &str {
+  expr.split('.').next().unwrap_or(expr)
 }
 
 /// A struct containing a boolean value to control whether a node's children

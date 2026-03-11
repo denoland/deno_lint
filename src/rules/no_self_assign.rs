@@ -1,24 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::swc_util::StringRepr;
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-
-use deno_ast::view::AssignExpr;
-use deno_ast::view::AssignOp;
-use deno_ast::view::AssignTarget;
-use deno_ast::view::Expr;
-use deno_ast::view::ExprOrSpread;
-use deno_ast::view::Ident;
-use deno_ast::view::MemberExpr;
-use deno_ast::view::MemberProp;
-use deno_ast::view::ObjectPatProp;
-use deno_ast::view::Pat;
-use deno_ast::view::Prop;
-use deno_ast::view::PropOrSpread;
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::{ContentEq, GetSpan, Span};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -49,12 +35,13 @@ impl LintRule for NoSelfAssign {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoSelfAssignVisitor.traverse(program, context);
+    let mut handler = NoSelfAssignVisitor;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -63,7 +50,7 @@ struct NoSelfAssignVisitor;
 impl NoSelfAssignVisitor {
   fn add_diagnostic(
     &mut self,
-    range: SourceRange,
+    range: Span,
     name: impl ToString,
     ctx: &mut Context,
   ) {
@@ -75,235 +62,237 @@ impl NoSelfAssignVisitor {
     );
   }
 
-  fn are_same_property(
-    &mut self,
-    left: &MemberExpr,
-    right: &MemberExpr,
+  /// Check if two member expressions refer to the same property chain.
+  fn are_same_member(
+    &self,
+    left: &MemberExpression,
+    right: &MemberExpression,
   ) -> bool {
-    match (&left.prop, &right.prop) {
-      (MemberProp::Ident(_), MemberProp::PrivateName(_)) => {
-        return false;
-      }
-      (MemberProp::PrivateName(_), MemberProp::Ident(_)) => {
-        return false;
-      }
-      _ => {}
-    }
-
-    if let (
-      MemberProp::Computed(l_computed),
-      MemberProp::Computed(r_computed),
-    ) = (&left.prop, &right.prop)
-    {
-      match (l_computed.expr, r_computed.expr) {
-        (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-          if self.are_same_ident(l_ident, r_ident) {
-            return true;
-          }
-        }
-        (Expr::Lit(l_lit), Expr::Lit(r_lit)) => {
-          if l_lit.string_repr() == r_lit.string_repr() {
-            return true;
-          }
-        }
-        _ => {}
-      }
-    }
-
-    let left_name = if matches!(left.prop, MemberProp::Computed(_)) {
-      None
-    } else {
-      left.string_repr()
-    };
-    let right_name = if matches!(right.prop, MemberProp::Computed(_)) {
-      None
-    } else {
-      right.string_repr()
-    };
-
-    if let Some(lname) = left_name {
-      if let Some(rname) = right_name {
-        return lname == rname;
-      }
-    }
-
-    false
-  }
-
-  fn are_same_member(&mut self, left: &MemberExpr, right: &MemberExpr) -> bool {
-    let same_prop = self.are_same_property(left, right);
-    if !same_prop {
+    if !self.are_same_property(left, right) {
       return false;
     }
 
-    match (left.obj, right.obj) {
-      (Expr::Member(l_member_expr), Expr::Member(r_member_expr)) => {
-        self.are_same_member(l_member_expr, r_member_expr)
-      }
-      (Expr::This(_), Expr::This(_)) => true,
-      (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.are_same_ident(l_ident, r_ident)
-      }
+    let l_obj = left.object();
+    let r_obj = right.object();
+
+    match (l_obj.as_member_expression(), r_obj.as_member_expression()) {
+      (Some(l_mem), Some(r_mem)) => self.are_same_member(l_mem, r_mem),
+      (None, None) => match (l_obj, r_obj) {
+        (Expression::ThisExpression(_), Expression::ThisExpression(_)) => true,
+        (Expression::Identifier(l), Expression::Identifier(r)) => {
+          l.name == r.name
+        }
+        _ => false,
+      },
+      _ => false,
+    }
+  }
+
+  /// Check if two member expressions access the same property.
+  fn are_same_property(
+    &self,
+    left: &MemberExpression,
+    right: &MemberExpression,
+  ) -> bool {
+    match (left, right) {
+      (
+        MemberExpression::StaticMemberExpression(l),
+        MemberExpression::StaticMemberExpression(r),
+      ) => l.property.name == r.property.name,
+      (
+        MemberExpression::PrivateFieldExpression(l),
+        MemberExpression::PrivateFieldExpression(r),
+      ) => l.field.name == r.field.name,
+      (
+        MemberExpression::ComputedMemberExpression(l),
+        MemberExpression::ComputedMemberExpression(r),
+      ) => same_computed_key(&l.expression, &r.expression),
+      // Static vs computed: compare by name
+      (
+        MemberExpression::StaticMemberExpression(s),
+        MemberExpression::ComputedMemberExpression(c),
+      ) => match_static_computed(s.property.name.as_str(), &c.expression),
+      (
+        MemberExpression::ComputedMemberExpression(c),
+        MemberExpression::StaticMemberExpression(s),
+      ) => match_static_computed(s.property.name.as_str(), &c.expression),
       _ => false,
     }
   }
 
   fn check_same_member(
     &mut self,
-    left: &MemberExpr,
-    right: &MemberExpr,
+    left: &MemberExpression,
+    right: &MemberExpression,
     ctx: &mut Context,
   ) {
     if self.are_same_member(left, right) {
-      let name = match &right.prop {
-        MemberProp::Ident(ident) => ident.string_repr(),
-        MemberProp::Computed(computed) => computed.expr.string_repr(),
-        MemberProp::PrivateName(name) => name.string_repr(),
-      }
-      .expect("Should be identifier");
-      self.add_diagnostic(right.range(), name, ctx);
+      let name = member_prop_name(right, ctx);
+      self.add_diagnostic(right.span(), name, ctx);
     }
   }
 
-  fn are_same_ident(&mut self, left: &Ident, right: &Ident) -> bool {
-    left.sym() == right.sym()
-  }
-
-  fn check_same_ident(
+  fn check_target_and_expr(
     &mut self,
-    left: &Ident,
-    right: &Ident,
+    left: &AssignmentTarget,
+    right: &Expression,
     ctx: &mut Context,
   ) {
-    if self.are_same_ident(left, right) {
-      self.add_diagnostic(right.range(), right.sym(), ctx);
-    }
-  }
-
-  fn check_expr_and_expr(
-    &mut self,
-    left: Expr,
-    right: Expr,
-    ctx: &mut Context,
-  ) {
-    match (left, right) {
-      (Expr::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.check_same_ident(l_ident, r_ident, ctx);
-      }
-      (Expr::Member(l_member), Expr::Member(r_member)) => {
-        self.check_same_member(l_member, r_member, ctx);
-      }
-      _ => {}
-    }
-  }
-
-  fn check_pat_and_spread_or_expr(
-    &mut self,
-    left: Pat,
-    right: &ExprOrSpread,
-    ctx: &mut Context,
-  ) {
-    if right.spread().is_some() {
-      if let Pat::Rest(rest_pat) = left {
-        self.check_pat_and_expr(rest_pat.arg, right.expr, ctx)
-      }
-    } else {
-      self.check_pat_and_expr(left, right.expr, ctx);
-    }
-  }
-
-  fn check_object_pat_prop_and_prop_or_spread(
-    &mut self,
-    left: &ObjectPatProp,
-    right: &PropOrSpread,
-    ctx: &mut Context,
-  ) {
-    match (left, right) {
-      (
-        ObjectPatProp::Assign(assign_pat_prop),
-        PropOrSpread::Prop(Prop::Shorthand(right_ident)),
-      ) => {
-        if assign_pat_prop.value.is_none() {
-          self.check_same_ident(assign_pat_prop.key.id, right_ident, ctx);
+    match left {
+      AssignmentTarget::AssignmentTargetIdentifier(l_ident) => {
+        if let Expression::Identifier(r_ident) = right {
+          if l_ident.name == r_ident.name {
+            self.add_diagnostic(
+              r_ident.span,
+              r_ident.name.to_string(),
+              ctx,
+            );
+          }
         }
       }
-      (
-        ObjectPatProp::KeyValue(key_val_pat_prop),
-        PropOrSpread::Prop(Prop::KeyValue(right_prop)),
-      ) => {
-        let left_name = key_val_pat_prop.key.string_repr();
-        let right_name = right_prop.key.string_repr();
+      AssignmentTarget::ArrayAssignmentTarget(l_arr) => {
+        if let Expression::ArrayExpression(r_arr) = right {
+          let end = std::cmp::min(l_arr.elements.len(), r_arr.elements.len());
+          for i in 0..end {
+            let left_elem = &l_arr.elements[i];
+            let right_elem = &r_arr.elements[i];
 
-        if let Some(lname) = left_name {
-          if let Some(rname) = right_name {
-            if lname == rname {
-              self.check_pat_and_expr(
-                key_val_pat_prop.value,
-                right_prop.value,
+            if let (Some(l_el), right_el) = (left_elem, right_elem) {
+              match right_el {
+                ArrayExpressionElement::SpreadElement(_spread) => {
+                  // Rest elements are handled separately via l_arr.rest
+                  break;
+                }
+                ArrayExpressionElement::Elision(_) => {}
+                _ => {
+                  if let AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(_) = l_el {
+                    // [a = 1] = [a] - skip, default means different
+                    continue;
+                  }
+                  if let Some(target) = l_el.as_assignment_target() {
+                    if let Some(expr) = right_el.as_expression() {
+                      self.check_target_and_expr(target, expr, ctx);
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // Handle rest element: [...a] = [...a]
+          if let Some(rest) = &l_arr.rest {
+            if let Some(ArrayExpressionElement::SpreadElement(spread)) = r_arr.elements.last() {
+              if l_arr.elements.len() < r_arr.elements.len() - 1 {
+                // [...a] = [...a, 1] - skip (more non-spread elements on right)
+              } else {
+                self.check_target_and_expr(
+                  &rest.target,
+                  &spread.argument,
+                  ctx,
+                );
+              }
+            }
+          }
+        }
+      }
+      AssignmentTarget::ObjectAssignmentTarget(l_obj) => {
+        if let Expression::ObjectExpression(r_obj) = right {
+          if r_obj.properties.is_empty() {
+            return;
+          }
+          // Find start_j: skip past last spread
+          let mut start_j = 0;
+          for (index, prop) in r_obj.properties.iter().enumerate().rev() {
+            if let ObjectPropertyKind::SpreadProperty(_) = prop {
+              start_j = index + 1;
+              break;
+            }
+          }
+
+          for l_prop in &l_obj.properties {
+            for j in start_j..r_obj.properties.len() {
+              self.check_obj_target_prop_and_obj_prop(
+                l_prop,
+                &r_obj.properties[j],
                 ctx,
               );
             }
           }
         }
       }
-      _ => {}
+      // For member expression targets, compare with right side
+      _ => {
+        if let Some(l_mem) = left.as_member_expression() {
+          if let Some(r_mem) = right.as_member_expression() {
+            self.check_same_member(l_mem, r_mem, ctx);
+          }
+        }
+      }
     }
   }
 
-  fn check_pat_and_expr(&mut self, left: Pat, right: Expr, ctx: &mut Context) {
+  fn check_obj_target_prop_and_obj_prop(
+    &mut self,
+    left: &AssignmentTargetProperty,
+    right: &ObjectPropertyKind,
+    ctx: &mut Context,
+  ) {
     match (left, right) {
-      (Pat::Expr(l_expr), _) => {
-        self.check_expr_and_expr(l_expr, right, ctx);
-      }
-      (Pat::Ident(l_ident), Expr::Ident(r_ident)) => {
-        self.check_same_ident(l_ident.id, r_ident, ctx);
-      }
-      (Pat::Array(l_array_pat), Expr::Array(r_array_lit)) => {
-        let end =
-          std::cmp::min(l_array_pat.elems.len(), r_array_lit.elems.len());
-        for i in 0..end {
-          let left_elem = &l_array_pat.elems[i];
-          let right_elem = &r_array_lit.elems[i];
-          // Avoid cases such as [...a] = [...a, 1]
-          if let Some(Pat::Rest(_)) = left_elem {
-            if i < r_array_lit.elems.len() - 1 {
-              break;
+      (
+        AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(l_ident),
+        ObjectPropertyKind::ObjectProperty(r_prop),
+      ) => {
+        // shorthand: {a} = {a}
+        if r_prop.shorthand {
+          if let Expression::Identifier(r_ident) = &r_prop.value {
+            if l_ident.init.is_none()
+              && l_ident.binding.name == r_ident.name
+            {
+              self.add_diagnostic(
+                r_ident.span,
+                r_ident.name.to_string(),
+                ctx,
+              );
             }
           }
-
-          if left_elem.is_some() && right_elem.is_some() {
-            self.check_pat_and_spread_or_expr(
-              *left_elem.as_ref().unwrap(),
-              right_elem.as_ref().unwrap(),
-              ctx,
-            );
-          }
-
-          if let Some(elem) = right_elem {
-            if elem.spread().is_some() {
-              break;
+        } else {
+          // {a} on left, {a: expr} on right
+          let r_key_name = property_key_static_name(&r_prop.key);
+          if let Some(rname) = r_key_name {
+            if l_ident.binding.name.as_str() == rname
+              && l_ident.init.is_none()
+            {
+              if let Expression::Identifier(r_ident) = &r_prop.value {
+                if l_ident.binding.name == r_ident.name {
+                  self.add_diagnostic(
+                    r_ident.span,
+                    r_ident.name.to_string(),
+                    ctx,
+                  );
+                }
+              }
             }
           }
         }
       }
-      (Pat::Object(l_obj), Expr::Object(r_obj)) => {
-        if !r_obj.props.is_empty() {
-          let mut start_j = 0;
+      (
+        AssignmentTargetProperty::AssignmentTargetPropertyProperty(l_kv),
+        ObjectPropertyKind::ObjectProperty(r_prop),
+      ) => {
+        let l_key_name = property_key_static_name(&l_kv.name);
+        let r_key_name = property_key_static_name(&r_prop.key);
 
-          for (index, prop) in r_obj.props.iter().rev().enumerate() {
-            if let PropOrSpread::Spread(_) = prop {
-              start_j = index + 1;
-              break;
-            }
-          }
-
-          for i in 0..l_obj.props.len() {
-            for j in start_j..r_obj.props.len() {
-              self.check_object_pat_prop_and_prop_or_spread(
-                &l_obj.props[i],
-                &r_obj.props[j],
-                ctx,
-              )
+        if let (Some(lname), Some(rname)) = (l_key_name, r_key_name) {
+          if lname == rname {
+            if let AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+              _,
+            ) = &l_kv.binding
+            {
+              // skip - has default
+            } else if let Some(target) =
+              l_kv.binding.as_assignment_target()
+            {
+              self.check_target_and_expr(target, &r_prop.value, ctx);
             }
           }
         }
@@ -313,18 +302,136 @@ impl NoSelfAssignVisitor {
   }
 }
 
-impl Handler for NoSelfAssignVisitor {
-  fn assign_expr(&mut self, assign_expr: &AssignExpr, ctx: &mut Context) {
-    if assign_expr.op() == AssignOp::Assign {
-      match &assign_expr.left {
-        AssignTarget::Simple(l_expr) => {
-          self.check_expr_and_expr(l_expr.as_expr(), assign_expr.right, ctx);
+fn member_prop_name(member: &MemberExpression, ctx: &Context) -> String {
+  match member {
+    MemberExpression::StaticMemberExpression(s) => {
+      s.property.name.to_string()
+    }
+    MemberExpression::PrivateFieldExpression(p) => p.field.name.to_string(),
+    MemberExpression::ComputedMemberExpression(c) => {
+      match &c.expression {
+        Expression::StringLiteral(s) => s.value.to_string(),
+        Expression::NumericLiteral(n) => n.value.to_string(),
+        Expression::BigIntLiteral(b) => {
+          b.raw.as_ref().map(|r| r.to_string()).unwrap_or_default()
         }
-        AssignTarget::Pat(l_pat) => {
-          self.check_pat_and_expr(l_pat.as_pat(), assign_expr.right, ctx);
+        _ => {
+          let src = ctx.source_text();
+          let span = c.expression.span();
+          src[span.start as usize..span.end as usize].to_string()
         }
       }
     }
+  }
+}
+
+/// Check if a static property name matches a computed expression value.
+fn match_static_computed(static_name: &str, computed_expr: &Expression) -> bool {
+  match computed_expr {
+    Expression::StringLiteral(s) => s.value.as_str() == static_name,
+    Expression::TemplateLiteral(t) => {
+      if t.expressions.is_empty() && t.quasis.len() == 1 {
+        if let Some(cooked) = &t.quasis[0].value.cooked {
+          return cooked.as_str() == static_name;
+        }
+      }
+      false
+    }
+    Expression::NumericLiteral(n) => n.value.to_string() == static_name,
+    _ => false,
+  }
+}
+
+/// Extract a static name from a property key (identifier, string, or number).
+fn property_key_static_name(key: &PropertyKey) -> Option<String> {
+  match key {
+    PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
+    PropertyKey::StringLiteral(s) => Some(s.value.to_string()),
+    PropertyKey::NumericLiteral(n) => Some(n.value.to_string()),
+    PropertyKey::PrivateIdentifier(id) => Some(id.name.to_string()),
+    PropertyKey::TemplateLiteral(t) => {
+      if t.expressions.is_empty() && t.quasis.len() == 1 {
+        t.quasis[0].value.cooked.as_ref().map(|c| c.to_string())
+      } else {
+        None
+      }
+    }
+    _ => None,
+  }
+}
+
+impl Handler<'_> for NoSelfAssignVisitor {
+  fn assignment_expression(
+    &mut self,
+    assign_expr: &AssignmentExpression,
+    ctx: &mut Context,
+  ) {
+    if assign_expr.operator != AssignmentOperator::Assign {
+      return;
+    }
+
+    // Try member expression comparison first
+    match (
+      assign_expr.left.as_member_expression(),
+      assign_expr.right.as_member_expression(),
+    ) {
+      (Some(l_mem), Some(r_mem)) => {
+        self.check_same_member(l_mem, r_mem, ctx);
+      }
+      _ => {
+        // Fall through to destructuring / identifier comparison
+        self.check_target_and_expr(
+          &assign_expr.left,
+          &assign_expr.right,
+          ctx,
+        );
+      }
+    }
+  }
+}
+
+/// Returns true if the computed key expression is "simple" (a literal or
+/// identifier), meaning it's safe to compare two such keys for self-assign.
+/// Complex expressions like `b + 1` could have side effects and we can't
+/// assume both sides evaluate to the same value.
+fn is_simple_computed_key(expr: &Expression) -> bool {
+  matches!(
+    expr,
+    Expression::StringLiteral(_)
+      | Expression::NumericLiteral(_)
+      | Expression::BooleanLiteral(_)
+      | Expression::NullLiteral(_)
+      | Expression::BigIntLiteral(_)
+      | Expression::RegExpLiteral(_)
+      | Expression::Identifier(_)
+  )
+}
+
+/// Returns the string representation of a regex literal as a property key.
+/// Since `obj[/foo/]` === `obj['/foo/']`, the regex converts to `/<pattern>/<flags>`.
+fn regex_as_key_string(r: &deno_ast::oxc::ast::ast::RegExpLiteral) -> String {
+  format!("/{}/{}", r.regex.pattern.text, r.regex.flags)
+}
+
+/// Returns true if two computed key expressions refer to the same key,
+/// accounting for the fact that regex literals coerce to strings as keys.
+fn same_computed_key(l: &Expression, r: &Expression) -> bool {
+  if !is_simple_computed_key(l) || !is_simple_computed_key(r) {
+    return false;
+  }
+  // If both are exactly the same expression type and value, they match
+  if l.content_eq(r) {
+    return true;
+  }
+  // Handle regex vs string coercion: `/foo/` as a key equals `"/foo/"`
+  match (l, r) {
+    (Expression::RegExpLiteral(rl), Expression::StringLiteral(rs)) => {
+      regex_as_key_string(rl) == rs.value.as_str()
+    }
+    (Expression::StringLiteral(ls), Expression::RegExpLiteral(rr)) => {
+      ls.value.as_str() == regex_as_key_string(rr)
+    }
+    _ => false,
   }
 }
 

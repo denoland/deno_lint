@@ -1,9 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::SourceRanged;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct GuardForIn;
@@ -17,37 +16,38 @@ impl LintRule for GuardForIn {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    GuardForInHandler.traverse(program, context);
+    let mut handler = GuardForInHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct GuardForInHandler;
 
-impl Handler for GuardForInHandler {
-  fn for_in_stmt(
+impl Handler<'_> for GuardForInHandler {
+  fn for_in_statement(
     &mut self,
-    for_in_stmt: &deno_ast::view::ForInStmt,
+    for_in_stmt: &ForInStatement,
     ctx: &mut Context,
   ) {
-    use deno_ast::view::Stmt::{Block, Continue, Empty, If};
+    use Statement::{BlockStatement, ContinueStatement, EmptyStatement, IfStatement};
 
-    match for_in_stmt.body {
-      Empty(_) | If(_) => (),
-      Block(block_stmt) => {
-        match block_stmt.stmts[..] {
+    match &for_in_stmt.body {
+      EmptyStatement(_) | IfStatement(_) => (),
+      BlockStatement(block_stmt) => {
+        match block_stmt.body.as_slice() {
           // empty block
           [] => (),
 
           // block statement with only an if statement
           [stmt] => {
-            if !matches!(stmt, If(_)) {
+            if !matches!(stmt, IfStatement(_)) {
               ctx.add_diagnostic_with_hint(
-                for_in_stmt.range(),
+                for_in_stmt.span,
                 CODE,
                 MESSAGE,
                 HINT,
@@ -57,9 +57,9 @@ impl Handler for GuardForInHandler {
 
           // block statement that start with an if statement with only a continue statement
           [first, ..] => {
-            let If(if_stmt) = first else {
+            let IfStatement(if_stmt) = first else {
               ctx.add_diagnostic_with_hint(
-                for_in_stmt.range(),
+                for_in_stmt.span,
                 CODE,
                 MESSAGE,
                 HINT,
@@ -67,12 +67,13 @@ impl Handler for GuardForInHandler {
               return;
             };
 
-            match if_stmt.cons {
-              Continue(_) => (),
-              Block(inner_block_stmt) => {
-                if !matches!(inner_block_stmt.stmts[..], [Continue(_)]) {
+            match &if_stmt.consequent {
+              ContinueStatement(_) => (),
+              BlockStatement(inner_block_stmt) => {
+                if !matches!(inner_block_stmt.body.as_slice(), [ContinueStatement(_)])
+                {
                   ctx.add_diagnostic_with_hint(
-                    for_in_stmt.range(),
+                    for_in_stmt.span,
                     CODE,
                     MESSAGE,
                     HINT,
@@ -81,7 +82,7 @@ impl Handler for GuardForInHandler {
               }
               _ => {
                 ctx.add_diagnostic_with_hint(
-                  for_in_stmt.range(),
+                  for_in_stmt.span,
                   CODE,
                   MESSAGE,
                   HINT,
@@ -92,7 +93,7 @@ impl Handler for GuardForInHandler {
         }
       }
       _ => {
-        ctx.add_diagnostic_with_hint(for_in_stmt.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(for_in_stmt.span, CODE, MESSAGE, HINT);
       }
     };
   }

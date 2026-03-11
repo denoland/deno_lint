@@ -1,9 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::{view as ast_view, MediaType, SourceRanged};
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{
+  Function, MethodDefinition, MethodDefinitionKind, ObjectProperty, Program,
+  PropertyKind,
+};
+use deno_ast::MediaType;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -28,34 +31,57 @@ impl LintRule for ExplicitFunctionReturnType {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     // ignore js(x) files
     if matches!(context.media_type(), MediaType::JavaScript | MediaType::Jsx) {
       return;
     }
-    ExplicitFunctionReturnTypeHandler.traverse(program, context);
+    let mut handler = ExplicitFunctionReturnTypeHandler {
+      skip_next_function: false,
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct ExplicitFunctionReturnTypeHandler;
+struct ExplicitFunctionReturnTypeHandler {
+  /// When true, the next `function` callback should be skipped (it's a setter's function).
+  skip_next_function: bool,
+}
 
-impl Handler for ExplicitFunctionReturnTypeHandler {
-  fn function(&mut self, function: &ast_view::Function, context: &mut Context) {
-    let is_method_setter = matches!(
-      function
-        .parent()
-        .to::<ast_view::ClassMethod>()
-        .map(|m| m.method_kind()),
-      Some(ast_view::MethodKind::Setter)
-    );
+impl Handler<'_> for ExplicitFunctionReturnTypeHandler {
+  fn method_definition(
+    &mut self,
+    method_def: &MethodDefinition,
+    _ctx: &mut Context,
+  ) {
+    if method_def.kind == MethodDefinitionKind::Set {
+      self.skip_next_function = true;
+    }
+  }
 
-    if function.return_type.is_none() && !is_method_setter {
-      context.add_diagnostic_with_hint(
-        function.range(),
+  fn object_property(
+    &mut self,
+    prop: &ObjectProperty,
+    _ctx: &mut Context,
+  ) {
+    if prop.kind == PropertyKind::Set {
+      self.skip_next_function = true;
+    }
+  }
+
+  fn function(&mut self, function: &Function, ctx: &mut Context) {
+    if self.skip_next_function {
+      self.skip_next_function = false;
+      return;
+    }
+
+    if function.return_type.is_none() {
+      ctx.add_diagnostic_with_hint(
+        function.span,
         CODE,
         ExplicitFunctionReturnTypeMessage::MissingRetType,
         ExplicitFunctionReturnTypeHint::AddRetType,

@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, MemberProp};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{CallExpression, Expression, Program};
 
 const BANNED_PROPERTIES: &[&str] =
   &["hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable"];
@@ -31,31 +29,30 @@ impl LintRule for NoPrototypeBuiltins {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoPrototypeBuiltinsHandler.traverse(program, context);
+    let mut handler = NoPrototypeBuiltinsHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoPrototypeBuiltinsHandler;
 
-impl Handler for NoPrototypeBuiltinsHandler {
-  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    let member_expr = match call_expr.callee {
-      Callee::Expr(boxed_expr) => match boxed_expr {
-        Expr::Member(member_expr) => member_expr,
-        _ => return,
-      },
-      Callee::Super(_) | Callee::Import(_) => return,
-    };
-
-    if let MemberProp::Ident(ident) = member_expr.prop {
-      let prop_name = ident.sym().as_ref();
+impl Handler<'_> for NoPrototypeBuiltinsHandler {
+  fn call_expression(
+    &mut self,
+    call_expr: &CallExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::StaticMemberExpression(member_expr) =
+      &call_expr.callee
+    {
+      let prop_name = member_expr.property.name.as_str();
       if BANNED_PROPERTIES.contains(&prop_name) {
-        ctx.add_diagnostic(call_expr.range(), CODE, get_message(prop_name));
+        ctx.add_diagnostic(call_expr.span, CODE, get_message(prop_name));
       }
     }
   }

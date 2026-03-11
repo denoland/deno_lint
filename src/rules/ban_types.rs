@@ -1,12 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::TsEntityName;
-use deno_ast::{view as ast_view, SourceRanged};
-use if_chain::if_chain;
+use deno_ast::oxc::ast::ast::*;
 use std::convert::TryFrom;
 
 #[derive(Debug)]
@@ -83,47 +80,46 @@ impl LintRule for BanTypes {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    BanTypesHandler.traverse(program, context);
+    let mut handler = BanTypesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct BanTypesHandler;
 
-impl Handler for BanTypesHandler {
-  fn ts_type_ref(
+impl Handler<'_> for BanTypesHandler {
+  fn ts_type_reference(
     &mut self,
-    ts_type_ref: &ast_view::TsTypeRef,
+    ts_type_ref: &TSTypeReference,
     ctx: &mut Context,
   ) {
-    if_chain! {
-      if let TsEntityName::Ident(ident) = &ts_type_ref.type_name;
-      if ident.ctxt() == ctx.unresolved_ctxt();
-      if ctx.scope().is_global(&ident.to_id());
-      if let Ok(banned_type) = BannedType::try_from(ident.sym().as_ref());
-      then {
-        ctx.add_diagnostic_with_hint(
-          ts_type_ref.range(),
-          CODE,
-          banned_type.as_message(),
-          banned_type.as_hint(),
-        );
+    if let TSTypeName::IdentifierReference(ident) = &ts_type_ref.type_name {
+      if ctx.scope().var_by_name(ident.name.as_str()).is_none() {
+        if let Ok(banned_type) = BannedType::try_from(ident.name.as_str()) {
+          ctx.add_diagnostic_with_hint(
+            ts_type_ref.span,
+            CODE,
+            banned_type.as_message(),
+            banned_type.as_hint(),
+          );
+        }
       }
     }
   }
 
-  fn ts_type_lit(
+  fn ts_type_literal(
     &mut self,
-    ts_type_lit: &ast_view::TsTypeLit,
+    ts_type_lit: &TSTypeLiteral,
     ctx: &mut Context,
   ) {
     if ts_type_lit.members.is_empty() {
       ctx.add_diagnostic_with_hint(
-        ts_type_lit.range(),
+        ts_type_lit.span,
         CODE,
         BannedType::EmptyObjectLiteral.as_message(),
         BannedType::EmptyObjectLiteral.as_hint(),

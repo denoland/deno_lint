@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::{
-  tags::{self, Tags},
-  Program,
-};
-use deno_ast::SourceRange;
+use crate::tags::{self, Tags};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct BanUntaggedIgnore;
@@ -21,12 +19,12 @@ impl LintRule for BanUntaggedIgnore {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    _program: Program,
+    context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
-    let mut violated_ranges: Vec<SourceRange> = context
+    let mut violated_ranges: Vec<Span> = context
       .file_ignore_directive()
       .iter()
       .filter(|d| d.ignore_all())

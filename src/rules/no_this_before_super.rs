@@ -1,11 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  CallExpression, Class, Expression, FunctionBody,
+  MethodDefinitionKind, Program, Statement,
+};
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoThisBeforeSuper;
@@ -23,172 +25,413 @@ impl LintRule for NoThisBeforeSuper {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let mut handler = NoThisBeforeSuperHandler::new();
-    handler.traverse(program, context);
+    let mut handler = NoThisBeforeSuperHandler {
+      is_derived_class: Vec::new(),
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoThisBeforeSuperHandler {
-  /// Stores bools that represent whether classes are derived one or not.
-  /// When it enters a class, a bool value is pushed into this vector. And when it leaves the
-  /// class, pop the last value of vector.
-  /// The last value of the vector indicates whether we are now in a derived class or not.
   is_derived_class: Vec<bool>,
 }
 
 impl NoThisBeforeSuperHandler {
-  fn new() -> Self {
-    Self {
-      is_derived_class: Vec::new(),
-    }
-  }
-
-  fn enter_class(&mut self, is_derived: bool) {
-    self.is_derived_class.push(is_derived);
-  }
-
-  fn leave_class(&mut self) {
-    assert!(!self.is_derived_class.is_empty());
-    self.is_derived_class.pop();
-  }
-
   fn inside_derived_class(&self) -> bool {
-    match self.is_derived_class.as_slice() {
-      [] => false,
-      [x] => *x,
-      [.., x] => *x,
-    }
-  }
-}
-
-impl Handler for NoThisBeforeSuperHandler {
-  fn on_enter_node(&mut self, node: ast_view::Node, _ctx: &mut Context) {
-    if let ast_view::Node::Class(class) = node {
-      let is_derived = class.super_class.is_some();
-      self.enter_class(is_derived);
-    }
-  }
-
-  fn on_exit_node(&mut self, node: ast_view::Node, _ctx: &mut Context) {
-    if matches!(node, ast_view::Node::Class(_)) {
-      self.leave_class();
-    }
-  }
-
-  fn constructor(&mut self, cons: &ast_view::Constructor, ctx: &mut Context) {
-    if !self.inside_derived_class() {
-      return;
-    }
-
-    if let Some(body) = cons.body {
-      for stmt in body.stmts {
-        let mut checker = SuperCallChecker::new(stmt.range());
-        checker.traverse(*stmt, ctx);
-        match checker.result() {
-          None => (),
-          Some(FirstAppeared::SuperCalled) => break,
-          Some(FirstAppeared::ThisAccessed(range))
-          | Some(FirstAppeared::SuperAccessed(range)) => {
-            ctx.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
-          }
-        }
-      }
-    }
+    self.is_derived_class.last().copied().unwrap_or(false)
   }
 }
 
 enum FirstAppeared {
   SuperCalled,
-  SuperAccessed(SourceRange),
-  ThisAccessed(SourceRange),
+  SuperAccessed(Span),
+  ThisAccessed(Span),
 }
 
-struct SuperCallChecker {
-  first_appeared: Option<FirstAppeared>,
-  root_range: SourceRange,
+fn check_stmt_for_this_before_super(
+  stmt: &Statement,
+) -> Option<FirstAppeared> {
+  let mut checker = StmtChecker {
+    result: None,
+    fn_depth: 0,
+  };
+  check_statement(&mut checker, stmt);
+  checker.result
 }
 
-impl SuperCallChecker {
-  fn new(root_range: SourceRange) -> Self {
-    Self {
-      first_appeared: None,
-      root_range,
+struct StmtChecker {
+  result: Option<FirstAppeared>,
+  fn_depth: u32,
+}
+
+impl StmtChecker {
+  fn record_this(&mut self, span: Span) {
+    if self.fn_depth == 0 && self.result.is_none() {
+      self.result = Some(FirstAppeared::ThisAccessed(span));
     }
   }
 
-  fn yet_appeared(&self) -> bool {
-    self.first_appeared.is_none()
+  fn record_super_access(&mut self, span: Span) {
+    if self.fn_depth == 0 && self.result.is_none() {
+      self.result = Some(FirstAppeared::SuperAccessed(span));
+    }
   }
 
-  fn result(self) -> Option<FirstAppeared> {
-    self.first_appeared
+  fn record_super_call(&mut self) {
+    if self.fn_depth == 0 && self.result.is_none() {
+      self.result = Some(FirstAppeared::SuperCalled);
+    }
   }
+}
 
-  fn node_is_inside_function(&self, node: ast_view::Node) -> bool {
-    fn inside_function(
-      root_range: SourceRange,
-      cur_node: ast_view::Node,
-    ) -> bool {
-      // Stop recursion if the current node gets out of root_node.
-      if !root_range.contains(&cur_node.range()) {
-        return false;
+fn check_expression(checker: &mut StmtChecker, expr: &Expression) {
+  if checker.result.is_some() {
+    return;
+  }
+  match expr {
+    Expression::ThisExpression(this) => {
+      checker.record_this(this.span);
+    }
+    Expression::Super(s) => {
+      checker.record_super_access(s.span);
+    }
+    Expression::CallExpression(call) => {
+      check_call_expression(checker, call);
+    }
+    Expression::FunctionExpression(_)
+    | Expression::ArrowFunctionExpression(_) => {
+      // Don't descend into nested functions
+    }
+    Expression::ClassExpression(class) => {
+      // Don't descend into nested class bodies, but do check super_class
+      if let Some(super_class) = &class.super_class {
+        check_expression(checker, super_class);
       }
-
-      if matches!(
-        cur_node,
-        ast_view::Node::Function(_) | ast_view::Node::ArrowExpr(_)
-      ) {
-        return true;
-      }
-
-      inside_function(root_range, cur_node.parent().unwrap())
     }
-
-    inside_function(self.root_range, node)
+    Expression::AssignmentExpression(a) => {
+      check_expression(checker, &a.right);
+      // Also check left side for member expressions containing this/super
+      check_assignment_target(checker, &a.left);
+    }
+    Expression::BinaryExpression(b) => {
+      check_expression(checker, &b.left);
+      check_expression(checker, &b.right);
+    }
+    Expression::LogicalExpression(l) => {
+      check_expression(checker, &l.left);
+      check_expression(checker, &l.right);
+    }
+    Expression::ConditionalExpression(c) => {
+      check_expression(checker, &c.test);
+      check_expression(checker, &c.consequent);
+      check_expression(checker, &c.alternate);
+    }
+    Expression::SequenceExpression(s) => {
+      for e in &s.expressions {
+        check_expression(checker, e);
+      }
+    }
+    Expression::UnaryExpression(u) => {
+      check_expression(checker, &u.argument);
+    }
+    Expression::UpdateExpression(u) => {
+      check_simple_assign_target_expr(checker, &u.argument);
+    }
+    Expression::AwaitExpression(a) => {
+      check_expression(checker, &a.argument);
+    }
+    Expression::YieldExpression(y) => {
+      if let Some(arg) = &y.argument {
+        check_expression(checker, arg);
+      }
+    }
+    Expression::NewExpression(n) => {
+      check_expression(checker, &n.callee);
+      for arg in &n.arguments {
+        check_argument(checker, arg);
+      }
+    }
+    Expression::ArrayExpression(a) => {
+      for elem in &a.elements {
+        match elem {
+          deno_ast::oxc::ast::ast::ArrayExpressionElement::SpreadElement(
+            s,
+          ) => {
+            check_expression(checker, &s.argument);
+          }
+          deno_ast::oxc::ast::ast::ArrayExpressionElement::Elision(_) => {}
+          _ => {
+            if let Some(expr) = elem.as_expression() {
+              check_expression(checker, expr);
+            }
+          }
+        }
+      }
+    }
+    Expression::ObjectExpression(o) => {
+      for prop in &o.properties {
+        match prop {
+          deno_ast::oxc::ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
+            check_expression(checker, &p.value);
+          }
+          deno_ast::oxc::ast::ast::ObjectPropertyKind::SpreadProperty(s) => {
+            check_expression(checker, &s.argument);
+          }
+        }
+      }
+    }
+    Expression::TemplateLiteral(t) => {
+      for expr in &t.expressions {
+        check_expression(checker, expr);
+      }
+    }
+    Expression::TaggedTemplateExpression(t) => {
+      check_expression(checker, &t.tag);
+      for expr in &t.quasi.expressions {
+        check_expression(checker, expr);
+      }
+    }
+    Expression::StaticMemberExpression(m) => {
+      check_expression(checker, &m.object);
+    }
+    Expression::ComputedMemberExpression(m) => {
+      check_expression(checker, &m.object);
+      check_expression(checker, &m.expression);
+    }
+    Expression::PrivateFieldExpression(m) => {
+      check_expression(checker, &m.object);
+    }
+    Expression::ParenthesizedExpression(p) => {
+      check_expression(checker, &p.expression);
+    }
+    Expression::TSAsExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    Expression::TSTypeAssertion(t) => {
+      check_expression(checker, &t.expression);
+    }
+    Expression::TSNonNullExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    Expression::TSSatisfiesExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    Expression::TSInstantiationExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    _ => {}
   }
 }
 
-impl Handler for SuperCallChecker {
-  fn this_expr(&mut self, this_expr: &ast_view::ThisExpr, _ctx: &mut Context) {
-    if self.node_is_inside_function(this_expr.as_node()) {
-      return;
-    }
+fn check_argument(
+  checker: &mut StmtChecker,
+  arg: &deno_ast::oxc::ast::ast::Argument,
+) {
+  if let Some(expr) = arg.as_expression() {
+    check_expression(checker, expr);
+  } else if let deno_ast::oxc::ast::ast::Argument::SpreadElement(s) = arg {
+    check_expression(checker, &s.argument);
+  }
+}
 
-    if self.yet_appeared() {
-      self.first_appeared =
-        Some(FirstAppeared::ThisAccessed(this_expr.range()));
+fn check_simple_assign_target_expr(
+  checker: &mut StmtChecker,
+  expr: &deno_ast::oxc::ast::ast::SimpleAssignmentTarget,
+) {
+  use deno_ast::oxc::ast::ast::SimpleAssignmentTarget::*;
+  match expr {
+    AssignmentTargetIdentifier(_) => {}
+    TSAsExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    TSNonNullExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    TSSatisfiesExpression(t) => {
+      check_expression(checker, &t.expression);
+    }
+    TSTypeAssertion(t) => {
+      check_expression(checker, &t.expression);
+    }
+    _ => {
+      if let Some(member) = expr.as_member_expression() {
+        check_member_expr(checker, member);
+      }
+    }
+  }
+}
+
+fn check_member_expr(
+  checker: &mut StmtChecker,
+  member: &deno_ast::oxc::ast::ast::MemberExpression,
+) {
+  match member {
+    deno_ast::oxc::ast::ast::MemberExpression::StaticMemberExpression(m) => {
+      check_expression(checker, &m.object);
+    }
+    deno_ast::oxc::ast::ast::MemberExpression::ComputedMemberExpression(
+      m,
+    ) => {
+      check_expression(checker, &m.object);
+      check_expression(checker, &m.expression);
+    }
+    deno_ast::oxc::ast::ast::MemberExpression::PrivateFieldExpression(m) => {
+      check_expression(checker, &m.object);
+    }
+  }
+}
+
+fn check_assignment_target(
+  checker: &mut StmtChecker,
+  target: &deno_ast::oxc::ast::ast::AssignmentTarget,
+) {
+  use deno_ast::oxc::ast::ast::AssignmentTarget;
+  match target {
+    AssignmentTarget::AssignmentTargetIdentifier(_) => {}
+    _ => {
+      if let Some(simple) = target.as_simple_assignment_target() {
+        check_simple_assign_target_expr(checker, simple);
+      }
+    }
+  }
+}
+
+fn check_call_expression(checker: &mut StmtChecker, call: &CallExpression) {
+  // arguments are evaluated before the callee
+  for arg in &call.arguments {
+    check_argument(checker, arg);
+  }
+
+  if checker.result.is_none() {
+    if matches!(&call.callee, Expression::Super(_)) {
+      checker.record_super_call();
+      return;
     }
   }
 
-  fn super_(&mut self, super_: &ast_view::Super, _ctx: &mut Context) {
-    if self.node_is_inside_function(super_.as_node()) {
-      return;
-    }
+  check_expression(checker, &call.callee);
+}
 
-    if self.yet_appeared() {
-      self.first_appeared = Some(FirstAppeared::SuperAccessed(super_.range()));
+fn check_statement(checker: &mut StmtChecker, stmt: &Statement) {
+  if checker.result.is_some() {
+    return;
+  }
+  match stmt {
+    Statement::ExpressionStatement(expr_stmt) => {
+      check_expression(checker, &expr_stmt.expression);
+    }
+    Statement::VariableDeclaration(var_decl) => {
+      for decl in &var_decl.declarations {
+        if let Some(init) = &decl.init {
+          check_expression(checker, init);
+        }
+      }
+    }
+    Statement::ReturnStatement(ret) => {
+      if let Some(arg) = &ret.argument {
+        check_expression(checker, arg);
+      }
+    }
+    Statement::ThrowStatement(t) => {
+      check_expression(checker, &t.argument);
+    }
+    Statement::IfStatement(if_stmt) => {
+      check_expression(checker, &if_stmt.test);
+      check_statement(checker, &if_stmt.consequent);
+      if let Some(alt) = &if_stmt.alternate {
+        check_statement(checker, alt);
+      }
+    }
+    Statement::BlockStatement(block) => {
+      for s in &block.body {
+        check_statement(checker, s);
+      }
+    }
+    Statement::ForStatement(f) => {
+      if let Some(init) = &f.init {
+        if let deno_ast::oxc::ast::ast::ForStatementInit::VariableDeclaration(
+          v,
+        ) = init
+        {
+          for decl in &v.declarations {
+            if let Some(init_expr) = &decl.init {
+              check_expression(checker, init_expr);
+            }
+          }
+        } else if let Some(expr) = init.as_expression() {
+          check_expression(checker, expr);
+        }
+      }
+    }
+    Statement::WhileStatement(w) => {
+      check_expression(checker, &w.test);
+    }
+    Statement::DoWhileStatement(d) => {
+      check_expression(checker, &d.test);
+    }
+    Statement::SwitchStatement(s) => {
+      check_expression(checker, &s.discriminant);
+      for case in &s.cases {
+        if let Some(test) = &case.test {
+          check_expression(checker, test);
+        }
+        for s in &case.consequent {
+          check_statement(checker, s);
+        }
+      }
+    }
+    Statement::TryStatement(t) => {
+      for s in &t.block.body {
+        check_statement(checker, s);
+      }
+    }
+    _ => {}
+  }
+}
+
+fn check_constructor_body(body: &FunctionBody, ctx: &mut Context) {
+  for stmt in &body.statements {
+    match check_stmt_for_this_before_super(stmt) {
+      None => continue,
+      Some(FirstAppeared::SuperCalled) => break,
+      Some(FirstAppeared::ThisAccessed(span))
+      | Some(FirstAppeared::SuperAccessed(span)) => {
+        ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
+      }
     }
   }
+}
 
-  fn call_expr(&mut self, call_expr: &ast_view::CallExpr, ctx: &mut Context) {
-    if self.node_is_inside_function(call_expr.as_node()) {
+impl Handler<'_> for NoThisBeforeSuperHandler {
+  fn class(&mut self, n: &Class, _ctx: &mut Context) {
+    let is_derived = n.super_class.is_some();
+    self.is_derived_class.push(is_derived);
+  }
+
+  fn class_exit(&mut self, _n: &Class, _ctx: &mut Context) {
+    self.is_derived_class.pop();
+  }
+
+  fn method_definition(
+    &mut self,
+    n: &deno_ast::oxc::ast::ast::MethodDefinition,
+    ctx: &mut Context,
+  ) {
+    if n.kind != MethodDefinitionKind::Constructor {
       return;
     }
 
-    // arguments are evaluated before the callee
-    for arg in call_expr.args {
-      self.traverse(arg.as_node(), ctx);
+    if !self.inside_derived_class() {
+      return;
     }
 
-    if self.yet_appeared()
-      && matches!(call_expr.callee, ast_view::Callee::Super(_))
-    {
-      self.first_appeared = Some(FirstAppeared::SuperCalled);
+    if let Some(body) = &n.value.body {
+      check_constructor_body(body, ctx);
     }
   }
 }

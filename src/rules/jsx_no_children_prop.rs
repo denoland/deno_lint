@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{JSXAttrName, JSXAttrOrSpread, JSXOpeningElement};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  JSXAttributeItem, JSXAttributeName, JSXOpeningElement, Program,
+};
+
 
 #[derive(Debug)]
 pub struct JSXNoChildrenProp;
@@ -21,12 +22,13 @@ impl LintRule for JSXNoChildrenProp {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXNoChildrenPropHandler.traverse(program, context);
+    let mut handler = JSXNoChildrenPropHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -34,17 +36,17 @@ const MESSAGE: &str = "Avoid passing children as a prop";
 
 struct JSXNoChildrenPropHandler;
 
-impl Handler for JSXNoChildrenPropHandler {
+impl Handler<'_> for JSXNoChildrenPropHandler {
   fn jsx_opening_element(
     &mut self,
     node: &JSXOpeningElement,
     ctx: &mut Context,
   ) {
-    for attr in node.attrs {
-      if let JSXAttrOrSpread::JSXAttr(attr) = attr {
-        if let JSXAttrName::Ident(id) = attr.name {
-          if id.sym() == "children" {
-            ctx.add_diagnostic(attr.range(), CODE, MESSAGE);
+    for attr in &node.attributes {
+      if let JSXAttributeItem::Attribute(attr) = attr {
+        if let JSXAttributeName::Identifier(id) = &attr.name {
+          if id.name.as_str() == "children" {
+            ctx.add_diagnostic(attr.span, CODE, MESSAGE);
           }
         }
       }

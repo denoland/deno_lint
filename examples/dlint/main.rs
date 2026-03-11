@@ -5,7 +5,6 @@ use anyhow::Error as AnyError;
 use clap::Arg;
 use clap::Command;
 use core::panic;
-use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
 use deno_lint::linter::LintConfig;
@@ -120,7 +119,7 @@ fn run_linter(
     .try_for_each(|file_path| -> Result<(), AnyError> {
       let source_code = std::fs::read_to_string(file_path)?;
 
-      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
+      let diagnostics = linter.lint_file(LintFileOptions {
         specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(
           |_| {
             panic!(
@@ -138,15 +137,7 @@ fn run_linter(
         external_linter: None,
       })?;
 
-      let mut number_of_errors = diagnostics.len();
-      if !parsed_source.diagnostics().is_empty() {
-        number_of_errors += parsed_source.diagnostics().to_vec().len();
-        parsed_source.diagnostics().to_vec().iter().for_each(
-          |parsing_diagnostic| {
-            eprintln!("{}", parsing_diagnostic.display());
-          },
-        );
-      }
+      let number_of_errors = diagnostics.len();
 
       error_counts.fetch_add(number_of_errors, Ordering::Relaxed);
 

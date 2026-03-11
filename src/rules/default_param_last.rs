@@ -1,9 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRanged};
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::GetSpan;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -30,75 +30,66 @@ impl LintRule for DefaultParamLast {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    DefaultParamLastHandler.traverse(program, context);
+    let mut handler = DefaultParamLastHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct DefaultParamLastHandler;
 
-impl Handler for DefaultParamLastHandler {
-  fn function(&mut self, function: &ast_view::Function, ctx: &mut Context) {
-    check_params(function.params.iter().rev().copied().map(|p| p.pat), ctx);
+fn has_default(param: &FormalParameter) -> bool {
+  param.initializer.is_some()
+    || matches!(&param.pattern, BindingPattern::AssignmentPattern(_))
+}
+
+impl Handler<'_> for DefaultParamLastHandler {
+  fn function(&mut self, function: &Function, ctx: &mut Context) {
+    check_params(&function.params, ctx);
   }
 
-  fn constructor(
+  fn arrow_function_expression(
     &mut self,
-    constructor: &ast_view::Constructor,
+    arrow_expr: &ArrowFunctionExpression,
     ctx: &mut Context,
   ) {
-    check_params(
-      constructor.params.iter().rev().copied().map(|p| match p {
-        ast_view::ParamOrTsParamProp::TsParamProp(ts_param_prop) => {
-          match ts_param_prop.param {
-            ast_view::TsParamPropParam::Ident(ident) => {
-              ast_view::Pat::Ident(ident)
-            }
-            ast_view::TsParamPropParam::Assign(assign) => {
-              ast_view::Pat::Assign(assign)
-            }
-          }
-        }
-        ast_view::ParamOrTsParamProp::Param(param) => param.pat,
-      }),
-      ctx,
-    )
-  }
-
-  fn arrow_expr(
-    &mut self,
-    arrow_expr: &ast_view::ArrowExpr,
-    ctx: &mut Context,
-  ) {
-    check_params(arrow_expr.params.iter().rev().copied(), ctx);
+    check_params(&arrow_expr.params, ctx);
   }
 }
 
-fn check_params<'a, 'b, I>(params: I, ctx: &mut Context)
-where
-  I: Iterator<Item = ast_view::Pat<'b>>,
-{
+fn check_params(params: &FormalParameters, ctx: &mut Context) {
   let mut has_seen_normal_param = false;
-  for param in params {
-    match param {
-      ast_view::Pat::Assign(pat) => {
-        if has_seen_normal_param {
-          ctx.add_diagnostic_with_hint(
-            pat.range(),
-            CODE,
-            DefaultParamLastMessage::DefaultLast,
-            DefaultParamLastHint::MoveToEnd,
-          );
-        }
+  for param in params.items.iter().rev() {
+    if has_default(param) {
+      if has_seen_normal_param {
+        // For constructor params with accessibility (TSParameterProperty),
+        // report on the initializer or assignment pattern span
+        let report_span = if let BindingPattern::AssignmentPattern(assign) =
+          &param.pattern
+        {
+          assign.span
+        } else if let Some(init) = &param.initializer {
+          // Report the span covering the pattern + initializer
+          let pattern_span = param.pattern.span();
+          deno_ast::oxc::span::Span::new(pattern_span.start, init.span().end)
+        } else {
+          param.span
+        };
+        ctx.add_diagnostic_with_hint(
+          report_span,
+          CODE,
+          DefaultParamLastMessage::DefaultLast,
+          DefaultParamLastHint::MoveToEnd,
+        );
       }
-      ast_view::Pat::Rest(_) => {}
-      _ => {
-        has_seen_normal_param = true;
-      }
+    } else {
+      // In OXC, rest params are stored separately in FormalParameters.rest,
+      // not as items, so all non-default items are normal params.
+      has_seen_normal_param = true;
     }
   }
 }

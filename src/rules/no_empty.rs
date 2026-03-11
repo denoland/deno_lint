@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
-use deno_ast::{SourceRanged, SourceRangedForSpanned};
+use deno_ast::oxc::ast::ast::{BlockStatement, Program, SwitchStatement};
 
 #[derive(Debug)]
 pub struct NoEmpty;
@@ -21,31 +19,40 @@ impl LintRule for NoEmpty {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoEmptyHandler.traverse(program, context);
+    let mut handler = NoEmptyHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoEmptyHandler;
 
-impl Handler for NoEmptyHandler {
-  fn block_stmt(&mut self, block_stmt: &BlockStmt, ctx: &mut Context) {
-    // Empty functions shouldn't be caught by this rule.
-    // Because function's body is a block statement, we're gonna
-    // manually visit each member; otherwise rule would produce errors
-    // for empty function or arrow body or constructor.
-    if block_stmt.stmts.is_empty()
-      && !block_stmt.parent().is::<Function>()
-      && !block_stmt.parent().is::<ArrowExpr>()
-      && !block_stmt.parent().is::<Constructor>()
-      && !block_stmt.contains_comments(ctx)
+fn block_contains_comments(block_stmt: &BlockStatement, ctx: &Context) -> bool {
+  ctx
+    .all_comments()
+    .any(|comment| {
+      comment.span.start > block_stmt.span.start
+        && comment.span.end < block_stmt.span.end
+    })
+}
+
+impl Handler<'_> for NoEmptyHandler {
+  fn block_statement(
+    &mut self,
+    block_stmt: &BlockStatement,
+    ctx: &mut Context,
+  ) {
+    // In OXC, function/arrow/constructor bodies are FunctionBody, not
+    // BlockStatement, so we don't need to check parents here.
+    if block_stmt.body.is_empty()
+      && !block_contains_comments(block_stmt, ctx)
     {
       ctx.add_diagnostic_with_hint(
-        block_stmt.range(),
+        block_stmt.span,
         CODE,
         "Empty block statement",
         "Add code or comment to the empty block",
@@ -53,27 +60,19 @@ impl Handler for NoEmptyHandler {
     }
   }
 
-  fn switch_stmt(&mut self, switch: &SwitchStmt, ctx: &mut Context) {
+  fn switch_statement(
+    &mut self,
+    switch: &SwitchStatement,
+    ctx: &mut Context,
+  ) {
     if switch.cases.is_empty() {
       ctx.add_diagnostic_with_hint(
-        switch.range(),
+        switch.span,
         CODE,
         "Empty switch statement",
         "Add case statement(s) to the empty switch, or remove",
       );
     }
-  }
-}
-
-trait ContainsComments {
-  fn contains_comments(&self, context: &Context) -> bool;
-}
-
-impl ContainsComments for BlockStmt<'_> {
-  fn contains_comments(&self, context: &Context) -> bool {
-    context
-      .all_comments()
-      .any(|comment| self.range().contains(&comment.range()))
   }
 }
 

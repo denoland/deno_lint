@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view as ast_view;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{Program, WithStatement};
 
 #[derive(Debug)]
 pub struct NoWith;
@@ -22,20 +20,25 @@ impl LintRule for NoWith {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoWithHandler.traverse(program, context);
+    let mut handler = NoWithHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoWithHandler;
 
-impl Handler for NoWithHandler {
-  fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
-    ctx.add_diagnostic(with_stmt.range(), CODE, MESSAGE);
+impl Handler<'_> for NoWithHandler {
+  fn with_statement(
+    &mut self,
+    with_stmt: &WithStatement,
+    ctx: &mut Context,
+  ) {
+    ctx.add_diagnostic(with_stmt.span, CODE, MESSAGE);
   }
 }
 

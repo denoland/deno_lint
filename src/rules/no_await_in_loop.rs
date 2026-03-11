@@ -1,10 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRanged};
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, AwaitExpression, DoWhileStatement, ForInStatement,
+  ForOfStatement, ForStatement, Function, Program, WhileStatement,
+};
+use deno_ast::oxc::span::{GetSpan, Span};
 
 #[derive(Debug)]
 pub struct NoAwaitInLoop;
@@ -18,66 +20,171 @@ impl LintRule for NoAwaitInLoop {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoAwaitInLoopHandler.traverse(program, context);
+    let mut handler = NoAwaitInLoopHandler {
+      scopes: vec![],
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoAwaitInLoopHandler;
+#[derive(Clone, Copy, Debug)]
+enum ScopeKind {
+  /// A loop body. `body_span` is the span of the body only (not the header/init/right).
+  Loop { span: Span },
+  /// A for-await-of loop (await is allowed inside its body).
+  ForAwaitOf { span: Span },
+  /// A function boundary (resets loop context).
+  FunctionBoundary { span: Span },
+}
 
-impl Handler for NoAwaitInLoopHandler {
-  fn await_expr(
-    &mut self,
-    await_expr: &ast_view::AwaitExpr,
-    ctx: &mut Context,
-  ) {
-    fn inside_loop(
-      await_expr: &ast_view::AwaitExpr,
-      node: ast_view::Node,
-    ) -> bool {
-      use deno_ast::view::Node::*;
-      match node {
-        FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
-        ForOfStmt(stmt) if stmt.is_await() => {
-          // `await` is allowed to use within the body of `for await (const x of y) { ... }`
-          false
+struct NoAwaitInLoopHandler {
+  scopes: Vec<ScopeKind>,
+}
+
+impl NoAwaitInLoopHandler {
+  fn is_await_in_loop(&self, await_span: Span) -> bool {
+    for scope in self.scopes.iter().rev() {
+      match scope {
+        ScopeKind::Loop { span } => {
+          if span.start <= await_span.start && await_span.end <= span.end {
+            return true;
+          }
         }
-        ForInStmt(ast_view::ForInStmt { right, .. })
-        | ForOfStmt(ast_view::ForOfStmt { right, .. }) => {
-          // When it encounters `ForInStmt` or `ForOfStmt`, we should treat it as `inside_loop = true`
-          // except for the case where the given `await_expr` is contained in the `right` part.
-          // e.g. for (const x of await xs) { ... }
-          //                      ^^^^^^^^ <-------- `right` part
-          !right.range().contains(&await_expr.range())
+        ScopeKind::ForAwaitOf { span } => {
+          if span.start <= await_span.start && await_span.end <= span.end {
+            // Inside a for-await-of, so this is OK
+            return false;
+          }
         }
-        ForStmt(stmt) => {
-          // When it encounters `ForStmt`, we should treat it as `inside_loop = true`
-          // except for the case where the given `await_expr` is contained in the `init` part.
-          // e.g. for (let i = await foo(); i < n; i++) { ... }
-          //           ^^^^^^^^^^^^^^^^^^^ <---------- `init` part
-          stmt
-            .init
-            .as_ref()
-            .is_none_or(|init| !init.range().contains(&await_expr.range()))
-        }
-        WhileStmt(_) | DoWhileStmt(_) => true,
-        _ => {
-          let parent = match node.parent() {
-            Some(p) => p,
-            None => return false,
-          };
-          inside_loop(await_expr, parent)
+        ScopeKind::FunctionBoundary { span } => {
+          if span.start <= await_span.start && await_span.end <= span.end {
+            // Inside a function boundary that contains the await.
+            // This resets the loop context.
+            return false;
+          }
         }
       }
     }
+    false
+  }
+}
 
-    if inside_loop(await_expr, await_expr.as_node()) {
-      ctx.add_diagnostic_with_hint(await_expr.range(), CODE, MESSAGE, HINT);
+impl Handler<'_> for NoAwaitInLoopHandler {
+  fn await_expression(
+    &mut self,
+    await_expr: &AwaitExpression,
+    ctx: &mut Context,
+  ) {
+    if self.is_await_in_loop(await_expr.span) {
+      ctx.add_diagnostic_with_hint(await_expr.span, CODE, MESSAGE, HINT);
     }
+  }
+
+  fn for_statement(
+    &mut self,
+    node: &ForStatement,
+    _ctx: &mut Context,
+  ) {
+    // For a ForStatement, the "loop" includes test, update, and body, but NOT init.
+    // We use the body span for simplicity, but we also need to include test and update.
+    // The body starts after init. We use the span from after the init to the end of the for.
+    //
+    // Structure: for (init; test; update) body
+    // Awaits in test, update, and body are "in loop". Awaits in init are NOT.
+    //
+    // We compute a span that excludes init but includes everything else.
+    let loop_start = if let Some(init) = &node.init {
+      init.span().end
+    } else {
+      // No init, the loop span starts at the for statement's start
+      node.span.start
+    };
+    self.scopes.push(ScopeKind::Loop {
+      span: Span::new(loop_start, node.span.end),
+    });
+  }
+
+  fn for_in_statement(
+    &mut self,
+    node: &ForInStatement,
+    _ctx: &mut Context,
+  ) {
+    // For ForInStatement: `for (left in right) body`
+    // Awaits in `right` are OK (not in loop), awaits in body are in loop.
+    // We use the body span. But the body is the Statement after the right.
+    // To exclude right, we start the loop span after the right expression.
+    let loop_start = node.right.span().end;
+    self.scopes.push(ScopeKind::Loop {
+      span: Span::new(loop_start, node.span.end),
+    });
+  }
+
+  fn for_of_statement(
+    &mut self,
+    node: &ForOfStatement,
+    _ctx: &mut Context,
+  ) {
+    // For ForOfStatement: `for (left of right) body` or `for await (left of right) body`
+    // Awaits in `right` are OK (not in loop).
+    let loop_start = node.right.span().end;
+    if node.r#await {
+      self.scopes.push(ScopeKind::ForAwaitOf {
+        span: Span::new(loop_start, node.span.end),
+      });
+    } else {
+      self.scopes.push(ScopeKind::Loop {
+        span: Span::new(loop_start, node.span.end),
+      });
+    }
+  }
+
+  fn while_statement(
+    &mut self,
+    node: &WhileStatement,
+    _ctx: &mut Context,
+  ) {
+    // For while: `while (test) body`
+    // Awaits in both test and body are in loop.
+    self.scopes.push(ScopeKind::Loop {
+      span: node.span,
+    });
+  }
+
+  fn do_while_statement(
+    &mut self,
+    node: &DoWhileStatement,
+    _ctx: &mut Context,
+  ) {
+    // For do-while: `do body while (test)`
+    // Awaits in both body and test are in loop.
+    self.scopes.push(ScopeKind::Loop {
+      span: node.span,
+    });
+  }
+
+  fn function(
+    &mut self,
+    node: &Function,
+    _ctx: &mut Context,
+  ) {
+    self.scopes.push(ScopeKind::FunctionBoundary {
+      span: node.span,
+    });
+  }
+
+  fn arrow_function_expression(
+    &mut self,
+    node: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    self.scopes.push(ScopeKind::FunctionBoundary {
+      span: node.span,
+    });
   }
 }
 

@@ -3,17 +3,12 @@
 use super::Context;
 use super::LintRule;
 use crate::handler::Handler;
-use crate::handler::Traverse;
 use crate::tags;
 use crate::tags::Tags;
-use crate::Program;
-
-use deno_ast::view::Expr;
-use deno_ast::view::OptChainBase;
-use deno_ast::view::OptChainExpr;
-use deno_ast::view::TsNonNullExpr;
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  ChainElement, ChainExpression, Expression, Program, TSNonNullExpression,
+};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -42,20 +37,21 @@ impl LintRule for NoExtraNonNullAssertion {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoExtraNonNullAssertionHandler.traverse(program, context);
+    let mut handler = NoExtraNonNullAssertionHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoExtraNonNullAssertionHandler;
 
-fn add_diagnostic(range: SourceRange, ctx: &mut Context) {
+fn add_diagnostic(span: Span, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    range,
+    span,
     CODE,
     NoExtraNonNullAssertionMessage::Unexpected,
     NoExtraNonNullAssertionHint::Remove,
@@ -63,42 +59,68 @@ fn add_diagnostic(range: SourceRange, ctx: &mut Context) {
 }
 
 fn check_expr_for_nested_non_null_assert(
-  range: SourceRange,
-  expr: &Expr,
+  span: Span,
+  expr: &Expression,
   ctx: &mut Context,
 ) {
   match expr {
-    Expr::TsNonNull(_) => add_diagnostic(range, ctx),
-    Expr::Paren(paren_expr) => {
-      check_expr_for_nested_non_null_assert(range, &paren_expr.expr, ctx)
+    Expression::TSNonNullExpression(_) => add_diagnostic(span, ctx),
+    Expression::ParenthesizedExpression(paren_expr) => {
+      check_expr_for_nested_non_null_assert(span, &paren_expr.expression, ctx)
     }
     _ => {}
   }
 }
 
-impl Handler for NoExtraNonNullAssertionHandler {
-  fn ts_non_null_expr(
+impl Handler<'_> for NoExtraNonNullAssertionHandler {
+  fn ts_non_null_expression(
     &mut self,
-    ts_non_null_expr: &TsNonNullExpr,
+    ts_non_null_expr: &TSNonNullExpression,
     ctx: &mut Context,
   ) {
     check_expr_for_nested_non_null_assert(
-      ts_non_null_expr.range(),
-      &ts_non_null_expr.expr,
+      ts_non_null_expr.span,
+      &ts_non_null_expr.expression,
       ctx,
     );
   }
 
-  fn opt_chain_expr(
+  fn chain_expression(
     &mut self,
-    opt_chain_expr: &OptChainExpr,
+    chain_expr: &ChainExpression,
     ctx: &mut Context,
   ) {
-    let expr = match &opt_chain_expr.base {
-      OptChainBase::Member(member_expr) => &member_expr.obj,
-      OptChainBase::Call(call_expr) => &call_expr.callee,
-    };
-    check_expr_for_nested_non_null_assert(opt_chain_expr.range(), expr, ctx);
+    match &chain_expr.expression {
+      ChainElement::CallExpression(call_expr) => {
+        check_expr_for_nested_non_null_assert(
+          chain_expr.span,
+          &call_expr.callee,
+          ctx,
+        );
+      }
+      ChainElement::StaticMemberExpression(member_expr) => {
+        check_expr_for_nested_non_null_assert(
+          chain_expr.span,
+          &member_expr.object,
+          ctx,
+        );
+      }
+      ChainElement::ComputedMemberExpression(member_expr) => {
+        check_expr_for_nested_non_null_assert(
+          chain_expr.span,
+          &member_expr.object,
+          ctx,
+        );
+      }
+      ChainElement::PrivateFieldExpression(member_expr) => {
+        check_expr_for_nested_non_null_assert(
+          chain_expr.span,
+          &member_expr.object,
+          ctx,
+        );
+      }
+      ChainElement::TSNonNullExpression(_) => {}
+    }
   }
 }
 

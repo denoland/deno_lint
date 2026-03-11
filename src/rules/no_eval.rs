@@ -1,11 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::swc_util::StringRepr;
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, ParenExpr, VarDeclarator};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoEval;
@@ -19,12 +18,13 @@ impl LintRule for NoEval {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoEvalHandler.traverse(program, context);
+    let mut handler = NoEvalHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -34,7 +34,7 @@ impl NoEvalHandler {
   fn maybe_add_diagnostic(
     &mut self,
     source: &dyn StringRepr,
-    range: SourceRange,
+    range: Span,
     ctx: &mut Context,
   ) {
     if source.string_repr().as_deref() == Some("eval") {
@@ -42,23 +42,29 @@ impl NoEvalHandler {
     }
   }
 
-  fn add_diagnostic(&mut self, range: SourceRange, ctx: &mut Context) {
+  fn add_diagnostic(&mut self, range: Span, ctx: &mut Context) {
     ctx.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
   }
 
-  fn handle_paren_callee(&mut self, p: &ParenExpr, ctx: &mut Context) {
-    match p.expr {
+  fn handle_paren_callee(
+    &mut self,
+    p: &ParenthesizedExpression,
+    ctx: &mut Context,
+  ) {
+    match &p.expression {
       // Nested paren callee ((eval))('var foo = 0;')
-      Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
+      Expression::ParenthesizedExpression(paren) => {
+        self.handle_paren_callee(paren, ctx)
+      }
       // Single argument callee: (eval)('var foo = 0;')
-      Expr::Ident(ident) => {
-        self.maybe_add_diagnostic(ident, ident.range(), ctx)
+      Expression::Identifier(ident) => {
+        self.maybe_add_diagnostic(ident.as_ref(), ident.span, ctx)
       }
       // Multiple arguments callee: (0, eval)('var foo = 0;')
-      Expr::Seq(seq) => {
-        for expr in seq.exprs {
-          if let Expr::Ident(ident) = expr {
-            self.maybe_add_diagnostic(*ident, ident.range(), ctx)
+      Expression::SequenceExpression(seq) => {
+        for expr in &seq.expressions {
+          if let Expression::Identifier(ident) = expr {
+            self.maybe_add_diagnostic(ident.as_ref(), ident.span, ctx)
           }
         }
       }
@@ -67,22 +73,30 @@ impl NoEvalHandler {
   }
 }
 
-impl Handler for NoEvalHandler {
-  fn var_declarator(&mut self, v: &VarDeclarator, ctx: &mut Context) {
-    if let Some(Expr::Ident(ident)) = &v.init {
-      self.maybe_add_diagnostic(*ident, v.range(), ctx);
+impl Handler<'_> for NoEvalHandler {
+  fn variable_declarator(
+    &mut self,
+    v: &VariableDeclarator,
+    ctx: &mut Context,
+  ) {
+    if let Some(Expression::Identifier(ident)) = &v.init {
+      self.maybe_add_diagnostic(ident.as_ref(), v.span, ctx);
     }
   }
 
-  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let Callee::Expr(expr) = &call_expr.callee {
-      match expr {
-        Expr::Ident(ident) => {
-          self.maybe_add_diagnostic(*ident, call_expr.range(), ctx)
-        }
-        Expr::Paren(paren) => self.handle_paren_callee(paren, ctx),
-        _ => {}
+  fn call_expression(
+    &mut self,
+    call_expr: &CallExpression,
+    ctx: &mut Context,
+  ) {
+    match &call_expr.callee {
+      Expression::Identifier(ident) => {
+        self.maybe_add_diagnostic(ident.as_ref(), call_expr.span, ctx)
       }
+      Expression::ParenthesizedExpression(paren) => {
+        self.handle_paren_callee(paren, ctx)
+      }
+      _ => {}
     }
   }
 }

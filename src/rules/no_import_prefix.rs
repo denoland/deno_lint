@@ -1,11 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{Tags, WORKSPACE};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, ImportDecl, Lit};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  Expression, ImportDeclaration, ImportExpression, Program,
+};
 
 #[derive(Debug)]
 pub struct NoImportPrefix;
@@ -24,32 +24,37 @@ impl LintRule for NoImportPrefix {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoImportPrefixHandler.traverse(program, context);
+    let mut handler = NoImportPrefixHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoImportPrefixHandler;
 
-impl Handler for NoImportPrefixHandler {
-  fn import_decl(&mut self, node: &ImportDecl, ctx: &mut Context) {
-    if is_non_bare(&node.src.value().to_string_lossy()) {
-      ctx.add_diagnostic_with_hint(node.src.range(), CODE, MESSAGE, HINT);
+impl Handler<'_> for NoImportPrefixHandler {
+  fn import_declaration(
+    &mut self,
+    node: &ImportDeclaration,
+    ctx: &mut Context,
+  ) {
+    if is_non_bare(node.source.value.as_str()) {
+      ctx.add_diagnostic_with_hint(node.source.span, CODE, MESSAGE, HINT);
     }
   }
 
-  fn call_expr(&mut self, node: &CallExpr, ctx: &mut Context) {
-    if let Callee::Import(_) = node.callee {
-      if let Some(arg) = node.args.first() {
-        if let Expr::Lit(Lit::Str(lit)) = arg.expr {
-          if is_non_bare(&lit.value().to_string_lossy()) {
-            ctx.add_diagnostic_with_hint(arg.range(), CODE, MESSAGE, HINT);
-          }
-        }
+  fn import_expression(
+    &mut self,
+    node: &ImportExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::StringLiteral(lit) = &node.source {
+      if is_non_bare(lit.value.as_str()) {
+        ctx.add_diagnostic_with_hint(lit.span, CODE, MESSAGE, HINT);
       }
     }
   }

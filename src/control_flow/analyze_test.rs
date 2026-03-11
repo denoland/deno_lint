@@ -2,12 +2,10 @@
 
 use super::{ControlFlow, End, Metadata};
 use crate::test_util;
-use deno_ast::StartSourcePos;
 
 fn analyze_flow(src: &str, callback: impl Fn(ControlFlow)) {
-  let parsed_source = test_util::parse(src);
-  parsed_source.with_view(|pg| {
-    let flow = ControlFlow::analyze(pg, parsed_source.unresolved_context());
+  test_util::parse_and_then(src, |parsed_source| {
+    let flow = ControlFlow::analyze(parsed_source);
     callback(flow);
   });
 }
@@ -15,7 +13,7 @@ fn analyze_flow(src: &str, callback: impl Fn(ControlFlow)) {
 macro_rules! assert_flow {
   ($flow:ident, $lo:expr, $unreachable:expr, $end:expr) => {
     assert_eq!(
-      $flow.meta(StartSourcePos::START_SOURCE_POS + $lo).unwrap(),
+      $flow.meta($lo).unwrap(),
       &Metadata {
         unreachable: $unreachable,
         end: $end,
@@ -35,7 +33,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 30, false, Some(End::Continue)); // BlockStmt of while
     assert_flow!(flow, 49, false, Some(End::forced_return())); // return stmt
   });
@@ -52,7 +50,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 30, false, Some(End::Continue)); // BlockStmt of while
     assert_flow!(flow, 49, false, None); // `bar();`
   });
@@ -69,7 +67,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 30, false, Some(End::Continue)); // BlockStmt of while
     assert_flow!(flow, 36, false, None); // `bar();`
     assert_flow!(flow, 49, false, None); // `baz();`
@@ -87,7 +85,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
 
     // BlockStmt of while
     // This block contains `return 1;` but whether entering the block depends on the specific value
@@ -110,7 +108,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
 
     // BlockStmt of while
     // This block contains `return 1;` and it returns `1` _unconditionally_.
@@ -155,7 +153,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::Continue)); // BlockStmt of do-while
     assert_flow!(flow, 53, false, Some(End::forced_return())); // return stmt
   });
@@ -172,7 +170,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::Continue)); // BlockStmt of do-while
     assert_flow!(flow, 53, false, None); // `bar();`
   });
@@ -189,7 +187,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::Continue)); // BlockStmt of do-while
     assert_flow!(flow, 53, false, None); // `bar();`
   });
@@ -207,7 +205,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_infinite_loop())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_infinite_loop())); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::forced_infinite_loop())); // BlockStmt of do-while
     assert_flow!(
       flow,
@@ -233,7 +231,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::forced_return())); // BlockStmt of do-while
     assert_flow!(flow, 56, true, Some(End::forced_return())); // return stmt
   });
@@ -250,7 +248,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_throw())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_throw())); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::forced_throw())); // BlockStmt of do-while
     assert_flow!(
       flow,
@@ -276,7 +274,7 @@ function foo() {
 }
       "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_throw())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_throw())); // BlockStmt of `foo`
     assert_flow!(flow, 23, false, Some(End::forced_throw())); // BlockStmt of do-while
     assert_flow!(flow, 29, false, Some(End::forced_throw())); // throw stmt
     assert_flow!(
@@ -326,7 +324,7 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
 
     // BlockStmt of for statement
     // This is marked as `End::Continue` because it's quite difficult to decide statically whether
@@ -350,7 +348,7 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 47, false, Some(End::forced_return())); // BlockStmt of for statement
     assert_flow!(flow, 53, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 69, true, None); // `bar();`
@@ -369,7 +367,7 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 42, false, Some(End::forced_return())); // BlockStmt of for statement
     assert_flow!(flow, 48, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 64, true, None); // `bar();`
@@ -388,7 +386,7 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 48, false, Some(End::Continue)); // BlockStmt of for statement
     assert_flow!(flow, 54, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 70, false, None); // `bar();`
@@ -429,7 +427,7 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-in
     assert_flow!(flow, 44, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 60, false, None); // `bar();`
@@ -447,9 +445,9 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-in
-    assert_flow!(flow, 44, false, Some(End::Break)); // return stmt
+    assert_flow!(flow, 44, false, Some(End::Break)); // break stmt
     assert_flow!(flow, 57, false, None); // `bar();`
   });
 }
@@ -465,7 +463,7 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-of
     assert_flow!(flow, 44, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 60, false, None); // `bar();`
@@ -483,9 +481,9 @@ function foo() {
 }
     "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of for-of
-    assert_flow!(flow, 44, false, Some(End::Break)); // return stmt
+    assert_flow!(flow, 44, false, Some(End::Break)); // break stmt
     assert_flow!(flow, 57, false, None); // `bar();`
   });
 }
@@ -502,7 +500,7 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::forced_return())); // TryStmt
     assert_flow!(flow, 24, false, Some(End::forced_return())); // BlockStmt of try
     assert_flow!(flow, 30, false, Some(End::forced_return())); // return stmt
@@ -524,7 +522,7 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(
       flow,
       20,
@@ -557,7 +555,7 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // TryStmt
     assert_flow!(flow, 24, false, Some(End::forced_throw())); // BlockStmt of try
     assert_flow!(flow, 30, false, Some(End::forced_throw())); // throw stmt
@@ -582,7 +580,7 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // TryStmt
     assert_flow!(flow, 24, false, Some(End::forced_throw())); // BlockStmt of try
     assert_flow!(flow, 30, false, Some(End::forced_throw())); // throw stmt
@@ -609,7 +607,7 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(
       flow,
       20,
@@ -771,9 +769,9 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, None); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
-    assert_flow!(flow, 27, false, Some(End::forced_return())); // BloskStmt of if
+    assert_flow!(flow, 27, false, Some(End::forced_return())); // BlockStmt of if
     assert_flow!(flow, 33, false, Some(End::forced_return())); // return stmt
     assert_flow!(flow, 49, false, None); // `bar();`
   });
@@ -792,9 +790,9 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
-    assert_flow!(flow, 27, false, Some(End::Continue)); // BloskStmt of if
+    assert_flow!(flow, 27, false, Some(End::Continue)); // BlockStmt of if
     assert_flow!(flow, 33, false, None); // `bar();`
     assert_flow!(flow, 49, false, Some(End::forced_return())); // else
     assert_flow!(flow, 55, false, Some(End::forced_return())); // return stmt
@@ -815,9 +813,9 @@ function foo() {
 }
 "#;
   analyze_flow(src, |flow| {
-    assert_flow!(flow, 16, false, Some(End::forced_return())); // BlockStmt of `foo`
+    assert_flow!(flow, 1, false, Some(End::forced_return())); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if
-    assert_flow!(flow, 27, false, Some(End::forced_return())); // BloskStmt of if
+    assert_flow!(flow, 27, false, Some(End::forced_return())); // BlockStmt of if
     assert_flow!(flow, 33, false, Some(End::forced_return())); // `return 1;`
     assert_flow!(flow, 52, false, Some(End::Continue)); // else
     assert_flow!(flow, 58, false, None); // `bar();`
@@ -901,7 +899,7 @@ throw err;
   analyze_flow(src, |flow| {
     assert_flow!(flow, 1, false, Some(End::Continue)); // switch stmt
     assert_flow!(flow, 18, false, Some(End::Break)); // `case 1`
-    assert_flow!(flow, 30, false, Some(End::Break)); // break stmt
+    assert_flow!(flow, 30, false, None); // break stmt
     assert_flow!(flow, 39, false, Some(End::forced_return())); // `default`
     assert_flow!(flow, 48, false, Some(End::forced_return())); // BlockStmt of `default`
     assert_flow!(flow, 54, false, Some(End::forced_return())); // return stmt
@@ -929,7 +927,7 @@ switch (foo) {
     assert_flow!(flow, 18, false, Some(End::forced_return())); // `switch foo case 1`
     assert_flow!(flow, 30, false, Some(End::Continue)); // `switch bar stmt`
     assert_flow!(flow, 51, false, Some(End::Break)); // `switch bar case1`
-    assert_flow!(flow, 67, false, Some(End::Break)); // `break stmt`
+    assert_flow!(flow, 67, false, None); // `break stmt`
     assert_flow!(flow, 84, false, Some(End::forced_return())); // `return stmt`
     assert_flow!(flow, 96, false, Some(End::forced_return())); // `default`
     assert_flow!(flow, 111, false, Some(End::forced_return())); // `return stmt`
@@ -968,7 +966,6 @@ function foo() {
       "#;
   analyze_flow(src, |flow| {
     assert_flow!(flow, 1, false, Some(End::Continue)); // function
-    assert_flow!(flow, 16, false, Some(End::Continue)); // BlockStmt of `foo`
     assert_flow!(flow, 20, false, Some(End::Continue)); // if stmt
     assert_flow!(flow, 30, false, Some(End::Continue)); // BlockStmt of if
     assert_flow!(flow, 38, false, Some(End::Continue)); // BlockStmt of else

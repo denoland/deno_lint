@@ -1,15 +1,15 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::swc_util::StringRepr;
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-
-use deno_ast::swc::parser::token::{Token, Word};
-use deno_ast::view::{NodeTrait, Program};
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, AwaitExpression, ForOfStatement, Function,
+  FunctionType, MethodDefinition, MethodDefinitionKind, ObjectProperty,
+  Program, PropertyKey, VariableDeclaration,
+  VariableDeclarationKind,
+};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -60,12 +60,17 @@ impl LintRule for RequireAwait {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    RequireAwaitHandler.traverse(program, context);
+    let mut handler = RequireAwaitHandler {
+      scope_stack: vec![],
+      pending_method_name: None,
+      pending_object_method_name: None,
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -87,274 +92,217 @@ impl From<FunctionKind> for RequireAwaitMessage {
   }
 }
 
-impl Default for FunctionKind {
-  fn default() -> Self {
-    FunctionKind::Function(None)
-  }
-}
-
-struct FunctionInfo {
+struct FunctionScope {
   kind: FunctionKind,
   is_async: bool,
   is_generator: bool,
   is_empty: bool,
   has_await: bool,
+  range: Span,
 }
 
-impl FunctionInfo {
-  fn should_report(self) -> Option<RequireAwaitMessage> {
-    if self.is_async && !self.is_generator && !self.is_empty && !self.has_await
+fn find_async_keyword_span(span: Span, ctx: &Context) -> Span {
+  let source = ctx.source_text();
+  let start = span.start as usize;
+  let end = std::cmp::min(span.end as usize, source.len());
+  let text = &source[start..end];
+  if let Some(pos) = text.find("async") {
+    Span::new((start + pos) as u32, (start + pos + 5) as u32)
+  } else {
+    span
+  }
+}
+
+fn property_key_name(key: &PropertyKey) -> Option<String> {
+  match key {
+    PropertyKey::StaticIdentifier(ident) => Some(ident.name.to_string()),
+    PropertyKey::PrivateIdentifier(ident) => Some(format!("#{}", ident.name)),
+    _ => {
+      if let PropertyKey::StringLiteral(s) = key {
+        Some(s.value.to_string())
+      } else if let PropertyKey::NumericLiteral(n) = key {
+        Some(n.value.to_string())
+      } else {
+        None
+      }
+    }
+  }
+}
+
+struct RequireAwaitHandler {
+  scope_stack: Vec<FunctionScope>,
+  /// Set by method_definition handler, consumed by function handler
+  pending_method_name: Option<Option<String>>,
+  /// Set by object_property handler for method shorthand, consumed by function handler
+  pending_object_method_name: Option<Option<String>>,
+}
+
+impl Handler<'_> for RequireAwaitHandler {
+  fn method_definition(
+    &mut self,
+    method: &MethodDefinition,
+    _ctx: &mut Context,
+  ) {
+    if method.kind == MethodDefinitionKind::Constructor
+      || method.kind == MethodDefinitionKind::Get
+      || method.kind == MethodDefinitionKind::Set
     {
-      Some(self.kind.into())
-    } else {
-      None
+      // For getters/setters/constructors, don't set pending method name
+      // so the inner function is treated as a regular function
+      return;
     }
-  }
-}
-
-fn find_async_token_range(
-  node: deno_ast::view::Node,
-  ctx: &Context,
-) -> SourceRange {
-  node
-    .tokens_fast(ctx.program())
-    .iter()
-    .find(|t| t.token == Token::Word(Word::Ident("async".into())))
-    .expect("there must be a async span")
-    .range()
-}
-
-struct RequireAwaitHandler;
-
-impl Handler for RequireAwaitHandler {
-  fn fn_decl(&mut self, fn_decl: &deno_ast::view::FnDecl, ctx: &mut Context) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Function(Some(
-        fn_decl.ident.sym().as_ref().to_string(),
-      )),
-      is_async: fn_decl.function.is_async(),
-      is_generator: fn_decl.function.is_generator(),
-      is_empty: is_body_empty(fn_decl.function.body),
-      has_await: false,
-    };
-
-    let range = if function_info.is_async {
-      find_async_token_range(fn_decl.as_node(), ctx)
-    } else {
-      fn_decl.ident.range()
-    };
-
-    process_function(fn_decl.as_node(), range, function_info, ctx);
+    self.pending_method_name = Some(property_key_name(&method.key));
   }
 
-  fn fn_expr(&mut self, fn_expr: &deno_ast::view::FnExpr, ctx: &mut Context) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Function(
-        fn_expr.ident.as_ref().map(|i| i.sym().as_ref().to_string()),
-      ),
-      is_async: fn_expr.function.is_async(),
-      is_generator: fn_expr.function.is_generator(),
-      is_empty: is_body_empty(fn_expr.function.body),
-      has_await: false,
-    };
-    let range = if function_info.is_async {
-      find_async_token_range(fn_expr.as_node(), ctx)
-    } else {
-      fn_expr.range()
-    };
-    process_function(fn_expr.as_node(), range, function_info, ctx);
-  }
-
-  fn arrow_expr(
+  fn object_property(
     &mut self,
-    arrow_expr: &deno_ast::view::ArrowExpr,
-    ctx: &mut Context,
-  ) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::ArrowFunction,
-      is_async: arrow_expr.is_async(),
-      is_generator: arrow_expr.is_generator(),
-      is_empty: matches!(
-        &arrow_expr.body,
-        deno_ast::view::BlockStmtOrExpr::BlockStmt(block_stmt) if block_stmt.stmts.is_empty()
-      ),
-      has_await: false,
-    };
-    let range = if function_info.is_async {
-      find_async_token_range(arrow_expr.as_node(), ctx)
-    } else {
-      arrow_expr.range()
-    };
-    process_function(arrow_expr.as_node(), range, function_info, ctx);
-  }
-
-  fn method_prop(
-    &mut self,
-    method_prop: &deno_ast::view::MethodProp,
-    ctx: &mut Context,
-  ) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Method(method_prop.key.string_repr()),
-      is_async: method_prop.function.is_async(),
-      is_generator: method_prop.function.is_generator(),
-      is_empty: is_body_empty(method_prop.function.body),
-      has_await: false,
-    };
-
-    let range = if function_info.is_async {
-      find_async_token_range(method_prop.as_node(), ctx)
-    } else {
-      method_prop.inner.key.range()
-    };
-
-    process_function(method_prop.as_node(), range, function_info, ctx);
-  }
-
-  fn class_method(
-    &mut self,
-    class_method: &deno_ast::view::ClassMethod,
-    ctx: &mut Context,
-  ) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Method(class_method.key.string_repr()),
-      is_async: class_method.function.is_async(),
-      is_generator: class_method.function.is_generator(),
-      is_empty: is_body_empty(class_method.function.body),
-      has_await: false,
-    };
-
-    let range = if function_info.is_async {
-      find_async_token_range(class_method.as_node(), ctx)
-    } else {
-      class_method.inner.key.range()
-    };
-
-    process_function(class_method.as_node(), range, function_info, ctx);
-  }
-
-  fn private_method(
-    &mut self,
-    private_method: &deno_ast::view::PrivateMethod,
-    ctx: &mut Context,
-  ) {
-    let function_info = FunctionInfo {
-      kind: FunctionKind::Method(private_method.key.string_repr()),
-      is_async: private_method.function.is_async(),
-      is_generator: private_method.function.is_generator(),
-      is_empty: is_body_empty(private_method.function.body),
-      has_await: false,
-    };
-    let range = if function_info.is_async {
-      find_async_token_range(private_method.as_node(), ctx)
-    } else {
-      private_method.inner.key.range()
-    };
-    process_function(private_method.as_node(), range, function_info, ctx);
-  }
-}
-
-struct FunctionHandler {
-  function_info: Option<Box<FunctionInfo>>,
-}
-
-impl Handler for FunctionHandler {
-  fn fn_decl(&mut self, _n: &deno_ast::view::FnDecl, ctx: &mut Context) {
-    ctx.stop_traverse();
-  }
-
-  fn fn_expr(&mut self, _n: &deno_ast::view::FnExpr, ctx: &mut Context) {
-    ctx.stop_traverse();
-  }
-
-  fn arrow_expr(&mut self, _n: &deno_ast::view::ArrowExpr, ctx: &mut Context) {
-    ctx.stop_traverse();
-  }
-
-  fn method_prop(
-    &mut self,
-    _n: &deno_ast::view::MethodProp,
-    ctx: &mut Context,
-  ) {
-    ctx.stop_traverse();
-  }
-
-  fn class_method(
-    &mut self,
-    _n: &deno_ast::view::ClassMethod,
-    ctx: &mut Context,
-  ) {
-    ctx.stop_traverse();
-  }
-
-  fn private_method(
-    &mut self,
-    _n: &deno_ast::view::PrivateMethod,
-    ctx: &mut Context,
-  ) {
-    ctx.stop_traverse();
-  }
-
-  fn await_expr(&mut self, _n: &deno_ast::view::AwaitExpr, _ctx: &mut Context) {
-    if let Some(info) = self.function_info.as_mut() {
-      info.has_await = true;
-    }
-  }
-
-  fn for_of_stmt(
-    &mut self,
-    for_of_stmt: &deno_ast::view::ForOfStmt,
+    prop: &ObjectProperty,
     _ctx: &mut Context,
   ) {
-    if for_of_stmt.is_await() {
-      if let Some(info) = self.function_info.as_mut() {
-        info.has_await = true;
-      }
+    // method shorthand: `{ async foo() {} }`
+    if prop.method {
+      self.pending_object_method_name =
+        Some(property_key_name(&prop.key));
     }
   }
 
-  fn using_decl(
-    &mut self,
-    using_decl: &deno_ast::view::UsingDecl,
-    _ctx: &mut Context,
-  ) {
-    if using_decl.is_await() {
-      if let Some(info) = self.function_info.as_mut() {
-        info.has_await = true;
-      }
+  fn function(&mut self, function: &Function, ctx: &mut Context) {
+    match function.r#type {
+      FunctionType::FunctionDeclaration | FunctionType::FunctionExpression => {}
+      _ => return,
     }
-  }
-}
 
-fn process_function<'a, N>(
-  node: N,
-  range: SourceRange,
-  function_info: FunctionInfo,
-  ctx: &mut Context,
-) where
-  N: NodeTrait<'a>,
-{
-  let mut function_handler = FunctionHandler {
-    function_info: Some(Box::new(function_info)),
-  };
+    // Determine function kind
+    let kind = if let Some(method_name) = self.pending_method_name.take() {
+      FunctionKind::Method(method_name)
+    } else if let Some(method_name) =
+      self.pending_object_method_name.take()
+    {
+      FunctionKind::Method(method_name)
+    } else {
+      let name = function.id.as_ref().map(|id| id.name.to_string());
+      FunctionKind::Function(name)
+    };
 
-  for child in node.children() {
-    function_handler.traverse(child, ctx)
-  }
+    let range = if function.r#async {
+      find_async_keyword_span(function.span, ctx)
+    } else {
+      match &kind {
+        FunctionKind::Function(Some(_)) => function
+          .id
+          .as_ref()
+          .map(|id| id.span)
+          .unwrap_or(function.span),
+        _ => function.span,
+      }
+    };
 
-  let function_info = function_handler.function_info.take().unwrap();
+    let is_empty = function
+      .body
+      .as_ref()
+      .is_none_or(|body| body.statements.is_empty());
 
-  if let Some(message) = function_info.should_report() {
-    ctx.add_diagnostic_with_hint(
+    self.scope_stack.push(FunctionScope {
+      kind,
+      is_async: function.r#async,
+      is_generator: function.generator,
+      is_empty,
+      has_await: false,
       range,
+    });
+  }
+
+  fn function_exit(&mut self, function: &Function, ctx: &mut Context) {
+    match function.r#type {
+      FunctionType::FunctionDeclaration | FunctionType::FunctionExpression => {}
+      _ => return,
+    }
+    if let Some(scope) = self.scope_stack.pop() {
+      report_if_needed(scope, ctx);
+    }
+  }
+
+  fn arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression,
+    ctx: &mut Context,
+  ) {
+    let is_empty =
+      arrow.body.statements.is_empty() && !arrow.expression;
+    let range = if arrow.r#async {
+      find_async_keyword_span(arrow.span, ctx)
+    } else {
+      arrow.span
+    };
+    self.scope_stack.push(FunctionScope {
+      kind: FunctionKind::ArrowFunction,
+      is_async: arrow.r#async,
+      is_generator: false,
+      is_empty,
+      has_await: false,
+      range,
+    });
+  }
+
+  fn arrow_function_expression_exit(
+    &mut self,
+    _arrow: &ArrowFunctionExpression,
+    ctx: &mut Context,
+  ) {
+    if let Some(scope) = self.scope_stack.pop() {
+      report_if_needed(scope, ctx);
+    }
+  }
+
+  fn await_expression(
+    &mut self,
+    _n: &AwaitExpression,
+    _ctx: &mut Context,
+  ) {
+    if let Some(scope) = self.scope_stack.last_mut() {
+      scope.has_await = true;
+    }
+  }
+
+  fn for_of_statement(
+    &mut self,
+    for_of: &ForOfStatement,
+    _ctx: &mut Context,
+  ) {
+    if for_of.r#await {
+      if let Some(scope) = self.scope_stack.last_mut() {
+        scope.has_await = true;
+      }
+    }
+  }
+
+  fn variable_declaration(
+    &mut self,
+    var_decl: &VariableDeclaration,
+    _ctx: &mut Context,
+  ) {
+    if var_decl.kind == VariableDeclarationKind::AwaitUsing {
+      if let Some(scope) = self.scope_stack.last_mut() {
+        scope.has_await = true;
+      }
+    }
+  }
+}
+
+fn report_if_needed(scope: FunctionScope, ctx: &mut Context) {
+  if scope.is_async
+    && !scope.is_generator
+    && !scope.is_empty
+    && !scope.has_await
+  {
+    let message: RequireAwaitMessage = scope.kind.into();
+    ctx.add_diagnostic_with_hint(
+      scope.range,
       CODE,
       message,
       RequireAwaitHint::RemoveOrUse,
     );
   }
-}
-
-fn is_body_empty(maybe_body: Option<&deno_ast::view::BlockStmt>) -> bool {
-  maybe_body.is_none_or(|body| body.stmts.is_empty())
 }
 
 #[cfg(test)]
@@ -450,35 +398,35 @@ async function* run() {
       ],
       "({ async foo() { doSomething() } })": [
         {
-          col: 3,
+          col: 12,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { async foo() { doSomething() } }": [
         {
-          col: 10,
+          col: 19,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "class A { private async foo() { doSomething() } }": [
         {
-          col: 18,
+          col: 27,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async foo() { doSomething() } })": [
         {
-          col: 9,
+          col: 18,
           message: variant!(RequireAwaitMessage, Method, "foo"),
           hint: RequireAwaitHint::RemoveOrUse,
         },
       ],
       "(class { async ''() { doSomething() } })": [
         {
-          col: 9,
+          col: 17,
           message: variant!(RequireAwaitMessage, Method, ""),
           hint: RequireAwaitHint::RemoveOrUse,
         },

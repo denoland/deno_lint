@@ -1,14 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  ArrayPat, BindingIdent, Expr, Lit, ObjectPat, Pat, TsAsExpr, TsLit, TsType,
-  TsTypeAnn, TsTypeAssertion, VarDecl,
+use deno_ast::oxc::ast::ast::{
+  Expression, Program, TSAsExpression, TSLiteral, TSType,
+  TSTypeAssertion, VariableDeclaration,
 };
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::span::{GetSpan, Span};
 use derive_more::Display;
 
 const CODE: &str = "prefer-as-const";
@@ -39,20 +38,21 @@ impl LintRule for PreferAsConst {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    PreferAsConstHandler.traverse(program, context);
+    let mut handler = PreferAsConstHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct PreferAsConstHandler;
 
-fn add_diagnostic_helper(range: SourceRange, ctx: &mut Context) {
+fn add_diagnostic_helper(span: Span, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
-    range,
+    span,
     CODE,
     PreferAsConstMessage::ExpectedConstAssertion,
     PreferAsConstHint::AddAsConst,
@@ -60,64 +60,64 @@ fn add_diagnostic_helper(range: SourceRange, ctx: &mut Context) {
 }
 
 fn compare(
-  type_ann: &TsType,
-  expr: &Expr,
-  range: SourceRange,
+  type_ann: &TSType,
+  expr: &Expression,
+  span: Span,
   ctx: &mut Context,
 ) {
-  if let TsType::TsLitType(lit_type) = type_ann {
-    if let Expr::Lit(expr_lit) = expr {
-      match (expr_lit, &lit_type.lit) {
-        (Lit::Str(value_literal), TsLit::Str(type_literal)) => {
-          if value_literal.value() == type_literal.value() {
-            add_diagnostic_helper(range, ctx)
-          }
+  if let TSType::TSLiteralType(lit_type) = type_ann {
+    match (&lit_type.literal, expr) {
+      (TSLiteral::StringLiteral(type_str), Expression::StringLiteral(val_str)) => {
+        if val_str.value == type_str.value {
+          add_diagnostic_helper(span, ctx)
         }
-        (Lit::Num(value_literal), TsLit::Number(type_literal)) => {
-          if (value_literal.value() - type_literal.value()).abs() < f64::EPSILON
-          {
-            add_diagnostic_helper(range, ctx)
-          }
-        }
-        _ => {}
       }
+      (TSLiteral::NumericLiteral(type_num), Expression::NumericLiteral(val_num)) => {
+        if (val_num.value - type_num.value).abs() < f64::EPSILON {
+          add_diagnostic_helper(span, ctx)
+        }
+      }
+      _ => {}
     }
   }
 }
 
-impl Handler for PreferAsConstHandler {
-  fn ts_as_expr(&mut self, as_expr: &TsAsExpr, ctx: &mut Context) {
+impl Handler<'_> for PreferAsConstHandler {
+  fn ts_as_expression(
+    &mut self,
+    as_expr: &TSAsExpression,
+    ctx: &mut Context,
+  ) {
     compare(
-      &as_expr.type_ann,
-      &as_expr.expr,
-      as_expr.type_ann.range(),
+      &as_expr.type_annotation,
+      &as_expr.expression,
+      as_expr.type_annotation.span(),
       ctx,
     );
   }
 
   fn ts_type_assertion(
     &mut self,
-    type_assertion: &TsTypeAssertion,
+    type_assertion: &TSTypeAssertion,
     ctx: &mut Context,
   ) {
     compare(
-      &type_assertion.type_ann,
-      &type_assertion.expr,
-      type_assertion.type_ann.range(),
+      &type_assertion.type_annotation,
+      &type_assertion.expression,
+      type_assertion.type_annotation.span(),
       ctx,
     );
   }
 
-  fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
-    for decl in var_decl.decls {
+  fn variable_declaration(
+    &mut self,
+    var_decl: &VariableDeclaration,
+    ctx: &mut Context,
+  ) {
+    for decl in &var_decl.declarations {
       if let Some(init) = &decl.init {
-        if let Pat::Array(ArrayPat { type_ann, .. })
-        | Pat::Object(ObjectPat { type_ann, .. })
-        | Pat::Ident(BindingIdent { type_ann, .. }) = &decl.name
-        {
-          if let Some(TsTypeAnn { type_ann, .. }) = &type_ann {
-            compare(type_ann, init, type_ann.range(), ctx);
-          }
+        if let Some(type_ann) = &decl.type_annotation {
+          compare(&type_ann.type_annotation, init, type_ann.type_annotation.span(), ctx);
         }
       }
     }

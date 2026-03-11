@@ -1,11 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::{tags, Program};
-use deno_ast::view::JSXText;
-use deno_ast::SourceRanged;
+use crate::tags;
+use deno_ast::oxc::ast::ast::{JSXText, Program};
 
 #[derive(Debug)]
 pub struct JSXNoCommentTextNodes;
@@ -21,12 +20,13 @@ impl LintRule for JSXNoCommentTextNodes {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXNoCommentTextNodesHandler.traverse(program, context);
+    let mut handler = JSXNoCommentTextNodesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -35,11 +35,11 @@ const MESSAGE: &str =
 
 struct JSXNoCommentTextNodesHandler;
 
-impl Handler for JSXNoCommentTextNodesHandler {
+impl Handler<'_> for JSXNoCommentTextNodesHandler {
   fn jsx_text(&mut self, node: &JSXText, ctx: &mut Context) {
-    let value = &node.inner.value;
+    let value = &node.value;
     if value.starts_with("//") || value.starts_with("/*") {
-      ctx.add_diagnostic(node.range(), CODE, MESSAGE);
+      ctx.add_diagnostic(node.span, CODE, MESSAGE);
     }
   }
 }

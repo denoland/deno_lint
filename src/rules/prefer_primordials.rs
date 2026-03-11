@@ -1,15 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::Scope;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
-use if_chain::if_chain;
-use std::ptr;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct PreferPrimordials;
@@ -71,12 +69,13 @@ impl LintRule for PreferPrimordials {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    PreferPrimordialsHandler.traverse(program, context);
+    let mut handler = PreferPrimordialsHandler::new();
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -335,21 +334,26 @@ const GETTER_TARGETS: &[&str] = &[
   // "length",
 ];
 
-fn is_null_proto(object_lit: &ast_view::ObjectLit) -> bool {
-  for prop_or_spread in object_lit.props {
-    if_chain! {
-      if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
-      if let ast_view::Prop::KeyValue(key_value_prop) = prop;
-      if matches!(key_value_prop.value, ast_view::Expr::Lit(ast_view::Lit::Null(..)));
-      then {
-        if let ast_view::PropName::Ident(ident) = key_value_prop.key {
-          if ident.sym().as_ref() == "__proto__" {
-            return true
+fn is_null_proto(object_expr: &ObjectExpression) -> bool {
+  for prop_or_spread in &object_expr.properties {
+    if let ObjectPropertyKind::ObjectProperty(prop) = prop_or_spread {
+      // Only non-computed keys count. `["__proto__"]` (computed) does not.
+      if prop.computed {
+        continue;
+      }
+      if matches!(&prop.value, Expression::NullLiteral(_)) {
+        match &prop.key {
+          PropertyKey::StaticIdentifier(ident) => {
+            if ident.name == "__proto__" {
+              return true;
+            }
           }
-        } else if let ast_view::PropName::Str(str) = key_value_prop.key {
-          if str.inner.value.as_str() == Some("__proto__") {
-            return true
+          PropertyKey::StringLiteral(s) => {
+            if s.value == "__proto__" {
+              return true;
+            }
           }
+          _ => {}
         }
       }
     }
@@ -357,148 +361,310 @@ fn is_null_proto(object_lit: &ast_view::ObjectLit) -> bool {
   false
 }
 
-struct PreferPrimordialsHandler;
+fn is_new_expression(expr: &Expression) -> bool {
+  matches!(expr, Expression::NewExpression(_))
+}
 
-impl Handler for PreferPrimordialsHandler {
-  fn ident(&mut self, ident: &ast_view::Ident, ctx: &mut Context) {
-    fn inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(
-      orig: ast_view::Node,
-      node: ast_view::Node,
-    ) -> bool {
-      if node.is::<ast_view::MemberExpr>() {
-        return true;
+struct PreferPrimordialsHandler {
+  /// Spans of StaticMemberExpressions that should NOT be reported for getter targets
+  /// because they appear as assignment targets or call targets, not reads.
+  skip_getter_spans: HashSet<Span>,
+  /// Spans of IdentifierReferences that should NOT be reported because they are
+  /// the object of a member expression that is already being reported.
+  skip_identifier_spans: HashSet<Span>,
+  /// Spans of RegExpLiterals that should NOT be reported because they are
+  /// arguments to safe wrappers (e.g. `new SafeRegExp(/pattern/)`).
+  skip_regex_spans: HashSet<Span>,
+  /// Spans of SpreadElements that are within object expressions (object spread),
+  /// which do NOT use the iterator protocol and should not be flagged.
+  skip_spread_spans: HashSet<Span>,
+  /// Spans of ArrayPatterns that should NOT be reported because their RHS is a
+  /// safe iterator (e.g. `new SafeArrayIterator(...)`).
+  skip_array_pattern_spans: HashSet<Span>,
+  /// Spans of StaticMemberExpressions that have already been reported as method
+  /// call targets (e.g. `[1,2,3].map(...)`) so static_member_expression won't
+  /// double-report them.
+  skip_method_call_spans: HashSet<Span>,
+}
+
+impl PreferPrimordialsHandler {
+  fn new() -> Self {
+    Self {
+      skip_getter_spans: HashSet::new(),
+      skip_identifier_spans: HashSet::new(),
+      skip_regex_spans: HashSet::new(),
+      skip_spread_spans: HashSet::new(),
+      skip_array_pattern_spans: HashSet::new(),
+      skip_method_call_spans: HashSet::new(),
+    }
+  }
+
+  fn is_safe_array_iterator_rhs(expr: &Expression) -> bool {
+    if let Expression::NewExpression(new_expr) = expr {
+      if let Expression::Identifier(ident) = &new_expr.callee {
+        return ident.name == "SafeArrayIterator";
       }
-      if let Some(decl) = node.to::<ast_view::VarDeclarator>() {
-        return decl.name.range().contains(&orig.range());
+    }
+    false
+  }
+}
+
+impl Handler<'_> for PreferPrimordialsHandler {
+  // Handle global identifier references (not as part of member expressions or declarations)
+  // Note: In OXC we don't have parent() access, so we use identifier_reference
+  // which fires for all identifier references. We rely on the fact that
+  // member expression object references also fire as identifier_reference.
+  // However, we cannot distinguish LHS of variable declarations from RHS.
+  // This is a simplified port that may have some differences from the original.
+
+  fn ts_type_annotation(
+    &mut self,
+    _n: &TSTypeAnnotation,
+    ctx: &mut Context,
+  ) {
+    // Skip traversal inside type annotations entirely — identifiers in type
+    // position (e.g. `Array` in `a: Array<any>`) are not runtime references.
+    ctx.stop_traverse();
+  }
+
+  fn ts_type_parameter_declaration(
+    &mut self,
+    _n: &TSTypeParameterDeclaration,
+    ctx: &mut Context,
+  ) {
+    ctx.stop_traverse();
+  }
+
+  fn ts_type_parameter_instantiation(
+    &mut self,
+    _n: &TSTypeParameterInstantiation,
+    ctx: &mut Context,
+  ) {
+    ctx.stop_traverse();
+  }
+
+  fn ts_type_alias_declaration(
+    &mut self,
+    _n: &TSTypeAliasDeclaration,
+    ctx: &mut Context,
+  ) {
+    ctx.stop_traverse();
+  }
+
+  fn call_expression(
+    &mut self,
+    call_expr: &CallExpression,
+    ctx: &mut Context,
+  ) {
+    // Check for unsafe function targets like PromiseAll, etc.
+    if let Expression::Identifier(ident) = &call_expr.callee {
+      if UNSAFE_FUNCTION_TARGETS.contains(&ident.name.as_str()) {
+        ctx.add_diagnostic_with_hint(
+          ident.span,
+          CODE,
+          PreferPrimordialsMessage::UnsafeIntrinsic,
+          PreferPrimordialsHint::UnsafeIntrinsic,
+        );
       }
-      if let Some(kv) = node.to::<ast_view::KeyValueProp>() {
-        return kv.key.range().contains(&orig.range());
-      }
-      if let Some(type_ref) = node.to::<ast_view::TsTypeRef>() {
-        return type_ref.type_name.range().contains(&orig.range());
-      }
 
-      match node.parent() {
-        None => false,
-        Some(parent) => {
-          inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(orig, parent)
-        }
-      }
-    }
-
-    fn is_shadowed(ident: &ast_view::Ident, scope: &Scope) -> bool {
-      scope.var(&ident.inner.to_id()).is_some()
-    }
-
-    if inside_var_decl_lhs_or_member_expr_or_prop_or_type_ref(
-      ident.as_node(),
-      ident.as_node(),
-    ) {
-      return;
-    }
-
-    if GLOBAL_TARGETS.contains(&ident.sym().as_ref())
-      && !is_shadowed(ident, ctx.scope())
-    {
-      ctx.add_diagnostic_with_hint(
-        ident.range(),
-        CODE,
-        PreferPrimordialsMessage::GlobalIntrinsic,
-        PreferPrimordialsHint::GlobalIntrinsic,
-      );
-    }
-
-    if UNSAFE_CONSTRUCTOR_TARGETS.contains(&ident.sym().as_ref())
-      && matches!(ident.parent(), ast_view::Node::NewExpr(_))
-    {
-      ctx.add_diagnostic_with_hint(
-        ident.range(),
-        CODE,
-        PreferPrimordialsMessage::UnsafeIntrinsic,
-        PreferPrimordialsHint::UnsafeIntrinsic,
-      );
-    }
-
-    if UNSAFE_FUNCTION_TARGETS.contains(&ident.sym().as_ref())
-      && matches!(ident.parent(), ast_view::Node::CallExpr(_))
-    {
-      ctx.add_diagnostic_with_hint(
-        ident.range(),
-        CODE,
-        PreferPrimordialsMessage::UnsafeIntrinsic,
-        PreferPrimordialsHint::UnsafeIntrinsic,
-      );
-    }
-
-    match &ident.sym().as_ref() {
-      &"ObjectDefineProperty" | &"ReflectDefineProperty" => {
-        if_chain! {
-          if let ast_view::Node::CallExpr(call_expr) = ident.parent();
-          if let Some(expr_or_spread) = call_expr.args.get(2);
-          if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
-          if !is_null_proto(object_lit);
-          then {
-            ctx.add_diagnostic_with_hint(
-              object_lit.range(),
-              CODE,
-              PreferPrimordialsMessage::DefineProperty,
-              PreferPrimordialsHint::NullPrototypeObjectLiteral,
-            );
+      // Check ObjectDefineProperty / ReflectDefineProperty
+      match ident.name.as_str() {
+        "ObjectDefineProperty" | "ReflectDefineProperty" => {
+          if let Some(arg) = call_expr.arguments.get(2) {
+            if let Argument::ObjectExpression(object_lit) = arg {
+              if !is_null_proto(object_lit) {
+                ctx.add_diagnostic_with_hint(
+                  object_lit.span,
+                  CODE,
+                  PreferPrimordialsMessage::DefineProperty,
+                  PreferPrimordialsHint::NullPrototypeObjectLiteral,
+                );
+              }
+            }
           }
         }
-      }
-      &"ObjectDefineProperties" => {
-        if_chain! {
-          if let ast_view::Node::CallExpr(call_expr) = ident.parent();
-          if let Some(expr_or_spread) = call_expr.args.get(1);
-          if let ast_view::Expr::Object(object_lit) = expr_or_spread.expr;
-          then {
-            for prop_or_spread in object_lit.props {
-              if_chain! {
-                if let ast_view::PropOrSpread::Prop(prop) = prop_or_spread;
-                if let ast_view::Prop::KeyValue(key_value_prop) = prop;
-                if let ast_view::Expr::Object(object_lit) = key_value_prop.value;
-                if !is_null_proto(object_lit);
-                then {
-                  ctx.add_diagnostic_with_hint(
-                    object_lit.range(),
-                    CODE,
-                    PreferPrimordialsMessage::DefineProperty,
-                    PreferPrimordialsHint::NullPrototypeObjectLiteral,
-                  );
+        "ObjectDefineProperties" => {
+          if let Some(arg) = call_expr.arguments.get(1) {
+            if let Argument::ObjectExpression(object_lit) = arg {
+              for prop_or_spread in &object_lit.properties {
+                if let ObjectPropertyKind::ObjectProperty(prop) =
+                  prop_or_spread
+                {
+                  if let Expression::ObjectExpression(inner_obj) = &prop.value
+                  {
+                    if !is_null_proto(inner_obj) {
+                      ctx.add_diagnostic_with_hint(
+                        inner_obj.span,
+                        CODE,
+                        PreferPrimordialsMessage::DefineProperty,
+                        PreferPrimordialsHint::NullPrototypeObjectLiteral,
+                      );
+                    }
+                  }
                 }
               }
             }
           }
         }
+        _ => {}
       }
-      _ => (),
+    }
+
+    // Check for method calls like foo.bar() where bar is in METHOD_TARGETS
+    if let Expression::StaticMemberExpression(member) = &call_expr.callee {
+      if METHOD_TARGETS.contains(&member.property.name.as_str()) {
+        ctx.add_diagnostic_with_hint(
+          member.span,
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
+        // Mark as reported so static_member_expression won't double-report.
+        self.skip_method_call_spans.insert(member.span);
+      }
+      // Mark callee as skip for getter targets: `foo.description()` is a method call,
+      // not a getter read, so the static_member_expression handler should skip it.
+      if GETTER_TARGETS.contains(&member.property.name.as_str()) {
+        self.skip_getter_spans.insert(member.span);
+      }
     }
   }
 
-  fn member_expr(
+  fn assignment_expression(
     &mut self,
-    member_expr: &ast_view::MemberExpr,
+    assign_expr: &AssignmentExpression,
     ctx: &mut Context,
   ) {
-    use ast_view::{Expr, Node};
+    // Mark the LHS of an assignment as skip for getter targets.
+    // e.g. `foo.description = 1` — `foo.description` is being written, not read.
+    if let AssignmentTarget::StaticMemberExpression(member) = &assign_expr.left
+    {
+      if GETTER_TARGETS.contains(&member.property.name.as_str()) {
+        self.skip_getter_spans.insert(member.span);
+      }
+    }
+    if let AssignmentTarget::ArrayAssignmentTarget(array_target) =
+      &assign_expr.left
+    {
+      if Self::is_safe_array_iterator_rhs(&assign_expr.right) {
+        // `[a, b, ...c] = new SafeArrayIterator(...)` — array pattern LHS is safe.
+        self.skip_array_pattern_spans.insert(array_target.span);
+      } else {
+        // `[a, b] = expr` — array destructuring assignment without SafeArrayIterator.
+        let has_rest = array_target.rest.is_some();
+        if !has_rest {
+          ctx.add_diagnostic_with_hint(
+            array_target.span,
+            CODE,
+            PreferPrimordialsMessage::Iterator,
+            PreferPrimordialsHint::ObjectPattern,
+          );
+        } else {
+          ctx.add_diagnostic_with_hint(
+            array_target.span,
+            CODE,
+            PreferPrimordialsMessage::Iterator,
+            PreferPrimordialsHint::SafeIterator,
+          );
+        }
+      }
+    }
+  }
 
-    // If `member_expr.obj` is an array literal, access to its properties or
-    // methods should be replaced with the one from `primordials`.
-    // For example:
-    //
-    // ```js
-    // [1, 2, 3].filter((val) => val % 2 === 0)
-    // ```
-    //
-    // should be turned into:
-    //
-    // ```js
-    // primordials.ArrayPrototypeFilter([1, 2, 3], (val) => val % 2 === 0)
-    // ```
-    if let Expr::Array(_) = &member_expr.obj {
+  fn variable_declarator(
+    &mut self,
+    declarator: &VariableDeclarator,
+    _ctx: &mut Context,
+  ) {
+    // `const [a, b, ...c] = new SafeArrayIterator(...)` — array pattern is safe.
+    if let Some(init) = &declarator.init {
+      if Self::is_safe_array_iterator_rhs(init) {
+        if let BindingPattern::ArrayPattern(array_pat) = &declarator.id {
+          self.skip_array_pattern_spans.insert(array_pat.span);
+        }
+      }
+    }
+  }
+
+  fn new_expression(
+    &mut self,
+    new_expr: &NewExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      // Report GlobalIntrinsic first (if applicable), then UnsafeIntrinsic.
+      // This ensures the ordering matches what tests expect.
+      if GLOBAL_TARGETS.contains(&ident.name.as_str())
+        && ctx.scope().var_by_name(ident.name.as_str()).is_none()
+      {
+        ctx.add_diagnostic_with_hint(
+          ident.span,
+          CODE,
+          PreferPrimordialsMessage::GlobalIntrinsic,
+          PreferPrimordialsHint::GlobalIntrinsic,
+        );
+        // Mark the identifier so identifier_reference won't double-report it.
+        self.skip_identifier_spans.insert(ident.span);
+      }
+      if UNSAFE_CONSTRUCTOR_TARGETS.contains(&ident.name.as_str()) {
+        ctx.add_diagnostic_with_hint(
+          ident.span,
+          CODE,
+          PreferPrimordialsMessage::UnsafeIntrinsic,
+          PreferPrimordialsHint::UnsafeIntrinsic,
+        );
+        // Also mark the identifier so identifier_reference won't double-report it.
+        self.skip_identifier_spans.insert(ident.span);
+      }
+      // `new SafeRegExp(regex)` — the regex literal argument is intentionally wrapped,
+      // so skip reporting it as "don't use RegExp literal directly".
+      if ident.name.as_str() == "SafeRegExp" {
+        for arg in &new_expr.arguments {
+          if let Some(expr) = arg.as_expression() {
+            if let Expression::RegExpLiteral(regex) = expr {
+              self.skip_regex_spans.insert(regex.span);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  fn identifier_reference(
+    &mut self,
+    ident: &IdentifierReference,
+    ctx: &mut Context,
+  ) {
+    // Skip if already reported as part of a member expression (e.g. `Symbol` in `Symbol.for`).
+    if self.skip_identifier_spans.contains(&ident.span) {
+      return;
+    }
+    if GLOBAL_TARGETS.contains(&ident.name.as_str())
+      && ctx.scope().var_by_name(ident.name.as_str()).is_none()
+    {
       ctx.add_diagnostic_with_hint(
-        member_expr.range(),
+        ident.span,
+        CODE,
+        PreferPrimordialsMessage::GlobalIntrinsic,
+        PreferPrimordialsHint::GlobalIntrinsic,
+      );
+    }
+  }
+
+  fn static_member_expression(
+    &mut self,
+    member_expr: &StaticMemberExpression,
+    ctx: &mut Context,
+  ) {
+    // If this member expression was already reported as part of a method call, skip.
+    if self.skip_method_call_spans.contains(&member_expr.span) {
+      return;
+    }
+
+    // If the object is an array literal, flag it
+    if let Expression::ArrayExpression(_) = &member_expr.object {
+      ctx.add_diagnostic_with_hint(
+        member_expr.span,
         CODE,
         PreferPrimordialsMessage::GlobalIntrinsic,
         PreferPrimordialsHint::GlobalIntrinsic,
@@ -506,82 +672,45 @@ impl Handler for PreferPrimordialsHandler {
       return;
     }
 
-    if_chain! {
-      // Don't check non-root elements in chained member expressions
-      // e.g. `bar.baz` in `foo.bar.baz`
-      if !member_expr.parent().is::<ast_view::MemberExpr>();
-      if let Expr::Ident(ident) = &member_expr.obj;
-      if GLOBAL_TARGETS.contains(&ident.sym().as_ref());
-      then {
+    // Check for global.property access (non-call, non-chained)
+    if let Expression::Identifier(ident) = &member_expr.object {
+      if GLOBAL_TARGETS.contains(&ident.name.as_str()) {
         ctx.add_diagnostic_with_hint(
-          member_expr.range(),
+          member_expr.span,
           CODE,
           PreferPrimordialsMessage::GlobalIntrinsic,
           PreferPrimordialsHint::GlobalIntrinsic,
         );
+        // Mark the identifier so it won't be reported again by identifier_reference.
+        self.skip_identifier_spans.insert(ident.span);
         return;
       }
     }
 
-    if_chain! {
-      if member_expr.parent().is::<ast_view::CallExpr>();
-      if let ast_view::MemberProp::Ident(ident) = &member_expr.prop;
-      if METHOD_TARGETS.contains(&ident.sym().as_ref());
-      then {
-        ctx.add_diagnostic_with_hint(
-          member_expr.range(),
-          CODE,
-          PreferPrimordialsMessage::GlobalIntrinsic,
-          PreferPrimordialsHint::GlobalIntrinsic,
-        );
-      }
-    }
-
-    if_chain! {
-      // Don't check left side of assignment expressions
-      // e.g. `foo.bar = 1`
-      if !matches!(member_expr.parent(), Node::AssignExpr(assign_expr)
-        if assign_expr.left.to::<ast_view::MemberExpr>().is_some_and(|expr| ptr::eq(expr, member_expr))
+    // Check getter targets (read access only).
+    // Skip if the member expression was marked as an assignment target or call target.
+    if GETTER_TARGETS.contains(&member_expr.property.name.as_str())
+      && !self.skip_getter_spans.contains(&member_expr.span)
+    {
+      ctx.add_diagnostic_with_hint(
+        member_expr.span,
+        CODE,
+        PreferPrimordialsMessage::GlobalIntrinsic,
+        PreferPrimordialsHint::GlobalIntrinsic,
       );
-      // Don't check call expressions
-      // e.g. `foo.bar()`
-      if !member_expr.parent().is::<ast_view::CallExpr>();
-      if let ast_view::MemberProp::Ident(ident) = &member_expr.prop;
-      if GETTER_TARGETS.contains(&ident.sym().as_ref());
-      then {
-        ctx.add_diagnostic_with_hint(
-          member_expr.range(),
-          CODE,
-          PreferPrimordialsMessage::GlobalIntrinsic,
-          PreferPrimordialsHint::GlobalIntrinsic,
-        );
-      }
     }
   }
 
-  fn object_lit(
+  fn assignment_pattern(
     &mut self,
-    object_lit: &ast_view::ObjectLit,
+    assign_pat: &AssignmentPattern,
     ctx: &mut Context,
   ) {
-    fn inside_param(orig: ast_view::Node, node: ast_view::Node) -> bool {
-      if let Some(param) = node.to::<ast_view::Param>() {
-        return param.range().contains(&orig.range());
-      }
-
-      match node.parent() {
-        None => false,
-        Some(parent) => inside_param(orig, parent),
-      }
-    }
-
-    if_chain! {
-      if !is_null_proto(object_lit);
-      if matches!(object_lit.parent(), ast_view::Node::AssignPat(_) | ast_view::Node::AssignPatProp(_));
-      if inside_param(object_lit.as_node(), object_lit.as_node());
-      then {
+    // Check for default parameters with object literals that lack __proto__: null
+    if let Expression::ObjectExpression(object_lit) = &assign_pat.right {
+      if !is_null_proto(object_lit) {
         ctx.add_diagnostic_with_hint(
-          object_lit.range(),
+          object_lit.span,
           CODE,
           PreferPrimordialsMessage::ObjectAssignInDefaultParameter,
           PreferPrimordialsHint::NullPrototypeObjectLiteral,
@@ -590,33 +719,54 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn expr_or_spread(
+  fn formal_parameter(
     &mut self,
-    expr_or_spread: &ast_view::ExprOrSpread,
+    param: &FormalParameter,
     ctx: &mut Context,
   ) {
-    if_chain! {
-      if expr_or_spread.inner.spread.is_some();
-      if !expr_or_spread.inner.expr.is_new();
-      then {
-        ctx.add_diagnostic_with_hint(
-          expr_or_spread.range(),
-          CODE,
-          PreferPrimordialsMessage::Iterator,
-          PreferPrimordialsHint::SafeIterator,
-        );
+    // Check for default parameter values that are object literals without __proto__: null.
+    // e.g. `function foo(o = {}) {}` — FormalParameter.initializer holds the default.
+    // (This is distinct from destructuring defaults like `{ o = {} }` which use AssignmentPattern.)
+    if let Some(init) = &param.initializer {
+      if let Expression::ObjectExpression(object_lit) = init.as_ref() {
+        if !is_null_proto(object_lit) {
+          ctx.add_diagnostic_with_hint(
+            object_lit.span,
+            CODE,
+            PreferPrimordialsMessage::ObjectAssignInDefaultParameter,
+            PreferPrimordialsHint::NullPrototypeObjectLiteral,
+          );
+        }
       }
     }
   }
 
-  fn for_of_stmt(
+  fn object_expression(
     &mut self,
-    for_of_stmt: &ast_view::ForOfStmt,
+    obj_expr: &ObjectExpression,
+    _ctx: &mut Context,
+  ) {
+    // Object spread (`{ ...obj }`) does NOT use the iterator protocol, so mark
+    // any spread elements within this object expression to be skipped.
+    for prop in &obj_expr.properties {
+      if let ObjectPropertyKind::SpreadProperty(spread) = prop {
+        self.skip_spread_spans.insert(spread.span);
+      }
+    }
+  }
+
+  fn spread_element(
+    &mut self,
+    spread: &SpreadElement,
     ctx: &mut Context,
   ) {
-    if !for_of_stmt.right.is::<ast_view::NewExpr>() {
+    // Skip object spreads — they don't use the iterator protocol.
+    if self.skip_spread_spans.contains(&spread.span) {
+      return;
+    }
+    if !is_new_expression(&spread.argument) {
       ctx.add_diagnostic_with_hint(
-        for_of_stmt.right.range(),
+        spread.span,
         CODE,
         PreferPrimordialsMessage::Iterator,
         PreferPrimordialsHint::SafeIterator,
@@ -624,16 +774,31 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn yield_expr(
+  fn for_of_statement(
     &mut self,
-    yield_expr: &ast_view::YieldExpr,
+    for_of: &ForOfStatement,
     ctx: &mut Context,
   ) {
-    if yield_expr.delegate()
-      && !matches!(yield_expr.arg, Some(ast_view::Expr::New(_)))
+    if !is_new_expression(&for_of.right) {
+      ctx.add_diagnostic_with_hint(
+        for_of.right.span(),
+        CODE,
+        PreferPrimordialsMessage::Iterator,
+        PreferPrimordialsHint::SafeIterator,
+      );
+    }
+  }
+
+  fn yield_expression(
+    &mut self,
+    yield_expr: &YieldExpression,
+    ctx: &mut Context,
+  ) {
+    if yield_expr.delegate
+      && !matches!(&yield_expr.argument, Some(expr) if is_new_expression(expr))
     {
       ctx.add_diagnostic_with_hint(
-        yield_expr.range(),
+        yield_expr.span,
         CODE,
         PreferPrimordialsMessage::Iterator,
         PreferPrimordialsHint::SafeIterator,
@@ -641,24 +806,22 @@ impl Handler for PreferPrimordialsHandler {
     }
   }
 
-  fn array_pat(&mut self, array_pat: &ast_view::ArrayPat, ctx: &mut Context) {
-    use ast_view::{Expr, Node, Pat};
+  fn array_pattern(
+    &mut self,
+    array_pat: &ArrayPattern,
+    ctx: &mut Context,
+  ) {
+    // If the array pattern is known to be safe (RHS is SafeArrayIterator), skip.
+    if self.skip_array_pattern_spans.contains(&array_pat.span) {
+      return;
+    }
 
-    // If array_pat.elems don't include rest pattern, should be used object pattern instead
-    // For example:
-    //
-    // ```js
-    // const [a, b] = [1, 2];
-    // ```
-    //
-    // should be turned into:
-    //
-    // ```js
-    // const { 0: a, 1: b } = [1, 2];
-    // ```
-    if !matches!(array_pat.elems.last(), Some(Some(Pat::Rest(_)))) {
+    // If array_pat.elements don't include rest pattern, should be used object pattern
+    let has_rest = array_pat.rest.is_some();
+
+    if !has_rest {
       ctx.add_diagnostic_with_hint(
-        array_pat.range(),
+        array_pat.span,
         CODE,
         PreferPrimordialsMessage::Iterator,
         PreferPrimordialsHint::ObjectPattern,
@@ -666,58 +829,48 @@ impl Handler for PreferPrimordialsHandler {
       return;
     }
 
-    match array_pat.parent() {
-      Node::VarDeclarator(var_declarator) => {
-        if !matches!(var_declarator.init, Some(Expr::New(_)) | None) {
-          ctx.add_diagnostic_with_hint(
-            var_declarator.range(),
-            CODE,
-            PreferPrimordialsMessage::Iterator,
-            PreferPrimordialsHint::SafeIterator,
-          );
-        }
-      }
-      Node::AssignExpr(asssign_expr) => {
-        if !matches!(asssign_expr.right, Expr::New(_)) {
-          ctx.add_diagnostic_with_hint(
-            asssign_expr.range(),
-            CODE,
-            PreferPrimordialsMessage::Iterator,
-            PreferPrimordialsHint::SafeIterator,
-          );
-        }
-      }
-      // TODO(petamoriken): Support for deeply nested assignments
-      _ => (),
-    }
+    // If it has a rest pattern, flag the parent var declarator or assignment
+    // for iterator usage (unless the RHS is a new SafeArrayIterator).
+    ctx.add_diagnostic_with_hint(
+      array_pat.span,
+      CODE,
+      PreferPrimordialsMessage::Iterator,
+      PreferPrimordialsHint::SafeIterator,
+    );
   }
 
-  fn regex(&mut self, regex: &ast_view::Regex, ctx: &mut Context) {
-    if !matches!(regex.parent(), ast_view::Node::ExprOrSpread(expr_or_spread)
-      if expr_or_spread.parent().is::<ast_view::NewExpr>()
-    ) {
-      ctx.add_diagnostic_with_hint(
-        regex.range(),
-        CODE,
-        PreferPrimordialsMessage::RegExp,
-        PreferPrimordialsHint::SafeRegExp,
-      );
+  fn reg_exp_literal(
+    &mut self,
+    regex: &RegExpLiteral,
+    ctx: &mut Context,
+  ) {
+    // Skip regex literals that are arguments to safe wrappers like `new SafeRegExp(...)`.
+    if self.skip_regex_spans.contains(&regex.span) {
+      return;
     }
+    ctx.add_diagnostic_with_hint(
+      regex.span,
+      CODE,
+      PreferPrimordialsMessage::RegExp,
+      PreferPrimordialsHint::SafeRegExp,
+    );
   }
 
-  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, ctx: &mut Context) {
-    use ast_view::BinaryOp;
-
-    if matches!(bin_expr.op(), BinaryOp::InstanceOf) {
+  fn binary_expression(
+    &mut self,
+    bin_expr: &BinaryExpression,
+    ctx: &mut Context,
+  ) {
+    if bin_expr.operator == BinaryOperator::Instanceof {
       ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
+        bin_expr.span,
         CODE,
         PreferPrimordialsMessage::InstanceOf,
         PreferPrimordialsHint::InstanceOf,
       );
-    } else if matches!(bin_expr.op(), BinaryOp::In) {
+    } else if bin_expr.operator == BinaryOperator::In {
       ctx.add_diagnostic_with_hint(
-        bin_expr.range(),
+        bin_expr.span,
         CODE,
         PreferPrimordialsMessage::In,
         PreferPrimordialsHint::In,

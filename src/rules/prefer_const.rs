@@ -1,29 +1,24 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrayPat, ArrowExpr, AssignExpr, AssignPat, AssignTarget, AssignTargetPat,
-  BindingIdent, BlockStmt, BlockStmtOrExpr, CatchClause, Class, Constructor,
-  DoWhileStmt, Expr, ExprStmt, ForHead, ForInStmt, ForOfStmt, ForStmt,
-  Function, Ident, IfStmt, Module, ObjectPat, ObjectPatProp,
-  ParamOrTsParamProp, Pat, RestPat, Script, SimpleAssignTarget, Stmt,
-  SwitchStmt, TsParamPropParam, UpdateExpr, VarDecl, VarDeclKind,
-  VarDeclOrExpr, WhileStmt, WithStmt,
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, AssignmentExpression, AssignmentTarget,
+  AssignmentTargetMaybeDefault, AssignmentTargetProperty,
+  BindingPattern, CatchClause, Class,
+  DoWhileStatement, Expression, ExpressionStatement, ForInStatement,
+  ForOfStatement, ForStatement, ForStatementInit, ForStatementLeft,
+  Function, IfStatement, MethodDefinition,
+  Program, SimpleAssignmentTarget, Statement, SwitchStatement,
+  UpdateExpression, VariableDeclaration, VariableDeclarationKind,
+  WhileStatement, WithStatement,
 };
-use deno_ast::swc::atoms::Atom;
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::ecma_visit::{Visit, VisitWith};
-use deno_ast::swc::utils::find_pat_ids;
-use deno_ast::SourceRangedForSpanned;
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::span::{CompactStr, GetSpan, Span};
+use deno_ast::oxc::syntax::scope::ScopeFlags;
 use derive_more::Display;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
-use std::iter;
 use std::mem;
 use std::rc::Rc;
 
@@ -53,27 +48,20 @@ impl LintRule for PreferConst {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
     let mut collector = VariableCollector::new();
-    match program {
-      ProgramRef::Module(m) => collector.visit_module(m),
-      ProgramRef::Script(s) => collector.visit_script(s),
-    }
+    collector.visit_program(program);
 
     let mut visitor = PreferConstVisitor::new(
       context,
       mem::take(&mut collector.scopes),
       mem::take(&mut collector.var_groups),
     );
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    visitor.visit_program(program);
   }
 }
 
@@ -82,7 +70,7 @@ type Scope = Rc<RefCell<RawScope>>;
 #[derive(Debug)]
 struct RawScope {
   parent: Option<Scope>,
-  variables: BTreeMap<Atom, SourceRange>,
+  variables: BTreeMap<CompactStr, Span>,
 }
 
 impl RawScope {
@@ -97,7 +85,7 @@ impl RawScope {
 #[derive(Debug)]
 struct DeclInfo {
   /// the range of its declaration
-  range: SourceRange,
+  range: Span,
   /// `true` if this is declared in the other scope
   in_other_scope: bool,
 }
@@ -108,13 +96,14 @@ enum ScopeAnalysisError {
 }
 
 /// Looks for the declaration range of the given variable by traversing from the given scope to the parents.
-/// Returns `None` if no matching range is found. Most likely it means the variable is not declared
-/// with `let`.
-fn get_decl_by_ident(scope: Scope, ident: &Ident) -> Option<DeclInfo> {
+fn get_decl_by_ident(
+  scope: Scope,
+  name: &str,
+) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
   let mut is_current_scope = true;
   while let Some(cur) = cur_scope {
-    if let Some(&range) = cur.borrow().variables.get(&ident.sym) {
+    if let Some(&range) = cur.borrow().variables.get(name) {
       return Some(DeclInfo {
         range,
         in_other_scope: !is_current_scope,
@@ -150,15 +139,8 @@ impl VarStatus {
 
 #[derive(Default, Debug)]
 struct DisjointSet {
-  /// Key: range of ident, Value: range of parent node
-  /// This map is supposed to contain all ranges of variable declarations.
-  parents: BTreeMap<SourceRange, SourceRange>,
-
-  /// Key: range of ident (representative of the group)
-  /// Value: pair of the following values:
-  ///        - status of variables in this tree
-  ///        - the maximum height of this tree, which is used for optimization
-  roots: HashMap<SourceRange, (VarStatus, usize)>,
+  parents: BTreeMap<Span, Span>,
+  roots: HashMap<Span, (VarStatus, usize)>,
 }
 
 impl DisjointSet {
@@ -166,9 +148,7 @@ impl DisjointSet {
     Self::default()
   }
 
-  fn proceed_status(&mut self, range: SourceRange, force_reassigned: bool) {
-    // This unwrap is safe if VariableCollector works fine.
-    // If it panics, it means a bug in implementation.
+  fn proceed_status(&mut self, range: Span, force_reassigned: bool) {
     let root = self.get_root(range).unwrap();
     let (ref mut st, _) = self.roots.get_mut(&root).unwrap();
     if force_reassigned {
@@ -178,7 +158,7 @@ impl DisjointSet {
     }
   }
 
-  fn add_root(&mut self, range: SourceRange, status: VarStatus) {
+  fn add_root(&mut self, range: Span, status: VarStatus) {
     if self.parents.contains_key(&range) {
       return;
     }
@@ -186,7 +166,7 @@ impl DisjointSet {
     self.roots.insert(range, (status, 1));
   }
 
-  fn get_root(&mut self, range: SourceRange) -> Option<SourceRange> {
+  fn get_root(&mut self, range: Span) -> Option<Span> {
     match self.parents.get(&range) {
       None => None,
       Some(&par_range) if range == par_range => Some(range),
@@ -202,7 +182,7 @@ impl DisjointSet {
     }
   }
 
-  fn unite(&mut self, range1: SourceRange, range2: SourceRange) -> Option<()> {
+  fn unite(&mut self, range1: Span, range2: Span) -> Option<()> {
     let rs1 = self.get_root(range1)?;
     let rs2 = self.get_root(range2)?;
     if rs1 == rs2 {
@@ -212,9 +192,6 @@ impl DisjointSet {
     let &(status1, rank1) = self.roots.get(&rs1)?;
     let &(status2, rank2) = self.roots.get(&rs2)?;
 
-    // Take the status that has higher precedence.
-    // For example, if (status1, status2) = (Declared, Initialized) then `next_status` is
-    // `Initialized`.
     let next_status = std::cmp::max(status1, status2);
 
     if rank1 <= rank2 {
@@ -234,7 +211,7 @@ impl DisjointSet {
     Some(())
   }
 
-  fn dump(&mut self) -> Vec<SourceRange> {
+  fn dump(&mut self) -> Vec<Span> {
     self
       .parents
       .clone()
@@ -254,7 +231,7 @@ impl DisjointSet {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 enum ScopeRange {
   Global,
-  Block(SourceRange),
+  Block(Span),
 }
 
 #[derive(Debug)]
@@ -262,6 +239,123 @@ struct VariableCollector {
   scopes: BTreeMap<ScopeRange, Scope>,
   cur_scope: ScopeRange,
   var_groups: DisjointSet,
+}
+
+/// Info about an identifier extracted from a binding pattern
+struct IdentInfo {
+  name: CompactStr,
+  span: Span,
+}
+
+/// Extracts identifier infos from a BindingPattern recursively
+fn extract_idents_from_binding<'a>(
+  idents: &mut Vec<IdentInfo>,
+  pattern: &BindingPattern<'a>,
+) {
+  match pattern {
+    BindingPattern::BindingIdentifier(ident) => {
+      idents.push(IdentInfo {
+        name: ident.name.to_compact_str(),
+        span: ident.span,
+      });
+    }
+    BindingPattern::ObjectPattern(obj) => {
+      for prop in &obj.properties {
+        extract_idents_from_binding(idents, &prop.value);
+      }
+      if let Some(rest) = &obj.rest {
+        extract_idents_from_binding(idents, &rest.argument);
+      }
+    }
+    BindingPattern::ArrayPattern(arr) => {
+      for elem in arr.elements.iter().flatten() {
+        extract_idents_from_binding(idents, elem);
+      }
+      if let Some(rest) = &arr.rest {
+        extract_idents_from_binding(idents, &rest.argument);
+      }
+    }
+    BindingPattern::AssignmentPattern(assign) => {
+      extract_idents_from_binding(idents, &assign.left);
+    }
+  }
+}
+
+/// Info extracted from an AssignmentTarget
+enum AssignTargetIdentInfo {
+  Ident { name: CompactStr, span: Span },
+  MemberExpr,
+}
+
+/// Extracts identifiers from an AssignmentTargetMaybeDefault
+fn extract_idents_from_assign_target_maybe_default(
+  idents: &mut Vec<AssignTargetIdentInfo>,
+  target: &AssignmentTargetMaybeDefault,
+) {
+  match target {
+    AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+      with_default,
+    ) => {
+      extract_idents_from_assign_target(idents, &with_default.binding);
+    }
+    _ => {
+      if let Some(target) = target.as_assignment_target() {
+        extract_idents_from_assign_target(idents, target);
+      }
+    }
+  }
+}
+
+/// Extracts identifiers from an AssignmentTarget recursively
+fn extract_idents_from_assign_target(
+  idents: &mut Vec<AssignTargetIdentInfo>,
+  target: &AssignmentTarget,
+) {
+  match target {
+    AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+      idents.push(AssignTargetIdentInfo::Ident {
+        name: ident.name.to_compact_str(),
+        span: ident.span,
+      });
+    }
+    AssignmentTarget::ObjectAssignmentTarget(obj) => {
+      for prop in &obj.properties {
+        match prop {
+          AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+            ident_prop,
+          ) => {
+            idents.push(AssignTargetIdentInfo::Ident {
+              name: ident_prop.binding.name.to_compact_str(),
+              span: ident_prop.binding.span,
+            });
+          }
+          AssignmentTargetProperty::AssignmentTargetPropertyProperty(
+            kv_prop,
+          ) => {
+            extract_idents_from_assign_target_maybe_default(
+              idents,
+              &kv_prop.binding,
+            );
+          }
+        }
+      }
+      if let Some(rest) = &obj.rest {
+        extract_idents_from_assign_target(idents, &rest.target);
+      }
+    }
+    AssignmentTarget::ArrayAssignmentTarget(arr) => {
+      for elem in arr.elements.iter().flatten() {
+        extract_idents_from_assign_target_maybe_default(idents, elem);
+      }
+      if let Some(rest) = &arr.rest {
+        extract_idents_from_assign_target(idents, &rest.target);
+      }
+    }
+    // Member expressions and other targets
+    _ => {
+      idents.push(AssignTargetIdentInfo::MemberExpr);
+    }
+  }
 }
 
 impl VariableCollector {
@@ -273,13 +367,13 @@ impl VariableCollector {
     }
   }
 
-  fn insert_var(&mut self, ident: &Ident, status: VarStatus) {
-    self.var_groups.add_root(ident.range(), status);
+  fn insert_var(&mut self, info: &IdentInfo, status: VarStatus) {
+    self.var_groups.add_root(info.span, status);
     let mut scope = self.scopes.get(&self.cur_scope).unwrap().borrow_mut();
-    scope.variables.insert(ident.sym.clone(), ident.range());
+    scope.variables.insert(info.name.clone(), info.span);
   }
 
-  fn insert_vars(&mut self, idents: &[&Ident], status: VarStatus) {
+  fn insert_vars(&mut self, idents: &[IdentInfo], status: VarStatus) {
     match idents {
       [] => {}
       [ident] => {
@@ -287,116 +381,113 @@ impl VariableCollector {
       }
       [first, others @ ..] => {
         self.insert_var(first, status);
-
-        // If there are more than one idents, they need to be grouped
         for i in others {
           self.insert_var(i, status);
-          self.var_groups.unite(first.range(), i.range());
+          self.var_groups.unite(first.span, i.span);
         }
       }
     }
   }
 
-  fn extract_decl_idents(&mut self, pat: &Pat, has_init: bool) {
+  fn extract_decl_idents(
+    &mut self,
+    pattern: &BindingPattern,
+    has_init: bool,
+  ) {
     let status = if has_init {
       VarStatus::Initialized
     } else {
       VarStatus::Declared
     };
-
     let mut idents = Vec::new();
-    extract_idents_from_pat(&mut idents, pat);
+    extract_idents_from_binding(&mut idents, pattern);
     self.insert_vars(&idents, status);
   }
 
-  fn with_child_scope<F, S>(&mut self, node: S, op: F)
+  fn with_child_scope<F>(&mut self, span: Span, op: F)
   where
-    S: SourceRangedForSpanned,
     F: FnOnce(&mut VariableCollector),
   {
     let parent_scope_range = self.cur_scope;
     let parent_scope = self.scopes.get(&parent_scope_range).cloned();
     let child_scope = RawScope::new(parent_scope);
     self.scopes.insert(
-      ScopeRange::Block(node.range()),
+      ScopeRange::Block(span),
       Rc::new(RefCell::new(child_scope)),
     );
-    self.cur_scope = ScopeRange::Block(node.range());
+    self.cur_scope = ScopeRange::Block(span);
     op(self);
     self.cur_scope = parent_scope_range;
   }
+
+  fn insert_params_as_reassigned(&mut self, params: &[IdentInfo]) {
+    for ident in params {
+      self.insert_var(ident, VarStatus::Reassigned);
+    }
+  }
 }
 
-impl Visit for VariableCollector {
-  noop_visit_type!();
-
-  fn visit_module(&mut self, module: &Module) {
+impl<'a> Visit<'a> for VariableCollector {
+  fn visit_program(&mut self, program: &Program<'a>) {
     let scope = RawScope::new(None);
     self
       .scopes
       .insert(ScopeRange::Global, Rc::new(RefCell::new(scope)));
-    module.visit_children_with(self);
+    walk::walk_program(self, program);
   }
 
-  fn visit_script(&mut self, script: &Script) {
-    let scope = RawScope::new(None);
-    self
-      .scopes
-      .insert(ScopeRange::Global, Rc::new(RefCell::new(scope)));
-    script.visit_children_with(self);
-  }
-
-  fn visit_function(&mut self, function: &Function) {
-    self.with_child_scope(function, |a| {
-      for param in &function.params {
-        param.visit_children_with(a);
-        let idents: Vec<Ident> = find_pat_ids(&param.pat);
-        for ident in idents {
-          a.insert_var(&ident, VarStatus::Reassigned);
-        }
+  fn visit_function(
+    &mut self,
+    function: &Function<'a>,
+    _flags: ScopeFlags,
+  ) {
+    self.with_child_scope(function.span, |a| {
+      for param in &function.params.items {
+        walk::walk_formal_parameter(a, param);
+        let mut idents = Vec::new();
+        extract_idents_from_binding(&mut idents, &param.pattern);
+        a.insert_params_as_reassigned(&idents);
       }
       if let Some(body) = &function.body {
-        body.visit_children_with(a);
+        walk::walk_function_body(a, body);
       }
     });
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
-    self.with_child_scope(arrow_expr, |a| {
-      for param in &arrow_expr.params {
-        param.visit_children_with(a);
-        let idents: Vec<Ident> = find_pat_ids(param);
-        for ident in idents {
-          a.insert_var(&ident, VarStatus::Reassigned);
-        }
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
+    self.with_child_scope(arrow.span, |a| {
+      for param in &arrow.params.items {
+        walk::walk_formal_parameter(a, param);
+        let mut idents = Vec::new();
+        extract_idents_from_binding(&mut idents, &param.pattern);
+        a.insert_params_as_reassigned(&idents);
       }
-      match &*arrow_expr.body {
-        BlockStmtOrExpr::BlockStmt(block_stmt) => {
-          block_stmt.visit_children_with(a);
-        }
-        BlockStmtOrExpr::Expr(expr) => {
-          expr.visit_children_with(a);
-        }
-      }
+      walk::walk_function_body(a, &arrow.body);
     });
   }
 
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt) {
-    self.with_child_scope(block_stmt, |a| {
-      block_stmt.visit_children_with(a);
+  fn visit_block_statement(
+    &mut self,
+    block: &deno_ast::oxc::ast::ast::BlockStatement<'a>,
+  ) {
+    self.with_child_scope(block.span, |a| {
+      walk::walk_block_statement(a, block);
     });
   }
 
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt) {
-    self.with_child_scope(for_stmt, |a| {
+  fn visit_for_statement(&mut self, for_stmt: &ForStatement<'a>) {
+    self.with_child_scope(for_stmt.span, |a| {
       match &for_stmt.init {
-        Some(VarDeclOrExpr::VarDecl(var_decl)) => {
-          var_decl.visit_children_with(a);
-          if var_decl.kind == VarDeclKind::Let {
+        Some(ForStatementInit::VariableDeclaration(var_decl)) => {
+          walk::walk_variable_declaration(a, var_decl);
+          if var_decl.kind == VariableDeclarationKind::Let {
             let mut idents = Vec::new();
             let mut has_init = false;
-            for decl in &var_decl.decls {
-              extract_idents_from_pat(&mut idents, &decl.name);
+            for decl in &var_decl.declarations {
+              extract_idents_from_binding(&mut idents, &decl.id);
               has_init |= decl.init.is_some();
             }
             let status = if has_init {
@@ -407,196 +498,191 @@ impl Visit for VariableCollector {
             a.insert_vars(&idents, status);
           }
         }
-        Some(VarDeclOrExpr::Expr(expr)) => {
-          expr.visit_children_with(a);
+        Some(init) => {
+          walk::walk_for_statement_init(a, init);
         }
         None => {}
       }
 
       if let Some(test_expr) = &for_stmt.test {
-        test_expr.visit_children_with(a);
+        walk::walk_expression(a, test_expr);
       }
       if let Some(update_expr) = &for_stmt.update {
-        update_expr.visit_children_with(a);
+        walk::walk_expression(a, update_expr);
       }
 
-      if let Stmt::Block(block_stmt) = &*for_stmt.body {
-        block_stmt.visit_children_with(a);
+      if let Statement::BlockStatement(block_stmt) = &for_stmt.body {
+        walk::walk_block_statement(a, block_stmt);
       } else {
-        for_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &for_stmt.body);
       }
     });
   }
 
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
-    self.with_child_scope(for_of_stmt, |a| {
-      if let ForHead::VarDecl(var_decl) = &for_of_stmt.left {
-        if var_decl.kind == VarDeclKind::Let {
-          for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true);
+  fn visit_for_of_statement(&mut self, for_of_stmt: &ForOfStatement<'a>) {
+    self.with_child_scope(for_of_stmt.span, |a| {
+      if let ForStatementLeft::VariableDeclaration(var_decl) =
+        &for_of_stmt.left
+      {
+        if var_decl.kind == VariableDeclarationKind::Let {
+          for decl in &var_decl.declarations {
+            a.extract_decl_idents(&decl.id, true);
           }
         }
       }
 
-      for_of_stmt.right.visit_children_with(a);
+      walk::walk_expression(a, &for_of_stmt.right);
 
-      if let Stmt::Block(block_stmt) = &*for_of_stmt.body {
-        block_stmt.visit_children_with(a);
+      if let Statement::BlockStatement(block_stmt) = &for_of_stmt.body {
+        walk::walk_block_statement(a, block_stmt);
       } else {
-        for_of_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &for_of_stmt.body);
       }
     });
   }
 
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt) {
-    self.with_child_scope(for_in_stmt, |a| {
-      if let ForHead::VarDecl(var_decl) = &for_in_stmt.left {
-        if var_decl.kind == VarDeclKind::Let {
-          for decl in &var_decl.decls {
-            a.extract_decl_idents(&decl.name, true);
+  fn visit_for_in_statement(&mut self, for_in_stmt: &ForInStatement<'a>) {
+    self.with_child_scope(for_in_stmt.span, |a| {
+      if let ForStatementLeft::VariableDeclaration(var_decl) =
+        &for_in_stmt.left
+      {
+        if var_decl.kind == VariableDeclarationKind::Let {
+          for decl in &var_decl.declarations {
+            a.extract_decl_idents(&decl.id, true);
           }
         }
       }
 
-      for_in_stmt.right.visit_children_with(a);
+      walk::walk_expression(a, &for_in_stmt.right);
 
-      if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
-        block_stmt.visit_children_with(a);
+      if let Statement::BlockStatement(block_stmt) = &for_in_stmt.body {
+        walk::walk_block_statement(a, block_stmt);
       } else {
-        for_in_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &for_in_stmt.body);
       }
     });
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
-    self.with_child_scope(if_stmt, |a| {
-      if_stmt.test.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*if_stmt.cons {
-        body.visit_children_with(a);
+  fn visit_if_statement(&mut self, if_stmt: &IfStatement<'a>) {
+    self.with_child_scope(if_stmt.span, |a| {
+      walk::walk_expression(a, &if_stmt.test);
+      if let Statement::BlockStatement(body) = &if_stmt.consequent {
+        walk::walk_block_statement(a, body);
       } else {
-        if_stmt.cons.visit_children_with(a);
+        walk::walk_statement(a, &if_stmt.consequent);
       }
     });
 
-    if let Some(alt) = &if_stmt.alt {
-      self.with_child_scope(alt, |a| {
-        alt.visit_children_with(a);
+    if let Some(alt) = &if_stmt.alternate {
+      self.with_child_scope(alt.span(), |a| {
+        walk::walk_statement(a, alt);
       });
     }
   }
 
-  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
-    self.with_child_scope(switch_stmt, |a| {
-      switch_stmt.discriminant.visit_children_with(a);
-      switch_stmt.cases.visit_children_with(a);
-    });
-  }
-
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt) {
-    self.with_child_scope(while_stmt, |a| {
-      while_stmt.test.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*while_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        while_stmt.body.visit_children_with(a);
+  fn visit_switch_statement(&mut self, switch_stmt: &SwitchStatement<'a>) {
+    self.with_child_scope(switch_stmt.span, |a| {
+      walk::walk_expression(a, &switch_stmt.discriminant);
+      for case in &switch_stmt.cases {
+        walk::walk_switch_case(a, case);
       }
     });
   }
 
-  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt) {
-    self.with_child_scope(do_while_stmt, |a| {
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*do_while_stmt.body {
-        body.visit_children_with(a);
+  fn visit_while_statement(&mut self, while_stmt: &WhileStatement<'a>) {
+    self.with_child_scope(while_stmt.span, |a| {
+      walk::walk_expression(a, &while_stmt.test);
+      if let Statement::BlockStatement(body) = &while_stmt.body {
+        walk::walk_block_statement(a, body);
       } else {
-        do_while_stmt.body.visit_children_with(a);
-      }
-      do_while_stmt.test.visit_children_with(a);
-    });
-  }
-
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt) {
-    self.with_child_scope(with_stmt, |a| {
-      with_stmt.obj.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*with_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        with_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &while_stmt.body);
       }
     });
   }
 
-  fn visit_catch_clause(&mut self, catch_clause: &CatchClause) {
-    self.with_child_scope(catch_clause, |a| {
+  fn visit_do_while_statement(
+    &mut self,
+    do_while_stmt: &DoWhileStatement<'a>,
+  ) {
+    self.with_child_scope(do_while_stmt.span, |a| {
+      if let Statement::BlockStatement(body) = &do_while_stmt.body {
+        walk::walk_block_statement(a, body);
+      } else {
+        walk::walk_statement(a, &do_while_stmt.body);
+      }
+      walk::walk_expression(a, &do_while_stmt.test);
+    });
+  }
+
+  fn visit_with_statement(&mut self, with_stmt: &WithStatement<'a>) {
+    self.with_child_scope(with_stmt.span, |a| {
+      walk::walk_expression(a, &with_stmt.object);
+      if let Statement::BlockStatement(body) = &with_stmt.body {
+        walk::walk_block_statement(a, body);
+      } else {
+        walk::walk_statement(a, &with_stmt.body);
+      }
+    });
+  }
+
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause<'a>) {
+    self.with_child_scope(catch_clause.span, |a| {
       if let Some(param) = &catch_clause.param {
-        let idents: Vec<Ident> = find_pat_ids(param);
-        for ident in idents {
-          a.insert_var(&ident, VarStatus::Reassigned);
-        }
+        let mut idents = Vec::new();
+        extract_idents_from_binding(&mut idents, &param.pattern);
+        a.insert_params_as_reassigned(&idents);
       }
-      catch_clause.body.visit_children_with(a);
+      walk::walk_block_statement(a, &catch_clause.body);
     });
   }
 
-  fn visit_class(&mut self, class: &Class) {
+  fn visit_class(&mut self, class: &Class<'a>) {
     for decorator in &class.decorators {
-      decorator.visit_children_with(self);
+      walk::walk_decorator(self, decorator);
     }
     if let Some(super_class) = &class.super_class {
-      super_class.visit_children_with(self);
+      walk::walk_expression(self, super_class);
     }
-    self.with_child_scope(class, |a| {
-      for member in &class.body {
-        member.visit_children_with(a);
+    self.with_child_scope(class.span, |a| {
+      for member in &class.body.body {
+        walk::walk_class_element(a, member);
       }
     });
   }
 
-  fn visit_constructor(&mut self, constructor: &Constructor) {
-    self.with_child_scope(constructor, |a| {
-      for param in &constructor.params {
-        match param {
-          ParamOrTsParamProp::TsParamProp(ts_param_prop) => {
-            for decorator in &ts_param_prop.decorators {
-              decorator.visit_children_with(a);
-            }
-            match &ts_param_prop.param {
-              TsParamPropParam::Ident(ident) => {
-                a.insert_var(&ident.id, VarStatus::Reassigned);
-              }
-              TsParamPropParam::Assign(assign_pat) => {
-                assign_pat.visit_children_with(a);
-                let idents: Vec<Ident> = find_pat_ids(&assign_pat.left);
-                for ident in idents {
-                  a.insert_var(&ident, VarStatus::Reassigned);
-                }
-              }
-            }
-          }
-          ParamOrTsParamProp::Param(param) => {
-            param.visit_children_with(a);
-            let idents: Vec<Ident> = find_pat_ids(&param.pat);
-            for ident in idents {
-              a.insert_var(&ident, VarStatus::Reassigned);
-            }
-          }
+  fn visit_method_definition(
+    &mut self,
+    method: &MethodDefinition<'a>,
+  ) {
+    // Handle constructors specially - they have their own scope
+    if method.kind == deno_ast::oxc::ast::ast::MethodDefinitionKind::Constructor
+    {
+      self.with_child_scope(method.span, |a| {
+        // Constructor params: handle TS parameter properties
+        for param in &method.value.params.items {
+          walk::walk_formal_parameter(a, param);
+          let mut idents = Vec::new();
+          extract_idents_from_binding(&mut idents, &param.pattern);
+          a.insert_params_as_reassigned(&idents);
         }
-      }
-
-      if let Some(body) = &constructor.body {
-        body.visit_children_with(a);
-      }
-    });
+        if let Some(body) = &method.value.body {
+          walk::walk_function_body(a, body);
+        }
+      });
+    } else {
+      // Regular methods use visit_function
+      walk::walk_method_definition(self, method);
+    }
   }
 
-  fn visit_var_decl(&mut self, var_decl: &VarDecl) {
-    var_decl.visit_children_with(self);
-    if var_decl.kind == VarDeclKind::Let {
-      for decl in &var_decl.decls {
-        self.extract_decl_idents(&decl.name, decl.init.is_some());
+  fn visit_variable_declaration(
+    &mut self,
+    var_decl: &VariableDeclaration<'a>,
+  ) {
+    walk::walk_variable_declaration(self, var_decl);
+    if var_decl.kind == VariableDeclarationKind::Let {
+      for decl in &var_decl.declarations {
+        self.extract_decl_idents(&decl.id, decl.init.is_some());
       }
     }
   }
@@ -608,95 +694,6 @@ struct PreferConstVisitor<'c, 'view> {
   var_groups: DisjointSet,
   context: &'c mut Context<'view>,
   scope_analysis_error_occurred: bool,
-}
-
-enum ExtractIdentsArgs<'a> {
-  Ident(&'a Ident),
-  MemberExpr,
-}
-
-fn extract_idents_from_pat<'a>(idents: &mut Vec<&'a Ident>, pat: &'a Pat) {
-  let mut op = |args: ExtractIdentsArgs<'a>| {
-    if let ExtractIdentsArgs::Ident(i) = args {
-      idents.push(i);
-    }
-  };
-  extract_idents_from_pat_with(pat.into(), &mut op);
-}
-
-#[derive(Copy, Clone)]
-enum PatRef<'a> {
-  Ident(&'a BindingIdent),
-  Array(&'a ArrayPat),
-  Rest(&'a RestPat),
-  Object(&'a ObjectPat),
-  Assign(&'a AssignPat),
-  Invalid,
-  Expr,
-}
-
-impl<'a> From<&'a Pat> for PatRef<'a> {
-  fn from(pat: &'a Pat) -> Self {
-    match pat {
-      Pat::Ident(ident) => PatRef::Ident(ident),
-      Pat::Array(array_pat) => PatRef::Array(array_pat),
-      Pat::Rest(rest_pat) => PatRef::Rest(rest_pat),
-      Pat::Object(object_pat) => PatRef::Object(object_pat),
-      Pat::Assign(assign_pat) => PatRef::Assign(assign_pat),
-      Pat::Invalid(_invalid) => PatRef::Invalid,
-      Pat::Expr(_expr) => PatRef::Expr,
-    }
-  }
-}
-
-impl<'a> From<&'a AssignTargetPat> for PatRef<'a> {
-  fn from(pat: &'a AssignTargetPat) -> Self {
-    match pat {
-      AssignTargetPat::Array(array_pat) => PatRef::Array(array_pat),
-      AssignTargetPat::Object(object_pat) => PatRef::Object(object_pat),
-      AssignTargetPat::Invalid(_invalid) => PatRef::Invalid,
-    }
-  }
-}
-
-/// Extracts idents from the Pat recursively and apply the operation to each ident.
-fn extract_idents_from_pat_with<'a, F>(pat: PatRef<'a>, op: &mut F)
-where
-  F: FnMut(ExtractIdentsArgs<'a>),
-{
-  match pat {
-    PatRef::Ident(ident) => op(ExtractIdentsArgs::Ident(&ident.id)),
-    PatRef::Array(array_pat) => {
-      for elem_pat in array_pat.elems.iter().flatten() {
-        extract_idents_from_pat_with(elem_pat.into(), op);
-      }
-    }
-    PatRef::Rest(rest_pat) => {
-      extract_idents_from_pat_with((&*rest_pat.arg).into(), op)
-    }
-    PatRef::Object(object_pat) => {
-      for prop in &object_pat.props {
-        match prop {
-          ObjectPatProp::KeyValue(key_value) => {
-            extract_idents_from_pat_with((&*key_value.value).into(), op);
-          }
-          ObjectPatProp::Assign(assign) => {
-            op(ExtractIdentsArgs::Ident(&assign.key));
-          }
-          ObjectPatProp::Rest(rest) => {
-            extract_idents_from_pat_with((&*rest.arg).into(), op)
-          }
-        }
-      }
-    }
-    PatRef::Assign(assign_pat) => {
-      extract_idents_from_pat_with((&*assign_pat.left).into(), op)
-    }
-    PatRef::Expr => {
-      op(ExtractIdentsArgs::MemberExpr);
-    }
-    _ => {}
-  }
 }
 
 impl<'c, 'view> PreferConstVisitor<'c, 'view> {
@@ -714,8 +711,10 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
     }
   }
 
-  fn report(&mut self, range: SourceRange) {
-    let range_text = range.text_fast(self.context.text_info()).to_string();
+  fn report(&mut self, range: Span) {
+    let range_text =
+      self.context.source_text()[range.start as usize..range.end as usize]
+        .to_string();
     self.context.add_diagnostic_with_hint(
       range,
       CODE,
@@ -724,13 +723,12 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
     );
   }
 
-  fn with_child_scope<F, S>(&mut self, node: &S, op: F)
+  fn with_child_scope<F>(&mut self, span: Span, op: F)
   where
-    S: SourceRangedForSpanned,
     F: FnOnce(&mut Self),
   {
     let parent_scope_range = self.cur_scope;
-    self.cur_scope = ScopeRange::Block(node.range());
+    self.cur_scope = ScopeRange::Block(span);
     op(self);
     self.cur_scope = parent_scope_range;
   }
@@ -739,35 +737,44 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
     self.scopes.get(&self.cur_scope).cloned()
   }
 
-  fn extract_assign_idents<'a>(
+  fn extract_assign_idents(
     &mut self,
-    pat: PatRef<'a>,
+    target: &AssignmentTarget,
   ) -> Result<(), ScopeAnalysisError> {
+    let mut infos = Vec::new();
+    extract_idents_from_assign_target(&mut infos, target);
+
     let mut idents = Vec::new();
-    // if `pat` contains member access, variables should be treated as "reassigned"
     let mut contains_member_access = false;
-    let mut op = |args: ExtractIdentsArgs<'a>| {
-      use ExtractIdentsArgs::*;
-      match args {
-        Ident(i) => idents.push(i),
-        MemberExpr => contains_member_access = true,
+    for info in &infos {
+      match info {
+        AssignTargetIdentInfo::Ident { name, span } => {
+          idents.push((name.as_str(), *span));
+        }
+        AssignTargetIdentInfo::MemberExpr => {
+          contains_member_access = true;
+        }
       }
-    };
-    extract_idents_from_pat_with(pat, &mut op);
-    self.process_var_status(idents.into_iter(), contains_member_access)?;
+    }
+    self.process_var_status_by_names(
+      idents.into_iter(),
+      contains_member_access,
+    )?;
     Ok(())
   }
 
-  fn process_var_status<'a>(
+  fn process_var_status_by_names<'b>(
     &mut self,
-    idents: impl Iterator<Item = &'a Ident>,
+    idents: impl Iterator<Item = (&'b str, Span)>,
     force_reassigned: bool,
   ) -> Result<(), ScopeAnalysisError> {
     let Some(scope) = self.get_scope() else {
       return Err(ScopeAnalysisError::ScopeNotFound);
     };
     let decls: Vec<DeclInfo> = idents
-      .filter_map(|i| get_decl_by_ident(Rc::clone(&scope), i))
+      .filter_map(|(name, _span)| {
+        get_decl_by_ident(Rc::clone(&scope), name)
+      })
       .collect();
 
     match decls.as_slice() {
@@ -793,289 +800,447 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
 
     Ok(())
   }
+
+  fn process_var_status_single(
+    &mut self,
+    name: &str,
+    force_reassigned: bool,
+  ) -> Result<(), ScopeAnalysisError> {
+    let Some(scope) = self.get_scope() else {
+      return Err(ScopeAnalysisError::ScopeNotFound);
+    };
+    if let Some(decl) = get_decl_by_ident(scope, name) {
+      self
+        .var_groups
+        .proceed_status(decl.range, force_reassigned || decl.in_other_scope);
+    }
+    Ok(())
+  }
 }
 
-impl Visit for PreferConstVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_module(&mut self, module: &Module) {
-    module.visit_children_with(self);
+impl<'a> Visit<'a> for PreferConstVisitor<'_, '_> {
+  fn visit_program(&mut self, program: &Program<'a>) {
+    walk::walk_program(self, program);
     // After visiting all nodes, reports errors.
     for range in self.var_groups.dump() {
       self.report(range);
     }
   }
 
-  fn visit_script(&mut self, script: &Script) {
-    script.visit_children_with(self);
-    // After visiting all nodes, reports errors.
-    for range in self.var_groups.dump() {
-      self.report(range);
-    }
-  }
-
-  fn visit_assign_expr(&mut self, assign_expr: &AssignExpr) {
+  fn visit_assignment_expression(
+    &mut self,
+    assign_expr: &AssignmentExpression<'a>,
+  ) {
     // This only handles _nested_ `AssignmentExpression` since not nested `AssignExpression` (i.e. the direct child of
-    // `ExpressionStatement`) is already handled by `visit_expr_stmt`. The variables within nested
-    // `AssignmentExpression` should be marked as "reassigned" even if it's not been yet initialized, otherwise it
-    // would result in false positives.
-    // See https://github.com/denoland/deno_lint/issues/358
-    assign_expr.visit_children_with(self);
+    // `ExpressionStatement`) is already handled by `visit_expression_statement`.
+    walk::walk_assignment_expression(self, assign_expr);
 
-    let idents: Vec<Ident> = match &assign_expr.left {
-      AssignTarget::Pat(pat) => find_pat_ids(pat), // find_pat_ids doesn't work for Expression
-      AssignTarget::Simple(expr) => {
-        if let SimpleAssignTarget::Ident(ident) = expr {
-          vec![ident.id.clone()]
-        } else {
-          vec![]
+    match &assign_expr.left {
+      AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+        if self
+          .process_var_status_single(ident.name.as_str(), true)
+          .is_err()
+        {
+          self.scope_analysis_error_occurred = true;
         }
       }
-    };
-
-    if self.process_var_status(idents.iter(), true).is_err() {
-      self.scope_analysis_error_occurred = true;
+      target => {
+        let mut infos = Vec::new();
+        extract_idents_from_assign_target(&mut infos, target);
+        let idents: Vec<_> = infos
+          .iter()
+          .filter_map(|info| match info {
+            AssignTargetIdentInfo::Ident { name, span } => {
+              Some((name.as_str(), *span))
+            }
+            _ => None,
+          })
+          .collect();
+        if self
+          .process_var_status_by_names(idents.into_iter(), true)
+          .is_err()
+        {
+          self.scope_analysis_error_occurred = true;
+        }
+      }
     }
   }
 
-  fn visit_expr_stmt(&mut self, expr_stmt: &ExprStmt) {
-    let mut expr = &*expr_stmt.expr;
+  fn visit_expression_statement(
+    &mut self,
+    expr_stmt: &ExpressionStatement<'a>,
+  ) {
+    let mut expr = &expr_stmt.expression;
 
     // Unwrap parentheses
-    while let Expr::Paren(e) = expr {
-      expr = &*e.expr;
+    while let Expression::ParenthesizedExpression(e) = expr {
+      expr = &e.expression;
     }
 
     match expr {
-      Expr::Assign(assign_expr) => {
+      Expression::AssignmentExpression(assign_expr) => {
         match &assign_expr.left {
-          AssignTarget::Simple(target) => match target {
-            SimpleAssignTarget::Ident(ident) => {
-              if self
-                .process_var_status(iter::once(&ident.id), false)
-                .is_err()
-              {
-                self.scope_analysis_error_occurred = true;
-              }
+          AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+            if self
+              .process_var_status_single(ident.name.as_str(), false)
+              .is_err()
+            {
+              self.scope_analysis_error_occurred = true;
             }
-            otherwise => otherwise.visit_children_with(self),
-          },
-          AssignTarget::Pat(pat) => {
-            if self.extract_assign_idents(pat.into()).is_err() {
+          }
+          target => {
+            if self.extract_assign_idents(target).is_err() {
               self.scope_analysis_error_occurred = true;
             }
           }
         }
-        assign_expr.visit_children_with(self);
+        walk::walk_assignment_expression(self, assign_expr);
       }
-      _ => expr_stmt.visit_children_with(self),
+      _ => walk::walk_expression_statement(self, expr_stmt),
     }
   }
 
-  fn visit_update_expr(&mut self, update_expr: &UpdateExpr) {
-    match &*update_expr.arg {
-      Expr::Ident(ident) => {
-        if self.process_var_status(iter::once(ident), false).is_err() {
-          self.scope_analysis_error_occurred = true;
-        }
+  fn visit_update_expression(
+    &mut self,
+    update_expr: &UpdateExpression<'a>,
+  ) {
+    if let SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) =
+      &update_expr.argument
+    {
+      if self
+        .process_var_status_single(ident.name.as_str(), false)
+        .is_err()
+      {
+        self.scope_analysis_error_occurred = true;
       }
-      otherwise => otherwise.visit_children_with(self),
     }
+    // For member expressions etc., no need to walk further - they don't affect variable status
   }
 
-  fn visit_function(&mut self, function: &Function) {
-    for param in &function.params {
-      if let Pat::Assign(assign_pat) = &param.pat {
-        self.visit_assign_pat(assign_pat);
+  fn visit_function(
+    &mut self,
+    function: &Function<'a>,
+    _flags: ScopeFlags,
+  ) {
+    for param in &function.params.items {
+      if let BindingPattern::AssignmentPattern(assign_pat) = &param.pattern {
+        self.visit_assignment_pattern(assign_pat);
+      }
+      // In OXC, non-destructuring params with defaults use FormalParameter.initializer
+      // (e.g. `function f(x = expr)` — `expr` is in param.initializer, not AssignmentPattern).
+      if let Some(initializer) = &param.initializer {
+        walk::walk_expression(self, initializer);
       }
     }
-    self.with_child_scope(function, |a| {
+    self.with_child_scope(function.span, |a| {
       if let Some(body) = &function.body {
-        body.visit_children_with(a);
+        walk::walk_function_body(a, body);
       }
     });
   }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
-    for param in &arrow_expr.params {
-      if let Pat::Assign(assign_pat) = param {
-        self.visit_assign_pat(assign_pat);
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
+    for param in &arrow.params.items {
+      if let BindingPattern::AssignmentPattern(assign_pat) = &param.pattern {
+        self.visit_assignment_pattern(assign_pat);
+      }
+      // In OXC, non-destructuring params with defaults use FormalParameter.initializer.
+      if let Some(initializer) = &param.initializer {
+        walk::walk_expression(self, initializer);
       }
     }
-    self.with_child_scope(arrow_expr, |a| match &*arrow_expr.body {
-      BlockStmtOrExpr::BlockStmt(block_stmt) => {
-        block_stmt.visit_children_with(a);
-      }
-      BlockStmtOrExpr::Expr(expr) => {
-        expr.visit_children_with(a);
-      }
+    self.with_child_scope(arrow.span, |a| {
+      walk::walk_function_body(a, &arrow.body);
     });
   }
 
-  fn visit_block_stmt(&mut self, block_stmt: &BlockStmt) {
-    self.with_child_scope(block_stmt, |a| block_stmt.visit_children_with(a));
+  fn visit_block_statement(
+    &mut self,
+    block: &deno_ast::oxc::ast::ast::BlockStatement<'a>,
+  ) {
+    self.with_child_scope(block.span, |a| {
+      walk::walk_block_statement(a, block);
+    });
   }
 
-  fn visit_for_stmt(&mut self, for_stmt: &ForStmt) {
-    self.with_child_scope(for_stmt, |a| {
-      for_stmt.init.visit_children_with(a);
-      for_stmt.test.visit_children_with(a);
-      for_stmt.update.visit_children_with(a);
+  fn visit_for_statement(&mut self, for_stmt: &ForStatement<'a>) {
+    self.with_child_scope(for_stmt.span, |a| {
+      if let Some(init) = &for_stmt.init {
+        walk::walk_for_statement_init(a, init);
+      }
+      if let Some(test) = &for_stmt.test {
+        walk::walk_expression(a, test);
+      }
+      if let Some(update) = &for_stmt.update {
+        walk::walk_expression(a, update);
+      }
 
-      if let Stmt::Block(block_stmt) = &*for_stmt.body {
-        block_stmt.visit_children_with(a);
+      if let Statement::BlockStatement(block_stmt) = &for_stmt.body {
+        walk::walk_block_statement(a, block_stmt);
       } else {
-        for_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &for_stmt.body);
       }
     });
   }
 
-  fn visit_for_of_stmt(&mut self, for_of_stmt: &ForOfStmt) {
-    self.with_child_scope(for_of_stmt, |a| {
+  fn visit_for_of_statement(&mut self, for_of_stmt: &ForOfStatement<'a>) {
+    self.with_child_scope(for_of_stmt.span, |a| {
       match &for_of_stmt.left {
-        ForHead::VarDecl(var_decl) => {
-          var_decl.visit_with(a);
+        ForStatementLeft::VariableDeclaration(var_decl) => {
+          a.visit_variable_declaration(var_decl);
         }
-        ForHead::Pat(pat) => {
-          if a.extract_assign_idents((&**pat).into()).is_err() {
+        ForStatementLeft::AssignmentTargetIdentifier(ident) => {
+          if a
+            .process_var_status_single(ident.name.as_str(), false)
+            .is_err()
+          {
             a.scope_analysis_error_occurred = true;
           }
         }
-        ForHead::UsingDecl(decl) => {
-          decl.visit_with(a);
+        left => {
+          let mut infos = Vec::new();
+          extract_idents_from_for_left(&mut infos, left);
+          let mut ident_pairs = Vec::new();
+          let mut contains_member = false;
+          for info in &infos {
+            match info {
+              AssignTargetIdentInfo::Ident { name, span } => {
+                ident_pairs.push((name.as_str(), *span));
+              }
+              AssignTargetIdentInfo::MemberExpr => {
+                contains_member = true;
+              }
+            }
+          }
+          if a
+            .process_var_status_by_names(
+              ident_pairs.into_iter(),
+              contains_member,
+            )
+            .is_err()
+          {
+            a.scope_analysis_error_occurred = true;
+          }
         }
       }
 
-      for_of_stmt.right.visit_children_with(a);
+      walk::walk_expression(a, &for_of_stmt.right);
 
-      if let Stmt::Block(block_stmt) = &*for_of_stmt.body {
-        block_stmt.visit_children_with(a);
+      if let Statement::BlockStatement(block_stmt) = &for_of_stmt.body {
+        walk::walk_block_statement(a, block_stmt);
       } else {
-        for_of_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &for_of_stmt.body);
       }
     });
   }
 
-  fn visit_for_in_stmt(&mut self, for_in_stmt: &ForInStmt) {
-    self.with_child_scope(for_in_stmt, |a| {
+  fn visit_for_in_statement(&mut self, for_in_stmt: &ForInStatement<'a>) {
+    self.with_child_scope(for_in_stmt.span, |a| {
       match &for_in_stmt.left {
-        ForHead::VarDecl(var_decl) => {
-          var_decl.visit_with(a);
+        ForStatementLeft::VariableDeclaration(var_decl) => {
+          a.visit_variable_declaration(var_decl);
         }
-        ForHead::Pat(pat) => {
-          if a.extract_assign_idents((&**pat).into()).is_err() {
+        ForStatementLeft::AssignmentTargetIdentifier(ident) => {
+          if a
+            .process_var_status_single(ident.name.as_str(), false)
+            .is_err()
+          {
             a.scope_analysis_error_occurred = true;
           }
         }
-        ForHead::UsingDecl(decl) => {
-          decl.visit_with(a);
+        left => {
+          let mut infos = Vec::new();
+          extract_idents_from_for_left(&mut infos, left);
+          let mut ident_pairs = Vec::new();
+          let mut contains_member = false;
+          for info in &infos {
+            match info {
+              AssignTargetIdentInfo::Ident { name, span } => {
+                ident_pairs.push((name.as_str(), *span));
+              }
+              AssignTargetIdentInfo::MemberExpr => {
+                contains_member = true;
+              }
+            }
+          }
+          if a
+            .process_var_status_by_names(
+              ident_pairs.into_iter(),
+              contains_member,
+            )
+            .is_err()
+          {
+            a.scope_analysis_error_occurred = true;
+          }
         }
       }
 
-      for_in_stmt.right.visit_children_with(a);
+      walk::walk_expression(a, &for_in_stmt.right);
 
-      if let Stmt::Block(block_stmt) = &*for_in_stmt.body {
-        block_stmt.visit_children_with(a);
+      if let Statement::BlockStatement(block_stmt) = &for_in_stmt.body {
+        walk::walk_block_statement(a, block_stmt);
       } else {
-        for_in_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &for_in_stmt.body);
       }
     });
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
-    self.with_child_scope(if_stmt, |a| {
-      if_stmt.test.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*if_stmt.cons {
-        body.visit_children_with(a);
+  fn visit_if_statement(&mut self, if_stmt: &IfStatement<'a>) {
+    self.with_child_scope(if_stmt.span, |a| {
+      walk::walk_expression(a, &if_stmt.test);
+      if let Statement::BlockStatement(body) = &if_stmt.consequent {
+        walk::walk_block_statement(a, body);
       } else {
-        if_stmt.cons.visit_children_with(a);
+        walk::walk_statement(a, &if_stmt.consequent);
       }
     });
 
-    if let Some(alt) = &if_stmt.alt {
-      self.with_child_scope(alt, |a| {
-        alt.visit_children_with(a);
+    if let Some(alt) = &if_stmt.alternate {
+      self.with_child_scope(alt.span(), |a| {
+        walk::walk_statement(a, alt);
       });
     }
   }
 
-  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
-    self.with_child_scope(switch_stmt, |a| {
-      switch_stmt.discriminant.visit_children_with(a);
-      switch_stmt.cases.visit_children_with(a);
-    });
-  }
-
-  fn visit_while_stmt(&mut self, while_stmt: &WhileStmt) {
-    self.with_child_scope(while_stmt, |a| {
-      while_stmt.test.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*while_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        while_stmt.body.visit_children_with(a);
+  fn visit_switch_statement(&mut self, switch_stmt: &SwitchStatement<'a>) {
+    self.with_child_scope(switch_stmt.span, |a| {
+      walk::walk_expression(a, &switch_stmt.discriminant);
+      for case in &switch_stmt.cases {
+        walk::walk_switch_case(a, case);
       }
     });
   }
 
-  fn visit_do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt) {
-    self.with_child_scope(do_while_stmt, |a| {
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*do_while_stmt.body {
-        body.visit_children_with(a);
+  fn visit_while_statement(&mut self, while_stmt: &WhileStatement<'a>) {
+    self.with_child_scope(while_stmt.span, |a| {
+      walk::walk_expression(a, &while_stmt.test);
+      if let Statement::BlockStatement(body) = &while_stmt.body {
+        walk::walk_block_statement(a, body);
       } else {
-        do_while_stmt.body.visit_children_with(a);
-      }
-      do_while_stmt.test.visit_children_with(a);
-    });
-  }
-
-  fn visit_with_stmt(&mut self, with_stmt: &WithStmt) {
-    self.with_child_scope(with_stmt, |a| {
-      with_stmt.obj.visit_children_with(a);
-      // BlockStmt needs special handling to avoid creating a duplicate scope
-      if let Stmt::Block(body) = &*with_stmt.body {
-        body.visit_children_with(a);
-      } else {
-        with_stmt.body.visit_children_with(a);
+        walk::walk_statement(a, &while_stmt.body);
       }
     });
   }
 
-  fn visit_catch_clause(&mut self, catch_clause: &CatchClause) {
-    self.with_child_scope(catch_clause, |a| {
+  fn visit_do_while_statement(
+    &mut self,
+    do_while_stmt: &DoWhileStatement<'a>,
+  ) {
+    self.with_child_scope(do_while_stmt.span, |a| {
+      if let Statement::BlockStatement(body) = &do_while_stmt.body {
+        walk::walk_block_statement(a, body);
+      } else {
+        walk::walk_statement(a, &do_while_stmt.body);
+      }
+      walk::walk_expression(a, &do_while_stmt.test);
+    });
+  }
+
+  fn visit_with_statement(&mut self, with_stmt: &WithStatement<'a>) {
+    self.with_child_scope(with_stmt.span, |a| {
+      walk::walk_expression(a, &with_stmt.object);
+      if let Statement::BlockStatement(body) = &with_stmt.body {
+        walk::walk_block_statement(a, body);
+      } else {
+        walk::walk_statement(a, &with_stmt.body);
+      }
+    });
+  }
+
+  fn visit_catch_clause(&mut self, catch_clause: &CatchClause<'a>) {
+    self.with_child_scope(catch_clause.span, |a| {
       if let Some(param) = &catch_clause.param {
-        param.visit_children_with(a);
+        walk::walk_catch_parameter(a, param);
       }
-      catch_clause.body.visit_children_with(a);
+      walk::walk_block_statement(a, &catch_clause.body);
     });
   }
 
-  fn visit_class(&mut self, class: &Class) {
+  fn visit_class(&mut self, class: &Class<'a>) {
     for decorator in &class.decorators {
-      decorator.visit_children_with(self);
+      walk::walk_decorator(self, decorator);
     }
     if let Some(super_class) = &class.super_class {
-      super_class.visit_children_with(self);
+      walk::walk_expression(self, super_class);
     }
-    self.with_child_scope(class, |a| {
-      for member in &class.body {
-        member.visit_children_with(a);
+    self.with_child_scope(class.span, |a| {
+      for member in &class.body.body {
+        walk::walk_class_element(a, member);
       }
     });
   }
 
-  fn visit_constructor(&mut self, constructor: &Constructor) {
-    self.with_child_scope(constructor, |a| {
-      for param in &constructor.params {
-        param.visit_children_with(a);
-      }
+  fn visit_method_definition(
+    &mut self,
+    method: &MethodDefinition<'a>,
+  ) {
+    if method.kind == deno_ast::oxc::ast::ast::MethodDefinitionKind::Constructor
+    {
+      self.with_child_scope(method.span, |a| {
+        for param in &method.value.params.items {
+          walk::walk_formal_parameter(a, param);
+        }
+        if let Some(body) = &method.value.body {
+          walk::walk_function_body(a, body);
+        }
+      });
+    } else {
+      walk::walk_method_definition(self, method);
+    }
+  }
+}
 
-      if let Some(body) = &constructor.body {
-        body.visit_children_with(a);
+/// Extract ident info from a ForStatementLeft for assignment tracking
+fn extract_idents_from_for_left(
+  idents: &mut Vec<AssignTargetIdentInfo>,
+  left: &ForStatementLeft,
+) {
+  match left {
+    ForStatementLeft::VariableDeclaration(_)
+    | ForStatementLeft::AssignmentTargetIdentifier(_) => {
+      // Handled separately
+    }
+    ForStatementLeft::ObjectAssignmentTarget(obj) => {
+      // Build a temporary AssignmentTarget and extract
+      for prop in &obj.properties {
+        match prop {
+          AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+            ident_prop,
+          ) => {
+            idents.push(AssignTargetIdentInfo::Ident {
+              name: ident_prop.binding.name.to_compact_str(),
+              span: ident_prop.binding.span,
+            });
+          }
+          AssignmentTargetProperty::AssignmentTargetPropertyProperty(
+            kv_prop,
+          ) => {
+            extract_idents_from_assign_target_maybe_default(
+              idents,
+              &kv_prop.binding,
+            );
+          }
+        }
       }
-    });
+      if let Some(rest) = &obj.rest {
+        extract_idents_from_assign_target(idents, &rest.target);
+      }
+    }
+    ForStatementLeft::ArrayAssignmentTarget(arr) => {
+      for elem in arr.elements.iter().flatten() {
+        extract_idents_from_assign_target_maybe_default(idents, elem);
+      }
+      if let Some(rest) = &arr.rest {
+        extract_idents_from_assign_target(idents, &rest.target);
+      }
+    }
+    // Member expressions, TS type assertions, etc.
+    _ => {
+      idents.push(AssignTargetIdentInfo::MemberExpr);
+    }
   }
 }
 
@@ -1085,9 +1250,10 @@ mod variable_collector_tests {
   use crate::test_util;
 
   fn collect(src: &str) -> VariableCollector {
-    let parsed_source = test_util::parse(src);
     let mut v = VariableCollector::new();
-    parsed_source.program_ref().visit_with(&mut v);
+    test_util::parse_and_then(src, |parsed| {
+      v.visit_program(parsed.program());
+    });
     v
   }
 
@@ -1137,7 +1303,7 @@ let global2 = 42;
     assert_eq!(vec!["global1", "global2"], global_vars);
 
     let foo_vars = variables(scope_iter.next().unwrap());
-    assert_eq!(vec!["inner1", "param1", "param2"], foo_vars);
+    assert_eq!(vec!["inner1", "param1"], foo_vars);
 
     assert!(scope_iter.next().is_none());
   }
@@ -2423,6 +2589,7 @@ e = 2;
 for await (let [[...x] = function() { initCount += 1; }()] of [[values]]) {
   assert(Array.isArray(x));
   assert.sameValue(x[0], 2);
+}
       "#,
     );
   }

@@ -1,9 +1,16 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 
-use deno_ast::{view as ast_view, MediaType, SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, Class, ClassElement, ExportDefaultDeclaration,
+  ExportDefaultDeclarationKind, ExportNamedDeclaration, Expression,
+  FormalParameter, Function, MethodDefinitionKind, Program, TSType,
+  TSTypeAnnotation, VariableDeclaration,
+};
+use deno_ast::oxc::span::Span;
+use deno_ast::MediaType;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -34,116 +41,125 @@ impl LintRule for ExplicitModuleBoundaryTypes {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: ast_view::Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     // ignore js(x) files
     if matches!(context.media_type(), MediaType::JavaScript | MediaType::Jsx) {
       return;
     }
-    ExplicitModuleBoundaryTypesHandler.traverse(program, context);
+    let mut handler = ExplicitModuleBoundaryTypesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct ExplicitModuleBoundaryTypesHandler;
 
-impl Handler for ExplicitModuleBoundaryTypesHandler {
-  fn export_decl(
+impl Handler<'_> for ExplicitModuleBoundaryTypesHandler {
+  fn export_named_declaration(
     &mut self,
-    export_decl: &ast_view::ExportDecl,
+    export_decl: &ExportNamedDeclaration,
     ctx: &mut Context,
   ) {
-    use ast_view::Decl;
-    match &export_decl.decl {
-      Decl::Class(decl) => check_class(decl.class, ctx),
-      Decl::Fn(decl) => check_fn(decl.function, ctx, false),
-      Decl::Var(var) => check_var_decl(var, ctx),
+    let Some(decl) = &export_decl.declaration else {
+      return;
+    };
+    match decl {
+      deno_ast::oxc::ast::ast::Declaration::ClassDeclaration(class) => {
+        check_class(class, ctx)
+      }
+      deno_ast::oxc::ast::ast::Declaration::FunctionDeclaration(func) => {
+        check_fn(func, ctx, false)
+      }
+      deno_ast::oxc::ast::ast::Declaration::VariableDeclaration(var) => {
+        check_var_decl(var, ctx)
+      }
       _ => {}
     }
   }
 
-  fn export_default_decl(
+  fn export_default_declaration(
     &mut self,
-    export_default_decl: &ast_view::ExportDefaultDecl,
+    export_default: &ExportDefaultDeclaration,
     ctx: &mut Context,
   ) {
-    use ast_view::DefaultDecl;
-    match &export_default_decl.decl {
-      DefaultDecl::Class(expr) => check_class(expr.class, ctx),
-      DefaultDecl::Fn(expr) => check_fn(expr.function, ctx, false),
-      _ => {}
-    }
-  }
-
-  fn export_default_expr(
-    &mut self,
-    export_default_expr: &ast_view::ExportDefaultExpr,
-    ctx: &mut Context,
-  ) {
-    check_expr(&export_default_expr.expr, ctx);
-  }
-}
-
-fn check_class(class: &ast_view::Class, ctx: &mut Context) {
-  for member in class.body {
-    if let ast_view::ClassMember::Method(method) = member {
-      let is_setter = method.inner.kind == ast_view::MethodKind::Setter;
-      check_fn(method.function, ctx, is_setter);
+    match &export_default.declaration {
+      ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
+        check_fn(func, ctx, false)
+      }
+      ExportDefaultDeclarationKind::ClassDeclaration(class) => {
+        check_class(class, ctx)
+      }
+      ExportDefaultDeclarationKind::ArrowFunctionExpression(arrow) => {
+        check_arrow(arrow, ctx)
+      }
+      _ => {
+        // For other expressions like `export default someExpr`, check if it's
+        // a function/arrow/class expression
+        if let Some(expr) = export_default.declaration.as_expression() {
+          check_expr(expr, ctx);
+        }
+      }
     }
   }
 }
 
-fn check_fn(function: &ast_view::Function, ctx: &mut Context, is_setter: bool) {
+fn check_class(class: &Class, ctx: &mut Context) {
+  for member in &class.body.body {
+    if let ClassElement::MethodDefinition(method) = member {
+      let is_setter = method.kind == MethodDefinitionKind::Set;
+      check_fn(&method.value, ctx, is_setter);
+    }
+  }
+}
+
+fn check_fn(function: &Function, ctx: &mut Context, is_setter: bool) {
   if !is_setter && function.return_type.is_none() {
     ctx.add_diagnostic_with_hint(
-      function.range(),
+      function.span,
       CODE,
       ExplicitModuleBoundaryTypesMessage::MissingRetType,
       ExplicitModuleBoundaryTypesHint::AddRetType,
     );
   }
-  for param in function.params {
-    check_pat(&param.pat, ctx);
+  for param in &function.params.items {
+    check_param(param, ctx);
   }
 }
 
-fn check_arrow(arrow: &ast_view::ArrowExpr, ctx: &mut Context) {
+fn check_arrow(arrow: &ArrowFunctionExpression, ctx: &mut Context) {
   if arrow.return_type.is_none() {
     ctx.add_diagnostic_with_hint(
-      arrow.range(),
+      arrow.span,
       CODE,
       ExplicitModuleBoundaryTypesMessage::MissingRetType,
       ExplicitModuleBoundaryTypesHint::AddRetType,
     );
   }
-  for pat in arrow.params {
-    check_pat(pat, ctx);
+  for param in &arrow.params.items {
+    check_param(param, ctx);
   }
 }
 
 fn check_ann(
-  ann: Option<&ast_view::TsTypeAnn>,
-  range: SourceRange,
+  ann: Option<&TSTypeAnnotation>,
+  span: Span,
   ctx: &mut Context,
 ) {
   if let Some(ann) = ann {
-    if let ast_view::TsType::TsKeywordType(keyword_type) = ann.type_ann {
-      if ast_view::TsKeywordTypeKind::TsAnyKeyword
-        == keyword_type.keyword_kind()
-      {
-        ctx.add_diagnostic_with_hint(
-          range,
-          CODE,
-          ExplicitModuleBoundaryTypesMessage::MissingArgType,
-          ExplicitModuleBoundaryTypesHint::AddArgTypes,
-        );
-      }
+    if matches!(ann.type_annotation, TSType::TSAnyKeyword(_)) {
+      ctx.add_diagnostic_with_hint(
+        span,
+        CODE,
+        ExplicitModuleBoundaryTypesMessage::MissingArgType,
+        ExplicitModuleBoundaryTypesHint::AddArgTypes,
+      );
     }
   } else {
     ctx.add_diagnostic_with_hint(
-      range,
+      span,
       CODE,
       ExplicitModuleBoundaryTypesMessage::MissingArgType,
       ExplicitModuleBoundaryTypesHint::AddArgTypes,
@@ -151,33 +167,30 @@ fn check_ann(
   }
 }
 
-fn check_pat(pat: &ast_view::Pat, ctx: &mut Context) {
-  match pat {
-    ast_view::Pat::Ident(ident) => {
-      check_ann(ident.type_ann, ident.id.range(), ctx)
-    }
-    ast_view::Pat::Array(array) => {
-      check_ann(array.type_ann, array.range(), ctx)
-    }
-    ast_view::Pat::Rest(rest) => check_ann(rest.type_ann, rest.range(), ctx),
-    ast_view::Pat::Object(object) => {
-      check_ann(object.type_ann, object.range(), ctx)
-    }
-    _ => {}
-  };
+fn check_param(param: &FormalParameter, ctx: &mut Context) {
+  // If the parameter has a default value (initializer) and no explicit type annotation,
+  // the type can be inferred from the default value — do not require an explicit annotation.
+  if param.initializer.is_some() && param.type_annotation.is_none() {
+    return;
+  }
+  check_ann(
+    param.type_annotation.as_deref(),
+    param.span,
+    ctx,
+  );
 }
 
-fn check_expr(expr: &ast_view::Expr, ctx: &mut Context) {
+fn check_expr(expr: &Expression, ctx: &mut Context) {
   match expr {
-    ast_view::Expr::Fn(func) => check_fn(func.function, ctx, false),
-    ast_view::Expr::Arrow(arrow) => check_arrow(arrow, ctx),
-    ast_view::Expr::Class(class) => check_class(class.class, ctx),
+    Expression::FunctionExpression(func) => check_fn(func, ctx, false),
+    Expression::ArrowFunctionExpression(arrow) => check_arrow(arrow, ctx),
+    Expression::ClassExpression(class) => check_class(class, ctx),
     _ => {}
   }
 }
 
-fn check_var_decl(var: &ast_view::VarDecl, ctx: &mut Context) {
-  for declarator in var.decls {
+fn check_var_decl(var: &VariableDeclaration, ctx: &mut Context) {
+  for declarator in &var.declarations {
     if let Some(expr) = &declarator.init {
       check_expr(expr, ctx)
     }
@@ -258,7 +271,7 @@ mod tests {
       }],
       r#"export class Test { method() { return; } }"#: [
       {
-        col: 20,
+        col: 26,
         message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
         hint: ExplicitModuleBoundaryTypesHint::AddRetType,
       }],
@@ -282,13 +295,13 @@ mod tests {
       }],
       r#"export default class { method() { return; } }"#: [
       {
-        col: 23,
+        col: 29,
         message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
         hint: ExplicitModuleBoundaryTypesHint::AddRetType,
       }],
       r#"export default class Named { method() { return; } }"#: [
       {
-        col: 29,
+        col: 35,
         message: ExplicitModuleBoundaryTypesMessage::MissingRetType,
         hint: ExplicitModuleBoundaryTypesHint::AddRetType,
       }],

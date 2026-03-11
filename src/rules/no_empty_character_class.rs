@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::Regex;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{Program, RegExpLiteral};
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -25,20 +23,21 @@ impl LintRule for NoEmptyCharacterClass {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoEmptyCharacterClassVisitor.traverse(program, context);
+    let mut handler = NoEmptyCharacterClassVisitor;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoEmptyCharacterClassVisitor;
 
-impl Handler for NoEmptyCharacterClassVisitor {
-  fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    let raw_regex = regex.text_fast(ctx.text_info());
+impl Handler<'_> for NoEmptyCharacterClassVisitor {
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
+    let raw_regex = format!("/{}/{}", regex.regex.pattern.text, regex.regex.flags);
 
     static RULE_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
       /* reference : [eslint no-empty-character-class](https://github.com/eslint/eslint/blob/master/lib/rules/no-empty-character-class.js#L13)
@@ -57,8 +56,8 @@ impl Handler for NoEmptyCharacterClassVisitor {
         .unwrap()
     });
 
-    if !RULE_REGEX.is_match(raw_regex) {
-      ctx.add_diagnostic_with_hint(regex.range(), CODE, MESSAGE, HINT);
+    if !RULE_REGEX.is_match(&raw_regex) {
+      ctx.add_diagnostic_with_hint(regex.span, CODE, MESSAGE, HINT);
     }
   }
 }

@@ -3,13 +3,13 @@
 use super::Context;
 use super::LintRule;
 use crate::handler::Handler;
-use crate::handler::Traverse;
 use crate::tags;
 use crate::tags::Tags;
-use crate::Program;
 
-use deno_ast::view as ast_view;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  ComputedMemberExpression, Expression, Program,
+  StaticMemberExpression, TSQualifiedName, TSTypeName,
+};
 use if_chain::if_chain;
 use std::convert::TryFrom;
 
@@ -27,34 +27,26 @@ impl LintRule for NoDeprecatedDenoApi {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoDeprecatedDenoApiHandler.traverse(program, context);
+    let mut handler = NoDeprecatedDenoApiHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-/// Extracts a symbol from the given member prop if the symbol is statically determined (otherwise,
-/// return `None`).
-fn extract_symbol<'a>(
-  member_prop: &'a ast_view::MemberProp,
+fn extract_symbol_computed<'a>(
+  expr: &'a Expression<'a>,
 ) -> Option<&'a str> {
-  use deno_ast::view::{Expr, Lit, MemberProp, Tpl};
-  match member_prop {
-    MemberProp::Ident(ident) => Some(ident.sym()),
-    MemberProp::PrivateName(ident) => Some(ident.name()),
-    MemberProp::Computed(prop) => match &prop.expr {
-      Expr::Lit(Lit::Str(s)) => s.value().as_str(),
-      Expr::Ident(ident) => Some(ident.sym()),
-      Expr::Tpl(Tpl { exprs, quasis, .. })
-        if exprs.is_empty() && quasis.len() == 1 =>
-      {
-        Some(quasis[0].raw())
-      }
-      _ => None,
-    },
+  match expr {
+    Expression::StringLiteral(s) => Some(s.value.as_str()),
+    Expression::Identifier(ident) => Some(ident.name.as_str()),
+    Expression::TemplateLiteral(tpl) if tpl.expressions.is_empty() && tpl.quasis.len() == 1 => {
+      Some(tpl.quasis[0].value.raw.as_str())
+    }
+    _ => None,
   }
 }
 
@@ -293,56 +285,96 @@ impl DeprecatedApi {
 
 struct NoDeprecatedDenoApiHandler;
 
-impl Handler for NoDeprecatedDenoApiHandler {
-  fn member_expr(
+fn check_deprecated_api(
+  obj_name: &str,
+  prop_symbol: &str,
+  span: deno_ast::oxc::span::Span,
+  ctx: &mut Context,
+) {
+  if let Ok(deprecated_api) =
+    DeprecatedApi::try_from((obj_name, prop_symbol))
+  {
+    match deprecated_api.hint() {
+      Some(hint) => {
+        ctx.add_diagnostic_with_hint(
+          span, CODE, deprecated_api.message(), hint,
+        );
+      }
+      None => {
+        ctx.add_diagnostic(span, CODE, deprecated_api.message());
+      }
+    }
+  }
+}
+
+/// Returns true if the identifier reference resolves to a local binding
+/// (not a global) according to OXC's semantic analysis.
+/// Use this for runtime (value-position) identifier references.
+fn ident_is_local(
+  ident: &deno_ast::oxc::ast::ast::IdentifierReference,
+  ctx: &Context,
+) -> bool {
+  if let Some(ref_id) = ident.reference_id.get() {
+    let reference = ctx.scoping().get_reference(ref_id);
+    reference.symbol_id().is_some()
+  } else {
+    false
+  }
+}
+
+/// Returns true if the identifier name is locally declared, using the flat scope.
+/// Use this for type-position identifiers where OXC may not set reference_id.
+fn type_ident_is_local(name: &str, ctx: &Context) -> bool {
+  ctx.scope().var_by_name(name).is_some()
+}
+
+impl Handler<'_> for NoDeprecatedDenoApiHandler {
+  fn static_member_expression(
     &mut self,
-    member_expr: &ast_view::MemberExpr,
+    member_expr: &StaticMemberExpression,
     ctx: &mut Context,
   ) {
-    // Not check chained member expressions (e.g. `foo.bar.baz`)
-    if member_expr.parent().is::<ast_view::MemberExpr>() {
-      return;
-    }
-
-    use deno_ast::view::Expr;
     if_chain! {
-      if let Expr::Ident(obj) = &member_expr.obj;
-      if ctx.scope().is_global(&obj.inner.to_id());
-      let obj_symbol: &str = obj.sym();
-      if let Some(prop_symbol) = extract_symbol(&member_expr.prop);
-      if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_symbol, prop_symbol));
+      if let Expression::Identifier(obj) = &member_expr.object;
+      if !ident_is_local(obj, ctx);
+      let obj_symbol: &str = obj.name.as_str();
+      let prop_symbol: &str = member_expr.property.name.as_str();
       then {
-        match deprecated_api.hint() {
-          Some(hint) => {
-            ctx.add_diagnostic_with_hint(
-              member_expr.range(),
-              CODE,
-              deprecated_api.message(),
-              hint,
-            );
-          }
-          None => {
-            ctx.add_diagnostic(member_expr.range(), CODE, deprecated_api.message());
-          }
-        }
+        check_deprecated_api(obj_symbol, prop_symbol, member_expr.span, ctx);
+      }
+    }
+  }
+
+  fn computed_member_expression(
+    &mut self,
+    member_expr: &ComputedMemberExpression,
+    ctx: &mut Context,
+  ) {
+    if_chain! {
+      if let Expression::Identifier(obj) = &member_expr.object;
+      if !ident_is_local(obj, ctx);
+      let obj_symbol: &str = obj.name.as_str();
+      if let Some(prop_symbol) = extract_symbol_computed(&member_expr.expression);
+      then {
+        check_deprecated_api(obj_symbol, prop_symbol, member_expr.span, ctx);
       }
     }
   }
 
   fn ts_qualified_name(
     &mut self,
-    qualified_name: &ast_view::TsQualifiedName,
+    qualified_name: &TSQualifiedName,
     ctx: &mut Context,
   ) {
     if_chain! {
-      if let ast_view::TsEntityName::Ident(ident) = qualified_name.left;
-      if ident.sym() == "Deno";
-      if qualified_name.right.sym() == "File";
-      if ctx.scope().is_global(&ident.inner.to_id());
+      if let TSTypeName::IdentifierReference(ident) = &qualified_name.left;
+      if ident.name.as_str() == "Deno";
+      if qualified_name.right.name.as_str() == "File";
+      if !type_ident_is_local(ident.name.as_str(), ctx);
       then {
         let deprecated_api = DeprecatedApi::File;
         ctx.add_diagnostic_with_hint(
-          qualified_name.range(),
+          qualified_name.span,
           CODE,
           deprecated_api.message(),
           deprecated_api.hint().unwrap(),

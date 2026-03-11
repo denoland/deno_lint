@@ -2,12 +2,13 @@
 
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::{tags, Program};
-use deno_ast::swc::parser::token::Token;
-use deno_ast::view::{AssignOp, Expr, JSXAttr, JSXAttrValue, JSXExpr, Lit};
-use deno_ast::{SourceRange, SourceRanged, SourceRangedForSpanned};
+use crate::tags;
+use deno_ast::oxc::ast::ast::{
+  JSXAttribute, JSXAttributeValue, JSXExpression, Program,
+};
+use deno_ast::oxc::span::{GetSpan, Span};
 
 #[derive(Debug)]
 pub struct JSXBooleanValue;
@@ -23,12 +24,13 @@ impl LintRule for JSXBooleanValue {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXBooleanValueHandler.traverse(program, context);
+    let mut handler = JSXBooleanValueHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -39,33 +41,33 @@ const FIX_DESC: &str = HINT;
 
 struct JSXBooleanValueHandler;
 
-impl Handler for JSXBooleanValueHandler {
-  fn jsx_attr(&mut self, node: &JSXAttr, ctx: &mut Context) {
-    if let Some(value) = node.value {
-      if let JSXAttrValue::JSXExprContainer(expr) = value {
-        if let JSXExpr::Expr(Expr::Lit(Lit::Bool(lit_bool))) = expr.expr {
-          if lit_bool.value()
-            && lit_bool.leading_comments_fast(ctx.program()).is_empty()
-            && lit_bool.trailing_comments_fast(ctx.program()).is_empty()
-          {
-            let mut fixes = Vec::with_capacity(1);
-            if let Some(token) = expr.previous_token_fast(ctx.program()) {
-              if token.token == Token::AssignOp(AssignOp::Assign) {
-                let start_pos = token
-                  .previous_token_fast(ctx.program())
-                  .map(|t| t.end())
-                  .unwrap_or(token.start());
-                fixes.push(LintFix {
-                  description: FIX_DESC.into(),
-                  changes: vec![LintFixChange {
-                    new_text: "".into(),
-                    range: SourceRange::new(start_pos, expr.end()),
-                  }],
-                });
-              }
+impl Handler<'_> for JSXBooleanValueHandler {
+  fn jsx_attribute(&mut self, node: &JSXAttribute, ctx: &mut Context) {
+    if let Some(value) = &node.value {
+      if let JSXAttributeValue::ExpressionContainer(expr) = value {
+        if let JSXExpression::BooleanLiteral(lit_bool) = &expr.expression {
+          if lit_bool.value {
+            // Check that there are no comments within the expression container
+            let has_comments = ctx.all_comments().any(|c| {
+              c.span.start > expr.span.start && c.span.end < expr.span.end
+            });
+            if has_comments {
+              return;
             }
+
+            // Build fix: remove from the attribute name end to the expression container end
+            let attr_name_span = node.name.span();
+            let value_span = value.span();
+            let mut fixes = Vec::with_capacity(1);
+            fixes.push(LintFix {
+              description: FIX_DESC.into(),
+              changes: vec![LintFixChange {
+                new_text: "".into(),
+                range: Span::new(attr_name_span.end, value_span.end),
+              }],
+            });
             ctx.add_diagnostic_with_fixes(
-              value.range(),
+              value.span(),
               CODE,
               MESSAGE,
               Some(HINT.into()),

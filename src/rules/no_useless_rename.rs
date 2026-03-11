@@ -1,13 +1,12 @@
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
 
-use deno_ast::view::{
-  ExportNamedSpecifier, ImportNamedSpecifier, ModuleExportName, ObjectPat,
-  ObjectPatProp, Pat, PropName,
+use deno_ast::oxc::ast::ast::{
+  BindingPattern, ExportSpecifier, ImportSpecifier, ModuleExportName,
+  ObjectPattern, Program, PropertyKey,
 };
-use deno_ast::SourceRanged;
+use deno_ast::oxc::span::GetSpan;
 
 #[derive(Debug)]
 pub struct NoUselessRename;
@@ -25,69 +24,87 @@ impl LintRule for NoUselessRename {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoUselessRenameHandler.traverse(program, context);
+    let mut handler = NoUselessRenameHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoUselessRenameHandler;
 
-impl Handler for NoUselessRenameHandler {
-  fn import_named_specifier(
+impl Handler<'_> for NoUselessRenameHandler {
+  fn import_specifier(
     &mut self,
-    node: &ImportNamedSpecifier,
+    node: &ImportSpecifier,
     ctx: &mut Context,
   ) {
-    if let Some(ModuleExportName::Ident(imported_name)) = node.imported {
-      if imported_name.sym() == node.local.sym() {
-        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+    // In OXC, ImportSpecifier always has `imported` and `local`.
+    // If they have the same span, there's no rename (e.g., `import { foo }` has
+    // imported = foo and local = foo with the same span).
+    // If they differ in span but have the same name, it's a useless rename.
+    let imported_name = match &node.imported {
+      ModuleExportName::IdentifierName(name) => name.name.as_str(),
+      ModuleExportName::IdentifierReference(ident) => ident.name.as_str(),
+      ModuleExportName::StringLiteral(s) => s.value.as_str(),
+    };
+    // If imported and local have the same span, there was no explicit rename
+    if node.imported.span() == node.local.span {
+      return;
+    }
+    if imported_name == node.local.name.as_str() {
+      ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
+    }
+  }
+
+  fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
+    for prop in &node.properties {
+      if prop.shorthand {
+        continue;
+      }
+
+      let PropertyKey::StaticIdentifier(prop_key) = &prop.key else {
+        continue;
+      };
+
+      let BindingPattern::BindingIdentifier(prop_value) = &prop.value else {
+        continue;
+      };
+
+      if prop_value.name.as_str() == prop_key.name.as_str() {
+        ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
       }
     }
   }
 
-  fn object_pat(&mut self, node: &ObjectPat, ctx: &mut Context) {
-    for prop in node.props {
-      let ObjectPatProp::KeyValue(key_val) = prop else {
-        return;
-      };
-
-      let PropName::Ident(prop_key) = key_val.key else {
-        return;
-      };
-
-      let Pat::Ident(prop_value) = key_val.value else {
-        return;
-      };
-
-      if prop_value.id.sym() == prop_key.sym() {
-        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
-      }
-    }
-  }
-
-  fn export_named_specifier(
+  fn export_specifier(
     &mut self,
-    node: &ExportNamedSpecifier,
+    node: &ExportSpecifier,
     ctx: &mut Context,
   ) {
-    let Some(exported) = node.exported else {
+    // In OXC, ExportSpecifier always has `local` and `exported`.
+    // If they have the same span, there's no explicit rename.
+    if node.local.span() == node.exported.span() {
       return;
+    }
+
+    let local_name = match &node.local {
+      ModuleExportName::IdentifierName(name) => name.name.as_str(),
+      ModuleExportName::IdentifierReference(ident) => ident.name.as_str(),
+      ModuleExportName::StringLiteral(s) => s.value.as_str(),
     };
 
-    let ModuleExportName::Ident(exported_id) = exported else {
-      return;
+    let exported_name = match &node.exported {
+      ModuleExportName::IdentifierName(name) => name.name.as_str(),
+      ModuleExportName::IdentifierReference(ident) => ident.name.as_str(),
+      ModuleExportName::StringLiteral(s) => s.value.as_str(),
     };
 
-    let ModuleExportName::Ident(original) = node.orig else {
-      return;
-    };
-
-    if exported_id.sym() == original.sym() {
-      ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+    if local_name == exported_name {
+      ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
     }
   }
 }

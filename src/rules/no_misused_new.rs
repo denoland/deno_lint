@@ -3,15 +3,9 @@
 use std::borrow::Cow;
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  ClassDecl, ClassMember, Expr, Ident, PropName, TsEntityName, TsInterfaceDecl,
-  TsType, TsTypeAliasDecl, TsTypeAnn,
-  TsTypeElement::{TsConstructSignatureDecl, TsMethodSignature},
-};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -40,12 +34,13 @@ enum NoMisusedNewHint {
 }
 
 impl LintRule for NoMisusedNew {
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoMisusedNewHandler.traverse(program, context);
+    let mut handler = NoMisusedNewHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 
   fn tags(&self) -> Tags {
@@ -59,29 +54,35 @@ impl LintRule for NoMisusedNew {
 
 struct NoMisusedNewHandler;
 
-fn match_parent_type(parent: &Ident, return_type: &TsTypeAnn) -> bool {
-  if let TsType::TsTypeRef(type_ref) = return_type.type_ann {
-    if let TsEntityName::Ident(ident) = &type_ref.type_name {
-      return ident.sym() == parent.sym();
+fn match_parent_type(
+  parent_name: &str,
+  return_type: &TSTypeAnnotation,
+) -> bool {
+  if let TSType::TSTypeReference(type_ref) = &return_type.type_annotation {
+    if let TSTypeName::IdentifierReference(ident) = &type_ref.type_name {
+      return ident.name.as_str() == parent_name;
     }
   }
-
   false
 }
 
-fn is_constructor_keyword(ident: &Ident) -> bool {
-  *"constructor" == *ident.sym()
+fn is_constructor_keyword(name: &str) -> bool {
+  name == "constructor"
 }
 
-impl Handler for NoMisusedNewHandler {
-  fn ts_type_alias_decl(&mut self, t: &TsTypeAliasDecl, ctx: &mut Context) {
-    if let TsType::TsTypeLit(lit) = t.type_ann {
-      for member in lit.members {
-        if let TsMethodSignature(signature) = &member {
-          if let Expr::Ident(ident) = signature.key {
-            if is_constructor_keyword(ident) {
+impl Handler<'_> for NoMisusedNewHandler {
+  fn ts_type_alias_declaration(
+    &mut self,
+    t: &TSTypeAliasDeclaration,
+    ctx: &mut Context,
+  ) {
+    if let TSType::TSTypeLiteral(lit) = &t.type_annotation {
+      for member in &lit.members {
+        if let TSSignature::TSMethodSignature(signature) = member {
+          if let PropertyKey::StaticIdentifier(ident) = &signature.key {
+            if is_constructor_keyword(ident.name.as_str()) {
               ctx.add_diagnostic_with_hint(
-                ident.range(),
+                ident.span,
                 CODE,
                 NoMisusedNewMessage::TypeAlias,
                 NoMisusedNewHint::NotType,
@@ -93,15 +94,20 @@ impl Handler for NoMisusedNewHandler {
     }
   }
 
-  fn ts_interface_decl(&mut self, n: &TsInterfaceDecl, ctx: &mut Context) {
-    for member in n.body.body {
-      match &member {
-        TsMethodSignature(signature) => {
-          if let Expr::Ident(ident) = signature.key {
-            if is_constructor_keyword(ident) {
+  fn ts_interface_declaration(
+    &mut self,
+    n: &TSInterfaceDeclaration,
+    ctx: &mut Context,
+  ) {
+    let parent_name = n.id.name.as_str();
+    for member in &n.body.body {
+      match member {
+        TSSignature::TSMethodSignature(signature) => {
+          if let PropertyKey::StaticIdentifier(ident) = &signature.key {
+            if is_constructor_keyword(ident.name.as_str()) {
               // constructor
               ctx.add_diagnostic_with_hint(
-                signature.range(),
+                signature.span,
                 CODE,
                 NoMisusedNewMessage::Interface,
                 NoMisusedNewHint::NotInterface,
@@ -109,16 +115,16 @@ impl Handler for NoMisusedNewHandler {
             }
           }
         }
-        TsConstructSignatureDecl(signature) => {
-          if signature.type_ann.is_some()
-            && match_parent_type(n.id, signature.type_ann.as_ref().unwrap())
-          {
-            ctx.add_diagnostic_with_hint(
-              signature.range(),
-              CODE,
-              NoMisusedNewMessage::Interface,
-              NoMisusedNewHint::NotInterface,
-            );
+        TSSignature::TSConstructSignatureDeclaration(signature) => {
+          if let Some(return_type) = &signature.return_type {
+            if match_parent_type(parent_name, return_type) {
+              ctx.add_diagnostic_with_hint(
+                signature.span,
+                CODE,
+                NoMisusedNewMessage::Interface,
+                NoMisusedNewHint::NotInterface,
+              );
+            }
           }
         }
         _ => {}
@@ -126,32 +132,38 @@ impl Handler for NoMisusedNewHandler {
     }
   }
 
-  fn class_decl(&mut self, expr: &ClassDecl, ctx: &mut Context) {
-    for member in expr.class.body {
-      if let ClassMember::Method(method) = member {
+  fn class(&mut self, class: &Class, ctx: &mut Context) {
+    let class_name = match &class.id {
+      Some(id) => id.name.as_str(),
+      None => return,
+    };
+
+    for element in &class.body.body {
+      if let ClassElement::MethodDefinition(method) = element {
         let method_name = match &method.key {
-          PropName::Ident(ident) => Cow::Borrowed(ident.sym().as_ref()),
-          PropName::Str(str_) => str_.value().to_string_lossy(),
+          PropertyKey::StaticIdentifier(ident) => {
+            Cow::Borrowed(ident.name.as_str())
+          }
+          PropertyKey::StringLiteral(str_) => {
+            Cow::Owned(str_.value.to_string())
+          }
           _ => continue,
         };
 
-        if method_name != "new" {
+        if method_name.as_ref() != "new" {
           continue;
         }
 
-        if method.function.return_type.is_some()
-          && match_parent_type(
-            expr.ident,
-            method.function.return_type.as_ref().unwrap(),
-          )
-        {
-          // new
-          ctx.add_diagnostic_with_hint(
-            method.range(),
-            CODE,
-            NoMisusedNewMessage::NewMethod,
-            NoMisusedNewHint::RenameMethod,
-          );
+        if let Some(return_type) = &method.value.return_type {
+          if match_parent_type(class_name, return_type) {
+            // new
+            ctx.add_diagnostic_with_hint(
+              method.span,
+              CODE,
+              NoMisusedNewMessage::NewMethod,
+              NoMisusedNewHint::RenameMethod,
+            );
+          }
         }
       }
     }

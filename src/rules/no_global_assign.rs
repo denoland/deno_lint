@@ -1,14 +1,14 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
-use deno_ast::swc::ast::Id;
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
-use deno_ast::{view::*, SourceRanged};
+use crate::globals::GLOBALS;
+use deno_ast::oxc::ast::ast::{
+  AssignmentExpression, AssignmentTarget, AssignmentTargetMaybeDefault,
+  AssignmentTargetProperty, Program, SimpleAssignmentTarget, UpdateExpression,
+};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -37,35 +37,44 @@ impl LintRule for NoGlobalAssign {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoGlobalAssignVisitor.traverse(program, context)
+    let mut handler = NoGlobalAssignVisitor;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoGlobalAssignVisitor;
 
 impl NoGlobalAssignVisitor {
-  fn check(&mut self, range: SourceRange, id: Id, ctx: &mut Context) {
-    if id.1 != ctx.unresolved_ctxt() {
-      return;
-    }
-
-    if ctx.scope().var(&id).is_some() {
+  fn check(
+    &mut self,
+    span: Span,
+    name: &str,
+    reference_id: Option<deno_ast::oxc::semantic::ReferenceId>,
+    ctx: &mut Context,
+  ) {
+    // Check if the identifier resolves to a local binding via OXC scoping.
+    if let Some(ref_id) = reference_id {
+      let reference = ctx.scoping().get_reference(ref_id);
+      if reference.symbol_id().is_some() {
+        return; // Resolved to a local binding, not a global
+      }
+    } else if ctx.scope().var_by_name(name).is_some() {
       return;
     }
 
     // We only care about globals.
-    let maybe_global = GLOBALS.iter().find(|(name, _)| name == &&*id.0);
+    let maybe_global = GLOBALS.iter().find(|(gname, _)| *gname == name);
 
     if let Some(global) = maybe_global {
       // If global can be overwritten then don't need to report anything
       if !global.1 {
         ctx.add_diagnostic_with_hint(
-          range,
+          span,
           CODE,
           NoGlobalAssignMessage::NotAllowed,
           NoGlobalAssignHint::Remove,
@@ -73,20 +82,82 @@ impl NoGlobalAssignVisitor {
       }
     }
   }
-}
 
-impl Handler for NoGlobalAssignVisitor {
-  fn assign_expr(&mut self, e: &AssignExpr, ctx: &mut Context) {
-    let idents: Vec<deno_ast::swc::ast::Ident> = find_lhs_ids(&e.left);
-
-    for ident in idents {
-      self.check(ident.range(), ident.to_id(), ctx);
+  fn check_target(
+    &mut self,
+    target: &AssignmentTarget,
+    assign_span: Span,
+    ctx: &mut Context,
+  ) {
+    match target {
+      AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+        self.check(ident.span, ident.name.as_str(), ident.reference_id.get(), ctx);
+      }
+      AssignmentTarget::ObjectAssignmentTarget(obj) => {
+        for prop in obj.properties.iter() {
+          match prop {
+            AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+              ident,
+            ) => {
+              self.check(
+                ident.binding.span,
+                ident.binding.name.as_str(),
+                ident.binding.reference_id.get(),
+                ctx,
+              );
+            }
+            AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv) => {
+              self.check_target_maybe_default(&kv.binding, assign_span, ctx);
+            }
+          }
+        }
+        if let Some(rest) = &obj.rest {
+          self.check_target(&rest.target, assign_span, ctx);
+        }
+      }
+      AssignmentTarget::ArrayAssignmentTarget(arr) => {
+        for elem in arr.elements.iter().flatten() {
+          self.check_target_maybe_default(elem, assign_span, ctx);
+        }
+        if let Some(rest) = &arr.rest {
+          self.check_target(&rest.target, assign_span, ctx);
+        }
+      }
+      _ => {}
     }
   }
 
-  fn update_expr(&mut self, e: &UpdateExpr, ctx: &mut Context) {
-    if let Expr::Ident(i) = e.arg {
-      self.check(e.range(), i.to_id(), ctx);
+  fn check_target_maybe_default(
+    &mut self,
+    target: &AssignmentTargetMaybeDefault,
+    assign_span: Span,
+    ctx: &mut Context,
+  ) {
+    match target {
+      AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_def) => {
+        self.check_target(&with_def.binding, assign_span, ctx);
+      }
+      _ => {
+        if let Some(t) = target.as_assignment_target() {
+          self.check_target(t, assign_span, ctx);
+        }
+      }
+    }
+  }
+}
+
+impl Handler<'_> for NoGlobalAssignVisitor {
+  fn assignment_expression(
+    &mut self,
+    e: &AssignmentExpression,
+    ctx: &mut Context,
+  ) {
+    self.check_target(&e.left, e.span, ctx);
+  }
+
+  fn update_expression(&mut self, e: &UpdateExpression, ctx: &mut Context) {
+    if let SimpleAssignmentTarget::AssignmentTargetIdentifier(i) = &e.argument {
+      self.check(e.span, i.name.as_str(), i.reference_id.get(), ctx);
     }
   }
 }

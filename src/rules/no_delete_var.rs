@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{Expr, UnaryExpr, UnaryOp};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{Expression, Program, UnaryExpression, UnaryOperator};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -34,26 +32,31 @@ impl LintRule for NoDeleteVar {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoDeleteVarHandler.traverse(program, context);
+    let mut handler = NoDeleteVarHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoDeleteVarHandler;
 
-impl Handler for NoDeleteVarHandler {
-  fn unary_expr(&mut self, unary_expr: &UnaryExpr, ctx: &mut Context) {
-    if unary_expr.op() != UnaryOp::Delete {
+impl Handler<'_> for NoDeleteVarHandler {
+  fn unary_expression(
+    &mut self,
+    unary_expr: &UnaryExpression,
+    ctx: &mut Context,
+  ) {
+    if unary_expr.operator != UnaryOperator::Delete {
       return;
     }
 
-    if let Expr::Ident(_) = unary_expr.arg {
+    if let Expression::Identifier(_) = &unary_expr.argument {
       ctx.add_diagnostic_with_hint(
-        unary_expr.range(),
+        unary_expr.span,
         CODE,
         NoDeleteVarMessage::Unexpected,
         NoDeleteVarHint::Remove,

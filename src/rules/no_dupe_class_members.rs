@@ -1,17 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::handler::Handler;
+use crate::swc_util::StringRepr;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  BigInt, Bool, Class, ClassMethod, ComputedPropName, Expr, IdentName, Lit,
-  MethodKind, Null, Number, PropName, Str, Tpl,
-};
-use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -42,149 +36,38 @@ impl LintRule for NoDupeClassMembers {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoDupeClassMembersVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    let mut handler = NoDupeClassMembersHandler {
+      class_stack: vec![],
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoDupeClassMembersVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct ClassInfo {
+  appeared_methods: BTreeMap<MethodToCheck, Vec<(Span, String)>>,
 }
 
-impl<'c, 'view> NoDupeClassMembersVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, range: SourceRange, name: &str) {
-    self.context.add_diagnostic_with_hint(
-      range,
-      CODE,
-      NoDupeClassMembersMessage::Duplicate(name.to_string()),
-      NoDupeClassMembersHint::RenameOrRemove,
-    );
-  }
+struct NoDupeClassMembersHandler {
+  class_stack: Vec<ClassInfo>,
 }
 
-impl Visit for NoDupeClassMembersVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class) {
-    let mut visitor = ClassVisitor::new(self);
-    class.visit_children_with(&mut visitor);
-    visitor.aggregate_dupes();
-  }
-}
-
-struct ClassVisitor<'a, 'b, 'view> {
-  root_visitor: &'b mut NoDupeClassMembersVisitor<'a, 'view>,
-  appeared_methods: BTreeMap<MethodToCheck, Vec<(SourceRange, String)>>,
-}
-
-impl<'a, 'b, 'view> ClassVisitor<'a, 'b, 'view> {
-  fn new(root_visitor: &'b mut NoDupeClassMembersVisitor<'a, 'view>) -> Self {
-    Self {
-      root_visitor,
-      appeared_methods: BTreeMap::new(),
-    }
-  }
-
-  fn aggregate_dupes(&mut self) {
-    let root_visitor = &mut self.root_visitor;
-
-    self
-      .appeared_methods
-      .values()
-      .filter(|m| m.len() >= 2)
-      .flatten()
-      .for_each(|(range, name)| {
-        root_visitor.add_diagnostic(*range, name);
-      });
-  }
-}
-
-impl Visit for ClassVisitor<'_, '_, '_> {
-  noop_visit_type!();
-
-  fn visit_class(&mut self, class: &Class) {
-    let mut visitor = ClassVisitor::new(self.root_visitor);
-    class.visit_children_with(&mut visitor);
-    visitor.aggregate_dupes();
-  }
-
-  fn visit_class_method(&mut self, class_method: &ClassMethod) {
-    if class_method.function.body.is_some() {
-      if let Some(m) = MethodToCheck::new(
-        &class_method.key,
-        class_method.kind,
-        class_method.is_static,
-      ) {
-        let name = m.normalized_name.clone();
-        self
-          .appeared_methods
-          .entry(m)
-          .or_default()
-          .push((class_method.range(), name));
-      }
-    }
-    class_method.visit_children_with(self);
-  }
-}
-
-fn normalize_prop_name(name: &PropName) -> Option<String> {
-  let normalized = match *name {
-    PropName::Ident(IdentName { ref sym, .. }) => sym.to_string(),
-    PropName::Str(Str { ref value, .. }) => {
-      value.to_string_lossy().into_owned()
-    }
-    PropName::Num(Number { ref value, .. }) => value.to_string(),
-    PropName::BigInt(BigInt { ref value, .. }) => value.to_string(),
-    PropName::Computed(ComputedPropName { ref expr, .. }) => match &**expr {
-      Expr::Lit(Lit::Str(Str { ref value, .. })) => {
-        value.to_string_lossy().into_owned()
-      }
-      Expr::Lit(Lit::Bool(Bool { ref value, .. })) => value.to_string(),
-      Expr::Lit(Lit::Null(Null { .. })) => "null".to_string(),
-      Expr::Lit(Lit::Num(Number { ref value, .. })) => value.to_string(),
-      Expr::Lit(Lit::BigInt(BigInt { ref value, .. })) => value.to_string(),
-      Expr::Tpl(Tpl {
-        ref quasis,
-        ref exprs,
-        ..
-      }) if exprs.is_empty() => {
-        quasis.iter().next().map(|q| q.raw.to_string())?
-      }
-      _ => return None,
-    },
-  };
-
-  Some(normalized)
+fn normalize_property_key(key: &PropertyKey) -> Option<String> {
+  key.string_repr()
 }
 
 struct MethodToCheck {
   normalized_name: String,
-  kind: MethodKind,
+  kind: MethodDefinitionKind,
   is_static: bool,
-}
-
-impl MethodToCheck {
-  fn new(name: &PropName, kind: MethodKind, is_static: bool) -> Option<Self> {
-    let normalized_name = normalize_prop_name(name)?;
-    Some(Self {
-      normalized_name,
-      kind,
-      is_static,
-    })
-  }
+  /// Whether the key was a computed expression (e.g. `['foo']`).
+  /// A computed key of `['constructor']` is not the same as the actual
+  /// `constructor` keyword even though both normalize to "constructor".
+  computed: bool,
 }
 
 impl PartialEq for MethodToCheck {
@@ -192,15 +75,22 @@ impl PartialEq for MethodToCheck {
     if self.normalized_name != other.normalized_name {
       return false;
     }
-
     if self.is_static != other.is_static {
       return false;
     }
-
+    // The actual `constructor` keyword (kind: Constructor, computed: false) is distinct
+    // from a computed method named "constructor" (e.g. `['constructor']()`, computed: true).
+    // So `['constructor']() {}` and `constructor() {}` are NOT duplicates.
+    // But `['constructor']() {}` and `['constructor']() {}` ARE duplicates.
+    if self.normalized_name == "constructor"
+      && self.computed != other.computed
+    {
+      return false;
+    }
     !matches!(
       (self.kind, other.kind),
-      (MethodKind::Getter, MethodKind::Setter)
-        | (MethodKind::Setter, MethodKind::Getter)
+      (MethodDefinitionKind::Get, MethodDefinitionKind::Set)
+        | (MethodDefinitionKind::Set, MethodDefinitionKind::Get)
     )
   }
 }
@@ -215,15 +105,85 @@ impl PartialOrd for MethodToCheck {
 
 impl Ord for MethodToCheck {
   fn cmp(&self, other: &Self) -> Ordering {
+    // For the "constructor" name, computed vs non-computed are different keys
+    // (they compare unequal in PartialEq), so we must distinguish them in Ord too.
+    let computed_ord = if self.normalized_name == "constructor" {
+      self.computed.cmp(&other.computed)
+    } else {
+      Ordering::Equal
+    };
     self
       .normalized_name
       .cmp(&other.normalized_name)
       .then(self.is_static.cmp(&other.is_static))
+      .then(computed_ord)
       .then_with(|| match (self.kind, other.kind) {
-        (MethodKind::Getter, MethodKind::Setter) => Ordering::Less,
-        (MethodKind::Setter, MethodKind::Getter) => Ordering::Greater,
+        (MethodDefinitionKind::Get, MethodDefinitionKind::Set) => {
+          Ordering::Less
+        }
+        (MethodDefinitionKind::Set, MethodDefinitionKind::Get) => {
+          Ordering::Greater
+        }
         _ => Ordering::Equal,
       })
+  }
+}
+
+impl Handler<'_> for NoDupeClassMembersHandler {
+  fn class(&mut self, _class: &Class, _ctx: &mut Context) {
+    self.class_stack.push(ClassInfo {
+      appeared_methods: BTreeMap::new(),
+    });
+  }
+
+  fn class_exit(&mut self, _class: &Class, ctx: &mut Context) {
+    if let Some(class_info) = self.class_stack.pop() {
+      for entries in class_info.appeared_methods.values() {
+        if entries.len() >= 2 {
+          for (span, name) in entries {
+            ctx.add_diagnostic_with_hint(
+              *span,
+              CODE,
+              NoDupeClassMembersMessage::Duplicate(name.clone()),
+              NoDupeClassMembersHint::RenameOrRemove,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  fn method_definition(
+    &mut self,
+    method: &MethodDefinition,
+    _ctx: &mut Context,
+  ) {
+    // Only count methods with bodies (skip overload signatures)
+    if method.value.body.is_none() {
+      return;
+    }
+
+    let Some(class_info) = self.class_stack.last_mut() else {
+      return;
+    };
+
+    let Some(normalized_name) = normalize_property_key(&method.key) else {
+      return;
+    };
+
+    let name = normalized_name.clone();
+    let m = MethodToCheck {
+      normalized_name,
+      kind: method.kind,
+      is_static: method.r#static,
+      computed: method.computed,
+    };
+
+    class_info
+      .appeared_methods
+      .entry(m)
+      .or_default()
+      .push((method.span, name));
   }
 }
 

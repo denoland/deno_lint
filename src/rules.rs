@@ -3,8 +3,7 @@
 use crate::context::Context;
 use crate::tags;
 use crate::tags::Tags;
-use crate::Program;
-use crate::ProgramRef;
+use deno_ast::oxc::ast::ast::Program;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
@@ -132,12 +131,11 @@ pub mod valid_typeof;
 pub mod verbatim_module_syntax;
 
 pub trait LintRule: std::fmt::Debug + Send + Sync {
-  /// Executes lint using `dprint-swc-ecma-ast-view`.
-  /// Falls back to the `lint_program` method if not implemented.
-  fn lint_program_with_ast_view<'view>(
+  /// Executes lint using OXC AST types.
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   );
 
   /// Returns the unique code that identifies the rule
@@ -154,14 +152,6 @@ pub trait LintRule: std::fmt::Debug + Send + Sync {
   /// and they might override this value.
   fn priority(&self) -> u32 {
     0
-  }
-}
-
-/// TODO(@magurotuna): remove this after all rules get to use ast_view
-pub fn program_ref(program: Program) -> ProgramRef {
-  match program {
-    Program::Module(m) => ProgramRef::Module(m.inner),
-    Program::Script(s) => ProgramRef::Script(s.inner),
   }
 }
 

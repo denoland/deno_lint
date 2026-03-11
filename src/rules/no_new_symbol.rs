@@ -1,12 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{Expr, NewExpr};
-use deno_ast::SourceRanged;
-use if_chain::if_chain;
+use deno_ast::oxc::ast::ast::{Expression, NewExpression, Program};
 
 #[derive(Debug)]
 pub struct NoNewSymbol;
@@ -23,25 +20,29 @@ impl LintRule for NoNewSymbol {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoNewSymbolHandler.traverse(program, context);
+    let mut handler = NoNewSymbolHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoNewSymbolHandler;
 
-impl Handler for NoNewSymbolHandler {
-  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
-    if_chain! {
-      if let Expr::Ident(ident) = new_expr.callee;
-      if *ident.sym() == *"Symbol";
-      if ctx.scope().var(&ident.to_id()).is_none();
-      then {
-        ctx.add_diagnostic(new_expr.range(), CODE, MESSAGE);
+impl Handler<'_> for NoNewSymbolHandler {
+  fn new_expression(
+    &mut self,
+    new_expr: &NewExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      if ident.name.as_str() == "Symbol" {
+        if ctx.scope().var_by_name(ident.name.as_str()).is_none() {
+          ctx.add_diagnostic(new_expr.span, CODE, MESSAGE);
+        }
       }
     }
   }

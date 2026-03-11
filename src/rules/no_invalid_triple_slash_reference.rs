@@ -2,10 +2,9 @@
 
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::swc::common::comments::{Comment, CommentKind};
+use deno_ast::oxc::ast::ast::{Comment, CommentKind, Program};
+use deno_ast::oxc::span::Span;
 use deno_ast::MediaType;
-use deno_ast::{SourceRange, SourceRangedForSpanned};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -23,24 +22,31 @@ impl LintRule for NoInvalidTripleSlashReference {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    _program: Program<'_>,
+    context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
     let is_js_like =
       matches!(context.media_type(), MediaType::JavaScript | MediaType::Jsx);
 
-    for report_kind in context
-      .all_comments()
-      .filter_map(|comment| check_comment(comment, is_js_like))
-    {
-      context.add_diagnostic_with_hint(
-        report_kind.range(),
-        CODE,
-        report_kind.as_message(),
-        report_kind.as_hint(),
-      );
+    let source_text = context.source_text().to_string();
+
+    for comment in context.all_comments() {
+      let comment_text = {
+        let span = comment.content_span();
+        &source_text[span.start as usize..span.end as usize]
+      };
+      if let Some(report_kind) =
+        check_comment(comment, comment_text, is_js_like)
+      {
+        context.add_diagnostic_with_hint(
+          report_kind.span(),
+          CODE,
+          report_kind.as_message(),
+          report_kind.as_hint(),
+        );
+      }
     }
   }
 }
@@ -49,10 +55,10 @@ impl LintRule for NoInvalidTripleSlashReference {
 enum ReportKind {
   /// In JavaScript files, the directives other than `types`, `path` and `lib` are not allowed. This variant
   /// represents such invalid directives in JavaScript.
-  InvalidDirectiveInJs(SourceRange),
+  InvalidDirectiveInJs(Span),
 
   /// Represents an unsupported or badly-formed directive
-  InvalidDirective(SourceRange),
+  InvalidDirective(Span),
 }
 
 impl ReportKind {
@@ -80,11 +86,11 @@ impl ReportKind {
     }
   }
 
-  fn range(&self) -> SourceRange {
+  fn span(&self) -> Span {
     use ReportKind::*;
     match *self {
-      InvalidDirectiveInJs(range) => range,
-      InvalidDirective(range) => range,
+      InvalidDirectiveInJs(span) => span,
+      InvalidDirective(span) => span,
     }
   }
 }
@@ -105,33 +111,37 @@ static NO_DEFAULT_LIB_REFERENCE_RE: Lazy<Regex> = Lazy::new(|| {
 });
 
 /// Returns `Some` if the comment should be reported.
-fn check_comment(comment: &Comment, is_js_like: bool) -> Option<ReportKind> {
-  if comment.kind == CommentKind::Block {
+fn check_comment(
+  comment: &Comment,
+  comment_text: &str,
+  is_js_like: bool,
+) -> Option<ReportKind> {
+  if matches!(comment.kind, CommentKind::SingleLineBlock | CommentKind::MultiLineBlock) {
     return None;
   }
-  if !TRIPLE_SLASH_REFERENCE_RE.is_match(&comment.text) {
+  if !TRIPLE_SLASH_REFERENCE_RE.is_match(comment_text) {
     return None;
   }
 
   if is_js_like {
     // In JavaScript, only the `lib`, `no-default-lib`, `path` and `types` directives are allowed
-    if is_types_ref(&comment.text)
-      || is_lib_ref(&comment.text)
-      || is_path_ref(&comment.text)
-      || is_no_default_lib_ref(&comment.text)
+    if is_types_ref(comment_text)
+      || is_lib_ref(comment_text)
+      || is_path_ref(comment_text)
+      || is_no_default_lib_ref(comment_text)
     {
       None
     } else {
-      Some(ReportKind::InvalidDirectiveInJs(comment.range()))
+      Some(ReportKind::InvalidDirectiveInJs(comment.span))
     }
-  } else if is_path_ref(&comment.text)
-    || is_types_ref(&comment.text)
-    || is_lib_ref(&comment.text)
-    || is_no_default_lib_ref(&comment.text)
+  } else if is_path_ref(comment_text)
+    || is_types_ref(comment_text)
+    || is_lib_ref(comment_text)
+    || is_no_default_lib_ref(comment_text)
   {
     None
   } else {
-    Some(ReportKind::InvalidDirective(comment.range()))
+    Some(ReportKind::InvalidDirective(comment.span))
   }
 }
 
@@ -153,16 +163,20 @@ fn is_no_default_lib_ref(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use deno_ast::SourceRange;
-  use deno_ast::StartSourcePos;
+  use deno_ast::oxc::span::Span;
 
   use super::*;
 
-  fn dummy_range() -> SourceRange {
-    SourceRange::new(
-      StartSourcePos::START_SOURCE_POS.into(),
-      StartSourcePos::START_SOURCE_POS.into(),
-    )
+  fn dummy_span() -> Span {
+    Span::new(0, 0)
+  }
+
+  fn dummy_comment(kind: CommentKind, text: &str) -> (Comment, String) {
+    let span = dummy_span();
+    // In OXC, Comment content_span is separate from the comment span.
+    // For testing the check_comment function directly, we pass the text separately.
+    let comment = Comment::new(span.start, span.end, kind);
+    (comment, text.to_string())
   }
 
   #[test]
@@ -221,19 +235,11 @@ mod tests {
     }
   }
 
-  fn line(text: &str) -> Comment {
-    Comment {
-      kind: CommentKind::Line,
-      span: dummy_range().into(),
-      text: text.into(),
-    }
+  fn line(text: &str) -> (Comment, String) {
+    dummy_comment(CommentKind::Line, text)
   }
-  fn block(text: &str) -> Comment {
-    Comment {
-      kind: CommentKind::Block,
-      span: dummy_range().into(),
-      text: text.into(),
-    }
+  fn block(text: &str) -> (Comment, String) {
+    dummy_comment(CommentKind::MultiLineBlock, text)
   }
 
   #[test]
@@ -260,17 +266,17 @@ mod tests {
       // block comment
       block(r#"<reference no-default-lib="true" />"#),
     ];
-    for valid_comment in &valid_comments {
-      assert!(check_comment(valid_comment, true).is_none());
+    for (comment, text) in &valid_comments {
+      assert!(check_comment(comment, text, true).is_none());
     }
 
     let invalid_comments = [
       line(r#"/ <reference foo="./mod.d.ts" />"#),
       line(r#"/<reference bar />"#),
     ];
-    for invalid_comment in &invalid_comments {
-      let report_kind = check_comment(invalid_comment, true).unwrap();
-      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(dummy_range()))
+    for (comment, text) in &invalid_comments {
+      let report_kind = check_comment(comment, text, true).unwrap();
+      assert_eq!(report_kind, ReportKind::InvalidDirectiveInJs(dummy_span()))
     }
   }
 
@@ -287,17 +293,17 @@ mod tests {
       line(r#"<reference path="./mod.d.ts" />"#),
       block(r#"<reference path="./mod.d.ts" />"#),
     ];
-    for valid_comment in &valid_comments {
-      assert!(check_comment(valid_comment, false).is_none());
+    for (comment, text) in &valid_comments {
+      assert!(check_comment(comment, text, false).is_none());
     }
 
     let invalid_comments = [
       line(r#"/ <reference foo="./mod.d.ts" />"#),
       line(r#"/<reference bar />"#),
     ];
-    for invalid_comment in &invalid_comments {
-      let report_kind = check_comment(invalid_comment, false).unwrap();
-      assert_eq!(report_kind, ReportKind::InvalidDirective(dummy_range()))
+    for (comment, text) in &invalid_comments {
+      let report_kind = check_comment(comment, text, false).unwrap();
+      assert_eq!(report_kind, ReportKind::InvalidDirective(dummy_span()))
     }
   }
 
@@ -341,11 +347,11 @@ mod tests {
   #[test]
   fn triple_slash_reference_invalid() {
     let (not_types_in_js_msg, not_types_in_js_hint) = {
-      let r = ReportKind::InvalidDirectiveInJs(dummy_range());
+      let r = ReportKind::InvalidDirectiveInJs(dummy_span());
       (r.as_message(), r.as_hint())
     };
     let (invalid_directive_msg, invalid_directive_hint) = {
-      let r = ReportKind::InvalidDirective(dummy_range());
+      let r = ReportKind::InvalidDirective(dummy_span());
       (r.as_message(), r.as_hint())
     };
 

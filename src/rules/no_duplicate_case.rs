@@ -1,17 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
-use crate::swc_util::span_and_ctx_drop;
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{Expr, SwitchStmt};
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::ecma_visit::{Visit, VisitWith};
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{Program, SwitchStatement};
+use deno_ast::oxc::span::ContentEq;
 use derive_more::Display;
-use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct NoDuplicateCase;
@@ -39,51 +33,43 @@ impl LintRule for NoDuplicateCase {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoDuplicateCaseVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    let mut handler = NoDuplicateCaseHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoDuplicateCaseVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoDuplicateCaseHandler;
 
-impl<'c, 'view> NoDuplicateCaseVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
+impl Handler<'_> for NoDuplicateCaseHandler {
+  fn switch_statement(
+    &mut self,
+    switch_stmt: &SwitchStatement,
+    context: &mut Context,
+  ) {
+    for (i, case) in switch_stmt.cases.iter().enumerate() {
+      let Some(test) = &case.test else {
+        continue;
+      };
 
-impl Visit for NoDuplicateCaseVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_switch_stmt(&mut self, switch_stmt: &SwitchStmt) {
-    // Check if there are duplicates by comparing span dropped expressions
-    let mut seen: HashSet<Box<Expr>> = HashSet::new();
-
-    for case in &switch_stmt.cases {
-      if let Some(test) = &case.test {
-        let span_dropped_test = span_and_ctx_drop(test.clone());
-        if !seen.insert(span_dropped_test) {
-          self.context.add_diagnostic_with_hint(
-            case.range(),
-            CODE,
-            NoDuplicateCaseMessage::Unexpected,
-            NoDuplicateCaseHint::RemoveOrRename,
-          );
+      for prev_case in switch_stmt.cases.iter().take(i) {
+        if let Some(prev_test) = &prev_case.test {
+          if test.content_eq(prev_test) {
+            context.add_diagnostic_with_hint(
+              case.span,
+              CODE,
+              NoDuplicateCaseMessage::Unexpected,
+              NoDuplicateCaseHint::RemoveOrRename,
+            );
+            break;
+          }
         }
       }
     }
-    switch_stmt.visit_children_with(self);
   }
 }
 

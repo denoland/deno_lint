@@ -7,6 +7,7 @@ use crate::ignore_directives::parse_file_ignore_directives;
 use crate::performance_mark::PerformanceMark;
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
 use deno_ast::diagnostics::Diagnostic;
+use deno_ast::oxc::allocator::Allocator;
 use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
@@ -74,13 +75,8 @@ pub struct ExternalLinterResult {
 }
 
 /// Perform a run of "external linter" on a parsed source file.
-///
-/// Since we are working on an already parsed file, this callback
-/// is infallible. If an error handling needs to be performed by the
-/// external linter, it should be handled externally bt that linter,
-///  and an empty [`ExternalLinterResult`] should be returned.
 pub type ExternalLinterCb =
-  Arc<dyn Fn(ParsedSource) -> Option<ExternalLinterResult>>;
+  Arc<dyn for<'a> Fn(&'a ParsedSource<'a>) -> Option<ExternalLinterResult>>;
 
 pub struct LintFileOptions {
   pub specifier: ModuleSpecifier,
@@ -105,47 +101,48 @@ impl Linter {
 
   /// Lint a single file.
   ///
-  /// Returns `ParsedSource` and `Vec<ListDiagnostic>`, so the file can be
-  /// processed further without having to be parsed again.
-  ///
-  /// If you have an already parsed file, use `Linter::lint_with_ast` instead.
+  /// Returns `Vec<LintDiagnostic>`. If you need the `ParsedSource`, parse it
+  /// separately and use `lint_with_ast`.
   pub fn lint_file(
     &self,
     options: LintFileOptions,
-  ) -> Result<(ParsedSource, Vec<LintDiagnostic>), ParseDiagnostic> {
+  ) -> Result<Vec<LintDiagnostic>, ParseDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint");
 
-    let parse_result = {
+    let allocator = Allocator::default();
+    let parsed_source = {
       let _mark = PerformanceMark::new("ast_parser.parse_program");
-      parse_program(options.specifier, options.media_type, options.source_code)
-    };
+      parse_program(
+        &allocator,
+        options.specifier,
+        options.media_type,
+        options.source_code,
+      )
+    }?;
 
-    let parsed_source = parse_result?;
     let diagnostics = self.lint_inner(
       &parsed_source,
-      options.config.default_jsx_factory,
-      options.config.default_jsx_fragment_factory,
+      &options.config,
       options.external_linter,
     );
 
-    Ok((parsed_source, diagnostics))
+    Ok(diagnostics)
   }
 
   /// Lint an already parsed file.
   ///
   /// This method is useful in context where the file is already parsed for other
   /// purposes like transpilation or LSP analysis.
-  pub fn lint_with_ast(
+  pub fn lint_with_ast<'a>(
     &self,
-    parsed_source: &ParsedSource,
+    parsed_source: &'a ParsedSource<'a>,
     config: LintConfig,
     maybe_external_linter: Option<ExternalLinterCb>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
     self.lint_inner(
       parsed_source,
-      config.default_jsx_factory,
-      config.default_jsx_fragment_factory,
+      &config,
       maybe_external_linter,
     )
   }
@@ -187,64 +184,46 @@ impl Linter {
     diagnostics
   }
 
-  fn lint_inner(
+  fn lint_inner<'a>(
     &self,
-    parsed_source: &ParsedSource,
-    default_jsx_factory: Option<String>,
-    default_jsx_fragment_factory: Option<String>,
+    parsed_source: &'a ParsedSource<'a>,
+    config: &LintConfig,
     maybe_external_linter: Option<ExternalLinterCb>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_inner");
 
-    let diagnostics = parsed_source.with_view(|pg| {
-      // If a top-level ignore directive exists, eg:
-      // ```
-      //   // deno-lint-ignore-file
-      // ```
-      // and there's no particular rule(s) specified, eg:
-      // ```
-      //   // deno-lint-ignore-file no-undefined
-      // ```
-      // we want to ignore the whole file.
-      //
-      // That means we want to return no diagnostics for a particular file, so
-      // we're gonna check if the file should be ignored, before performing
-      // other expensive work like scope or control-flow analysis.
-      let file_ignore_directive =
-        parse_file_ignore_directives(self.ctx.ignore_file_directive, pg);
-      if let Some(ignore_directive) = file_ignore_directive.as_ref() {
-        if ignore_directive.ignore_all() {
-          return vec![];
-        }
+    let file_ignore_directive = parse_file_ignore_directives(
+      self.ctx.ignore_file_directive,
+      parsed_source,
+    );
+    if let Some(ignore_directive) = file_ignore_directive.as_ref() {
+      if ignore_directive.ignore_all() {
+        return vec![];
       }
+    }
 
-      // TODO(bartlomieju): rename to `FileContext`? It would be a very noisy
-      // change, but "Context" is so ambiguous.
-      let mut context = Context::new(
-        &self.ctx,
-        parsed_source.clone(),
-        pg,
-        file_ignore_directive,
-        default_jsx_factory,
-        default_jsx_fragment_factory,
-      );
+    let mut context = Context::new(
+      &self.ctx,
+      parsed_source,
+      config,
+      file_ignore_directive,
+    );
 
-      // Run configured lint rules.
-      for rule in self.ctx.rules.iter() {
-        rule.lint_program_with_ast_view(&mut context, pg);
+    let program = parsed_source.program();
+
+    // Run configured lint rules.
+    for rule in self.ctx.rules.iter() {
+      rule.lint_program_with_ast_view(&mut context, program);
+    }
+
+    let mut external_rule_codes = vec![];
+    if let Some(cb) = maybe_external_linter {
+      if let Some(external_linter_result) = cb(parsed_source) {
+        context.add_external_diagnostics(&external_linter_result.diagnostics);
+        external_rule_codes = external_linter_result.rules;
       }
+    }
 
-      let mut external_rule_codes = vec![];
-      if let Some(cb) = maybe_external_linter {
-        if let Some(external_linter_result) = cb(parsed_source.clone()) {
-          context.add_external_diagnostics(&external_linter_result.diagnostics);
-          external_rule_codes = external_linter_result.rules;
-        }
-      }
-
-      self.collect_diagnostics(context, external_rule_codes)
-    });
-
-    diagnostics
+    self.collect_diagnostics(context, external_rule_codes)
   }
 }

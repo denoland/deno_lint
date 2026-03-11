@@ -1,11 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -13,7 +10,7 @@ pub struct NoUnsafeFinally;
 
 const CODE: &str = "no-unsafe-finally";
 const HINT: &str = "Use of the control flow statements (`return`, `throw`, `break` and `continue`) in a `finally` block\
-will most likely lead to undesired behavior.";
+ will most likely lead to undesired behavior.";
 
 #[derive(Display)]
 enum NoUnsafeFinallyMessage {
@@ -27,17 +24,6 @@ enum NoUnsafeFinallyMessage {
   Throw,
 }
 
-impl From<StmtKind<'_>> for NoUnsafeFinallyMessage {
-  fn from(kind: StmtKind) -> Self {
-    match kind {
-      StmtKind::Break(_) => Self::Break,
-      StmtKind::Continue(_) => Self::Continue,
-      StmtKind::Return => Self::Return,
-      StmtKind::Throw => Self::Throw,
-    }
-  }
-}
-
 impl LintRule for NoUnsafeFinally {
   fn tags(&self) -> Tags {
     &[tags::RECOMMENDED]
@@ -47,142 +33,279 @@ impl LintRule for NoUnsafeFinally {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoUnsafeFinallyHandler.traverse(program, context);
+    let mut scope_stack = Vec::new();
+    walk_statements(&program.body, &mut scope_stack, context);
   }
 }
 
-struct NoUnsafeFinallyHandler;
+// This rule uses manual AST walking instead of the Handler pattern because
+// it needs to push/pop scope entries around specific children of try statements
+// (finalizer vs block), which the Handler's automatic traversal doesn't support.
 
-impl Handler for NoUnsafeFinallyHandler {
-  fn break_stmt(
-    &mut self,
-    break_stmt: &ast_view::BreakStmt,
-    ctx: &mut Context,
-  ) {
-    let kind = StmtKind::Break(break_stmt.label);
-    if stmt_inside_finally(break_stmt.range(), kind, break_stmt.as_node()) {
-      add_diagnostic_with_hint(ctx, break_stmt.range(), kind);
-    }
-  }
+#[derive(Clone)]
+enum ScopeEntry {
+  Finally,
+  Function,
+  Loop,
+  Switch,
+  Label(String),
+}
 
-  fn continue_stmt(
-    &mut self,
-    continue_stmt: &ast_view::ContinueStmt,
-    ctx: &mut Context,
-  ) {
-    let kind = StmtKind::Continue(continue_stmt.label);
-    if stmt_inside_finally(continue_stmt.range(), kind, continue_stmt.as_node())
-    {
-      add_diagnostic_with_hint(ctx, continue_stmt.range(), kind);
-    }
-  }
-
-  fn return_stmt(
-    &mut self,
-    return_stmt: &ast_view::ReturnStmt,
-    ctx: &mut Context,
-  ) {
-    let kind = StmtKind::Return;
-    if stmt_inside_finally(return_stmt.range(), kind, return_stmt.as_node()) {
-      add_diagnostic_with_hint(ctx, return_stmt.range(), kind);
-    }
-  }
-
-  fn throw_stmt(
-    &mut self,
-    throw_stmt: &ast_view::ThrowStmt,
-    ctx: &mut Context,
-  ) {
-    let kind = StmtKind::Throw;
-    if stmt_inside_finally(throw_stmt.range(), kind, throw_stmt.as_node()) {
-      add_diagnostic_with_hint(ctx, throw_stmt.range(), kind);
-    }
+fn walk_statements(
+  stmts: &[Statement],
+  scope_stack: &mut Vec<ScopeEntry>,
+  ctx: &mut Context,
+) {
+  for stmt in stmts {
+    walk_statement(stmt, scope_stack, ctx);
   }
 }
 
-#[derive(Clone, Copy)]
-enum StmtKind<'a> {
-  Break(Option<&'a ast_view::Ident<'a>>),
-  Continue(Option<&'a ast_view::Ident<'a>>),
-  Return,
-  Throw,
-}
-
-impl<'a> StmtKind<'a> {
-  fn is_break(&self) -> bool {
-    matches!(self, StmtKind::Break(_))
-  }
-
-  fn is_continue(&self) -> bool {
-    matches!(self, StmtKind::Continue(_))
-  }
-
-  fn label(&self) -> Option<&'a ast_view::Ident<'a>> {
-    if let StmtKind::Break(label) | StmtKind::Continue(label) = self {
-      *label
-    } else {
-      None
+fn walk_statement(
+  stmt: &Statement,
+  scope_stack: &mut Vec<ScopeEntry>,
+  ctx: &mut Context,
+) {
+  match stmt {
+    Statement::BlockStatement(block) => {
+      walk_statements(&block.body, scope_stack, ctx);
     }
-  }
-}
-
-/// Checks if the given range is contained in a `finally` block
-fn stmt_inside_finally(
-  stmt_range: SourceRange,
-  stmt_kind: StmtKind,
-  cur_node: ast_view::Node,
-) -> bool {
-  use deno_ast::view::Node::*;
-  match (cur_node, stmt_kind.label()) {
-    (Function(_), _) | (ArrowExpr(_), _) => false,
-    (LabeledStmt(labeled_stmt), Some(label))
-      if labeled_stmt.label.sym() == label.sym() =>
-    {
-      false
+    Statement::IfStatement(if_stmt) => {
+      walk_statement(&if_stmt.consequent, scope_stack, ctx);
+      if let Some(alt) = &if_stmt.alternate {
+        walk_statement(alt, scope_stack, ctx);
+      }
     }
-    (SwitchStmt(_), None) if stmt_kind.is_break() => false,
-    (ForStmt(_), None)
-    | (ForOfStmt(_), None)
-    | (ForInStmt(_), None)
-    | (WhileStmt(_), None)
-    | (DoWhileStmt(_), None)
-      if (stmt_kind.is_break() || stmt_kind.is_continue()) =>
-    {
-      false
+    Statement::WhileStatement(w) => {
+      scope_stack.push(ScopeEntry::Loop);
+      walk_statement(&w.body, scope_stack, ctx);
+      scope_stack.pop();
     }
-    (
-      TryStmt(ast_view::TryStmt {
-        finalizer: Some(ref f),
-        ..
-      }),
-      _,
-    ) if f.range().contains(&stmt_range) => true,
+    Statement::DoWhileStatement(d) => {
+      scope_stack.push(ScopeEntry::Loop);
+      walk_statement(&d.body, scope_stack, ctx);
+      scope_stack.pop();
+    }
+    Statement::ForStatement(f) => {
+      scope_stack.push(ScopeEntry::Loop);
+      walk_statement(&f.body, scope_stack, ctx);
+      scope_stack.pop();
+    }
+    Statement::ForInStatement(f) => {
+      scope_stack.push(ScopeEntry::Loop);
+      walk_statement(&f.body, scope_stack, ctx);
+      scope_stack.pop();
+    }
+    Statement::ForOfStatement(f) => {
+      scope_stack.push(ScopeEntry::Loop);
+      walk_statement(&f.body, scope_stack, ctx);
+      scope_stack.pop();
+    }
+    Statement::SwitchStatement(s) => {
+      scope_stack.push(ScopeEntry::Switch);
+      for case in &s.cases {
+        walk_statements(&case.consequent, scope_stack, ctx);
+      }
+      scope_stack.pop();
+    }
+    Statement::LabeledStatement(l) => {
+      scope_stack.push(ScopeEntry::Label(l.label.name.to_string()));
+      walk_statement(&l.body, scope_stack, ctx);
+      scope_stack.pop();
+    }
+    Statement::TryStatement(t) => {
+      walk_statements(&t.block.body, scope_stack, ctx);
+      if let Some(handler) = &t.handler {
+        walk_statements(&handler.body.body, scope_stack, ctx);
+      }
+      if let Some(finalizer) = &t.finalizer {
+        scope_stack.push(ScopeEntry::Finally);
+        walk_statements(&finalizer.body, scope_stack, ctx);
+        scope_stack.pop();
+      }
+    }
+    Statement::BreakStatement(n) => {
+      let label = n.label.as_ref().map(|l| l.name.as_str());
+      if is_break_unsafe(scope_stack, label) {
+        ctx.add_diagnostic_with_hint(
+          n.span,
+          CODE,
+          NoUnsafeFinallyMessage::Break,
+          HINT,
+        );
+      }
+    }
+    Statement::ContinueStatement(n) => {
+      let label = n.label.as_ref().map(|l| l.name.as_str());
+      if is_continue_unsafe(scope_stack, label) {
+        ctx.add_diagnostic_with_hint(
+          n.span,
+          CODE,
+          NoUnsafeFinallyMessage::Continue,
+          HINT,
+        );
+      }
+    }
+    Statement::ReturnStatement(n) => {
+      if is_return_or_throw_unsafe(scope_stack) {
+        ctx.add_diagnostic_with_hint(
+          n.span,
+          CODE,
+          NoUnsafeFinallyMessage::Return,
+          HINT,
+        );
+      }
+    }
+    Statement::ThrowStatement(n) => {
+      if is_return_or_throw_unsafe(scope_stack) {
+        ctx.add_diagnostic_with_hint(
+          n.span,
+          CODE,
+          NoUnsafeFinallyMessage::Throw,
+          HINT,
+        );
+      }
+    }
+    // Walk into expressions that may contain functions/classes with statements
+    Statement::ExpressionStatement(expr_stmt) => {
+      walk_expression(&expr_stmt.expression, scope_stack, ctx);
+    }
+    Statement::VariableDeclaration(var_decl) => {
+      for decl in &var_decl.declarations {
+        if let Some(init) = &decl.init {
+          walk_expression(init, scope_stack, ctx);
+        }
+      }
+    }
     _ => {
-      if let Some(parent) = cur_node.parent() {
-        stmt_inside_finally(stmt_range, stmt_kind, parent)
-      } else {
-        false
+      // Walk into function/class declarations
+      if let Some(decl) = stmt.as_declaration() {
+        match decl {
+          Declaration::FunctionDeclaration(f) => {
+            scope_stack.push(ScopeEntry::Function);
+            if let Some(body) = &f.body {
+              walk_statements(&body.statements, scope_stack, ctx);
+            }
+            scope_stack.pop();
+          }
+          Declaration::ClassDeclaration(c) => {
+            walk_class_body(&c.body, scope_stack, ctx);
+          }
+          _ => {}
+        }
       }
     }
   }
 }
 
-fn add_diagnostic_with_hint(
+fn walk_expression(
+  expr: &Expression,
+  scope_stack: &mut Vec<ScopeEntry>,
   ctx: &mut Context,
-  range: SourceRange,
-  stmt_kind: StmtKind,
 ) {
-  ctx.add_diagnostic_with_hint(
-    range,
-    CODE,
-    NoUnsafeFinallyMessage::from(stmt_kind),
-    HINT,
-  );
+  match expr {
+    Expression::FunctionExpression(f) => {
+      scope_stack.push(ScopeEntry::Function);
+      if let Some(body) = &f.body {
+        walk_statements(&body.statements, scope_stack, ctx);
+      }
+      scope_stack.pop();
+    }
+    Expression::ArrowFunctionExpression(a) => {
+      scope_stack.push(ScopeEntry::Function);
+      walk_statements(&a.body.statements, scope_stack, ctx);
+      scope_stack.pop();
+    }
+    Expression::ClassExpression(c) => {
+      walk_class_body(&c.body, scope_stack, ctx);
+    }
+    _ => {}
+  }
+}
+
+fn walk_class_body(
+  body: &ClassBody,
+  scope_stack: &mut Vec<ScopeEntry>,
+  ctx: &mut Context,
+) {
+  for element in &body.body {
+    match element {
+      ClassElement::MethodDefinition(m) => {
+        scope_stack.push(ScopeEntry::Function);
+        if let Some(body) = &m.value.body {
+          walk_statements(&body.statements, scope_stack, ctx);
+        }
+        scope_stack.pop();
+      }
+      ClassElement::PropertyDefinition(p) => {
+        if let Some(value) = &p.value {
+          walk_expression(value, scope_stack, ctx);
+        }
+      }
+      ClassElement::StaticBlock(s) => {
+        walk_statements(&s.body, scope_stack, ctx);
+      }
+      _ => {}
+    }
+  }
+}
+
+fn is_break_unsafe(scope_stack: &[ScopeEntry], label: Option<&str>) -> bool {
+  for entry in scope_stack.iter().rev() {
+    match entry {
+      ScopeEntry::Finally => return true,
+      ScopeEntry::Function => return false,
+      ScopeEntry::Switch if label.is_none() => return false,
+      ScopeEntry::Loop if label.is_none() => return false,
+      ScopeEntry::Label(name) => {
+        if let Some(target) = label {
+          if name == target {
+            return false;
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+  false
+}
+
+fn is_continue_unsafe(
+  scope_stack: &[ScopeEntry],
+  label: Option<&str>,
+) -> bool {
+  for entry in scope_stack.iter().rev() {
+    match entry {
+      ScopeEntry::Finally => return true,
+      ScopeEntry::Function => return false,
+      ScopeEntry::Loop if label.is_none() => return false,
+      ScopeEntry::Label(name) => {
+        if let Some(target) = label {
+          if name == target {
+            return false;
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+  false
+}
+
+fn is_return_or_throw_unsafe(scope_stack: &[ScopeEntry]) -> bool {
+  for entry in scope_stack.iter().rev() {
+    match entry {
+      ScopeEntry::Finally => return true,
+      ScopeEntry::Function => return false,
+      _ => {}
+    }
+  }
+  false
 }
 
 #[cfg(test)]

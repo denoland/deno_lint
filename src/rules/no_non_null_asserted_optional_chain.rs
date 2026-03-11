@@ -1,10 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::view::{Callee, Expr, TsNonNullExpr};
-use deno_ast::{SourceRange, SourceRanged};
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{
+  Expression, Program, TSNonNullExpression,
+};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -25,65 +26,92 @@ impl LintRule for NoNonNullAssertedOptionalChain {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoNonNullAssertedOptionalChainHandler.traverse(program, context);
+    let mut handler = NoNonNullAssertedOptionalChainHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoNonNullAssertedOptionalChainHandler;
 
+fn is_optional_chain(expr: &Expression) -> bool {
+  // In OXC, optional chains are wrapped in ChainExpression.
+  // Also check optional member/call expressions directly.
+  match expr {
+    Expression::ChainExpression(_) => true,
+    Expression::StaticMemberExpression(m) => m.optional,
+    Expression::ComputedMemberExpression(m) => m.optional,
+    Expression::CallExpression(c) => c.optional,
+    _ => false,
+  }
+}
+
 fn check_expr_for_nested_optional_assert(
-  range: SourceRange,
-  expr: &Expr,
+  span: Span,
+  expr: &Expression,
   ctx: &mut Context,
 ) {
-  if let Expr::OptChain(_) = expr {
+  if is_optional_chain(expr) {
     ctx.add_diagnostic(
-      range,
+      span,
       CODE,
       NoNonNullAssertedOptionalChainMessage::WrongAssertion,
     );
   }
 }
 
-impl Handler for NoNonNullAssertedOptionalChainHandler {
-  fn ts_non_null_expr(
+impl Handler<'_> for NoNonNullAssertedOptionalChainHandler {
+  fn ts_non_null_expression(
     &mut self,
-    ts_non_null_expr: &TsNonNullExpr,
+    ts_non_null_expr: &TSNonNullExpression,
     ctx: &mut Context,
   ) {
-    match ts_non_null_expr.expr {
-      Expr::Member(member_expr) => {
+    match &ts_non_null_expr.expression {
+      Expression::StaticMemberExpression(member_expr) => {
         check_expr_for_nested_optional_assert(
-          ts_non_null_expr.range(),
-          &member_expr.obj,
+          ts_non_null_expr.span,
+          &member_expr.object,
           ctx,
         );
       }
-      Expr::Call(call_expr) => {
-        if let Callee::Expr(expr) = &call_expr.callee {
-          check_expr_for_nested_optional_assert(
-            ts_non_null_expr.range(),
-            expr,
-            ctx,
-          );
-        }
+      Expression::ComputedMemberExpression(member_expr) => {
+        check_expr_for_nested_optional_assert(
+          ts_non_null_expr.span,
+          &member_expr.object,
+          ctx,
+        );
       }
-      Expr::Paren(paren_expr) => check_expr_for_nested_optional_assert(
-        ts_non_null_expr.range(),
-        &paren_expr.expr,
-        ctx,
-      ),
+      Expression::PrivateFieldExpression(member_expr) => {
+        check_expr_for_nested_optional_assert(
+          ts_non_null_expr.span,
+          &member_expr.object,
+          ctx,
+        );
+      }
+      Expression::CallExpression(call_expr) => {
+        check_expr_for_nested_optional_assert(
+          ts_non_null_expr.span,
+          &call_expr.callee,
+          ctx,
+        );
+      }
+      Expression::ParenthesizedExpression(paren_expr) => {
+        check_expr_for_nested_optional_assert(
+          ts_non_null_expr.span,
+          &paren_expr.expression,
+          ctx,
+        );
+      }
       _ => {}
     };
 
     check_expr_for_nested_optional_assert(
-      ts_non_null_expr.range(),
-      &ts_non_null_expr.expr,
+      ts_non_null_expr.span,
+      &ts_non_null_expr.expression,
       ctx,
     );
   }

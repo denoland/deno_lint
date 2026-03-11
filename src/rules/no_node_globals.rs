@@ -1,20 +1,17 @@
 // Copyright 2020-2024 the Deno authors. All rights reserved. MIT license.
-use super::program_ref;
 use super::Context;
 use super::LintRule;
 use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
-use crate::handler::Traverse;
 use crate::tags::Tags;
-use crate::Program;
 use std::borrow::Cow;
 
-use deno_ast::view as ast_view;
-use deno_ast::SourcePos;
-use deno_ast::SourceRange;
-use deno_ast::SourceRanged;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::{
+  IdentifierReference, ImportDeclaration, Program,
+};
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoNodeGlobals;
@@ -30,15 +27,15 @@ static NODE_GLOBALS: phf::Map<&'static str, FixKind> = phf::phf_map! {
 };
 
 impl LintRule for NoNodeGlobals {
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoNodeGlobalsHandler {
-      most_recent_import_range: None,
-    }
-    .traverse(program, context);
+    let mut handler = NoNodeGlobalsHandler {
+      most_recent_import_span: None,
+    };
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 
   fn code(&self) -> &'static str {
@@ -51,7 +48,7 @@ impl LintRule for NoNodeGlobals {
 }
 
 struct NoNodeGlobalsHandler {
-  most_recent_import_range: Option<SourceRange>,
+  most_recent_import_span: Option<Span>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,26 +102,19 @@ impl FixKind {
   }
 }
 
-fn program_code_start(program: Program) -> SourcePos {
-  match program_ref(program) {
-    ast_view::ProgramRef::Module(m) => m
-      .body
-      .first()
-      .map(|node| node.start())
-      .unwrap_or(program.start()),
-    ast_view::ProgramRef::Script(s) => s
-      .body
-      .first()
-      .map(|node| node.start())
-      .unwrap_or(program.start()),
-  }
+fn program_code_start(program: &Program) -> u32 {
+  program
+    .body
+    .first()
+    .map(|node| node.span().start)
+    .unwrap_or(program.span.start)
 }
 
 impl NoNodeGlobalsHandler {
   fn fix_change(
     &self,
     ctx: &mut Context,
-    range: SourceRange,
+    span: Span,
     fix_kind: FixKind,
   ) -> LintFixChange {
     // If the fix is an import, we want to insert it after the last import
@@ -132,20 +122,20 @@ impl NoNodeGlobalsHandler {
     // the beginning of the file (but after any header comments).
     let (fix_range, add_newline) = if matches!(fix_kind, FixKind::Import { .. })
     {
-      if let Some(range) = self.most_recent_import_range {
+      if let Some(import_span) = self.most_recent_import_span {
         (
-          SourceRange::new(range.end(), range.end()),
+          Span::new(import_span.end, import_span.end),
           AddNewline::Leading,
         )
       } else {
         let code_start = program_code_start(ctx.program());
         (
-          SourceRange::new(code_start, code_start),
+          Span::new(code_start, code_start),
           AddNewline::Trailing,
         )
       }
     } else {
-      (range, AddNewline::None)
+      (span, AddNewline::None)
     };
     LintFixChange {
       new_text: fix_kind.to_text(add_newline),
@@ -155,13 +145,13 @@ impl NoNodeGlobalsHandler {
   fn add_diagnostic(
     &mut self,
     ctx: &mut Context,
-    range: SourceRange,
+    span: Span,
     fix_kind: FixKind,
   ) {
-    let change = self.fix_change(ctx, range, fix_kind);
+    let change = self.fix_change(ctx, span, fix_kind);
 
     ctx.add_diagnostic_with_fixes(
-      range,
+      span,
       CODE,
       MESSAGE,
       Some(fix_kind.hint().to_string()),
@@ -173,18 +163,27 @@ impl NoNodeGlobalsHandler {
   }
 }
 
-impl Handler for NoNodeGlobalsHandler {
-  fn ident(&mut self, id: &ast_view::Ident, ctx: &mut Context) {
-    if !NODE_GLOBALS.contains_key(id.sym()) {
+impl Handler<'_> for NoNodeGlobalsHandler {
+  fn identifier_reference(
+    &mut self,
+    id: &IdentifierReference,
+    ctx: &mut Context,
+  ) {
+    let name = id.name.as_str();
+    if !NODE_GLOBALS.contains_key(name) {
       return;
     }
-    if id.ctxt() == ctx.unresolved_ctxt() {
-      self.add_diagnostic(ctx, id.range(), NODE_GLOBALS[id.sym()]);
+    if ctx.scope().var_by_name(name).is_none() {
+      self.add_diagnostic(ctx, id.span, NODE_GLOBALS[name]);
     }
   }
 
-  fn import_decl(&mut self, imp: &ast_view::ImportDecl, _ctx: &mut Context) {
-    self.most_recent_import_range = Some(imp.range());
+  fn import_declaration(
+    &mut self,
+    imp: &ImportDeclaration,
+    _ctx: &mut Context,
+  ) {
+    self.most_recent_import_span = Some(imp.span);
   }
 }
 

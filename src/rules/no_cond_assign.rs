@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CondExpr, DoWhileStmt, Expr, ForStmt, IfStmt, WhileStmt};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -38,36 +36,33 @@ impl LintRule for NoCondAssign {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoCondAssignHandler.traverse(program, context);
+    let mut handler = NoCondAssignHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoCondAssignHandler;
 
 impl NoCondAssignHandler {
-  fn add_diagnostic(&mut self, range: SourceRange, ctx: &mut Context) {
-    ctx.add_diagnostic_with_hint(
-      range,
-      CODE,
-      NoCondAssignMessage::Unexpected,
-      NoCondAssignHint::ChangeOrMove,
-    );
-  }
-
-  fn check_condition(&mut self, condition: &Expr, ctx: &mut Context) {
+  fn check_condition(&mut self, condition: &Expression, ctx: &mut Context) {
     match condition {
-      Expr::Assign(assign) => {
-        self.add_diagnostic(assign.range(), ctx);
+      Expression::AssignmentExpression(assign) => {
+        ctx.add_diagnostic_with_hint(
+          assign.span,
+          CODE,
+          NoCondAssignMessage::Unexpected,
+          NoCondAssignHint::ChangeOrMove,
+        );
       }
-      Expr::Bin(bin) => {
-        if bin.op() == deno_ast::swc::ast::BinaryOp::LogicalOr {
-          self.check_condition(&bin.left, ctx);
-          self.check_condition(&bin.right, ctx);
+      Expression::LogicalExpression(log) => {
+        if log.operator == LogicalOperator::Or {
+          self.check_condition(&log.left, ctx);
+          self.check_condition(&log.right, ctx);
         }
       }
       _ => {}
@@ -75,28 +70,40 @@ impl NoCondAssignHandler {
   }
 }
 
-impl Handler for NoCondAssignHandler {
-  fn if_stmt(&mut self, if_stmt: &IfStmt, ctx: &mut Context) {
+impl Handler<'_> for NoCondAssignHandler {
+  fn if_statement(&mut self, if_stmt: &IfStatement, ctx: &mut Context) {
     self.check_condition(&if_stmt.test, ctx);
   }
 
-  fn while_stmt(&mut self, while_stmt: &WhileStmt, ctx: &mut Context) {
+  fn while_statement(
+    &mut self,
+    while_stmt: &WhileStatement,
+    ctx: &mut Context,
+  ) {
     self.check_condition(&while_stmt.test, ctx);
   }
 
-  fn do_while_stmt(&mut self, do_while_stmt: &DoWhileStmt, ctx: &mut Context) {
+  fn do_while_statement(
+    &mut self,
+    do_while_stmt: &DoWhileStatement,
+    ctx: &mut Context,
+  ) {
     self.check_condition(&do_while_stmt.test, ctx);
   }
 
-  fn for_stmt(&mut self, for_stmt: &ForStmt, ctx: &mut Context) {
+  fn for_statement(&mut self, for_stmt: &ForStatement, ctx: &mut Context) {
     if let Some(for_test) = &for_stmt.test {
       self.check_condition(for_test, ctx);
     }
   }
 
-  fn cond_expr(&mut self, cond_expr: &CondExpr, ctx: &mut Context) {
-    if let Expr::Paren(paren) = cond_expr.test {
-      self.check_condition(&paren.expr, ctx);
+  fn conditional_expression(
+    &mut self,
+    cond_expr: &ConditionalExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::ParenthesizedExpression(paren) = &cond_expr.test {
+      self.check_condition(&paren.expression, ctx);
     }
   }
 }

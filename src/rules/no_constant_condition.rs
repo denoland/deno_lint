@@ -1,14 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{BinaryOp, CondExpr, Expr, IfStmt, Lit, UnaryOp};
-use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -39,66 +34,67 @@ impl LintRule for NoConstantCondition {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoConstantConditionVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    let mut handler = NoConstantConditionHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoConstantConditionVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
+struct NoConstantConditionHandler;
+
+/// Represents a logical operator for short-circuit checks.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LogicalOp {
+  Or,
+  And,
 }
 
-impl<'c, 'view: 'c> NoConstantConditionVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic(&mut self, range: SourceRange) {
-    self.context.add_diagnostic_with_hint(
-      range,
-      CODE,
-      NoConstantConditionMessage::Unexpected,
-      NoConstantConditionHint::Remove,
-    );
-  }
-
+impl NoConstantConditionHandler {
   fn is_constant(
-    node: &Expr,
-    parent_node: Option<&Expr>,
+    node: &Expression,
+    parent_node: Option<&Expression>,
     in_boolean_position: bool,
   ) -> bool {
     match node {
-      Expr::Lit(_) | Expr::Arrow(_) | Expr::Fn(_) | Expr::Object(_) => true,
-      Expr::Tpl(tpl) => {
+      Expression::StringLiteral(_)
+      | Expression::NumericLiteral(_)
+      | Expression::BooleanLiteral(_)
+      | Expression::NullLiteral(_)
+      | Expression::BigIntLiteral(_)
+      | Expression::RegExpLiteral(_)
+      | Expression::ArrowFunctionExpression(_)
+      | Expression::FunctionExpression(_)
+      | Expression::ObjectExpression(_) => true,
+      Expression::TemplateLiteral(tpl) => {
         (in_boolean_position
-          && tpl.quasis.iter().any(|quasi| match &quasi.cooked {
+          && tpl.quasis.iter().any(|quasi| match &quasi.value.cooked {
             Some(str) => !str.is_empty(),
             None => false,
           }))
-          || tpl.exprs.iter().all(|expr| {
+          || tpl.expressions.iter().all(|expr| {
             Self::is_constant(expr, parent_node, in_boolean_position)
           })
       }
-      // TODO(humancalico) confirm in_boolean_position here
-      Expr::Paren(paren) => Self::is_constant(&paren.expr, Some(node), false),
-      Expr::Array(arr) => match parent_node {
-        Some(Expr::Bin(bin)) => {
-          if bin.op == BinaryOp::Add {
-            arr.elems.iter().all(|element| {
-              Self::is_constant(
-                &element.as_ref().unwrap().expr,
-                parent_node,
-                false,
-              )
+      Expression::ParenthesizedExpression(paren) => {
+        Self::is_constant(&paren.expression, Some(node), false)
+      }
+      Expression::ArrayExpression(arr) => match parent_node {
+        Some(Expression::BinaryExpression(bin)) => {
+          if bin.operator == BinaryOperator::Addition {
+            arr.elements.iter().all(|element| match element {
+              ArrayExpressionElement::Elision(_) => true,
+              ArrayExpressionElement::SpreadElement(spread) => {
+                // A spread element is only constant if its argument is constant
+                Self::is_constant(&spread.argument, parent_node, false)
+              }
+              _ => {
+                let expr = element.to_expression();
+                Self::is_constant(expr, parent_node, false)
+              }
             })
           } else {
             true
@@ -106,147 +102,137 @@ impl<'c, 'view: 'c> NoConstantConditionVisitor<'c, 'view> {
         }
         _ => true,
       },
-      Expr::Unary(unary) => {
-        if unary.op == UnaryOp::Void {
+      Expression::UnaryExpression(unary) => {
+        if unary.operator == UnaryOperator::Void {
           true
         } else {
-          (unary.op == UnaryOp::TypeOf && in_boolean_position)
-            || Self::is_constant(&unary.arg, Some(node), true)
+          (unary.operator == UnaryOperator::Typeof && in_boolean_position)
+            || Self::is_constant(&unary.argument, Some(node), true)
         }
       }
-      Expr::Bin(bin) => {
-        // This is for LogicalExpression
-        if bin.op == BinaryOp::LogicalOr || bin.op == BinaryOp::LogicalAnd {
-          let is_left_constant =
-            Self::is_constant(&bin.left, Some(node), in_boolean_position);
-          let is_right_constant =
-            Self::is_constant(&bin.right, Some(node), in_boolean_position);
-          let is_left_short_circuit =
-            is_left_constant && check_short_circuit(&bin.left, bin.op);
-          let is_right_short_circuit =
-            is_right_constant && check_short_circuit(&bin.right, bin.op);
-          (is_left_constant && is_right_constant)
-          // TODO(humancalico) add more condiitons here from https://github.com/eslint/eslint/blob/f4d7b9e1a599346b2f21ff9de003b311b51411e6/lib/rules/no-constant-condition.js#L135-L146
-            || is_left_short_circuit
-            || is_right_short_circuit
-        }
-        // These are fo regular BinaryExpression
-        else if bin.op != BinaryOp::In {
+      Expression::BinaryExpression(bin) => {
+        if bin.operator != BinaryOperator::In {
           Self::is_constant(&bin.left, Some(node), false)
             && Self::is_constant(&bin.right, Some(node), false)
         } else {
           false
         }
       }
-      Expr::Assign(assign) => {
-        assign.op == deno_ast::swc::ast::AssignOp::Assign
+      Expression::LogicalExpression(log) => {
+        let is_left_constant =
+          Self::is_constant(&log.left, Some(node), in_boolean_position);
+        let is_right_constant =
+          Self::is_constant(&log.right, Some(node), in_boolean_position);
+        let log_op = match log.operator {
+          LogicalOperator::Or => LogicalOp::Or,
+          LogicalOperator::And => LogicalOp::And,
+          LogicalOperator::Coalesce => {
+            return is_left_constant && is_right_constant;
+          }
+        };
+        let is_left_short_circuit =
+          is_left_constant && check_short_circuit(&log.left, log_op);
+        let is_right_short_circuit =
+          is_right_constant && check_short_circuit(&log.right, log_op);
+        (is_left_constant && is_right_constant)
+          || is_left_short_circuit
+          || is_right_short_circuit
+      }
+      Expression::AssignmentExpression(assign) => {
+        assign.operator == AssignmentOperator::Assign
           && Self::is_constant(&assign.right, Some(node), in_boolean_position)
       }
-      Expr::Seq(seq) => Self::is_constant(
-        &seq.exprs[seq.exprs.len() - 1],
-        Some(node),
-        in_boolean_position,
-      ),
-      Expr::This(_)
-      | Expr::Update(_)
-      | Expr::Member(_)
-      | Expr::SuperProp(_)
-      | Expr::Cond(_)
-      | Expr::Call(_)
-      | Expr::New(_)
-      | Expr::Ident(_)
-      | Expr::TaggedTpl(_)
-      | Expr::Class(_)
-      | Expr::Yield(_)
-      | Expr::MetaProp(_)
-      | Expr::Await(_)
-      | Expr::JSXMember(_)
-      | Expr::JSXNamespacedName(_)
-      | Expr::JSXEmpty(_)
-      | Expr::JSXElement(_)
-      | Expr::JSXFragment(_)
-      | Expr::TsTypeAssertion(_)
-      | Expr::TsConstAssertion(_)
-      | Expr::TsNonNull(_)
-      | Expr::TsAs(_)
-      | Expr::TsInstantiation(_)
-      | Expr::TsSatisfies(_)
-      | Expr::PrivateName(_)
-      | Expr::OptChain(_)
-      | Expr::Invalid(_) => false,
+      Expression::SequenceExpression(seq) => {
+        if let Some(last) = seq.expressions.last() {
+          Self::is_constant(last, Some(node), in_boolean_position)
+        } else {
+          false
+        }
+      }
+      _ => false,
     }
   }
 
-  fn report(&mut self, condition: &Expr) {
+  fn report(condition: &Expression, ctx: &mut Context) {
     if Self::is_constant(condition, None, true) {
-      let range = condition.range();
-      self.add_diagnostic(range);
+      use deno_ast::oxc::span::GetSpan;
+      ctx.add_diagnostic_with_hint(
+        condition.span(),
+        CODE,
+        NoConstantConditionMessage::Unexpected,
+        NoConstantConditionHint::Remove,
+      );
     }
   }
 }
 
-fn check_short_circuit(expr: &Expr, operator: BinaryOp) -> bool {
+fn check_short_circuit(expr: &Expression, operator: LogicalOp) -> bool {
   match expr {
-    Expr::Lit(Lit::Bool(boolean)) => {
-      (operator == BinaryOp::LogicalOr && boolean.value)
-        || (operator == BinaryOp::LogicalAnd && !boolean.value)
+    Expression::BooleanLiteral(boolean) => {
+      (operator == LogicalOp::Or && boolean.value)
+        || (operator == LogicalOp::And && !boolean.value)
     }
-    Expr::Lit(_) => false,
-    Expr::Unary(unary) => {
-      operator == BinaryOp::LogicalAnd && unary.op == UnaryOp::Void
+    Expression::StringLiteral(_)
+    | Expression::NumericLiteral(_)
+    | Expression::NullLiteral(_)
+    | Expression::BigIntLiteral(_)
+    | Expression::RegExpLiteral(_) => false,
+    Expression::UnaryExpression(unary) => {
+      operator == LogicalOp::And
+        && unary.operator == UnaryOperator::Void
     }
-    Expr::Bin(bin)
-      if bin.op == BinaryOp::LogicalAnd || bin.op == BinaryOp::LogicalOr =>
-    {
-      check_short_circuit(&bin.left, bin.op)
-        || check_short_circuit(&bin.right, bin.op)
+    Expression::LogicalExpression(log) => {
+      let log_op = match log.operator {
+        LogicalOperator::Or => LogicalOp::Or,
+        LogicalOperator::And => LogicalOp::And,
+        LogicalOperator::Coalesce => return false,
+      };
+      check_short_circuit(&log.left, log_op)
+        || check_short_circuit(&log.right, log_op)
     }
     _ => false,
   }
 }
 
-impl Visit for NoConstantConditionVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_cond_expr(&mut self, cond_expr: &CondExpr) {
-    self.report(&cond_expr.test);
-    cond_expr.visit_children_with(self);
+impl Handler<'_> for NoConstantConditionHandler {
+  fn conditional_expression(
+    &mut self,
+    cond_expr: &ConditionalExpression,
+    ctx: &mut Context,
+  ) {
+    Self::report(&cond_expr.test, ctx);
   }
 
-  fn visit_if_stmt(&mut self, if_stmt: &IfStmt) {
-    self.report(&if_stmt.test);
-    if_stmt.visit_children_with(self);
+  fn if_statement(&mut self, if_stmt: &IfStatement, ctx: &mut Context) {
+    Self::report(&if_stmt.test, ctx);
   }
 
   /* TODO(bartlomieju): temporarly disabled because
     deno_std uses while (true) {} loops
-  fn visit_while_stmt(
+  fn while_statement(
     &mut self,
-    while_stmt: &WhileStmt,
-
+    while_stmt: &WhileStatement,
+    ctx: &mut Context,
   ) {
-    self.report(&while_stmt.test)
-    while_stmt.visit_children_with(self);
+    Self::report(&while_stmt.test, ctx);
   }
 
-  fn visit_do_while_stmt(
+  fn do_while_statement(
     &mut self,
-    do_while_stmt: &DoWhileStmt,
-
+    do_while_stmt: &DoWhileStatement,
+    ctx: &mut Context,
   ) {
-    self.report(&do_while_stmt.test)
-    do_while_stmt.visit_children_with(self);
+    Self::report(&do_while_stmt.test, ctx);
   }
 
-  fn visit_for_stmt(
+  fn for_statement(
     &mut self,
-    for_stmt: &ForStmt,
-
+    for_stmt: &ForStatement,
+    ctx: &mut Context,
   ) {
-    if let Some(cond) = for_stmt.test.as_ref() {
-      self.report(cond)
+    if let Some(cond) = &for_stmt.test {
+      Self::report(cond, ctx);
     }
-    for_stmt.visit_children_with(self);
   }
   */
 }

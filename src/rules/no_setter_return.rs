@@ -1,11 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::NodeTrait;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::syntax::scope::ScopeFlags;
 
 #[derive(Debug)]
 pub struct NoSetterReturn;
@@ -22,49 +21,85 @@ impl LintRule for NoSetterReturn {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoSetterReturnHandler.traverse(program, context);
+    let mut visitor = NoSetterReturnVisitor {
+      context,
+      in_setter_stack: vec![],
+    };
+    visitor.visit_program(program);
   }
 }
 
-struct NoSetterReturnHandler;
+struct NoSetterReturnVisitor<'c, 'a> {
+  context: &'c mut Context<'a>,
+  /// Stack tracking whether each function boundary is a setter.
+  in_setter_stack: Vec<bool>,
+}
 
-impl Handler for NoSetterReturnHandler {
-  fn return_stmt(
-    &mut self,
-    return_stmt: &ast_view::ReturnStmt,
-    ctx: &mut Context,
-  ) {
-    // return without a value is allowed
-    if return_stmt.arg.is_none() {
-      return;
+impl NoSetterReturnVisitor<'_, '_> {
+  fn is_in_setter(&self) -> bool {
+    self.in_setter_stack.last().copied().unwrap_or(false)
+  }
+}
+
+impl<'a> Visit<'a> for NoSetterReturnVisitor<'_, 'a> {
+  fn visit_method_definition(&mut self, method: &MethodDefinition<'a>) {
+    // Walk the computed key (if any) without setter context
+    if let Some(key_expr) = method.key.as_expression() {
+      self.visit_expression(key_expr);
     }
+    // Walk the function value with appropriate context
+    let is_setter = method.kind == MethodDefinitionKind::Set;
+    self.in_setter_stack.push(is_setter);
+    walk::walk_function(self, &method.value, ScopeFlags::empty());
+    self.in_setter_stack.pop();
+  }
 
-    fn inside_setter(node: ast_view::Node) -> bool {
-      use deno_ast::view::Node::*;
-      match node {
-        SetterProp(_) => true,
-        ClassMethod(method) => {
-          method.method_kind() == ast_view::MethodKind::Setter
-        }
-        FnDecl(_) | FnExpr(_) | ArrowExpr(_) => false,
-        _ => {
-          if let Some(parent) = node.parent() {
-            inside_setter(parent)
-          } else {
-            false
-          }
-        }
+  fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
+    // Walk the key without setter context (computed keys may contain functions)
+    if let Some(expr) = prop.key.as_expression() {
+      self.visit_expression(expr);
+    }
+    // Walk the value with appropriate context
+    let is_setter = prop.kind == PropertyKind::Set;
+    if is_setter {
+      if let Expression::FunctionExpression(func) = &prop.value {
+        self.in_setter_stack.push(true);
+        walk::walk_function(self, func, ScopeFlags::empty());
+        self.in_setter_stack.pop();
+        return;
       }
     }
+    self.visit_expression(&prop.value);
+  }
 
-    if inside_setter(return_stmt.as_node()) {
-      ctx.add_diagnostic(return_stmt.range(), CODE, MESSAGE);
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+    // Regular function (not via method/object_property): not a setter
+    self.in_setter_stack.push(false);
+    walk::walk_function(self, func, flags);
+    self.in_setter_stack.pop();
+  }
+
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
+    self.in_setter_stack.push(false);
+    walk::walk_arrow_function_expression(self, arrow);
+    self.in_setter_stack.pop();
+  }
+
+  fn visit_return_statement(&mut self, return_stmt: &ReturnStatement<'a>) {
+    if return_stmt.argument.is_some() && self.is_in_setter() {
+      self
+        .context
+        .add_diagnostic(return_stmt.span, CODE, MESSAGE);
     }
+    walk::walk_return_statement(self, return_stmt);
   }
 }
 
@@ -92,10 +127,6 @@ mod tests {
       "({ set a(val) { }}); (function () { return 1; });",
       "({ set a(val) { }}); (() => { return 1; });",
       "({ set a(val) { }}); (() => 1);",
-
-      //------------------------------------------------------------------------------
-      // Object literals and classes
-      //------------------------------------------------------------------------------
 
       // return without a value is allowed
       "({ set foo(val) { return; } })",
@@ -127,7 +158,8 @@ mod tests {
       "({ set: set = (val) => 1 } = {})",
 
       // not returning from the setter
-      "({ set foo(val) { function foo(val) { return 1; } } })",
+      "({ set foo(val) { function b(){} return; } })",
+      "({ set foo(val) { function b(){ return 1; } } })",
       "({ set foo(val) { var foo = function(val) { return 1; } } })",
       "({ set foo(val) { var foo = (val) => { return 1; } } })",
       "({ set foo(val) { var foo = (val) => 1; } })",
@@ -136,7 +168,7 @@ mod tests {
       "({ set [() => 1](val) {} })",
       "({ set foo(val = function() { return 1; }) {} })",
       "({ set foo(val = v => 1) {} })",
-      "(class { set foo(val) { function foo(val) { return 1; } } })",
+      "(class { set foo(val) { function b(){ return 1; } } })",
       "(class { set foo(val) { var foo = function(val) { return 1; } } })",
       "(class { set foo(val) { var foo = (val) => { return 1; } } })",
       "(class { set foo(val) { var foo = (val) => 1; } })",
@@ -146,17 +178,13 @@ mod tests {
       "(class { set foo(val = function() { return 1; }) {} })",
       "(class { set foo(val = (v) => 1) {} })",
 
-      //------------------------------------------------------------------------------
-      // Property descriptors
-      //------------------------------------------------------------------------------
-
-      // return without a value is allowed
+      // Property descriptors - return without value
       "Object.defineProperty(foo, 'bar', { set(val) { return; } })",
       "Reflect.defineProperty(foo, 'bar', { set(val) { if (val) { return; } } })",
       "Object.defineProperties(foo, { bar: { set(val) { try { return; } catch(e){} } } })",
       "Object.create(foo, { bar: { set: function(val) { return; } } })",
 
-      // not a setter
+      // Property descriptors - not a setter
       "x = { set(val) { return 1; } }",
       "x = { foo: { set(val) { return 1; } } }",
       "Object.defineProperty(foo, 'bar', { value(val) { return 1; } })",

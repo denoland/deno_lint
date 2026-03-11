@@ -1,11 +1,15 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, Node, Pat};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, BinaryExpression, BindingPattern,
+  CallExpression, ConditionalExpression, ExportDefaultDeclaration,
+  Expression, ForInStatement, ForOfStatement, ForStatement, Function,
+  FunctionType, IfStatement, Program, ReturnStatement, TryStatement,
+  VariableDeclarator, WhileStatement,
+};
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -22,13 +26,13 @@ impl LintRule for ReactRulesOfHooks {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     let mut handler = RulesOfHooksHandler::new();
-    handler.traverse(program, context);
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -115,103 +119,217 @@ impl RulesOfHooksHandler {
   }
 }
 
-impl Handler for RulesOfHooksHandler {
-  fn on_enter_node(&mut self, node: Node, _ctx: &mut Context) {
-    match node {
-      Node::FnDecl(fn_decl) => {
-        let name = fn_decl.ident.sym().to_string();
-        self.parent_kind.push(ParentKind::Fn((name, 0)));
-      }
-      Node::FnExpr(fn_expr) => {
-        if let Some(id) = fn_expr.ident {
-          let name = id.sym().to_string();
-          self.parent_kind.push(ParentKind::Fn((name, 0)));
-        } else {
-          self.parent_kind.push(ParentKind::Unknown)
-        }
-      }
-      Node::CondExpr(_) => {
-        self.maybe_increase_cond_counter();
-        self.parent_kind.push(ParentKind::Cond(false));
-      }
-      Node::BinExpr(_) => {
-        self.maybe_increase_cond_counter();
-        self.parent_kind.push(ParentKind::Bin);
-      }
-      Node::ArrowExpr(_) => {
-        if let Some(ParentKind::Var(name)) = self.parent_kind.last() {
-          self.parent_kind.push(ParentKind::Fn((name.to_string(), 0)));
-          return;
-        }
-
-        self.parent_kind.push(ParentKind::Unknown);
-      }
-      Node::ExportDefaultExpr(_) => {
-        self.parent_kind.push(ParentKind::ExportDefault)
-      }
-      Node::VarDeclarator(decl) => {
-        if let Pat::Ident(id) = decl.name {
-          self
-            .parent_kind
-            .push(ParentKind::Var(id.id.sym().to_string()))
-        } else {
-          self.parent_kind.push(ParentKind::VarOther)
-        }
-      }
-      Node::IfStmt(_) => {
-        self.maybe_increase_cond_counter();
-        self.parent_kind.push(ParentKind::Cond(false));
-      }
-      Node::ForInStmt(_)
-      | Node::ForOfStmt(_)
-      | Node::ForStmt(_)
-      | Node::WhileStmt(_) => {
-        self.parent_kind.push(ParentKind::Loop);
-      }
-      Node::TryStmt(_) => {
-        self.parent_kind.push(ParentKind::TryCatch);
-      }
-      Node::ReturnStmt(_) => self.maybe_mark_cond_terminal(),
-      _ => {}
+impl Handler<'_> for RulesOfHooksHandler {
+  fn function(&mut self, n: &Function, _ctx: &mut Context) {
+    if let Some(id) = &n.id {
+      let name = id.name.to_string();
+      self.parent_kind.push(ParentKind::Fn((name, 0)));
+    } else if n.r#type == FunctionType::FunctionExpression {
+      // Anonymous function expression
+      self.parent_kind.push(ParentKind::Unknown);
+    } else {
+      // Function declaration without name (shouldn't happen normally)
+      self.parent_kind.push(ParentKind::Unknown);
     }
   }
 
-  fn on_exit_node(&mut self, node: Node, _ctx: &mut Context) {
-    match node {
-      Node::IfStmt(_) => {
-        if let Some(ParentKind::Cond(terminal)) = self.parent_kind.pop() {
-          if !terminal {
-            self.maybe_decrease_cond_counter();
-          }
-        }
-      }
-      Node::BinExpr(_) => {
-        if let Some(ParentKind::Bin) = self.parent_kind.pop() {
-          self.maybe_decrease_cond_counter();
-        }
-      }
-      Node::FnDecl(_)
-      | Node::ArrowExpr(_)
-      | Node::CondExpr(_)
-      | Node::VarDeclarator(_)
-      | Node::ForInStmt(_)
-      | Node::ForOfStmt(_)
-      | Node::FnExpr(_)
-      | Node::ForStmt(_)
-      | Node::WhileStmt(_)
-      | Node::ExportDefaultExpr(_)
-      | Node::TryStmt(_) => {
-        let _ = self.parent_kind.pop();
-      }
-      _ => {}
+  fn function_exit(&mut self, _n: &Function, _ctx: &mut Context) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn arrow_function_expression(
+    &mut self,
+    _n: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    if let Some(ParentKind::Var(name)) = self.parent_kind.last() {
+      self.parent_kind.push(ParentKind::Fn((name.to_string(), 0)));
+      return;
+    }
+
+    self.parent_kind.push(ParentKind::Unknown);
+  }
+
+  fn arrow_function_expression_exit(
+    &mut self,
+    _n: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn conditional_expression(
+    &mut self,
+    _n: &ConditionalExpression,
+    _ctx: &mut Context,
+  ) {
+    self.maybe_increase_cond_counter();
+    self.parent_kind.push(ParentKind::Cond(false));
+  }
+
+  fn conditional_expression_exit(
+    &mut self,
+    _n: &ConditionalExpression,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn binary_expression(
+    &mut self,
+    _n: &BinaryExpression,
+    _ctx: &mut Context,
+  ) {
+    self.maybe_increase_cond_counter();
+    self.parent_kind.push(ParentKind::Bin);
+  }
+
+  fn binary_expression_exit(
+    &mut self,
+    _n: &BinaryExpression,
+    _ctx: &mut Context,
+  ) {
+    if let Some(ParentKind::Bin) = self.parent_kind.pop() {
+      self.maybe_decrease_cond_counter();
     }
   }
 
-  fn call_expr(&mut self, node: &CallExpr, ctx: &mut Context) {
+  fn export_default_declaration(
+    &mut self,
+    _n: &ExportDefaultDeclaration,
+    _ctx: &mut Context,
+  ) {
+    self.parent_kind.push(ParentKind::ExportDefault);
+  }
+
+  fn export_default_declaration_exit(
+    &mut self,
+    _n: &ExportDefaultDeclaration,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn variable_declarator(
+    &mut self,
+    n: &VariableDeclarator,
+    _ctx: &mut Context,
+  ) {
+    if let BindingPattern::BindingIdentifier(id) = &n.id {
+      self
+        .parent_kind
+        .push(ParentKind::Var(id.name.to_string()));
+    } else {
+      self.parent_kind.push(ParentKind::VarOther);
+    }
+  }
+
+  fn variable_declarator_exit(
+    &mut self,
+    _n: &VariableDeclarator,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn if_statement(&mut self, _n: &IfStatement, _ctx: &mut Context) {
+    self.maybe_increase_cond_counter();
+    self.parent_kind.push(ParentKind::Cond(false));
+  }
+
+  fn if_statement_exit(&mut self, _n: &IfStatement, _ctx: &mut Context) {
+    if let Some(ParentKind::Cond(terminal)) = self.parent_kind.pop() {
+      if !terminal {
+        self.maybe_decrease_cond_counter();
+      }
+    }
+  }
+
+  fn for_in_statement(
+    &mut self,
+    _n: &ForInStatement,
+    _ctx: &mut Context,
+  ) {
+    self.parent_kind.push(ParentKind::Loop);
+  }
+
+  fn for_in_statement_exit(
+    &mut self,
+    _n: &ForInStatement,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn for_of_statement(
+    &mut self,
+    _n: &ForOfStatement,
+    _ctx: &mut Context,
+  ) {
+    self.parent_kind.push(ParentKind::Loop);
+  }
+
+  fn for_of_statement_exit(
+    &mut self,
+    _n: &ForOfStatement,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn for_statement(&mut self, _n: &ForStatement, _ctx: &mut Context) {
+    self.parent_kind.push(ParentKind::Loop);
+  }
+
+  fn for_statement_exit(
+    &mut self,
+    _n: &ForStatement,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn while_statement(&mut self, _n: &WhileStatement, _ctx: &mut Context) {
+    self.parent_kind.push(ParentKind::Loop);
+  }
+
+  fn while_statement_exit(
+    &mut self,
+    _n: &WhileStatement,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn try_statement(&mut self, _n: &TryStatement, _ctx: &mut Context) {
+    self.parent_kind.push(ParentKind::TryCatch);
+  }
+
+  fn try_statement_exit(
+    &mut self,
+    _n: &TryStatement,
+    _ctx: &mut Context,
+  ) {
+    let _ = self.parent_kind.pop();
+  }
+
+  fn return_statement(
+    &mut self,
+    _n: &ReturnStatement,
+    _ctx: &mut Context,
+  ) {
+    self.maybe_mark_cond_terminal();
+  }
+
+  fn call_expression(
+    &mut self,
+    node: &CallExpression,
+    ctx: &mut Context,
+  ) {
     if is_hook_call(node) {
       if self.parent_kind.is_empty() {
         ctx.add_diagnostic_with_hint(
-          node.range(),
+          node.span,
           CODE,
           DiagnosticKind::OutsideComponent.message(),
           DiagnosticKind::OutsideComponent.hint(),
@@ -226,14 +344,14 @@ impl Handler for RulesOfHooksHandler {
           ParentKind::Fn((name, cond_count)) => {
             if *cond_count > 0 {
               ctx.add_diagnostic_with_hint(
-                node.range(),
+                node.span,
                 CODE,
                 DiagnosticKind::Conditionally.message(),
                 DiagnosticKind::Conditionally.hint(),
               );
             } else if !is_hook_or_component_name(name) {
               ctx.add_diagnostic_with_hint(
-                node.range(),
+                node.span,
                 CODE,
                 DiagnosticKind::OutsideComponent.message(),
                 DiagnosticKind::OutsideComponent.hint(),
@@ -244,7 +362,7 @@ impl Handler for RulesOfHooksHandler {
           }
           ParentKind::Loop => {
             ctx.add_diagnostic_with_hint(
-              node.range(),
+              node.span,
               CODE,
               DiagnosticKind::Loop.message(),
               DiagnosticKind::Loop.hint(),
@@ -252,7 +370,7 @@ impl Handler for RulesOfHooksHandler {
           }
           ParentKind::TryCatch => {
             ctx.add_diagnostic_with_hint(
-              node.range(),
+              node.span,
               CODE,
               DiagnosticKind::TryCatch.message(),
               DiagnosticKind::TryCatch.hint(),
@@ -261,7 +379,7 @@ impl Handler for RulesOfHooksHandler {
           }
           ParentKind::Bin | ParentKind::Cond(_) => {
             ctx.add_diagnostic_with_hint(
-              node.range(),
+              node.span,
               CODE,
               DiagnosticKind::Conditionally.message(),
               DiagnosticKind::Conditionally.hint(),
@@ -282,9 +400,9 @@ fn is_hook_name(text: &str) -> bool {
   text == "use" || HOOK_NAME.is_match(text)
 }
 
-fn is_hook_call(call_expr: &CallExpr) -> bool {
-  if let Callee::Expr(Expr::Ident(id)) = call_expr.callee {
-    return is_hook_name(id.sym());
+fn is_hook_call(call_expr: &CallExpression) -> bool {
+  if let Expression::Identifier(id) = &call_expr.callee {
+    return is_hook_name(id.name.as_str());
   }
 
   false

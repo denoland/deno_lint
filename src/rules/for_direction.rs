@@ -1,16 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::swc::ast::AssignOp;
-use deno_ast::swc::ast::BinaryOp;
-use deno_ast::swc::ast::UpdateOp;
-use deno_ast::view::{
-  AssignExpr, AssignTarget, Expr, SimpleAssignTarget, UnaryOp, UpdateExpr,
-};
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct ForDirection;
@@ -24,12 +17,13 @@ impl LintRule for ForDirection {
     "for-direction"
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    ForDirectionHandler.traverse(program, context);
+    let mut handler = ForDirectionHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -40,18 +34,20 @@ const HINT: &str =
 struct ForDirectionHandler;
 
 fn check_update_direction(
-  update_expr: &UpdateExpr,
+  update_expr: &UpdateExpression,
   counter_name: impl AsRef<str>,
 ) -> i32 {
   let mut update_direction = 0;
 
-  if let Expr::Ident(ident) = update_expr.arg {
-    if ident.inner.as_ref() == counter_name.as_ref() {
-      match update_expr.op() {
-        UpdateOp::PlusPlus => {
+  if let SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) =
+    &update_expr.argument
+  {
+    if ident.name.as_str() == counter_name.as_ref() {
+      match update_expr.operator {
+        UpdateOperator::Increment => {
           update_direction = 1;
         }
-        UpdateOp::MinusMinus => {
+        UpdateOperator::Decrement => {
           update_direction = -1;
         }
       }
@@ -62,22 +58,26 @@ fn check_update_direction(
 }
 
 fn check_assign_direction(
-  assign_expr: &AssignExpr,
+  assign_expr: &AssignmentExpression,
   counter_name: impl AsRef<str>,
 ) -> i32 {
   let update_direction = 0;
 
   let name = match &assign_expr.left {
-    AssignTarget::Simple(SimpleAssignTarget::Ident(ident)) => {
-      ident.inner.as_ref()
+    AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+      ident.name.as_str()
     }
     _ => return update_direction,
   };
 
   if name == counter_name.as_ref() {
-    return match assign_expr.op() {
-      AssignOp::AddAssign => check_assign_right_direction(assign_expr, 1),
-      AssignOp::SubAssign => check_assign_right_direction(assign_expr, -1),
+    return match assign_expr.operator {
+      AssignmentOperator::Addition => {
+        check_assign_right_direction(assign_expr, 1)
+      }
+      AssignmentOperator::Subtraction => {
+        check_assign_right_direction(assign_expr, -1)
+      }
       _ => update_direction,
     };
   }
@@ -85,46 +85,50 @@ fn check_assign_direction(
 }
 
 fn check_assign_right_direction(
-  assign_expr: &AssignExpr,
+  assign_expr: &AssignmentExpression,
   direction: i32,
 ) -> i32 {
   match &assign_expr.right {
-    Expr::Unary(unary_expr) => {
-      if unary_expr.op() == UnaryOp::Minus {
+    Expression::UnaryExpression(unary_expr) => {
+      if unary_expr.operator == UnaryOperator::UnaryNegation {
         -direction
       } else {
         direction
       }
     }
-    Expr::Ident(_) => 0,
+    Expression::Identifier(_) => 0,
     _ => direction,
   }
 }
 
-impl Handler for ForDirectionHandler {
-  fn for_stmt(&mut self, for_stmt: &ast_view::ForStmt, context: &mut Context) {
+impl Handler<'_> for ForDirectionHandler {
+  fn for_statement(
+    &mut self,
+    for_stmt: &ForStatement,
+    context: &mut Context,
+  ) {
     if for_stmt.update.is_none() {
       return;
     }
 
-    if let Some(Expr::Bin(bin_expr)) = &for_stmt.test {
+    if let Some(Expression::BinaryExpression(bin_expr)) = &for_stmt.test {
       let counter_name = match &bin_expr.left {
-        Expr::Ident(ident) => ident.inner.as_ref(),
+        Expression::Identifier(ident) => ident.name.as_str(),
         _ => return,
       };
 
-      let wrong_direction = match &bin_expr.op() {
-        BinaryOp::Lt | BinaryOp::LtEq => -1,
-        BinaryOp::Gt | BinaryOp::GtEq => 1,
+      let wrong_direction = match bin_expr.operator {
+        BinaryOperator::LessThan | BinaryOperator::LessEqualThan => -1,
+        BinaryOperator::GreaterThan | BinaryOperator::GreaterEqualThan => 1,
         _ => return,
       };
 
       let update = for_stmt.update.as_ref().unwrap();
-      let update_direction = match &update {
-        Expr::Update(update_expr) => {
+      let update_direction = match update {
+        Expression::UpdateExpression(update_expr) => {
           check_update_direction(update_expr, counter_name)
         }
-        Expr::Assign(assign_expr) => {
+        Expression::AssignmentExpression(assign_expr) => {
           check_assign_direction(assign_expr, counter_name)
         }
         _ => return,
@@ -132,7 +136,7 @@ impl Handler for ForDirectionHandler {
 
       if update_direction == wrong_direction {
         context.add_diagnostic_with_hint(
-          for_stmt.range(),
+          for_stmt.span,
           "for-direction",
           MESSAGE,
           HINT,

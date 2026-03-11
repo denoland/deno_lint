@@ -5,17 +5,9 @@ use std::collections::HashSet;
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::swc::ast::{
-  BindingIdent, ExportNamedSpecifier, Id, Ident, ImportDecl, ImportSpecifier,
-  JSXElementName, ModuleExportName, NamedExport, TsEntityName,
-  TsImportEqualsDecl, TsModuleRef,
-};
-use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
-use deno_ast::view::NodeTrait;
-use deno_ast::{
-  view as ast_view, SourceRange, SourceRanged, SourceRangedForSpanned,
-};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::span::{GetSpan, Span};
 use derive_more::Display;
 
 const CODE: &str = "verbatim-module-syntax";
@@ -59,58 +51,67 @@ pub struct VerbatimModuleSyntax;
 impl VerbatimModuleSyntax {
   fn analyze_import(
     &self,
-    import: &ast_view::ImportDecl,
+    import: &ImportDeclaration,
     ids: &IdCollector,
     context: &mut Context,
-    program: Program,
+    source_text: &str,
   ) {
-    if import.type_only() || import.specifiers.is_empty() {
+    if import.import_kind == ImportOrExportKind::Type
+      || import.specifiers.as_ref().map_or(true, |s| s.is_empty())
+    {
       return;
     }
-    let mut type_only_usage = Vec::with_capacity(import.specifiers.len());
-    let mut type_only_named_import =
-      Vec::with_capacity(import.specifiers.len());
-    for specifier in import.specifiers {
+    let specifiers = import.specifiers.as_ref().unwrap();
+    let mut type_only_usage: Vec<Span> = Vec::with_capacity(specifiers.len());
+    let mut type_only_named_import = Vec::with_capacity(specifiers.len());
+    for specifier in specifiers {
       match specifier {
-        ast_view::ImportSpecifier::Named(named) => {
-          if named.is_type_only() {
-            type_only_named_import.push(named);
-          } else if !ids.has_import_ident(&named.local.to_id()) {
-            type_only_usage.push(specifier);
+        ImportDeclarationSpecifier::ImportSpecifier(named) => {
+          if named.import_kind == ImportOrExportKind::Type {
+            type_only_named_import.push(named.span);
+          } else if !ids.has_import_ident(named.local.name.as_str()) {
+            type_only_usage.push(specifier.span());
           }
         }
-        ast_view::ImportSpecifier::Default(default) => {
-          if !ids.has_import_ident(&default.local.to_id()) {
-            type_only_usage.push(specifier);
+        ImportDeclarationSpecifier::ImportDefaultSpecifier(default) => {
+          if !ids.has_import_ident(default.local.name.as_str()) {
+            type_only_usage.push(specifier.span());
           }
         }
-        ast_view::ImportSpecifier::Namespace(namespace) => {
-          if !ids.has_import_ident(&namespace.local.to_id()) {
-            type_only_usage.push(specifier);
+        ImportDeclarationSpecifier::ImportNamespaceSpecifier(namespace) => {
+          if !ids.has_import_ident(namespace.local.name.as_str()) {
+            type_only_usage.push(specifier.span());
           }
         }
       }
     }
-    if import.specifiers.len()
+    if specifiers.len()
       == type_only_usage.len() + type_only_named_import.len()
     {
-      let import_token_range = import.tokens_fast(program)[0].range();
-      let mut changes = Vec::with_capacity(1 + type_only_named_import.len());
+      // Find the "import" keyword span - it starts at import.span.start
+      let import_keyword_end = import.span.start + 6; // "import" is 6 chars
+      let import_keyword_span =
+        Span::new(import.span.start, import_keyword_end);
+      let mut changes =
+        Vec::with_capacity(1 + type_only_named_import.len());
       changes.push(LintFixChange {
         new_text: " type".into(),
-        range: import_token_range.end().range(),
+        range: Span::new(import_keyword_end, import_keyword_end),
       });
-      for named_import in type_only_named_import {
-        // remove `type` from all these
-        let tokens = named_import.tokens_fast(program);
-        let range = SourceRange::new(tokens[0].start(), tokens[1].start());
-        changes.push(LintFixChange {
-          new_text: "".into(),
-          range,
-        });
+      for named_span in type_only_named_import {
+        // The specifier span starts at `type` itself (e.g. `type Type`).
+        // Remove the leading `type ` (5 chars) from the specifier.
+        let spec_text =
+          &source_text[named_span.start as usize..named_span.end as usize];
+        if spec_text.starts_with("type ") {
+          changes.push(LintFixChange {
+            new_text: "".into(),
+            range: Span::new(named_span.start, named_span.start + 5),
+          });
+        }
       }
       context.add_diagnostic_with_fixes(
-        import_token_range,
+        import_keyword_span,
         CODE,
         Message::AllImportIdentsUsedInTypes,
         Some(Hint::ChangeImportToImportType.to_string()),
@@ -120,9 +121,9 @@ impl VerbatimModuleSyntax {
         }],
       );
     } else {
-      for specifier in type_only_usage {
+      for specifier_span in type_only_usage {
         context.add_diagnostic_with_fixes(
-          specifier.range(),
+          specifier_span,
           CODE,
           Message::ImportIdentUsedInTypes,
           Some(Hint::AddTypeKeyword.to_string()),
@@ -130,7 +131,7 @@ impl VerbatimModuleSyntax {
             description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
             changes: vec![LintFixChange {
               new_text: "type ".into(),
-              range: specifier.start().range(),
+              range: Span::new(specifier_span.start, specifier_span.start),
             }],
           }],
         );
@@ -140,39 +141,37 @@ impl VerbatimModuleSyntax {
 
   fn analyze_export(
     &self,
-    named_export: &ast_view::NamedExport,
+    named_export: &ExportNamedDeclaration,
     ids: &IdCollector,
     context: &mut Context,
-    program: Program,
+    source_text: &str,
   ) {
-    if named_export.type_only() {
+    if named_export.export_kind == ImportOrExportKind::Type {
       return;
     }
 
     if named_export.specifiers.is_empty() {
-      if let Some(src) = &named_export.src {
-        let quote_kind = if src.text_fast(program).starts_with("'") {
+      if let Some(src) = &named_export.source {
+        let src_text =
+          &source_text[src.span.start as usize..src.span.end as usize];
+        let quote_kind = if src_text.starts_with('\'') {
           '\''
         } else {
           '\"'
         };
-        let semicolon = if named_export.text_fast(program).ends_with(';') {
-          ";"
-        } else {
-          ""
-        };
+        let full_text = &source_text
+          [named_export.span.start as usize..named_export.span.end as usize];
+        let semicolon = if full_text.ends_with(';') { ";" } else { "" };
         let changes = Vec::from([LintFixChange {
           new_text: format!(
             "import {0}{1}{0}{2}",
-            quote_kind,
-            src.value().to_string_lossy(),
-            semicolon
+            quote_kind, src.value, semicolon
           )
           .into(),
-          range: named_export.range(),
+          range: named_export.span,
         }]);
         context.add_diagnostic_with_fixes(
-          named_export.range(),
+          named_export.span,
           CODE,
           Message::ExportDeclarationElided,
           Some(Hint::ChangeSideEffectImport.to_string()),
@@ -186,50 +185,56 @@ impl VerbatimModuleSyntax {
       }
     }
 
-    if named_export.specifiers.is_empty() || named_export.src.is_some() {
+    if named_export.specifiers.is_empty() || named_export.source.is_some() {
       return;
     }
 
-    let mut type_only_usage = Vec::with_capacity(named_export.specifiers.len());
+    let mut type_only_usage: Vec<Span> =
+      Vec::with_capacity(named_export.specifiers.len());
     let mut type_only_named_export =
       Vec::with_capacity(named_export.specifiers.len());
-    for specifier in named_export.specifiers {
-      match specifier {
-        ast_view::ExportSpecifier::Named(named) => {
-          if named.is_type_only() {
-            type_only_named_export.push(named);
-          } else if let ast_view::ModuleExportName::Ident(ident) = &named.orig {
-            if !ids.has_export_ident(&ident.to_id()) {
-              type_only_usage.push(specifier);
-            }
+    for specifier in &named_export.specifiers {
+      if specifier.export_kind == ImportOrExportKind::Type {
+        type_only_named_export.push(specifier.span);
+      } else {
+        let name = match &specifier.local {
+          ModuleExportName::IdentifierReference(ident) => {
+            ident.name.as_str()
           }
-        }
-        ast_view::ExportSpecifier::Default(_)
-        | ast_view::ExportSpecifier::Namespace(_) => {
-          // nothing to analyze
+          ModuleExportName::IdentifierName(ident) => ident.name.as_str(),
+          ModuleExportName::StringLiteral(_) => continue,
+        };
+        if !ids.has_export_ident(name) {
+          type_only_usage.push(specifier.span);
         }
       }
     }
     if named_export.specifiers.len()
       == type_only_usage.len() + type_only_named_export.len()
     {
-      let export_token_range = named_export.tokens_fast(program)[0].range();
-      let mut changes = Vec::with_capacity(1 + type_only_named_export.len());
+      let export_keyword_end = named_export.span.start + 6; // "export" is 6 chars
+      let export_keyword_span =
+        Span::new(named_export.span.start, export_keyword_end);
+      let mut changes =
+        Vec::with_capacity(1 + type_only_named_export.len());
       changes.push(LintFixChange {
         new_text: " type".into(),
-        range: export_token_range.end().range(),
+        range: Span::new(export_keyword_end, export_keyword_end),
       });
-      for named_import in type_only_named_export {
-        // remove `type` from all these
-        let tokens = named_import.tokens_fast(program);
-        let range = SourceRange::new(tokens[0].start(), tokens[1].start());
-        changes.push(LintFixChange {
-          new_text: "".into(),
-          range,
-        });
+      for named_span in type_only_named_export {
+        // The specifier span starts at `type` itself (e.g. `type value`).
+        // Remove the leading `type ` (5 chars) from the specifier.
+        let spec_text =
+          &source_text[named_span.start as usize..named_span.end as usize];
+        if spec_text.starts_with("type ") {
+          changes.push(LintFixChange {
+            new_text: "".into(),
+            range: Span::new(named_span.start, named_span.start + 5),
+          });
+        }
       }
       context.add_diagnostic_with_fixes(
-        export_token_range,
+        export_keyword_span,
         CODE,
         Message::AllExportIdentsUsedInTypes,
         Some(Hint::ChangeExportToExportType.to_string()),
@@ -239,9 +244,9 @@ impl VerbatimModuleSyntax {
         }],
       );
     } else {
-      for specifier in type_only_usage {
+      for specifier_span in type_only_usage {
         context.add_diagnostic_with_fixes(
-          specifier.range(),
+          specifier_span,
           CODE,
           Message::ExportIdentUsedInTypes,
           Some(Hint::AddTypeKeyword.to_string()),
@@ -249,7 +254,7 @@ impl VerbatimModuleSyntax {
             description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
             changes: vec![LintFixChange {
               new_text: "type ".into(),
-              range: specifier.start().range(),
+              range: Span::new(specifier_span.start, specifier_span.start),
             }],
           }],
         );
@@ -267,151 +272,193 @@ impl LintRule for VerbatimModuleSyntax {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let module = match program.program() {
-      Program::Module(module) => module,
-      Program::Script(_) => return,
-    };
-    let ids = IdCollector::build(module);
+    if program.source_type.is_script() {
+      return;
+    }
+    let ids = IdCollector::build(program);
+    let source_text = context.source_text();
 
-    for child in module.body {
-      match child {
-        ast_view::ModuleItem::ModuleDecl(module_decl) => match module_decl {
-          ast_view::ModuleDecl::Import(import) => {
-            self.analyze_import(import, &ids, context, program);
-          }
-          ast_view::ModuleDecl::ExportNamed(named_export) => {
-            self.analyze_export(named_export, &ids, context, program);
-          }
-          ast_view::ModuleDecl::ExportDefaultDecl(_)
-          | ast_view::ModuleDecl::ExportDefaultExpr(_)
-          | ast_view::ModuleDecl::ExportAll(_)
-          | ast_view::ModuleDecl::TsImportEquals(_)
-          | ast_view::ModuleDecl::TsExportAssignment(_)
-          | ast_view::ModuleDecl::TsNamespaceExport(_)
-          | ast_view::ModuleDecl::ExportDecl(_) => {}
-        },
-        ast_view::ModuleItem::Stmt(_) => {}
+    for stmt in &program.body {
+      match stmt {
+        Statement::ImportDeclaration(import) => {
+          self.analyze_import(import, &ids, context, source_text);
+        }
+        Statement::ExportNamedDeclaration(named_export) => {
+          self.analyze_export(named_export, &ids, context, source_text);
+        }
+        _ => {}
       }
     }
   }
 }
 
-/// This struct is partly lifted and adapted from:
-/// https://github.com/swc-project/swc/blob/d8186fb94efb150b50d96519f0b8c5740d15b92f/crates/swc_ecma_transforms_typescript/src/strip_import_export.rs#L9C1-L100C2
+/// Collects identifiers used in value positions, import positions, and export positions.
 #[derive(Debug, Default)]
 struct IdCollector {
-  id_usage: HashSet<Id>,
-  export_value_id_usage: HashSet<Id>,
-  import_value_id_usage: HashSet<Id>,
+  id_usage: HashSet<String>,
+  export_value_id_usage: HashSet<String>,
+  import_value_id_usage: HashSet<String>,
+  /// Names that are declared exclusively as types (e.g. `type Foo = ...`, `interface Foo {}`).
+  type_only_decls: HashSet<String>,
 }
 
 impl IdCollector {
-  pub fn build(module: &ast_view::Module) -> Self {
+  pub fn build(program: &Program) -> Self {
     let mut ids = Self::default();
-    module.inner.visit_with(&mut ids);
+    ids.visit_program(program);
     ids
   }
 
-  pub fn has_import_ident(&self, id: &Id) -> bool {
-    self.id_usage.contains(id) || self.export_value_id_usage.contains(id)
+  pub fn has_import_ident(&self, name: &str) -> bool {
+    self.id_usage.contains(name) || self.export_value_id_usage.contains(name)
   }
 
-  pub fn has_export_ident(&self, id: &Id) -> bool {
-    self.id_usage.contains(id) || self.import_value_id_usage.contains(id)
+  pub fn has_export_ident(&self, name: &str) -> bool {
+    // If the identifier is only declared as a type, it is not a value usage.
+    if self.type_only_decls.contains(name)
+      && !self.id_usage.contains(name)
+      && !self.import_value_id_usage.contains(name)
+    {
+      return false;
+    }
+    self.id_usage.contains(name) || self.import_value_id_usage.contains(name)
   }
 }
 
-impl Visit for IdCollector {
-  noop_visit_type!();
-
-  fn visit_ident(&mut self, n: &Ident) {
-    self.id_usage.insert(n.to_id());
+impl<'a> Visit<'a> for IdCollector {
+  fn visit_identifier_reference(&mut self, n: &IdentifierReference<'a>) {
+    self.id_usage.insert(n.name.to_string());
   }
 
-  fn visit_binding_ident(&mut self, id: &BindingIdent) {
+  fn visit_binding_identifier(&mut self, id: &BindingIdentifier<'a>) {
     // mark declarations as usages for export declarations
-    self.id_usage.insert(id.id.to_id());
+    self.id_usage.insert(id.name.to_string());
   }
 
-  fn visit_import_decl(&mut self, n: &ImportDecl) {
-    if n.type_only {
+  fn visit_import_declaration(&mut self, n: &ImportDeclaration<'a>) {
+    if n.import_kind == ImportOrExportKind::Type {
       return;
     }
-    n.visit_children_with(self);
+    walk::walk_import_declaration(self, n);
   }
 
-  fn visit_import_specifier(&mut self, n: &ImportSpecifier) {
-    match n {
-      ImportSpecifier::Named(n) => {
-        if !n.is_type_only {
-          self.import_value_id_usage.insert(n.local.to_id());
-        }
-      }
-      ImportSpecifier::Default(n) => {
-        self.import_value_id_usage.insert(n.local.to_id());
-      }
-      ImportSpecifier::Namespace(n) => {
-        self.import_value_id_usage.insert(n.local.to_id());
-      }
+  fn visit_import_specifier(&mut self, n: &ImportSpecifier<'a>) {
+    if n.import_kind != ImportOrExportKind::Type {
+      self
+        .import_value_id_usage
+        .insert(n.local.name.to_string());
     }
   }
 
-  fn visit_ts_import_equals_decl(&mut self, n: &TsImportEqualsDecl) {
-    if n.is_type_only {
+  fn visit_import_default_specifier(
+    &mut self,
+    n: &ImportDefaultSpecifier<'a>,
+  ) {
+    self
+      .import_value_id_usage
+      .insert(n.local.name.to_string());
+  }
+
+  fn visit_import_namespace_specifier(
+    &mut self,
+    n: &ImportNamespaceSpecifier<'a>,
+  ) {
+    self
+      .import_value_id_usage
+      .insert(n.local.name.to_string());
+  }
+
+  fn visit_ts_import_equals_declaration(
+    &mut self,
+    n: &TSImportEqualsDeclaration<'a>,
+  ) {
+    if n.import_kind == ImportOrExportKind::Type {
       return;
     }
 
     // skip id visit
-
-    let TsModuleRef::TsEntityName(ts_entity_name) = &n.module_ref else {
-      return;
-    };
-
-    get_module_ident(ts_entity_name).visit_with(self);
-  }
-
-  fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
-    if n.is_type_only {
-      return;
-    }
-
-    match &n.orig {
-      ModuleExportName::Ident(ident) => {
-        self.export_value_id_usage.insert(ident.to_id());
+    match &n.module_reference {
+      TSModuleReference::IdentifierReference(ident) => {
+        self.visit_identifier_reference(ident);
       }
-      ModuleExportName::Str(_) => {}
+      TSModuleReference::QualifiedName(name) => {
+        self.visit_ts_qualified_name(name);
+      }
+      TSModuleReference::ExternalModuleReference(_) => {}
     }
   }
 
-  fn visit_named_export(&mut self, n: &NamedExport) {
-    if n.type_only || n.src.is_some() {
+  fn visit_export_specifier(&mut self, n: &ExportSpecifier<'a>) {
+    if n.export_kind == ImportOrExportKind::Type {
       return;
     }
 
-    n.visit_children_with(self);
+    match &n.local {
+      ModuleExportName::IdentifierReference(ident) => {
+        self
+          .export_value_id_usage
+          .insert(ident.name.to_string());
+      }
+      ModuleExportName::IdentifierName(ident) => {
+        self
+          .export_value_id_usage
+          .insert(ident.name.to_string());
+      }
+      ModuleExportName::StringLiteral(_) => {}
+    }
   }
 
-  fn visit_jsx_element_name(&mut self, n: &JSXElementName) {
-    if matches!(n, JSXElementName::Ident(i) if i.sym.starts_with(|c: char| c.is_ascii_lowercase()) )
-    {
+  fn visit_export_named_declaration(&mut self, n: &ExportNamedDeclaration<'a>) {
+    if n.export_kind == ImportOrExportKind::Type || n.source.is_some() {
       return;
     }
 
-    n.visit_children_with(self);
+    walk::walk_export_named_declaration(self, n);
   }
-}
 
-fn get_module_ident(ts_entity_name: &TsEntityName) -> &Ident {
-  match ts_entity_name {
-    TsEntityName::TsQualifiedName(ts_qualified_name) => {
-      get_module_ident(&ts_qualified_name.left)
+  fn visit_ts_type(&mut self, _n: &TSType<'a>) {
+    // Skip visiting type positions — identifiers referenced in type-only
+    // contexts (e.g. `type Test = Type`) are not value usages.
+  }
+
+  fn visit_ts_type_annotation(&mut self, _n: &TSTypeAnnotation<'a>) {
+    // Skip visiting type annotations — identifiers in type position
+    // are not value usages.
+  }
+
+  fn visit_ts_type_alias_declaration(
+    &mut self,
+    n: &TSTypeAliasDeclaration<'a>,
+  ) {
+    // Record the name as a type-only declaration; do NOT add it to id_usage.
+    self.type_only_decls.insert(n.id.name.to_string());
+  }
+
+  fn visit_ts_interface_declaration(
+    &mut self,
+    n: &TSInterfaceDeclaration<'a>,
+  ) {
+    // Record the name as a type-only declaration; do NOT add it to id_usage.
+    self.type_only_decls.insert(n.id.name.to_string());
+  }
+
+  fn visit_jsx_element_name(&mut self, n: &JSXElementName<'a>) {
+    if let JSXElementName::IdentifierReference(ident) = n {
+      if ident
+        .name
+        .as_str()
+        .starts_with(|c: char| c.is_ascii_lowercase())
+      {
+        return;
+      }
     }
-    TsEntityName::Ident(ident) => ident,
+
+    walk::walk_jsx_element_name(self, n);
   }
 }
 

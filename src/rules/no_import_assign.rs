@@ -1,18 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 use deno_ast::BindingKind;
-use deno_ast::{
-  swc::{
-    ast::*,
-    ecma_visit::{noop_visit_type, Visit, VisitWith},
-  },
-  SourceRange, SourceRangedForSpanned,
-};
 
 #[derive(Debug)]
 pub struct NoImportAssign;
@@ -30,238 +23,265 @@ impl LintRule for NoImportAssign {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoImportAssignVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
+    let mut handler = NoImportAssignHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
+  }
+}
+
+struct NoImportAssignHandler;
+
+impl NoImportAssignHandler {
+  fn check_ident_ref(&self, span: Span, ident: &IdentifierReference, is_assign_to_prop: bool, ctx: &mut Context) {
+    let kind = ctx.binding_kind_of_ident_ref(ident);
+    if !matches!(kind, Some(k) if k.is_import()) {
+      return;
     }
-  }
-}
+    // Use deno_ast scope to distinguish namespace vs value imports for property assignment handling
+    let is_namespace = ctx
+      .scope()
+      .var_by_name(ident.name.as_str())
+      .is_some_and(|v| v.kind() == BindingKind::NamespaceImport);
 
-struct NoImportAssignVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
-
-impl<'c, 'view> NoImportAssignVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn check(&mut self, range: SourceRange, i: &Ident, is_assign_to_prop: bool) {
-    let var = self.context.scope().var(&i.to_id());
-    if var.is_some_and(|v| v.kind() == BindingKind::NamespaceImport) {
-      self
-        .context
-        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
+    if is_namespace {
+      // Namespace imports: any assignment (including property) is disallowed
+      ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
       return;
     }
 
-    if !is_assign_to_prop
-      && var.is_some_and(|v| v.kind() == BindingKind::ValueImport)
-    {
-      self
-        .context
-        .add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
+    if !is_assign_to_prop {
+      // Value imports: only direct reassignment is disallowed
+      ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 
-  fn check_assign(
-    &mut self,
-    range: SourceRange,
-    lhs: &Expr,
+  fn check_simple_target(&self, span: Span, target: &SimpleAssignmentTarget, ctx: &mut Context) {
+    match target {
+      SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
+        self.check_ident_ref(span, ident, false, ctx);
+      }
+      SimpleAssignmentTarget::StaticMemberExpression(member) => {
+        self.check_expr_for_assign(span, &member.object, true, ctx);
+      }
+      SimpleAssignmentTarget::ComputedMemberExpression(member) => {
+        self.check_expr_for_assign(span, &member.object, true, ctx);
+      }
+      _ => {}
+    }
+  }
+
+  fn check_expr(&self, span: Span, expr: &Expression, ctx: &mut Context) {
+    match expr {
+      Expression::Identifier(ident) => {
+        self.check_ident_ref(span, ident, false, ctx);
+      }
+      Expression::StaticMemberExpression(member) => {
+        self.check_expr_for_assign(span, &member.object, true, ctx);
+      }
+      Expression::ComputedMemberExpression(member) => {
+        self.check_expr_for_assign(span, &member.object, true, ctx);
+      }
+      Expression::ParenthesizedExpression(paren) => {
+        self.check_expr(span, &paren.expression, ctx);
+      }
+      Expression::ChainExpression(chain) => match &chain.expression {
+        ChainElement::CallExpression(call) => {
+          self.check_call_modifies_first(call.span, &call.callee, &call.arguments, ctx);
+        }
+        ChainElement::StaticMemberExpression(member) => {
+          self.check_expr(span, &member.object, ctx);
+        }
+        ChainElement::ComputedMemberExpression(member) => {
+          self.check_expr(span, &member.object, ctx);
+        }
+        ChainElement::PrivateFieldExpression(member) => {
+          self.check_expr(span, &member.object, ctx);
+        }
+        ChainElement::TSNonNullExpression(_) => {}
+      },
+      _ => {}
+    }
+  }
+
+  fn check_expr_for_assign(
+    &self,
+    span: Span,
+    expr: &Expression,
     is_assign_to_prop: bool,
+    ctx: &mut Context,
   ) {
-    if let Expr::Ident(lhs) = &lhs {
-      self.check(range, lhs, is_assign_to_prop);
+    if let Expression::Identifier(ident) = expr {
+      self.check_ident_ref(span, ident, is_assign_to_prop, ctx);
     }
   }
 
-  fn check_expr(&mut self, range: SourceRange, e: &Expr) {
-    match e {
-      Expr::Ident(i) => {
-        self.check(range, i, false);
+  fn check_target(&self, target: &AssignmentTarget, ctx: &mut Context) {
+    match target {
+      AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+        self.check_ident_ref(ident.span, ident, false, ctx);
       }
-      Expr::Member(e) => self.check_assign(range, &e.obj, true),
-      Expr::Paren(e) => self.check_expr(range, &e.expr),
-      Expr::OptChain(e) => match &*e.base {
-        OptChainBase::Call(e) => self.visit_opt_call(e),
-        OptChainBase::Member(e) => self.check_expr(range, &e.obj),
-      },
-      _ => e.visit_children_with(self),
+      AssignmentTarget::StaticMemberExpression(member) => {
+        self.check_expr_for_assign(member.span, &member.object, true, ctx);
+      }
+      AssignmentTarget::ComputedMemberExpression(member) => {
+        self.check_expr_for_assign(member.span, &member.object, true, ctx);
+      }
+      AssignmentTarget::ObjectAssignmentTarget(obj) => {
+        for prop in obj.properties.iter() {
+          match prop {
+            AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(ident) => {
+              self.check_ident_ref(ident.binding.span, &ident.binding, false, ctx);
+            }
+            AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv) => {
+              self.check_target_maybe_default(&kv.binding, ctx);
+            }
+          }
+        }
+        if let Some(rest) = &obj.rest {
+          self.check_target(&rest.target, ctx);
+        }
+      }
+      AssignmentTarget::ArrayAssignmentTarget(arr) => {
+        for elem in arr.elements.iter().flatten() {
+          self.check_target_maybe_default(elem, ctx);
+        }
+        if let Some(rest) = &arr.rest {
+          self.check_target(&rest.target, ctx);
+        }
+      }
+      _ => {}
     }
   }
 
-  fn check_simple_assign(
-    &mut self,
-    range: SourceRange,
-    e: &SimpleAssignTarget,
+  fn check_target_maybe_default(
+    &self,
+    target: &AssignmentTargetMaybeDefault,
+    ctx: &mut Context,
   ) {
-    match e {
-      SimpleAssignTarget::Ident(i) => {
-        self.check(range, i, false);
+    match target {
+      AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_def) => {
+        self.check_target(&with_def.binding, ctx);
       }
-      SimpleAssignTarget::Member(e) => self.check_assign(range, &e.obj, true),
-      SimpleAssignTarget::Paren(e) => self.check_expr(range, &e.expr),
-      SimpleAssignTarget::OptChain(e) => match &*e.base {
-        OptChainBase::Call(e) => self.visit_opt_call(e),
-        OptChainBase::Member(e) => self.check_expr(range, &e.obj),
-      },
-      _ => e.visit_children_with(self),
+      _ => {
+        if let Some(t) = target.as_assignment_target() {
+          self.check_target(t, ctx);
+        }
+      }
     }
   }
 
-  fn is_modifier(&self, obj: &Expr, prop: &IdentName) -> bool {
-    let obj = if let Expr::Ident(obj) = obj {
-      obj
-    } else {
-      return false;
-    };
-
-    if self
-      .context
-      .scope()
-      .var(&obj.to_id())
-      .is_some_and(|v| !v.kind().is_import())
-    {
+  fn is_modifier(&self, obj_name: &str, prop_name: &str, ctx: &Context) -> bool {
+    if ctx.scope().var_by_name(obj_name).is_some_and(|v| !v.kind().is_import()) {
       return false;
     }
 
-    match &*obj.sym {
+    match obj_name {
       "Object" => {
-        // Check for Object.defineProperty and Object.assign
-        *prop.sym == *"defineProperty"
-          || *prop.sym == *"assign"
-          || *prop.sym == *"setPrototypeOf"
-          || *prop.sym == *"freeze"
+        matches!(
+          prop_name,
+          "defineProperty" | "assign" | "setPrototypeOf" | "freeze"
+        )
       }
-
       "Reflect" => {
-        *prop.sym == *"defineProperty"
-          || *prop.sym == *"deleteProperty"
-          || *prop.sym == *"set"
-          || *prop.sym == *"setPrototypeOf"
+        matches!(
+          prop_name,
+          "defineProperty" | "deleteProperty" | "set" | "setPrototypeOf"
+        )
       }
       _ => false,
     }
   }
 
-  /// Returns true for callees like `Object.assign`
-  fn modifies_first(&self, callee: &Expr) -> bool {
+  fn modifies_first(&self, callee: &Expression, ctx: &Context) -> bool {
     match callee {
-      Expr::OptChain(opt_chain) => {
-        if let OptChainBase::Member(member_expr) = &*opt_chain.base {
-          return self.member_expr_modifies_first(member_expr);
+      Expression::ChainExpression(chain) => {
+        if let ChainElement::StaticMemberExpression(member) = &chain.expression {
+          return self.member_expr_modifies_first(&member.object, member.property.name.as_str(), ctx);
         }
+        false
       }
-      Expr::Member(member_expr) => {
-        return self.member_expr_modifies_first(member_expr);
+      Expression::StaticMemberExpression(member) => {
+        self.member_expr_modifies_first(&member.object, member.property.name.as_str(), ctx)
       }
-
-      Expr::Paren(ParenExpr { expr, .. }) => return self.modifies_first(expr),
-
-      _ => {}
+      Expression::ParenthesizedExpression(paren) => {
+        self.modifies_first(&paren.expression, ctx)
+      }
+      _ => false,
     }
-
-    false
   }
 
-  fn member_expr_modifies_first(&self, member_expr: &MemberExpr) -> bool {
-    if let MemberProp::Ident(ident) = &member_expr.prop {
-      if self.is_modifier(&member_expr.obj, ident) {
-        return true;
+  fn member_expr_modifies_first(
+    &self,
+    obj: &Expression,
+    prop_name: &str,
+    ctx: &Context,
+  ) -> bool {
+    if let Expression::Identifier(ident) = obj {
+      self.is_modifier(ident.name.as_str(), prop_name, ctx)
+    } else {
+      false
+    }
+  }
+
+  fn check_call_modifies_first(
+    &self,
+    span: Span,
+    callee: &Expression,
+    arguments: &[Argument],
+    ctx: &mut Context,
+  ) {
+    if let Some(arg) = arguments.first() {
+      if self.modifies_first(callee, ctx) {
+        if let Some(expr) = arg.as_expression() {
+          if let Expression::Identifier(ident) = expr {
+            self.check_ident_ref(span, ident, true, ctx);
+          }
+        }
       }
     }
-    false
   }
 }
 
-impl Visit for NoImportAssignVisitor<'_, '_> {
-  noop_visit_type!();
+impl Handler<'_> for NoImportAssignHandler {
+  fn assignment_expression(
+    &mut self,
+    n: &AssignmentExpression,
+    ctx: &mut Context,
+  ) {
+    self.check_target(&n.left, ctx);
+  }
 
-  fn visit_pat(&mut self, n: &Pat) {
-    match n {
-      Pat::Ident(i) => {
-        self.check(i.id.range(), &i.id, false);
-      }
-      Pat::Expr(e) => {
-        self.check_expr(n.range(), e);
-      }
-      _ => {
-        n.visit_children_with(self);
-      }
+  fn update_expression(&mut self, n: &UpdateExpression, ctx: &mut Context) {
+    self.check_simple_target(n.span, &n.argument, ctx);
+  }
+
+  fn unary_expression(&mut self, n: &UnaryExpression, ctx: &mut Context) {
+    if n.operator == UnaryOperator::Delete {
+      self.check_expr(n.span, &n.argument, ctx);
     }
   }
 
-  fn visit_rest_pat(&mut self, n: &RestPat) {
-    if let Pat::Expr(e) = &*n.arg {
-      match &**e {
-        Expr::Ident(i) => {
-          self.check(i.range(), i, true);
-        }
-        _ => {
-          self.check_expr(e.range(), e);
-        }
-      }
-    } else {
-      n.visit_children_with(self)
+  fn call_expression(&mut self, n: &CallExpression, ctx: &mut Context) {
+    self.check_call_modifies_first(n.span, &n.callee, &n.arguments, ctx);
+  }
+
+  fn for_in_statement(&mut self, n: &ForInStatement, ctx: &mut Context) {
+    if let ForStatementLeft::AssignmentTargetIdentifier(ident) = &n.left {
+      self.check_ident_ref(ident.span, ident, false, ctx);
+    } else if let Some(target) = n.left.as_assignment_target() {
+      self.check_target(target, ctx);
     }
   }
 
-  fn visit_assign_expr(&mut self, n: &AssignExpr) {
-    match &n.left {
-      AssignTarget::Simple(simple) => {
-        self.check_simple_assign(n.range(), simple);
-      }
-      AssignTarget::Pat(p) => {
-        p.visit_with(self);
-      }
-    }
-    n.right.visit_with(self);
-  }
-
-  fn visit_assign_pat_prop(&mut self, n: &AssignPatProp) {
-    self.check(n.key.range(), &n.key, false);
-
-    n.value.visit_children_with(self);
-  }
-
-  fn visit_update_expr(&mut self, n: &UpdateExpr) {
-    self.check_expr(n.range(), &n.arg);
-  }
-
-  fn visit_unary_expr(&mut self, n: &UnaryExpr) {
-    if let UnaryOp::Delete = n.op {
-      self.check_expr(n.range(), &n.arg);
-    } else {
-      n.arg.visit_with(self);
-    }
-  }
-
-  fn visit_call_expr(&mut self, n: &CallExpr) {
-    n.visit_children_with(self);
-
-    if let Callee::Expr(callee) = &n.callee {
-      if let Some(arg) = n.args.first() {
-        if self.modifies_first(callee) {
-          self.check_assign(n.range(), &arg.expr, true);
-        }
-      }
-    }
-  }
-
-  fn visit_opt_call(&mut self, n: &OptCall) {
-    n.visit_children_with(self);
-
-    if let Some(arg) = n.args.first() {
-      if self.modifies_first(&n.callee) {
-        self.check_assign(n.range(), &arg.expr, true);
-      }
+  fn for_of_statement(&mut self, n: &ForOfStatement, ctx: &mut Context) {
+    if let ForStatementLeft::AssignmentTargetIdentifier(ident) = &n.left {
+      self.check_ident_ref(ident.span, ident, false, ctx);
+    } else if let Some(target) = n.left.as_assignment_target() {
+      self.check_target(target, ctx);
     }
   }
 }
