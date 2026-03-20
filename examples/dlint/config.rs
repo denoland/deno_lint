@@ -25,9 +25,16 @@ pub struct FilesConfig {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
+pub struct GritConfig {
+  pub patterns: Vec<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct Config {
   pub rules: RulesConfig,
   pub files: FilesConfig,
+  pub grit: GritConfig,
 }
 
 impl Config {
@@ -224,5 +231,28 @@ mod tests {
       ..Default::default()
     };
     assert_eq!(into_codes(config.get_rules()), set![]);
+  }
+
+  #[test]
+  fn test_get_grit_config() {
+    let config = Config::default();
+    assert!(config.grit.patterns.is_empty());
+
+    let config: Config = serde_json::from_str(
+      r#"{
+        "grit": {
+          "patterns": ["rename_console", "`console.log($x)` => `logger.info($x)`"]
+        }
+      }"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+      config.grit.patterns,
+      vec![
+        "rename_console".to_string(),
+        "`console.log($x)` => `logger.info($x)`".to_string(),
+      ]
+    );
   }
 }

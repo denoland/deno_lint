@@ -1,20 +1,22 @@
-error[no-var]: `var` keyword is not allowed.
- --> [WILDCARD]issue1145_no_trailing_newline.ts:3:1
-  | 
-3 | var base
-  | ^^^
+no-var
 
-  docs: https://docs.deno.com/lint/rules/no-var
+  x `var` keyword is not allowed.
+   ,-[issue1145_no_trailing_newline.ts:3:1]
+ 3 | ---*/
+ 4 | var base
+   : ^^^
+   `----
+  help: https://lint.deno.land/#no-var
 
+no-unused-vars
 
-error[no-unused-vars]: `base` is never used
- --> [WILDCARD]issue1145_no_trailing_newline.ts:3:5
-  | 
-3 | var base
-  |     ^^^^
-  = hint: If this is intentional, prefix it with an underscore like `_base`
-
-  docs: https://docs.deno.com/lint/rules/no-unused-vars
-
+  x `base` is never used
+   ,-[issue1145_no_trailing_newline.ts:3:5]
+ 3 | ---*/
+ 4 | var base
+   :     ^^|^
+   :       `-- If this is intentional, prefix it with an underscore like `_base`
+   `----
+  help: https://lint.deno.land/#no-unused-vars
 
 Found 2 problems

@@ -8,6 +8,7 @@ use core::panic;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
+use deno_lint::diagnostic::LintDiagnostic;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::Linter;
@@ -15,16 +16,16 @@ use deno_lint::linter::LinterOptions;
 use deno_lint::rules::get_all_rules;
 use deno_lint::rules::{filtered_rules, recommended_rules};
 use log::debug;
-use rayon::prelude::*;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
+use std::path::Path;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 mod config;
 mod diagnostics;
+mod grit;
 mod rules;
 
 fn create_cli_app<'a>() -> Command<'a> {
@@ -57,7 +58,20 @@ fn create_cli_app<'a>() -> Command<'a> {
             .long("config")
             .help("Load config from file")
             .takes_value(true),
-        ).arg(
+        )
+        .arg(
+          Arg::new("FIX")
+            .long("fix")
+            .help("Apply configured GritQL rewrites before reporting diagnostics"),
+        )
+        .arg(
+          Arg::new("GRIT_PATTERN")
+            .long("grit-pattern")
+            .help("Run a GritQL pattern")
+            .takes_value(true)
+            .multiple_occurrences(true),
+        )
+        .arg(
           Arg::new("FORMAT")
             .long("format")
             .help("Configure output format")
@@ -66,9 +80,9 @@ fn create_cli_app<'a>() -> Command<'a> {
             .validator(|val: &str| match val {
               "compact" => Ok(()),
               "pretty" => Ok(()),
-              _ => Err("Output format must be compact or pretty")
+              _ => Err("Output format must be compact or pretty"),
             }),
-        )
+        ),
     )
 }
 
@@ -77,16 +91,19 @@ fn run_linter(
   filter_rule_name: Option<&str>,
   maybe_config: Option<Arc<config::Config>>,
   format: Option<&str>,
+  fix: bool,
+  cli_grit_patterns: Vec<String>,
 ) -> Result<(), AnyError> {
   let cwd = std::env::current_dir()?;
   let mut paths: Vec<PathBuf> =
-    paths.iter().map(|path| cwd.join(path)).collect();
+    paths.into_iter().map(|path| cwd.join(path)).collect();
 
   if let Some(config) = maybe_config.clone() {
     paths.extend(config.get_files()?);
   }
 
-  let error_counts = Arc::new(AtomicUsize::new(0));
+  paths.sort();
+  paths.dedup();
 
   let all_rules = get_all_rules();
   let all_rule_codes = all_rules
@@ -94,7 +111,7 @@ fn run_linter(
     .map(|rule| rule.code())
     .map(Cow::from)
     .collect::<HashSet<_>>();
-  let rules = if let Some(config) = maybe_config {
+  let rules = if let Some(config) = maybe_config.as_ref() {
     config.get_rules()
   } else if let Some(rule_name) = filter_rule_name {
     let include = vec![rule_name.to_string()];
@@ -102,76 +119,130 @@ fn run_linter(
   } else {
     recommended_rules(get_all_rules())
   };
-  if rules.is_empty() {
-    bail!("No lint rules configured");
+
+  let linter = if rules.is_empty() {
+    None
   } else {
     debug!("Configured rules: {}", rules.len());
+    Some(Linter::new(LinterOptions {
+      rules,
+      all_rule_codes,
+      custom_ignore_file_directive: None,
+      custom_ignore_diagnostic_directive: None,
+    }))
+  };
+  let grit_session =
+    resolve_grit_session(maybe_config.as_deref(), cli_grit_patterns)?;
+
+  if linter.is_none() && grit_session.is_none() {
+    bail!("No lint rules configured");
   }
-  let file_diagnostics = Arc::new(Mutex::new(BTreeMap::new()));
-  let linter = Linter::new(LinterOptions {
-    rules,
-    all_rule_codes,
-    custom_ignore_file_directive: None,
-    custom_ignore_diagnostic_directive: None,
-  });
 
-  paths
-    .par_iter()
-    .try_for_each(|file_path| -> Result<(), AnyError> {
-      let source_code = std::fs::read_to_string(file_path)?;
+  if fix {
+    if let Some(grit_session) = grit_session.as_ref() {
+      grit_session.apply_fixes(&paths)?;
+    }
+  }
 
-      let (parsed_source, diagnostics) = linter.lint_file(LintFileOptions {
-        specifier: ModuleSpecifier::from_file_path(file_path).unwrap_or_else(
-          |_| {
-            panic!(
-              "Failed to convert path to module specifier: {}",
-              file_path.display()
-            )
-          },
-        ),
-        source_code,
-        media_type: MediaType::from_path(file_path),
-        config: LintConfig {
-          default_jsx_factory: Some("React.createElement".to_string()),
-          default_jsx_fragment_factory: Some("React.Fragment".to_string()),
-        },
-        external_linter: None,
-      })?;
+  let mut error_count = 0usize;
+  let mut file_diagnostics = BTreeMap::<String, Vec<LintDiagnostic>>::new();
 
-      let mut number_of_errors = diagnostics.len();
-      if !parsed_source.diagnostics().is_empty() {
-        number_of_errors += parsed_source.diagnostics().to_vec().len();
-        parsed_source.diagnostics().to_vec().iter().for_each(
-          |parsing_diagnostic| {
+  for file_path in &paths {
+    let source_code = std::fs::read_to_string(file_path)?;
+
+    if let Some(linter) = &linter {
+      if should_run_builtin_lint(file_path) {
+        let specifier = file_specifier(file_path);
+        let (parsed_source, diagnostics) =
+          linter.lint_file(LintFileOptions {
+            specifier,
+            source_code: source_code.clone(),
+            media_type: MediaType::from_path(file_path),
+            config: LintConfig {
+              default_jsx_factory: Some("React.createElement".to_string()),
+              default_jsx_fragment_factory: Some("React.Fragment".to_string()),
+            },
+            external_linter: None,
+          })?;
+
+        let mut number_of_errors = diagnostics.len();
+        if !parsed_source.diagnostics().is_empty() {
+          number_of_errors += parsed_source.diagnostics().len();
+          for parsing_diagnostic in parsed_source.diagnostics() {
             eprintln!("{}", parsing_diagnostic.display());
-          },
-        );
+          }
+        }
+        error_count += number_of_errors;
+
+        for diagnostic in diagnostics {
+          file_diagnostics
+            .entry(diagnostic.specifier.to_string())
+            .or_default()
+            .push(diagnostic);
+        }
       }
+    }
 
-      error_counts.fetch_add(number_of_errors, Ordering::Relaxed);
-
-      let mut lock = file_diagnostics.lock().unwrap();
-
-      lock.insert(file_path, diagnostics);
-
-      Ok(())
-    })?;
-
-  for d in file_diagnostics.lock().unwrap().values() {
-    diagnostics::display_diagnostics(d, format);
+    if let Some(grit_session) = grit_session.as_ref() {
+      let diagnostics =
+        grit_session.collect_diagnostics(file_path, &source_code)?;
+      error_count += diagnostics.len();
+      for diagnostic in diagnostics {
+        file_diagnostics
+          .entry(diagnostic.specifier.to_string())
+          .or_default()
+          .push(diagnostic);
+      }
+    }
   }
 
-  let err_count = error_counts.load(Ordering::Relaxed);
-  if err_count > 0 {
+  for diagnostics in file_diagnostics.values() {
+    diagnostics::display_diagnostics(diagnostics, format);
+  }
+
+  if error_count > 0 {
     eprintln!(
       "Found {} problem{}",
-      err_count,
-      if err_count == 1 { "" } else { "s" }
+      error_count,
+      if error_count == 1 { "" } else { "s" }
     );
     std::process::exit(1);
   }
 
   Ok(())
+}
+
+fn file_specifier(file_path: &Path) -> ModuleSpecifier {
+  ModuleSpecifier::from_file_path(file_path).unwrap_or_else(|_| {
+    panic!(
+      "Failed to convert path to module specifier: {}",
+      file_path.display()
+    )
+  })
+}
+
+fn resolve_grit_session(
+  maybe_config: Option<&config::Config>,
+  cli_grit_patterns: Vec<String>,
+) -> Result<Option<grit::GritSession>, AnyError> {
+  let mut patterns = maybe_config
+    .map(|config| config.grit.patterns.clone())
+    .unwrap_or_default();
+  patterns.extend(cli_grit_patterns);
+  if patterns.is_empty() {
+    return Ok(None);
+  }
+
+  Ok(Some(grit::GritSession::new(grit::GritOptions {
+    patterns,
+  })?))
+}
+
+fn should_run_builtin_lint(file_path: &Path) -> bool {
+  matches!(
+    file_path.extension().and_then(|ext| ext.to_str()),
+    Some("js" | "jsx" | "ts" | "tsx" | "mjs" | "cjs" | "mts" | "cts")
+  )
 }
 
 fn main() -> Result<(), AnyError> {
@@ -206,6 +277,11 @@ fn main() -> Result<(), AnyError> {
         run_matches.value_of("RULE_CODE"),
         maybe_config,
         run_matches.value_of("FORMAT"),
+        run_matches.is_present("FIX"),
+        run_matches
+          .values_of("GRIT_PATTERN")
+          .map(|values| values.map(|value| value.to_string()).collect())
+          .unwrap_or_default(),
       )?;
     }
     Some(("rules", rules_matches)) => {
@@ -229,11 +305,13 @@ fn main() -> Result<(), AnyError> {
 #[cfg(test)]
 mod tests {
   use os_pipe::pipe;
+  use std::fs;
   use std::io::Read;
   use std::io::Write;
   use std::path::PathBuf;
   use std::process::Command;
   use std::process::Stdio;
+  use std::time::{SystemTime, UNIX_EPOCH};
 
   // TODO(bartlomieju): this code is copy-pasted from `deno/test_util/src/lib.rs`
 
@@ -317,10 +395,6 @@ mod tests {
         write!(p_stdin, "{}", input).unwrap();
       }
 
-      // Very important when using pipes: This parent process is still
-      // holding its copies of the write ends, and we have to close them
-      // before we read, otherwise the read end will never report EOF. The
-      // Command object owns the writers now, and dropping it closes them.
       drop(command);
 
       let mut actual = String::new();
@@ -343,9 +417,9 @@ mod tests {
           let signal = status.signal().unwrap();
           println!("OUTPUT\n{}\nOUTPUT", actual);
           panic!(
-          "process terminated by signal, expected exit code: {:?}, actual signal: {:?}",
-          self.exit_code, signal
-        );
+            "process terminated by signal, expected exit code: {:?}, actual signal: {:?}",
+            self.exit_code, signal
+          );
         }
         #[cfg(not(unix))]
         {
@@ -379,7 +453,6 @@ mod tests {
   }
 
   fn pattern_match(pattern: &str, s: &str, wildcard: &str) -> bool {
-    // Normalize line endings
     let mut s = s.replace("\r\n", "\n");
     let pattern = pattern.replace("\r\n", "\n");
 
@@ -396,9 +469,6 @@ mod tests {
       return false;
     }
 
-    // If the first line of the pattern is just a wildcard the newline character
-    // needs to be pre-pended so it can safely match anything or nothing and
-    // continue matching.
     if pattern.lines().next() == Some(wildcard) {
       s.insert(0, '\n');
     }
@@ -453,4 +523,117 @@ mod tests {
     output: "issue1145_no_trailing_newline.out",
     exit_code: 1,
   });
+
+  itest!(grit_pattern_cli {
+    args_vec: vec![
+      "run",
+      "--format",
+      "compact",
+      "--grit-pattern",
+      "language js\n`console.log($value)`",
+      "grit_match.ts",
+    ],
+    output: "grit_match.out",
+    exit_code: 1,
+  });
+
+  itest!(grit_pattern_config {
+    args: "run --format compact --config grit_config.json grit_match.ts",
+    output: "grit_match.out",
+    exit_code: 1,
+  });
+
+  itest!(grit_json_pattern_cli {
+    args_vec: vec![
+      "run",
+      "--format",
+      "compact",
+      "--grit-pattern",
+      "language json\n`{\"foo\": $value}`",
+      "grit_match.json",
+    ],
+    output: "grit_match_json.out",
+    exit_code: 1,
+  });
+
+  itest!(grit_jsonc_pattern_cli {
+    args_vec: vec![
+      "run",
+      "--format",
+      "compact",
+      "--grit-pattern",
+      "language json\n`{\"foo\": $value}`",
+      "grit_match.jsonc",
+    ],
+    output: "grit_match_jsonc.out",
+    exit_code: 1,
+  });
+
+  fn run_grit_fix_test(
+    file_name: &str,
+    initial_text: &str,
+    pattern: &str,
+    expected_text: &str,
+  ) {
+    let temp_dir = std::env::temp_dir().join(format!(
+      "deno_lint_grit_fix_{}_{}",
+      std::process::id(),
+      SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+    ));
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    let file_path = temp_dir.join(file_name);
+    fs::write(&file_path, initial_text).unwrap();
+
+    let output = dlint_cmd()
+      .current_dir(&temp_dir)
+      .args(["run", "--fix", "--grit-pattern", pattern, file_name])
+      .output()
+      .unwrap();
+
+    if !output.status.success() {
+      panic!(
+        "dlint failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+      );
+    }
+
+    assert_eq!(fs::read_to_string(&file_path).unwrap(), expected_text);
+
+    fs::remove_dir_all(temp_dir).unwrap();
+  }
+
+  #[test]
+  fn grit_fix_rewrites_js_file() {
+    run_grit_fix_test(
+      "grit_fix.ts",
+      "hello();\n",
+      "language js\n`hello()` => `greet()`",
+      "greet();\n",
+    );
+  }
+
+  #[test]
+  fn grit_fix_rewrites_json_file() {
+    run_grit_fix_test(
+      "grit_fix.json",
+      "{\"foo\": 1}\n",
+      "language json\n`{\"foo\": $value}` => `{\"bar\": $value}`",
+      "{\"bar\": 1}\n",
+    );
+  }
+
+  #[test]
+  fn grit_fix_rewrites_jsonc_file() {
+    run_grit_fix_test(
+      "grit_fix.jsonc",
+      "{\n  // comment\n  \"foo\": 1\n}\n",
+      "language json\n`{\"foo\": $value}` => `{\"bar\": $value}`",
+      "{\"bar\": 1}\n",
+    );
+  }
 }
