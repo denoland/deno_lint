@@ -76,6 +76,7 @@ impl NoProcessGlobalHandler {
       };
 
     LintFixChange {
+      specifier: None,
       new_text: format!(
         "{leading}import process from \"node:process\";{trailing}"
       )

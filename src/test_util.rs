@@ -1,9 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 use crate::ast_parser;
-use crate::diagnostic::LintDiagnostic;
+use crate::diagnostic::{LintDiagnostic, LintDiagnosticSeverity};
 use crate::linter::LintConfig;
 use crate::linter::LintFileOptions;
 use crate::linter::Linter;
@@ -183,7 +184,7 @@ macro_rules! parse_err_test {
 pub struct LintErrTester {
   src: &'static str,
   errors: Vec<LintErr>,
-  filename: &'static str,
+  filename: String,
   rule: Box<dyn LintRule>,
 }
 
@@ -192,12 +193,12 @@ impl LintErrTester {
     rule: Box<dyn LintRule>,
     src: &'static str,
     errors: Vec<LintErr>,
-    filename: &'static str,
+    filename: impl Into<String>,
   ) -> Self {
     Self {
       src,
       errors,
-      filename,
+      filename: filename.into(),
       rule,
     }
   }
@@ -205,7 +206,8 @@ impl LintErrTester {
   #[track_caller]
   pub fn run(self) {
     let rule_code = self.rule.code();
-    let (parsed_source, diagnostics) = lint(self.rule, self.src, self.filename);
+    let (parsed_source, diagnostics) =
+      lint(self.rule, self.src, &self.filename);
     if self.errors.len() != diagnostics.len() {
       eprintln!(
         "Actual diagnostics:\n{:#?}",
@@ -231,6 +233,7 @@ impl LintErrTester {
         message,
         hint,
         fixes,
+        severity,
       } = error;
       assert_diagnostic_2(
         diagnostic,
@@ -241,6 +244,7 @@ impl LintErrTester {
         message,
         hint.as_deref(),
         fixes,
+        *severity,
         parsed_source.text_info_lazy(),
       );
     }
@@ -260,6 +264,7 @@ pub struct LintErr {
   pub message: String,
   pub hint: Option<String>,
   pub fixes: Vec<LintErrFix>,
+  pub severity: LintDiagnosticSeverity,
 }
 
 #[derive(Default)]
@@ -269,6 +274,7 @@ pub struct LintErrBuilder {
   message: Option<String>,
   hint: Option<String>,
   fixes: Vec<LintErrFix>,
+  severity: Option<LintDiagnosticSeverity>,
 }
 
 impl LintErrBuilder {
@@ -306,6 +312,11 @@ impl LintErrBuilder {
     self
   }
 
+  pub fn severity(&mut self, severity: LintDiagnosticSeverity) -> &mut Self {
+    self.severity = Some(severity);
+    self
+  }
+
   pub fn build(self) -> LintErr {
     LintErr {
       line: self.line.unwrap_or(1),
@@ -313,6 +324,7 @@ impl LintErrBuilder {
       message: self.message.unwrap_or_default(),
       hint: self.hint,
       fixes: self.fixes,
+      severity: self.severity.unwrap_or(LintDiagnosticSeverity::Error),
     }
   }
 }
@@ -396,6 +408,7 @@ fn assert_diagnostic_2(
   message: &str,
   hint: Option<&str>,
   fixes: &[LintErrFix],
+  severity: LintDiagnosticSeverity,
   text_info: &SourceTextInfo,
 ) {
   let diagnostic_range = diagnostic.range.as_ref().unwrap();
@@ -433,6 +446,14 @@ fn assert_diagnostic_2(
     diagnostic.details.hint.as_deref(),
     source
   );
+  assert_eq!(
+    severity,
+    diagnostic.severity(),
+    "Diagnostic severity is expected to be \"{:?}\", but got \"{:?}\"\n\nsource:\n{}\n",
+    severity,
+    diagnostic.severity(),
+    source
+  );
   let actual_fixes = diagnostic
     .details
     .fixes
@@ -444,6 +465,12 @@ fn assert_diagnostic_2(
         fix
           .changes
           .iter()
+          .filter(|change| {
+            change
+              .specifier
+              .as_ref()
+              .is_none_or(|specifier| specifier == &diagnostic.specifier)
+          })
           .map(|change| TextChange {
             range: change.range.as_byte_range(text_info.range().start),
             new_text: change.new_text.to_string(),
@@ -456,11 +483,7 @@ fn assert_diagnostic_2(
 }
 
 #[track_caller]
-pub fn assert_lint_ok(
-  rule: Box<dyn LintRule>,
-  source: &str,
-  specifier: &'static str,
-) {
+pub fn assert_lint_ok(rule: Box<dyn LintRule>, source: &str, specifier: &str) {
   let (_parsed_source, diagnostics) = lint(rule, source, specifier);
   if !diagnostics.is_empty() {
     eprintln!("filename {:?}", specifier);
@@ -486,6 +509,67 @@ pub fn parse(source_code: &str) -> ParsedSource {
     source_code.to_string(),
   )
   .unwrap()
+}
+
+pub fn apply_first_fixes(
+  files: &[(&str, &str)],
+  diagnostics: &[LintDiagnostic],
+) -> HashMap<String, String> {
+  let mut file_texts = files
+    .iter()
+    .map(|(specifier, text)| (specifier.to_string(), text.to_string()))
+    .collect::<HashMap<_, _>>();
+
+  let mut changes_by_specifier = HashMap::<String, Vec<TextChange>>::new();
+  for diagnostic in diagnostics {
+    let Some(fix) = diagnostic.details.fixes.first() else {
+      continue;
+    };
+
+    for change in &fix.changes {
+      let target_specifier = change
+        .specifier
+        .as_ref()
+        .unwrap_or(&diagnostic.specifier)
+        .to_string();
+      let text = file_texts.get(&target_specifier).unwrap_or_else(|| {
+        panic!("Missing file contents for {}", target_specifier)
+      });
+      let text_info = SourceTextInfo::new(text.clone().into());
+      changes_by_specifier
+        .entry(target_specifier)
+        .or_default()
+        .push(TextChange {
+          range: change.range.as_byte_range(text_info.range().start),
+          new_text: change.new_text.to_string(),
+        });
+    }
+  }
+
+  for (specifier, changes) in changes_by_specifier {
+    let source = file_texts.remove(&specifier).unwrap();
+    let updated =
+      deno_ast::apply_text_changes(&source, dedupe_text_changes(changes));
+    file_texts.insert(specifier, updated);
+  }
+
+  file_texts
+}
+
+fn dedupe_text_changes(mut changes: Vec<TextChange>) -> Vec<TextChange> {
+  changes.sort_by(|a, b| match a.range.start.cmp(&b.range.start) {
+    std::cmp::Ordering::Equal => match a.range.end.cmp(&b.range.end) {
+      std::cmp::Ordering::Equal => a.new_text.cmp(&b.new_text),
+      ordering => ordering,
+    },
+    ordering => ordering,
+  });
+  changes.dedup_by(|a, b| {
+    a.range.start == b.range.start
+      && a.range.end == b.range.end
+      && a.new_text == b.new_text
+  });
+  changes
 }
 
 pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program)) {

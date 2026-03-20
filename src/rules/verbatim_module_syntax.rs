@@ -97,6 +97,7 @@ impl VerbatimModuleSyntax {
       let import_token_range = import.tokens_fast(program)[0].range();
       let mut changes = Vec::with_capacity(1 + type_only_named_import.len());
       changes.push(LintFixChange {
+        specifier: None,
         new_text: " type".into(),
         range: import_token_range.end().range(),
       });
@@ -105,6 +106,7 @@ impl VerbatimModuleSyntax {
         let tokens = named_import.tokens_fast(program);
         let range = SourceRange::new(tokens[0].start(), tokens[1].start());
         changes.push(LintFixChange {
+          specifier: None,
           new_text: "".into(),
           range,
         });
@@ -129,6 +131,7 @@ impl VerbatimModuleSyntax {
           vec![LintFix {
             description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
             changes: vec![LintFixChange {
+              specifier: None,
               new_text: "type ".into(),
               range: specifier.start().range(),
             }],
@@ -162,6 +165,7 @@ impl VerbatimModuleSyntax {
           ""
         };
         let changes = Vec::from([LintFixChange {
+          specifier: None,
           new_text: format!(
             "import {0}{1}{0}{2}",
             quote_kind,
@@ -216,6 +220,7 @@ impl VerbatimModuleSyntax {
       let export_token_range = named_export.tokens_fast(program)[0].range();
       let mut changes = Vec::with_capacity(1 + type_only_named_export.len());
       changes.push(LintFixChange {
+        specifier: None,
         new_text: " type".into(),
         range: export_token_range.end().range(),
       });
@@ -224,6 +229,7 @@ impl VerbatimModuleSyntax {
         let tokens = named_import.tokens_fast(program);
         let range = SourceRange::new(tokens[0].start(), tokens[1].start());
         changes.push(LintFixChange {
+          specifier: None,
           new_text: "".into(),
           range,
         });
@@ -248,6 +254,7 @@ impl VerbatimModuleSyntax {
           vec![LintFix {
             description: FIX_ADD_TYPE_KEYWORD_DESC.into(),
             changes: vec![LintFixChange {
+              specifier: None,
               new_text: "type ".into(),
               range: specifier.start().range(),
             }],

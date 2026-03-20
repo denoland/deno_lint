@@ -2,8 +2,8 @@
 
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{
-  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintDocsUrl,
-  LintFix,
+  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange,
+  LintDiagnosticSeverity, LintDocsUrl, LintFix,
 };
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
@@ -300,6 +300,7 @@ impl<'a> Context<'a> {
             format!("Ignore for code \"{}\" was not used.", unused_code),
             None,
             Vec::new(),
+            LintDiagnosticSeverity::Error,
           ),
         );
         diagnostics.push(d);
@@ -321,6 +322,7 @@ impl<'a> Context<'a> {
             format!("Ignore for code \"{}\" was not used.", unused_code),
             None,
             Vec::new(),
+            LintDiagnosticSeverity::Error,
           ),
         );
         diagnostics.push(d);
@@ -353,6 +355,7 @@ impl<'a> Context<'a> {
             format!("Unknown rule for code \"{}\"", unknown_rule_code),
             None,
             Vec::new(),
+            LintDiagnosticSeverity::Error,
           ),
         );
         diagnostics.push(d);
@@ -372,6 +375,7 @@ impl<'a> Context<'a> {
             format!("Unknown rule for code \"{}\"", unknown_rule_code),
             None,
             Vec::new(),
+            LintDiagnosticSeverity::Error,
           ),
         );
         diagnostics.push(d);
@@ -402,14 +406,13 @@ impl<'a> Context<'a> {
     code: impl ToString,
     message: impl ToString,
   ) {
-    self.add_diagnostic_details(
-      Some(self.create_diagnostic_range(range)),
-      self.create_diagnostic_details(
-        code,
-        message.to_string(),
-        None,
-        Vec::new(),
-      ),
+    self.add_diagnostic_with_hint_and_fixes(
+      range,
+      code,
+      message,
+      None,
+      Vec::new(),
+      LintDiagnosticSeverity::Error,
     );
   }
 
@@ -420,14 +423,13 @@ impl<'a> Context<'a> {
     message: impl ToString,
     hint: impl ToString,
   ) {
-    self.add_diagnostic_details(
-      Some(self.create_diagnostic_range(range)),
-      self.create_diagnostic_details(
-        code,
-        message,
-        Some(hint.to_string()),
-        Vec::new(),
-      ),
+    self.add_diagnostic_with_hint_and_fixes(
+      range,
+      code,
+      message,
+      Some(hint.to_string()),
+      Vec::new(),
+      LintDiagnosticSeverity::Error,
     );
   }
 
@@ -439,9 +441,79 @@ impl<'a> Context<'a> {
     hint: Option<String>,
     fixes: Vec<LintFix>,
   ) {
+    self.add_diagnostic_with_hint_and_fixes(
+      range,
+      code,
+      message,
+      hint,
+      fixes,
+      LintDiagnosticSeverity::Error,
+    );
+  }
+
+  pub fn add_warning(
+    &mut self,
+    range: SourceRange,
+    code: impl ToString,
+    message: impl ToString,
+  ) {
+    self.add_diagnostic_with_hint_and_fixes(
+      range,
+      code,
+      message,
+      None,
+      Vec::new(),
+      LintDiagnosticSeverity::Warning,
+    );
+  }
+
+  pub fn add_warning_with_hint(
+    &mut self,
+    range: SourceRange,
+    code: impl ToString,
+    message: impl ToString,
+    hint: impl ToString,
+  ) {
+    self.add_diagnostic_with_hint_and_fixes(
+      range,
+      code,
+      message,
+      Some(hint.to_string()),
+      Vec::new(),
+      LintDiagnosticSeverity::Warning,
+    );
+  }
+
+  pub fn add_warning_with_fixes(
+    &mut self,
+    range: SourceRange,
+    code: impl ToString,
+    message: impl ToString,
+    hint: Option<String>,
+    fixes: Vec<LintFix>,
+  ) {
+    self.add_diagnostic_with_hint_and_fixes(
+      range,
+      code,
+      message,
+      hint,
+      fixes,
+      LintDiagnosticSeverity::Warning,
+    );
+  }
+
+  fn add_diagnostic_with_hint_and_fixes(
+    &mut self,
+    range: SourceRange,
+    code: impl ToString,
+    message: impl ToString,
+    hint: Option<String>,
+    fixes: Vec<LintFix>,
+    severity: LintDiagnosticSeverity,
+  ) {
     self.add_diagnostic_details(
       Some(self.create_diagnostic_range(range)),
-      self.create_diagnostic_details(code, message, hint, fixes),
+      self.create_diagnostic_details(code, message, hint, fixes, severity),
     );
   }
 
@@ -481,8 +553,10 @@ impl<'a> Context<'a> {
     message: impl ToString,
     maybe_hint: Option<String>,
     fixes: Vec<LintFix>,
+    severity: LintDiagnosticSeverity,
   ) -> LintDiagnosticDetails {
     LintDiagnosticDetails {
+      severity,
       message: message.to_string(),
       code: code.to_string(),
       hint: maybe_hint,
