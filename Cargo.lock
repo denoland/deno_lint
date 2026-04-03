@@ -348,6 +348,7 @@ dependencies = [
  "env_logger",
  "globwalk",
  "if_chain",
+ "jsonc-parser",
  "log",
  "once_cell",
  "os_pipe",
@@ -796,6 +797,15 @@ name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
+
+[[package]]
+name = "jsonc-parser"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45157f76d8fbe134e0c97403d69ac48989a1e0249a058b20f9f5eeff11bb09f0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "libc"

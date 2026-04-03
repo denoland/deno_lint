@@ -57,6 +57,7 @@ impl Handler for JSXPropsNoSpreadMultiHandler {
             vec![LintFix {
               description: "Remove this spread attribute".into(),
               changes: vec![LintFixChange {
+                specifier: None,
                 new_text: "".into(),
                 range: SourceRange {
                   start: attr.range().start - 2,

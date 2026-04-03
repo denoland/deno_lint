@@ -8,6 +8,7 @@ use core::panic;
 use deno_ast::diagnostics::Diagnostic;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
+use deno_lint::diagnostic::LintDiagnosticSeverity;
 use deno_lint::linter::LintConfig;
 use deno_lint::linter::LintFileOptions;
 use deno_lint::linter::Linter;
@@ -86,7 +87,8 @@ fn run_linter(
     paths.extend(config.get_files()?);
   }
 
-  let error_counts = Arc::new(AtomicUsize::new(0));
+  let error_count = Arc::new(AtomicUsize::new(0));
+  let warning_count = Arc::new(AtomicUsize::new(0));
 
   let all_rules = get_all_rules();
   let all_rule_codes = all_rules
@@ -138,7 +140,18 @@ fn run_linter(
         external_linter: None,
       })?;
 
-      let mut number_of_errors = diagnostics.len();
+      let mut number_of_errors = diagnostics
+        .iter()
+        .filter(|diagnostic| {
+          diagnostic.severity() == LintDiagnosticSeverity::Error
+        })
+        .count();
+      let number_of_warnings = diagnostics
+        .iter()
+        .filter(|diagnostic| {
+          diagnostic.severity() == LintDiagnosticSeverity::Warning
+        })
+        .count();
       if !parsed_source.diagnostics().is_empty() {
         number_of_errors += parsed_source.diagnostics().to_vec().len();
         parsed_source.diagnostics().to_vec().iter().for_each(
@@ -148,7 +161,8 @@ fn run_linter(
         );
       }
 
-      error_counts.fetch_add(number_of_errors, Ordering::Relaxed);
+      error_count.fetch_add(number_of_errors, Ordering::Relaxed);
+      warning_count.fetch_add(number_of_warnings, Ordering::Relaxed);
 
       let mut lock = file_diagnostics.lock().unwrap();
 
@@ -161,17 +175,48 @@ fn run_linter(
     diagnostics::display_diagnostics(d, format);
   }
 
-  let err_count = error_counts.load(Ordering::Relaxed);
+  let err_count = error_count.load(Ordering::Relaxed);
+  let warn_count = warning_count.load(Ordering::Relaxed);
+  if err_count > 0 || warn_count > 0 {
+    eprintln!("{}", format_problem_counts(err_count, warn_count));
+  }
   if err_count > 0 {
-    eprintln!(
-      "Found {} problem{}",
-      err_count,
-      if err_count == 1 { "" } else { "s" }
-    );
     std::process::exit(1);
   }
 
   Ok(())
+}
+
+fn format_problem_counts(errors: usize, warnings: usize) -> String {
+  if warnings == 0 {
+    let total = errors;
+    return format!(
+      "Found {} problem{}",
+      total,
+      if total == 1 { "" } else { "s" }
+    );
+  }
+
+  if errors == 0 {
+    return format!(
+      "Found {} warning{}",
+      warnings,
+      if warnings == 1 { "" } else { "s" }
+    );
+  }
+
+  let mut parts = Vec::new();
+  parts.push(format!(
+    "{} error{}",
+    errors,
+    if errors == 1 { "" } else { "s" }
+  ));
+  parts.push(format!(
+    "{} warning{}",
+    warnings,
+    if warnings == 1 { "" } else { "s" }
+  ));
+  format!("Found {}", parts.join(", "))
 }
 
 fn main() -> Result<(), AnyError> {

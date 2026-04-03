@@ -1,7 +1,7 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use deno_ast::diagnostics::Diagnostic;
-use deno_lint::diagnostic::LintDiagnostic;
+use deno_lint::diagnostic::{LintDiagnostic, LintDiagnosticSeverity};
 
 pub fn display_diagnostics(
   diagnostics: &[LintDiagnostic],
@@ -21,10 +21,11 @@ fn print_compact(diagnostics: &[LintDiagnostic]) {
         let display_index =
           range.text_info.line_and_column_display(range.range.start);
         eprintln!(
-          "{}: line {}, col {}, Error - {} ({})",
+          "{}: line {}, col {}, {} - {} ({})",
           diagnostic.specifier,
           display_index.line_number,
           display_index.column_number,
+          severity_label(diagnostic.severity()),
           diagnostic.details.message,
           diagnostic.details.code
         )
@@ -44,5 +45,12 @@ fn print_compact(diagnostics: &[LintDiagnostic]) {
 fn print_pretty(diagnostics: &[LintDiagnostic]) {
   for diagnostic in diagnostics {
     eprintln!("{}\n", diagnostic.display());
+  }
+}
+
+fn severity_label(severity: LintDiagnosticSeverity) -> &'static str {
+  match severity {
+    LintDiagnosticSeverity::Error => "Error",
+    LintDiagnosticSeverity::Warning => "Warning",
   }
 }

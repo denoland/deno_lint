@@ -52,6 +52,7 @@ impl NoWindowGlobalHandler {
       vec![LintFix {
         description: FIX_DESC.into(),
         changes: vec![LintFixChange {
+          specifier: None,
           new_text: "globalThis".into(),
           range,
         }],

@@ -256,6 +256,7 @@ impl Handler for NoWindowPrefixHandler {
           vec![LintFix {
             description: FIX_DESC.into(),
             changes: vec![LintFixChange {
+              specifier: None,
               new_text: "globalThis".into(),
               range: obj_ident.range(),
             }],

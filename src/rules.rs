@@ -26,6 +26,7 @@ pub mod fresh_handler_export;
 pub mod fresh_server_event_handlers;
 pub mod getter_return;
 pub mod guard_for_in;
+mod import_config;
 pub mod jsx_boolean_value;
 pub mod jsx_button_has_type;
 pub mod jsx_curly_braces;

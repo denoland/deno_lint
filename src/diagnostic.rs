@@ -14,8 +14,32 @@ use deno_ast::ModuleSpecifier;
 use deno_ast::SourceRange;
 use deno_ast::SourceTextInfo;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LintDiagnosticSeverity {
+  #[default]
+  Error,
+  Warning,
+}
+
+impl LintDiagnosticSeverity {
+  fn diagnostic_level(self) -> DiagnosticLevel {
+    match self {
+      Self::Error => DiagnosticLevel::Error,
+      Self::Warning => DiagnosticLevel::Warning,
+    }
+  }
+
+  fn highlight_style(self) -> DiagnosticSnippetHighlightStyle {
+    match self {
+      Self::Error => DiagnosticSnippetHighlightStyle::Error,
+      Self::Warning => DiagnosticSnippetHighlightStyle::Warning,
+    }
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct LintFixChange {
+  pub specifier: Option<ModuleSpecifier>,
   pub new_text: Cow<'static, str>,
   pub range: SourceRange,
 }
@@ -44,6 +68,7 @@ pub enum LintDocsUrl {
 
 #[derive(Clone)]
 pub struct LintDiagnosticDetails {
+  pub severity: LintDiagnosticSeverity,
   pub message: String,
   pub code: String,
   pub hint: Option<String>,
@@ -72,9 +97,15 @@ pub struct LintDiagnostic {
   pub details: LintDiagnosticDetails,
 }
 
+impl LintDiagnostic {
+  pub fn severity(&self) -> LintDiagnosticSeverity {
+    self.details.severity
+  }
+}
+
 impl Diagnostic for LintDiagnostic {
   fn level(&self) -> DiagnosticLevel {
-    DiagnosticLevel::Error
+    self.details.severity.diagnostic_level()
   }
 
   fn code(&self) -> Cow<'_, str> {
@@ -107,7 +138,7 @@ impl Diagnostic for LintDiagnostic {
           start: DiagnosticSourcePos::SourcePos(range.range.start),
           end: DiagnosticSourcePos::SourcePos(range.range.end),
         },
-        style: DiagnosticSnippetHighlightStyle::Error,
+        style: self.details.severity.highlight_style(),
         description: range.description.as_deref().map(Cow::Borrowed),
       }],
     })

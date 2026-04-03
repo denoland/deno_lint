@@ -148,6 +148,7 @@ impl NoNodeGlobalsHandler {
       (range, AddNewline::None)
     };
     LintFixChange {
+      specifier: None,
       new_text: fix_kind.to_text(add_newline),
       range: fix_range,
     }

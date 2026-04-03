@@ -58,6 +58,7 @@ impl Handler for JSXBooleanValueHandler {
                 fixes.push(LintFix {
                   description: FIX_DESC.into(),
                   changes: vec![LintFixChange {
+                    specifier: None,
                     new_text: "".into(),
                     range: SourceRange::new(start_pos, expr.end()),
                   }],

@@ -52,6 +52,7 @@ impl Handler for JSXNoUnescapedEntitiesHandler {
             vec![LintFix {
               description: "Escape entities in the text node".into(),
               changes: vec![LintFixChange {
+                specifier: None,
                 new_text: new_text.into(),
                 range: child.range(),
               }],
