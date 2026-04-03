@@ -93,6 +93,7 @@ pub mod no_process_global;
 pub mod no_prototype_builtins;
 pub mod no_redeclare;
 pub mod no_regex_spaces;
+pub mod no_runtime_private_fields;
 pub mod no_self_assign;
 pub mod no_self_compare;
 pub mod no_setter_return;
@@ -340,6 +341,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_prototype_builtins::NoPrototypeBuiltins),
     Box::new(no_redeclare::NoRedeclare),
     Box::new(no_regex_spaces::NoRegexSpaces),
+    Box::new(no_runtime_private_fields::NoRuntimePrivateFields),
     Box::new(no_self_assign::NoSelfAssign),
     Box::new(no_self_compare::NoSelfCompare),
     Box::new(no_setter_return::NoSetterReturn),
