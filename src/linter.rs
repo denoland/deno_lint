@@ -58,7 +58,7 @@ impl LinterContext {
         .custom_ignore_file_directive
         .unwrap_or("deno-lint-ignore-file"),
       ignore_diagnostic_directive: options
-        .custom_ignore_file_directive
+        .custom_ignore_diagnostic_directive
         .unwrap_or("deno-lint-ignore"),
       check_unknown_rules,
       rules,
