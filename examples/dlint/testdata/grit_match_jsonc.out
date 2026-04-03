@@ -1,0 +1,2 @@
+grit_match.jsonc: line 1, col 1, Error - Matched GritQL pattern (grit-language-json-foo-value)
+Found 1 problem

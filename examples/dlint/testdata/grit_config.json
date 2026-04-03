@@ -1,0 +1,5 @@
+{
+  "grit": {
+    "patterns": ["language js\n`console.log($value)`"]
+  }
+}

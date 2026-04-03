@@ -17,10 +17,13 @@ name = "deno_lint"
 
 [[example]]
 name = "dlint"
+required-features = ["docs", "gritql"]
 test = true
 
 [features]
 default = []
+docs = []
+gritql = ["dep:marzano-core", "dep:marzano-language", "dep:marzano-util"]
 
 [dependencies]
 deno_ast = { version = "0.53.0", features = ["scopes", "transforms", "utils", "visit", "view", "react"] }
@@ -34,6 +37,9 @@ anyhow = "1.0.79"
 if_chain = "1.0.2"
 phf = { version = "0.11.2", features = ["macros"] }
 deno_semver = "0.9.0"
+marzano-core = { git = "https://github.com/getgrit/gritql.git", rev = "44f2d034a1598e54a0933e5e946cdfa692965ebb", package = "marzano-core", default-features = false, features = ["grit-parser", "language-parsers", "non_wasm"], optional = true }
+marzano-language = { git = "https://github.com/getgrit/gritql.git", rev = "44f2d034a1598e54a0933e5e946cdfa692965ebb", package = "marzano-language", default-features = false, features = ["builtin-parser"], optional = true }
+marzano-util = { git = "https://github.com/getgrit/gritql.git", rev = "44f2d034a1598e54a0933e5e946cdfa692965ebb", package = "marzano-util", optional = true }
 
 [dev-dependencies]
 ansi_term = "0.12.1"
