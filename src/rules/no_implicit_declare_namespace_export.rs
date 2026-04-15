@@ -41,6 +41,14 @@ impl Handler for NoImplicitDeclareNamespaceExportHandler {
     module_decl: &ast_view::TsModuleDecl,
     ctx: &mut Context,
   ) {
+    // `declare global { ... }` is a module-augmentation form: TypeScript
+    // explicitly disallows `export {}` inside it ("Exports and export
+    // assignments are not permitted in module augmentations"), so emitting
+    // the implicit-export hint here would suggest a fix that doesn't
+    // compile. See denoland/deno#33268.
+    if module_decl.inner.global {
+      return;
+    }
     if module_decl.inner.declare {
       if let Some(ast_view::TsNamespaceBody::TsModuleBlock(block)) =
         module_decl.body
@@ -135,6 +143,19 @@ declare namespace bar {
       "#,
       r#"
 declare namespace empty {}
+      "#,
+      // `declare global` cannot use `export {}` inside it, so the rule
+      // must not flag implicit-export usage in that block.
+      // See denoland/deno#33268.
+      r#"
+declare global {
+  const asdf = 1;
+}
+      "#,
+      r#"
+declare global {
+  interface Window { foo: string }
+}
       "#,
     };
   }
