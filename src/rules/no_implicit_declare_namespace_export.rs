@@ -41,7 +41,10 @@ impl Handler for NoImplicitDeclareNamespaceExportHandler {
     module_decl: &ast_view::TsModuleDecl,
     ctx: &mut Context,
   ) {
-    if module_decl.inner.declare {
+    // `declare global { ... }` is a module augmentation and cannot contain
+    // `export { ... }` or `export {}`, so the hint this rule emits would only
+    // swap one error for another. Skip it.
+    if module_decl.inner.declare && !module_decl.inner.global {
       if let Some(ast_view::TsNamespaceBody::TsModuleBlock(block)) =
         module_decl.body
       {
@@ -108,6 +111,20 @@ declare namespace bar {
       "#,
       r#"
 declare namespace empty {}
+      "#,
+      // `declare global { ... }` is a module augmentation; `export {};` is a
+      // syntax error inside it, so the rule must not fire here.
+      // See https://github.com/denoland/deno/issues/33268.
+      r#"
+declare global {
+  const asdf: number;
+}
+      "#,
+      r#"
+declare global {
+  interface X {}
+  const FOO: string;
+}
       "#,
     };
 
