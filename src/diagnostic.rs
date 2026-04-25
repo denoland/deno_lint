@@ -187,7 +187,10 @@ mod tests {
 
   #[test]
   fn severity_default_is_error() {
-    assert_eq!(LintDiagnosticSeverity::default(), LintDiagnosticSeverity::Error);
+    assert_eq!(
+      LintDiagnosticSeverity::default(),
+      LintDiagnosticSeverity::Error
+    );
   }
 
   #[test]
