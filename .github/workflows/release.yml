@@ -24,7 +24,11 @@ jobs:
         with:
           token: ${{ secrets.DENOBOT_PAT }}
 
-      - uses: denoland/setup-deno@v1
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: canary
+
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Tag and release
