@@ -8,8 +8,6 @@ use crate::Program;
 use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
-use std::iter::Peekable;
-use std::str::Chars;
 
 #[derive(Debug)]
 pub struct NoControlRegex;
@@ -19,7 +17,7 @@ const CODE: &str = "no-control-regex";
 #[derive(Display)]
 enum NoControlRegexMessage {
   #[display(
-    fmt = "Unexpected control character(s) in regular expression: \\x{:x}.",
+    fmt = "Unexpected control character literal in regular expression: \\x{:0>2x}.",
     _0
   )]
   Unexpected(u64),
@@ -28,7 +26,7 @@ enum NoControlRegexMessage {
 #[derive(Display)]
 enum NoControlRegexHint {
   #[display(
-    fmt = "Disable the rule if the control character (\\x... or \\u00..) was intentional, otherwise rework your RegExp"
+    fmt = "Disable the rule if the control character literal was intentional, otherwise rework your RegExp"
   )]
   DisableOrRework,
 }
@@ -62,61 +60,20 @@ fn add_diagnostic(range: SourceRange, cp: u64, ctx: &mut Context) {
   );
 }
 
+fn is_control_char(ch: u64) -> bool {
+  // This includes all C0 control chars, including \t (0x09), \r (0x0d), and \n (0x0a).
+  // It also includes DEL (0x7f) but excludes space (0x20).
+  ch <= 0x1f || ch == 0x7f
+}
+
 fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
-  let mut iter = regex.chars().peekable();
-  while let Some(ch) = iter.next() {
-    if ch != '\\' {
-      continue;
-    }
-    match iter.next() {
-      Some('x') => {
-        if let Some(cp) = read_hex_n(&mut iter, 2) {
-          if cp <= 31 {
-            add_diagnostic(range, cp, ctx);
-            return;
-          }
-        }
-      }
-      Some('u') => {
-        let cp = match iter.peek() {
-          Some(&'{') => read_hex_until_brace(&mut iter),
-          Some(_) => read_hex_n(&mut iter, 4),
-          _ => None,
-        };
-        if let Some(cp) = cp {
-          if cp <= 31 {
-            add_diagnostic(range, cp, ctx);
-            return;
-          }
-        }
-      }
-      _ => continue,
+  for ch in regex.chars() {
+    let cp: u64 = ch.into();
+    if is_control_char(cp) {
+      add_diagnostic(range, cp, ctx);
+      return;
     }
   }
-}
-
-/// Read the next n characters and try to parse it as hexadecimal.
-fn read_hex_n(iter: &mut Peekable<Chars>, n: usize) -> Option<u64> {
-  let mut s = String::new();
-  for _ in 0..n {
-    let ch = iter.next()?;
-    s.push(ch);
-  }
-  u64::from_str_radix(s.as_str(), 16).ok()
-}
-
-/// Read characters until `}` and try to parse it as hexadecimal.
-fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
-  iter.next(); // consume `{`
-  let mut s = String::new();
-  loop {
-    let ch = iter.next()?;
-    if ch == '}' {
-      break;
-    }
-    s.push(ch);
-  }
-  u64::from_str_radix(s.as_str(), 16).ok()
 }
 
 impl Handler for NoControlRegexHandler {
@@ -148,44 +105,6 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_read_hex_n() {
-    let tests = [
-      (r#"1f"#, Some(0x1f)),
-      (r#"001f"#, Some(0x1f)),
-      (r#"1g"#, None),
-      (r#"001g"#, None),
-      (r#"1ff"#, Some(0x1ff)),
-      (r#"abcd"#, Some(0xabcd)),
-    ];
-
-    for &(input, expected) in tests.iter() {
-      assert_eq!(
-        read_hex_n(&mut input.chars().peekable(), input.len()),
-        expected
-      );
-    }
-  }
-
-  #[test]
-  fn test_read_hex_until_brace() {
-    let tests = [
-      (r#"{1f}"#, Some(0x1f)),
-      (r#"{001f}"#, Some(0x1f)),
-      (r#"{1g}"#, None),
-      (r#"{001g}"#, None),
-      (r#"{1ff}"#, Some(0x1ff)),
-      (r#"{abcd}"#, Some(0xabcd)),
-    ];
-
-    for &(input, expected) in tests.iter() {
-      assert_eq!(
-        read_hex_until_brace(&mut input.chars().peekable()),
-        expected,
-      );
-    }
-  }
-
-  #[test]
   fn no_control_regex_valid() {
     assert_lint_ok! {
       NoControlRegex,
@@ -202,6 +121,20 @@ mod tests {
       r"new RegExp('[')",
       r"RegExp('[')",
       r"new (function foo(){})('\\x1f')",
+      r"/\x1f/",
+      r"/\u001f/",
+      r"/\u{001f}/",
+      r"/\u{0001f}/",
+      r"/\\\x1f\\x1e/",
+      r"/\\\x1fFOO\\x00/",
+      r"/FOO\\\x1fFOO\\x1f/",
+      r"new RegExp('\\x1f\\x1e')",
+      r"new RegExp('\\x1fFOO\\x00')",
+      r"new RegExp('FOO\\x1fFOO\\x1f')",
+      r"RegExp('\\x1f')",
+      r"/ /",
+      r"RegExp(' ')",
+      r"/\t/",
     };
   }
 
@@ -209,83 +142,82 @@ mod tests {
   fn no_control_regex_invalid() {
     assert_lint_err! {
       NoControlRegex,
-      r"/\x1f/": [
+      "/\u{0000}/": [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x00),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      "/\u{001f}/": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"/\u001f/": [
+      "/\u{007f}/": [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x7f),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
+      r"new RegExp('\x1f')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"/\u{001f}/": [
+      r"new RegExp('\u001f')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"/\u{0001f}/": [
+      r"new RegExp('\u{1f}')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"/\\\x1f\\x1e/": [
+      r"new RegExp('\u{0001f}')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"/\\\x1fFOO\\x00/": [
+      "new RegExp('x\u{001f}')": [
         {
           col: 0,
           message: NoControlRegexMessage::Unexpected(0x1f),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"/FOO\\\x1fFOO\\x1f/": [
+      "/\t/": [
         {
           col: 0,
-          message: NoControlRegexMessage::Unexpected(0x1f),
+          message: NoControlRegexMessage::Unexpected(0x09),
           hint: NoControlRegexHint::DisableOrRework,
         }
       ],
-      r"new RegExp('\\x1f\\x1e')": [
-        {
-          col: 0,
-          message: NoControlRegexMessage::Unexpected(0x1f),
-          hint: NoControlRegexHint::DisableOrRework,
-        }
-      ],
-      r"new RegExp('\\x1fFOO\\x00')": [
-        {
-          col: 0,
-          message: NoControlRegexMessage::Unexpected(0x1f),
-          hint: NoControlRegexHint::DisableOrRework,
-        }
-      ],
-      r"new RegExp('FOO\\x1fFOO\\x1f')": [
-        {
-          col: 0,
-          message: NoControlRegexMessage::Unexpected(0x1f),
-          hint: NoControlRegexHint::DisableOrRework,
-        }
-      ],
-      r"RegExp('\\x1f')": [
-        {
-          col: 0,
-          message: NoControlRegexMessage::Unexpected(0x1f),
-          hint: NoControlRegexHint::DisableOrRework,
-        }
-      ]
     };
+  }
+
+  #[test]
+  fn no_control_regex_message() {
+    assert_eq!(
+      NoControlRegexMessage::Unexpected(0x1f).to_string(),
+      r"Unexpected control character literal in regular expression: \x1f."
+    );
+
+    assert_eq!(
+      NoControlRegexMessage::Unexpected(0x00).to_string(),
+      r"Unexpected control character literal in regular expression: \x00."
+    );
   }
 }
