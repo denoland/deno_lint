@@ -2,7 +2,7 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
-use crate::globals::GLOBALS;
+use crate::globals::{DOM_GLOBALS, GLOBALS};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::{
@@ -61,8 +61,12 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
       return;
     }
 
-    // Globals
-    if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
+    // Globals, including DOM globals for browser environments.
+    if GLOBALS
+      .iter()
+      .chain(DOM_GLOBALS)
+      .any(|(name, _)| name == &&*ident.sym)
+    {
       return;
     }
 
@@ -299,6 +303,11 @@ mod tests {
       "const foo = ([a, x]: [number, number], [b]: [boolean]) => {};",
       "const foo = ([a]: [number], [b, y]: [boolean, boolean]) => {};",
       "const foo = ({ a }: { a: number }, [b]: [boolean]) => {};",
+      "console.log(document);",
+      "new HTMLElement();",
+      "document.querySelector('div');",
+      "const observer = new MutationObserver(() => {}); observer;",
+      "requestAnimationFrame(() => {});",
     };
   }
 
@@ -310,6 +319,19 @@ mod tests {
         {
           col: 0,
           message: "a is not defined",
+        },
+      ],
+      // Regression guard: misspelled DOM globals must still be reported.
+      "documentt;": [
+        {
+          col: 0,
+          message: "documentt is not defined",
+        },
+      ],
+      "HTMLElementt;": [
+        {
+          col: 0,
+          message: "HTMLElementt is not defined",
         },
       ],
       "var a = b;": [
