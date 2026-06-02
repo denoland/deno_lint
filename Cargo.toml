@@ -21,7 +21,7 @@ test = true
 default = []
 
 [dependencies]
-deno_ast = { path = "../deno_ast", features = [
+deno_ast = { git = "https://github.com/nathanwhit/deno_ast", branch = "oxc-port", features = [
     "scopes",
     "semantic",
     "visit",
