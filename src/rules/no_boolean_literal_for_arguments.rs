@@ -41,12 +41,7 @@ impl Handler<'_> for NoBooleanLiteralForArgumentsVisitor {
   ) {
     for arg in &call_expression.arguments {
       if matches!(arg, Argument::BooleanLiteral(_)) {
-        ctx.add_diagnostic_with_hint(
-          call_expression.span,
-          CODE,
-          MESSAGE,
-          HINT,
-        );
+        ctx.add_diagnostic_with_hint(call_expression.span, CODE, MESSAGE, HINT);
         break;
       }
     }

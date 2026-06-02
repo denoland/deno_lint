@@ -55,7 +55,8 @@ struct NoFuncAssignVisitor;
 fn check_target(target: &AssignmentTarget, span: Span, ctx: &mut Context) {
   match target {
     AssignmentTarget::AssignmentTargetIdentifier(ident) => {
-      if let Some(BindingKind::Function) = ctx.binding_kind_of_ident_ref(ident) {
+      if let Some(BindingKind::Function) = ctx.binding_kind_of_ident_ref(ident)
+      {
         ctx.add_diagnostic_with_hint(
           span,
           CODE,
@@ -104,7 +105,9 @@ fn check_object_target(
   for prop in obj.properties.iter() {
     match prop {
       AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(ident) => {
-        if let Some(BindingKind::Function) = ctx.binding_kind_of_ident_ref(&ident.binding) {
+        if let Some(BindingKind::Function) =
+          ctx.binding_kind_of_ident_ref(&ident.binding)
+        {
           ctx.add_diagnostic_with_hint(
             span,
             CODE,
@@ -115,7 +118,9 @@ fn check_object_target(
       }
       AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv) => {
         match &kv.binding {
-          AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_def) => {
+          AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+            with_def,
+          ) => {
             check_target(&with_def.binding, span, ctx);
           }
           _ => {

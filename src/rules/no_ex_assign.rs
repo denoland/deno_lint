@@ -51,8 +51,7 @@ fn check_ident_ref_for_catch(
   ident: &IdentifierReference,
   ctx: &mut Context,
 ) {
-  if let Some(BindingKind::CatchClause) = ctx.binding_kind_of_ident_ref(ident)
-  {
+  if let Some(BindingKind::CatchClause) = ctx.binding_kind_of_ident_ref(ident) {
     ctx.add_diagnostic_with_hint(
       range,
       CODE,
@@ -97,9 +96,7 @@ fn check_obj_assignment_target(
           ctx,
         );
       }
-      AssignmentTargetProperty::AssignmentTargetPropertyProperty(
-        kv_prop,
-      ) => {
+      AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv_prop) => {
         check_maybe_default(&kv_prop.binding, range, ctx);
       }
     }
@@ -112,9 +109,7 @@ fn check_maybe_default(
   ctx: &mut Context,
 ) {
   match target {
-    AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
-      with_default,
-    ) => {
+    AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
       check_assignment_target(&with_default.binding, range, ctx);
     }
     AssignmentTargetMaybeDefault::AssignmentTargetIdentifier(ident) => {

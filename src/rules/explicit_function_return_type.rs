@@ -63,11 +63,7 @@ impl Handler<'_> for ExplicitFunctionReturnTypeHandler {
     }
   }
 
-  fn object_property(
-    &mut self,
-    prop: &ObjectProperty,
-    _ctx: &mut Context,
-  ) {
+  fn object_property(&mut self, prop: &ObjectProperty, _ctx: &mut Context) {
     if prop.kind == PropertyKind::Set {
       self.skip_next_function = true;
     }

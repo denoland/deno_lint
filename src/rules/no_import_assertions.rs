@@ -79,12 +79,7 @@ impl Handler<'_> for NoImportAssertionsHandler {
             match &prop.key {
               PropertyKey::StaticIdentifier(ident) => {
                 if ident.name.as_str() == "assert" {
-                  ctx.add_diagnostic_with_hint(
-                    ident.span,
-                    CODE,
-                    MESSAGE,
-                    HINT,
-                  );
+                  ctx.add_diagnostic_with_hint(ident.span, CODE, MESSAGE, HINT);
                 }
               }
               PropertyKey::StringLiteral(str_lit) => {

@@ -37,11 +37,7 @@ impl LintRule for NoUselessRename {
 struct NoUselessRenameHandler;
 
 impl Handler<'_> for NoUselessRenameHandler {
-  fn import_specifier(
-    &mut self,
-    node: &ImportSpecifier,
-    ctx: &mut Context,
-  ) {
+  fn import_specifier(&mut self, node: &ImportSpecifier, ctx: &mut Context) {
     // In OXC, ImportSpecifier always has `imported` and `local`.
     // If they have the same span, there's no rename (e.g., `import { foo }` has
     // imported = foo and local = foo with the same span).
@@ -80,11 +76,7 @@ impl Handler<'_> for NoUselessRenameHandler {
     }
   }
 
-  fn export_specifier(
-    &mut self,
-    node: &ExportSpecifier,
-    ctx: &mut Context,
-  ) {
+  fn export_specifier(&mut self, node: &ExportSpecifier, ctx: &mut Context) {
     // In OXC, ExportSpecifier always has `local` and `exported`.
     // If they have the same span, there's no explicit rename.
     if node.local.span() == node.exported.span() {

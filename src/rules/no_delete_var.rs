@@ -3,7 +3,9 @@
 use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use deno_ast::oxc::ast::ast::{Expression, Program, UnaryExpression, UnaryOperator};
+use deno_ast::oxc::ast::ast::{
+  Expression, Program, UnaryExpression, UnaryOperator,
+};
 use derive_more::Display;
 
 #[derive(Debug)]

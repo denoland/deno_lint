@@ -3,9 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use deno_ast::oxc::ast::ast::{
-  Comment, Program, Statement, SwitchStatement,
-};
+use deno_ast::oxc::ast::ast::{Comment, Program, Statement, SwitchStatement};
 use deno_ast::oxc::span::GetSpan;
 use derive_more::Display;
 
@@ -88,8 +86,7 @@ impl Handler<'_> for NoFallthroughHandler {
       for (idx, stmt) in case.consequent.iter().enumerate() {
         let last = idx + 1 == case.consequent.len();
         let metadata = context.control_flow().meta(stmt.span().start);
-        stops_exec |=
-          metadata.map(|v| v.stops_execution()).unwrap_or(false);
+        stops_exec |= metadata.map(|v| v.stops_execution()).unwrap_or(false);
         // break/continue statements stop execution for fallthrough purposes
         // even if the control flow analysis doesn't mark them (e.g. `continue`
         // inside a switch that targets the outer loop).

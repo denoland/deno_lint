@@ -141,10 +141,7 @@ impl<'a> Visit<'a> for NoRedeclareVisitor<'_, 'a> {
     }
     // Params also go into var_bindings (they're function-scoped)
     for param in &f.params.items {
-      collect_binding_pattern_names(
-        &param.pattern,
-        &mut self.var_bindings,
-      );
+      collect_binding_pattern_names(&param.pattern, &mut self.var_bindings);
     }
 
     if let Some(body) = &f.body {

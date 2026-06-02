@@ -5,8 +5,8 @@ use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
   ArrayExpression, ArrayExpressionElement, CallExpression, Expression,
-  FunctionBody, JSXAttributeItem, JSXAttributeName, JSXOpeningElement,
-  Program, Statement,
+  FunctionBody, JSXAttributeItem, JSXAttributeName, JSXOpeningElement, Program,
+  Statement,
 };
 
 #[derive(Debug)]
@@ -59,11 +59,7 @@ impl DiagnosticKind {
 struct JSXKeyHandler;
 
 impl Handler<'_> for JSXKeyHandler {
-  fn array_expression(
-    &mut self,
-    node: &ArrayExpression,
-    ctx: &mut Context,
-  ) {
+  fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
     for elem in &node.elements {
       if let ArrayExpressionElement::SpreadElement(_) = elem {
         continue;
@@ -77,11 +73,7 @@ impl Handler<'_> for JSXKeyHandler {
     }
   }
 
-  fn call_expression(
-    &mut self,
-    node: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context) {
     if is_map_callee(&node.callee) {
       if let Some(callback) = node.arguments.first() {
         if let Some(expr) = callback.as_expression() {

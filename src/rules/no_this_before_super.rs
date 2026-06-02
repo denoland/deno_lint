@@ -4,8 +4,8 @@ use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  CallExpression, Class, Expression, FunctionBody,
-  MethodDefinitionKind, Program, Statement,
+  CallExpression, Class, Expression, FunctionBody, MethodDefinitionKind,
+  Program, Statement,
 };
 use deno_ast::oxc::span::Span;
 
@@ -53,9 +53,7 @@ enum FirstAppeared {
   ThisAccessed(Span),
 }
 
-fn check_stmt_for_this_before_super(
-  stmt: &Statement,
-) -> Option<FirstAppeared> {
+fn check_stmt_for_this_before_super(stmt: &Statement) -> Option<FirstAppeared> {
   let mut checker = StmtChecker {
     result: None,
     fn_depth: 0,
@@ -159,9 +157,7 @@ fn check_expression(checker: &mut StmtChecker, expr: &Expression) {
     Expression::ArrayExpression(a) => {
       for elem in &a.elements {
         match elem {
-          deno_ast::oxc::ast::ast::ArrayExpressionElement::SpreadElement(
-            s,
-          ) => {
+          deno_ast::oxc::ast::ast::ArrayExpressionElement::SpreadElement(s) => {
             check_expression(checker, &s.argument);
           }
           deno_ast::oxc::ast::ast::ArrayExpressionElement::Elision(_) => {}
@@ -274,9 +270,7 @@ fn check_member_expr(
     deno_ast::oxc::ast::ast::MemberExpression::StaticMemberExpression(m) => {
       check_expression(checker, &m.object);
     }
-    deno_ast::oxc::ast::ast::MemberExpression::ComputedMemberExpression(
-      m,
-    ) => {
+    deno_ast::oxc::ast::ast::MemberExpression::ComputedMemberExpression(m) => {
       check_expression(checker, &m.object);
       check_expression(checker, &m.expression);
     }

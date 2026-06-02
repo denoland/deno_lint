@@ -65,10 +65,7 @@ impl NoUndefVisitor<'_, '_> {
     }
 
     // Globals
-    if GLOBALS
-      .iter()
-      .any(|(name, _)| *name == ident.name.as_str())
-    {
+    if GLOBALS.iter().any(|(name, _)| *name == ident.name.as_str()) {
       return;
     }
 
@@ -165,11 +162,7 @@ impl<'a> Visit<'a> for NoUndefVisitor<'_, 'a> {
     self.type_context_depth -= 1;
   }
 
-  fn visit_function(
-    &mut self,
-    func: &Function<'a>,
-    flags: ScopeFlags,
-  ) {
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
     walk::walk_function(self, func, flags);
   }
 }

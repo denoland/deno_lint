@@ -27,9 +27,7 @@ pub(crate) fn extract_regex(
   }
 
   match expr_args.first() {
-    Some(Argument::StringLiteral(literal)) => {
-      Some(literal.value.to_string())
-    }
+    Some(Argument::StringLiteral(literal)) => Some(literal.value.to_string()),
     Some(Argument::RegExpLiteral(regex)) => {
       Some(regex.regex.pattern.text.to_string())
     }

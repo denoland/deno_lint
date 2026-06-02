@@ -51,12 +51,7 @@ impl DirectiveKind {
 }
 
 impl BanTsComment {
-  fn report(
-    &self,
-    context: &mut Context,
-    span: Span,
-    kind: DirectiveKind,
-  ) {
+  fn report(&self, context: &mut Context, span: Span, kind: DirectiveKind) {
     context.add_diagnostic_with_hint(
       span,
       CODE,

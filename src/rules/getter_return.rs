@@ -102,25 +102,18 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     );
   }
 
-  fn check_getter(
-    &mut self,
-    getter_body_span: Span,
-    getter_span: Span,
-  ) {
+  fn check_getter(&mut self, getter_body_span: Span, getter_span: Span) {
     if self.getter_name.is_none() {
       return;
     }
 
-    let continues = match self
-      .context
-      .control_flow()
-      .meta(getter_body_span.start)
-    {
-      Some(meta) => meta.continues_execution(),
-      // No entry in control flow means the scope had no explicit termination
-      // tracked (e.g. empty function body), so execution continues.
-      None => true,
-    };
+    let continues =
+      match self.context.control_flow().meta(getter_body_span.start) {
+        Some(meta) => meta.continues_execution(),
+        // No entry in control flow means the scope had no explicit termination
+        // tracked (e.g. empty function body), so execution continues.
+        None => true,
+      };
     if continues {
       if self.has_return {
         self.report_always_expected(getter_span);
@@ -164,7 +157,8 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
       }
       Expression::ChainExpression(chain) => {
         // Handle optional chaining like `Object?.defineProperty`
-        if let ChainElement::StaticMemberExpression(member) = &chain.expression {
+        if let ChainElement::StaticMemberExpression(member) = &chain.expression
+        {
           op(self, member);
         }
       }
@@ -174,7 +168,10 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
     }
   }
 
-  fn check_obj_method_getter_return(&mut self, obj_expr: &ObjectExpression<'view>) {
+  fn check_obj_method_getter_return(
+    &mut self,
+    obj_expr: &ObjectExpression<'view>,
+  ) {
     for prop in &obj_expr.properties {
       let ObjectPropertyKind::ObjectProperty(prop_expr) = prop else {
         continue;
@@ -279,7 +276,11 @@ impl<'c, 'view> GetterReturnVisitor<'c, 'view> {
 }
 
 impl<'a> Visit<'a> for GetterReturnVisitor<'_, 'a> {
-  fn visit_function(&mut self, func: &Function<'a>, flags: deno_ast::oxc::syntax::scope::ScopeFlags) {
+  fn visit_function(
+    &mut self,
+    func: &Function<'a>,
+    flags: deno_ast::oxc::syntax::scope::ScopeFlags,
+  ) {
     // `self.has_return` should be reset because return statements inside
     // don't have effect on outside of it
     self.visit_getter_or_function(|a| {
@@ -298,10 +299,7 @@ impl<'a> Visit<'a> for GetterReturnVisitor<'_, 'a> {
     });
   }
 
-  fn visit_method_definition(
-    &mut self,
-    method_def: &MethodDefinition<'a>,
-  ) {
+  fn visit_method_definition(&mut self, method_def: &MethodDefinition<'a>) {
     if method_def.kind == MethodDefinitionKind::Get {
       let fn_span = method_def.value.span;
       let method_span = method_def.span;

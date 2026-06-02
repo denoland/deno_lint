@@ -4,9 +4,9 @@ use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  AssignmentExpression, AssignmentTarget, AssignmentTargetMaybeDefault,
-  AssignmentTargetProperty, ArrayAssignmentTarget, ObjectAssignmentTarget,
-  Program, SimpleAssignmentTarget, UpdateExpression,
+  ArrayAssignmentTarget, AssignmentExpression, AssignmentTarget,
+  AssignmentTargetMaybeDefault, AssignmentTargetProperty,
+  ObjectAssignmentTarget, Program, SimpleAssignmentTarget, UpdateExpression,
 };
 use deno_ast::oxc::span::Span;
 use deno_ast::BindingKind;
@@ -111,11 +111,7 @@ fn check_obj_assignment_target(
       AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
         assign_prop,
       ) => {
-        check_ident_ref_for_const(
-          assign_prop.span,
-          &assign_prop.binding,
-          ctx,
-        );
+        check_ident_ref_for_const(assign_prop.span, &assign_prop.binding, ctx);
       }
       AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv_prop) => {
         check_maybe_default(&kv_prop.binding, range, ctx);

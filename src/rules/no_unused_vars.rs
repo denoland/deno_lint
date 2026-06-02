@@ -94,7 +94,10 @@ struct Collector<'s> {
 
 impl Collector<'_> {
   /// Resolve an IdentifierReference to its SymbolId, if it has one.
-  fn resolve_reference(&self, ident: &IdentifierReference<'_>) -> Option<SymbolId> {
+  fn resolve_reference(
+    &self,
+    ident: &IdentifierReference<'_>,
+  ) -> Option<SymbolId> {
     let ref_id = ident.reference_id.get()?;
     let reference = self.scoping.get_reference(ref_id);
     reference.symbol_id()
@@ -234,11 +237,7 @@ fn collect_binding_idents(
 ) {
   match pat {
     BindingPattern::BindingIdentifier(ident) => {
-      out.push((
-        ident.name.to_string(),
-        ident.span,
-        ident.symbol_id.get(),
-      ));
+      out.push((ident.name.to_string(), ident.span, ident.symbol_id.get()));
     }
     BindingPattern::ObjectPattern(obj) => {
       for prop in &obj.properties {
@@ -296,7 +295,8 @@ impl<'a> Visit<'a> for Collector<'_> {
     }
 
     // Resolve the leftmost identifier to its SymbolId for type usage tracking
-    if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&ty.type_name) {
+    if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&ty.type_name)
+    {
       if let Some(sym_id) = self.resolve_reference(ident) {
         self.mark_as_type_usage(sym_id);
       }
@@ -319,7 +319,8 @@ impl<'a> Visit<'a> for Collector<'_> {
         }
       }
       TSTypeQueryExprName::QualifiedName(qn) => {
-        if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&qn.left) {
+        if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&qn.left)
+        {
           if let Some(sym_id) = self.resolve_reference(ident) {
             self.mark_as_usage(sym_id);
           }
@@ -412,10 +413,7 @@ impl<'a> Visit<'a> for Collector<'_> {
     }
   }
 
-  fn visit_simple_assignment_target(
-    &mut self,
-    n: &SimpleAssignmentTarget<'a>,
-  ) {
+  fn visit_simple_assignment_target(&mut self, n: &SimpleAssignmentTarget<'a>) {
     match n {
       SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
         if let Some(sym_id) = self.resolve_reference(ident) {
@@ -561,10 +559,7 @@ impl<'a> Visit<'a> for Collector<'_> {
     }
   }
 
-  fn visit_variable_declarator(
-    &mut self,
-    declarator: &VariableDeclarator<'a>,
-  ) {
+  fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
     let mut declaring_ids = vec![];
     collect_binding_symbol_ids(&declarator.id, &mut declaring_ids);
     self.with_cur_defining(declaring_ids, |a| {
@@ -583,22 +578,24 @@ impl<'a> Visit<'a> for Collector<'_> {
     decl: &TSImportEqualsDeclaration<'a>,
   ) {
     if let Some(sym_id) = decl.id.symbol_id.get() {
-      self.with_cur_defining(std::iter::once(sym_id), |collector| {
-        match &decl.module_reference {
-          TSModuleReference::IdentifierReference(ident) => {
+      self.with_cur_defining(std::iter::once(sym_id), |collector| match &decl
+        .module_reference
+      {
+        TSModuleReference::IdentifierReference(ident) => {
+          if let Some(ref_sym) = collector.resolve_reference(ident) {
+            collector.mark_as_usage(ref_sym);
+          }
+        }
+        TSModuleReference::QualifiedName(qn) => {
+          if let Some(ident) =
+            get_leftmost_ident_ref_from_ts_type_name(&qn.left)
+          {
             if let Some(ref_sym) = collector.resolve_reference(ident) {
               collector.mark_as_usage(ref_sym);
             }
           }
-          TSModuleReference::QualifiedName(qn) => {
-            if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&qn.left) {
-              if let Some(ref_sym) = collector.resolve_reference(ident) {
-                collector.mark_as_usage(ref_sym);
-              }
-            }
-          }
-          TSModuleReference::ExternalModuleReference(_) => {}
         }
+        TSModuleReference::ExternalModuleReference(_) => {}
       });
     }
   }
@@ -655,11 +652,7 @@ fn get_leftmost_ident_ref_from_ts_type_name<'a>(
 
 /// Helper for Collector to visit a Function's internals.
 impl Collector<'_> {
-  fn visit_function_inner(
-    &mut self,
-    func: &Function<'_>,
-    flags: ScopeFlags,
-  ) {
+  fn visit_function_inner(&mut self, func: &Function<'_>, flags: ScopeFlags) {
     // If the first parameter is `this` with a type annotation, it's a fake
     // TypeScript parameter. Mark it as used.
     if let Some(first_param) = func.params.items.first() {
@@ -808,10 +801,7 @@ impl<'a> Visit<'a> for NoUnusedVarVisitor<'_, 'a> {
     }
   }
 
-  fn visit_variable_declarator(
-    &mut self,
-    declarator: &VariableDeclarator<'a>,
-  ) {
+  fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
     let mut idents = vec![];
     collect_binding_idents(&declarator.id, &mut idents);
 

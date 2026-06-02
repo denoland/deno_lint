@@ -4,8 +4,8 @@ use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  Expression, Program, TSAsExpression, TSLiteral, TSType,
-  TSTypeAssertion, VariableDeclaration,
+  Expression, Program, TSAsExpression, TSLiteral, TSType, TSTypeAssertion,
+  VariableDeclaration,
 };
 use deno_ast::oxc::span::{GetSpan, Span};
 use derive_more::Display;
@@ -67,12 +67,18 @@ fn compare(
 ) {
   if let TSType::TSLiteralType(lit_type) = type_ann {
     match (&lit_type.literal, expr) {
-      (TSLiteral::StringLiteral(type_str), Expression::StringLiteral(val_str)) => {
+      (
+        TSLiteral::StringLiteral(type_str),
+        Expression::StringLiteral(val_str),
+      ) => {
         if val_str.value == type_str.value {
           add_diagnostic_helper(span, ctx)
         }
       }
-      (TSLiteral::NumericLiteral(type_num), Expression::NumericLiteral(val_num)) => {
+      (
+        TSLiteral::NumericLiteral(type_num),
+        Expression::NumericLiteral(val_num),
+      ) => {
         if (val_num.value - type_num.value).abs() < f64::EPSILON {
           add_diagnostic_helper(span, ctx)
         }
@@ -83,11 +89,7 @@ fn compare(
 }
 
 impl Handler<'_> for PreferAsConstHandler {
-  fn ts_as_expression(
-    &mut self,
-    as_expr: &TSAsExpression,
-    ctx: &mut Context,
-  ) {
+  fn ts_as_expression(&mut self, as_expr: &TSAsExpression, ctx: &mut Context) {
     compare(
       &as_expr.type_annotation,
       &as_expr.expression,
@@ -117,7 +119,12 @@ impl Handler<'_> for PreferAsConstHandler {
     for decl in &var_decl.declarations {
       if let Some(init) = &decl.init {
         if let Some(type_ann) = &decl.type_annotation {
-          compare(&type_ann.type_annotation, init, type_ann.type_annotation.span(), ctx);
+          compare(
+            &type_ann.type_annotation,
+            init,
+            type_ann.type_annotation.span(),
+            ctx,
+          );
         }
       }
     }

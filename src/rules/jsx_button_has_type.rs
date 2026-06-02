@@ -202,23 +202,13 @@ fn is_valid_value(value: &str) -> bool {
 fn check_tpl(ctx: &mut Context, tpl: &TemplateLiteral) {
   let kind = DiagnosticKind::WrongValue;
   if !tpl.expressions.is_empty() {
-    ctx.add_diagnostic_with_hint(
-      tpl.span,
-      CODE,
-      kind.message(),
-      kind.hint(),
-    );
+    ctx.add_diagnostic_with_hint(tpl.span, CODE, kind.message(), kind.hint());
     return;
   }
 
   if let Some(first) = tpl.quasis.first() {
     if !is_valid_value(first.value.raw.as_str()) {
-      ctx.add_diagnostic_with_hint(
-        tpl.span,
-        CODE,
-        kind.message(),
-        kind.hint(),
-      );
+      ctx.add_diagnostic_with_hint(tpl.span, CODE, kind.message(), kind.hint());
     }
   }
 }
@@ -239,28 +229,13 @@ fn check_expression_value(ctx: &mut Context, expr: &Expression) {
     }
     Expression::TemplateLiteral(tpl) => check_tpl(ctx, tpl),
     Expression::BooleanLiteral(lit) => {
-      ctx.add_diagnostic_with_hint(
-        lit.span,
-        CODE,
-        kind.message(),
-        kind.hint(),
-      );
+      ctx.add_diagnostic_with_hint(lit.span, CODE, kind.message(), kind.hint());
     }
     Expression::NullLiteral(lit) => {
-      ctx.add_diagnostic_with_hint(
-        lit.span,
-        CODE,
-        kind.message(),
-        kind.hint(),
-      );
+      ctx.add_diagnostic_with_hint(lit.span, CODE, kind.message(), kind.hint());
     }
     Expression::NumericLiteral(lit) => {
-      ctx.add_diagnostic_with_hint(
-        lit.span,
-        CODE,
-        kind.message(),
-        kind.hint(),
-      );
+      ctx.add_diagnostic_with_hint(lit.span, CODE, kind.message(), kind.hint());
     }
     _ => {
       ctx.add_diagnostic_with_hint(

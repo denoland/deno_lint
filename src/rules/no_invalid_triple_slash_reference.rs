@@ -116,7 +116,10 @@ fn check_comment(
   comment_text: &str,
   is_js_like: bool,
 ) -> Option<ReportKind> {
-  if matches!(comment.kind, CommentKind::SingleLineBlock | CommentKind::MultiLineBlock) {
+  if matches!(
+    comment.kind,
+    CommentKind::SingleLineBlock | CommentKind::MultiLineBlock
+  ) {
     return None;
   }
   if !TRIPLE_SLASH_REFERENCE_RE.is_match(comment_text) {

@@ -51,12 +51,7 @@ impl LintRule for NoDupeKeys {
 struct NoDupeKeysHandler;
 
 impl NoDupeKeysHandler {
-  fn report(
-    &mut self,
-    range: Span,
-    key: impl Into<String>,
-    ctx: &mut Context,
-  ) {
+  fn report(&mut self, range: Span, key: impl Into<String>, ctx: &mut Context) {
     ctx.add_diagnostic_with_hint(
       range,
       CODE,

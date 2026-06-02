@@ -109,18 +109,18 @@ fn check_stmts(stmts: &[Statement], ctx: &mut Context) {
 
 fn extract_method_from_stmt(stmt: &Statement) -> Option<(Method, Span)> {
   match stmt {
-    Statement::FunctionDeclaration(func) => {
-      func.id.as_ref().map(|id| {
-        (Method::Method(id.name.to_string()), stmt.span())
-      })
-    }
+    Statement::FunctionDeclaration(func) => func
+      .id
+      .as_ref()
+      .map(|id| (Method::Method(id.name.to_string()), stmt.span())),
     Statement::ExportNamedDeclaration(export_decl) => {
       if let Some(Declaration::FunctionDeclaration(func)) =
         &export_decl.declaration
       {
-        func.id.as_ref().map(|id| {
-          (Method::Method(id.name.to_string()), stmt.span())
-        })
+        func
+          .id
+          .as_ref()
+          .map(|id| (Method::Method(id.name.to_string()), stmt.span()))
       } else {
         None
       }

@@ -102,12 +102,7 @@ impl Handler<'_> for NoClassAssignVisitor {
       )
     });
     if should_report {
-      ctx.add_diagnostic_with_hint(
-        assign_expr.span,
-        CODE,
-        MESSAGE,
-        HINT,
-      );
+      ctx.add_diagnostic_with_hint(assign_expr.span, CODE, MESSAGE, HINT);
     }
   }
 }

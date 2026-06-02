@@ -143,11 +143,7 @@ fn check_arrow(arrow: &ArrowFunctionExpression, ctx: &mut Context) {
   }
 }
 
-fn check_ann(
-  ann: Option<&TSTypeAnnotation>,
-  span: Span,
-  ctx: &mut Context,
-) {
+fn check_ann(ann: Option<&TSTypeAnnotation>, span: Span, ctx: &mut Context) {
   if let Some(ann) = ann {
     if matches!(ann.type_annotation, TSType::TSAnyKeyword(_)) {
       ctx.add_diagnostic_with_hint(
@@ -173,11 +169,7 @@ fn check_param(param: &FormalParameter, ctx: &mut Context) {
   if param.initializer.is_some() && param.type_annotation.is_none() {
     return;
   }
-  check_ann(
-    param.type_annotation.as_deref(),
-    param.span,
-    ctx,
-  );
+  check_ann(param.type_annotation.as_deref(), param.span, ctx);
 }
 
 fn check_expr(expr: &Expression, ctx: &mut Context) {

@@ -58,21 +58,13 @@ fn check_callee(
 }
 
 impl Handler<'_> for NoObjCallsHandler {
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     if let Expression::Identifier(ident) = &call_expr.callee {
       check_callee(ident, call_expr.span, ctx);
     }
   }
 
-  fn new_expression(
-    &mut self,
-    new_expr: &NewExpression,
-    ctx: &mut Context,
-  ) {
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     if let Expression::Identifier(ident) = &new_expr.callee {
       check_callee(ident, new_expr.span, ctx);
     }

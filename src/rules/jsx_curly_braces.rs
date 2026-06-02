@@ -5,8 +5,7 @@ use crate::diagnostic::{LintFix, LintFixChange};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  JSXAttribute, JSXAttributeValue, JSXChild, JSXElement,
-  JSXExpression, Program,
+  JSXAttribute, JSXAttributeValue, JSXChild, JSXElement, JSXExpression, Program,
 };
 use deno_ast::oxc::span::GetSpan;
 use once_cell::sync::Lazy;

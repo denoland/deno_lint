@@ -389,7 +389,10 @@ impl<'a> Visit<'a> for Analyzer<'_> {
     }
   }
 
-  fn visit_statements(&mut self, stmts: &deno_ast::oxc::allocator::Vec<'a, Statement<'a>>) {
+  fn visit_statements(
+    &mut self,
+    stmts: &deno_ast::oxc::allocator::Vec<'a, Statement<'a>>,
+  ) {
     for stmt in stmts {
       self.visit_stmt_or_block(stmt);
     }
@@ -594,19 +597,15 @@ impl<'a> Visit<'a> for Analyzer<'_> {
       match n {
         Statement::EmptyStatement(..) => false,
         Statement::FunctionDeclaration(func)
-          if func
-            .id
-            .as_ref()
-            .is_some_and(|id| self.scope.used_hoistable_ids.contains(id.name.as_str())) =>
+          if func.id.as_ref().is_some_and(|id| {
+            self.scope.used_hoistable_ids.contains(id.name.as_str())
+          }) =>
         {
           false
         }
         Statement::VariableDeclaration(decl)
           if decl.kind == VariableDeclarationKind::Var
-            && decl
-              .declarations
-              .iter()
-              .all(|decl| decl.init.is_none()) =>
+            && decl.declarations.iter().all(|decl| decl.init.is_none()) =>
         {
           false
         }
@@ -735,8 +734,8 @@ impl<'a> Visit<'a> for Analyzer<'_> {
 
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
-      let infinite_loop = is_definitely_truthy(&n.test)
-        && a.scope.found_break.is_none();
+      let infinite_loop =
+        is_definitely_truthy(&n.test) && a.scope.found_break.is_none();
       let has_break = matches!(a.scope.found_break, Some(None));
 
       if return_or_throw && !has_break {

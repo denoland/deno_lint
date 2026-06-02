@@ -407,17 +407,17 @@ fn assert_diagnostic_2(
     code, diagnostic.details.code, source
   );
   assert_eq!(
-    line,
-    line_and_column.line_number,
+    line, line_and_column.line_number,
     "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    line,
-    line_and_column.line_number,
-    source
+    line, line_and_column.line_number, source
   );
   assert_eq!(
-    col, line_and_column.column_number - 1,
+    col,
+    line_and_column.column_number - 1,
     "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    col, line_and_column.column_number - 1, source
+    col,
+    line_and_column.column_number - 1,
+    source
   );
   assert_eq!(
     message, &diagnostic.details.message,

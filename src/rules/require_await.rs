@@ -6,8 +6,7 @@ use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
   ArrowFunctionExpression, AwaitExpression, ForOfStatement, Function,
   FunctionType, MethodDefinition, MethodDefinitionKind, ObjectProperty,
-  Program, PropertyKey, VariableDeclaration,
-  VariableDeclarationKind,
+  Program, PropertyKey, VariableDeclaration, VariableDeclarationKind,
 };
 use deno_ast::oxc::span::Span;
 use derive_more::Display;
@@ -154,15 +153,10 @@ impl Handler<'_> for RequireAwaitHandler {
     self.pending_method_name = Some(property_key_name(&method.key));
   }
 
-  fn object_property(
-    &mut self,
-    prop: &ObjectProperty,
-    _ctx: &mut Context,
-  ) {
+  fn object_property(&mut self, prop: &ObjectProperty, _ctx: &mut Context) {
     // method shorthand: `{ async foo() {} }`
     if prop.method {
-      self.pending_object_method_name =
-        Some(property_key_name(&prop.key));
+      self.pending_object_method_name = Some(property_key_name(&prop.key));
     }
   }
 
@@ -175,9 +169,7 @@ impl Handler<'_> for RequireAwaitHandler {
     // Determine function kind
     let kind = if let Some(method_name) = self.pending_method_name.take() {
       FunctionKind::Method(method_name)
-    } else if let Some(method_name) =
-      self.pending_object_method_name.take()
-    {
+    } else if let Some(method_name) = self.pending_object_method_name.take() {
       FunctionKind::Method(method_name)
     } else {
       let name = function.id.as_ref().map(|id| id.name.to_string());
@@ -227,8 +219,7 @@ impl Handler<'_> for RequireAwaitHandler {
     arrow: &ArrowFunctionExpression,
     ctx: &mut Context,
   ) {
-    let is_empty =
-      arrow.body.statements.is_empty() && !arrow.expression;
+    let is_empty = arrow.body.statements.is_empty() && !arrow.expression;
     let range = if arrow.r#async {
       find_async_keyword_span(arrow.span, ctx)
     } else {
@@ -254,21 +245,13 @@ impl Handler<'_> for RequireAwaitHandler {
     }
   }
 
-  fn await_expression(
-    &mut self,
-    _n: &AwaitExpression,
-    _ctx: &mut Context,
-  ) {
+  fn await_expression(&mut self, _n: &AwaitExpression, _ctx: &mut Context) {
     if let Some(scope) = self.scope_stack.last_mut() {
       scope.has_await = true;
     }
   }
 
-  fn for_of_statement(
-    &mut self,
-    for_of: &ForOfStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_of_statement(&mut self, for_of: &ForOfStatement, _ctx: &mut Context) {
     if for_of.r#await {
       if let Some(scope) = self.scope_stack.last_mut() {
         scope.has_await = true;

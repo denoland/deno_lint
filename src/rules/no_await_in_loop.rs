@@ -25,9 +25,7 @@ impl LintRule for NoAwaitInLoop {
     context: &mut Context<'a>,
     program: &Program<'a>,
   ) {
-    let mut handler = NoAwaitInLoopHandler {
-      scopes: vec![],
-    };
+    let mut handler = NoAwaitInLoopHandler { scopes: vec![] };
     crate::handler::traverse_program(&mut handler, program, context);
   }
 }
@@ -85,11 +83,7 @@ impl Handler<'_> for NoAwaitInLoopHandler {
     }
   }
 
-  fn for_statement(
-    &mut self,
-    node: &ForStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_statement(&mut self, node: &ForStatement, _ctx: &mut Context) {
     // For a ForStatement, the "loop" includes test, update, and body, but NOT init.
     // We use the body span for simplicity, but we also need to include test and update.
     // The body starts after init. We use the span from after the init to the end of the for.
@@ -109,11 +103,7 @@ impl Handler<'_> for NoAwaitInLoopHandler {
     });
   }
 
-  fn for_in_statement(
-    &mut self,
-    node: &ForInStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_in_statement(&mut self, node: &ForInStatement, _ctx: &mut Context) {
     // For ForInStatement: `for (left in right) body`
     // Awaits in `right` are OK (not in loop), awaits in body are in loop.
     // We use the body span. But the body is the Statement after the right.
@@ -124,11 +114,7 @@ impl Handler<'_> for NoAwaitInLoopHandler {
     });
   }
 
-  fn for_of_statement(
-    &mut self,
-    node: &ForOfStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_of_statement(&mut self, node: &ForOfStatement, _ctx: &mut Context) {
     // For ForOfStatement: `for (left of right) body` or `for await (left of right) body`
     // Awaits in `right` are OK (not in loop).
     let loop_start = node.right.span().end;
@@ -143,16 +129,10 @@ impl Handler<'_> for NoAwaitInLoopHandler {
     }
   }
 
-  fn while_statement(
-    &mut self,
-    node: &WhileStatement,
-    _ctx: &mut Context,
-  ) {
+  fn while_statement(&mut self, node: &WhileStatement, _ctx: &mut Context) {
     // For while: `while (test) body`
     // Awaits in both test and body are in loop.
-    self.scopes.push(ScopeKind::Loop {
-      span: node.span,
-    });
+    self.scopes.push(ScopeKind::Loop { span: node.span });
   }
 
   fn do_while_statement(
@@ -162,19 +142,13 @@ impl Handler<'_> for NoAwaitInLoopHandler {
   ) {
     // For do-while: `do body while (test)`
     // Awaits in both body and test are in loop.
-    self.scopes.push(ScopeKind::Loop {
-      span: node.span,
-    });
+    self.scopes.push(ScopeKind::Loop { span: node.span });
   }
 
-  fn function(
-    &mut self,
-    node: &Function,
-    _ctx: &mut Context,
-  ) {
-    self.scopes.push(ScopeKind::FunctionBoundary {
-      span: node.span,
-    });
+  fn function(&mut self, node: &Function, _ctx: &mut Context) {
+    self
+      .scopes
+      .push(ScopeKind::FunctionBoundary { span: node.span });
   }
 
   fn arrow_function_expression(
@@ -182,9 +156,9 @@ impl Handler<'_> for NoAwaitInLoopHandler {
     node: &ArrowFunctionExpression,
     _ctx: &mut Context,
   ) {
-    self.scopes.push(ScopeKind::FunctionBoundary {
-      span: node.span,
-    });
+    self
+      .scopes
+      .push(ScopeKind::FunctionBoundary { span: node.span });
   }
 }
 

@@ -5,7 +5,6 @@ use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::*;
 
-
 #[derive(Debug)]
 pub struct FreshHandlerExport;
 

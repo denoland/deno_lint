@@ -46,11 +46,7 @@ impl Handler<'_> for NoUnversionedImportHandler {
     }
   }
 
-  fn import_expression(
-    &mut self,
-    node: &ImportExpression,
-    ctx: &mut Context,
-  ) {
+  fn import_expression(&mut self, node: &ImportExpression, ctx: &mut Context) {
     if let Expression::StringLiteral(lit) = &node.source {
       if is_unversioned(lit.value.as_str()) {
         ctx.add_diagnostic_with_hint(lit.span, CODE, MESSAGE, HINT);

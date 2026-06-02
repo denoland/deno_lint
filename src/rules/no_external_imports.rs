@@ -48,13 +48,8 @@ impl LintRule for NoExternalImport {
 struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
-  fn check_import_path(
-    &self,
-    decl: &ImportDeclaration,
-    ctx: &mut Context,
-  ) {
-    let parsed_src =
-      ModuleSpecifier::parse(decl.source.value.as_str());
+  fn check_import_path(&self, decl: &ImportDeclaration, ctx: &mut Context) {
+    let parsed_src = ModuleSpecifier::parse(decl.source.value.as_str());
     let maybe_file_path = ctx.specifier().to_file_path().ok();
     let file_stem = maybe_file_path
       .as_ref()

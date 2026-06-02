@@ -3,7 +3,9 @@
 use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use deno_ast::oxc::ast::ast::{Program, VariableDeclaration, VariableDeclarationKind};
+use deno_ast::oxc::ast::ast::{
+  Program, VariableDeclaration, VariableDeclarationKind,
+};
 use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
@@ -26,7 +28,9 @@ impl LintRule for NoVar {
     context: &mut Context<'a>,
     program: &Program<'a>,
   ) {
-    let mut handler = NoVarHandler { in_ts_module_block: 0 };
+    let mut handler = NoVarHandler {
+      in_ts_module_block: 0,
+    };
     crate::handler::traverse_program(&mut handler, program, context);
   }
 }

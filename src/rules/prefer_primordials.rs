@@ -417,11 +417,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
   // However, we cannot distinguish LHS of variable declarations from RHS.
   // This is a simplified port that may have some differences from the original.
 
-  fn ts_type_annotation(
-    &mut self,
-    _n: &TSTypeAnnotation,
-    ctx: &mut Context,
-  ) {
+  fn ts_type_annotation(&mut self, _n: &TSTypeAnnotation, ctx: &mut Context) {
     // Skip traversal inside type annotations entirely — identifiers in type
     // position (e.g. `Array` in `a: Array<any>`) are not runtime references.
     ctx.stop_traverse();
@@ -451,11 +447,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     ctx.stop_traverse();
   }
 
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     // Check for unsafe function targets like PromiseAll, etc.
     if let Expression::Identifier(ident) = &call_expr.callee {
       if UNSAFE_FUNCTION_TARGETS.contains(&ident.name.as_str()) {
@@ -487,11 +479,9 @@ impl Handler<'_> for PreferPrimordialsHandler {
           if let Some(arg) = call_expr.arguments.get(1) {
             if let Argument::ObjectExpression(object_lit) = arg {
               for prop_or_spread in &object_lit.properties {
-                if let ObjectPropertyKind::ObjectProperty(prop) =
-                  prop_or_spread
+                if let ObjectPropertyKind::ObjectProperty(prop) = prop_or_spread
                 {
-                  if let Expression::ObjectExpression(inner_obj) = &prop.value
-                  {
+                  if let Expression::ObjectExpression(inner_obj) = &prop.value {
                     if !is_null_proto(inner_obj) {
                       ctx.add_diagnostic_with_hint(
                         inner_obj.span,
@@ -586,11 +576,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     }
   }
 
-  fn new_expression(
-    &mut self,
-    new_expr: &NewExpression,
-    ctx: &mut Context,
-  ) {
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     if let Expression::Identifier(ident) = &new_expr.callee {
       // Report GlobalIntrinsic first (if applicable), then UnsafeIntrinsic.
       // This ensures the ordering matches what tests expect.
@@ -719,11 +705,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     }
   }
 
-  fn formal_parameter(
-    &mut self,
-    param: &FormalParameter,
-    ctx: &mut Context,
-  ) {
+  fn formal_parameter(&mut self, param: &FormalParameter, ctx: &mut Context) {
     // Check for default parameter values that are object literals without __proto__: null.
     // e.g. `function foo(o = {}) {}` — FormalParameter.initializer holds the default.
     // (This is distinct from destructuring defaults like `{ o = {} }` which use AssignmentPattern.)
@@ -755,11 +737,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     }
   }
 
-  fn spread_element(
-    &mut self,
-    spread: &SpreadElement,
-    ctx: &mut Context,
-  ) {
+  fn spread_element(&mut self, spread: &SpreadElement, ctx: &mut Context) {
     // Skip object spreads — they don't use the iterator protocol.
     if self.skip_spread_spans.contains(&spread.span) {
       return;
@@ -774,11 +752,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     }
   }
 
-  fn for_of_statement(
-    &mut self,
-    for_of: &ForOfStatement,
-    ctx: &mut Context,
-  ) {
+  fn for_of_statement(&mut self, for_of: &ForOfStatement, ctx: &mut Context) {
     if !is_new_expression(&for_of.right) {
       ctx.add_diagnostic_with_hint(
         for_of.right.span(),
@@ -806,11 +780,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     }
   }
 
-  fn array_pattern(
-    &mut self,
-    array_pat: &ArrayPattern,
-    ctx: &mut Context,
-  ) {
+  fn array_pattern(&mut self, array_pat: &ArrayPattern, ctx: &mut Context) {
     // If the array pattern is known to be safe (RHS is SafeArrayIterator), skip.
     if self.skip_array_pattern_spans.contains(&array_pat.span) {
       return;
@@ -839,11 +809,7 @@ impl Handler<'_> for PreferPrimordialsHandler {
     );
   }
 
-  fn reg_exp_literal(
-    &mut self,
-    regex: &RegExpLiteral,
-    ctx: &mut Context,
-  ) {
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
     // Skip regex literals that are arguments to safe wrappers like `new SafeRegExp(...)`.
     if self.skip_regex_spans.contains(&regex.span) {
       return;

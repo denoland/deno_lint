@@ -275,10 +275,7 @@ fn is_break_unsafe(scope_stack: &[ScopeEntry], label: Option<&str>) -> bool {
   false
 }
 
-fn is_continue_unsafe(
-  scope_stack: &[ScopeEntry],
-  label: Option<&str>,
-) -> bool {
+fn is_continue_unsafe(scope_stack: &[ScopeEntry], label: Option<&str>) -> bool {
   for entry in scope_stack.iter().rev() {
     match entry {
       ScopeEntry::Finally => return true,

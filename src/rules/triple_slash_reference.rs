@@ -20,11 +20,7 @@ enum TripleSlashReferenceMessage {
 
 impl TripleSlashReference {
   fn report(&self, context: &mut Context, span: deno_ast::oxc::span::Span) {
-    context.add_diagnostic(
-      span,
-      CODE,
-      TripleSlashReferenceMessage::Unexpected,
-    );
+    context.add_diagnostic(span, CODE, TripleSlashReferenceMessage::Unexpected);
   }
 }
 

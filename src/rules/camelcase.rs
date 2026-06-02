@@ -404,10 +404,8 @@ impl CamelcaseHandler {
   ) {
     match pat {
       BindingPattern::BindingIdentifier(ident) => {
-        self.check_ident(
-          ident.span,
-          IdentToCheck::variable(ident.name.as_str()),
-        );
+        self
+          .check_ident(ident.span, IdentToCheck::variable(ident.name.as_str()));
       }
       BindingPattern::ArrayPattern(array_pat) => {
         for elem in array_pat.elements.iter().flatten() {
@@ -436,7 +434,10 @@ impl CamelcaseHandler {
                 }
               } else {
                 // key-value: { foo: bar_baz }
-                let key_name = prop.key.string_repr().unwrap_or_else(|| "[KEY]".to_string());
+                let key_name = prop
+                  .key
+                  .string_repr()
+                  .unwrap_or_else(|| "[KEY]".to_string());
                 self.check_ident(
                   value_ident.span,
                   IdentToCheck::object_pat(
@@ -465,7 +466,10 @@ impl CamelcaseHandler {
                     );
                   }
                 } else {
-                  let key_name = prop.key.string_repr().unwrap_or_else(|| "[KEY]".to_string());
+                  let key_name = prop
+                    .key
+                    .string_repr()
+                    .unwrap_or_else(|| "[KEY]".to_string());
                   self.check_ident(
                     value_ident.span,
                     IdentToCheck::object_pat(
@@ -477,15 +481,11 @@ impl CamelcaseHandler {
                   );
                 }
               } else {
-                self.check_binding_pattern(
-                  &assign_pat.left,
-                  in_var_declarator,
-                );
+                self.check_binding_pattern(&assign_pat.left, in_var_declarator);
               }
             }
             _ => {
-              self
-                .check_binding_pattern(&prop.value, in_var_declarator);
+              self.check_binding_pattern(&prop.value, in_var_declarator);
             }
           }
         }
@@ -549,8 +549,7 @@ impl Handler<'_> for CamelcaseHandler {
                         IdentToCheck::object_key(ident.name.as_str(), true),
                       );
                     }
-                  } else if let PropertyKey::StaticIdentifier(ident) =
-                    &prop.key
+                  } else if let PropertyKey::StaticIdentifier(ident) = &prop.key
                   {
                     self.check_ident(
                       ident.span,
@@ -564,18 +563,13 @@ impl Handler<'_> for CamelcaseHandler {
           }
           Expression::FunctionExpression(func_expr) => {
             if let Some(id) = &func_expr.id {
-              self.check_ident(
-                id.span,
-                IdentToCheck::function(id.name.as_str()),
-              );
+              self
+                .check_ident(id.span, IdentToCheck::function(id.name.as_str()));
             }
           }
           Expression::ClassExpression(class_expr) => {
             if let Some(id) = &class_expr.id {
-              self.check_ident(
-                id.span,
-                IdentToCheck::class(id.name.as_str()),
-              );
+              self.check_ident(id.span, IdentToCheck::class(id.name.as_str()));
             }
           }
           _ => {}
@@ -584,11 +578,7 @@ impl Handler<'_> for CamelcaseHandler {
     }
   }
 
-  fn formal_parameter(
-    &mut self,
-    param: &FormalParameter,
-    _ctx: &mut Context,
-  ) {
+  fn formal_parameter(&mut self, param: &FormalParameter, _ctx: &mut Context) {
     self.check_binding_pattern(&param.pattern, false);
   }
 
@@ -600,12 +590,8 @@ impl Handler<'_> for CamelcaseHandler {
     let local = &import_specifier.local;
     let imported = &import_specifier.imported;
     let imported_name = match imported {
-      ModuleExportName::IdentifierName(ident) => {
-        Some(ident.name.to_string())
-      }
-      ModuleExportName::StringLiteral(str) => {
-        Some(str.value.to_string())
-      }
+      ModuleExportName::IdentifierName(ident) => Some(ident.name.to_string()),
+      ModuleExportName::StringLiteral(str) => Some(str.value.to_string()),
       ModuleExportName::IdentifierReference(ident) => {
         Some(ident.name.to_string())
       }
@@ -628,10 +614,7 @@ impl Handler<'_> for CamelcaseHandler {
     _ctx: &mut Context,
   ) {
     let local = &import_default_specifier.local;
-    self.check_ident(
-      local.span,
-      IdentToCheck::variable(local.name.as_str()),
-    );
+    self.check_ident(local.span, IdentToCheck::variable(local.name.as_str()));
   }
 
   fn import_namespace_specifier(
@@ -640,10 +623,7 @@ impl Handler<'_> for CamelcaseHandler {
     _ctx: &mut Context,
   ) {
     let local = &import_namespace_specifier.local;
-    self.check_ident(
-      local.span,
-      IdentToCheck::variable(local.name.as_str()),
-    );
+    self.check_ident(local.span, IdentToCheck::variable(local.name.as_str()));
   }
 
   fn export_specifier(
@@ -663,10 +643,8 @@ impl Handler<'_> for CamelcaseHandler {
     if let Some(exported) = &export_all.exported {
       match exported {
         ModuleExportName::IdentifierName(name) => {
-          self.check_ident(
-            name.span,
-            IdentToCheck::variable(name.name.as_str()),
-          );
+          self
+            .check_ident(name.span, IdentToCheck::variable(name.name.as_str()));
         }
         _ => {}
       }
@@ -723,15 +701,9 @@ impl Handler<'_> for CamelcaseHandler {
     match &module_decl.id {
       TSModuleDeclarationName::Identifier(id) => {
         if module_decl.kind == TSModuleDeclarationKind::Namespace {
-          self.check_ident(
-            id.span,
-            IdentToCheck::namespace(id.name.as_str()),
-          );
+          self.check_ident(id.span, IdentToCheck::namespace(id.name.as_str()));
         } else {
-          self.check_ident(
-            id.span,
-            IdentToCheck::module(id.name.as_str()),
-          );
+          self.check_ident(id.span, IdentToCheck::module(id.name.as_str()));
         }
       }
       TSModuleDeclarationName::StringLiteral(_) => {}
@@ -755,10 +727,8 @@ impl Handler<'_> for CamelcaseHandler {
     for variant in &enum_decl.body.members {
       match &variant.id {
         TSEnumMemberName::Identifier(id) => {
-          self.check_ident(
-            id.span,
-            IdentToCheck::enum_variant(id.name.as_str()),
-          );
+          self
+            .check_ident(id.span, IdentToCheck::enum_variant(id.name.as_str()));
         }
         _ => {}
       }

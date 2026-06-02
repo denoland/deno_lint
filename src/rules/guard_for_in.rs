@@ -34,7 +34,9 @@ impl Handler<'_> for GuardForInHandler {
     for_in_stmt: &ForInStatement,
     ctx: &mut Context,
   ) {
-    use Statement::{BlockStatement, ContinueStatement, EmptyStatement, IfStatement};
+    use Statement::{
+      BlockStatement, ContinueStatement, EmptyStatement, IfStatement,
+    };
 
     match &for_in_stmt.body {
       EmptyStatement(_) | IfStatement(_) => (),
@@ -70,8 +72,10 @@ impl Handler<'_> for GuardForInHandler {
             match &if_stmt.consequent {
               ContinueStatement(_) => (),
               BlockStatement(inner_block_stmt) => {
-                if !matches!(inner_block_stmt.body.as_slice(), [ContinueStatement(_)])
-                {
+                if !matches!(
+                  inner_block_stmt.body.as_slice(),
+                  [ContinueStatement(_)]
+                ) {
                   ctx.add_diagnostic_with_hint(
                     for_in_stmt.span,
                     CODE,

@@ -178,8 +178,7 @@ fn check_short_circuit(expr: &Expression, operator: LogicalOp) -> bool {
     | Expression::BigIntLiteral(_)
     | Expression::RegExpLiteral(_) => false,
     Expression::UnaryExpression(unary) => {
-      operator == LogicalOp::And
-        && unary.operator == UnaryOperator::Void
+      operator == LogicalOp::And && unary.operator == UnaryOperator::Void
     }
     Expression::LogicalExpression(log) => {
       let log_op = match log.operator {

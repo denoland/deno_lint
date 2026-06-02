@@ -3,9 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use deno_ast::oxc::ast::ast::{
-  Function, Program, YieldExpression,
-};
+use deno_ast::oxc::ast::ast::{Function, Program, YieldExpression};
 
 #[derive(Debug)]
 pub struct RequireYield;

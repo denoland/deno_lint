@@ -4,14 +4,12 @@ use super::{Context, LintRule};
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
   ArrowFunctionExpression, AssignmentExpression, AssignmentTarget,
-  AssignmentTargetMaybeDefault, AssignmentTargetProperty,
-  BindingPattern, CatchClause, Class,
-  DoWhileStatement, Expression, ExpressionStatement, ForInStatement,
-  ForOfStatement, ForStatement, ForStatementInit, ForStatementLeft,
-  Function, IfStatement, MethodDefinition,
-  Program, SimpleAssignmentTarget, Statement, SwitchStatement,
-  UpdateExpression, VariableDeclaration, VariableDeclarationKind,
-  WhileStatement, WithStatement,
+  AssignmentTargetMaybeDefault, AssignmentTargetProperty, BindingPattern,
+  CatchClause, Class, DoWhileStatement, Expression, ExpressionStatement,
+  ForInStatement, ForOfStatement, ForStatement, ForStatementInit,
+  ForStatementLeft, Function, IfStatement, MethodDefinition, Program,
+  SimpleAssignmentTarget, Statement, SwitchStatement, UpdateExpression,
+  VariableDeclaration, VariableDeclarationKind, WhileStatement, WithStatement,
 };
 use deno_ast::oxc::ast_visit::{walk, Visit};
 use deno_ast::oxc::span::{CompactStr, GetSpan, Span};
@@ -96,10 +94,7 @@ enum ScopeAnalysisError {
 }
 
 /// Looks for the declaration range of the given variable by traversing from the given scope to the parents.
-fn get_decl_by_ident(
-  scope: Scope,
-  name: &str,
-) -> Option<DeclInfo> {
+fn get_decl_by_ident(scope: Scope, name: &str) -> Option<DeclInfo> {
   let mut cur_scope = Some(scope);
   let mut is_current_scope = true;
   while let Some(cur) = cur_scope {
@@ -293,9 +288,7 @@ fn extract_idents_from_assign_target_maybe_default(
   target: &AssignmentTargetMaybeDefault,
 ) {
   match target {
-    AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
-      with_default,
-    ) => {
+    AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
       extract_idents_from_assign_target(idents, &with_default.binding);
     }
     _ => {
@@ -389,11 +382,7 @@ impl VariableCollector {
     }
   }
 
-  fn extract_decl_idents(
-    &mut self,
-    pattern: &BindingPattern,
-    has_init: bool,
-  ) {
+  fn extract_decl_idents(&mut self, pattern: &BindingPattern, has_init: bool) {
     let status = if has_init {
       VarStatus::Initialized
     } else {
@@ -411,10 +400,9 @@ impl VariableCollector {
     let parent_scope_range = self.cur_scope;
     let parent_scope = self.scopes.get(&parent_scope_range).cloned();
     let child_scope = RawScope::new(parent_scope);
-    self.scopes.insert(
-      ScopeRange::Block(span),
-      Rc::new(RefCell::new(child_scope)),
-    );
+    self
+      .scopes
+      .insert(ScopeRange::Block(span), Rc::new(RefCell::new(child_scope)));
     self.cur_scope = ScopeRange::Block(span);
     op(self);
     self.cur_scope = parent_scope_range;
@@ -436,11 +424,7 @@ impl<'a> Visit<'a> for VariableCollector {
     walk::walk_program(self, program);
   }
 
-  fn visit_function(
-    &mut self,
-    function: &Function<'a>,
-    _flags: ScopeFlags,
-  ) {
+  fn visit_function(&mut self, function: &Function<'a>, _flags: ScopeFlags) {
     self.with_child_scope(function.span, |a| {
       for param in &function.params.items {
         walk::walk_formal_parameter(a, param);
@@ -521,8 +505,7 @@ impl<'a> Visit<'a> for VariableCollector {
 
   fn visit_for_of_statement(&mut self, for_of_stmt: &ForOfStatement<'a>) {
     self.with_child_scope(for_of_stmt.span, |a| {
-      if let ForStatementLeft::VariableDeclaration(var_decl) =
-        &for_of_stmt.left
+      if let ForStatementLeft::VariableDeclaration(var_decl) = &for_of_stmt.left
       {
         if var_decl.kind == VariableDeclarationKind::Let {
           for decl in &var_decl.declarations {
@@ -543,8 +526,7 @@ impl<'a> Visit<'a> for VariableCollector {
 
   fn visit_for_in_statement(&mut self, for_in_stmt: &ForInStatement<'a>) {
     self.with_child_scope(for_in_stmt.span, |a| {
-      if let ForStatementLeft::VariableDeclaration(var_decl) =
-        &for_in_stmt.left
+      if let ForStatementLeft::VariableDeclaration(var_decl) = &for_in_stmt.left
       {
         if var_decl.kind == VariableDeclarationKind::Let {
           for decl in &var_decl.declarations {
@@ -600,10 +582,7 @@ impl<'a> Visit<'a> for VariableCollector {
     });
   }
 
-  fn visit_do_while_statement(
-    &mut self,
-    do_while_stmt: &DoWhileStatement<'a>,
-  ) {
+  fn visit_do_while_statement(&mut self, do_while_stmt: &DoWhileStatement<'a>) {
     self.with_child_scope(do_while_stmt.span, |a| {
       if let Statement::BlockStatement(body) = &do_while_stmt.body {
         walk::walk_block_statement(a, body);
@@ -650,10 +629,7 @@ impl<'a> Visit<'a> for VariableCollector {
     });
   }
 
-  fn visit_method_definition(
-    &mut self,
-    method: &MethodDefinition<'a>,
-  ) {
+  fn visit_method_definition(&mut self, method: &MethodDefinition<'a>) {
     // Handle constructors specially - they have their own scope
     if method.kind == deno_ast::oxc::ast::ast::MethodDefinitionKind::Constructor
     {
@@ -675,10 +651,7 @@ impl<'a> Visit<'a> for VariableCollector {
     }
   }
 
-  fn visit_variable_declaration(
-    &mut self,
-    var_decl: &VariableDeclaration<'a>,
-  ) {
+  fn visit_variable_declaration(&mut self, var_decl: &VariableDeclaration<'a>) {
     walk::walk_variable_declaration(self, var_decl);
     if var_decl.kind == VariableDeclarationKind::Let {
       for decl in &var_decl.declarations {
@@ -712,9 +685,9 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
   }
 
   fn report(&mut self, range: Span) {
-    let range_text =
-      self.context.source_text()[range.start as usize..range.end as usize]
-        .to_string();
+    let range_text = self.context.source_text()
+      [range.start as usize..range.end as usize]
+      .to_string();
     self.context.add_diagnostic_with_hint(
       range,
       CODE,
@@ -772,9 +745,7 @@ impl<'c, 'view> PreferConstVisitor<'c, 'view> {
       return Err(ScopeAnalysisError::ScopeNotFound);
     };
     let decls: Vec<DeclInfo> = idents
-      .filter_map(|(name, _span)| {
-        get_decl_by_ident(Rc::clone(&scope), name)
-      })
+      .filter_map(|(name, _span)| get_decl_by_ident(Rc::clone(&scope), name))
       .collect();
 
     match decls.as_slice() {
@@ -900,10 +871,7 @@ impl<'a> Visit<'a> for PreferConstVisitor<'_, '_> {
     }
   }
 
-  fn visit_update_expression(
-    &mut self,
-    update_expr: &UpdateExpression<'a>,
-  ) {
+  fn visit_update_expression(&mut self, update_expr: &UpdateExpression<'a>) {
     if let SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) =
       &update_expr.argument
     {
@@ -917,11 +885,7 @@ impl<'a> Visit<'a> for PreferConstVisitor<'_, '_> {
     // For member expressions etc., no need to walk further - they don't affect variable status
   }
 
-  fn visit_function(
-    &mut self,
-    function: &Function<'a>,
-    _flags: ScopeFlags,
-  ) {
+  fn visit_function(&mut self, function: &Function<'a>, _flags: ScopeFlags) {
     for param in &function.params.items {
       if let BindingPattern::AssignmentPattern(assign_pat) = &param.pattern {
         self.visit_assignment_pattern(assign_pat);
@@ -1125,10 +1089,7 @@ impl<'a> Visit<'a> for PreferConstVisitor<'_, '_> {
     });
   }
 
-  fn visit_do_while_statement(
-    &mut self,
-    do_while_stmt: &DoWhileStatement<'a>,
-  ) {
+  fn visit_do_while_statement(&mut self, do_while_stmt: &DoWhileStatement<'a>) {
     self.with_child_scope(do_while_stmt.span, |a| {
       if let Statement::BlockStatement(body) = &do_while_stmt.body {
         walk::walk_block_statement(a, body);
@@ -1173,10 +1134,7 @@ impl<'a> Visit<'a> for PreferConstVisitor<'_, '_> {
     });
   }
 
-  fn visit_method_definition(
-    &mut self,
-    method: &MethodDefinition<'a>,
-  ) {
+  fn visit_method_definition(&mut self, method: &MethodDefinition<'a>) {
     if method.kind == deno_ast::oxc::ast::ast::MethodDefinitionKind::Constructor
     {
       self.with_child_scope(method.span, |a| {

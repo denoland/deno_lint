@@ -2,8 +2,8 @@
 
 use super::{Context, LintRule};
 use crate::handler::Handler;
-use crate::tags::Tags;
 use crate::tags;
+use crate::tags::Tags;
 use deno_ast::oxc::ast::ast::{
   BinaryExpression, BinaryOperator, Expression, IdentifierReference, Program,
   SwitchStatement,
@@ -73,20 +73,12 @@ impl Handler<'_> for UseIsNaNHandler {
     {
       if let Expression::Identifier(ident) = &bin_expr.left {
         if is_nan_identifier(ident) {
-          ctx.add_diagnostic(
-            bin_expr.span,
-            CODE,
-            UseIsNaNMessage::Comparison,
-          );
+          ctx.add_diagnostic(bin_expr.span, CODE, UseIsNaNMessage::Comparison);
         }
       }
       if let Expression::Identifier(ident) = &bin_expr.right {
         if is_nan_identifier(ident) {
-          ctx.add_diagnostic(
-            bin_expr.span,
-            CODE,
-            UseIsNaNMessage::Comparison,
-          );
+          ctx.add_diagnostic(bin_expr.span, CODE, UseIsNaNMessage::Comparison);
         }
       }
     }
@@ -110,11 +102,7 @@ impl Handler<'_> for UseIsNaNHandler {
     for case in &switch_stmt.cases {
       if let Some(Expression::Identifier(ident)) = &case.test {
         if is_nan_identifier(ident) {
-          ctx.add_diagnostic(
-            case.span,
-            CODE,
-            UseIsNaNMessage::CaseUnmatched,
-          );
+          ctx.add_diagnostic(case.span, CODE, UseIsNaNMessage::CaseUnmatched);
         }
       }
     }

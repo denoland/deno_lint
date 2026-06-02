@@ -2,7 +2,9 @@
 
 use super::{Context, LintRule};
 use crate::handler::Handler;
-use deno_ast::oxc::ast::ast::{ArrayExpression, ArrayExpressionElement, Program};
+use deno_ast::oxc::ast::ast::{
+  ArrayExpression, ArrayExpressionElement, Program,
+};
 use derive_more::Display;
 
 #[derive(Debug)]

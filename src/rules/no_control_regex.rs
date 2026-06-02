@@ -122,23 +122,11 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
 }
 
 impl Handler<'_> for NoControlRegexHandler {
-  fn reg_exp_literal(
-    &mut self,
-    regex: &RegExpLiteral,
-    ctx: &mut Context,
-  ) {
-    check_regex(
-      regex.regex.pattern.text.as_str(),
-      regex.span,
-      ctx,
-    );
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
+    check_regex(regex.regex.pattern.text.as_str(), regex.span, ctx);
   }
 
-  fn new_expression(
-    &mut self,
-    new_expr: &NewExpression,
-    ctx: &mut Context,
-  ) {
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     if let Expression::Identifier(ident) = &new_expr.callee {
       if let Some(regex) =
         extract_regex(ctx.scoping(), ident, &new_expr.arguments)
@@ -148,11 +136,7 @@ impl Handler<'_> for NoControlRegexHandler {
     }
   }
 
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     if let Expression::Identifier(ident) = &call_expr.callee {
       if let Some(regex) =
         extract_regex(ctx.scoping(), ident, &call_expr.arguments)

@@ -74,21 +74,13 @@ impl NoEvalHandler {
 }
 
 impl Handler<'_> for NoEvalHandler {
-  fn variable_declarator(
-    &mut self,
-    v: &VariableDeclarator,
-    ctx: &mut Context,
-  ) {
+  fn variable_declarator(&mut self, v: &VariableDeclarator, ctx: &mut Context) {
     if let Some(Expression::Identifier(ident)) = &v.init {
       self.maybe_add_diagnostic(ident.as_ref(), v.span, ctx);
     }
   }
 
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     match &call_expr.callee {
       Expression::Identifier(ident) => {
         self.maybe_add_diagnostic(ident.as_ref(), call_expr.span, ctx)

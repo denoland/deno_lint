@@ -2,9 +2,7 @@
 
 use super::{Context, LintRule};
 use crate::handler::Handler;
-use deno_ast::oxc::ast::ast::{
-  Expression, Program, TSNonNullExpression,
-};
+use deno_ast::oxc::ast::ast::{Expression, Program, TSNonNullExpression};
 use deno_ast::oxc::span::Span;
 use derive_more::Display;
 

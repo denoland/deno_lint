@@ -129,10 +129,7 @@ impl NoNodeGlobalsHandler {
         )
       } else {
         let code_start = program_code_start(ctx.program());
-        (
-          Span::new(code_start, code_start),
-          AddNewline::Trailing,
-        )
+        (Span::new(code_start, code_start), AddNewline::Trailing)
       }
     } else {
       (span, AddNewline::None)

@@ -8,7 +8,6 @@ use deno_ast::oxc::ast::ast::{
   JSXExpression, JSXOpeningElement, Program,
 };
 
-
 #[derive(Debug)]
 pub struct FreshServerEventHandlers;
 
@@ -86,8 +85,7 @@ impl Handler<'_> for FreshServerEventHandlersHandler {
         // Check for custom elements where we cannot make assumptions about
         // event listeners being the only attributes to receive a function.
         // They must have a `-` in the name per spec like `<x-foo />`.
-        let Some(JSXAttributeValue::ExpressionContainer(expr)) =
-          &attr.value
+        let Some(JSXAttributeValue::ExpressionContainer(expr)) = &attr.value
         else {
           continue;
         };
@@ -95,9 +93,7 @@ impl Handler<'_> for FreshServerEventHandlersHandler {
         match &expr.expression {
           JSXExpression::ArrowFunctionExpression(_)
           | JSXExpression::FunctionExpression(_) => {
-            ctx.add_diagnostic_with_hint(
-              attr.span, CODE, MESSAGE, HINT,
-            );
+            ctx.add_diagnostic_with_hint(attr.span, CODE, MESSAGE, HINT);
           }
           _ => {}
         }

@@ -4,11 +4,10 @@ use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  ArrowFunctionExpression, BinaryExpression, BindingPattern,
-  CallExpression, ConditionalExpression, ExportDefaultDeclaration,
-  Expression, ForInStatement, ForOfStatement, ForStatement, Function,
-  FunctionType, IfStatement, Program, ReturnStatement, TryStatement,
-  VariableDeclarator, WhileStatement,
+  ArrowFunctionExpression, BinaryExpression, BindingPattern, CallExpression,
+  ConditionalExpression, ExportDefaultDeclaration, Expression, ForInStatement,
+  ForOfStatement, ForStatement, Function, FunctionType, IfStatement, Program,
+  ReturnStatement, TryStatement, VariableDeclarator, WhileStatement,
 };
 use once_cell::sync::Lazy;
 
@@ -175,11 +174,7 @@ impl Handler<'_> for RulesOfHooksHandler {
     let _ = self.parent_kind.pop();
   }
 
-  fn binary_expression(
-    &mut self,
-    _n: &BinaryExpression,
-    _ctx: &mut Context,
-  ) {
+  fn binary_expression(&mut self, _n: &BinaryExpression, _ctx: &mut Context) {
     self.maybe_increase_cond_counter();
     self.parent_kind.push(ParentKind::Bin);
   }
@@ -216,9 +211,7 @@ impl Handler<'_> for RulesOfHooksHandler {
     _ctx: &mut Context,
   ) {
     if let BindingPattern::BindingIdentifier(id) = &n.id {
-      self
-        .parent_kind
-        .push(ParentKind::Var(id.name.to_string()));
+      self.parent_kind.push(ParentKind::Var(id.name.to_string()));
     } else {
       self.parent_kind.push(ParentKind::VarOther);
     }
@@ -245,35 +238,19 @@ impl Handler<'_> for RulesOfHooksHandler {
     }
   }
 
-  fn for_in_statement(
-    &mut self,
-    _n: &ForInStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_in_statement(&mut self, _n: &ForInStatement, _ctx: &mut Context) {
     self.parent_kind.push(ParentKind::Loop);
   }
 
-  fn for_in_statement_exit(
-    &mut self,
-    _n: &ForInStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_in_statement_exit(&mut self, _n: &ForInStatement, _ctx: &mut Context) {
     let _ = self.parent_kind.pop();
   }
 
-  fn for_of_statement(
-    &mut self,
-    _n: &ForOfStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_of_statement(&mut self, _n: &ForOfStatement, _ctx: &mut Context) {
     self.parent_kind.push(ParentKind::Loop);
   }
 
-  fn for_of_statement_exit(
-    &mut self,
-    _n: &ForOfStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_of_statement_exit(&mut self, _n: &ForOfStatement, _ctx: &mut Context) {
     let _ = self.parent_kind.pop();
   }
 
@@ -281,11 +258,7 @@ impl Handler<'_> for RulesOfHooksHandler {
     self.parent_kind.push(ParentKind::Loop);
   }
 
-  fn for_statement_exit(
-    &mut self,
-    _n: &ForStatement,
-    _ctx: &mut Context,
-  ) {
+  fn for_statement_exit(&mut self, _n: &ForStatement, _ctx: &mut Context) {
     let _ = self.parent_kind.pop();
   }
 
@@ -293,11 +266,7 @@ impl Handler<'_> for RulesOfHooksHandler {
     self.parent_kind.push(ParentKind::Loop);
   }
 
-  fn while_statement_exit(
-    &mut self,
-    _n: &WhileStatement,
-    _ctx: &mut Context,
-  ) {
+  fn while_statement_exit(&mut self, _n: &WhileStatement, _ctx: &mut Context) {
     let _ = self.parent_kind.pop();
   }
 
@@ -305,27 +274,15 @@ impl Handler<'_> for RulesOfHooksHandler {
     self.parent_kind.push(ParentKind::TryCatch);
   }
 
-  fn try_statement_exit(
-    &mut self,
-    _n: &TryStatement,
-    _ctx: &mut Context,
-  ) {
+  fn try_statement_exit(&mut self, _n: &TryStatement, _ctx: &mut Context) {
     let _ = self.parent_kind.pop();
   }
 
-  fn return_statement(
-    &mut self,
-    _n: &ReturnStatement,
-    _ctx: &mut Context,
-  ) {
+  fn return_statement(&mut self, _n: &ReturnStatement, _ctx: &mut Context) {
     self.maybe_mark_cond_terminal();
   }
 
-  fn call_expression(
-    &mut self,
-    node: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context) {
     if is_hook_call(node) {
       if self.parent_kind.is_empty() {
         ctx.add_diagnostic_with_hint(

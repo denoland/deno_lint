@@ -95,9 +95,7 @@ impl<'a> Visit<'a> for NoSetterReturnVisitor<'_, 'a> {
 
   fn visit_return_statement(&mut self, return_stmt: &ReturnStatement<'a>) {
     if return_stmt.argument.is_some() && self.is_in_setter() {
-      self
-        .context
-        .add_diagnostic(return_stmt.span, CODE, MESSAGE);
+      self.context.add_diagnostic(return_stmt.span, CODE, MESSAGE);
     }
     walk::walk_return_statement(self, return_stmt);
   }

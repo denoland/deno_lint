@@ -72,12 +72,7 @@ impl Handler<'_> for NoImplicitDeclareNamespaceExportHandler {
             )
           });
           if !has_specifier_export && has_non_exported_member {
-            ctx.add_diagnostic_with_hint(
-              module_decl.span,
-              CODE,
-              MESSAGE,
-              HINT,
-            );
+            ctx.add_diagnostic_with_hint(module_decl.span, CODE, MESSAGE, HINT);
           }
         }
       }

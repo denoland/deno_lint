@@ -47,11 +47,7 @@ impl Handler<'_> for NoImportPrefixHandler {
     }
   }
 
-  fn import_expression(
-    &mut self,
-    node: &ImportExpression,
-    ctx: &mut Context,
-  ) {
+  fn import_expression(&mut self, node: &ImportExpression, ctx: &mut Context) {
     if let Expression::StringLiteral(lit) = &node.source {
       if is_non_bare(lit.value.as_str()) {
         ctx.add_diagnostic_with_hint(lit.span, CODE, MESSAGE, HINT);

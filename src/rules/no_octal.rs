@@ -43,7 +43,9 @@ impl Handler<'_> for NoOctalHandler {
   ) {
     static OCTAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^0[0-9]").unwrap());
 
-    let Some(ref raw) = literal_num.raw else { return };
+    let Some(ref raw) = literal_num.raw else {
+      return;
+    };
     let raw_number = raw.as_str();
 
     if OCTAL.is_match(raw_number) {

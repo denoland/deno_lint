@@ -42,14 +42,8 @@ impl LintRule for NoPrototypeBuiltins {
 struct NoPrototypeBuiltinsHandler;
 
 impl Handler<'_> for NoPrototypeBuiltinsHandler {
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
-    if let Expression::StaticMemberExpression(member_expr) =
-      &call_expr.callee
-    {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
+    if let Expression::StaticMemberExpression(member_expr) = &call_expr.callee {
       let prop_name = member_expr.property.name.as_str();
       if BANNED_PROPERTIES.contains(&prop_name) {
         ctx.add_diagnostic(call_expr.span, CODE, get_message(prop_name));

@@ -84,7 +84,9 @@ fn inherits_from_non_constructor(class: &Class) -> bool {
   matches!(&class.super_class, Some(expr) if is_literal_expression(expr))
 }
 
-fn super_call_spans(method_def: &deno_ast::oxc::ast::ast::MethodDefinition) -> Vec<Span> {
+fn super_call_spans(
+  method_def: &deno_ast::oxc::ast::ast::MethodDefinition,
+) -> Vec<Span> {
   if let Some(body) = &method_def.value.body {
     body
       .statements

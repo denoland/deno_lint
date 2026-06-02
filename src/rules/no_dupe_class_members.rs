@@ -82,8 +82,7 @@ impl PartialEq for MethodToCheck {
     // from a computed method named "constructor" (e.g. `['constructor']()`, computed: true).
     // So `['constructor']() {}` and `constructor() {}` are NOT duplicates.
     // But `['constructor']() {}` and `['constructor']() {}` ARE duplicates.
-    if self.normalized_name == "constructor"
-      && self.computed != other.computed
+    if self.normalized_name == "constructor" && self.computed != other.computed
     {
       return false;
     }

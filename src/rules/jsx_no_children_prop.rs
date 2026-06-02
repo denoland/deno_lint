@@ -7,7 +7,6 @@ use deno_ast::oxc::ast::ast::{
   JSXAttributeItem, JSXAttributeName, JSXOpeningElement, Program,
 };
 
-
 #[derive(Debug)]
 pub struct JSXNoChildrenProp;
 

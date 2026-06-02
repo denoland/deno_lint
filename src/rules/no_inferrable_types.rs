@@ -283,11 +283,7 @@ impl Handler<'_> for NoInferrableTypesHandler {
     }
   }
 
-  fn formal_parameter(
-    &mut self,
-    param: &FormalParameter,
-    ctx: &mut Context,
-  ) {
+  fn formal_parameter(&mut self, param: &FormalParameter, ctx: &mut Context) {
     // In OXC, default parameters are represented via FormalParameter.initializer
     if let Some(init) = &param.initializer {
       if let BindingPattern::BindingIdentifier(_) = &param.pattern {

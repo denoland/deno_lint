@@ -29,9 +29,7 @@ impl LintRule for NoSyncFnInAsyncFn {
     context: &mut Context<'a>,
     program: &Program<'a>,
   ) {
-    let mut handler = NoSyncFnInAsyncFnHandler {
-      async_fn_depth: 0,
-    };
+    let mut handler = NoSyncFnInAsyncFnHandler { async_fn_depth: 0 };
     crate::handler::traverse_program(&mut handler, program, context);
   }
 }
@@ -134,10 +132,12 @@ impl Handler<'_> for NoSyncFnInAsyncFnHandler {
     ctx: &mut Context,
   ) {
     // Skip chained member expressions (e.g. `foo.bar.baz` — only check the outermost)
-    if matches!(&member.object, Expression::StaticMemberExpression(_)
-      | Expression::ComputedMemberExpression(_)
-      | Expression::PrivateFieldExpression(_))
-    {
+    if matches!(
+      &member.object,
+      Expression::StaticMemberExpression(_)
+        | Expression::ComputedMemberExpression(_)
+        | Expression::PrivateFieldExpression(_)
+    ) {
       return;
     }
 
@@ -156,10 +156,12 @@ impl Handler<'_> for NoSyncFnInAsyncFnHandler {
     member: &ComputedMemberExpression,
     ctx: &mut Context,
   ) {
-    if matches!(&member.object, Expression::StaticMemberExpression(_)
-      | Expression::ComputedMemberExpression(_)
-      | Expression::PrivateFieldExpression(_))
-    {
+    if matches!(
+      &member.object,
+      Expression::StaticMemberExpression(_)
+        | Expression::ComputedMemberExpression(_)
+        | Expression::PrivateFieldExpression(_)
+    ) {
       return;
     }
 
@@ -178,10 +180,12 @@ impl Handler<'_> for NoSyncFnInAsyncFnHandler {
     member: &PrivateFieldExpression,
     ctx: &mut Context,
   ) {
-    if matches!(&member.object, Expression::StaticMemberExpression(_)
-      | Expression::ComputedMemberExpression(_)
-      | Expression::PrivateFieldExpression(_))
-    {
+    if matches!(
+      &member.object,
+      Expression::StaticMemberExpression(_)
+        | Expression::ComputedMemberExpression(_)
+        | Expression::PrivateFieldExpression(_)
+    ) {
       return;
     }
 

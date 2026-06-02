@@ -97,30 +97,38 @@ impl NoInvalidRegexpHandler {
 }
 
 impl Handler<'_> for NoInvalidRegexpHandler {
-  fn reg_exp_literal(
-    &mut self,
-    regex: &RegExpLiteral,
-    ctx: &mut Context,
-  ) {
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
     let pattern = regex.regex.pattern.text.as_str();
     let mut flags = String::new();
     let f = regex.regex.flags;
-    if f.contains(RegExpFlags::G) { flags.push('g'); }
-    if f.contains(RegExpFlags::I) { flags.push('i'); }
-    if f.contains(RegExpFlags::M) { flags.push('m'); }
-    if f.contains(RegExpFlags::S) { flags.push('s'); }
-    if f.contains(RegExpFlags::U) { flags.push('u'); }
-    if f.contains(RegExpFlags::Y) { flags.push('y'); }
-    if f.contains(RegExpFlags::D) { flags.push('d'); }
-    if f.contains(RegExpFlags::V) { flags.push('v'); }
+    if f.contains(RegExpFlags::G) {
+      flags.push('g');
+    }
+    if f.contains(RegExpFlags::I) {
+      flags.push('i');
+    }
+    if f.contains(RegExpFlags::M) {
+      flags.push('m');
+    }
+    if f.contains(RegExpFlags::S) {
+      flags.push('s');
+    }
+    if f.contains(RegExpFlags::U) {
+      flags.push('u');
+    }
+    if f.contains(RegExpFlags::Y) {
+      flags.push('y');
+    }
+    if f.contains(RegExpFlags::D) {
+      flags.push('d');
+    }
+    if f.contains(RegExpFlags::V) {
+      flags.push('v');
+    }
     self.check_regex(pattern, &flags, regex.span, ctx);
   }
 
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     self.handle_call_or_new_expr(
       &call_expr.callee,
       &call_expr.arguments,
@@ -129,11 +137,7 @@ impl Handler<'_> for NoInvalidRegexpHandler {
     );
   }
 
-  fn new_expression(
-    &mut self,
-    new_expr: &NewExpression,
-    ctx: &mut Context,
-  ) {
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     self.handle_call_or_new_expr(
       &new_expr.callee,
       &new_expr.arguments,

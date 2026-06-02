@@ -142,11 +142,7 @@ impl NoSelfAssignVisitor {
       AssignmentTarget::AssignmentTargetIdentifier(l_ident) => {
         if let Expression::Identifier(r_ident) = right {
           if l_ident.name == r_ident.name {
-            self.add_diagnostic(
-              r_ident.span,
-              r_ident.name.to_string(),
-              ctx,
-            );
+            self.add_diagnostic(r_ident.span, r_ident.name.to_string(), ctx);
           }
         }
       }
@@ -181,15 +177,13 @@ impl NoSelfAssignVisitor {
 
           // Handle rest element: [...a] = [...a]
           if let Some(rest) = &l_arr.rest {
-            if let Some(ArrayExpressionElement::SpreadElement(spread)) = r_arr.elements.last() {
+            if let Some(ArrayExpressionElement::SpreadElement(spread)) =
+              r_arr.elements.last()
+            {
               if l_arr.elements.len() < r_arr.elements.len() - 1 {
                 // [...a] = [...a, 1] - skip (more non-spread elements on right)
               } else {
-                self.check_target_and_expr(
-                  &rest.target,
-                  &spread.argument,
-                  ctx,
-                );
+                self.check_target_and_expr(&rest.target, &spread.argument, ctx);
               }
             }
           }
@@ -245,22 +239,15 @@ impl NoSelfAssignVisitor {
         // shorthand: {a} = {a}
         if r_prop.shorthand {
           if let Expression::Identifier(r_ident) = &r_prop.value {
-            if l_ident.init.is_none()
-              && l_ident.binding.name == r_ident.name
-            {
-              self.add_diagnostic(
-                r_ident.span,
-                r_ident.name.to_string(),
-                ctx,
-              );
+            if l_ident.init.is_none() && l_ident.binding.name == r_ident.name {
+              self.add_diagnostic(r_ident.span, r_ident.name.to_string(), ctx);
             }
           }
         } else {
           // {a} on left, {a: expr} on right
           let r_key_name = property_key_static_name(&r_prop.key);
           if let Some(rname) = r_key_name {
-            if l_ident.binding.name.as_str() == rname
-              && l_ident.init.is_none()
+            if l_ident.binding.name.as_str() == rname && l_ident.init.is_none()
             {
               if let Expression::Identifier(r_ident) = &r_prop.value {
                 if l_ident.binding.name == r_ident.name {
@@ -289,9 +276,7 @@ impl NoSelfAssignVisitor {
             ) = &l_kv.binding
             {
               // skip - has default
-            } else if let Some(target) =
-              l_kv.binding.as_assignment_target()
-            {
+            } else if let Some(target) = l_kv.binding.as_assignment_target() {
               self.check_target_and_expr(target, &r_prop.value, ctx);
             }
           }
@@ -304,29 +289,28 @@ impl NoSelfAssignVisitor {
 
 fn member_prop_name(member: &MemberExpression, ctx: &Context) -> String {
   match member {
-    MemberExpression::StaticMemberExpression(s) => {
-      s.property.name.to_string()
-    }
+    MemberExpression::StaticMemberExpression(s) => s.property.name.to_string(),
     MemberExpression::PrivateFieldExpression(p) => p.field.name.to_string(),
-    MemberExpression::ComputedMemberExpression(c) => {
-      match &c.expression {
-        Expression::StringLiteral(s) => s.value.to_string(),
-        Expression::NumericLiteral(n) => n.value.to_string(),
-        Expression::BigIntLiteral(b) => {
-          b.raw.as_ref().map(|r| r.to_string()).unwrap_or_default()
-        }
-        _ => {
-          let src = ctx.source_text();
-          let span = c.expression.span();
-          src[span.start as usize..span.end as usize].to_string()
-        }
+    MemberExpression::ComputedMemberExpression(c) => match &c.expression {
+      Expression::StringLiteral(s) => s.value.to_string(),
+      Expression::NumericLiteral(n) => n.value.to_string(),
+      Expression::BigIntLiteral(b) => {
+        b.raw.as_ref().map(|r| r.to_string()).unwrap_or_default()
       }
-    }
+      _ => {
+        let src = ctx.source_text();
+        let span = c.expression.span();
+        src[span.start as usize..span.end as usize].to_string()
+      }
+    },
   }
 }
 
 /// Check if a static property name matches a computed expression value.
-fn match_static_computed(static_name: &str, computed_expr: &Expression) -> bool {
+fn match_static_computed(
+  static_name: &str,
+  computed_expr: &Expression,
+) -> bool {
   match computed_expr {
     Expression::StringLiteral(s) => s.value.as_str() == static_name,
     Expression::TemplateLiteral(t) => {
@@ -380,11 +364,7 @@ impl Handler<'_> for NoSelfAssignVisitor {
       }
       _ => {
         // Fall through to destructuring / identifier comparison
-        self.check_target_and_expr(
-          &assign_expr.left,
-          &assign_expr.right,
-          ctx,
-        );
+        self.check_target_and_expr(&assign_expr.left, &assign_expr.right, ctx);
       }
     }
   }

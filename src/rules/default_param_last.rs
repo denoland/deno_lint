@@ -68,17 +68,16 @@ fn check_params(params: &FormalParameters, ctx: &mut Context) {
       if has_seen_normal_param {
         // For constructor params with accessibility (TSParameterProperty),
         // report on the initializer or assignment pattern span
-        let report_span = if let BindingPattern::AssignmentPattern(assign) =
-          &param.pattern
-        {
-          assign.span
-        } else if let Some(init) = &param.initializer {
-          // Report the span covering the pattern + initializer
-          let pattern_span = param.pattern.span();
-          deno_ast::oxc::span::Span::new(pattern_span.start, init.span().end)
-        } else {
-          param.span
-        };
+        let report_span =
+          if let BindingPattern::AssignmentPattern(assign) = &param.pattern {
+            assign.span
+          } else if let Some(init) = &param.initializer {
+            // Report the span covering the pattern + initializer
+            let pattern_span = param.pattern.span();
+            deno_ast::oxc::span::Span::new(pattern_span.start, init.span().end)
+          } else {
+            param.span
+          };
         ctx.add_diagnostic_with_hint(
           report_span,
           CODE,

@@ -1,9 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
+use crate::globals::GLOBALS;
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::globals::GLOBALS;
 use deno_ast::oxc::ast::ast::{
   AssignmentExpression, AssignmentTarget, AssignmentTargetMaybeDefault,
   AssignmentTargetProperty, Program, SimpleAssignmentTarget, UpdateExpression,
@@ -91,7 +91,12 @@ impl NoGlobalAssignVisitor {
   ) {
     match target {
       AssignmentTarget::AssignmentTargetIdentifier(ident) => {
-        self.check(ident.span, ident.name.as_str(), ident.reference_id.get(), ctx);
+        self.check(
+          ident.span,
+          ident.name.as_str(),
+          ident.reference_id.get(),
+          ctx,
+        );
       }
       AssignmentTarget::ObjectAssignmentTarget(obj) => {
         for prop in obj.properties.iter() {

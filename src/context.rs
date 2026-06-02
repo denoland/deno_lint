@@ -13,8 +13,8 @@ use crate::linter::{LintConfig, LinterContext};
 use crate::rules;
 use deno_ast::oxc::ast::ast::Comment;
 use deno_ast::oxc::ast::ast::Program;
-use deno_ast::oxc::span::Span;
 use deno_ast::oxc::semantic::{Scoping, SemanticBuilder};
+use deno_ast::oxc::span::Span;
 use deno_ast::ParsedSource;
 use deno_ast::Scope;
 use deno_ast::SourceTextInfo;
@@ -59,8 +59,7 @@ impl<'a> Context<'a> {
 
     // Run OXC semantic analysis to populate symbol_id and reference_id
     // on AST nodes (BindingIdentifier and IdentifierReference).
-    let semantic_ret =
-      SemanticBuilder::new().build(parsed_source.program());
+    let semantic_ret = SemanticBuilder::new().build(parsed_source.program());
     let scoping = semantic_ret.semantic.into_scoping();
 
     // Resolve JSX factory from pragma comments, falling back to config defaults.
@@ -168,9 +167,7 @@ impl<'a> Context<'a> {
   }
 
   /// Get all comments in the source file.
-  pub fn all_comments(
-    &self,
-  ) -> impl Iterator<Item = &'a Comment> {
+  pub fn all_comments(&self) -> impl Iterator<Item = &'a Comment> {
     self.parsed_source.comments().iter()
   }
 
@@ -179,9 +176,11 @@ impl<'a> Context<'a> {
     &self,
     pos: u32,
   ) -> impl Iterator<Item = &'a Comment> {
-    self.parsed_source.comments().iter().filter(move |c| {
-      c.span.end <= pos
-    })
+    self
+      .parsed_source
+      .comments()
+      .iter()
+      .filter(move |c| c.span.end <= pos)
   }
 
   /// Get the text content of a comment (excluding the // or /* */ delimiters).

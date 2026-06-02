@@ -60,10 +60,7 @@ impl Handler<'_> for JSXPropsNoSpreadMultiHandler {
               description: "Remove this spread attribute".into(),
               changes: vec![LintFixChange {
                 new_text: "".into(),
-                range: Span::new(
-                  attr.span().start - 1,
-                  attr.span().end,
-                ),
+                range: Span::new(attr.span().start - 1, attr.span().end),
               }],
             }],
           );

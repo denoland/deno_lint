@@ -85,15 +85,13 @@ impl VerbatimModuleSyntax {
         }
       }
     }
-    if specifiers.len()
-      == type_only_usage.len() + type_only_named_import.len()
+    if specifiers.len() == type_only_usage.len() + type_only_named_import.len()
     {
       // Find the "import" keyword span - it starts at import.span.start
       let import_keyword_end = import.span.start + 6; // "import" is 6 chars
       let import_keyword_span =
         Span::new(import.span.start, import_keyword_end);
-      let mut changes =
-        Vec::with_capacity(1 + type_only_named_import.len());
+      let mut changes = Vec::with_capacity(1 + type_only_named_import.len());
       changes.push(LintFixChange {
         new_text: " type".into(),
         range: Span::new(import_keyword_end, import_keyword_end),
@@ -198,9 +196,7 @@ impl VerbatimModuleSyntax {
         type_only_named_export.push(specifier.span);
       } else {
         let name = match &specifier.local {
-          ModuleExportName::IdentifierReference(ident) => {
-            ident.name.as_str()
-          }
+          ModuleExportName::IdentifierReference(ident) => ident.name.as_str(),
           ModuleExportName::IdentifierName(ident) => ident.name.as_str(),
           ModuleExportName::StringLiteral(_) => continue,
         };
@@ -215,8 +211,7 @@ impl VerbatimModuleSyntax {
       let export_keyword_end = named_export.span.start + 6; // "export" is 6 chars
       let export_keyword_span =
         Span::new(named_export.span.start, export_keyword_end);
-      let mut changes =
-        Vec::with_capacity(1 + type_only_named_export.len());
+      let mut changes = Vec::with_capacity(1 + type_only_named_export.len());
       changes.push(LintFixChange {
         new_text: " type".into(),
         range: Span::new(export_keyword_end, export_keyword_end),
@@ -349,28 +344,19 @@ impl<'a> Visit<'a> for IdCollector {
 
   fn visit_import_specifier(&mut self, n: &ImportSpecifier<'a>) {
     if n.import_kind != ImportOrExportKind::Type {
-      self
-        .import_value_id_usage
-        .insert(n.local.name.to_string());
+      self.import_value_id_usage.insert(n.local.name.to_string());
     }
   }
 
-  fn visit_import_default_specifier(
-    &mut self,
-    n: &ImportDefaultSpecifier<'a>,
-  ) {
-    self
-      .import_value_id_usage
-      .insert(n.local.name.to_string());
+  fn visit_import_default_specifier(&mut self, n: &ImportDefaultSpecifier<'a>) {
+    self.import_value_id_usage.insert(n.local.name.to_string());
   }
 
   fn visit_import_namespace_specifier(
     &mut self,
     n: &ImportNamespaceSpecifier<'a>,
   ) {
-    self
-      .import_value_id_usage
-      .insert(n.local.name.to_string());
+    self.import_value_id_usage.insert(n.local.name.to_string());
   }
 
   fn visit_ts_import_equals_declaration(
@@ -400,14 +386,10 @@ impl<'a> Visit<'a> for IdCollector {
 
     match &n.local {
       ModuleExportName::IdentifierReference(ident) => {
-        self
-          .export_value_id_usage
-          .insert(ident.name.to_string());
+        self.export_value_id_usage.insert(ident.name.to_string());
       }
       ModuleExportName::IdentifierName(ident) => {
-        self
-          .export_value_id_usage
-          .insert(ident.name.to_string());
+        self.export_value_id_usage.insert(ident.name.to_string());
       }
       ModuleExportName::StringLiteral(_) => {}
     }
@@ -439,10 +421,7 @@ impl<'a> Visit<'a> for IdCollector {
     self.type_only_decls.insert(n.id.name.to_string());
   }
 
-  fn visit_ts_interface_declaration(
-    &mut self,
-    n: &TSInterfaceDeclaration<'a>,
-  ) {
+  fn visit_ts_interface_declaration(&mut self, n: &TSInterfaceDeclaration<'a>) {
     // Record the name as a type-only declaration; do NOT add it to id_usage.
     self.type_only_decls.insert(n.id.name.to_string());
   }

@@ -54,20 +54,19 @@ impl Handler<'_> for ValidTypeofHandler {
       return;
     }
 
-    let (typeof_expr, operand) =
-      match (&bin_expr.left, &bin_expr.right) {
-        (Expression::UnaryExpression(unary), operand)
-          if unary.operator == UnaryOperator::Typeof =>
-        {
-          (unary, operand)
-        }
-        (operand, Expression::UnaryExpression(unary))
-          if unary.operator == UnaryOperator::Typeof =>
-        {
-          (unary, operand)
-        }
-        _ => return,
-      };
+    let (typeof_expr, operand) = match (&bin_expr.left, &bin_expr.right) {
+      (Expression::UnaryExpression(unary), operand)
+        if unary.operator == UnaryOperator::Typeof =>
+      {
+        (unary, operand)
+      }
+      (operand, Expression::UnaryExpression(unary))
+        if unary.operator == UnaryOperator::Typeof =>
+      {
+        (unary, operand)
+      }
+      _ => return,
+    };
 
     let _ = typeof_expr;
 

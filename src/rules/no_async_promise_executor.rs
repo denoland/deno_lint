@@ -70,12 +70,7 @@ impl Handler<'_> for NoAsyncPromiseExecutorHandler {
 
       if let Some(first_arg) = new_expr.arguments.first() {
         if is_async_argument(first_arg) {
-          context.add_diagnostic_with_hint(
-            new_expr.span,
-            CODE,
-            MESSAGE,
-            HINT,
-          );
+          context.add_diagnostic_with_hint(new_expr.span, CODE, MESSAGE, HINT);
         }
       }
     }

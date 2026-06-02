@@ -40,7 +40,10 @@ impl LintRule for NoShadowRestrictedNames {
 struct NoShadowRestrictedNamesHandler;
 
 fn is_restricted(name: &str) -> bool {
-  matches!(name, "undefined" | "NaN" | "Infinity" | "arguments" | "eval")
+  matches!(
+    name,
+    "undefined" | "NaN" | "Infinity" | "arguments" | "eval"
+  )
 }
 
 fn report(span: Span, name: &str, ctx: &mut Context) {
@@ -94,7 +97,9 @@ fn check_assignment_target(target: &AssignmentTarget, ctx: &mut Context) {
     AssignmentTarget::ArrayAssignmentTarget(arr) => {
       for el in arr.elements.iter().flatten() {
         match el {
-          AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
+          AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+            with_default,
+          ) => {
             check_assignment_target(&with_default.binding, ctx);
           }
           _ => {
@@ -124,21 +129,18 @@ fn check_assignment_target(target: &AssignmentTarget, ctx: &mut Context) {
           }
           AssignmentTargetProperty::AssignmentTargetPropertyProperty(
             key_value,
-          ) => {
-            match &key_value.binding {
-              AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
-                with_default,
-              ) => {
-                check_assignment_target(&with_default.binding, ctx);
-              }
-              _ => {
-                if let Some(target) = key_value.binding.as_assignment_target()
-                {
-                  check_assignment_target(target, ctx);
-                }
+          ) => match &key_value.binding {
+            AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+              with_default,
+            ) => {
+              check_assignment_target(&with_default.binding, ctx);
+            }
+            _ => {
+              if let Some(target) = key_value.binding.as_assignment_target() {
+                check_assignment_target(target, ctx);
               }
             }
-          }
+          },
         }
       }
       if let Some(rest) = &obj.rest {

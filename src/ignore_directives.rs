@@ -90,11 +90,9 @@ pub fn parse_file_ignore_directives(
   parsed_source: &ParsedSource,
 ) -> Option<FileIgnoreDirective> {
   let source_text = parsed_source.text();
-  parsed_source
-    .get_leading_comments()
-    .find_map(|comment| {
-      parse_ignore_comment(ignore_global_directive, comment, source_text)
-    })
+  parsed_source.get_leading_comments().find_map(|comment| {
+    parse_ignore_comment(ignore_global_directive, comment, source_text)
+  })
 }
 
 fn parse_ignore_comment<T: DirectiveKind>(
@@ -192,10 +190,8 @@ function foo(): any {}
   "#;
 
     test_util::parse_and_then(source_code, |parsed_source| {
-      let line_directives = parse_line_ignore_directives(
-        "deno-lint-ignore",
-        parsed_source,
-      );
+      let line_directives =
+        parse_line_ignore_directives("deno-lint-ignore", parsed_source);
 
       assert_eq!(line_directives.len(), 5);
       let d = line_directives.get(&1).unwrap();

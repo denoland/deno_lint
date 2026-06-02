@@ -7,8 +7,8 @@ use crate::tags;
 use crate::tags::Tags;
 
 use deno_ast::oxc::ast::ast::{
-  ComputedMemberExpression, Expression, Program,
-  StaticMemberExpression, TSQualifiedName, TSTypeName,
+  ComputedMemberExpression, Expression, Program, StaticMemberExpression,
+  TSQualifiedName, TSTypeName,
 };
 use if_chain::if_chain;
 use std::convert::TryFrom;
@@ -37,13 +37,13 @@ impl LintRule for NoDeprecatedDenoApi {
   }
 }
 
-fn extract_symbol_computed<'a>(
-  expr: &'a Expression<'a>,
-) -> Option<&'a str> {
+fn extract_symbol_computed<'a>(expr: &'a Expression<'a>) -> Option<&'a str> {
   match expr {
     Expression::StringLiteral(s) => Some(s.value.as_str()),
     Expression::Identifier(ident) => Some(ident.name.as_str()),
-    Expression::TemplateLiteral(tpl) if tpl.expressions.is_empty() && tpl.quasis.len() == 1 => {
+    Expression::TemplateLiteral(tpl)
+      if tpl.expressions.is_empty() && tpl.quasis.len() == 1 =>
+    {
       Some(tpl.quasis[0].value.raw.as_str())
     }
     _ => None,
@@ -291,13 +291,14 @@ fn check_deprecated_api(
   span: deno_ast::oxc::span::Span,
   ctx: &mut Context,
 ) {
-  if let Ok(deprecated_api) =
-    DeprecatedApi::try_from((obj_name, prop_symbol))
-  {
+  if let Ok(deprecated_api) = DeprecatedApi::try_from((obj_name, prop_symbol)) {
     match deprecated_api.hint() {
       Some(hint) => {
         ctx.add_diagnostic_with_hint(
-          span, CODE, deprecated_api.message(), hint,
+          span,
+          CODE,
+          deprecated_api.message(),
+          hint,
         );
       }
       None => {

@@ -6,7 +6,9 @@ use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::tags::Tags;
 
-use deno_ast::oxc::ast::ast::{IdentifierReference, ImportDeclaration, Program};
+use deno_ast::oxc::ast::ast::{
+  IdentifierReference, ImportDeclaration, Program,
+};
 use deno_ast::oxc::span::GetSpan;
 use deno_ast::oxc::span::Span;
 

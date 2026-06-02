@@ -3,9 +3,7 @@
 use super::{Context, LintRule};
 use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use deno_ast::oxc::ast::ast::{
-  Expression, IfStatement, Program, Statement,
-};
+use deno_ast::oxc::ast::ast::{Expression, IfStatement, Program, Statement};
 use deno_ast::oxc::span::ContentEq;
 use deno_ast::oxc::span::GetSpan;
 use deno_ast::oxc::span::Span;
@@ -151,7 +149,9 @@ fn split_by_logical_op<'a>(
 ) -> Vec<&'a Expression<'a>> {
   let expr = unwrap_parens(expr);
   match expr {
-    Expression::LogicalExpression(logical) if logical.operator == op_to_split => {
+    Expression::LogicalExpression(logical)
+      if logical.operator == op_to_split =>
+    {
       let mut ret = split_by_logical_op(op_to_split, &logical.left);
       ret.append(&mut split_by_logical_op(op_to_split, &logical.right));
       ret
@@ -194,10 +194,8 @@ fn equal_in_if_else(expr1: &Expression, expr2: &Expression) -> bool {
     Expression::LogicalExpression(log2),
   ) = (expr1, expr2)
   {
-    if matches!(
-      log1.operator,
-      LogicalOperator::Or | LogicalOperator::And
-    ) && log1.operator == log2.operator
+    if matches!(log1.operator, LogicalOperator::Or | LogicalOperator::And)
+      && log1.operator == log2.operator
     {
       return (equal_in_if_else(&log1.left, &log2.left)
         && equal_in_if_else(&log1.right, &log2.right))

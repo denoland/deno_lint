@@ -36,7 +36,13 @@ impl LintRule for NoImportAssign {
 struct NoImportAssignHandler;
 
 impl NoImportAssignHandler {
-  fn check_ident_ref(&self, span: Span, ident: &IdentifierReference, is_assign_to_prop: bool, ctx: &mut Context) {
+  fn check_ident_ref(
+    &self,
+    span: Span,
+    ident: &IdentifierReference,
+    is_assign_to_prop: bool,
+    ctx: &mut Context,
+  ) {
     let kind = ctx.binding_kind_of_ident_ref(ident);
     if !matches!(kind, Some(k) if k.is_import()) {
       return;
@@ -59,7 +65,12 @@ impl NoImportAssignHandler {
     }
   }
 
-  fn check_simple_target(&self, span: Span, target: &SimpleAssignmentTarget, ctx: &mut Context) {
+  fn check_simple_target(
+    &self,
+    span: Span,
+    target: &SimpleAssignmentTarget,
+    ctx: &mut Context,
+  ) {
     match target {
       SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
         self.check_ident_ref(span, ident, false, ctx);
@@ -90,7 +101,12 @@ impl NoImportAssignHandler {
       }
       Expression::ChainExpression(chain) => match &chain.expression {
         ChainElement::CallExpression(call) => {
-          self.check_call_modifies_first(call.span, &call.callee, &call.arguments, ctx);
+          self.check_call_modifies_first(
+            call.span,
+            &call.callee,
+            &call.arguments,
+            ctx,
+          );
         }
         ChainElement::StaticMemberExpression(member) => {
           self.check_expr(span, &member.object, ctx);
@@ -133,8 +149,15 @@ impl NoImportAssignHandler {
       AssignmentTarget::ObjectAssignmentTarget(obj) => {
         for prop in obj.properties.iter() {
           match prop {
-            AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(ident) => {
-              self.check_ident_ref(ident.binding.span, &ident.binding, false, ctx);
+            AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+              ident,
+            ) => {
+              self.check_ident_ref(
+                ident.binding.span,
+                &ident.binding,
+                false,
+                ctx,
+              );
             }
             AssignmentTargetProperty::AssignmentTargetPropertyProperty(kv) => {
               self.check_target_maybe_default(&kv.binding, ctx);
@@ -174,8 +197,17 @@ impl NoImportAssignHandler {
     }
   }
 
-  fn is_modifier(&self, obj_name: &str, prop_name: &str, ctx: &Context) -> bool {
-    if ctx.scope().var_by_name(obj_name).is_some_and(|v| !v.kind().is_import()) {
+  fn is_modifier(
+    &self,
+    obj_name: &str,
+    prop_name: &str,
+    ctx: &Context,
+  ) -> bool {
+    if ctx
+      .scope()
+      .var_by_name(obj_name)
+      .is_some_and(|v| !v.kind().is_import())
+    {
       return false;
     }
 
@@ -199,14 +231,22 @@ impl NoImportAssignHandler {
   fn modifies_first(&self, callee: &Expression, ctx: &Context) -> bool {
     match callee {
       Expression::ChainExpression(chain) => {
-        if let ChainElement::StaticMemberExpression(member) = &chain.expression {
-          return self.member_expr_modifies_first(&member.object, member.property.name.as_str(), ctx);
+        if let ChainElement::StaticMemberExpression(member) = &chain.expression
+        {
+          return self.member_expr_modifies_first(
+            &member.object,
+            member.property.name.as_str(),
+            ctx,
+          );
         }
         false
       }
-      Expression::StaticMemberExpression(member) => {
-        self.member_expr_modifies_first(&member.object, member.property.name.as_str(), ctx)
-      }
+      Expression::StaticMemberExpression(member) => self
+        .member_expr_modifies_first(
+          &member.object,
+          member.property.name.as_str(),
+          ctx,
+        ),
       Expression::ParenthesizedExpression(paren) => {
         self.modifies_first(&paren.expression, ctx)
       }

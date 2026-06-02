@@ -102,7 +102,8 @@ fn check_condition(expr: &Expression, ctx: &mut Context) {
 /// Returns true if all leaf expressions in a logical expression tree
 /// (connected by `||` or `&&`) are redundant boolean casts (`!!` or `Boolean()`).
 fn all_parts_are_redundant_cast(logical_expr: &LogicalExpression) -> bool {
-  is_redundant_cast(&logical_expr.left) && is_redundant_cast(&logical_expr.right)
+  is_redundant_cast(&logical_expr.left)
+    && is_redundant_cast(&logical_expr.right)
 }
 
 fn is_redundant_cast(expr: &Expression) -> bool {
@@ -186,11 +187,7 @@ impl Handler<'_> for NoExtraBooleanCastHandler {
     check_condition(&cond_expr.test, ctx);
   }
 
-  fn for_statement(
-    &mut self,
-    for_stmt: &ForStatement,
-    ctx: &mut Context,
-  ) {
+  fn for_statement(&mut self, for_stmt: &ForStatement, ctx: &mut Context) {
     if let Some(ref test_expr) = for_stmt.test {
       check_condition(test_expr, ctx);
     }
@@ -216,11 +213,7 @@ impl Handler<'_> for NoExtraBooleanCastHandler {
     check_condition(&do_while_stmt.test, ctx);
   }
 
-  fn call_expression(
-    &mut self,
-    call_expr: &CallExpression,
-    ctx: &mut Context,
-  ) {
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
     if callee_is_boolean(&call_expr.callee) {
       if let Some(arg) = call_expr.arguments.first() {
         if let Some(expr) = arg.as_expression() {
@@ -230,11 +223,7 @@ impl Handler<'_> for NoExtraBooleanCastHandler {
     }
   }
 
-  fn new_expression(
-    &mut self,
-    new_expr: &NewExpression,
-    ctx: &mut Context,
-  ) {
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     if expr_callee_is_boolean(&new_expr.callee) {
       if let Some(arg) = new_expr.arguments.first() {
         if let Some(expr) = arg.as_expression() {

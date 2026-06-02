@@ -2,8 +2,8 @@
 
 use super::{Context, LintRule};
 use crate::handler::Handler;
-use crate::tags::Tags;
 use crate::tags;
+use crate::tags::Tags;
 use deno_ast::oxc::ast::ast::{JSXText, Program};
 
 #[derive(Debug)]

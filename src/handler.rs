@@ -111,11 +111,7 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn call_expression(
-    &mut self,
-    n: &CallExpression<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn call_expression(&mut self, n: &CallExpression<'a>, ctx: &mut Context<'a>) {
   }
   fn chain_expression(
     &mut self,
@@ -160,23 +156,14 @@ pub trait Handler<'a> {
   ) {
   }
   fn meta_property(&mut self, n: &MetaProperty<'a>, ctx: &mut Context<'a>) {}
-  fn new_expression(
-    &mut self,
-    n: &NewExpression<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn new_expression(&mut self, n: &NewExpression<'a>, ctx: &mut Context<'a>) {}
   fn object_expression(
     &mut self,
     n: &ObjectExpression<'a>,
     ctx: &mut Context<'a>,
   ) {
   }
-  fn object_property(
-    &mut self,
-    n: &ObjectProperty<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn object_property(&mut self, n: &ObjectProperty<'a>, ctx: &mut Context<'a>) {
   }
   fn parenthesized_expression(
     &mut self,
@@ -233,41 +220,17 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn spread_element(
-    &mut self,
-    n: &SpreadElement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn spread_element(&mut self, n: &SpreadElement<'a>, ctx: &mut Context<'a>) {}
   fn argument(&mut self, n: &Argument<'a>, ctx: &mut Context<'a>) {}
 
   // Literals
   fn boolean_literal(&mut self, n: &BooleanLiteral, ctx: &mut Context<'a>) {}
   fn null_literal(&mut self, n: &NullLiteral, ctx: &mut Context<'a>) {}
-  fn numeric_literal(
-    &mut self,
-    n: &NumericLiteral<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn numeric_literal(&mut self, n: &NumericLiteral<'a>, ctx: &mut Context<'a>) {
   }
-  fn big_int_literal(
-    &mut self,
-    n: &BigIntLiteral<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn string_literal(
-    &mut self,
-    n: &StringLiteral<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn reg_exp_literal(
-    &mut self,
-    n: &RegExpLiteral<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn big_int_literal(&mut self, n: &BigIntLiteral<'a>, ctx: &mut Context<'a>) {}
+  fn string_literal(&mut self, n: &StringLiteral<'a>, ctx: &mut Context<'a>) {}
+  fn reg_exp_literal(&mut self, n: &RegExpLiteral<'a>, ctx: &mut Context<'a>) {}
 
   // Identifiers
   fn identifier_reference(
@@ -282,11 +245,7 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn identifier_name(
-    &mut self,
-    n: &IdentifierName<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn identifier_name(&mut self, n: &IdentifierName<'a>, ctx: &mut Context<'a>) {
   }
   fn private_identifier(
     &mut self,
@@ -297,17 +256,9 @@ pub trait Handler<'a> {
   fn super_(&mut self, n: &Super, ctx: &mut Context<'a>) {}
 
   // Statements
-  fn block_statement(
-    &mut self,
-    n: &BlockStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn block_statement(&mut self, n: &BlockStatement<'a>, ctx: &mut Context<'a>) {
   }
-  fn break_statement(
-    &mut self,
-    n: &BreakStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn break_statement(&mut self, n: &BreakStatement<'a>, ctx: &mut Context<'a>) {
   }
   fn continue_statement(
     &mut self,
@@ -346,12 +297,7 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn for_statement(
-    &mut self,
-    n: &ForStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn for_statement(&mut self, n: &ForStatement<'a>, ctx: &mut Context<'a>) {}
   fn if_statement(&mut self, n: &IfStatement<'a>, ctx: &mut Context<'a>) {}
   fn labeled_statement(
     &mut self,
@@ -372,26 +318,13 @@ pub trait Handler<'a> {
   ) {
   }
   fn switch_case(&mut self, n: &SwitchCase<'a>, ctx: &mut Context<'a>) {}
-  fn throw_statement(
-    &mut self,
-    n: &ThrowStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn throw_statement(&mut self, n: &ThrowStatement<'a>, ctx: &mut Context<'a>) {
   }
   fn try_statement(&mut self, n: &TryStatement<'a>, ctx: &mut Context<'a>) {}
   fn catch_clause(&mut self, n: &CatchClause<'a>, ctx: &mut Context<'a>) {}
-  fn while_statement(
-    &mut self,
-    n: &WhileStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
+  fn while_statement(&mut self, n: &WhileStatement<'a>, ctx: &mut Context<'a>) {
   }
-  fn with_statement(
-    &mut self,
-    n: &WithStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn with_statement(&mut self, n: &WithStatement<'a>, ctx: &mut Context<'a>) {}
 
   // Declarations
   fn variable_declaration(
@@ -410,8 +343,7 @@ pub trait Handler<'a> {
 
   // Patterns
   fn array_pattern(&mut self, n: &ArrayPattern<'a>, ctx: &mut Context<'a>) {}
-  fn object_pattern(&mut self, n: &ObjectPattern<'a>, ctx: &mut Context<'a>) {
-  }
+  fn object_pattern(&mut self, n: &ObjectPattern<'a>, ctx: &mut Context<'a>) {}
   fn assignment_pattern(
     &mut self,
     n: &AssignmentPattern<'a>,
@@ -584,12 +516,7 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn ts_enum_member(
-    &mut self,
-    n: &TSEnumMember<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_enum_member(&mut self, n: &TSEnumMember<'a>, ctx: &mut Context<'a>) {}
   fn ts_module_declaration(
     &mut self,
     n: &TSModuleDeclaration<'a>,
@@ -602,12 +529,7 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn ts_module_block(
-    &mut self,
-    n: &TSModuleBlock<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_module_block(&mut self, n: &TSModuleBlock<'a>, ctx: &mut Context<'a>) {}
   fn ts_type_alias_declaration(
     &mut self,
     n: &TSTypeAliasDeclaration<'a>,
@@ -731,24 +653,14 @@ pub trait Handler<'a> {
 
   // TS Types
   fn ts_any_keyword(&mut self, n: &TSAnyKeyword, ctx: &mut Context<'a>) {}
-  fn ts_string_keyword(
-    &mut self,
-    n: &TSStringKeyword,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_string_keyword(&mut self, n: &TSStringKeyword, ctx: &mut Context<'a>) {}
   fn ts_boolean_keyword(
     &mut self,
     n: &TSBooleanKeyword,
     ctx: &mut Context<'a>,
   ) {
   }
-  fn ts_number_keyword(
-    &mut self,
-    n: &TSNumberKeyword,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_number_keyword(&mut self, n: &TSNumberKeyword, ctx: &mut Context<'a>) {}
   fn ts_never_keyword(&mut self, n: &TSNeverKeyword, ctx: &mut Context<'a>) {}
   fn ts_unknown_keyword(
     &mut self,
@@ -764,24 +676,10 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn ts_symbol_keyword(
-    &mut self,
-    n: &TSSymbolKeyword,
-    ctx: &mut Context<'a>,
-  ) {
+  fn ts_symbol_keyword(&mut self, n: &TSSymbolKeyword, ctx: &mut Context<'a>) {}
+  fn ts_big_int_keyword(&mut self, n: &TSBigIntKeyword, ctx: &mut Context<'a>) {
   }
-  fn ts_big_int_keyword(
-    &mut self,
-    n: &TSBigIntKeyword,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn ts_object_keyword(
-    &mut self,
-    n: &TSObjectKeyword,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_object_keyword(&mut self, n: &TSObjectKeyword, ctx: &mut Context<'a>) {}
   fn ts_this_type(&mut self, n: &TSThisType, ctx: &mut Context<'a>) {}
   fn ts_type_reference(
     &mut self,
@@ -816,18 +714,8 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn ts_mapped_type(
-    &mut self,
-    n: &TSMappedType<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn ts_literal_type(
-    &mut self,
-    n: &TSLiteralType<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_mapped_type(&mut self, n: &TSMappedType<'a>, ctx: &mut Context<'a>) {}
+  fn ts_literal_type(&mut self, n: &TSLiteralType<'a>, ctx: &mut Context<'a>) {}
   fn ts_indexed_access_type(
     &mut self,
     n: &TSIndexedAccessType<'a>,
@@ -846,30 +734,10 @@ pub trait Handler<'a> {
     ctx: &mut Context<'a>,
   ) {
   }
-  fn ts_type_query(
-    &mut self,
-    n: &TSTypeQuery<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn ts_import_type(
-    &mut self,
-    n: &TSImportType<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn ts_type_literal(
-    &mut self,
-    n: &TSTypeLiteral<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
-  fn ts_infer_type(
-    &mut self,
-    n: &TSInferType<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn ts_type_query(&mut self, n: &TSTypeQuery<'a>, ctx: &mut Context<'a>) {}
+  fn ts_import_type(&mut self, n: &TSImportType<'a>, ctx: &mut Context<'a>) {}
+  fn ts_type_literal(&mut self, n: &TSTypeLiteral<'a>, ctx: &mut Context<'a>) {}
+  fn ts_infer_type(&mut self, n: &TSInferType<'a>, ctx: &mut Context<'a>) {}
   fn ts_optional_type(
     &mut self,
     n: &TSOptionalType<'a>,
@@ -929,12 +797,7 @@ pub trait Handler<'a> {
   ) {
   }
   fn class_exit(&mut self, n: &Class<'a>, ctx: &mut Context<'a>) {}
-  fn if_statement_exit(
-    &mut self,
-    n: &IfStatement<'a>,
-    ctx: &mut Context<'a>,
-  ) {
-  }
+  fn if_statement_exit(&mut self, n: &IfStatement<'a>, ctx: &mut Context<'a>) {}
   fn for_statement_exit(
     &mut self,
     n: &ForStatement<'a>,
@@ -1061,15 +924,16 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, await_expression, walk::walk_await_expression, it);
   }
   fn visit_binary_expression(&mut self, it: &BinaryExpression<'a>) {
-    visit_handler_with_exit!(self, binary_expression, binary_expression_exit, walk::walk_binary_expression, it);
-  }
-  fn visit_logical_expression(&mut self, it: &LogicalExpression<'a>) {
-    visit_handler!(
+    visit_handler_with_exit!(
       self,
-      logical_expression,
-      walk::walk_logical_expression,
+      binary_expression,
+      binary_expression_exit,
+      walk::walk_binary_expression,
       it
     );
+  }
+  fn visit_logical_expression(&mut self, it: &LogicalExpression<'a>) {
+    visit_handler!(self, logical_expression, walk::walk_logical_expression, it);
   }
   fn visit_call_expression(&mut self, it: &CallExpression<'a>) {
     visit_handler!(self, call_expression, walk::walk_call_expression, it);
@@ -1230,23 +1094,13 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     );
   }
   fn visit_binding_identifier(&mut self, it: &BindingIdentifier<'a>) {
-    visit_handler!(
-      self,
-      binding_identifier,
-      walk::walk_binding_identifier,
-      it
-    );
+    visit_handler!(self, binding_identifier, walk::walk_binding_identifier, it);
   }
   fn visit_identifier_name(&mut self, it: &IdentifierName<'a>) {
     visit_handler!(self, identifier_name, walk::walk_identifier_name, it);
   }
   fn visit_private_identifier(&mut self, it: &PrivateIdentifier<'a>) {
-    visit_handler!(
-      self,
-      private_identifier,
-      walk::walk_private_identifier,
-      it
-    );
+    visit_handler!(self, private_identifier, walk::walk_private_identifier, it);
   }
   fn visit_super(&mut self, it: &Super) {
     visit_handler!(self, super_, walk::walk_super, it);
@@ -1260,28 +1114,13 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, break_statement, walk::walk_break_statement, it);
   }
   fn visit_continue_statement(&mut self, it: &ContinueStatement<'a>) {
-    visit_handler!(
-      self,
-      continue_statement,
-      walk::walk_continue_statement,
-      it
-    );
+    visit_handler!(self, continue_statement, walk::walk_continue_statement, it);
   }
   fn visit_debugger_statement(&mut self, it: &DebuggerStatement) {
-    visit_handler!(
-      self,
-      debugger_statement,
-      walk::walk_debugger_statement,
-      it
-    );
+    visit_handler!(self, debugger_statement, walk::walk_debugger_statement, it);
   }
   fn visit_do_while_statement(&mut self, it: &DoWhileStatement<'a>) {
-    visit_handler!(
-      self,
-      do_while_statement,
-      walk::walk_do_while_statement,
-      it
-    );
+    visit_handler!(self, do_while_statement, walk::walk_do_while_statement, it);
   }
   fn visit_empty_statement(&mut self, it: &EmptyStatement) {
     visit_handler!(self, empty_statement, walk::walk_empty_statement, it);
@@ -1295,16 +1134,40 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     );
   }
   fn visit_for_in_statement(&mut self, it: &ForInStatement<'a>) {
-    visit_handler_with_exit!(self, for_in_statement, for_in_statement_exit, walk::walk_for_in_statement, it);
+    visit_handler_with_exit!(
+      self,
+      for_in_statement,
+      for_in_statement_exit,
+      walk::walk_for_in_statement,
+      it
+    );
   }
   fn visit_for_of_statement(&mut self, it: &ForOfStatement<'a>) {
-    visit_handler_with_exit!(self, for_of_statement, for_of_statement_exit, walk::walk_for_of_statement, it);
+    visit_handler_with_exit!(
+      self,
+      for_of_statement,
+      for_of_statement_exit,
+      walk::walk_for_of_statement,
+      it
+    );
   }
   fn visit_for_statement(&mut self, it: &ForStatement<'a>) {
-    visit_handler_with_exit!(self, for_statement, for_statement_exit, walk::walk_for_statement, it);
+    visit_handler_with_exit!(
+      self,
+      for_statement,
+      for_statement_exit,
+      walk::walk_for_statement,
+      it
+    );
   }
   fn visit_if_statement(&mut self, it: &IfStatement<'a>) {
-    visit_handler_with_exit!(self, if_statement, if_statement_exit, walk::walk_if_statement, it);
+    visit_handler_with_exit!(
+      self,
+      if_statement,
+      if_statement_exit,
+      walk::walk_if_statement,
+      it
+    );
   }
   fn visit_labeled_statement(&mut self, it: &LabeledStatement<'a>) {
     visit_handler_with_exit!(
@@ -1328,13 +1191,25 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, throw_statement, walk::walk_throw_statement, it);
   }
   fn visit_try_statement(&mut self, it: &TryStatement<'a>) {
-    visit_handler_with_exit!(self, try_statement, try_statement_exit, walk::walk_try_statement, it);
+    visit_handler_with_exit!(
+      self,
+      try_statement,
+      try_statement_exit,
+      walk::walk_try_statement,
+      it
+    );
   }
   fn visit_catch_clause(&mut self, it: &CatchClause<'a>) {
     visit_handler!(self, catch_clause, walk::walk_catch_clause, it);
   }
   fn visit_while_statement(&mut self, it: &WhileStatement<'a>) {
-    visit_handler_with_exit!(self, while_statement, while_statement_exit, walk::walk_while_statement, it);
+    visit_handler_with_exit!(
+      self,
+      while_statement,
+      while_statement_exit,
+      walk::walk_while_statement,
+      it
+    );
   }
   fn visit_with_statement(&mut self, it: &WithStatement<'a>) {
     visit_handler!(self, with_statement, walk::walk_with_statement, it);
@@ -1377,12 +1252,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, object_pattern, walk::walk_object_pattern, it);
   }
   fn visit_assignment_pattern(&mut self, it: &AssignmentPattern<'a>) {
-    visit_handler!(
-      self,
-      assignment_pattern,
-      walk::walk_assignment_pattern,
-      it
-    );
+    visit_handler!(self, assignment_pattern, walk::walk_assignment_pattern, it);
   }
   fn visit_binding_rest_element(&mut self, it: &BindingRestElement<'a>) {
     visit_handler!(
@@ -1404,13 +1274,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
 
   // Class
   fn visit_class(&mut self, it: &Class<'a>) {
-    visit_handler_with_exit!(
-      self,
-      class,
-      class_exit,
-      walk::walk_class,
-      it
-    );
+    visit_handler_with_exit!(self, class, class_exit, walk::walk_class, it);
   }
   fn visit_class_body(&mut self, it: &ClassBody<'a>) {
     visit_handler!(self, class_body, walk::walk_class_body, it);
@@ -1441,12 +1305,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
 
   // Modules
   fn visit_import_declaration(&mut self, it: &ImportDeclaration<'a>) {
-    visit_handler!(
-      self,
-      import_declaration,
-      walk::walk_import_declaration,
-      it
-    );
+    visit_handler!(self, import_declaration, walk::walk_import_declaration, it);
   }
   fn visit_import_specifier(&mut self, it: &ImportSpecifier<'a>) {
     visit_handler!(self, import_specifier, walk::walk_import_specifier, it);
@@ -1673,12 +1532,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     );
   }
   fn visit_ts_index_signature(&mut self, it: &TSIndexSignature<'a>) {
-    visit_handler!(
-      self,
-      ts_index_signature,
-      walk::walk_ts_index_signature,
-      it
-    );
+    visit_handler!(self, ts_index_signature, walk::walk_ts_index_signature, it);
   }
   fn visit_ts_call_signature_declaration(
     &mut self,
@@ -1703,12 +1557,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     );
   }
   fn visit_ts_type_annotation(&mut self, it: &TSTypeAnnotation<'a>) {
-    visit_handler!(
-      self,
-      ts_type_annotation,
-      walk::walk_ts_type_annotation,
-      it
-    );
+    visit_handler!(self, ts_type_annotation, walk::walk_ts_type_annotation, it);
   }
   fn visit_ts_type_parameter(&mut self, it: &TSTypeParameter<'a>) {
     visit_handler!(self, ts_type_parameter, walk::walk_ts_type_parameter, it);
@@ -1736,20 +1585,12 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     );
   }
   fn visit_ts_type_assertion(&mut self, it: &TSTypeAssertion<'a>) {
-    visit_handler!(
-      self,
-      ts_type_assertion,
-      walk::walk_ts_type_assertion,
-      it
-    );
+    visit_handler!(self, ts_type_assertion, walk::walk_ts_type_assertion, it);
   }
   fn visit_ts_as_expression(&mut self, it: &TSAsExpression<'a>) {
     visit_handler!(self, ts_as_expression, walk::walk_ts_as_expression, it);
   }
-  fn visit_ts_satisfies_expression(
-    &mut self,
-    it: &TSSatisfiesExpression<'a>,
-  ) {
+  fn visit_ts_satisfies_expression(&mut self, it: &TSSatisfiesExpression<'a>) {
     visit_handler!(
       self,
       ts_satisfies_expression,
@@ -1815,12 +1656,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, ts_string_keyword, walk::walk_ts_string_keyword, it);
   }
   fn visit_ts_boolean_keyword(&mut self, it: &TSBooleanKeyword) {
-    visit_handler!(
-      self,
-      ts_boolean_keyword,
-      walk::walk_ts_boolean_keyword,
-      it
-    );
+    visit_handler!(self, ts_boolean_keyword, walk::walk_ts_boolean_keyword, it);
   }
   fn visit_ts_number_keyword(&mut self, it: &TSNumberKeyword) {
     visit_handler!(self, ts_number_keyword, walk::walk_ts_number_keyword, it);
@@ -1829,12 +1665,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, ts_never_keyword, walk::walk_ts_never_keyword, it);
   }
   fn visit_ts_unknown_keyword(&mut self, it: &TSUnknownKeyword) {
-    visit_handler!(
-      self,
-      ts_unknown_keyword,
-      walk::walk_ts_unknown_keyword,
-      it
-    );
+    visit_handler!(self, ts_unknown_keyword, walk::walk_ts_unknown_keyword, it);
   }
   fn visit_ts_void_keyword(&mut self, it: &TSVoidKeyword) {
     visit_handler!(self, ts_void_keyword, walk::walk_ts_void_keyword, it);
@@ -1854,12 +1685,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
     visit_handler!(self, ts_symbol_keyword, walk::walk_ts_symbol_keyword, it);
   }
   fn visit_ts_big_int_keyword(&mut self, it: &TSBigIntKeyword) {
-    visit_handler!(
-      self,
-      ts_big_int_keyword,
-      walk::walk_ts_big_int_keyword,
-      it
-    );
+    visit_handler!(self, ts_big_int_keyword, walk::walk_ts_big_int_keyword, it);
   }
   fn visit_ts_object_keyword(&mut self, it: &TSObjectKeyword) {
     visit_handler!(self, ts_object_keyword, walk::walk_ts_object_keyword, it);
@@ -1952,10 +1778,7 @@ impl<'a, H: Handler<'a>> Visit<'a> for Traverser<'a, '_, H> {
       it
     );
   }
-  fn visit_ts_template_literal_type(
-    &mut self,
-    it: &TSTemplateLiteralType<'a>,
-  ) {
+  fn visit_ts_template_literal_type(&mut self, it: &TSTemplateLiteralType<'a>) {
     visit_handler!(
       self,
       ts_template_literal_type,

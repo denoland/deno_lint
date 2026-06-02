@@ -3,8 +3,8 @@
 use super::{Context, LintRule};
 use crate::diagnostic::{LintFix, LintFixChange};
 use crate::handler::Handler;
-use crate::tags::Tags;
 use crate::tags;
+use crate::tags::Tags;
 use deno_ast::oxc::ast::ast::{
   JSXAttribute, JSXAttributeValue, JSXExpression, Program,
 };

@@ -39,12 +39,7 @@ impl Handler<'_> for NoExplicitAnyHandler {
     ts_any_keyword: &TSAnyKeyword,
     ctx: &mut Context,
   ) {
-    ctx.add_diagnostic_with_hint(
-      ts_any_keyword.span,
-      CODE,
-      MESSAGE,
-      HINT,
-    );
+    ctx.add_diagnostic_with_hint(ts_any_keyword.span, CODE, MESSAGE, HINT);
   }
 }
 

@@ -32,12 +32,10 @@ impl LintRule for NoEmpty {
 struct NoEmptyHandler;
 
 fn block_contains_comments(block_stmt: &BlockStatement, ctx: &Context) -> bool {
-  ctx
-    .all_comments()
-    .any(|comment| {
-      comment.span.start > block_stmt.span.start
-        && comment.span.end < block_stmt.span.end
-    })
+  ctx.all_comments().any(|comment| {
+    comment.span.start > block_stmt.span.start
+      && comment.span.end < block_stmt.span.end
+  })
 }
 
 impl Handler<'_> for NoEmptyHandler {
@@ -48,9 +46,7 @@ impl Handler<'_> for NoEmptyHandler {
   ) {
     // In OXC, function/arrow/constructor bodies are FunctionBody, not
     // BlockStatement, so we don't need to check parents here.
-    if block_stmt.body.is_empty()
-      && !block_contains_comments(block_stmt, ctx)
-    {
+    if block_stmt.body.is_empty() && !block_contains_comments(block_stmt, ctx) {
       ctx.add_diagnostic_with_hint(
         block_stmt.span,
         CODE,
@@ -60,11 +56,7 @@ impl Handler<'_> for NoEmptyHandler {
     }
   }
 
-  fn switch_statement(
-    &mut self,
-    switch: &SwitchStatement,
-    ctx: &mut Context,
-  ) {
+  fn switch_statement(&mut self, switch: &SwitchStatement, ctx: &mut Context) {
     if switch.cases.is_empty() {
       ctx.add_diagnostic_with_hint(
         switch.span,

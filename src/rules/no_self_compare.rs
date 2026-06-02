@@ -57,10 +57,8 @@ impl Handler<'_> for NoSelfCompareHandler {
     let src = ctx.source_text();
     let left_span = binary_expression.left.span();
     let right_span = binary_expression.right.span();
-    let left_text =
-      &src[left_span.start as usize..left_span.end as usize];
-    let right_text =
-      &src[right_span.start as usize..right_span.end as usize];
+    let left_text = &src[left_span.start as usize..left_span.end as usize];
+    let right_text = &src[right_span.start as usize..right_span.end as usize];
 
     if left_text == right_text {
       ctx.add_diagnostic_with_hint(

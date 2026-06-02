@@ -40,9 +40,8 @@ impl Handler<'_> for JSXNoUselessFragmentHandler {
     if node.children.is_empty() {
       ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
     } else if node.children.len() == 1 {
-      if let Some(
-        JSXChild::Element(_) | JSXChild::Fragment(_),
-      ) = &node.children.first()
+      if let Some(JSXChild::Element(_) | JSXChild::Fragment(_)) =
+        &node.children.first()
       {
         ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
       }

@@ -120,11 +120,7 @@ impl<'a> Visit<'a> for ValidDeclsVisitor {
     walk::walk_export_default_declaration(self, decl);
   }
 
-  fn visit_function(
-    &mut self,
-    func: &Function<'a>,
-    flags: ScopeFlags,
-  ) {
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
     if let Some(body) = &func.body {
       self.check_stmts(&body.statements);
     }
@@ -164,11 +160,7 @@ impl NoInnerDeclarationsChecker<'_, '_> {
 }
 
 impl<'a> Visit<'a> for NoInnerDeclarationsChecker<'_, '_> {
-  fn visit_function(
-    &mut self,
-    func: &Function<'a>,
-    flags: ScopeFlags,
-  ) {
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
     // Check if this is a function declaration (not expression)
     // Function declarations that are not in valid positions should be flagged.
     // We flag based on whether the span is in valid_decls.
@@ -194,10 +186,7 @@ impl<'a> Visit<'a> for NoInnerDeclarationsChecker<'_, '_> {
     self.in_function = old;
   }
 
-  fn visit_variable_declaration(
-    &mut self,
-    var_decl: &VariableDeclaration<'a>,
-  ) {
+  fn visit_variable_declaration(&mut self, var_decl: &VariableDeclaration<'a>) {
     if var_decl.kind == VariableDeclarationKind::Var
       && !self.valid_decls.contains(&var_decl.span)
     {

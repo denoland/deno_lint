@@ -64,9 +64,7 @@ fn check_assign_direction(
   let update_direction = 0;
 
   let name = match &assign_expr.left {
-    AssignmentTarget::AssignmentTargetIdentifier(ident) => {
-      ident.name.as_str()
-    }
+    AssignmentTarget::AssignmentTargetIdentifier(ident) => ident.name.as_str(),
     _ => return update_direction,
   };
 
@@ -102,11 +100,7 @@ fn check_assign_right_direction(
 }
 
 impl Handler<'_> for ForDirectionHandler {
-  fn for_statement(
-    &mut self,
-    for_stmt: &ForStatement,
-    context: &mut Context,
-  ) {
+  fn for_statement(&mut self, for_stmt: &ForStatement, context: &mut Context) {
     if for_stmt.update.is_none() {
       return;
     }

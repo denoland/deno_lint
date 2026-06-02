@@ -33,11 +33,7 @@ impl LintRule for NoWith {
 struct NoWithHandler;
 
 impl Handler<'_> for NoWithHandler {
-  fn with_statement(
-    &mut self,
-    with_stmt: &WithStatement,
-    ctx: &mut Context,
-  ) {
+  fn with_statement(&mut self, with_stmt: &WithStatement, ctx: &mut Context) {
     ctx.add_diagnostic(with_stmt.span, CODE, MESSAGE);
   }
 }

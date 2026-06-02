@@ -34,11 +34,7 @@ impl LintRule for NoCaseDeclarations {
 struct NoCaseDeclarationsHandler;
 
 impl Handler<'_> for NoCaseDeclarationsHandler {
-  fn switch_case(
-    &mut self,
-    switch_case: &SwitchCase,
-    context: &mut Context,
-  ) {
+  fn switch_case(&mut self, switch_case: &SwitchCase, context: &mut Context) {
     for stmt in &switch_case.consequent {
       let is_lexical_decl = match stmt {
         Statement::FunctionDeclaration(_) => true,
@@ -50,12 +46,7 @@ impl Handler<'_> for NoCaseDeclarationsHandler {
       };
 
       if is_lexical_decl {
-        context.add_diagnostic_with_hint(
-          switch_case.span,
-          CODE,
-          MESSAGE,
-          HINT,
-        );
+        context.add_diagnostic_with_hint(switch_case.span, CODE, MESSAGE, HINT);
       }
     }
   }

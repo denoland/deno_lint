@@ -120,11 +120,8 @@ impl Linter {
       )
     }?;
 
-    let diagnostics = self.lint_inner(
-      &parsed_source,
-      &options.config,
-      options.external_linter,
-    );
+    let diagnostics =
+      self.lint_inner(&parsed_source, &options.config, options.external_linter);
 
     Ok(diagnostics)
   }
@@ -140,11 +137,7 @@ impl Linter {
     maybe_external_linter: Option<ExternalLinterCb>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_with_ast");
-    self.lint_inner(
-      parsed_source,
-      &config,
-      maybe_external_linter,
-    )
+    self.lint_inner(parsed_source, &config, maybe_external_linter)
   }
 
   // TODO(bartlomieju): this struct does too much - not only it checks for ignored
@@ -202,12 +195,8 @@ impl Linter {
       }
     }
 
-    let mut context = Context::new(
-      &self.ctx,
-      parsed_source,
-      config,
-      file_ignore_directive,
-    );
+    let mut context =
+      Context::new(&self.ctx, parsed_source, config, file_ignore_directive);
 
     let program = parsed_source.program();
 

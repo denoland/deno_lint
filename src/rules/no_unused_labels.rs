@@ -49,7 +49,10 @@ struct NoUnusedLabelsHandler {
 }
 
 impl NoUnusedLabelsHandler {
-  fn check_label(&mut self, label: Option<&deno_ast::oxc::ast::ast::LabelIdentifier>) {
+  fn check_label(
+    &mut self,
+    label: Option<&deno_ast::oxc::ast::ast::LabelIdentifier>,
+  ) {
     if let Some(label) = label {
       if let Some(found) = self
         .labels
