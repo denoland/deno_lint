@@ -95,10 +95,9 @@ export function genRustContent(
   return `// Copyright 2018-${now.getFullYear()} the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::Program;
-use deno_ast::SourceRanged;
-use deno_ast::view as ast_view;
+use deno_ast::oxc::ast::ast::WithStatement;
 
 #[derive(Debug)]
 pub struct ${pascalCasedLintName};
@@ -112,23 +111,24 @@ impl LintRule for ${pascalCasedLintName} {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    ${pascalCasedLintName}Handler.traverse(program, context);
+    let mut handler = ${pascalCasedLintName}Handler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct ${pascalCasedLintName}Handler;
 
-impl Handler for ${pascalCasedLintName}Handler {
+impl Handler<'_> for ${pascalCasedLintName}Handler {
   // implement some methods to achieve the goal of this lint
 
   // This is an example
-  fn with_stmt(&mut self, with_stmt: &ast_view::WithStmt, ctx: &mut Context) {
-    ctx.add_diagnostic_with_hint(with_stmt.range(), CODE, MESSAGE, HINT);
+  fn with_statement(&mut self, with_stmt: &WithStatement, ctx: &mut Context) {
+    ctx.add_diagnostic_with_hint(with_stmt.span, CODE, MESSAGE, HINT);
   }
 }
 
