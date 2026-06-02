@@ -276,10 +276,8 @@ impl NoImportAssignHandler {
   ) {
     if let Some(arg) = arguments.first() {
       if self.modifies_first(callee, ctx) {
-        if let Some(expr) = arg.as_expression() {
-          if let Expression::Identifier(ident) = expr {
-            self.check_ident_ref(span, ident, true, ctx);
-          }
+        if let Some(Expression::Identifier(ident)) = arg.as_expression() {
+          self.check_ident_ref(span, ident, true, ctx);
         }
       }
     }

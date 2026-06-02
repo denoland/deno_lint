@@ -83,22 +83,20 @@ impl NoConstantConditionHandler {
         Self::is_constant(&paren.expression, Some(node), false)
       }
       Expression::ArrayExpression(arr) => match parent_node {
-        Some(Expression::BinaryExpression(bin)) => {
-          if bin.operator == BinaryOperator::Addition {
-            arr.elements.iter().all(|element| match element {
-              ArrayExpressionElement::Elision(_) => true,
-              ArrayExpressionElement::SpreadElement(spread) => {
-                // A spread element is only constant if its argument is constant
-                Self::is_constant(&spread.argument, parent_node, false)
-              }
-              _ => {
-                let expr = element.to_expression();
-                Self::is_constant(expr, parent_node, false)
-              }
-            })
-          } else {
-            true
-          }
+        Some(Expression::BinaryExpression(bin))
+          if bin.operator == BinaryOperator::Addition =>
+        {
+          arr.elements.iter().all(|element| match element {
+            ArrayExpressionElement::Elision(_) => true,
+            ArrayExpressionElement::SpreadElement(spread) => {
+              // A spread element is only constant if its argument is constant
+              Self::is_constant(&spread.argument, parent_node, false)
+            }
+            _ => {
+              let expr = element.to_expression();
+              Self::is_constant(expr, parent_node, false)
+            }
+          })
         }
         _ => true,
       },

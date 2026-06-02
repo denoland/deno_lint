@@ -59,11 +59,11 @@ impl NoCondAssignHandler {
           NoCondAssignHint::ChangeOrMove,
         );
       }
-      Expression::LogicalExpression(log) => {
-        if log.operator == LogicalOperator::Or {
-          self.check_condition(&log.left, ctx);
-          self.check_condition(&log.right, ctx);
-        }
+      Expression::LogicalExpression(log)
+        if log.operator == LogicalOperator::Or =>
+      {
+        self.check_condition(&log.left, ctx);
+        self.check_condition(&log.right, ctx);
       }
       _ => {}
     }

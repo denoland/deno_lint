@@ -72,28 +72,22 @@ impl Handler<'_> for NoImportAssertionsHandler {
     ctx: &mut Context,
   ) {
     // Check if the options argument contains { assert: ... }
-    if let Some(options) = &import_expr.options {
-      if let Expression::ObjectExpression(object_lit) = options {
-        for prop in object_lit.properties.iter() {
-          if let ObjectPropertyKind::ObjectProperty(prop) = prop {
-            match &prop.key {
-              PropertyKey::StaticIdentifier(ident) => {
-                if ident.name.as_str() == "assert" {
-                  ctx.add_diagnostic_with_hint(ident.span, CODE, MESSAGE, HINT);
-                }
+    if let Some(Expression::ObjectExpression(object_lit)) = &import_expr.options
+    {
+      for prop in object_lit.properties.iter() {
+        if let ObjectPropertyKind::ObjectProperty(prop) = prop {
+          match &prop.key {
+            PropertyKey::StaticIdentifier(ident) => {
+              if ident.name.as_str() == "assert" {
+                ctx.add_diagnostic_with_hint(ident.span, CODE, MESSAGE, HINT);
               }
-              PropertyKey::StringLiteral(str_lit) => {
-                if str_lit.value.as_str() == "assert" {
-                  ctx.add_diagnostic_with_hint(
-                    str_lit.span,
-                    CODE,
-                    MESSAGE,
-                    HINT,
-                  );
-                }
-              }
-              _ => (),
             }
+            PropertyKey::StringLiteral(str_lit)
+              if str_lit.value.as_str() == "assert" =>
+            {
+              ctx.add_diagnostic_with_hint(str_lit.span, CODE, MESSAGE, HINT);
+            }
+            _ => (),
           }
         }
       }

@@ -87,14 +87,13 @@ fn check_condition(expr: &Expression, ctx: &mut Context) {
     Expression::ParenthesizedExpression(paren_expr) => {
       check_condition(&paren_expr.expression, ctx);
     }
-    Expression::LogicalExpression(logical_expr) => {
+    Expression::LogicalExpression(logical_expr)
       // If ALL parts of a logical expression are redundant boolean casts,
       // report each one. E.g. `if (!!foo || !!bar) {}` → report both.
       // But `if (!!foo || bar) {}` → report nothing (bar is not a cast).
-      if all_parts_are_redundant_cast(logical_expr) {
+      if all_parts_are_redundant_cast(logical_expr) => {
         report_all_parts(logical_expr, ctx);
       }
-    }
     _ => (),
   }
 }

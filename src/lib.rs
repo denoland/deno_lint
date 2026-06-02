@@ -50,7 +50,7 @@ mod lint_tests {
       custom_ignore_file_directive: None,
     });
 
-    let diagnostics = linter
+    linter
       .lint_file(LintFileOptions {
         specifier: ModuleSpecifier::parse("file:///lint_test.ts").unwrap(),
         source_code: source.to_string(),
@@ -61,8 +61,7 @@ mod lint_tests {
         },
         external_linter: None,
       })
-      .expect("Failed to lint");
-    diagnostics
+      .expect("Failed to lint")
   }
 
   fn lint_with_ast(

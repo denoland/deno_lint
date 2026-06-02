@@ -499,7 +499,7 @@ fn resolve_jsx_pragmas(
       if let Some(pos) = text.find("@jsx ") {
         let rest = &text[pos + 5..];
         // Take the next non-whitespace token
-        let pragma = rest.trim_start().split_whitespace().next();
+        let pragma = rest.split_whitespace().next();
         if let Some(pragma) = pragma {
           // Filter out @jsxFrag which also starts with @jsx
           if !text[pos..].starts_with("@jsxFrag") {
@@ -513,7 +513,7 @@ fn resolve_jsx_pragmas(
     if jsx_fragment_factory.is_none() {
       if let Some(pos) = text.find("@jsxFrag ") {
         let rest = &text[pos + 9..];
-        let pragma = rest.trim_start().split_whitespace().next();
+        let pragma = rest.split_whitespace().next();
         if let Some(pragma) = pragma {
           jsx_fragment_factory = Some(pragma.to_string());
         }

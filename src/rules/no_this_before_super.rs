@@ -301,11 +301,9 @@ fn check_call_expression(checker: &mut StmtChecker, call: &CallExpression) {
     check_argument(checker, arg);
   }
 
-  if checker.result.is_none() {
-    if matches!(&call.callee, Expression::Super(_)) {
-      checker.record_super_call();
-      return;
-    }
+  if checker.result.is_none() && matches!(&call.callee, Expression::Super(_)) {
+    checker.record_super_call();
+    return;
   }
 
   check_expression(checker, &call.callee);

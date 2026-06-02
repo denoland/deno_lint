@@ -78,10 +78,8 @@ fn compare(
       (
         TSLiteral::NumericLiteral(type_num),
         Expression::NumericLiteral(val_num),
-      ) => {
-        if (val_num.value - type_num.value).abs() < f64::EPSILON {
-          add_diagnostic_helper(span, ctx)
-        }
+      ) if (val_num.value - type_num.value).abs() < f64::EPSILON => {
+        add_diagnostic_helper(span, ctx)
       }
       _ => {}
     }

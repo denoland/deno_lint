@@ -109,10 +109,10 @@ impl Collector<'_> {
     // Look up all symbols with this name through scoping
     // This is a fallback for cases where we only have a string name
     for symbol_id in self.scoping.symbol_ids() {
-      if self.scoping.symbol_name(symbol_id) == name {
-        if !self.cur_defining.contains(&symbol_id) {
-          self.used_vars.insert(symbol_id);
-        }
+      if self.scoping.symbol_name(symbol_id) == name
+        && !self.cur_defining.contains(&symbol_id)
+      {
+        self.used_vars.insert(symbol_id);
       }
     }
   }

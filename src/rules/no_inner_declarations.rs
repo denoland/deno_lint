@@ -71,10 +71,10 @@ impl ValidDeclsVisitor {
         Statement::FunctionDeclaration(func) => {
           self.valid_decls.insert(func.span);
         }
-        Statement::VariableDeclaration(var_decl) => {
-          if var_decl.kind == VariableDeclarationKind::Var {
-            self.valid_decls.insert(var_decl.span);
-          }
+        Statement::VariableDeclaration(var_decl)
+          if var_decl.kind == VariableDeclarationKind::Var =>
+        {
+          self.valid_decls.insert(var_decl.span);
         }
         _ => {}
       }
@@ -97,10 +97,10 @@ impl<'a> Visit<'a> for ValidDeclsVisitor {
         Declaration::FunctionDeclaration(func) => {
           self.valid_decls.insert(func.span);
         }
-        Declaration::VariableDeclaration(var_decl) => {
-          if var_decl.kind == VariableDeclarationKind::Var {
-            self.valid_decls.insert(var_decl.span);
-          }
+        Declaration::VariableDeclaration(var_decl)
+          if var_decl.kind == VariableDeclarationKind::Var =>
+        {
+          self.valid_decls.insert(var_decl.span);
         }
         _ => {}
       }
@@ -164,10 +164,10 @@ impl<'a> Visit<'a> for NoInnerDeclarationsChecker<'_, '_> {
     // Check if this is a function declaration (not expression)
     // Function declarations that are not in valid positions should be flagged.
     // We flag based on whether the span is in valid_decls.
-    if func.r#type == FunctionType::FunctionDeclaration {
-      if !self.valid_decls.contains(&func.span) {
-        self.add_diagnostic(func.span, "function");
-      }
+    if func.r#type == FunctionType::FunctionDeclaration
+      && !self.valid_decls.contains(&func.span)
+    {
+      self.add_diagnostic(func.span, "function");
     }
 
     let old = self.in_function;

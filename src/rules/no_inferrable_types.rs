@@ -203,10 +203,10 @@ impl NoInferrableTypesHandler {
             Self::add_diagnostic_helper(ctx, span);
           }
         }
-        Expression::UnaryExpression(unary) => {
-          if unary.operator == UnaryOperator::Void {
-            Self::add_diagnostic_helper(ctx, span);
-          }
+        Expression::UnaryExpression(unary)
+          if unary.operator == UnaryOperator::Void =>
+        {
+          Self::add_diagnostic_helper(ctx, span);
         }
         _ => {}
       },

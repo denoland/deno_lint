@@ -348,10 +348,8 @@ fn is_null_proto(object_expr: &ObjectExpression) -> bool {
               return true;
             }
           }
-          PropertyKey::StringLiteral(s) => {
-            if s.value == "__proto__" {
-              return true;
-            }
+          PropertyKey::StringLiteral(s) if s.value == "__proto__" => {
+            return true;
           }
           _ => {}
         }
@@ -462,34 +460,33 @@ impl Handler<'_> for PreferPrimordialsHandler {
       // Check ObjectDefineProperty / ReflectDefineProperty
       match ident.name.as_str() {
         "ObjectDefineProperty" | "ReflectDefineProperty" => {
-          if let Some(arg) = call_expr.arguments.get(2) {
-            if let Argument::ObjectExpression(object_lit) = arg {
-              if !is_null_proto(object_lit) {
-                ctx.add_diagnostic_with_hint(
-                  object_lit.span,
-                  CODE,
-                  PreferPrimordialsMessage::DefineProperty,
-                  PreferPrimordialsHint::NullPrototypeObjectLiteral,
-                );
-              }
+          if let Some(Argument::ObjectExpression(object_lit)) =
+            call_expr.arguments.get(2)
+          {
+            if !is_null_proto(object_lit) {
+              ctx.add_diagnostic_with_hint(
+                object_lit.span,
+                CODE,
+                PreferPrimordialsMessage::DefineProperty,
+                PreferPrimordialsHint::NullPrototypeObjectLiteral,
+              );
             }
           }
         }
         "ObjectDefineProperties" => {
-          if let Some(arg) = call_expr.arguments.get(1) {
-            if let Argument::ObjectExpression(object_lit) = arg {
-              for prop_or_spread in &object_lit.properties {
-                if let ObjectPropertyKind::ObjectProperty(prop) = prop_or_spread
-                {
-                  if let Expression::ObjectExpression(inner_obj) = &prop.value {
-                    if !is_null_proto(inner_obj) {
-                      ctx.add_diagnostic_with_hint(
-                        inner_obj.span,
-                        CODE,
-                        PreferPrimordialsMessage::DefineProperty,
-                        PreferPrimordialsHint::NullPrototypeObjectLiteral,
-                      );
-                    }
+          if let Some(Argument::ObjectExpression(object_lit)) =
+            call_expr.arguments.get(1)
+          {
+            for prop_or_spread in &object_lit.properties {
+              if let ObjectPropertyKind::ObjectProperty(prop) = prop_or_spread {
+                if let Expression::ObjectExpression(inner_obj) = &prop.value {
+                  if !is_null_proto(inner_obj) {
+                    ctx.add_diagnostic_with_hint(
+                      inner_obj.span,
+                      CODE,
+                      PreferPrimordialsMessage::DefineProperty,
+                      PreferPrimordialsHint::NullPrototypeObjectLiteral,
+                    );
                   }
                 }
               }
@@ -606,10 +603,8 @@ impl Handler<'_> for PreferPrimordialsHandler {
       // so skip reporting it as "don't use RegExp literal directly".
       if ident.name.as_str() == "SafeRegExp" {
         for arg in &new_expr.arguments {
-          if let Some(expr) = arg.as_expression() {
-            if let Expression::RegExpLiteral(regex) = expr {
-              self.skip_regex_spans.insert(regex.span);
-            }
+          if let Some(Expression::RegExpLiteral(regex)) = arg.as_expression() {
+            self.skip_regex_spans.insert(regex.span);
           }
         }
       }

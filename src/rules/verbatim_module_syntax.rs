@@ -57,7 +57,7 @@ impl VerbatimModuleSyntax {
     source_text: &str,
   ) {
     if import.import_kind == ImportOrExportKind::Type
-      || import.specifiers.as_ref().map_or(true, |s| s.is_empty())
+      || import.specifiers.as_ref().is_none_or(|s| s.is_empty())
     {
       return;
     }

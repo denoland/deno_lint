@@ -640,14 +640,8 @@ impl Handler<'_> for CamelcaseHandler {
     export_all: &ExportAllDeclaration,
     _ctx: &mut Context,
   ) {
-    if let Some(exported) = &export_all.exported {
-      match exported {
-        ModuleExportName::IdentifierName(name) => {
-          self
-            .check_ident(name.span, IdentToCheck::variable(name.name.as_str()));
-        }
-        _ => {}
-      }
+    if let Some(ModuleExportName::IdentifierName(name)) = &export_all.exported {
+      self.check_ident(name.span, IdentToCheck::variable(name.name.as_str()));
     }
   }
 
@@ -725,12 +719,8 @@ impl Handler<'_> for CamelcaseHandler {
       IdentToCheck::enum_name(enum_decl.id.name.as_str()),
     );
     for variant in &enum_decl.body.members {
-      match &variant.id {
-        TSEnumMemberName::Identifier(id) => {
-          self
-            .check_ident(id.span, IdentToCheck::enum_variant(id.name.as_str()));
-        }
-        _ => {}
+      if let TSEnumMemberName::Identifier(id) = &variant.id {
+        self.check_ident(id.span, IdentToCheck::enum_variant(id.name.as_str()));
       }
     }
   }

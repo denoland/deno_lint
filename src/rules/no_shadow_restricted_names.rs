@@ -63,10 +63,8 @@ fn check_binding_pattern(pat: &BindingPattern, ctx: &mut Context) {
       }
     }
     BindingPattern::ArrayPattern(arr) => {
-      for el in &arr.elements {
-        if let Some(el) = el {
-          check_binding_pattern(el, ctx);
-        }
+      for el in (&arr.elements).into_iter().flatten() {
+        check_binding_pattern(el, ctx);
       }
       if let Some(rest) = &arr.rest {
         check_binding_pattern(&rest.argument, ctx);

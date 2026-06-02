@@ -42,10 +42,10 @@ impl Handler<'_> for NoThisAliasHandler {
   ) {
     for decl in &var_decl.declarations {
       if let Some(init) = &decl.init {
-        if matches!(init, Expression::ThisExpression(_)) {
-          if matches!(&decl.id, BindingPattern::BindingIdentifier(_)) {
-            ctx.add_diagnostic(var_decl.span, CODE, MESSAGE);
-          }
+        if matches!(init, Expression::ThisExpression(_))
+          && matches!(&decl.id, BindingPattern::BindingIdentifier(_))
+        {
+          ctx.add_diagnostic(var_decl.span, CODE, MESSAGE);
         }
       }
     }

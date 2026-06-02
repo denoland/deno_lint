@@ -35,10 +35,10 @@ struct NoNewSymbolHandler;
 impl Handler<'_> for NoNewSymbolHandler {
   fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
     if let Expression::Identifier(ident) = &new_expr.callee {
-      if ident.name.as_str() == "Symbol" {
-        if ctx.scope().var_by_name(ident.name.as_str()).is_none() {
-          ctx.add_diagnostic(new_expr.span, CODE, MESSAGE);
-        }
+      if ident.name.as_str() == "Symbol"
+        && ctx.scope().var_by_name(ident.name.as_str()).is_none()
+      {
+        ctx.add_diagnostic(new_expr.span, CODE, MESSAGE);
       }
     }
   }

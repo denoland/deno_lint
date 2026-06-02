@@ -58,14 +58,13 @@ impl Handler<'_> for JSXBooleanValueHandler {
             // Build fix: remove from the attribute name end to the expression container end
             let attr_name_span = node.name.span();
             let value_span = value.span();
-            let mut fixes = Vec::with_capacity(1);
-            fixes.push(LintFix {
+            let fixes = vec![LintFix {
               description: FIX_DESC.into(),
               changes: vec![LintFixChange {
                 new_text: "".into(),
                 range: Span::new(attr_name_span.end, value_span.end),
               }],
-            });
+            }];
             ctx.add_diagnostic_with_fixes(
               value.span(),
               CODE,

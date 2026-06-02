@@ -108,10 +108,10 @@ fn check_callback(ctx: &mut Context, expr: &Expression) {
     Expression::ArrowFunctionExpression(arrow_fn) => {
       if arrow_fn.expression {
         // Single expression body
-        if let Some(stmt) = arrow_fn.body.statements.first() {
-          if let Statement::ExpressionStatement(expr_stmt) = stmt {
-            check_expr(ctx, &expr_stmt.expression);
-          }
+        if let Some(Statement::ExpressionStatement(expr_stmt)) =
+          arrow_fn.body.statements.first()
+        {
+          check_expr(ctx, &expr_stmt.expression);
         }
       } else {
         check_function_body(ctx, &arrow_fn.body);
