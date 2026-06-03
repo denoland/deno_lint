@@ -3,8 +3,9 @@
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  BindingPattern, BlockStatement, Function, FunctionType, Program,
-  PropertyDefinition, VariableDeclaration, VariableDeclarationKind,
+  ArrowFunctionExpression, BindingPattern, BlockStatement, Function,
+  FunctionType, Program, PropertyDefinition, VariableDeclaration,
+  VariableDeclarationKind,
 };
 use deno_ast::oxc::ast_visit::{walk, Visit};
 use deno_ast::oxc::span::Span;
@@ -154,6 +155,28 @@ impl<'a> Visit<'a> for NoRedeclareVisitor<'_, 'a> {
     self.var_bindings = parent_var_bindings;
   }
 
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    let parent_var_bindings = std::mem::take(&mut self.var_bindings);
+
+    for param in &arrow.params.items {
+      self.declare_binding_pattern(&param.pattern);
+    }
+    for param in &arrow.params.items {
+      collect_binding_pattern_names(&param.pattern, &mut self.var_bindings);
+    }
+
+    for stmt in &arrow.body.statements {
+      self.visit_statement(stmt);
+    }
+
+    self.bindings = parent_bindings;
+    self.var_bindings = parent_var_bindings;
+  }
+
   fn visit_variable_declaration(&mut self, decl: &VariableDeclaration<'a>) {
     if decl.kind == VariableDeclarationKind::Var {
       for declarator in &decl.declarations {
@@ -243,6 +266,16 @@ mod tests {
 
       // https://github.com/denoland/deno_lint/issues/615
       "class T { #foo(x) {} #bar(x) {} }",
+      r#"
+      async function test(t) {
+        await t.step("one", async () => {
+          const err = await assertRejects(() => foo());
+        });
+        await t.step("two", async () => {
+          const err = await assertRejects(() => bar());
+        });
+      }
+      "#,
     };
   }
 
