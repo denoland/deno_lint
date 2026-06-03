@@ -3,9 +3,9 @@
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
 use deno_ast::oxc::ast::ast::{
-  ArrowFunctionExpression, BindingPattern, BlockStatement, Function,
-  FunctionType, Program, PropertyDefinition, VariableDeclaration,
-  VariableDeclarationKind,
+  ArrowFunctionExpression, BindingPattern, BlockStatement, ForInStatement,
+  ForOfStatement, ForStatement, Function, FunctionType, Program,
+  PropertyDefinition, VariableDeclaration, VariableDeclarationKind,
 };
 use deno_ast::oxc::ast_visit::{walk, Visit};
 use deno_ast::oxc::span::Span;
@@ -177,6 +177,24 @@ impl<'a> Visit<'a> for NoRedeclareVisitor<'_, 'a> {
     self.var_bindings = parent_var_bindings;
   }
 
+  fn visit_for_statement(&mut self, stmt: &ForStatement<'a>) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_for_statement(self, stmt);
+    self.bindings = parent_bindings;
+  }
+
+  fn visit_for_in_statement(&mut self, stmt: &ForInStatement<'a>) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_for_in_statement(self, stmt);
+    self.bindings = parent_bindings;
+  }
+
+  fn visit_for_of_statement(&mut self, stmt: &ForOfStatement<'a>) {
+    let parent_bindings = std::mem::take(&mut self.bindings);
+    walk::walk_for_of_statement(self, stmt);
+    self.bindings = parent_bindings;
+  }
+
   fn visit_variable_declaration(&mut self, decl: &VariableDeclaration<'a>) {
     if decl.kind == VariableDeclarationKind::Var {
       for declarator in &decl.declarations {
@@ -199,7 +217,7 @@ impl<'a> Visit<'a> for NoRedeclareVisitor<'_, 'a> {
   fn visit_block_statement(&mut self, block: &BlockStatement<'a>) {
     // Save current block-scoped bindings to restore after the block.
     // var_bindings persist (function-scoped).
-    let parent_bindings = self.bindings.clone();
+    let parent_bindings = std::mem::take(&mut self.bindings);
     walk::walk_block_statement(self, block);
     self.bindings = parent_bindings;
   }
@@ -274,6 +292,34 @@ mod tests {
         await t.step("two", async () => {
           const err = await assertRejects(() => bar());
         });
+      }
+      "#,
+      r#"
+      async function build(config) {
+        const env = {};
+        for (const key of Object.keys(env)) {
+          delete env[key];
+        }
+        if (config.cacheConfig !== undefined) {
+          if (cache) {
+            const key = new URL("https://example.com/" + config.cacheConfig.key);
+            await cache.match(key);
+          }
+        }
+      }
+      "#,
+      r#"
+      async function* runWithPipedLogs(result) {
+        while (stdoutRead || stderrRead) {
+          const { result, level } = await Promise.race([
+            stdoutRead,
+            stderrRead,
+          ]);
+          yield {
+            level,
+            message: result.value,
+          };
+        }
       }
       "#,
     };
