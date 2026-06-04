@@ -1,16 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::swc::ast::BinaryOp::*;
-use deno_ast::swc::ast::Expr::Lit;
-use deno_ast::swc::ast::Lit::Num;
-use deno_ast::swc::ast::UnaryExpr;
-use deno_ast::swc::ast::UnaryOp::Minus;
-use deno_ast::view::{BinExpr, BinaryOp, Expr};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -39,26 +32,31 @@ impl LintRule for NoCompareNegZero {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoCompareNegZeroHandler.traverse(program, context);
+    let mut handler = NoCompareNegZeroHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoCompareNegZeroHandler;
 
-impl Handler for NoCompareNegZeroHandler {
-  fn bin_expr(&mut self, bin_expr: &BinExpr, context: &mut Context) {
-    if !bin_expr.op().is_comparator() {
+impl Handler<'_> for NoCompareNegZeroHandler {
+  fn binary_expression(
+    &mut self,
+    bin_expr: &BinaryExpression,
+    context: &mut Context,
+  ) {
+    if !bin_expr.operator.is_comparator() {
       return;
     }
 
-    if bin_expr.left.is_neg_zero() || bin_expr.right.is_neg_zero() {
+    if is_neg_zero(&bin_expr.left) || is_neg_zero(&bin_expr.right) {
       context.add_diagnostic_with_hint(
-        bin_expr.range(),
+        bin_expr.span,
         CODE,
         NoCompareNegZeroMessage::Unexpected,
         NoCompareNegZeroHint::ObjectIs,
@@ -71,35 +69,31 @@ trait Comparator {
   fn is_comparator(&self) -> bool;
 }
 
-impl Comparator for BinaryOp {
+impl Comparator for BinaryOperator {
   fn is_comparator(&self) -> bool {
     matches!(
       self,
-      EqEq | NotEq | EqEqEq | NotEqEq | Lt | LtEq | Gt | GtEq
+      BinaryOperator::Equality
+        | BinaryOperator::Inequality
+        | BinaryOperator::StrictEquality
+        | BinaryOperator::StrictInequality
+        | BinaryOperator::LessThan
+        | BinaryOperator::LessEqualThan
+        | BinaryOperator::GreaterThan
+        | BinaryOperator::GreaterEqualThan
     )
   }
 }
 
-trait NegZero {
-  fn is_neg_zero(&self) -> bool;
-}
-
-impl NegZero for Expr<'_> {
-  fn is_neg_zero(&self) -> bool {
-    match self {
-      Expr::Unary(unary) => unary.inner.is_neg_zero(),
-      _ => false,
+fn is_neg_zero(expr: &Expression) -> bool {
+  if let Expression::UnaryExpression(unary) = expr {
+    if unary.operator == UnaryOperator::UnaryNegation {
+      if let Expression::NumericLiteral(num) = &unary.argument {
+        return num.value == 0.0;
+      }
     }
   }
-}
-
-impl NegZero for UnaryExpr {
-  fn is_neg_zero(&self) -> bool {
-    if let (Minus, Lit(Num(number))) = (self.op, &*self.arg) {
-      return number.value == 0.0;
-    }
-    false
-  }
+  false
 }
 
 #[cfg(test)]
@@ -142,7 +136,7 @@ mod tests {
       r#"0 != x"#,
       r#"x !== 0"#,
       r#"0 !== x"#,
-      r#"{} == { foo: x === 0 }"#,
+      r#"({}) == { foo: x === 0 }"#,
     };
   }
 
@@ -292,9 +286,9 @@ mod tests {
       ],
 
       // nested
-      "{} == { foo: x === -0 }": [
+      "({}) == { foo: x === -0 }": [
         {
-          col: 13,
+          col: 15,
           message: NoCompareNegZeroMessage::Unexpected,
           hint: NoCompareNegZeroHint::ObjectIs,
         }

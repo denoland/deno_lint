@@ -1,15 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
 use crate::globals::GLOBALS;
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::{
-  ast::*,
-  ecma_visit::{noop_visit_type, Visit, VisitWith},
-};
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::syntax::operator::UnaryOperator;
+use deno_ast::oxc::syntax::scope::ScopeFlags;
 
 #[derive(Debug)]
 pub struct NoUndef;
@@ -19,126 +15,155 @@ impl LintRule for NoUndef {
     "no-undef"
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoUndefVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    let mut visitor = NoUndefVisitor {
+      context,
+      in_typeof: false,
+      type_context_depth: 0,
+    };
+    visitor.visit_program(program);
   }
 }
 
 struct NoUndefVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
+  in_typeof: bool,
+  /// Tracks how deep we are inside a type annotation context.
+  /// When > 0, identifier references are type-level and should not be checked.
+  type_context_depth: u32,
 }
 
-impl<'c, 'view> NoUndefVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
+impl NoUndefVisitor<'_, '_> {
+  fn check(&mut self, ident: &IdentifierReference) {
+    if self.type_context_depth > 0 {
+      return;
+    }
 
-  fn check(&mut self, ident: &Ident) {
-    // Thanks to this if statement, we can check for Map in
-    //
-    // function foo(Map) { ... }
-    //
-    if ident.ctxt != self.context.unresolved_ctxt() {
+    if self.in_typeof {
       return;
     }
 
     // Implicitly defined
     // See: https://github.com/denoland/deno_lint/issues/317
-    if ident.sym == *"arguments" {
+    if ident.name == "arguments" {
       return;
     }
 
-    if self.context.scope().var(&ident.to_id()).is_some() {
-      return;
+    // Use OXC's semantic analysis to check if the identifier is resolved.
+    // `reference_id` is set during semantic analysis; if the reference resolves
+    // to a symbol, it's defined. If it doesn't, OXC leaves `symbol_id` as None.
+    if let Some(ref_id) = ident.reference_id.get() {
+      let reference = self.context.scoping().get_reference(ref_id);
+      if reference.symbol_id().is_some() {
+        // Resolved to a local binding
+        return;
+      }
     }
 
     // Globals
-    if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
+    if GLOBALS.iter().any(|(name, _)| *name == ident.name.as_str()) {
       return;
     }
 
     self.context.add_diagnostic(
-      ident.range(),
+      ident.span,
       "no-undef",
-      format!("{} is not defined", ident.sym),
+      format!("{} is not defined", ident.name),
     )
   }
 }
 
-impl Visit for NoUndefVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_member_expr(&mut self, e: &MemberExpr) {
-    e.obj.visit_with(self);
-    if let MemberProp::Computed(prop) = &e.prop {
-      prop.visit_with(self);
-    }
+impl<'a> Visit<'a> for NoUndefVisitor<'_, 'a> {
+  fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'a>) {
+    self.check(ident);
   }
 
-  fn visit_unary_expr(&mut self, e: &UnaryExpr) {
-    if e.op == UnaryOp::TypeOf {
-      return;
-    }
-
-    e.visit_children_with(self);
-  }
-
-  fn visit_expr(&mut self, e: &Expr) {
-    e.visit_children_with(self);
-
-    if let Expr::Ident(ident) = e {
-      self.check(ident)
-    }
-  }
-
-  fn visit_class_prop(&mut self, p: &ClassProp) {
-    p.value.visit_with(self)
-  }
-
-  fn visit_prop(&mut self, p: &Prop) {
-    p.visit_children_with(self);
-
-    if let Prop::Shorthand(i) = &p {
-      self.check(i);
-    }
-  }
-
-  fn visit_pat(&mut self, p: &Pat) {
-    if let Pat::Ident(i) = p {
-      self.check(&i.id);
+  fn visit_unary_expression(&mut self, expr: &UnaryExpression<'a>) {
+    if expr.operator == UnaryOperator::Typeof {
+      let prev = self.in_typeof;
+      self.in_typeof = true;
+      walk::walk_unary_expression(self, expr);
+      self.in_typeof = prev;
     } else {
-      p.visit_children_with(self);
+      walk::walk_unary_expression(self, expr);
     }
   }
 
-  fn visit_simple_assign_target(&mut self, n: &SimpleAssignTarget) {
-    if let SimpleAssignTarget::Ident(i) = n {
-      self.check(i);
-    } else {
-      n.visit_children_with(self);
-    }
+  fn visit_ts_type_annotation(&mut self, annotation: &TSTypeAnnotation<'a>) {
+    self.type_context_depth += 1;
+    walk::walk_ts_type_annotation(self, annotation);
+    self.type_context_depth -= 1;
   }
 
-  fn visit_assign_pat_prop(&mut self, p: &AssignPatProp) {
-    self.check(&p.key);
-    p.value.visit_with(self);
+  fn visit_ts_type_parameter_declaration(
+    &mut self,
+    decl: &TSTypeParameterDeclaration<'a>,
+  ) {
+    self.type_context_depth += 1;
+    walk::walk_ts_type_parameter_declaration(self, decl);
+    self.type_context_depth -= 1;
   }
 
-  fn visit_call_expr(&mut self, e: &CallExpr) {
-    if let Callee::Import(_) = &e.callee {
-      return;
-    }
+  fn visit_ts_type_parameter_instantiation(
+    &mut self,
+    inst: &TSTypeParameterInstantiation<'a>,
+  ) {
+    self.type_context_depth += 1;
+    walk::walk_ts_type_parameter_instantiation(self, inst);
+    self.type_context_depth -= 1;
+  }
 
-    e.visit_children_with(self)
+  fn visit_ts_type_assertion(&mut self, assertion: &TSTypeAssertion<'a>) {
+    // Only the expression part is runtime, the type annotation is a type context
+    self.type_context_depth += 1;
+    walk::walk_ts_type(self, &assertion.type_annotation);
+    self.type_context_depth -= 1;
+    self.visit_expression(&assertion.expression);
+  }
+
+  fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+    self.visit_expression(&expr.expression);
+    self.type_context_depth += 1;
+    walk::walk_ts_type(self, &expr.type_annotation);
+    self.type_context_depth -= 1;
+  }
+
+  fn visit_ts_satisfies_expression(
+    &mut self,
+    expr: &TSSatisfiesExpression<'a>,
+  ) {
+    self.visit_expression(&expr.expression);
+    self.type_context_depth += 1;
+    walk::walk_ts_type(self, &expr.type_annotation);
+    self.type_context_depth -= 1;
+  }
+
+  fn visit_ts_type_alias_declaration(
+    &mut self,
+    decl: &TSTypeAliasDeclaration<'a>,
+  ) {
+    // The type alias itself is in a type context
+    self.type_context_depth += 1;
+    walk::walk_ts_type_alias_declaration(self, decl);
+    self.type_context_depth -= 1;
+  }
+
+  fn visit_ts_interface_declaration(
+    &mut self,
+    decl: &TSInterfaceDeclaration<'a>,
+  ) {
+    // Interface body is a type context
+    self.type_context_depth += 1;
+    walk::walk_ts_interface_declaration(self, decl);
+    self.type_context_depth -= 1;
+  }
+
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+    walk::walk_function(self, func, flags);
   }
 }
 

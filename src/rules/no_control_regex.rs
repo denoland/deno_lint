@@ -1,12 +1,13 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::swc_util::extract_regex;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  CallExpression, Expression, NewExpression, Program, RegExpLiteral,
+};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -42,18 +43,19 @@ impl LintRule for NoControlRegex {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoControlRegexHandler.traverse(program, context);
+    let mut handler = NoControlRegexHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoControlRegexHandler;
 
-fn add_diagnostic(range: SourceRange, cp: u64, ctx: &mut Context) {
+fn add_diagnostic(range: Span, cp: u64, ctx: &mut Context) {
   ctx.add_diagnostic_with_hint(
     range,
     CODE,
@@ -62,7 +64,7 @@ fn add_diagnostic(range: SourceRange, cp: u64, ctx: &mut Context) {
   );
 }
 
-fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
+fn check_regex(regex: &str, range: Span, ctx: &mut Context) {
   let mut iter = regex.chars().peekable();
   while let Some(ch) = iter.next() {
     if ch != '\\' {
@@ -119,25 +121,27 @@ fn read_hex_until_brace(iter: &mut Peekable<Chars>) -> Option<u64> {
   u64::from_str_radix(s.as_str(), 16).ok()
 }
 
-impl Handler for NoControlRegexHandler {
-  fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    check_regex(regex.inner.exp.to_string().as_str(), regex.range(), ctx);
+impl Handler<'_> for NoControlRegexHandler {
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
+    check_regex(regex.regex.pattern.text.as_str(), regex.span, ctx);
   }
 
-  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
-    if let Expr::Ident(ident) = new_expr.callee {
-      if let Some(args) = &new_expr.args {
-        if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
-          check_regex(regex.as_str(), new_expr.range(), ctx);
-        }
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      if let Some(regex) =
+        extract_regex(ctx.scoping(), ident, &new_expr.arguments)
+      {
+        check_regex(regex.as_str(), new_expr.span, ctx);
       }
     }
   }
 
-  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
-      if let Some(regex) = extract_regex(ctx.scope(), ident, call_expr.args) {
-        check_regex(regex.as_str(), call_expr.range(), ctx);
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
+    if let Expression::Identifier(ident) = &call_expr.callee {
+      if let Some(regex) =
+        extract_regex(ctx.scoping(), ident, &call_expr.arguments)
+      {
+        check_regex(regex.as_str(), call_expr.span, ctx);
       }
     }
   }

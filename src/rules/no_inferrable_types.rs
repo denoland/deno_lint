@@ -1,18 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrowExpr, CallExpr, ClassProp, Expr, Function, Ident, Lit, NewExpr, OptCall,
-  OptChainBase, OptChainExpr, Pat, PrivateProp, TsEntityName, TsKeywordType,
-  TsKeywordTypeKind, TsType, TsTypeAnn, TsTypeRef, UnaryExpr, VarDecl,
-};
-use deno_ast::swc::ast::{Callee, PropName};
-use deno_ast::swc::ecma_visit::{Visit, VisitWith};
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -37,200 +28,185 @@ impl LintRule for NoInferrableTypes {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = NoInferrableTypesVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    let mut handler = NoInferrableTypesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoInferrableTypesVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct NoInferrableTypesHandler;
 
-impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-
-  fn add_diagnostic_helper(&mut self, range: SourceRange) {
-    self.context.add_diagnostic_with_hint(
-      range,
+impl NoInferrableTypesHandler {
+  fn add_diagnostic_helper(ctx: &mut Context, span: Span) {
+    ctx.add_diagnostic_with_hint(
+      span,
       CODE,
       NoInferrableTypesMessage::NotAllowed,
       NoInferrableTypesHint::Remove,
     )
   }
 
-  fn check_callee(
-    &mut self,
-    callee: &Callee,
-    range: SourceRange,
-    expected_sym: &str,
-  ) {
-    if let Callee::Expr(expr) = &callee {
-      self.check_callee_expr(expr, range, expected_sym);
-    }
-  }
-
   fn check_callee_expr(
-    &mut self,
-    expr: &Expr,
-    range: SourceRange,
+    expr: &Expression,
+    span: Span,
     expected_sym: &str,
+    ctx: &mut Context,
   ) {
-    if let Expr::Ident(value) = expr {
-      if value.sym == *expected_sym {
-        self.add_diagnostic_helper(range);
+    if let Expression::Identifier(ident) = expr {
+      if ident.name.as_str() == expected_sym {
+        Self::add_diagnostic_helper(ctx, span);
       }
     }
   }
 
-  fn is_nan_or_infinity(&self, ident: &Ident) -> bool {
-    ident.sym == *"NaN" || ident.sym == *"Infinity"
+  fn is_nan_or_infinity(name: &str) -> bool {
+    name == "NaN" || name == "Infinity"
+  }
+
+  fn get_optional_call_callee<'a>(
+    expr: &'a Expression<'a>,
+  ) -> Option<&'a Expression<'a>> {
+    // In OXC, optional calls are CallExpression with optional=true,
+    // wrapped in a ChainExpression
+    if let Expression::ChainExpression(chain) = expr {
+      if let ChainElement::CallExpression(call) = &chain.expression {
+        if call.optional {
+          return Some(&call.callee);
+        }
+      }
+    }
+    None
   }
 
   fn check_keyword_type(
-    &mut self,
-    value: &Expr,
-    ts_type: &TsKeywordType,
-    range: SourceRange,
+    value: &Expression,
+    ts_type: &TSType,
+    span: Span,
+    ctx: &mut Context,
   ) {
-    use TsKeywordTypeKind::*;
-    match ts_type.kind {
-      TsBigIntKeyword => match value {
-        Expr::Lit(Lit::BigInt(_)) => {
-          self.add_diagnostic_helper(range);
+    match ts_type {
+      TSType::TSBigIntKeyword(_) => match value {
+        Expression::BigIntLiteral(_) => {
+          Self::add_diagnostic_helper(ctx, span);
         }
-        Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, range, "BigInt");
+        Expression::CallExpression(call) => {
+          Self::check_callee_expr(&call.callee, span, "BigInt", ctx);
         }
-        Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
-          Expr::Lit(Lit::BigInt(_)) => {
-            self.add_diagnostic_helper(range);
+        Expression::UnaryExpression(unary) => match &unary.argument {
+          Expression::BigIntLiteral(_) => {
+            Self::add_diagnostic_helper(ctx, span);
           }
-          Expr::Call(CallExpr { callee, .. }) => {
-            self.check_callee(callee, range, "BigInt");
+          Expression::CallExpression(call) => {
+            Self::check_callee_expr(&call.callee, span, "BigInt", ctx);
           }
-          Expr::OptChain(OptChainExpr { base, .. }) => {
-            if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-              self.check_callee_expr(callee, range, "BigInt");
+          other => {
+            if let Some(callee) = Self::get_optional_call_callee(other) {
+              Self::check_callee_expr(callee, span, "BigInt", ctx);
             }
           }
-          _ => {}
         },
-        Expr::OptChain(OptChainExpr { base, .. }) => {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "BigInt");
+        other => {
+          if let Some(callee) = Self::get_optional_call_callee(other) {
+            Self::check_callee_expr(callee, span, "BigInt", ctx);
           }
         }
-        _ => {}
       },
-      TsBooleanKeyword => match value {
-        Expr::Lit(Lit::Bool(_)) => {
-          self.add_diagnostic_helper(range);
+      TSType::TSBooleanKeyword(_) => match value {
+        Expression::BooleanLiteral(_) => {
+          Self::add_diagnostic_helper(ctx, span);
         }
-        Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, range, "Boolean");
+        Expression::CallExpression(call) => {
+          Self::check_callee_expr(&call.callee, span, "Boolean", ctx);
         }
-        Expr::Unary(UnaryExpr { op, .. }) => {
-          if op.to_string() == "!" {
-            self.add_diagnostic_helper(range);
+        Expression::UnaryExpression(unary) => {
+          if unary.operator == UnaryOperator::LogicalNot {
+            Self::add_diagnostic_helper(ctx, span);
           }
         }
-        Expr::OptChain(OptChainExpr { base, .. }) => {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "Boolean");
+        other => {
+          if let Some(callee) = Self::get_optional_call_callee(other) {
+            Self::check_callee_expr(callee, span, "Boolean", ctx);
           }
         }
-        _ => {}
       },
-      TsNumberKeyword => match value {
-        Expr::Lit(Lit::Num(_)) => {
-          self.add_diagnostic_helper(range);
+      TSType::TSNumberKeyword(_) => match value {
+        Expression::NumericLiteral(_) => {
+          Self::add_diagnostic_helper(ctx, span);
         }
-        Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, range, "Number");
+        Expression::CallExpression(call) => {
+          Self::check_callee_expr(&call.callee, span, "Number", ctx);
         }
-        Expr::Ident(ident) => {
-          if self.is_nan_or_infinity(ident) {
-            self.add_diagnostic_helper(range);
+        Expression::Identifier(ident) => {
+          if Self::is_nan_or_infinity(ident.name.as_str()) {
+            Self::add_diagnostic_helper(ctx, span);
           }
         }
-        Expr::Unary(UnaryExpr { arg, .. }) => match &**arg {
-          Expr::Lit(Lit::Num(_)) => {
-            self.add_diagnostic_helper(range);
+        Expression::UnaryExpression(unary) => match &unary.argument {
+          Expression::NumericLiteral(_) => {
+            Self::add_diagnostic_helper(ctx, span);
           }
-          Expr::Call(CallExpr { callee, .. }) => {
-            self.check_callee(callee, range, "Number");
+          Expression::CallExpression(call) => {
+            Self::check_callee_expr(&call.callee, span, "Number", ctx);
           }
-          Expr::Ident(ident) => {
-            if self.is_nan_or_infinity(ident) {
-              self.add_diagnostic_helper(range);
+          Expression::Identifier(ident) => {
+            if Self::is_nan_or_infinity(ident.name.as_str()) {
+              Self::add_diagnostic_helper(ctx, span);
             }
           }
-          Expr::OptChain(OptChainExpr { base, .. }) => {
-            if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-              self.check_callee_expr(callee, range, "Number");
+          other => {
+            if let Some(callee) = Self::get_optional_call_callee(other) {
+              Self::check_callee_expr(callee, span, "Number", ctx);
             }
           }
-          _ => {}
         },
-        Expr::OptChain(OptChainExpr { base, .. }) => {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "Number");
+        other => {
+          if let Some(callee) = Self::get_optional_call_callee(other) {
+            Self::check_callee_expr(callee, span, "Number", ctx);
           }
         }
-        _ => {}
       },
-      TsNullKeyword => {
-        if let Expr::Lit(Lit::Null(_)) = value {
-          self.add_diagnostic_helper(range);
+      TSType::TSNullKeyword(_) => {
+        if let Expression::NullLiteral(_) = value {
+          Self::add_diagnostic_helper(ctx, span);
         }
       }
-      TsStringKeyword => match value {
-        Expr::Lit(Lit::Str(_)) => {
-          self.add_diagnostic_helper(range);
+      TSType::TSStringKeyword(_) => match value {
+        Expression::StringLiteral(_) => {
+          Self::add_diagnostic_helper(ctx, span);
         }
-        Expr::Tpl(_) => {
-          self.add_diagnostic_helper(range);
+        Expression::TemplateLiteral(_) => {
+          Self::add_diagnostic_helper(ctx, span);
         }
-        Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, range, "String");
+        Expression::CallExpression(call) => {
+          Self::check_callee_expr(&call.callee, span, "String", ctx);
         }
-        Expr::OptChain(OptChainExpr { base, .. }) => {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "String");
+        other => {
+          if let Some(callee) = Self::get_optional_call_callee(other) {
+            Self::check_callee_expr(callee, span, "String", ctx);
           }
         }
-        _ => {}
       },
-      TsSymbolKeyword => {
-        if let Expr::Call(CallExpr { callee, .. }) = value {
-          self.check_callee(callee, range, "Symbol");
-        } else if let Expr::OptChain(OptChainExpr { base, .. }) = value {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &**base {
-            self.check_callee_expr(callee, range, "Symbol");
-          }
+      TSType::TSSymbolKeyword(_) => {
+        if let Expression::CallExpression(call) = value {
+          Self::check_callee_expr(&call.callee, span, "Symbol", ctx);
+        } else if let Some(callee) = Self::get_optional_call_callee(value) {
+          Self::check_callee_expr(callee, span, "Symbol", ctx);
         }
       }
-      TsUndefinedKeyword => match value {
-        Expr::Ident(ident) => {
-          if ident.sym == *"undefined" {
-            self.add_diagnostic_helper(range);
+      TSType::TSUndefinedKeyword(_) => match value {
+        Expression::Identifier(ident) => {
+          if ident.name.as_str() == "undefined" {
+            Self::add_diagnostic_helper(ctx, span);
           }
         }
-        Expr::Unary(UnaryExpr { op, .. }) => {
-          if op.to_string() == "void" {
-            self.add_diagnostic_helper(range);
-          }
+        Expression::UnaryExpression(unary)
+          if unary.operator == UnaryOperator::Void =>
+        {
+          Self::add_diagnostic_helper(ctx, span);
         }
         _ => {}
       },
@@ -239,130 +215,99 @@ impl<'c, 'view> NoInferrableTypesVisitor<'c, 'view> {
   }
 
   fn check_ref_type(
-    &mut self,
-    value: &Expr,
-    ts_type: &TsTypeRef,
-    range: SourceRange,
+    value: &Expression,
+    ts_type: &TSTypeReference,
+    span: Span,
+    ctx: &mut Context,
   ) {
-    if let TsEntityName::Ident(ident) = &ts_type.type_name {
-      if ident.sym != *"RegExp" {
+    if let TSTypeName::IdentifierReference(ident) = &ts_type.type_name {
+      if ident.name.as_str() != "RegExp" {
         return;
       }
       match value {
-        Expr::Lit(Lit::Regex(_)) => {
-          self.add_diagnostic_helper(range);
+        Expression::RegExpLiteral(_) => {
+          Self::add_diagnostic_helper(ctx, span);
         }
-        Expr::Call(CallExpr { callee, .. }) => {
-          self.check_callee(callee, range, "RegExp");
+        Expression::CallExpression(call) => {
+          Self::check_callee_expr(&call.callee, span, "RegExp", ctx);
         }
-        Expr::New(NewExpr { callee, .. }) => {
-          if let Expr::Ident(ident) = &**callee {
-            if ident.sym == *"RegExp" {
-              self.add_diagnostic_helper(range);
+        Expression::NewExpression(new_expr) => {
+          if let Expression::Identifier(ident) = &new_expr.callee {
+            if ident.name.as_str() == "RegExp" {
+              Self::add_diagnostic_helper(ctx, span);
             }
-          } else if let Expr::OptChain(opt_chain) = &**callee {
-            if let OptChainBase::Call(OptCall { callee, .. }) = &*opt_chain.base
-            {
-              self.check_callee_expr(callee, range, "RegExp");
-            }
+          } else if let Some(callee) =
+            Self::get_optional_call_callee(&new_expr.callee)
+          {
+            Self::check_callee_expr(callee, span, "RegExp", ctx);
           }
         }
-        Expr::OptChain(opt_chain) => {
-          if let OptChainBase::Call(OptCall { callee, .. }) = &*opt_chain.base {
-            self.check_callee_expr(callee, range, "RegExp");
+        other => {
+          if let Some(callee) = Self::get_optional_call_callee(other) {
+            Self::check_callee_expr(callee, span, "RegExp", ctx);
           }
         }
-        _ => {}
       }
     }
   }
 
   fn check_ts_type(
-    &mut self,
-    value: &Expr,
-    ts_type: &TsTypeAnn,
-    range: SourceRange,
+    value: &Expression,
+    ts_type_ann: &TSTypeAnnotation,
+    span: Span,
+    ctx: &mut Context,
   ) {
-    if let TsType::TsKeywordType(ts_type) = &*ts_type.type_ann {
-      self.check_keyword_type(value, ts_type, range);
-    } else if let TsType::TsTypeRef(ts_type) = &*ts_type.type_ann {
-      self.check_ref_type(value, ts_type, range);
+    match &ts_type_ann.type_annotation {
+      TSType::TSTypeReference(ts_type_ref) => {
+        Self::check_ref_type(value, ts_type_ref, span, ctx);
+      }
+      other => {
+        Self::check_keyword_type(value, other, span, ctx);
+      }
     }
   }
 }
 
-impl Visit for NoInferrableTypesVisitor<'_, '_> {
-  fn visit_function(&mut self, function: &Function) {
-    for param in &function.params {
-      if let Pat::Assign(assign_pat) = &param.pat {
-        if let Pat::Ident(ident) = &*assign_pat.left {
-          if let Some(ident_type_ann) = &ident.type_ann {
-            self.check_ts_type(
-              &assign_pat.right,
-              ident_type_ann,
-              param.range(),
-            );
-          }
+impl Handler<'_> for NoInferrableTypesHandler {
+  fn variable_declarator(
+    &mut self,
+    decl: &VariableDeclarator,
+    ctx: &mut Context,
+  ) {
+    if let Some(init) = &decl.init {
+      if let BindingPattern::BindingIdentifier(_) = &decl.id {
+        if let Some(type_ann) = &decl.type_annotation {
+          Self::check_ts_type(init, type_ann, decl.span, ctx);
         }
       }
     }
-    function.visit_children_with(self);
   }
 
-  fn visit_arrow_expr(&mut self, arr_expr: &ArrowExpr) {
-    for param in &arr_expr.params {
-      if let Pat::Assign(assign_pat) = &param {
-        if let Pat::Ident(ident) = &*assign_pat.left {
-          if let Some(ident_type_ann) = &ident.type_ann {
-            self.check_ts_type(
-              &assign_pat.right,
-              ident_type_ann,
-              assign_pat.range(),
-            );
-          }
+  fn formal_parameter(&mut self, param: &FormalParameter, ctx: &mut Context) {
+    // In OXC, default parameters are represented via FormalParameter.initializer
+    if let Some(init) = &param.initializer {
+      if let BindingPattern::BindingIdentifier(_) = &param.pattern {
+        if let Some(type_ann) = &param.type_annotation {
+          Self::check_ts_type(init, type_ann, param.span, ctx);
         }
       }
     }
-    arr_expr.visit_children_with(self);
   }
 
-  fn visit_class_prop(&mut self, prop: &ClassProp) {
-    if prop.readonly || prop.is_optional {
+  fn property_definition(
+    &mut self,
+    prop: &PropertyDefinition,
+    ctx: &mut Context,
+  ) {
+    if prop.readonly || prop.optional {
       return;
     }
     if let Some(init) = &prop.value {
-      if let PropName::Ident(_) = &prop.key {
-        if let Some(ident_type_ann) = &prop.type_ann {
-          self.check_ts_type(init, ident_type_ann, prop.range());
-        }
+      if let Some(type_ann) = &prop.type_annotation {
+        // Covers both regular and private properties
+        Self::check_ts_type(init, type_ann, prop.span, ctx);
       }
     }
-    prop.visit_children_with(self);
-  }
-
-  fn visit_private_prop(&mut self, prop: &PrivateProp) {
-    if prop.readonly || prop.is_optional {
-      return;
-    }
-    if let Some(init) = &prop.value {
-      if let Some(ident_type_ann) = &prop.type_ann {
-        self.check_ts_type(init, ident_type_ann, prop.range());
-      }
-    }
-    prop.visit_children_with(self);
-  }
-
-  fn visit_var_decl(&mut self, var_decl: &VarDecl) {
-    for decl in &var_decl.decls {
-      if let Some(init) = &decl.init {
-        if let Pat::Ident(ident) = &decl.name {
-          if let Some(ident_type_ann) = &ident.type_ann {
-            self.check_ts_type(init, ident_type_ann, decl.range());
-          }
-        }
-      }
-    }
-    var_decl.visit_children_with(self);
   }
 }
 

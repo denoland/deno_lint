@@ -1,17 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrowExpr, BlockStmtOrExpr, Constructor, Decl, DefaultDecl, FnDecl, Function,
-  ModuleDecl, ModuleItem, Script, Stmt, VarDecl, VarDeclKind,
-};
-use deno_ast::swc::ecma_visit::{noop_visit_type, Visit, VisitWith};
-use deno_ast::SourceRange;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::span::Span;
+use deno_ast::oxc::syntax::scope::ScopeFlags;
 use derive_more::Display;
 use std::collections::HashSet;
 
@@ -41,29 +35,27 @@ impl LintRule for NoInnerDeclarations {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
+    // Pass 1: collect all valid declaration positions
     let mut valid_visitor = ValidDeclsVisitor::new();
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut valid_visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut valid_visitor),
-    }
+    valid_visitor.visit_program(program);
 
-    let mut visitor =
-      NoInnerDeclarationsVisitor::new(context, valid_visitor.valid_decls);
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    // Pass 2: check for invalid declarations
+    let mut checker = NoInnerDeclarationsChecker {
+      context,
+      valid_decls: valid_visitor.valid_decls,
+      in_function: false,
+    };
+    checker.visit_program(program);
   }
 }
 
 struct ValidDeclsVisitor {
-  valid_decls: HashSet<SourceRange>,
+  valid_decls: HashSet<Span>,
 }
 
 impl ValidDeclsVisitor {
@@ -72,109 +64,86 @@ impl ValidDeclsVisitor {
       valid_decls: HashSet::new(),
     }
   }
-}
 
-impl ValidDeclsVisitor {
-  fn check_stmts(&mut self, stmts: &[Stmt]) {
+  fn check_stmts(&mut self, stmts: &[Statement]) {
     for stmt in stmts {
-      if let Stmt::Decl(decl) = stmt {
-        self.check_decl(decl);
-      }
-    }
-  }
-
-  fn check_decl(&mut self, decl: &Decl) {
-    match decl {
-      Decl::Fn(fn_decl) => {
-        self.valid_decls.insert(fn_decl.range());
-      }
-      Decl::Var(var_decl) => {
-        if var_decl.kind == VarDeclKind::Var {
-          self.valid_decls.insert(var_decl.range());
+      match stmt {
+        Statement::FunctionDeclaration(func) => {
+          self.valid_decls.insert(func.span);
         }
-      }
-      _ => {}
-    }
-  }
-}
-
-impl Visit for ValidDeclsVisitor {
-  noop_visit_type!();
-
-  fn visit_script(&mut self, item: &Script) {
-    for stmt in &item.body {
-      if let Stmt::Decl(decl) = stmt {
-        self.check_decl(decl)
-      }
-    }
-    item.visit_children_with(self);
-  }
-
-  fn visit_module_item(&mut self, item: &ModuleItem) {
-    match item {
-      ModuleItem::ModuleDecl(module_decl) => match module_decl {
-        ModuleDecl::ExportDecl(decl_export) => {
-          self.check_decl(&decl_export.decl)
-        }
-        ModuleDecl::ExportDefaultDecl(default_export) => {
-          if let DefaultDecl::Fn(fn_expr) = &default_export.decl {
-            self.valid_decls.insert(fn_expr.range());
-          }
+        Statement::VariableDeclaration(var_decl)
+          if var_decl.kind == VariableDeclarationKind::Var =>
+        {
+          self.valid_decls.insert(var_decl.span);
         }
         _ => {}
-      },
-      ModuleItem::Stmt(module_stmt) => {
-        if let Stmt::Decl(decl) = module_stmt {
-          self.check_decl(decl)
-        }
       }
     }
-    item.visit_children_with(self);
-  }
-
-  fn visit_function(&mut self, function: &Function) {
-    if let Some(block) = &function.body {
-      self.check_stmts(&block.stmts);
-    }
-    function.visit_children_with(self);
-  }
-
-  fn visit_constructor(&mut self, constructor: &Constructor) {
-    if let Some(block) = &constructor.body {
-      self.check_stmts(&block.stmts);
-    }
-    constructor.visit_children_with(self);
-  }
-
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
-    if let BlockStmtOrExpr::BlockStmt(block) = &*arrow_expr.body {
-      self.check_stmts(&block.stmts);
-    }
-    arrow_expr.visit_children_with(self);
   }
 }
 
-struct NoInnerDeclarationsVisitor<'c, 'view> {
+impl<'a> Visit<'a> for ValidDeclsVisitor {
+  fn visit_program(&mut self, program: &Program<'a>) {
+    self.check_stmts(&program.body);
+    walk::walk_program(self, program);
+  }
+
+  fn visit_export_named_declaration(
+    &mut self,
+    decl: &ExportNamedDeclaration<'a>,
+  ) {
+    if let Some(declaration) = &decl.declaration {
+      match declaration {
+        Declaration::FunctionDeclaration(func) => {
+          self.valid_decls.insert(func.span);
+        }
+        Declaration::VariableDeclaration(var_decl)
+          if var_decl.kind == VariableDeclarationKind::Var =>
+        {
+          self.valid_decls.insert(var_decl.span);
+        }
+        _ => {}
+      }
+    }
+    walk::walk_export_named_declaration(self, decl);
+  }
+
+  fn visit_export_default_declaration(
+    &mut self,
+    decl: &ExportDefaultDeclaration<'a>,
+  ) {
+    if let ExportDefaultDeclarationKind::FunctionDeclaration(func) =
+      &decl.declaration
+    {
+      self.valid_decls.insert(func.span);
+    }
+    walk::walk_export_default_declaration(self, decl);
+  }
+
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+    if let Some(body) = &func.body {
+      self.check_stmts(&body.statements);
+    }
+    walk::walk_function(self, func, flags);
+  }
+
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
+    self.check_stmts(&arrow.body.statements);
+    walk::walk_arrow_function_expression(self, arrow);
+  }
+}
+
+struct NoInnerDeclarationsChecker<'c, 'view> {
   context: &'c mut Context<'view>,
-  valid_decls: HashSet<SourceRange>,
+  valid_decls: HashSet<Span>,
   in_function: bool,
 }
 
-impl<'c, 'view> NoInnerDeclarationsVisitor<'c, 'view> {
-  fn new(
-    context: &'c mut Context<'view>,
-    valid_decls: HashSet<SourceRange>,
-  ) -> Self {
-    Self {
-      context,
-      valid_decls,
-      in_function: false,
-    }
-  }
-}
-
-impl NoInnerDeclarationsVisitor<'_, '_> {
-  fn add_diagnostic(&mut self, range: SourceRange, kind: &str) {
+impl NoInnerDeclarationsChecker<'_, '_> {
+  fn add_diagnostic(&mut self, span: Span, kind: &str) {
     let root = if self.in_function {
       "function"
     } else {
@@ -182,7 +151,7 @@ impl NoInnerDeclarationsVisitor<'_, '_> {
     };
 
     self.context.add_diagnostic_with_hint(
-      range,
+      span,
       CODE,
       NoInnerDeclarationsMessage::Move(kind.to_string(), root.to_string()),
       NoInnerDeclarationsHint::Move,
@@ -190,41 +159,41 @@ impl NoInnerDeclarationsVisitor<'_, '_> {
   }
 }
 
-impl Visit for NoInnerDeclarationsVisitor<'_, '_> {
-  noop_visit_type!();
+impl<'a> Visit<'a> for NoInnerDeclarationsChecker<'_, '_> {
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+    // Check if this is a function declaration (not expression)
+    // Function declarations that are not in valid positions should be flagged.
+    // We flag based on whether the span is in valid_decls.
+    if func.r#type == FunctionType::FunctionDeclaration
+      && !self.valid_decls.contains(&func.span)
+    {
+      self.add_diagnostic(func.span, "function");
+    }
 
-  fn visit_arrow_expr(&mut self, arrow_expr: &ArrowExpr) {
     let old = self.in_function;
     self.in_function = true;
-    arrow_expr.visit_children_with(self);
+    walk::walk_function(self, func, flags);
     self.in_function = old;
   }
 
-  fn visit_function(&mut self, function: &Function) {
+  fn visit_arrow_function_expression(
+    &mut self,
+    arrow: &ArrowFunctionExpression<'a>,
+  ) {
     let old = self.in_function;
     self.in_function = true;
-    function.visit_children_with(self);
+    walk::walk_arrow_function_expression(self, arrow);
     self.in_function = old;
   }
 
-  fn visit_fn_decl(&mut self, decl: &FnDecl) {
-    let range = decl.range();
-
-    if !self.valid_decls.contains(&range) {
-      self.add_diagnostic(range, "function");
+  fn visit_variable_declaration(&mut self, var_decl: &VariableDeclaration<'a>) {
+    if var_decl.kind == VariableDeclarationKind::Var
+      && !self.valid_decls.contains(&var_decl.span)
+    {
+      self.add_diagnostic(var_decl.span, "variable");
     }
 
-    decl.visit_children_with(self);
-  }
-
-  fn visit_var_decl(&mut self, decl: &VarDecl) {
-    let range = decl.range();
-
-    if decl.kind == VarDeclKind::Var && !self.valid_decls.contains(&range) {
-      self.add_diagnostic(range, "variable");
-    }
-
-    decl.visit_children_with(self);
+    walk::walk_variable_declaration(self, var_decl);
   }
 }
 

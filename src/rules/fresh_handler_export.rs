@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-
-use deno_ast::view::{Decl, Pat, Program};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct FreshHandlerExport;
@@ -24,21 +22,22 @@ impl LintRule for FreshHandlerExport {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    Visitor.traverse(program, context);
+    let mut handler = FreshHandlerExportHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct Visitor;
+struct FreshHandlerExportHandler;
 
-impl Handler for Visitor {
-  fn export_decl(
+impl Handler<'_> for FreshHandlerExportHandler {
+  fn export_named_declaration(
     &mut self,
-    export_decl: &deno_ast::view::ExportDecl,
+    export_decl: &ExportNamedDeclaration,
     ctx: &mut Context,
   ) {
     // Fresh only considers components in the routes/ folder to be
@@ -50,24 +49,34 @@ impl Handler for Visitor {
       return;
     }
 
-    let id = match export_decl.decl {
-      Decl::Var(var_decl) => {
-        if let Some(first) = var_decl.decls.first() {
-          let Pat::Ident(name_ident) = first.name else {
+    let Some(decl) = &export_decl.declaration else {
+      return;
+    };
+
+    let (name, span) = match decl {
+      Declaration::VariableDeclaration(var_decl) => {
+        if let Some(first) = var_decl.declarations.first() {
+          if let BindingPattern::BindingIdentifier(ident) = &first.id {
+            (ident.name.as_str(), ident.span)
+          } else {
             return;
-          };
-          name_ident.id
+          }
         } else {
           return;
         }
       }
-      Decl::Fn(fn_decl) => fn_decl.ident,
+      Declaration::FunctionDeclaration(fn_decl) => {
+        if let Some(id) = &fn_decl.id {
+          (id.name.as_str(), id.span)
+        } else {
+          return;
+        }
+      }
       _ => return,
     };
 
-    // Fresh middleware handler must be exported as "handler" not "handlers"
-    if id.sym().eq("handlers") {
-      ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
+    if name == "handlers" {
+      ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
 }

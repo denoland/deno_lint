@@ -1,10 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::swc::ast::BinaryOp;
-use deno_ast::{view as ast_view, SourceRanged};
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{BinaryExpression, BinaryOperator, Program};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -33,26 +31,34 @@ impl LintRule for Eqeqeq {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    EqeqeqHandler.traverse(program, context);
+    let mut handler = EqeqeqHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct EqeqeqHandler;
 
-impl Handler for EqeqeqHandler {
-  fn bin_expr(&mut self, bin_expr: &ast_view::BinExpr, context: &mut Context) {
-    if matches!(bin_expr.op(), BinaryOp::EqEq | BinaryOp::NotEq) {
-      let (message, hint) = if bin_expr.op() == BinaryOp::EqEq {
+impl Handler<'_> for EqeqeqHandler {
+  fn binary_expression(
+    &mut self,
+    bin_expr: &BinaryExpression,
+    context: &mut Context,
+  ) {
+    if matches!(
+      bin_expr.operator,
+      BinaryOperator::Equality | BinaryOperator::Inequality
+    ) {
+      let (message, hint) = if bin_expr.operator == BinaryOperator::Equality {
         (EqeqeqMessage::ExpectedEqual, EqeqeqHint::UseEqeqeq)
       } else {
         (EqeqeqMessage::ExpectedNotEqual, EqeqeqHint::UseNoteqeq)
       };
-      context.add_diagnostic_with_hint(bin_expr.range(), CODE, message, hint)
+      context.add_diagnostic_with_hint(bin_expr.span, CODE, message, hint)
     }
   }
 }

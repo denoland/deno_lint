@@ -1,12 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::swc_util::extract_regex;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, NewExpr, Regex};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -25,18 +24,19 @@ impl LintRule for NoRegexSpaces {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoRegexSpacesHandler.traverse(program, context);
+    let mut handler = NoRegexSpacesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoRegexSpacesHandler;
 
-fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
+fn check_regex(regex: &str, span: Span, ctx: &mut Context) {
   static DOUBLE_SPACE: Lazy<regex::Regex> =
     Lazy::new(|| regex::Regex::new(r"(?u) {2}").unwrap());
   static BRACKETS: Lazy<regex::Regex> =
@@ -59,31 +59,33 @@ fn check_regex(regex: &str, range: SourceRange, ctx: &mut Context) {
       .iter()
       .all(|v| mtch.start() < v.0 || v.1 <= mtch.start());
     if *not_in_classes {
-      ctx.add_diagnostic(range, CODE, MESSAGE);
+      ctx.add_diagnostic(span, CODE, MESSAGE);
       return;
     }
   }
 }
 
-impl Handler for NoRegexSpacesHandler {
-  fn regex(&mut self, regex: &Regex, ctx: &mut Context) {
-    check_regex(regex.inner.exp.to_string().as_str(), regex.range(), ctx);
+impl Handler<'_> for NoRegexSpacesHandler {
+  fn reg_exp_literal(&mut self, regex: &RegExpLiteral, ctx: &mut Context) {
+    check_regex(regex.regex.pattern.text.as_str(), regex.span, ctx);
   }
 
-  fn new_expr(&mut self, new_expr: &NewExpr, ctx: &mut Context) {
-    if let Expr::Ident(ident) = new_expr.callee {
-      if let Some(args) = &new_expr.args {
-        if let Some(regex) = extract_regex(ctx.scope(), ident, args) {
-          check_regex(regex.as_str(), new_expr.range(), ctx);
-        }
+  fn new_expression(&mut self, new_expr: &NewExpression, ctx: &mut Context) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      if let Some(regex) =
+        extract_regex(ctx.scoping(), ident, &new_expr.arguments)
+      {
+        check_regex(regex.as_str(), new_expr.span, ctx);
       }
     }
   }
 
-  fn call_expr(&mut self, call_expr: &CallExpr, ctx: &mut Context) {
-    if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
-      if let Some(regex) = extract_regex(ctx.scope(), ident, call_expr.args) {
-        check_regex(regex.as_str(), call_expr.range(), ctx);
+  fn call_expression(&mut self, call_expr: &CallExpression, ctx: &mut Context) {
+    if let Expression::Identifier(ident) = &call_expr.callee {
+      if let Some(regex) =
+        extract_regex(ctx.scoping(), ident, &call_expr.arguments)
+      {
+        check_regex(regex.as_str(), call_expr.span, ctx);
       }
     }
   }

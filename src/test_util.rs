@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 
-use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
 use crate::linter::LintConfig;
 use crate::linter::LintFileOptions;
@@ -11,7 +10,7 @@ use crate::linter::LinterOptions;
 use crate::rules::get_all_rules;
 use crate::rules::LintRule;
 use deno_ast::diagnostics::Diagnostic;
-use deno_ast::view as ast_view;
+use deno_ast::oxc::allocator::Allocator;
 use deno_ast::MediaType;
 use deno_ast::ModuleSpecifier;
 use deno_ast::ParsedSource;
@@ -205,7 +204,8 @@ impl LintErrTester {
   #[track_caller]
   pub fn run(self) {
     let rule_code = self.rule.code();
-    let (parsed_source, diagnostics) = lint(self.rule, self.src, self.filename);
+    let diagnostics = lint(self.rule, self.src, self.filename);
+    let text_info = SourceTextInfo::from_string(self.src.to_string());
     if self.errors.len() != diagnostics.len() {
       eprintln!(
         "Actual diagnostics:\n{:#?}",
@@ -241,7 +241,7 @@ impl LintErrTester {
         message,
         hint.as_deref(),
         fixes,
-        parsed_source.text_info_lazy(),
+        &text_info,
       );
     }
   }
@@ -322,7 +322,7 @@ fn lint(
   rule: Box<dyn LintRule>,
   source: &str,
   specifier: &str,
-) -> (ParsedSource, Vec<LintDiagnostic>) {
+) -> Vec<LintDiagnostic> {
   let linter = Linter::new(LinterOptions {
     rules: vec![rule],
     all_rule_codes: get_all_rules()
@@ -341,13 +341,13 @@ fn lint(
     source_code: source.to_string(),
     media_type,
     config: LintConfig {
-      default_jsx_factory: Some("React.createElement".to_owned()),
-      default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
+      default_jsx_factory: Some("React.createElement".to_string()),
+      default_jsx_fragment_factory: Some("React.Fragment".to_string()),
     },
     external_linter: None,
   });
   match lint_result {
-    Ok((source, diagnostics)) => (source, diagnostics),
+    Ok(diagnostics) => diagnostics,
     Err(e) => panic!(
       "Failed to lint.\n[cause]\n{}\n\n[source code]\n{}",
       e, source
@@ -365,19 +365,18 @@ pub fn assert_diagnostic(
   let diagnostic_range = diagnostic.range.as_ref().unwrap();
   let line_and_column = diagnostic_range
     .text_info
-    .line_and_column_index(diagnostic_range.range.start);
+    .line_and_column_display(diagnostic_range.range.start as usize);
   if diagnostic.details.code == code
-    // todo(dsherret): we should change these to be consistent (ex. both 1-indexed)
-    && line_and_column.line_index + 1 == line
-    && line_and_column.column_index == col
+    && line_and_column.line_number == line
+    && line_and_column.column_number - 1 == col
   {
     return;
   }
   panic!(
     "expect diagnostics {} at {}:{} to be {} at {}:{}\n\nsource:\n{}\n",
     diagnostic.details.code,
-    line_and_column.line_index + 1,
-    line_and_column.column_index,
+    line_and_column.line_number,
+    line_and_column.column_number - 1,
     code,
     line,
     col,
@@ -401,24 +400,24 @@ fn assert_diagnostic_2(
   let diagnostic_range = diagnostic.range.as_ref().unwrap();
   let line_and_column = diagnostic_range
     .text_info
-    .line_and_column_index(diagnostic_range.range.start);
+    .line_and_column_display(diagnostic_range.range.start as usize);
   assert_eq!(
     code, diagnostic.details.code,
     "Rule code is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
     code, diagnostic.details.code, source
   );
   assert_eq!(
-    line,
-    line_and_column.line_index + 1,
+    line, line_and_column.line_number,
     "Line is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    line,
-    line_and_column.line_index + 1,
-    source
+    line, line_and_column.line_number, source
   );
   assert_eq!(
-    col, line_and_column.column_index,
+    col,
+    line_and_column.column_number - 1,
     "Column is expected to be \"{}\", but got \"{}\"\n\nsource:\n{}\n",
-    col, line_and_column.column_index, source
+    col,
+    line_and_column.column_number - 1,
+    source
   );
   assert_eq!(
     message, &diagnostic.details.message,
@@ -445,7 +444,7 @@ fn assert_diagnostic_2(
           .changes
           .iter()
           .map(|change| TextChange {
-            range: change.range.as_byte_range(text_info.range().start),
+            range: change.range.start as usize..change.range.end as usize,
             new_text: change.new_text.to_string(),
           })
           .collect(),
@@ -461,7 +460,7 @@ pub fn assert_lint_ok(
   source: &str,
   specifier: &'static str,
 ) {
-  let (_parsed_source, diagnostics) = lint(rule, source, specifier);
+  let diagnostics = lint(rule, source, specifier);
   if !diagnostics.is_empty() {
     eprintln!("filename {:?}", specifier);
     panic!(
@@ -479,18 +478,17 @@ pub fn assert_lint_not_panic(rule: Box<dyn LintRule>, source: &str) {
 
 const TEST_FILE_NAME: &str = "file:///lint_test.ts";
 
-pub fn parse(source_code: &str) -> ParsedSource {
-  ast_parser::parse_program(
+pub fn parse_and_then(
+  source_code: &str,
+  test: impl for<'a> FnOnce(&'a ParsedSource<'a>),
+) {
+  let allocator = Allocator::default();
+  let parsed_source = crate::ast_parser::parse_program(
+    &allocator,
     ModuleSpecifier::parse(TEST_FILE_NAME).unwrap(),
-    MediaType::TypeScript,
+    deno_ast::MediaType::TypeScript,
     source_code.to_string(),
   )
-  .unwrap()
-}
-
-pub fn parse_and_then(source_code: &str, test: impl Fn(ast_view::Program)) {
-  let parsed_source = parse(source_code);
-  parsed_source.with_view(|pg| {
-    test(pg);
-  });
+  .unwrap();
+  test(&parsed_source);
 }

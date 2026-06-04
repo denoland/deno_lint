@@ -1,32 +1,16 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
+use crate::context::leftmost_identifier;
 use crate::tags::{self, Tags};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::{
-  ArrowExpr, AssignExpr, AssignPatProp, AssignTarget, CallExpr, CatchClause,
-  ClassDecl, ClassMethod, ClassProp, Constructor, Decl, DefaultDecl,
-  ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr,
-  Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, JSXElementName, JSXFragment, JSXObject, MemberExpr,
-  MemberProp, MethodKind, ModuleExportName, NamedExport, Param, Pat,
-  PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
-  TsExprWithTypeArgs, TsImportEqualsDecl, TsInterfaceDecl, TsModuleDecl,
-  TsModuleRef, TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl,
-  TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
-};
-use deno_ast::swc::ast::{Id, SimpleAssignTarget};
-use deno_ast::swc::ecma_visit::{Visit, VisitWith};
-use deno_ast::swc::utils::find_pat_ids;
-use deno_ast::view::AssignOp;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::{walk, Visit};
+use deno_ast::oxc::semantic::Scoping;
+use deno_ast::oxc::span::Span;
+use deno_ast::oxc::syntax::scope::ScopeFlags;
+use deno_ast::oxc::syntax::symbol::SymbolId;
 use derive_more::Display;
-use if_chain::if_chain;
 use std::collections::HashSet;
-use std::iter;
-use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct NoUnusedVars;
@@ -63,59 +47,76 @@ impl LintRule for NoUnusedVars {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-
+    let scoping = context.scoping();
     let mut collector = Collector {
+      scoping,
       cur_defining: vec![],
       used_types: Default::default(),
       used_vars: Default::default(),
-      jsx_factory: context.jsx_factory(),
-      jsx_fragment_factory: context.jsx_fragment_factory(),
+      jsx_factory: context
+        .jsx_factory()
+        .map(|s| leftmost_identifier(s).to_string()),
+      jsx_fragment_factory: context
+        .jsx_fragment_factory()
+        .map(|s| leftmost_identifier(s).to_string()),
     };
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut collector),
-      ProgramRef::Script(s) => s.visit_with(&mut collector),
-    }
+    collector.visit_program(program);
 
     let mut visitor = NoUnusedVarVisitor::new(
       context,
       collector.used_vars,
       collector.used_types,
     );
-    match program {
-      ProgramRef::Module(m) => m.visit_with(&mut visitor),
-      ProgramRef::Script(s) => s.visit_with(&mut visitor),
-    }
+    visitor.visit_program(program);
   }
 }
 
 /// Collects information about variable usages.
-struct Collector {
-  used_vars: HashSet<Id>,
-  used_types: HashSet<Id>,
-  /// Currently defining functions or variables.
-  ///
-  ///
-  /// Note: As resolver handles binding-binding conflict of identifiers,
-  /// we can safely remove an ident from the set after declaration.
-  /// I mean, all binding identifiers are unique up to symbol and syntax context.
-  ///
-  ///
-  /// Type of this should be hashset, but we don't have a way to
-  /// restore hashset after handling bindings
-  cur_defining: Vec<Id>,
-  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_factory: Option<Rc<Box<Expr>>>,
-  #[allow(clippy::redundant_allocation)] // This type comes from SWC.
-  jsx_fragment_factory: Option<Rc<Box<Expr>>>,
+struct Collector<'s> {
+  scoping: &'s Scoping,
+  used_vars: HashSet<SymbolId>,
+  used_types: HashSet<SymbolId>,
+  /// Currently defining symbols. Usages of these are self-referential
+  /// and should not count as "used".
+  cur_defining: Vec<SymbolId>,
+  /// The leftmost identifier of the JSX factory (e.g. "React" from "React.createElement").
+  /// Marked as used on the first JSX element encountered, then taken.
+  jsx_factory: Option<String>,
+  /// The leftmost identifier of the JSX fragment factory (e.g. "React" from "React.Fragment").
+  /// Marked as used on the first JSX fragment encountered, then taken.
+  jsx_fragment_factory: Option<String>,
 }
 
-impl Collector {
+impl Collector<'_> {
+  /// Resolve an IdentifierReference to its SymbolId, if it has one.
+  fn resolve_reference(
+    &self,
+    ident: &IdentifierReference<'_>,
+  ) -> Option<SymbolId> {
+    let ref_id = ident.reference_id.get()?;
+    let reference = self.scoping.get_reference(ref_id);
+    reference.symbol_id()
+  }
+
+  /// Mark a name as used by looking up all symbols with that name.
+  /// Used for JSX factory names and other string-based lookups.
+  fn mark_name_as_usage(&mut self, name: &str) {
+    // Look up all symbols with this name through scoping
+    // This is a fallback for cases where we only have a string name
+    for symbol_id in self.scoping.symbol_ids() {
+      if self.scoping.symbol_name(symbol_id) == name
+        && !self.cur_defining.contains(&symbol_id)
+      {
+        self.used_vars.insert(symbol_id);
+      }
+    }
+  }
+
   /// The variable usage during its declaration should _NOT_ be treated as used.
   /// For example:
   ///
@@ -137,8 +138,8 @@ impl Collector {
   /// This is a helper method, responsible for preserving and then restoring variables data.
   fn with_cur_defining<I, F>(&mut self, ids: I, op: F)
   where
-    I: IntoIterator<Item = Id>,
-    F: FnOnce(&mut Collector),
+    I: IntoIterator<Item = SymbolId>,
+    F: FnOnce(&mut Collector<'_>),
   {
     // Preserve the original state
     let prev_len = self.cur_defining.len();
@@ -171,318 +172,514 @@ impl Collector {
   /// lazily; not invoked at the time when `i` is being defined.
   fn without_cur_defining<F>(&mut self, op: F)
   where
-    F: FnOnce(&mut Collector),
+    F: FnOnce(&mut Collector<'_>),
   {
     let prev = std::mem::take(&mut self.cur_defining);
     op(self);
     self.cur_defining = prev;
   }
 
-  fn mark_as_usage(&mut self, i: &Ident) {
-    let id = i.to_id();
-
+  fn mark_as_usage(&mut self, symbol_id: SymbolId) {
     // Recursive calls are not usage
-    if self.cur_defining.contains(&id) {
+    if self.cur_defining.contains(&symbol_id) {
       return;
     }
 
     // Mark the variable as used.
-    self.used_vars.insert(id);
+    self.used_vars.insert(symbol_id);
+  }
+
+  fn mark_as_type_usage(&mut self, symbol_id: SymbolId) {
+    if self.cur_defining.contains(&symbol_id) {
+      return;
+    }
+    self.used_types.insert(symbol_id);
   }
 }
 
-impl Visit for Collector {
-  fn visit_class_prop(&mut self, n: &ClassProp) {
-    n.decorators.visit_with(self);
+/// Extract all SymbolIds from binding identifiers in a BindingPattern.
+fn collect_binding_symbol_ids(
+  pat: &BindingPattern<'_>,
+  out: &mut Vec<SymbolId>,
+) {
+  match pat {
+    BindingPattern::BindingIdentifier(ident) => {
+      if let Some(sym_id) = ident.symbol_id.get() {
+        out.push(sym_id);
+      }
+    }
+    BindingPattern::ObjectPattern(obj) => {
+      for prop in &obj.properties {
+        collect_binding_symbol_ids(&prop.value, out);
+      }
+      if let Some(rest) = &obj.rest {
+        collect_binding_symbol_ids(&rest.argument, out);
+      }
+    }
+    BindingPattern::ArrayPattern(arr) => {
+      for elem in arr.elements.iter().flatten() {
+        collect_binding_symbol_ids(elem, out);
+      }
+      if let Some(rest) = &arr.rest {
+        collect_binding_symbol_ids(&rest.argument, out);
+      }
+    }
+    BindingPattern::AssignmentPattern(assign) => {
+      collect_binding_symbol_ids(&assign.left, out);
+    }
+  }
+}
 
-    if let PropName::Computed(_) = &n.key {
-      n.key.visit_with(self);
+/// Extract all binding identifiers (name + span + symbol_id) from a BindingPattern.
+fn collect_binding_idents(
+  pat: &BindingPattern<'_>,
+  out: &mut Vec<(String, Span, Option<SymbolId>)>,
+) {
+  match pat {
+    BindingPattern::BindingIdentifier(ident) => {
+      out.push((ident.name.to_string(), ident.span, ident.symbol_id.get()));
+    }
+    BindingPattern::ObjectPattern(obj) => {
+      for prop in &obj.properties {
+        collect_binding_idents(&prop.value, out);
+      }
+      if let Some(rest) = &obj.rest {
+        collect_binding_idents(&rest.argument, out);
+      }
+    }
+    BindingPattern::ArrayPattern(arr) => {
+      for elem in arr.elements.iter().flatten() {
+        collect_binding_idents(elem, out);
+      }
+      if let Some(rest) = &arr.rest {
+        collect_binding_idents(&rest.argument, out);
+      }
+    }
+    BindingPattern::AssignmentPattern(assign) => {
+      collect_binding_idents(&assign.left, out);
+    }
+  }
+}
+
+impl<'a> Visit<'a> for Collector<'_> {
+  fn visit_property_definition(&mut self, n: &PropertyDefinition<'a>) {
+    for decorator in &n.decorators {
+      self.visit_decorator(decorator);
     }
 
-    n.value.visit_with(self);
-    n.type_ann.visit_with(self);
-  }
-
-  fn visit_ts_property_signature(&mut self, n: &TsPropertySignature) {
     if n.computed {
-      n.key.visit_with(self);
+      self.visit_property_key(&n.key);
     }
 
-    n.type_ann.visit_with(self);
-  }
-
-  fn visit_ts_type_ref(&mut self, ty: &TsTypeRef) {
-    ty.type_params.visit_with(self);
-
-    let id = get_id(&ty.type_name);
-    self.used_types.insert(id);
-  }
-
-  fn visit_ts_expr_with_type_args(&mut self, n: &TsExprWithTypeArgs) {
-    n.expr.visit_with(self);
-    n.type_args.visit_children_with(self);
-  }
-
-  fn visit_ts_type_query_expr(&mut self, n: &TsTypeQueryExpr) {
-    if let TsTypeQueryExpr::TsEntityName(e) = n {
-      let id = get_id(e);
-      self.used_vars.insert(id);
+    if let Some(value) = &n.value {
+      self.visit_expression(value);
     }
-    n.visit_children_with(self);
-  }
-
-  fn visit_prop(&mut self, n: &Prop) {
-    match n {
-      Prop::Shorthand(i) => self.mark_as_usage(i),
-      _ => n.visit_children_with(self),
+    if let Some(type_ann) = &n.type_annotation {
+      self.visit_ts_type_annotation(type_ann);
     }
   }
 
-  fn visit_prop_name(&mut self, n: &PropName) {
-    if let PropName::Computed(computed) = n {
-      computed.visit_children_with(self);
+  fn visit_ts_property_signature(&mut self, n: &TSPropertySignature<'a>) {
+    if n.computed {
+      self.visit_property_key(&n.key);
     }
-    // Don't check Ident, Str, Num and BigInt
-  }
 
-  fn visit_expr(&mut self, expr: &Expr) {
-    match expr {
-      Expr::Ident(i) => self.mark_as_usage(i),
-      _ => expr.visit_children_with(self),
+    if let Some(type_ann) = &n.type_annotation {
+      self.visit_ts_type_annotation(type_ann);
     }
   }
 
-  fn visit_jsx_element_name(&mut self, n: &JSXElementName) {
-    if let Some(factory) = self.jsx_factory.take() {
-      factory.visit_with(self)
+  fn visit_ts_type_reference(&mut self, ty: &TSTypeReference<'a>) {
+    if let Some(type_params) = &ty.type_arguments {
+      self.visit_ts_type_parameter_instantiation(type_params);
     }
-    match n {
-      JSXElementName::Ident(i) => {
-        if !i.sym.starts_with(|c: char| c.is_ascii_lowercase()) {
-          self.mark_as_usage(i)
+
+    // Resolve the leftmost identifier to its SymbolId for type usage tracking
+    if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&ty.type_name)
+    {
+      if let Some(sym_id) = self.resolve_reference(ident) {
+        self.mark_as_type_usage(sym_id);
+      }
+    }
+  }
+
+  fn visit_ts_interface_heritage(&mut self, n: &TSInterfaceHeritage<'a>) {
+    self.visit_expression(&n.expression);
+    if let Some(type_args) = &n.type_arguments {
+      self.visit_ts_type_parameter_instantiation(type_args);
+    }
+  }
+
+  fn visit_ts_type_query(&mut self, n: &TSTypeQuery<'a>) {
+    match &n.expr_name {
+      TSTypeQueryExprName::TSImportType(_) => {}
+      TSTypeQueryExprName::IdentifierReference(ident) => {
+        if let Some(sym_id) = self.resolve_reference(ident) {
+          self.mark_as_usage(sym_id);
         }
       }
-      JSXElementName::JSXMemberExpr(n) => n.visit_with(self),
-      JSXElementName::JSXNamespacedName(_) => {
-        // This is a string literal.
-      }
-    }
-  }
-
-  fn visit_jsx_object(&mut self, n: &JSXObject) {
-    match n {
-      JSXObject::Ident(i) => self.mark_as_usage(i),
-      JSXObject::JSXMemberExpr(n) => n.visit_with(self),
-    }
-  }
-
-  fn visit_jsx_fragment(&mut self, n: &JSXFragment) {
-    if let Some(factory) = self.jsx_fragment_factory.take() {
-      factory.visit_with(self)
-    }
-    n.visit_children_with(self);
-  }
-
-  fn visit_simple_assign_target(&mut self, n: &SimpleAssignTarget) {
-    match n {
-      SimpleAssignTarget::Ident(ident) => {
-        self.mark_as_usage(&ident.id);
-      }
-      _ => n.visit_children_with(self),
-    }
-  }
-
-  fn visit_assign_expr(&mut self, n: &AssignExpr) {
-    if n.op == AssignOp::Assign {
-      match &n.left {
-        AssignTarget::Simple(target) => {
-          match target {
-            SimpleAssignTarget::Ident(_) => {
-              // ignore and only visit the right
-              n.right.visit_with(self)
-            }
-            _ => n.visit_children_with(self),
+      TSTypeQueryExprName::QualifiedName(qn) => {
+        if let Some(ident) = get_leftmost_ident_ref_from_ts_type_name(&qn.left)
+        {
+          if let Some(sym_id) = self.resolve_reference(ident) {
+            self.mark_as_usage(sym_id);
           }
         }
-        AssignTarget::Pat(_) => n.visit_children_with(self),
+      }
+      _ => {}
+    }
+    walk::walk_ts_type_query(self, n);
+  }
+
+  fn visit_object_property(&mut self, n: &ObjectProperty<'a>) {
+    if n.shorthand {
+      // Shorthand properties like `{ foo }` use the value expression
+      // which is an IdentifierReference - let the default walk handle it
+    }
+    walk::walk_object_property(self, n);
+  }
+
+  fn visit_property_key(&mut self, n: &PropertyKey<'a>) {
+    match n {
+      PropertyKey::StaticIdentifier(_) | PropertyKey::PrivateIdentifier(_) => {
+        // Don't visit identifiers used as property names
+      }
+      _ => {
+        // Computed/expression keys - walk to find usages
+        walk::walk_property_key(self, n);
+      }
+    }
+  }
+
+  fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'a>) {
+    if let Some(sym_id) = self.resolve_reference(ident) {
+      self.mark_as_usage(sym_id);
+    }
+  }
+
+  fn visit_expression(&mut self, expr: &Expression<'a>) {
+    match expr {
+      Expression::Identifier(i) => {
+        if let Some(sym_id) = self.resolve_reference(i) {
+          self.mark_as_usage(sym_id);
+        }
+      }
+      _ => walk::walk_expression(self, expr),
+    }
+  }
+
+  fn visit_jsx_element_name(&mut self, n: &JSXElementName<'a>) {
+    if let Some(factory) = self.jsx_factory.take() {
+      self.mark_name_as_usage(&factory);
+    }
+    match n {
+      JSXElementName::IdentifierReference(i) => {
+        if !i.name.starts_with(|c: char| c.is_ascii_lowercase()) {
+          if let Some(sym_id) = self.resolve_reference(i) {
+            self.mark_as_usage(sym_id);
+          }
+        }
+      }
+      JSXElementName::MemberExpression(n) => {
+        self.visit_jsx_member_expression(n);
+      }
+      JSXElementName::NamespacedName(_)
+      | JSXElementName::Identifier(_)
+      | JSXElementName::ThisExpression(_) => {}
+    }
+  }
+
+  fn visit_jsx_fragment(&mut self, n: &JSXFragment<'a>) {
+    if let Some(factory) = self.jsx_fragment_factory.take() {
+      self.mark_name_as_usage(&factory);
+    }
+    walk::walk_jsx_fragment(self, n);
+  }
+
+  fn visit_jsx_member_expression_object(
+    &mut self,
+    n: &JSXMemberExpressionObject<'a>,
+  ) {
+    match n {
+      JSXMemberExpressionObject::IdentifierReference(i) => {
+        if let Some(sym_id) = self.resolve_reference(i) {
+          self.mark_as_usage(sym_id);
+        }
+      }
+      JSXMemberExpressionObject::MemberExpression(n) => {
+        self.visit_jsx_member_expression(n);
+      }
+      JSXMemberExpressionObject::ThisExpression(_) => {}
+    }
+  }
+
+  fn visit_simple_assignment_target(&mut self, n: &SimpleAssignmentTarget<'a>) {
+    match n {
+      SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
+        if let Some(sym_id) = self.resolve_reference(ident) {
+          self.mark_as_usage(sym_id);
+        }
+      }
+      _ => walk::walk_simple_assignment_target(self, n),
+    }
+  }
+
+  fn visit_assignment_expression(&mut self, n: &AssignmentExpression<'a>) {
+    if n.operator == AssignmentOperator::Assign {
+      match &n.left {
+        AssignmentTarget::AssignmentTargetIdentifier(_) => {
+          // ignore LHS ident and only visit the right
+          self.visit_expression(&n.right);
+        }
+        _ => walk::walk_assignment_expression(self, n),
       }
 
-      if let Expr::New(new_expr) = &*n.right {
+      if let Expression::NewExpression(new_expr) = &n.right {
         self.without_cur_defining(|a| {
-          new_expr.visit_children_with(a);
+          walk::walk_new_expression(a, new_expr);
         });
       }
     } else {
-      n.visit_children_with(self)
+      walk::walk_assignment_expression(self, n)
     }
   }
 
-  fn visit_pat(&mut self, pat: &Pat) {
+  fn visit_binding_pattern(&mut self, pat: &BindingPattern<'a>) {
     match pat {
-      // Ignore patterns
-      Pat::Ident(i) => {
-        i.type_ann.visit_with(self);
-      }
-      Pat::Invalid(..) => {}
-      //
-      _ => pat.visit_children_with(self),
+      // Ignore binding identifiers (they're declarations, not usages)
+      BindingPattern::BindingIdentifier(_) => {}
+      _ => walk::walk_binding_pattern(self, pat),
     }
   }
 
-  fn visit_assign_pat_prop(&mut self, assign_pat_prop: &AssignPatProp) {
+  fn visit_assignment_pattern(&mut self, n: &AssignmentPattern<'a>) {
     // handle codes like `const { foo, bar = foo } = { foo: 42 };`
     self.without_cur_defining(|a| {
-      assign_pat_prop.value.visit_children_with(a);
+      a.visit_expression(&n.right);
     });
+    self.visit_binding_pattern(&n.left);
   }
 
-  fn visit_member_expr(&mut self, member_expr: &MemberExpr) {
-    member_expr.obj.visit_with(self);
-    if let MemberProp::Computed(prop) = &member_expr.prop {
-      prop.visit_with(self);
-    }
+  fn visit_static_member_expression(
+    &mut self,
+    member_expr: &StaticMemberExpression<'a>,
+  ) {
+    self.visit_expression(&member_expr.object);
+    // Don't visit the property identifier - it's not a variable usage
+  }
+
+  fn visit_computed_member_expression(
+    &mut self,
+    member_expr: &ComputedMemberExpression<'a>,
+  ) {
+    self.visit_expression(&member_expr.object);
+    self.visit_expression(&member_expr.expression);
   }
 
   /// export is kind of usage
-  fn visit_export_named_specifier(&mut self, export: &ExportNamedSpecifier) {
-    if let ModuleExportName::Ident(ident) = &export.orig {
-      self.used_vars.insert(ident.to_id());
+  fn visit_export_specifier(&mut self, export: &ExportSpecifier<'a>) {
+    match &export.local {
+      ModuleExportName::IdentifierReference(ident) => {
+        if let Some(sym_id) = self.resolve_reference(ident) {
+          self.mark_as_usage(sym_id);
+        }
+      }
+      ModuleExportName::IdentifierName(ident) => {
+        // IdentifierName doesn't have a reference_id, fall back to name lookup
+        self.mark_name_as_usage(ident.name.as_str());
+      }
+      ModuleExportName::StringLiteral(_) => {}
     }
   }
 
-  fn visit_fn_decl(&mut self, decl: &FnDecl) {
-    let id = decl.ident.to_id();
-    self.with_cur_defining(iter::once(id), |a| {
-      decl.function.visit_with(a);
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+    if func.r#type == FunctionType::FunctionDeclaration {
+      if let Some(id) = &func.id {
+        if let Some(sym_id) = id.symbol_id.get() {
+          self.with_cur_defining(std::iter::once(sym_id), |a| {
+            a.visit_function_inner(func, flags);
+          });
+          return;
+        }
+      }
+    }
+    self.visit_function_inner(func, flags);
+  }
+
+  fn visit_class(&mut self, class: &Class<'a>) {
+    if class.r#type == ClassType::ClassDeclaration {
+      if let Some(id) = &class.id {
+        if let Some(sym_id) = id.symbol_id.get() {
+          self.with_cur_defining(std::iter::once(sym_id), |a| {
+            walk::walk_class(a, class);
+          });
+          return;
+        }
+      }
+    }
+    walk::walk_class(self, class);
+  }
+
+  fn visit_ts_interface_declaration(
+    &mut self,
+    decl: &TSInterfaceDeclaration<'a>,
+  ) {
+    if let Some(sym_id) = decl.id.symbol_id.get() {
+      self.with_cur_defining(std::iter::once(sym_id), |a| {
+        for heritage in &decl.extends {
+          a.visit_ts_interface_heritage(heritage);
+        }
+        a.visit_ts_interface_body(&decl.body);
+        if let Some(type_params) = &decl.type_parameters {
+          a.visit_ts_type_parameter_declaration(type_params);
+        }
+      });
+    }
+  }
+
+  fn visit_ts_type_alias_declaration(
+    &mut self,
+    decl: &TSTypeAliasDeclaration<'a>,
+  ) {
+    if let Some(sym_id) = decl.id.symbol_id.get() {
+      self.with_cur_defining(std::iter::once(sym_id), |a| {
+        a.visit_ts_type(&decl.type_annotation);
+        if let Some(type_params) = &decl.type_parameters {
+          a.visit_ts_type_parameter_declaration(type_params);
+        }
+      });
+    }
+  }
+
+  fn visit_ts_enum_declaration(&mut self, decl: &TSEnumDeclaration<'a>) {
+    if let Some(sym_id) = decl.id.symbol_id.get() {
+      self.with_cur_defining(std::iter::once(sym_id), |a| {
+        a.visit_ts_enum_body(&decl.body);
+      });
+    }
+  }
+
+  fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+    let mut declaring_ids = vec![];
+    collect_binding_symbol_ids(&declarator.id, &mut declaring_ids);
+    self.with_cur_defining(declaring_ids, |a| {
+      a.visit_binding_pattern(&declarator.id);
+      if let Some(type_ann) = &declarator.type_annotation {
+        a.visit_ts_type_annotation(type_ann);
+      }
+      if let Some(init) = &declarator.init {
+        a.visit_expression(init);
+      }
     });
   }
 
-  fn visit_fn_expr(&mut self, expr: &FnExpr) {
-    // We have to do nothing special for identifiers of FnExprs (if any), because they are allowed
-    // to be not-used.
-    expr.function.visit_with(self);
-  }
-
-  fn visit_function(&mut self, function: &Function) {
-    if_chain! {
-      if let Some(first_param) = function.params.first();
-      if let Pat::Ident(ident) = &first_param.pat;
-      if ident.type_ann.is_some();
-      if ident.id.sym.as_str() == "this";
-      then {
-        // If the first parameter of a function is `this` keyword with type annotated, it is a
-        // fake parameter specifying what type `this` becomes inside the function body.
-        // (See https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
-        // for more info)
-        // Since it's just a fake parameter, we can mark it as used.
-        self.mark_as_usage(&ident.id);
-      }
+  fn visit_ts_import_equals_declaration(
+    &mut self,
+    decl: &TSImportEqualsDeclaration<'a>,
+  ) {
+    if let Some(sym_id) = decl.id.symbol_id.get() {
+      self.with_cur_defining(std::iter::once(sym_id), |collector| match &decl
+        .module_reference
+      {
+        TSModuleReference::IdentifierReference(ident) => {
+          if let Some(ref_sym) = collector.resolve_reference(ident) {
+            collector.mark_as_usage(ref_sym);
+          }
+        }
+        TSModuleReference::QualifiedName(qn) => {
+          if let Some(ident) =
+            get_leftmost_ident_ref_from_ts_type_name(&qn.left)
+          {
+            if let Some(ref_sym) = collector.resolve_reference(ident) {
+              collector.mark_as_usage(ref_sym);
+            }
+          }
+        }
+        TSModuleReference::ExternalModuleReference(_) => {}
+      });
     }
-
-    function.visit_children_with(self);
   }
 
-  fn visit_call_expr(&mut self, call_expr: &CallExpr) {
-    call_expr.callee.visit_children_with(self);
+  fn visit_call_expression(&mut self, call_expr: &CallExpression<'a>) {
+    self.visit_expression(&call_expr.callee);
 
-    for arg in &call_expr.args {
+    for arg in &call_expr.arguments {
       self.without_cur_defining(|a| {
-        arg.visit_children_with(a);
+        a.visit_argument(arg);
       });
     }
 
-    call_expr.type_args.visit_children_with(self);
+    if let Some(type_args) = &call_expr.type_arguments {
+      self.visit_ts_type_parameter_instantiation(type_args);
+    }
   }
 
-  fn visit_class_decl(&mut self, decl: &ClassDecl) {
-    let id = decl.ident.to_id();
-    self.with_cur_defining(iter::once(id), |a| {
-      decl.class.visit_with(a);
-    });
+  fn visit_for_in_statement(&mut self, n: &ForInStatement<'a>) {
+    // The LHS of `for (x in obj)` is an assignment target, not a read.
+    // Only visit VariableDeclaration LHS; skip assignment targets (they're writes, not reads).
+    if let ForStatementLeft::VariableDeclaration(decl) = &n.left {
+      self.visit_variable_declaration(decl);
+    }
+    // For assignment target LHS (simple ident, array/object destructuring),
+    // the identifiers are being assigned to, not read. Skip them.
+    self.visit_expression(&n.right);
+    self.visit_statement(&n.body);
   }
 
-  fn visit_ts_interface_decl(&mut self, decl: &TsInterfaceDecl) {
-    let id = decl.id.to_id();
-    self.with_cur_defining(iter::once(id), |a| {
-      decl.extends.visit_with(a);
-      decl.body.visit_with(a);
-      if let Some(type_params) = &decl.type_params {
-        type_params.visit_with(a);
-      }
-    });
-  }
-
-  fn visit_ts_type_alias_decl(&mut self, decl: &TsTypeAliasDecl) {
-    let id = decl.id.to_id();
-    self.with_cur_defining(iter::once(id), |a| {
-      decl.type_ann.visit_with(a);
-      if let Some(type_params) = &decl.type_params {
-        type_params.visit_with(a);
-      }
-    });
-  }
-
-  fn visit_ts_enum_decl(&mut self, decl: &TsEnumDecl) {
-    let id = decl.id.to_id();
-    self.with_cur_defining(iter::once(id), |a| {
-      decl.members.visit_with(a);
-    });
-  }
-
-  fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
-    let declaring_ids: Vec<Id> = find_pat_ids(&declarator.name);
-    self.with_cur_defining(declaring_ids, |a| {
-      declarator.name.visit_with(a);
-      declarator.init.visit_with(a);
-    });
-  }
-
-  fn visit_ts_import_equals_decl(&mut self, decl: &TsImportEqualsDecl) {
-    let id = decl.id.to_id();
-    self.with_cur_defining(iter::once(id), |collector| {
-      match &decl.module_ref {
-        TsModuleRef::TsEntityName(name) => {
-          let ident = match name {
-            TsEntityName::TsQualifiedName(name) => {
-              // get the leftmost identifier
-              let mut next = &name.left;
-              loop {
-                match next {
-                  TsEntityName::TsQualifiedName(name) => next = &name.left,
-                  TsEntityName::Ident(ident) => {
-                    break ident;
-                  }
-                }
-              }
-            }
-            TsEntityName::Ident(ident) => ident,
-          };
-          collector.mark_as_usage(ident);
-        }
-        TsModuleRef::TsExternalModuleRef(_) => {}
-      }
-    });
+  fn visit_for_of_statement(&mut self, n: &ForOfStatement<'a>) {
+    // The LHS of `for (x of xs)` is an assignment target, not a read.
+    if let ForStatementLeft::VariableDeclaration(decl) = &n.left {
+      self.visit_variable_declaration(decl);
+    }
+    // For assignment target LHS, skip - identifiers are being written, not read.
+    self.visit_expression(&n.right);
+    self.visit_statement(&n.body);
   }
 }
 
-fn get_id(r: &TsEntityName) -> Id {
-  match r {
-    TsEntityName::TsQualifiedName(q) => get_id(&q.left),
-    TsEntityName::Ident(i) => i.to_id(),
+/// Get the leftmost IdentifierReference from a TSTypeName.
+fn get_leftmost_ident_ref_from_ts_type_name<'a>(
+  name: &'a TSTypeName<'a>,
+) -> Option<&'a IdentifierReference<'a>> {
+  match name {
+    TSTypeName::IdentifierReference(ident) => Some(ident),
+    TSTypeName::QualifiedName(qn) => {
+      get_leftmost_ident_ref_from_ts_type_name(&qn.left)
+    }
+    TSTypeName::ThisExpression(_) => None,
+  }
+}
+
+/// Helper for Collector to visit a Function's internals.
+impl Collector<'_> {
+  fn visit_function_inner(&mut self, func: &Function<'_>, flags: ScopeFlags) {
+    // If the first parameter is `this` with a type annotation, it's a fake
+    // TypeScript parameter. Mark it as used.
+    if let Some(first_param) = func.params.items.first() {
+      if let BindingPattern::BindingIdentifier(ident) = &first_param.pattern {
+        if ident.name.as_str() == "this"
+          && first_param.type_annotation.is_some()
+        {
+          self.mark_name_as_usage("this");
+        }
+      }
+    }
+
+    walk::walk_function(self, func, flags);
   }
 }
 
 struct NoUnusedVarVisitor<'c, 'view> {
   context: &'c mut Context<'view>,
-  used_vars: HashSet<Id>,
-  used_types: HashSet<Id>,
+  used_vars: HashSet<SymbolId>,
+  used_types: HashSet<SymbolId>,
 }
 
 impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
   fn new(
     context: &'c mut Context<'view>,
-    used_vars: HashSet<Id>,
-    used_types: HashSet<Id>,
+    used_vars: HashSet<SymbolId>,
+    used_types: HashSet<SymbolId>,
   ) -> Self {
     Self {
       context,
@@ -493,275 +690,415 @@ impl<'c, 'view> NoUnusedVarVisitor<'c, 'view> {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum IdentKind<'a> {
-  NamedImport(&'a Ident),
-  DefaultImport(&'a Ident),
-  StarAsImport(&'a Ident),
-  Other(&'a Ident),
-}
-
-impl IdentKind<'_> {
-  fn inner(&self) -> &Ident {
-    match *self {
-      IdentKind::NamedImport(ident) => ident,
-      IdentKind::DefaultImport(ident) => ident,
-      IdentKind::StarAsImport(ident) => ident,
-      IdentKind::Other(ident) => ident,
-    }
-  }
-
-  fn to_message(self) -> NoUnusedVarsMessage {
-    let ident = self.inner();
-    NoUnusedVarsMessage::NeverUsed(ident.sym.to_string())
-  }
-
-  fn to_hint(self) -> NoUnusedVarsHint {
-    let symbol = self.inner().sym.to_string();
-    match self {
-      IdentKind::NamedImport(_) => NoUnusedVarsHint::Alias(symbol),
-      IdentKind::DefaultImport(_)
-      | IdentKind::StarAsImport(_)
-      | IdentKind::Other(_) => NoUnusedVarsHint::AddPrefix(symbol),
-    }
-  }
+enum IdentKind {
+  NamedImport,
+  DefaultImport,
+  StarAsImport,
+  Other,
 }
 
 impl NoUnusedVarVisitor<'_, '_> {
-  fn handle_id(&mut self, ident: IdentKind) {
-    let inner = ident.inner();
-    if inner.sym.starts_with('_') {
+  fn handle_binding(
+    &mut self,
+    name: &str,
+    span: Span,
+    symbol_id: Option<SymbolId>,
+    kind: IdentKind,
+  ) {
+    if name.starts_with('_') {
       return;
     }
 
-    if !self.used_vars.contains(&inner.to_id()) {
-      // The variable is not used.
-      self.context.add_diagnostic_with_hint(
-        inner.range(),
-        CODE,
-        ident.to_message(),
-        ident.to_hint(),
-      );
+    let is_used = if let Some(sym_id) = symbol_id {
+      self.used_vars.contains(&sym_id)
+    } else {
+      // No symbol_id means semantic analysis couldn't resolve it.
+      // Be conservative and don't report.
+      true
+    };
+
+    if !is_used {
+      let message = NoUnusedVarsMessage::NeverUsed(name.to_string());
+      let hint = match kind {
+        IdentKind::NamedImport => NoUnusedVarsHint::Alias(name.to_string()),
+        IdentKind::DefaultImport
+        | IdentKind::StarAsImport
+        | IdentKind::Other => NoUnusedVarsHint::AddPrefix(name.to_string()),
+      };
+      self
+        .context
+        .add_diagnostic_with_hint(span, CODE, message, hint);
     }
   }
 }
 
-impl Visit for NoUnusedVarVisitor<'_, '_> {
-  fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
-    let declared_idents: Vec<Ident> = find_pat_ids(&expr.params);
-
-    for ident in declared_idents {
-      self.handle_id(IdentKind::Other(&ident));
-    }
-    expr.body.visit_with(self)
-  }
-
-  fn visit_fn_decl(&mut self, decl: &FnDecl) {
-    if decl.declare {
-      return;
+impl<'a> Visit<'a> for NoUnusedVarVisitor<'_, 'a> {
+  fn visit_arrow_function_expression(
+    &mut self,
+    expr: &ArrowFunctionExpression<'a>,
+  ) {
+    let mut idents = vec![];
+    for param in &expr.params.items {
+      collect_binding_idents(&param.pattern, &mut idents);
     }
 
-    self.handle_id(IdentKind::Other(&decl.ident));
-
-    // If function body is not present, it's an overload definition
-    if decl.function.body.is_some() {
-      decl.function.visit_with(self);
+    for (name, span, sym_id) in &idents {
+      self.handle_binding(name, *span, *sym_id, IdentKind::Other);
+    }
+    for stmt in &expr.body.statements {
+      self.visit_statement(stmt);
     }
   }
 
-  fn visit_var_decl(&mut self, n: &VarDecl) {
+  fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+    match func.r#type {
+      FunctionType::FunctionDeclaration => {
+        if func.declare {
+          return;
+        }
+
+        if let Some(id) = &func.id {
+          self.handle_binding(
+            id.name.as_str(),
+            id.span,
+            id.symbol_id.get(),
+            IdentKind::Other,
+          );
+        }
+
+        // If function body is not present, it's an overload definition
+        if func.body.is_some() {
+          walk::walk_function(self, func, flags);
+        }
+      }
+      FunctionType::TSDeclareFunction
+      | FunctionType::TSEmptyBodyFunctionExpression => {
+        // TypeScript overloads / empty body / declare functions - don't report params
+        if !func.declare {
+          if let Some(id) = &func.id {
+            self.handle_binding(
+              id.name.as_str(),
+              id.span,
+              id.symbol_id.get(),
+              IdentKind::Other,
+            );
+          }
+        }
+      }
+      _ => {
+        walk::walk_function(self, func, flags);
+      }
+    }
+  }
+
+  fn visit_variable_declaration(&mut self, n: &VariableDeclaration<'a>) {
     if n.declare {
       return;
     }
 
-    n.decls.visit_with(self);
-  }
-
-  fn visit_var_declarator(&mut self, declarator: &VarDeclarator) {
-    let declared_idents: Vec<Ident> = find_pat_ids(&declarator.name);
-
-    for ident in declared_idents {
-      self.handle_id(IdentKind::Other(&ident));
+    for decl in &n.declarations {
+      self.visit_variable_declarator(decl);
     }
-    declarator.name.visit_with(self);
-    declarator.init.visit_with(self);
   }
 
-  fn visit_class_decl(&mut self, n: &ClassDecl) {
-    if n.declare {
+  fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+    let mut idents = vec![];
+    collect_binding_idents(&declarator.id, &mut idents);
+
+    for (name, span, sym_id) in &idents {
+      self.handle_binding(name, *span, *sym_id, IdentKind::Other);
+    }
+    self.visit_binding_pattern(&declarator.id);
+    if let Some(init) = &declarator.init {
+      self.visit_expression(init);
+    }
+  }
+
+  fn visit_class(&mut self, class: &Class<'a>) {
+    if class.r#type == ClassType::ClassDeclaration {
+      if class.declare {
+        return;
+      }
+
+      if let Some(id) = &class.id {
+        self.handle_binding(
+          id.name.as_str(),
+          id.span,
+          id.symbol_id.get(),
+          IdentKind::Other,
+        );
+      }
+    }
+    walk::walk_class(self, class);
+  }
+
+  // Interface/type method signatures and TS function types - don't report parameters as unused
+  fn visit_ts_method_signature(&mut self, _n: &TSMethodSignature<'a>) {}
+  fn visit_ts_call_signature_declaration(
+    &mut self,
+    _n: &TSCallSignatureDeclaration<'a>,
+  ) {
+  }
+  fn visit_ts_construct_signature_declaration(
+    &mut self,
+    _n: &TSConstructSignatureDeclaration<'a>,
+  ) {
+  }
+  // TSFunctionType params are type-level only (e.g. `(user: User) => void`)
+  // and should not be flagged as unused variables.
+  fn visit_ts_function_type(&mut self, _n: &TSFunctionType<'a>) {}
+
+  fn visit_catch_clause(&mut self, clause: &CatchClause<'a>) {
+    if let Some(param) = &clause.param {
+      let mut idents = vec![];
+      collect_binding_idents(&param.pattern, &mut idents);
+
+      for (name, span, sym_id) in &idents {
+        self.handle_binding(name, *span, *sym_id, IdentKind::Other);
+      }
+    }
+
+    self.visit_block_statement(&clause.body);
+  }
+
+  fn visit_method_definition(&mut self, method: &MethodDefinition<'a>) {
+    for decorator in &method.decorators {
+      self.visit_decorator(decorator);
+    }
+    self.visit_property_key(&method.key);
+
+    match method.kind {
+      MethodDefinitionKind::Method => {
+        // If method body is not present, it's an overload definition
+        if method.value.body.is_some() {
+          for param in &method.value.params.items {
+            self.visit_formal_parameter(param);
+          }
+        }
+      }
+      MethodDefinitionKind::Set => {
+        // For setters, visit the key and body but skip parameter reporting
+      }
+      MethodDefinitionKind::Constructor => {
+        // If body is not present, it's an overload definition
+        if method.value.body.is_none() {
+          return;
+        }
+        walk::walk_function(
+          self,
+          &method.value,
+          ScopeFlags::Function | ScopeFlags::Constructor,
+        );
+        return;
+      }
+      MethodDefinitionKind::Get => {}
+    }
+
+    if let Some(body) = &method.value.body {
+      self.visit_function_body(body);
+    }
+  }
+
+  fn visit_object_property(&mut self, n: &ObjectProperty<'a>) {
+    if n.kind == PropertyKind::Set {
+      // For setter properties, visit key and body but skip parameter reporting
+      self.visit_property_key(&n.key);
+      if let Expression::FunctionExpression(func) = &n.value {
+        if let Some(body) = &func.body {
+          self.visit_function_body(body);
+        }
+      }
+      return;
+    }
+    walk::walk_object_property(self, n);
+  }
+
+  fn visit_formal_parameter(&mut self, param: &FormalParameter<'a>) {
+    // TypeScript parameter properties (e.g. `constructor(private x: T)`)
+    // are automatically class fields and should not be flagged as unused.
+    if param.accessibility.is_some() || param.readonly {
       return;
     }
 
-    self.handle_id(IdentKind::Other(&n.ident));
-    n.visit_children_with(self);
-  }
+    let mut idents = vec![];
+    collect_binding_idents(&param.pattern, &mut idents);
 
-  fn visit_catch_clause(&mut self, clause: &CatchClause) {
-    let declared_idents: Vec<Ident> = find_pat_ids(&clause.param);
-
-    for ident in declared_idents {
-      self.handle_id(IdentKind::Other(&ident));
+    for (name, span, sym_id) in &idents {
+      self.handle_binding(name, *span, *sym_id, IdentKind::Other);
     }
-
-    clause.body.visit_with(self);
+    walk::walk_formal_parameter(self, param);
   }
 
-  fn visit_setter_prop(&mut self, prop: &SetterProp) {
-    prop.key.visit_with(self);
-    prop.body.visit_with(self);
-  }
-
-  fn visit_constructor(&mut self, constructor: &Constructor) {
-    // If function body is not present, it's an overload definition
-    if constructor.body.is_none() {
-      return;
+  fn visit_import_specifier(&mut self, import: &ImportSpecifier<'a>) {
+    let sym_id = import.local.symbol_id.get();
+    if let Some(s) = sym_id {
+      if self.used_types.contains(&s) {
+        return;
+      }
     }
-
-    constructor.visit_children_with(self);
-  }
-
-  fn visit_class_method(&mut self, method: &ClassMethod) {
-    method.function.decorators.visit_with(self);
-    method.key.visit_with(self);
-
-    // If method body is not present, it's an overload definition
-    if matches!(method.kind, MethodKind::Method if method.function.body.is_some())
-    {
-      method.function.params.visit_children_with(self);
-    }
-
-    method.function.body.visit_with(self);
-  }
-
-  fn visit_private_method(&mut self, method: &PrivateMethod) {
-    method.function.decorators.visit_with(self);
-    method.key.visit_with(self);
-
-    // If method body is not present, it's an overload definition
-    if method.function.body.is_some() {
-      method.function.params.visit_children_with(self);
-    }
-
-    method.function.body.visit_with(self);
-  }
-
-  fn visit_param(&mut self, param: &Param) {
-    let declared_idents: Vec<Ident> = find_pat_ids(&param.pat);
-
-    for ident in declared_idents {
-      self.handle_id(IdentKind::Other(&ident));
-    }
-    param.visit_children_with(self);
-  }
-
-  fn visit_import_named_specifier(&mut self, import: &ImportNamedSpecifier) {
-    if self.used_types.contains(&import.local.to_id()) {
-      return;
-    }
-    self.handle_id(IdentKind::NamedImport(&import.local));
+    self.handle_binding(
+      import.local.name.as_str(),
+      import.local.span,
+      sym_id,
+      IdentKind::NamedImport,
+    );
   }
 
   fn visit_import_default_specifier(
     &mut self,
-    import: &ImportDefaultSpecifier,
+    import: &ImportDefaultSpecifier<'a>,
   ) {
-    if self.used_types.contains(&import.local.to_id()) {
-      return;
+    let sym_id = import.local.symbol_id.get();
+    if let Some(s) = sym_id {
+      if self.used_types.contains(&s) {
+        return;
+      }
     }
 
-    self.handle_id(IdentKind::DefaultImport(&import.local));
+    self.handle_binding(
+      import.local.name.as_str(),
+      import.local.span,
+      sym_id,
+      IdentKind::DefaultImport,
+    );
   }
 
-  fn visit_import_star_as_specifier(&mut self, import: &ImportStarAsSpecifier) {
-    if self.used_types.contains(&import.local.to_id()) {
-      return;
+  fn visit_import_namespace_specifier(
+    &mut self,
+    import: &ImportNamespaceSpecifier<'a>,
+  ) {
+    let sym_id = import.local.symbol_id.get();
+    if let Some(s) = sym_id {
+      if self.used_types.contains(&s) {
+        return;
+      }
     }
-    self.handle_id(IdentKind::StarAsImport(&import.local));
+    self.handle_binding(
+      import.local.name.as_str(),
+      import.local.span,
+      sym_id,
+      IdentKind::StarAsImport,
+    );
   }
 
-  fn visit_ts_import_equals_decl(&mut self, decl: &TsImportEqualsDecl) {
-    self.handle_id(IdentKind::Other(&decl.id));
+  fn visit_ts_import_equals_declaration(
+    &mut self,
+    decl: &TSImportEqualsDeclaration<'a>,
+  ) {
+    self.handle_binding(
+      decl.id.name.as_str(),
+      decl.id.span,
+      decl.id.symbol_id.get(),
+      IdentKind::Other,
+    );
   }
 
   /// No error as export is kind of usage
-  fn visit_export_decl(&mut self, export: &ExportDecl) {
-    match &export.decl {
-      Decl::Class(c) if !c.declare => {
-        c.class.visit_with(self);
+  fn visit_export_named_declaration(
+    &mut self,
+    export: &ExportNamedDeclaration<'a>,
+  ) {
+    if let Some(decl) = &export.declaration {
+      match decl {
+        Declaration::ClassDeclaration(c) if !c.declare => {
+          walk::walk_class(self, c);
+        }
+        Declaration::FunctionDeclaration(f) if !f.declare => {
+          // If function body is not present, it's an overload definition
+          if f.body.is_some() {
+            walk::walk_function(self, f, ScopeFlags::Function);
+          }
+        }
+        Declaration::VariableDeclaration(v) if !v.declare => {
+          for decl in &v.declarations {
+            self.visit_binding_pattern(&decl.id);
+            if let Some(init) = &decl.init {
+              self.visit_expression(init);
+            }
+          }
+        }
+        _ => {}
       }
-      Decl::Fn(f) if !f.declare => {
+    }
+    // Don't walk specifiers - export is usage
+  }
+
+  fn visit_export_default_declaration(
+    &mut self,
+    export: &ExportDefaultDeclaration<'a>,
+  ) {
+    match &export.declaration {
+      ExportDefaultDeclarationKind::ClassDeclaration(c) => {
+        walk::walk_class(self, c);
+      }
+      ExportDefaultDeclarationKind::FunctionDeclaration(f) => {
         // If function body is not present, it's an overload definition
-        if f.function.body.is_some() {
-          f.function.visit_with(self);
+        if f.body.is_some() {
+          walk::walk_function(self, f, ScopeFlags::Function);
         }
       }
-      Decl::Var(v) if !v.declare => {
-        for decl in &v.decls {
-          decl.name.visit_with(self);
-          decl.init.visit_with(self);
-        }
+      ExportDefaultDeclarationKind::TSInterfaceDeclaration(i) => {
+        walk::walk_ts_interface_declaration(self, i);
       }
-      _ => {}
-    }
-  }
-
-  fn visit_export_default_decl(&mut self, export: &ExportDefaultDecl) {
-    match &export.decl {
-      DefaultDecl::Class(c) => {
-        c.class.visit_with(self);
-      }
-      DefaultDecl::Fn(f) => {
-        // If function body is not present, it's an overload definition
-        if f.function.body.is_some() {
-          f.function.visit_with(self);
-        }
-      }
-      DefaultDecl::TsInterfaceDecl(i) => {
-        i.visit_children_with(self);
+      _ => {
+        walk::walk_export_default_declaration(self, export);
       }
     }
   }
 
-  fn visit_params(&mut self, params: &[Param]) {
-    match params.first() {
-      Some(Param {
-        pat: Pat::Ident(i), ..
-      }) if i.id.sym == *"this" => params
-        .iter()
-        .skip(1)
-        .for_each(|param| param.visit_with(self)),
-      _ => params.iter().for_each(|param| param.visit_with(self)),
+  fn visit_formal_parameters(&mut self, params: &FormalParameters<'a>) {
+    // Skip the `this` parameter if present
+    let skip = if let Some(first) = params.items.first() {
+      if let BindingPattern::BindingIdentifier(ident) = &first.pattern {
+        ident.name.as_str() == "this"
+      } else {
+        false
+      }
+    } else {
+      false
+    };
+
+    if skip {
+      for param in params.items.iter().skip(1) {
+        self.visit_formal_parameter(param);
+      }
+    } else {
+      for param in &params.items {
+        self.visit_formal_parameter(param);
+      }
     }
   }
 
-  fn visit_ts_enum_decl(&mut self, n: &TsEnumDecl) {
+  fn visit_ts_enum_declaration(&mut self, n: &TSEnumDeclaration<'a>) {
     if n.declare {
       return;
     }
 
-    if self.used_types.contains(&n.id.to_id()) {
-      return;
+    if let Some(sym_id) = n.id.symbol_id.get() {
+      if self.used_types.contains(&sym_id) {
+        return;
+      }
     }
-    self.handle_id(IdentKind::Other(&n.id));
+    self.handle_binding(
+      n.id.name.as_str(),
+      n.id.span,
+      n.id.symbol_id.get(),
+      IdentKind::Other,
+    );
   }
 
-  fn visit_ts_module_decl(&mut self, n: &TsModuleDecl) {
+  fn visit_ts_module_declaration(&mut self, n: &TSModuleDeclaration<'a>) {
     if n.declare {
       return;
     }
 
-    n.body.visit_with(self);
-  }
-
-  fn visit_ts_namespace_decl(&mut self, n: &TsNamespaceDecl) {
-    if n.declare {
-      return;
+    if let Some(body) = &n.body {
+      self.visit_ts_module_declaration_body(body);
     }
-
-    n.body.visit_with(self);
   }
 
   /// no-op as export is kind of usage
-  fn visit_named_export(&mut self, _: &NamedExport) {}
+  fn visit_export_specifier(&mut self, _: &ExportSpecifier<'a>) {}
 }
 
 #[cfg(test)]

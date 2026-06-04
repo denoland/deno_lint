@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{CallExpr, Callee, Expr, ExprOrSpread, NewExpr};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  Argument, CallExpression, Expression, NewExpression, Program,
+};
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct NoArrayConstructor;
@@ -23,57 +24,54 @@ impl LintRule for NoArrayConstructor {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoArrayConstructorHandler.traverse(program, context);
+    let mut handler = NoArrayConstructorHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-fn check_args(
-  args: Vec<&ExprOrSpread>,
-  range: SourceRange,
-  context: &mut Context,
-) {
+fn check_args(args: &[Argument], span: Span, context: &mut Context) {
   if args.len() != 1 {
-    context.add_diagnostic_with_hint(range, CODE, MESSAGE, HINT);
+    context.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
   }
 }
 
 struct NoArrayConstructorHandler;
 
-impl Handler for NoArrayConstructorHandler {
-  fn new_expr(&mut self, new_expr: &NewExpr, context: &mut Context) {
-    if let Expr::Ident(ident) = &new_expr.callee {
-      let name = ident.inner.as_ref();
-      if name != "Array" {
+impl Handler<'_> for NoArrayConstructorHandler {
+  fn new_expression(
+    &mut self,
+    new_expr: &NewExpression,
+    context: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &new_expr.callee {
+      if ident.name.as_str() != "Array" {
         return;
       }
-      if new_expr.type_args.is_some() {
+      if new_expr.type_arguments.is_some() {
         return;
       }
-      match &new_expr.args {
-        Some(args) => {
-          check_args(args.to_vec(), new_expr.range(), context);
-        }
-        None => check_args(vec![], new_expr.range(), context),
-      };
+      check_args(&new_expr.arguments, new_expr.span, context);
     }
   }
 
-  fn call_expr(&mut self, call_expr: &CallExpr, context: &mut Context) {
-    if let Callee::Expr(Expr::Ident(ident)) = &call_expr.callee {
-      let name = ident.inner.as_ref();
-      if name != "Array" {
+  fn call_expression(
+    &mut self,
+    call_expr: &CallExpression,
+    context: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &call_expr.callee {
+      if ident.name.as_str() != "Array" {
         return;
       }
-      if call_expr.type_args.is_some() {
+      if call_expr.type_arguments.is_some() {
         return;
       }
-
-      check_args((*call_expr.args).to_vec(), call_expr.range(), context);
+      check_args(&call_expr.arguments, call_expr.span, context);
     }
   }
 }

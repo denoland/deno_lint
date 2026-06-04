@@ -1,11 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::view::ImportDecl;
-use deno_ast::{ModuleSpecifier, SourceRanged};
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::ModuleSpecifier;
 use derive_more::Display;
 use std::ffi::OsStr;
 
@@ -35,13 +34,13 @@ impl LintRule for NoExternalImport {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     let mut handler = NoExternalImportHandler;
-    handler.traverse(program, context);
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -49,9 +48,8 @@ impl LintRule for NoExternalImport {
 struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
-  fn check_import_path(&self, decl: &ImportDecl, ctx: &mut Context) {
-    let parsed_src =
-      ModuleSpecifier::parse(&decl.src.value().to_string_lossy());
+  fn check_import_path(&self, decl: &ImportDeclaration, ctx: &mut Context) {
+    let parsed_src = ModuleSpecifier::parse(decl.source.value.as_str());
     let maybe_file_path = ctx.specifier().to_file_path().ok();
     let file_stem = maybe_file_path
       .as_ref()
@@ -60,7 +58,7 @@ impl NoExternalImportHandler {
 
     if parsed_src.is_ok() && file_stem != Some("deps") {
       ctx.add_diagnostic_with_hint(
-        decl.range(),
+        decl.span,
         CODE,
         NoExternalImportMessage::Unexpected,
         NoExternalImportHint::CreateDependencyFile,
@@ -69,10 +67,10 @@ impl NoExternalImportHandler {
   }
 }
 
-impl Handler for NoExternalImportHandler {
-  fn import_decl(
+impl Handler<'_> for NoExternalImportHandler {
+  fn import_declaration(
     &mut self,
-    decl: &deno_ast::view::ImportDecl,
+    decl: &ImportDeclaration,
     ctx: &mut Context,
   ) {
     self.check_import_path(decl, ctx);

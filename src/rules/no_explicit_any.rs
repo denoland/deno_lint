@@ -1,12 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::swc::ast::TsKeywordTypeKind::TsAnyKeyword;
-use deno_ast::view::TsKeywordType;
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct NoExplicitAny;
@@ -24,31 +21,25 @@ impl LintRule for NoExplicitAny {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoExplicitAnyHandler.traverse(program, context);
+    let mut handler = NoExplicitAnyHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoExplicitAnyHandler;
 
-impl Handler for NoExplicitAnyHandler {
-  fn ts_keyword_type(
+impl Handler<'_> for NoExplicitAnyHandler {
+  fn ts_any_keyword(
     &mut self,
-    ts_keyword_type: &TsKeywordType,
+    ts_any_keyword: &TSAnyKeyword,
     ctx: &mut Context,
   ) {
-    if ts_keyword_type.keyword_kind() == TsAnyKeyword {
-      ctx.add_diagnostic_with_hint(
-        ts_keyword_type.range(),
-        CODE,
-        MESSAGE,
-        HINT,
-      );
-    }
+    ctx.add_diagnostic_with_hint(ts_any_keyword.span, CODE, MESSAGE, HINT);
   }
 }
 

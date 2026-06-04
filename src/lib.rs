@@ -24,8 +24,7 @@ pub mod rules;
 pub mod swc_util;
 pub mod tags;
 
-pub use deno_ast::view::Program;
-pub use deno_ast::view::ProgramRef;
+pub use deno_ast::oxc::ast::ast::Program;
 
 #[cfg(test)]
 mod lint_tests {
@@ -35,7 +34,7 @@ mod lint_tests {
   use crate::diagnostic::LintDiagnostic;
   use crate::linter::*;
   use crate::rules::{get_all_rules, recommended_rules, LintRule};
-  use crate::test_util::{assert_diagnostic, parse};
+  use crate::test_util::{assert_diagnostic, parse_and_then};
   use deno_ast::ParsedSource;
   use deno_ast::{MediaType, ModuleSpecifier};
 
@@ -51,7 +50,7 @@ mod lint_tests {
       custom_ignore_file_directive: None,
     });
 
-    let (_, diagnostics) = linter
+    linter
       .lint_file(LintFileOptions {
         specifier: ModuleSpecifier::parse("file:///lint_test.ts").unwrap(),
         source_code: source.to_string(),
@@ -62,8 +61,7 @@ mod lint_tests {
         },
         external_linter: None,
       })
-      .expect("Failed to lint");
-    diagnostics
+      .expect("Failed to lint")
   }
 
   fn lint_with_ast(
@@ -293,8 +291,9 @@ const _foo = 42;
 
   #[test]
   fn empty_file_with_ast() {
-    let parsed_source = parse("");
-    let diagnostics = lint_recommended_rules_with_ast(&parsed_source);
-    assert!(diagnostics.is_empty());
+    parse_and_then("", |parsed_source| {
+      let diagnostics = lint_recommended_rules_with_ast(parsed_source);
+      assert!(diagnostics.is_empty());
+    });
   }
 }

@@ -1,13 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-use super::program_ref;
 use super::{Context, LintRule};
-use crate::Program;
-use crate::ProgramRef;
-use deno_ast::swc::ast::VarDecl;
-use deno_ast::swc::ecma_visit::noop_visit_type;
-use deno_ast::swc::ecma_visit::Visit;
-use deno_ast::SourceRangedForSpanned;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{Program, VariableDeclaration};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -26,37 +21,27 @@ impl LintRule for SingleVarDeclarator {
     CODE
   }
 
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    let program = program_ref(program);
-    let mut visitor = SingleVarDeclaratorVisitor::new(context);
-    match program {
-      ProgramRef::Module(m) => visitor.visit_module(m),
-      ProgramRef::Script(s) => visitor.visit_script(s),
-    }
+    let mut handler = SingleVarDeclaratorHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct SingleVarDeclaratorVisitor<'c, 'view> {
-  context: &'c mut Context<'view>,
-}
+struct SingleVarDeclaratorHandler;
 
-impl<'c, 'view> SingleVarDeclaratorVisitor<'c, 'view> {
-  fn new(context: &'c mut Context<'view>) -> Self {
-    Self { context }
-  }
-}
-
-impl Visit for SingleVarDeclaratorVisitor<'_, '_> {
-  noop_visit_type!();
-
-  fn visit_var_decl(&mut self, var_decl: &VarDecl) {
-    if var_decl.decls.len() > 1 {
-      self.context.add_diagnostic(
-        var_decl.range(),
+impl Handler<'_> for SingleVarDeclaratorHandler {
+  fn variable_declaration(
+    &mut self,
+    var_decl: &VariableDeclaration,
+    ctx: &mut Context,
+  ) {
+    if var_decl.declarations.len() > 1 {
+      ctx.add_diagnostic(
+        var_decl.span,
         CODE,
         SingleVarDeclaratorMessage::Unexpected,
       );

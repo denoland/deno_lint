@@ -1,10 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::{view as ast_view, SourceRanged};
+use deno_ast::oxc::ast::ast::{Program, TSEnumDeclaration};
 
 #[derive(Debug)]
 pub struct NoEmptyEnum;
@@ -21,25 +20,26 @@ impl LintRule for NoEmptyEnum {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program<'_>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoEmptyEnumHandler.traverse(program, context);
+    let mut handler = NoEmptyEnumHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoEmptyEnumHandler;
 
-impl Handler for NoEmptyEnumHandler {
-  fn ts_enum_decl(
+impl Handler<'_> for NoEmptyEnumHandler {
+  fn ts_enum_declaration(
     &mut self,
-    enum_decl: &ast_view::TsEnumDecl,
+    enum_decl: &TSEnumDeclaration,
     ctx: &mut Context,
   ) {
-    if enum_decl.members.is_empty() {
-      ctx.add_diagnostic(enum_decl.range(), CODE, MESSAGE);
+    if enum_decl.body.members.is_empty() {
+      ctx.add_diagnostic(enum_decl.span, CODE, MESSAGE);
     }
   }
 }

@@ -1,8 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::Program;
-use deno_ast::SourceRange;
+use deno_ast::oxc::ast::ast::Program;
+use deno_ast::oxc::span::Span;
 
 #[derive(Debug)]
 pub struct PreferAscii;
@@ -22,27 +22,26 @@ impl LintRule for PreferAscii {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    _program: Program<'_>,
+    context: &mut Context<'a>,
+    _program: &Program<'a>,
   ) {
     let mut not_asciis = Vec::new();
 
-    let text_info = context.text_info();
-    let mut src_chars = text_info.text_str().char_indices().peekable();
-    let start_pos = text_info.range().start;
+    let source_text = context.source_text();
+    let mut src_chars = source_text.char_indices().peekable();
     while let Some((i, c)) = src_chars.next() {
       if let Some(&(pi, _)) = src_chars.peek() {
         if (pi > i + 1) || !c.is_ascii() {
-          let range = SourceRange::new(start_pos + i, start_pos + pi);
-          not_asciis.push((c, range));
+          let span = Span::new(i as u32, pi as u32);
+          not_asciis.push((c, span));
         }
       }
     }
 
-    for (c, range) in not_asciis {
-      context.add_diagnostic_with_hint(range, CODE, MESSAGE, hint(c));
+    for (c, span) in not_asciis {
+      context.add_diagnostic_with_hint(span, CODE, MESSAGE, hint(c));
     }
   }
 }
@@ -136,13 +135,13 @@ function hello(name: string) {
           line: 1,
           col: 3,
           message: MESSAGE,
-          hint: hint('“'),
+          hint: hint('\u{201c}'),
         },
         {
           line: 1,
           col: 12,
           message: MESSAGE,
-          hint: hint('”'),
+          hint: hint('\u{201d}'),
         },
       ],
       r#"/* “comments” are also checked */"#: [
@@ -150,13 +149,13 @@ function hello(name: string) {
           line: 1,
           col: 3,
           message: MESSAGE,
-          hint: hint('“'),
+          hint: hint('\u{201c}'),
         },
         {
           line: 1,
           col: 12,
           message: MESSAGE,
-          hint: hint('”'),
+          hint: hint('\u{201d}'),
         },
       ],
     };

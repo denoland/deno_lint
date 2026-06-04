@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{JSXElement, JSXElementName};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{JSXElement, JSXElementName, Program};
 
 #[derive(Debug)]
 pub struct JSXVoidDomElementsNoChildren;
@@ -21,12 +19,13 @@ impl LintRule for JSXVoidDomElementsNoChildren {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXVoidDomElementsNoChildrenHandler.traverse(program, context);
+    let mut handler = JSXVoidDomElementsNoChildrenHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -35,12 +34,12 @@ const HINT: &str = "Escape the '\">} characters respectively";
 
 struct JSXVoidDomElementsNoChildrenHandler;
 
-impl Handler for JSXVoidDomElementsNoChildrenHandler {
+impl Handler<'_> for JSXVoidDomElementsNoChildrenHandler {
   fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
-    if let JSXElementName::Ident(name) = node.opening.name {
+    if let JSXElementName::Identifier(name) = &node.opening_element.name {
       if !node.children.is_empty()
         && matches!(
-          name.sym().as_str(),
+          name.name.as_str(),
           "area"
             | "base"
             | "br"
@@ -57,7 +56,7 @@ impl Handler for JSXVoidDomElementsNoChildrenHandler {
             | "wbr"
         )
       {
-        ctx.add_diagnostic_with_hint(node.range(), CODE, MESSAGE, HINT);
+        ctx.add_diagnostic_with_hint(node.span, CODE, MESSAGE, HINT);
       }
     }
   }

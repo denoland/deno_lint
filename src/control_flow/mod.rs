@@ -3,16 +3,11 @@
 #[cfg(test)]
 mod analyze_test;
 
-use deno_ast::swc::ast::*;
-use deno_ast::swc::common::SyntaxContext;
-use deno_ast::swc::utils::ExprCtx;
-use deno_ast::swc::{
-  ecma_visit::{noop_visit_type, Visit, VisitWith},
-  utils::{ExprExt, Value},
-};
-use deno_ast::view;
-use deno_ast::SourcePos;
-use deno_ast::SourceRangedForSpanned;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::ast_visit::walk;
+use deno_ast::oxc::ast_visit::Visit;
+use deno_ast::oxc::span::GetSpan;
+use deno_ast::ParsedSource;
 use std::{
   collections::{BTreeMap, HashSet},
   mem::take,
@@ -20,36 +15,24 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct ControlFlow {
-  meta: BTreeMap<SourcePos, Metadata>,
+  meta: BTreeMap<u32, Metadata>,
 }
 
 impl ControlFlow {
-  pub fn analyze(
-    program: view::Program,
-    unresolved_ctxt: SyntaxContext,
-  ) -> Self {
+  pub fn analyze(parsed_source: &ParsedSource) -> Self {
     let mut v = Analyzer {
       scope: Scope::new(None, BlockKind::Program),
       info: Default::default(),
-      expr_ctxt: ExprCtx {
-        unresolved_ctxt,
-        is_unresolved_ref_safe: false,
-        in_strict: true,
-        remaining_depth: 4, // this is the swc default
-      },
     };
-    match program {
-      view::Program::Module(module) => module.inner.visit_with(&mut v),
-      view::Program::Script(script) => script.inner.visit_with(&mut v),
-    }
+    v.visit_program(parsed_source.program());
     ControlFlow { meta: v.info }
   }
 
-  /// start_pos can be extracted from range of
+  /// start_pos can be extracted from span.start of
   ///
-  /// - All statements (including stmt.range())
+  /// - All statements (including stmt.span().start)
   /// - [SwitchCase]
-  pub fn meta(&self, start_pos: SourcePos) -> Option<&Metadata> {
+  pub fn meta(&self, start_pos: u32) -> Option<&Metadata> {
     self.meta.get(&start_pos)
   }
 }
@@ -67,7 +50,7 @@ pub enum BlockKind {
   If,
   /// Body of a loop
   Loop,
-  Label(Id),
+  Label(String),
   /// Catch clause's body
   Catch,
   /// Finally's body
@@ -97,8 +80,7 @@ impl Metadata {
 #[derive(Debug)]
 struct Analyzer<'a> {
   scope: Scope<'a>,
-  info: BTreeMap<SourcePos, Metadata>,
-  expr_ctxt: ExprCtx,
+  info: BTreeMap<u32, Metadata>,
 }
 
 #[derive(Debug)]
@@ -107,7 +89,7 @@ struct Scope<'a> {
   /// This field exists to handle code like
   ///
   /// `function foo() { return bar(); function bar() { return 1; } }`
-  used_hoistable_ids: HashSet<Id>,
+  used_hoistable_ids: HashSet<String>,
 
   _kind: BlockKind,
 
@@ -119,8 +101,8 @@ struct Scope<'a> {
   ///
   /// - None: Not found
   /// - Some(None): Stopped at a break statement without label
-  /// - Some(Somd(id)): Stopped at a break statement with label id
-  found_break: Option<Option<Id>>,
+  /// - Some(Some(id)): Stopped at a break statement with label id
+  found_break: Option<Option<String>>,
   found_continue: bool,
 }
 
@@ -228,12 +210,26 @@ impl<'a> Scope<'a> {
   }
 }
 
+/// Simple check if an expression is known to be truthy at compile time.
+fn is_definitely_truthy(expr: &Expression) -> bool {
+  match expr {
+    Expression::BooleanLiteral(b) => b.value,
+    Expression::NumericLiteral(n) => n.value != 0.0 && !n.value.is_nan(),
+    Expression::StringLiteral(s) => !s.value.is_empty(),
+    _ => false,
+  }
+}
+
+fn stmt_start(s: &Statement) -> u32 {
+  s.span().start
+}
+
 impl Analyzer<'_> {
   /// `lo` is marked as end if child scope is unconditionally finished
   pub(super) fn with_child_scope<F>(
     &mut self,
     kind: BlockKind,
-    start_pos: SourcePos,
+    start_pos: u32,
     op: F,
   ) where
     F: for<'any> FnOnce(&mut Analyzer<'any>),
@@ -243,7 +239,6 @@ impl Analyzer<'_> {
       let mut child = Analyzer {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind.clone()),
-        expr_ctxt: self.expr_ctxt,
       };
       match kind {
         BlockKind::Function => {}
@@ -328,17 +323,13 @@ impl Analyzer<'_> {
     }
   }
 
-  fn get_end_reason(&self, start: SourcePos) -> Option<End> {
+  fn get_end_reason(&self, start: u32) -> Option<End> {
     self.info.get(&start).and_then(|md| md.end)
   }
 
   /// Mark a statement as finisher - finishes execution - and expose it.
-  fn mark_as_end(&mut self, start: SourcePos, end: End) {
+  fn mark_as_end(&mut self, start: u32, end: End) {
     let new_end = match self.scope.end {
-      // `End::Continue` doesn't mean much about execution status, just indicating that execution has
-      // not yet stopped so far. So if `End::Forced` or `End::Break` comes and the current
-      // `self.scope.end` is `Some(End::Continue)`, then `self.scope.end` should be replaced with the
-      // coming value.
       None | Some(End::Continue) => {
         self.scope.end = Some(end);
         Some(end)
@@ -351,73 +342,71 @@ impl Analyzer<'_> {
   }
 
   /// Visits statement or block. This method handles break and continue.
-  ///
-  /// This cannot be done in visit_stmt of Visit because
-  ///  this operation is very opinionated.
-  fn visit_stmt_or_block(&mut self, s: &Stmt) {
-    s.visit_with(self);
+  fn visit_stmt_or_block(&mut self, s: &Statement<'_>) {
+    self.visit_statement(s);
 
     // break, continue **may** make execution end
     match s {
-      Stmt::Break(..) | Stmt::Continue(..) => {
-        self.mark_as_end(s.start(), End::Break)
+      Statement::BreakStatement(..) | Statement::ContinueStatement(..) => {
+        self.mark_as_end(stmt_start(s), End::Break)
       }
       _ => {}
     }
   }
 }
 
-impl Visit for Analyzer<'_> {
-  noop_visit_type!();
-
-  fn visit_return_stmt(&mut self, n: &ReturnStmt) {
-    n.visit_children_with(self);
-    self.mark_as_end(n.start(), End::forced_return());
+impl<'a> Visit<'a> for Analyzer<'_> {
+  fn visit_return_statement(&mut self, n: &ReturnStatement<'a>) {
+    walk::walk_return_statement(self, n);
+    self.mark_as_end(n.span.start, End::forced_return());
   }
 
-  fn visit_throw_stmt(&mut self, n: &ThrowStmt) {
-    n.visit_children_with(self);
-    self.mark_as_end(n.start(), End::forced_throw());
+  fn visit_throw_statement(&mut self, n: &ThrowStatement<'a>) {
+    walk::walk_throw_statement(self, n);
+    self.mark_as_end(n.span.start, End::forced_throw());
   }
 
-  fn visit_break_stmt(&mut self, n: &BreakStmt) {
+  fn visit_break_statement(&mut self, n: &BreakStatement<'a>) {
     if let Some(label) = &n.label {
-      let label = label.to_id();
+      let label = label.name.to_string();
       self.scope.found_break = Some(Some(label));
     } else {
       self.scope.found_break = Some(None);
     }
   }
 
-  fn visit_continue_stmt(&mut self, _: &ContinueStmt) {
+  fn visit_continue_statement(&mut self, _: &ContinueStatement<'a>) {
     self.scope.found_continue = true;
   }
 
-  fn visit_block_stmt(&mut self, s: &BlockStmt) {
-    s.visit_children_with(self);
+  fn visit_block_statement(&mut self, s: &BlockStatement<'a>) {
+    walk::walk_block_statement(self, s);
 
     if let Some(end) = self.scope.end {
-      self.mark_as_end(s.start(), end);
+      self.mark_as_end(s.span.start, end);
     } else {
-      self.mark_as_end(s.start(), End::Continue);
+      self.mark_as_end(s.span.start, End::Continue);
     }
   }
 
-  fn visit_stmts(&mut self, stmts: &[Stmt]) {
+  fn visit_statements(
+    &mut self,
+    stmts: &deno_ast::oxc::allocator::Vec<'a, Statement<'a>>,
+  ) {
     for stmt in stmts {
       self.visit_stmt_or_block(stmt);
     }
   }
 
-  fn visit_expr(&mut self, n: &Expr) {
-    n.visit_children_with(self);
+  fn visit_expression(&mut self, n: &Expression<'a>) {
+    walk::walk_expression(self, n);
 
     if matches!(self.scope.end, None | Some(End::Continue)) {
       match n {
-        Expr::Ident(i) => {
-          self.scope.used_hoistable_ids.insert(i.to_id());
+        Expression::Identifier(i) => {
+          self.scope.used_hoistable_ids.insert(i.name.to_string());
         }
-        Expr::This(..) => {}
+        Expression::ThisExpression(..) => {}
         _ => {
           self.scope.may_throw = true;
         }
@@ -425,59 +414,78 @@ impl Visit for Analyzer<'_> {
     }
   }
 
-  fn visit_member_expr(&mut self, n: &MemberExpr) {
-    n.obj.visit_with(self);
-    if let MemberProp::Computed(computed_prop) = &n.prop {
-      computed_prop.visit_with(self);
+  fn visit_member_expression(&mut self, n: &MemberExpression<'a>) {
+    match n {
+      MemberExpression::StaticMemberExpression(s) => {
+        self.visit_expression(&s.object);
+      }
+      MemberExpression::ComputedMemberExpression(c) => {
+        self.visit_expression(&c.object);
+        self.visit_expression(&c.expression);
+      }
+      MemberExpression::PrivateFieldExpression(p) => {
+        self.visit_expression(&p.object);
+      }
     }
   }
 
-  fn visit_arrow_expr(&mut self, n: &ArrowExpr) {
-    self.with_child_scope(BlockKind::Function, n.start(), |a| {
-      n.visit_children_with(a);
+  fn visit_arrow_function_expression(
+    &mut self,
+    n: &ArrowFunctionExpression<'a>,
+  ) {
+    self.with_child_scope(BlockKind::Function, n.span.start, |a| {
+      walk::walk_arrow_function_expression(a, n);
     })
   }
 
-  fn visit_function(&mut self, n: &Function) {
-    self.with_child_scope(BlockKind::Function, n.start(), |a| {
-      n.visit_children_with(a);
+  fn visit_function(
+    &mut self,
+    n: &Function<'a>,
+    _flags: deno_ast::oxc::syntax::scope::ScopeFlags,
+  ) {
+    self.with_child_scope(BlockKind::Function, n.span.start, |a| {
+      walk::walk_function(
+        a,
+        n,
+        deno_ast::oxc::syntax::scope::ScopeFlags::Function,
+      );
     })
   }
 
-  fn visit_catch_clause(&mut self, n: &CatchClause) {
-    self.with_child_scope(BlockKind::Catch, n.start(), |a| {
-      n.visit_children_with(a);
+  fn visit_catch_clause(&mut self, n: &CatchClause<'a>) {
+    self.with_child_scope(BlockKind::Catch, n.span.start, |a| {
+      walk::walk_catch_clause(a, n);
     });
   }
 
-  fn visit_constructor(&mut self, n: &Constructor) {
-    self.with_child_scope(BlockKind::Function, n.start(), |a| {
-      n.visit_children_with(a);
-    });
+  fn visit_object_property(&mut self, n: &ObjectProperty<'a>) {
+    match n.kind {
+      PropertyKind::Get => {
+        self.with_child_scope(BlockKind::Function, n.span.start, |a| {
+          walk::walk_object_property(a, n);
+        });
+      }
+      PropertyKind::Set => {
+        self.with_child_scope(BlockKind::Function, n.span.start, |a| {
+          walk::walk_object_property(a, n);
+        });
+      }
+      _ => {
+        walk::walk_object_property(self, n);
+      }
+    }
   }
 
-  fn visit_getter_prop(&mut self, n: &GetterProp) {
-    self.with_child_scope(BlockKind::Function, n.start(), |a| {
-      n.visit_children_with(a);
-    })
-  }
-
-  fn visit_setter_prop(&mut self, n: &SetterProp) {
-    self.with_child_scope(BlockKind::Function, n.start(), |a| {
-      n.visit_children_with(a);
-    })
-  }
-
-  fn visit_switch_stmt(&mut self, n: &SwitchStmt) {
+  fn visit_switch_statement(&mut self, n: &SwitchStatement<'a>) {
     let prev_end = self.scope.end;
-    n.visit_children_with(self);
+    walk::walk_switch_statement(self, n);
 
     let end = {
       let has_default = n.cases.iter().any(|case| case.test.is_none());
       let forced_end = n
         .cases
         .iter()
-        .filter_map(|case| self.get_end_reason(case.start()))
+        .filter_map(|case| self.get_end_reason(case.span.start))
         .try_fold(
           End::Forced {
             ret: false,
@@ -493,19 +501,32 @@ impl Visit for Analyzer<'_> {
       }
     };
 
-    self.mark_as_end(n.start(), end);
+    self.mark_as_end(n.span.start, end);
 
     if !matches!(end, End::Forced { .. }) {
       self.scope.end = prev_end;
     }
   }
 
-  fn visit_switch_case(&mut self, n: &SwitchCase) {
+  fn visit_switch_case(&mut self, n: &SwitchCase<'a>) {
     let prev_end = self.scope.end;
     let mut case_end = None;
 
-    self.with_child_scope(BlockKind::Case, n.start(), |a| {
-      n.cons.visit_with(a);
+    self.with_child_scope(BlockKind::Case, n.span.start, |a| {
+      for stmt in &n.consequent {
+        a.visit_statement(stmt);
+        // After a break/continue, mark scope.end so subsequent statements are
+        // flagged as unreachable, but do NOT call mark_as_end (which would store
+        // End::Break in the info map — tests expect `end: None` for break stmts).
+        match stmt {
+          Statement::BreakStatement(..) | Statement::ContinueStatement(..) => {
+            if matches!(a.scope.end, None | Some(End::Continue)) {
+              a.scope.end = Some(End::Break);
+            }
+          }
+          _ => {}
+        }
+      }
 
       if a.scope.found_break.is_some() {
         case_end = Some(End::Break);
@@ -515,57 +536,57 @@ impl Visit for Analyzer<'_> {
     });
 
     if let Some(end) = case_end {
-      self.mark_as_end(n.start(), end);
+      self.mark_as_end(n.span.start, end);
     } else {
-      self.mark_as_end(n.start(), End::Continue);
+      self.mark_as_end(n.span.start, End::Continue);
     }
 
     self.scope.end = prev_end;
   }
 
-  fn visit_if_stmt(&mut self, n: &IfStmt) {
-    n.test.visit_with(self);
+  fn visit_if_statement(&mut self, n: &IfStatement<'a>) {
+    self.visit_expression(&n.test);
 
     let prev_end = self.scope.end;
 
-    self.with_child_scope(BlockKind::If, n.cons.start(), |a| {
-      a.visit_stmt_or_block(&n.cons);
+    self.with_child_scope(BlockKind::If, stmt_start(&n.consequent), |a| {
+      a.visit_stmt_or_block(&n.consequent);
     });
 
-    let cons_reason = self.get_end_reason(n.cons.start());
+    let cons_reason = self.get_end_reason(stmt_start(&n.consequent));
 
-    match &n.alt {
+    match &n.alternate {
       Some(alt) => {
-        self.with_child_scope(BlockKind::If, alt.start(), |a| {
+        self.with_child_scope(BlockKind::If, stmt_start(alt), |a| {
           a.visit_stmt_or_block(alt);
         });
-        let alt_reason = self.get_end_reason(alt.start());
+        let alt_reason = self.get_end_reason(stmt_start(alt));
 
         match (cons_reason, alt_reason) {
           (Some(x), Some(y)) if x.is_forced() && y.is_forced() => {
             // This `unwrap` is safe; `x` and `y` are surely `Some(End::Forced { .. })`
             let end = x.merge_forced(y).unwrap();
-            self.mark_as_end(n.start(), end);
+            self.mark_as_end(n.span.start, end);
           }
           (Some(End::Break), Some(End::Break))
           | (Some(End::Forced { .. }), Some(End::Break))
           | (Some(End::Break), Some(End::Forced { .. })) => {
-            self.mark_as_end(n.start(), End::Break);
+            self.mark_as_end(n.span.start, End::Break);
           }
           // TODO: Check for continue
           _ => {
-            self.mark_as_end(n.start(), End::Continue);
+            self.mark_as_end(n.span.start, End::Continue);
           }
         }
       }
       None => {
-        self.mark_as_end(n.start(), End::Continue);
+        self.mark_as_end(n.span.start, End::Continue);
         self.scope.end = prev_end;
       }
     }
   }
 
-  fn visit_stmt(&mut self, n: &Stmt) {
+  fn visit_statement(&mut self, n: &Statement<'a>) {
     let scope_end = self
       .scope
       .end
@@ -574,15 +595,17 @@ impl Visit for Analyzer<'_> {
     let unreachable = if scope_end {
       // Although execution is ended, we should handle hoisting.
       match n {
-        Stmt::Empty(..) => false,
-        Stmt::Decl(Decl::Fn(FnDecl { ident, .. }))
-          if self.scope.used_hoistable_ids.contains(&ident.to_id()) =>
+        Statement::EmptyStatement(..) => false,
+        Statement::FunctionDeclaration(func)
+          if func.id.as_ref().is_some_and(|id| {
+            self.scope.used_hoistable_ids.contains(id.name.as_str())
+          }) =>
         {
           false
         }
-        Stmt::Decl(Decl::Var(decl))
-          if decl.kind == VarDeclKind::Var
-            && decl.decls.iter().all(|decl| decl.init.is_none()) =>
+        Statement::VariableDeclaration(decl)
+          if decl.kind == VariableDeclarationKind::Var
+            && decl.declarations.iter().all(|decl| decl.init.is_none()) =>
         {
           false
         }
@@ -593,39 +616,44 @@ impl Visit for Analyzer<'_> {
       false
     };
 
-    self.info.entry(n.start()).or_default().unreachable = unreachable;
+    self.info.entry(stmt_start(n)).or_default().unreachable = unreachable;
 
-    n.visit_children_with(self);
+    walk::walk_statement(self, n);
   }
 
   // loops
 
-  fn visit_for_stmt(&mut self, n: &ForStmt) {
-    n.init.visit_with(self);
-    n.update.visit_with(self);
-    n.test.visit_with(self);
+  fn visit_for_statement(&mut self, n: &ForStatement<'a>) {
+    if let Some(init) = &n.init {
+      self.visit_for_statement_init(init);
+    }
+    if let Some(update) = &n.update {
+      self.visit_expression(update);
+    }
+    if let Some(test) = &n.test {
+      self.visit_expression(test);
+    }
 
     let mut forced_end = None;
-    let expr_ctxt = self.expr_ctxt;
 
-    self.with_child_scope(BlockKind::Loop, n.body.start(), |a| {
-      n.body.visit_with(a);
+    self.with_child_scope(BlockKind::Loop, stmt_start(&n.body), |a| {
+      a.visit_statement(&n.body);
 
       let has_break = matches!(a.scope.found_break, Some(None));
 
       if !has_break {
-        let end = match a.get_end_reason(n.body.start()) {
+        let end = match a.get_end_reason(stmt_start(&n.body)) {
           Some(e) if e.is_forced() => e,
           _ => End::forced_infinite_loop(),
         };
         match &n.test {
           None => {
-            a.mark_as_end(n.start(), end);
+            a.mark_as_end(n.span.start, end);
             forced_end = Some(end);
           }
           Some(test) => {
-            if matches!(test.cast_to_bool(expr_ctxt), (_, Value::Known(true))) {
-              a.mark_as_end(n.start(), end);
+            if is_definitely_truthy(test) {
+              a.mark_as_end(n.span.start, end);
               forced_end = Some(end);
             }
           }
@@ -633,19 +661,19 @@ impl Visit for Analyzer<'_> {
       }
 
       if forced_end.is_none() || has_break {
-        a.mark_as_end(n.body.start(), End::Continue);
+        a.mark_as_end(stmt_start(&n.body), End::Continue);
         a.scope.end = Some(End::Continue);
       }
     });
   }
 
-  fn visit_for_of_stmt(&mut self, n: &ForOfStmt) {
-    let body_lo = n.body.start();
+  fn visit_for_of_statement(&mut self, n: &ForOfStatement<'a>) {
+    let body_lo = stmt_start(&n.body);
 
-    n.right.visit_with(self);
+    self.visit_expression(&n.right);
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(a);
+      a.visit_statement(&n.body);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
       // it as `End::Continue`.
@@ -654,13 +682,13 @@ impl Visit for Analyzer<'_> {
     });
   }
 
-  fn visit_for_in_stmt(&mut self, n: &ForInStmt) {
-    let body_lo = n.body.start();
+  fn visit_for_in_statement(&mut self, n: &ForInStatement<'a>) {
+    let body_lo = stmt_start(&n.body);
 
-    n.right.visit_with(self);
+    self.visit_expression(&n.right);
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(a);
+      a.visit_statement(&n.body);
 
       // it's impossible to decide whether it enters loop block unconditionally, so we always mark
       // it as `End::Continue`.
@@ -669,15 +697,13 @@ impl Visit for Analyzer<'_> {
     });
   }
 
-  fn visit_while_stmt(&mut self, n: &WhileStmt) {
-    let body_lo = n.body.start();
-    let expr_ctxt = self.expr_ctxt;
+  fn visit_while_statement(&mut self, n: &WhileStatement<'a>) {
+    let body_lo = stmt_start(&n.body);
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(a);
+      a.visit_statement(&n.body);
 
-      let unconditionally_enter =
-        matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)));
+      let unconditionally_enter = is_definitely_truthy(&n.test);
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
       let has_break = matches!(a.scope.found_break, Some(None));
@@ -697,21 +723,19 @@ impl Visit for Analyzer<'_> {
       }
     });
 
-    n.test.visit_with(self);
+    self.visit_expression(&n.test);
   }
 
-  fn visit_do_while_stmt(&mut self, n: &DoWhileStmt) {
-    let body_lo = n.body.start();
-    let expr_ctxt = self.expr_ctxt;
+  fn visit_do_while_statement(&mut self, n: &DoWhileStatement<'a>) {
+    let body_lo = stmt_start(&n.body);
 
     self.with_child_scope(BlockKind::Loop, body_lo, |a| {
-      n.body.visit_with(a);
+      a.visit_statement(&n.body);
 
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
       let infinite_loop =
-        matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)))
-          && a.scope.found_break.is_none();
+        is_definitely_truthy(&n.test) && a.scope.found_break.is_none();
       let has_break = matches!(a.scope.found_break, Some(None));
 
       if return_or_throw && !has_break {
@@ -731,21 +755,21 @@ impl Visit for Analyzer<'_> {
 
     match self.get_end_reason(body_lo) {
       Some(e) if e.is_forced() => {
-        self.mark_as_end(n.start(), e);
+        self.mark_as_end(n.span.start, e);
       }
       _ => {}
     }
 
-    n.test.visit_with(self);
+    self.visit_expression(&n.test);
   }
 
-  fn visit_try_stmt(&mut self, n: &TryStmt) {
+  fn visit_try_statement(&mut self, n: &TryStatement<'a>) {
     let old_throw = self.scope.may_throw;
 
     let prev_end = self.scope.end;
 
     self.scope.may_throw = false;
-    n.block.visit_with(self);
+    self.visit_block_statement(&n.block);
 
     let try_block_end = self.scope.end;
     let try_block_may_throw = self.scope.may_throw;
@@ -755,7 +779,7 @@ impl Visit for Analyzer<'_> {
         self.scope.end = prev_end;
       }
       self.scope.may_throw = false;
-      handler.visit_with(self);
+      self.visit_catch_clause(handler);
 
       if try_block_may_throw {
         match (try_block_end, self.scope.end) {
@@ -787,8 +811,8 @@ impl Visit for Analyzer<'_> {
     if let Some(finalizer) = &n.finalizer {
       let try_catch_end = self.scope.end;
       self.scope.end = prev_end;
-      self.with_child_scope(BlockKind::Finally, finalizer.start(), |a| {
-        n.finalizer.visit_with(a);
+      self.with_child_scope(BlockKind::Finally, finalizer.span.start, |a| {
+        a.visit_block_statement(finalizer);
       });
       match (try_catch_end, self.scope.end) {
         (Some(x), Some(End::Break)) if x.is_forced() => {
@@ -802,14 +826,18 @@ impl Visit for Analyzer<'_> {
     }
 
     if let Some(end) = self.scope.end {
-      self.mark_as_end(n.start(), end);
+      self.mark_as_end(n.span.start, end);
     }
     self.scope.may_throw |= old_throw;
   }
 
-  fn visit_labeled_stmt(&mut self, n: &LabeledStmt) {
-    self.with_child_scope(BlockKind::Label(n.label.to_id()), n.start(), |a| {
-      a.visit_stmt_or_block(&n.body);
-    });
+  fn visit_labeled_statement(&mut self, n: &LabeledStatement<'a>) {
+    self.with_child_scope(
+      BlockKind::Label(n.label.name.to_string()),
+      n.span.start,
+      |a| {
+        a.visit_stmt_or_block(&n.body);
+      },
+    );
   }
 }

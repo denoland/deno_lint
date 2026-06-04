@@ -1,14 +1,10 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  ArrowExpr, AssignExpr, AssignTarget, CatchClause, Expr, FnDecl, FnExpr,
-  Ident, ObjectPatProp, Pat, SimpleAssignTarget, VarDecl,
-};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -31,128 +27,179 @@ impl LintRule for NoShadowRestrictedNames {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoShadowRestrictedNamesHandler.traverse(program, context);
+    let mut handler = NoShadowRestrictedNamesHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoShadowRestrictedNamesHandler;
 
-fn is_restricted_names(ident: &Ident) -> bool {
+fn is_restricted(name: &str) -> bool {
   matches!(
-    ident.sym().as_ref(),
+    name,
     "undefined" | "NaN" | "Infinity" | "arguments" | "eval"
   )
 }
 
-fn check_pat(pat: Pat, ctx: &mut Context) {
+fn report(span: Span, name: &str, ctx: &mut Context) {
+  ctx.add_diagnostic(
+    span,
+    CODE,
+    NoShadowRestrictedNamesMessage::Shadowing(name.to_string()),
+  );
+}
+
+/// Recursively check a BindingPattern for restricted names
+fn check_binding_pattern(pat: &BindingPattern, ctx: &mut Context) {
   match pat {
-    Pat::Ident(ident) => {
-      check_shadowing(ident.id, ctx);
-    }
-    Pat::Expr(Expr::Ident(ident)) => {
-      check_shadowing(ident, ctx);
-    }
-    Pat::Array(array_pat) => {
-      for el in array_pat.elems {
-        if let Some(pat) = el.as_ref() {
-          check_pat(*pat, ctx);
-        }
+    BindingPattern::BindingIdentifier(ident) => {
+      if is_restricted(ident.name.as_str()) {
+        report(ident.span, ident.name.as_str(), ctx);
       }
     }
-    Pat::Object(object_pat) => {
-      for prop in object_pat.props {
+    BindingPattern::ArrayPattern(arr) => {
+      for el in (&arr.elements).into_iter().flatten() {
+        check_binding_pattern(el, ctx);
+      }
+      if let Some(rest) = &arr.rest {
+        check_binding_pattern(&rest.argument, ctx);
+      }
+    }
+    BindingPattern::ObjectPattern(obj) => {
+      for prop in &obj.properties {
+        check_binding_pattern(&prop.value, ctx);
+      }
+      if let Some(rest) = &obj.rest {
+        check_binding_pattern(&rest.argument, ctx);
+      }
+    }
+    BindingPattern::AssignmentPattern(assign) => {
+      check_binding_pattern(&assign.left, ctx);
+    }
+  }
+}
+
+/// Check an AssignmentTarget for restricted names
+fn check_assignment_target(target: &AssignmentTarget, ctx: &mut Context) {
+  match target {
+    AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+      if is_restricted(ident.name.as_str()) {
+        report(ident.span, ident.name.as_str(), ctx);
+      }
+    }
+    AssignmentTarget::ArrayAssignmentTarget(arr) => {
+      for el in arr.elements.iter().flatten() {
+        match el {
+          AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+            with_default,
+          ) => {
+            check_assignment_target(&with_default.binding, ctx);
+          }
+          _ => {
+            if let Some(target) = el.as_assignment_target() {
+              check_assignment_target(target, ctx);
+            }
+          }
+        }
+      }
+      if let Some(rest) = &arr.rest {
+        check_assignment_target(&rest.target, ctx);
+      }
+    }
+    AssignmentTarget::ObjectAssignmentTarget(obj) => {
+      for prop in &obj.properties {
         match prop {
-          ObjectPatProp::Assign(assign) => {
-            check_shadowing(assign.key.id, ctx);
+          AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+            ident_prop,
+          ) => {
+            if is_restricted(ident_prop.binding.name.as_str()) {
+              report(
+                ident_prop.binding.span,
+                ident_prop.binding.name.as_str(),
+                ctx,
+              );
+            }
           }
-          ObjectPatProp::Rest(rest) => check_pat(rest.arg, ctx),
-          ObjectPatProp::KeyValue(key_value) => {
-            check_pat(key_value.value, ctx);
-          }
+          AssignmentTargetProperty::AssignmentTargetPropertyProperty(
+            key_value,
+          ) => match &key_value.binding {
+            AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+              with_default,
+            ) => {
+              check_assignment_target(&with_default.binding, ctx);
+            }
+            _ => {
+              if let Some(target) = key_value.binding.as_assignment_target() {
+                check_assignment_target(target, ctx);
+              }
+            }
+          },
         }
       }
-    }
-    Pat::Rest(rest_pat) => {
-      check_pat(rest_pat.arg, ctx);
+      if let Some(rest) = &obj.rest {
+        check_assignment_target(&rest.target, ctx);
+      }
     }
     _ => {}
   }
 }
 
-fn check_shadowing(ident: &Ident, ctx: &mut Context) {
-  if is_restricted_names(ident) {
-    report_shadowing(ident, ctx);
-  }
-}
-
-fn report_shadowing(ident: &Ident, ctx: &mut Context) {
-  ctx.add_diagnostic(
-    ident.range(),
-    CODE,
-    NoShadowRestrictedNamesMessage::Shadowing(ident.sym().to_string()),
-  );
-}
-
-impl Handler for NoShadowRestrictedNamesHandler {
-  fn var_decl(&mut self, node: &VarDecl, ctx: &mut Context) {
-    for decl in node.decls {
-      if let Pat::Ident(ident) = &decl.name {
-        // `undefined` variable declaration without init is have same meaning
-        if decl.init.is_none() && *ident.id.sym() == *"undefined" {
+impl Handler<'_> for NoShadowRestrictedNamesHandler {
+  fn variable_declaration(
+    &mut self,
+    node: &VariableDeclaration,
+    ctx: &mut Context,
+  ) {
+    for decl in &node.declarations {
+      if let BindingPattern::BindingIdentifier(ident) = &decl.id {
+        // `undefined` variable declaration without init has same meaning
+        if decl.init.is_none() && ident.name.as_str() == "undefined" {
           continue;
         }
       }
-
-      check_pat(decl.name, ctx);
+      check_binding_pattern(&decl.id, ctx);
     }
   }
 
-  fn fn_decl(&mut self, node: &FnDecl, ctx: &mut Context) {
-    check_shadowing(node.ident, ctx);
+  fn function(&mut self, node: &Function, ctx: &mut Context) {
+    if let Some(id) = &node.id {
+      if is_restricted(id.name.as_str()) {
+        report(id.span, id.name.as_str(), ctx);
+      }
+    }
 
-    for param in node.function.params {
-      check_pat(param.pat, ctx);
+    for param in &node.params.items {
+      check_binding_pattern(&param.pattern, ctx);
     }
   }
 
-  fn fn_expr(&mut self, node: &FnExpr, ctx: &mut Context) {
-    if let Some(ident) = node.ident.as_ref() {
-      check_shadowing(ident, ctx)
-    }
-
-    for param in node.function.params {
-      check_pat(param.pat, ctx);
-    }
-  }
-
-  fn arrow_expr(&mut self, node: &ArrowExpr, ctx: &mut Context) {
-    for param in node.params {
-      check_pat(*param, ctx);
+  fn arrow_function_expression(
+    &mut self,
+    node: &ArrowFunctionExpression,
+    ctx: &mut Context,
+  ) {
+    for param in &node.params.items {
+      check_binding_pattern(&param.pattern, ctx);
     }
   }
 
   fn catch_clause(&mut self, node: &CatchClause, ctx: &mut Context) {
-    if let Some(param) = node.param.as_ref() {
-      check_pat(*param, ctx);
+    if let Some(param) = &node.param {
+      check_binding_pattern(&param.pattern, ctx);
     }
   }
 
-  fn assign_expr(&mut self, node: &AssignExpr, ctx: &mut Context) {
-    match node.left {
-      AssignTarget::Simple(simple) => {
-        if let SimpleAssignTarget::Ident(ident) = simple {
-          check_shadowing(ident.id, ctx);
-        }
-      }
-      AssignTarget::Pat(pat) => {
-        check_pat(pat.as_pat(), ctx);
-      }
-    }
+  fn assignment_expression(
+    &mut self,
+    node: &AssignmentExpression,
+    ctx: &mut Context,
+  ) {
+    check_assignment_target(&node.left, ctx);
   }
 }
 

@@ -1,12 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{Expr, Pat, VarDecl};
-use deno_ast::SourceRanged;
-use if_chain::if_chain;
+use deno_ast::oxc::ast::ast::{
+  BindingPattern, Expression, Program, VariableDeclaration,
+};
 
 #[derive(Debug)]
 pub struct NoThisAlias;
@@ -23,26 +22,30 @@ impl LintRule for NoThisAlias {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoThisAliasHandler.traverse(program, context);
+    let mut handler = NoThisAliasHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoThisAliasHandler;
 
-impl Handler for NoThisAliasHandler {
-  fn var_decl(&mut self, var_decl: &VarDecl, ctx: &mut Context) {
-    for decl in var_decl.decls {
-      if_chain! {
-        if let Some(init) = &decl.init;
-        if matches!(&init, Expr::This(_));
-        if matches!(&decl.name, Pat::Ident(_));
-        then {
-          ctx.add_diagnostic(var_decl.range(), CODE, MESSAGE);
+impl Handler<'_> for NoThisAliasHandler {
+  fn variable_declaration(
+    &mut self,
+    var_decl: &VariableDeclaration,
+    ctx: &mut Context,
+  ) {
+    for decl in &var_decl.declarations {
+      if let Some(init) = &decl.init {
+        if matches!(init, Expression::ThisExpression(_))
+          && matches!(&decl.id, BindingPattern::BindingIdentifier(_))
+        {
+          ctx.add_diagnostic(var_decl.span, CODE, MESSAGE);
         }
       }
     }

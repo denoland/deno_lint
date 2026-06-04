@@ -1,11 +1,12 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{ArrowExpr, Function, Param, Pat};
-use deno_ast::{SourceRange, SourceRanged};
+use deno_ast::oxc::ast::ast::{
+  ArrowFunctionExpression, BindingPattern, FormalParameter, Function, Program,
+};
+use deno_ast::oxc::span::Span;
 use derive_more::Display;
 use std::collections::{BTreeSet, HashSet};
 
@@ -35,13 +36,13 @@ impl LintRule for NoDupeArgs {
     "no-dupe-args"
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
     let mut handler = NoDupeArgsHandler::default();
-    handler.traverse(program, context);
+    crate::handler::traverse_program(&mut handler, program, context);
     handler.report_errors(context);
   }
 }
@@ -49,7 +50,7 @@ impl LintRule for NoDupeArgs {
 #[derive(Default)]
 struct NoDupeArgsHandler {
   /// Accumulated errors to report
-  error_ranges: BTreeSet<SourceRange>,
+  error_ranges: BTreeSet<Span>,
 }
 
 impl NoDupeArgsHandler {
@@ -64,43 +65,33 @@ impl NoDupeArgsHandler {
     }
   }
 
-  fn check_pats<'a, 'b, 'c: 'b, I>(&'a mut self, range: SourceRange, pats: I)
+  fn check_params<'a, I>(&mut self, range: Span, params: I)
   where
-    I: Iterator<Item = &'b Pat<'c>>,
+    I: Iterator<Item = &'a FormalParameter<'a>>,
   {
     let mut seen: HashSet<&str> = HashSet::new();
 
-    for pat in pats {
-      match &pat {
-        Pat::Ident(ident) => {
-          if !seen.insert(ident.id.inner.as_ref()) {
-            self.error_ranges.insert(range);
-          }
+    for param in params {
+      if let BindingPattern::BindingIdentifier(ident) = &param.pattern {
+        if !seen.insert(ident.name.as_str()) {
+          self.error_ranges.insert(range);
         }
-        _ => continue,
       }
     }
   }
-
-  fn check_params<'a, 'b, 'c: 'b, I>(
-    &'a mut self,
-    range: SourceRange,
-    params: I,
-  ) where
-    I: Iterator<Item = &'b &'b Param<'c>>,
-  {
-    let pats = params.map(|param| &param.pat);
-    self.check_pats(range, pats);
-  }
 }
 
-impl Handler for NoDupeArgsHandler {
+impl Handler<'_> for NoDupeArgsHandler {
   fn function(&mut self, function: &Function, _ctx: &mut Context) {
-    self.check_params(function.range(), function.params.iter());
+    self.check_params(function.span, function.params.items.iter());
   }
 
-  fn arrow_expr(&mut self, arrow_expr: &ArrowExpr, _ctx: &mut Context) {
-    self.check_pats(arrow_expr.range(), arrow_expr.params.iter());
+  fn arrow_function_expression(
+    &mut self,
+    arrow_expr: &ArrowFunctionExpression,
+    _ctx: &mut Context,
+  ) {
+    self.check_params(arrow_expr.span, arrow_expr.params.items.iter());
   }
 }
 
@@ -216,14 +207,14 @@ function foo(a, b) {
       ],
       "const obj = { foo(a, b, a) {} };": [
         {
-          col: 14,
+          col: 17,
           message: NoDupeArgsMessage::Unexpected,
           hint: NoDupeArgsHint::RenameOrRemove,
         }
       ],
       "class Foo { method(a, b, a) {} }": [
         {
-          col: 12,
+          col: 18,
           message: NoDupeArgsMessage::Unexpected,
           hint: NoDupeArgsHint::RenameOrRemove,
         }

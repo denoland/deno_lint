@@ -1,10 +1,8 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
-use crate::Program;
-use deno_ast::view::{Expr, ThrowStmt};
-use deno_ast::SourceRanged;
+use crate::handler::Handler;
+use deno_ast::oxc::ast::ast::{Expression, Program, ThrowStatement};
 use derive_more::Display;
 
 #[derive(Debug)]
@@ -26,31 +24,50 @@ impl LintRule for NoThrowLiteral {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoThrowLiteralHandler.traverse(program, context);
+    let mut handler = NoThrowLiteralHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoThrowLiteralHandler;
 
-impl Handler for NoThrowLiteralHandler {
-  fn throw_stmt(&mut self, throw_stmt: &ThrowStmt, ctx: &mut Context) {
-    match throw_stmt.arg {
-      Expr::Lit(_) => ctx.add_diagnostic(
-        throw_stmt.range(),
+fn is_literal(expr: &Expression) -> bool {
+  matches!(
+    expr,
+    Expression::BooleanLiteral(_)
+      | Expression::NullLiteral(_)
+      | Expression::NumericLiteral(_)
+      | Expression::BigIntLiteral(_)
+      | Expression::RegExpLiteral(_)
+      | Expression::StringLiteral(_)
+  )
+}
+
+impl Handler<'_> for NoThrowLiteralHandler {
+  fn throw_statement(
+    &mut self,
+    throw_stmt: &ThrowStatement,
+    ctx: &mut Context,
+  ) {
+    if is_literal(&throw_stmt.argument) {
+      ctx.add_diagnostic(
+        throw_stmt.span,
         CODE,
         NoThrowLiteralMessage::ErrObjectExpected,
-      ),
-      Expr::Ident(ident) if *ident.sym() == *"undefined" => ctx.add_diagnostic(
-        throw_stmt.range(),
-        CODE,
-        NoThrowLiteralMessage::Undefined,
-      ),
-      _ => {}
+      );
+    } else if let Expression::Identifier(ident) = &throw_stmt.argument {
+      if ident.name == "undefined" {
+        ctx.add_diagnostic(
+          throw_stmt.span,
+          CODE,
+          NoThrowLiteralMessage::Undefined,
+        );
+      }
     }
   }
 }

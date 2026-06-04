@@ -1,9 +1,7 @@
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
-use deno_ast::view::{CallExpr, NodeTrait};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::{Argument, CallExpression, Program};
 
 #[derive(Debug)]
 pub struct NoBooleanLiteralForArguments;
@@ -15,12 +13,13 @@ const HINT: &str =
   "const ARG_ONE = true, ARG_TWO = false;\nyourFunction(ARG_ONE, ARG_TWO)";
 
 impl LintRule for NoBooleanLiteralForArguments {
-  fn lint_program_with_ast_view<'view>(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context<'view>,
-    program: Program<'view>,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoBooleanLiteralForArgumentsVisitor.traverse(program, context);
+    let mut handler = NoBooleanLiteralForArgumentsVisitor;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 
   fn code(&self) -> &'static str {
@@ -34,19 +33,15 @@ impl LintRule for NoBooleanLiteralForArguments {
 
 struct NoBooleanLiteralForArgumentsVisitor;
 
-impl Handler for NoBooleanLiteralForArgumentsVisitor {
-  fn call_expr(&mut self, call_expression: &CallExpr, ctx: &mut Context) {
-    let args = call_expression.args;
-    let is_boolean_literal =
-      |text: &str| -> bool { matches!(text, "true" | "false") };
-    for arg in args {
-      if is_boolean_literal(arg.text()) {
-        ctx.add_diagnostic_with_hint(
-          call_expression.range(),
-          CODE,
-          MESSAGE,
-          HINT,
-        );
+impl Handler<'_> for NoBooleanLiteralForArgumentsVisitor {
+  fn call_expression(
+    &mut self,
+    call_expression: &CallExpression,
+    ctx: &mut Context,
+  ) {
+    for arg in &call_expression.arguments {
+      if matches!(arg, Argument::BooleanLiteral(_)) {
+        ctx.add_diagnostic_with_hint(call_expression.span, CODE, MESSAGE, HINT);
         break;
       }
     }

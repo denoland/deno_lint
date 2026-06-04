@@ -1,13 +1,11 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{
-  JSXAttrName, JSXAttrOrSpread, JSXElement, JSXElementChild,
+use deno_ast::oxc::ast::ast::{
+  JSXAttributeItem, JSXAttributeName, JSXChild, JSXElement, Program,
 };
-use deno_ast::SourceRanged;
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -24,12 +22,13 @@ impl LintRule for ReactNoDangerWithChildren {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    JSXNoDangerWithChildrenHandler.traverse(program, context);
+    let mut handler = JSXNoDangerWithChildrenHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
@@ -42,18 +41,18 @@ static IGNORE_TEXT: Lazy<regex::Regex> =
 
 struct JSXNoDangerWithChildrenHandler;
 
-impl Handler for JSXNoDangerWithChildrenHandler {
+impl Handler<'_> for JSXNoDangerWithChildrenHandler {
   fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
-    for attr in node.opening.attrs {
-      if let JSXAttrOrSpread::JSXAttr(attr) = attr {
-        if let JSXAttrName::Ident(id) = attr.name {
-          if id.sym() == "dangerouslySetInnerHTML" {
+    for attr in &node.opening_element.attributes {
+      if let JSXAttributeItem::Attribute(attr) = attr {
+        if let JSXAttributeName::Identifier(id) = &attr.name {
+          if id.name == "dangerouslySetInnerHTML" {
             let filtered = node
               .children
               .iter()
               .filter(|child| {
-                if let JSXElementChild::JSXText(text) = child {
-                  if IGNORE_TEXT.is_match(text.value()) {
+                if let JSXChild::Text(text) = child {
+                  if IGNORE_TEXT.is_match(text.value.as_str()) {
                     return false;
                   }
                 }
@@ -63,7 +62,7 @@ impl Handler for JSXNoDangerWithChildrenHandler {
               .collect::<Vec<_>>();
 
             if !filtered.is_empty() {
-              ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
+              ctx.add_diagnostic_with_hint(id.span, CODE, MESSAGE, HINT);
             }
           }
         }

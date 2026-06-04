@@ -1,11 +1,9 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::{self, Tags};
-use crate::Program;
-use deno_ast::view::{Decl, Stmt, SwitchCase, VarDeclKind};
-use deno_ast::SourceRanged;
+use deno_ast::oxc::ast::ast::*;
 
 #[derive(Debug)]
 pub struct NoCaseDeclarations;
@@ -23,37 +21,32 @@ impl LintRule for NoCaseDeclarations {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoCaseDeclarationsHandler.traverse(program, context);
+    let mut handler = NoCaseDeclarationsHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoCaseDeclarationsHandler;
 
-impl Handler for NoCaseDeclarationsHandler {
+impl Handler<'_> for NoCaseDeclarationsHandler {
   fn switch_case(&mut self, switch_case: &SwitchCase, context: &mut Context) {
-    for stmt in switch_case.cons {
+    for stmt in &switch_case.consequent {
       let is_lexical_decl = match stmt {
-        Stmt::Decl(decl) => match &decl {
-          Decl::Fn(_) => true,
-          Decl::Class(_) => true,
-          Decl::Var(var_decl) => var_decl.decl_kind() != VarDeclKind::Var,
-          _ => false,
-        },
+        Statement::FunctionDeclaration(_) => true,
+        Statement::ClassDeclaration(_) => true,
+        Statement::VariableDeclaration(var_decl) => {
+          var_decl.kind != VariableDeclarationKind::Var
+        }
         _ => false,
       };
 
       if is_lexical_decl {
-        context.add_diagnostic_with_hint(
-          switch_case.range(),
-          CODE,
-          MESSAGE,
-          HINT,
-        );
+        context.add_diagnostic_with_hint(switch_case.span, CODE, MESSAGE, HINT);
       }
     }
   }

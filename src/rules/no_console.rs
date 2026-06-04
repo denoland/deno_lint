@@ -1,11 +1,11 @@
 use super::{Context, LintRule};
-use crate::handler::{Handler, Traverse};
+use crate::handler::Handler;
 use crate::tags::Tags;
-use crate::Program;
 
-use deno_ast::view as ast_view;
-use deno_ast::SourceRanged;
-use if_chain::if_chain;
+use deno_ast::oxc::ast::ast::{
+  ComputedMemberExpression, Expression, ExpressionStatement, Program,
+  StaticMemberExpression,
+};
 
 #[derive(Debug)]
 pub struct NoConsole;
@@ -22,50 +22,57 @@ impl LintRule for NoConsole {
     CODE
   }
 
-  fn lint_program_with_ast_view(
+  fn lint_program_with_ast_view<'a>(
     &self,
-    context: &mut Context,
-    program: Program,
+    context: &mut Context<'a>,
+    program: &Program<'a>,
   ) {
-    NoConsoleHandler.traverse(program, context);
+    let mut handler = NoConsoleHandler;
+    crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
 struct NoConsoleHandler;
 
-impl Handler for NoConsoleHandler {
-  fn member_expr(&mut self, expr: &ast_view::MemberExpr, ctx: &mut Context) {
-    if expr.parent().is::<ast_view::MemberExpr>() {
-      return;
-    }
-
-    use deno_ast::view::Expr;
-    if_chain! {
-      if let Expr::Ident(ident) = &expr.obj;
-      if ident.sym() == "console";
-      if ctx.scope().is_global(&ident.inner.to_id());
-      then {
-        ctx.add_diagnostic(
-          ident.range(),
-          CODE,
-          MESSAGE,
-        );
+impl Handler<'_> for NoConsoleHandler {
+  fn static_member_expression(
+    &mut self,
+    expr: &StaticMemberExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &expr.object {
+      if ident.name.as_str() == "console"
+        && ctx.scope().ids_with_symbol(ident.name.as_str()).is_none()
+      {
+        ctx.add_diagnostic(ident.span, CODE, MESSAGE);
       }
     }
   }
 
-  fn expr_stmt(&mut self, expr: &ast_view::ExprStmt, ctx: &mut Context) {
-    use deno_ast::view::Expr;
-    if_chain! {
-      if let Expr::Ident(ident) = &expr.expr;
-      if ident.sym() == "console";
-      if ctx.scope().is_global(&ident.inner.to_id());
-      then {
-        ctx.add_diagnostic(
-          ident.range(),
-          CODE,
-          MESSAGE,
-        );
+  fn computed_member_expression(
+    &mut self,
+    expr: &ComputedMemberExpression,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &expr.object {
+      if ident.name.as_str() == "console"
+        && ctx.scope().ids_with_symbol(ident.name.as_str()).is_none()
+      {
+        ctx.add_diagnostic(ident.span, CODE, MESSAGE);
+      }
+    }
+  }
+
+  fn expression_statement(
+    &mut self,
+    expr: &ExpressionStatement,
+    ctx: &mut Context,
+  ) {
+    if let Expression::Identifier(ident) = &expr.expression {
+      if ident.name.as_str() == "console"
+        && ctx.scope().ids_with_symbol(ident.name.as_str()).is_none()
+      {
+        ctx.add_diagnostic(ident.span, CODE, MESSAGE);
       }
     }
   }
@@ -82,7 +89,7 @@ mod tests {
       // ignored
       r"// deno-lint-ignore no-console\nconsole.error('Error message');",
       // not global
-      r"const console = { log() {} } console.log('Error message');",
+      r"const console = { log() {} }; console.log('Error message');",
       // https://github.com/denoland/deno_lint/issues/1232
       "const x: { console: any } = { console: 21 }; x.console",
     );
