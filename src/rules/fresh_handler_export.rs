@@ -65,10 +65,8 @@ impl Handler for Visitor {
       _ => return,
     };
 
-    // Fresh middleware handler must be exported as "handler" not "handlers"
-    if id.sym().eq("handlers") {
-      ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
-    }
+    // Fresh accepts both "handler" and "handlers" exports
+    // No diagnostic needed - both are valid
   }
 }
 
@@ -120,23 +118,20 @@ mod tests {
       "export async function handler() {}",
     );
 
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export const handlers = {}"#: [
-    {
-      col: 13,
-      message: MESSAGE,
-      hint: HINT,
-    }]);
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export function handlers() {}"#: [
-    {
-      col: 16,
-      message: MESSAGE,
-      hint: HINT,
-    }]);
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export async function handlers() {}"#: [
-    {
-      col: 22,
-      message: MESSAGE,
-      hint: HINT,
-    }]);
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      "export const handlers = {}",
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      "export function handlers() {}",
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      "export async function handlers() {}",
+    );
   }
 }
