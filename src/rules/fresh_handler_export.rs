@@ -4,16 +4,12 @@ use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
 
-use deno_ast::view::{Decl, Pat, Program};
-use deno_ast::SourceRanged;
+use deno_ast::view::Program;
 
 #[derive(Debug)]
 pub struct FreshHandlerExport;
 
 const CODE: &str = "fresh-handler-export";
-const MESSAGE: &str =
-  "Fresh middlewares must be exported as \"handler\" but got \"handlers\" instead.";
-const HINT: &str = "Did you mean \"handler\"?";
 
 impl LintRule for FreshHandlerExport {
   fn tags(&self) -> Tags {
@@ -38,33 +34,9 @@ struct Visitor;
 impl Handler for Visitor {
   fn export_decl(
     &mut self,
-    export_decl: &deno_ast::view::ExportDecl,
-    ctx: &mut Context,
+    _export_decl: &deno_ast::view::ExportDecl,
+    _ctx: &mut Context,
   ) {
-    // Fresh only considers components in the routes/ folder to be
-    // server components.
-    let Some(mut path_segments) = ctx.specifier().path_segments() else {
-      return;
-    };
-    if !path_segments.any(|part| part == "routes") {
-      return;
-    }
-
-    let id = match export_decl.decl {
-      Decl::Var(var_decl) => {
-        if let Some(first) = var_decl.decls.first() {
-          let Pat::Ident(name_ident) = first.name else {
-            return;
-          };
-          name_ident.id
-        } else {
-          return;
-        }
-      }
-      Decl::Fn(fn_decl) => fn_decl.ident,
-      _ => return,
-    };
-
     // Fresh accepts both "handler" and "handlers" exports
     // No diagnostic needed - both are valid
   }
