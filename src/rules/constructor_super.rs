@@ -5,7 +5,6 @@ use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::{view as ast_view, SourceRange, SourceRanged};
-use if_chain::if_chain;
 
 #[derive(Debug)]
 pub struct ConstructorSuper;
@@ -81,15 +80,30 @@ fn super_call_ranges(constructor: &ast_view::Constructor) -> Vec<SourceRange> {
 }
 
 fn extract_super_range(stmt: &ast_view::Stmt) -> Option<SourceRange> {
-  if_chain! {
-    if let ast_view::Stmt::Expr(expr) = stmt;
-    if let ast_view::Expr::Call(call) = expr.expr;
-    if matches!(&call.callee, ast_view::Callee::Super(_));
-    then {
+  if let ast_view::Stmt::Expr(expr) = stmt {
+    super_range_in_expr(expr.expr)
+  } else {
+    None
+  }
+}
+
+/// Returns the range of a `super()` call in `expr`, if any.
+///
+/// `super()` may not be the whole expression: it can appear inside a
+/// comma/sequence expression, e.g. `super(), 0;` or `0, super();`. In those
+/// cases it is still called unconditionally, so the sequence is unwrapped.
+fn super_range_in_expr(expr: ast_view::Expr) -> Option<SourceRange> {
+  match expr {
+    ast_view::Expr::Call(call)
+      if matches!(&call.callee, ast_view::Callee::Super(_)) =>
+    {
       Some(call.range())
-    } else {
-      None
     }
+    ast_view::Expr::Seq(seq) => seq
+      .exprs
+      .iter()
+      .find_map(|inner| super_range_in_expr(*inner)),
+    _ => None,
   }
 }
 
@@ -223,6 +237,11 @@ mod tests {
       // "class A extends B { constructor() { try {} finally { super(); } } }",
       // "class A extends B { constructor() { if (a) throw Error(); super(); } }",
 
+      // https://github.com/denoland/deno_lint/issues/1490
+      // `super()` inside a comma/sequence expression is still called.
+      "class A extends B { constructor() { super(), 0; } }",
+      "class A extends B { constructor() { 0, super(); } }",
+
       // derived classes.
       "class A extends (class B {}) { constructor() { super(); } }",
       "class A extends (B = C) { constructor() { super(); } }",
@@ -267,6 +286,15 @@ mod tests {
     assert_lint_err! {
       ConstructorSuper,
       "class A { constructor() { super(); } }": [
+        {
+          col: 26,
+          message: unnecessary_super_message,
+          hint: unnecessary_super_hint,
+        }
+      ],
+      // https://github.com/denoland/deno_lint/issues/1490
+      // `super()` in a sequence expression is unwrapped for all checks.
+      "class A { constructor() { super(), 0; } }": [
         {
           col: 26,
           message: unnecessary_super_message,
