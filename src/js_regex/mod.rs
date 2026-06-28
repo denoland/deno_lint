@@ -1297,6 +1297,12 @@ mod tests {
       validator.validate_pattern("(?<a>x)|(?:(?<a>y)|(?<a>z))", true),
       Ok(())
     );
+    // valid: a backreference still resolves when the name is duplicated across
+    // alternatives.
+    assert_eq!(
+      validator.validate_pattern("(?<a>x)\\k<a>|(?<a>y)\\k<a>", true),
+      Ok(())
+    );
 
     // invalid: same alternative.
     assert_ne!(validator.validate_pattern("(?<a>x)(?<a>y)", true), Ok(()));
