@@ -76,10 +76,14 @@ pub fn parse_line_ignore_directives(
     .comment_container()
     .all_comments()
     .filter_map(|comment| {
-      parse_ignore_comment(ignore_diagnostic_directive, comment).map(
+      parse_ignore_comment(ignore_diagnostic_directive, comment, true).map(
         |directive| {
+          // Key by the line the comment *ends* on so that the directive
+          // applies to the following line. This matters for block comments
+          // (`/* ... */`) that may span multiple lines; for line comments
+          // the start and end line are the same.
           (
-            program.text_info().line_index(directive.range().start),
+            program.text_info().line_index(directive.range().end),
             directive,
           )
         },
@@ -118,15 +122,23 @@ pub fn parse_file_ignore_directives(
     (true, Some(range)) => comments.leading_comments(range.start),
     (true, None) => comments.trailing_comments(program.end()),
   };
-  initial_comments
-    .find_map(|comment| parse_ignore_comment(ignore_global_directive, comment))
+  initial_comments.find_map(|comment| {
+    parse_ignore_comment(ignore_global_directive, comment, false)
+  })
 }
 
 fn parse_ignore_comment<T: DirectiveKind>(
   ignore_diagnostic_directive: &str,
   comment: &Comment,
+  allow_block_comment: bool,
 ) -> Option<IgnoreDirective<T>> {
-  if comment.kind != CommentKind::Line {
+  // Line ignore directives may also be written as block comments, since
+  // those are the only form available inside JSX children, e.g.
+  // `{/* deno-lint-ignore react-no-danger */}`. File-level directives must
+  // still be line comments.
+  if comment.kind != CommentKind::Line
+    && !(allow_block_comment && comment.kind == CommentKind::Block)
+  {
     return None;
   }
 
@@ -239,6 +251,45 @@ function foo(): any {}
         d.codes,
         code_map(["no-explicit-any", "no-empty", "no-debugger"])
       );
+    });
+  }
+
+  #[test]
+  fn test_parse_block_comment_line_ignore_directives() {
+    // Block comments are the only comment form available inside JSX
+    // children, so they must work as line ignore directives. See
+    // https://github.com/denoland/deno_lint/issues/1452
+    let source_code = r#"
+/* deno-lint-ignore no-explicit-any */
+const a: any = 1;
+
+/* deno-lint-ignore
+   no-empty */
+function foo() {}
+"#;
+
+    test_util::parse_and_then(source_code, |program| {
+      let line_directives =
+        parse_line_ignore_directives("deno-lint-ignore", program);
+
+      assert_eq!(line_directives.len(), 2);
+      // Single-line block comment on line 1 (0-indexed) suppresses line 2.
+      let d = line_directives.get(&1).unwrap();
+      assert_eq!(d.codes, code_map(["no-explicit-any"]));
+      // Multi-line block comment is keyed by the line it *ends* on (5),
+      // so it suppresses the following line.
+      let d = line_directives.get(&5).unwrap();
+      assert_eq!(d.codes, code_map(["no-empty"]));
+    });
+  }
+
+  #[test]
+  fn test_block_comment_not_a_file_directive() {
+    // Block comments must not act as file-level ignore directives.
+    test_util::parse_and_then("/* deno-lint-ignore-file */", |program| {
+      let file_directive =
+        parse_file_ignore_directives("deno-lint-ignore-file", program);
+      assert!(file_directive.is_none());
     });
   }
 
