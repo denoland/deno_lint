@@ -45,13 +45,29 @@ impl Handler for Visitor {
     ctx: &mut Context,
   ) {
     // Fresh only considers components in the routes/ folder to be
-    // server components. Files inside an `(_islands)` folder are considered
-    // islands though, even if they are inside the `routes` folder.
+    // server components. Files inside an `islands` or `(_islands)` folder are
+    // considered islands though, even if they are inside the `routes` folder.
     let Some(path_segments) = ctx.specifier().path_segments() else {
       return;
     };
     let segments = path_segments.collect::<Vec<_>>();
-    if !segments.contains(&"routes") || segments.contains(&"(_islands)") {
+    let Some(routes_idx) = segments.iter().position(|s| *s == "routes") else {
+      return;
+    };
+
+    // Files inside an `islands` directory are client components, even when
+    // that directory contains a nested `routes` subfolder. The islands
+    // directory is a sibling of `routes/` at the project root, so it shows
+    // up before `routes` in the path (e.g. `islands/routes/foo.tsx`).
+    if let Some(islands_idx) = segments.iter().position(|s| *s == "islands") {
+      if islands_idx < routes_idx {
+        return;
+      }
+    }
+
+    // Files inside an `(_islands)` folder are islands too, even when they
+    // live inside the `routes/` folder.
+    if segments.contains(&"(_islands)") {
       return;
     }
 
@@ -167,6 +183,26 @@ mod tests {
       filename: "file:///routes/foo/(_islands)/foo.jsx",
       "<button onClick={function () {}} />",
     );
+    // Files inside an `islands` directory are islands, even when the
+    // directory contains a nested `routes` subfolder. See #1386.
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///islands/foo.tsx",
+      "<button onClick={() => {}} />",
+    );
+    assert_lint_ok!(
+      FreshServerEventHandlers,
+      filename: "file:///islands/routes/test.tsx",
+      "<button onClick={() => {}} />",
+    );
+
+    // A route named `islands` is still a server component.
+    assert_lint_err!(FreshServerEventHandlers, filename: "file:///routes/islands/index.tsx",  r#"<button onClick={() => {}} />"#: [
+    {
+      col: 8,
+      message: MESSAGE,
+      hint: HINT,
+    }]);
 
     assert_lint_err!(FreshServerEventHandlers, filename: "file:///routes/index.tsx",  r#"<button onClick={() => {}} />"#: [
     {
