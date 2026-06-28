@@ -575,10 +575,8 @@ impl Visit for Analyzer<'_> {
 
       let any_plain_break =
         case_ends.iter().any(|e| matches!(e, Some(End::Break)));
-      let last_falls_through = matches!(
-        case_ends.last(),
-        Some(None) | Some(Some(End::Continue))
-      );
+      let last_falls_through =
+        matches!(case_ends.last(), Some(None) | Some(Some(End::Continue)));
 
       if any_plain_break || last_falls_through {
         End::Continue
