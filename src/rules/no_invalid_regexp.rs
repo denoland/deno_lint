@@ -203,6 +203,8 @@ let re = new RegExp('foo', x);",
         { col: 14, message: MESSAGE, hint: HINT },
         { col: 29, message: MESSAGE, hint: HINT },
       ],
+      // A regex passed as a plain function argument is also checked.
+      r#"foo(/+/);"#: [{ col: 4, message: MESSAGE, hint: HINT }],
     }
   }
 }
