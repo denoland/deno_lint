@@ -2,8 +2,8 @@
 
 use crate::control_flow::ControlFlow;
 use crate::diagnostic::{
-  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange, LintDocsUrl,
-  LintFix,
+  LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange,
+  LintDiagnosticSeverity, LintDocsUrl, LintFix,
 };
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
@@ -455,6 +455,22 @@ impl<'a> Context<'a> {
       .push(self.create_diagnostic(maybe_range, details));
   }
 
+  /// Like [`Context::add_diagnostic_details`], but allows specifying a
+  /// non-default [`LintDiagnosticSeverity`]. The common call sites default to
+  /// [`LintDiagnosticSeverity::Error`]; use this to emit a warning instead.
+  pub fn add_diagnostic_details_with_severity(
+    &mut self,
+    maybe_range: Option<LintDiagnosticRange>,
+    details: LintDiagnosticDetails,
+    severity: LintDiagnosticSeverity,
+  ) {
+    self.diagnostics.push(self.create_diagnostic_with_severity(
+      maybe_range,
+      details,
+      severity,
+    ));
+  }
+
   /// Add fully constructed diagnostics.
   ///
   /// This function can be used by the "external linter" to provide its own
@@ -468,10 +484,24 @@ impl<'a> Context<'a> {
     maybe_range: Option<LintDiagnosticRange>,
     details: LintDiagnosticDetails,
   ) -> LintDiagnostic {
+    self.create_diagnostic_with_severity(
+      maybe_range,
+      details,
+      LintDiagnosticSeverity::default(),
+    )
+  }
+
+  pub(crate) fn create_diagnostic_with_severity(
+    &self,
+    maybe_range: Option<LintDiagnosticRange>,
+    details: LintDiagnosticDetails,
+    severity: LintDiagnosticSeverity,
+  ) -> LintDiagnostic {
     LintDiagnostic {
       specifier: self.specifier().clone(),
       range: maybe_range,
       details,
+      severity,
     }
   }
 

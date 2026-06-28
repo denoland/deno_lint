@@ -61,6 +61,20 @@ pub struct LintDiagnosticDetails {
   pub info: Vec<Cow<'static, str>>,
 }
 
+/// Severity of an emitted [`LintDiagnostic`].
+///
+/// This is a property of the emitted diagnostic instance rather than of the
+/// rule's [`LintDiagnosticDetails`], because the same rule may be configured to
+/// emit either errors or warnings depending on consumer configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LintDiagnosticSeverity {
+  /// A hard error. This is the default to preserve existing behavior.
+  #[default]
+  Error,
+  /// A warning that does not necessarily indicate a failure.
+  Warning,
+}
+
 #[derive(Clone)]
 pub struct LintDiagnostic {
   pub specifier: ModuleSpecifier,
@@ -70,11 +84,17 @@ pub struct LintDiagnostic {
   /// the whole file.
   pub range: Option<LintDiagnosticRange>,
   pub details: LintDiagnosticDetails,
+  /// Severity of this diagnostic instance. Defaults to
+  /// [`LintDiagnosticSeverity::Error`].
+  pub severity: LintDiagnosticSeverity,
 }
 
 impl Diagnostic for LintDiagnostic {
   fn level(&self) -> DiagnosticLevel {
-    DiagnosticLevel::Error
+    match self.severity {
+      LintDiagnosticSeverity::Error => DiagnosticLevel::Error,
+      LintDiagnosticSeverity::Warning => DiagnosticLevel::Warning,
+    }
   }
 
   fn code(&self) -> Cow<'_, str> {
@@ -138,5 +158,48 @@ impl Diagnostic for LintDiagnostic {
       LintDocsUrl::Custom(url) => Some(Cow::Borrowed(url)),
       LintDocsUrl::None => None,
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn diagnostic_with_severity(
+    severity: LintDiagnosticSeverity,
+  ) -> LintDiagnostic {
+    LintDiagnostic {
+      specifier: ModuleSpecifier::parse("file:///foo.ts").unwrap(),
+      range: None,
+      details: LintDiagnosticDetails {
+        message: "message".to_string(),
+        code: "some-code".to_string(),
+        hint: None,
+        fixes: vec![],
+        custom_docs_url: LintDocsUrl::Default,
+        info: vec![],
+      },
+      severity,
+    }
+  }
+
+  #[test]
+  fn severity_defaults_to_error() {
+    assert_eq!(
+      LintDiagnosticSeverity::default(),
+      LintDiagnosticSeverity::Error
+    );
+  }
+
+  #[test]
+  fn level_reflects_severity() {
+    assert!(matches!(
+      diagnostic_with_severity(LintDiagnosticSeverity::Error).level(),
+      DiagnosticLevel::Error
+    ));
+    assert!(matches!(
+      diagnostic_with_severity(LintDiagnosticSeverity::Warning).level(),
+      DiagnosticLevel::Warning
+    ));
   }
 }
