@@ -8,7 +8,7 @@ use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::BinExpr;
 use deno_ast::swc::ast::BinaryOp::{EqEq, EqEqEq, NotEq, NotEqEq};
-use deno_ast::swc::ast::Expr::{Lit, Tpl, Unary};
+use deno_ast::swc::ast::Expr::{Ident, Lit, Tpl, Unary};
 use deno_ast::swc::ast::Lit::Str;
 use deno_ast::swc::ast::UnaryOp::TypeOf;
 use deno_ast::swc::ecma_visit::{noop_visit_type, Visit};
@@ -84,9 +84,20 @@ impl Visit for ValidTypeofVisitor<'_, '_> {
               self.context.add_diagnostic(tpl.range(), CODE, MESSAGE);
             }
           }
-          _ => {
-            self.context.add_diagnostic(operand.range(), CODE, MESSAGE);
+          // The bare `undefined` keyword is almost always a mistake here (it
+          // should be the string `"undefined"`), so keep flagging it.
+          Ident(ident) if ident.sym == *"undefined" => {
+            self.context.add_diagnostic(ident.range(), CODE, MESSAGE);
           }
+          // A non-string literal (number, boolean, `null`, ...) can never be a
+          // valid `typeof` result.
+          Lit(lit) => {
+            self.context.add_diagnostic(lit.range(), CODE, MESSAGE);
+          }
+          // Comparing against a variable or other expression is allowed;
+          // TypeScript already checks the value.
+          // https://github.com/denoland/deno_lint/issues/1375
+          _ => {}
         }
       }
       _ => {}
@@ -155,6 +166,14 @@ mod tests {
       r#"typeof foo !== `bigint`"#,
 
       r#"typeof bar != typeof qux"#,
+
+      // https://github.com/denoland/deno_lint/issues/1375
+      // Comparing against a variable or other expression is allowed.
+      r#"const type = "string"; typeof foo === type"#,
+      r#"typeof bar == Object"#,
+      r#"typeof baz === anotherVariable"#,
+      r#"typeof foo === obj.type"#,
+      r#"typeof foo === getExpected()"#,
     };
   }
 
@@ -178,15 +197,17 @@ mod tests {
         col: 15,
         message: MESSAGE
       }],
+      // The bare `undefined` keyword is still flagged (likely a mistake).
       r#"typeof foo === undefined"#: [{
         col: 15,
         message: MESSAGE
       }],
-      r#"typeof bar == Object"#: [{
-        col: 14,
+      // Non-string literals can never be a valid `typeof` result.
+      r#"typeof foo === null"#: [{
+        col: 15,
         message: MESSAGE
       }],
-      r#"typeof baz === anotherVariable"#: [{
+      r#"typeof foo === 5"#: [{
         col: 15,
         message: MESSAGE
       }],
