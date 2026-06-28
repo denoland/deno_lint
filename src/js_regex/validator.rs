@@ -6,6 +6,13 @@ use std::ops::{Deref, DerefMut};
 use super::reader::Reader;
 use super::{unicode::*, UnicodeChar};
 
+#[derive(PartialEq, Debug)]
+pub enum UnicodeMode {
+  None,
+  Unicode,
+  UnicodeSets,
+}
+
 fn is_syntax_character(cp: UnicodeChar) -> bool {
   cp == '^'
     || cp == '$'
@@ -103,6 +110,8 @@ pub enum EcmaVersion {
   Es2020,
   Es2021,
   Es2022,
+  Es2023,
+  Es2024,
 }
 
 #[derive(Debug)]
@@ -111,6 +120,7 @@ pub struct EcmaRegexValidator {
   strict: bool,
   ecma_version: EcmaVersion,
   u_flag: bool,
+  v_flag: bool,
   n_flag: bool,
   last_int_value: i64,
   last_min_value: i64,
@@ -145,6 +155,7 @@ impl EcmaRegexValidator {
       strict: false,
       ecma_version,
       u_flag: false,
+      v_flag: false,
       n_flag: false,
       last_int_value: 0,
       last_min_value: 0,
@@ -159,8 +170,8 @@ impl EcmaRegexValidator {
     }
   }
 
-  /// Validates flags of a EcmaScript regular expression.
-  pub fn validate_flags(&self, flags: &str) -> Result<(), String> {
+  /// Validates flags of a EcmaScript regular expression, returning the Unicode mode.
+  pub fn validate_flags(&self, flags: &str) -> Result<UnicodeMode, String> {
     let mut existing_flags = HashSet::<char>::new();
 
     for flag in flags.chars() {
@@ -176,27 +187,44 @@ impl EcmaRegexValidator {
         || (flag == 'y' && self.ecma_version >= EcmaVersion::Es2015)
         || (flag == 's' && self.ecma_version >= EcmaVersion::Es2018)
         || (flag == 'd' && self.ecma_version >= EcmaVersion::Es2022)
-        || (flag == 'v' && self.ecma_version >= EcmaVersion::Es2022)
+        || (flag == 'v' && self.ecma_version >= EcmaVersion::Es2024)
       {
         // do nothing
       } else {
         return Err(format!("Invalid flag {}", flag));
       }
     }
-    Ok(())
+
+    let mode =
+      match [existing_flags.contains(&'u'), existing_flags.contains(&'v')] {
+        [true, true] => {
+          return Err("Cannot use u and v flags together".to_string())
+        }
+        [true, _] => UnicodeMode::Unicode,
+        [_, true] => UnicodeMode::UnicodeSets,
+        _ => UnicodeMode::None,
+      };
+
+    Ok(mode)
   }
 
   /// Validates the pattern of a EcmaScript regular expression.
   pub fn validate_pattern(
     &mut self,
     source: &str,
-    u_flag: bool,
+    mode: UnicodeMode,
   ) -> Result<(), String> {
-    self.strict = u_flag; // TODO: allow toggling strict independently of u flag
-    self.u_flag = u_flag && self.ecma_version >= EcmaVersion::Es2015;
-    self.n_flag = u_flag && self.ecma_version >= EcmaVersion::Es2018;
+    let u_flag = mode == UnicodeMode::Unicode;
+    let v_flag = mode == UnicodeMode::UnicodeSets;
+
+    self.strict = u_flag || v_flag; // TODO: allow toggling strict independently of u/v flags
+    self.u_flag =
+      (u_flag || v_flag) && self.ecma_version >= EcmaVersion::Es2015;
+    self.v_flag = v_flag && self.ecma_version >= EcmaVersion::Es2024;
+    self.n_flag =
+      (u_flag || v_flag) && self.ecma_version >= EcmaVersion::Es2018;
     //self.reset(source, 0, source.len(), u_flag);
-    self.reset(source, 0, source.chars().count(), u_flag);
+    self.reset(source, 0, source.chars().count(), u_flag || v_flag);
     self.consume_pattern()?;
 
     if !self.n_flag
@@ -827,6 +855,12 @@ impl EcmaRegexValidator {
         break;
       }
       let max = self.last_int_value;
+
+      // v flag has different semantics around `--` in character classes that we don't currently implement,
+      // so we just skip validation for now.
+      if self.v_flag {
+        continue;
+      }
 
       // Validate
       if min == -1 || max == -1 {
