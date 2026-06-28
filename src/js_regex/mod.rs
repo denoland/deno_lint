@@ -1268,6 +1268,46 @@ mod tests {
   }
 
   #[test]
+  fn duplicate_named_capturing_group() {
+    // https://github.com/denoland/deno_lint/issues/1372
+    // Duplicate group names are valid when they live in different alternatives
+    // of a disjunction (ES2025), but invalid when they could both participate
+    // in a single match.
+    let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2018);
+
+    // valid: declared in different alternatives.
+    assert_eq!(validator.validate_pattern("(?<a>x)|(?<a>y)", false), Ok(()));
+    assert_eq!(validator.validate_pattern("(?<a>x)|(?<a>y)", true), Ok(()));
+    assert_eq!(
+      validator.validate_pattern(
+        "(?<year>\\d{4})-\\d{2}|\\d{2}-(?<year>\\d{4})",
+        true
+      ),
+      Ok(())
+    );
+    assert_eq!(
+      validator.validate_pattern(
+        "(?<op>do)\\(\\)|(?<op>don't)\\(\\)|(?<op>mul)\\((?<a>\\d+),(?<b>\\d+)\\)",
+        false
+      ),
+      Ok(())
+    );
+    // valid: nested alternatives.
+    assert_eq!(
+      validator.validate_pattern("(?<a>x)|(?:(?<a>y)|(?<a>z))", true),
+      Ok(())
+    );
+
+    // invalid: same alternative.
+    assert_ne!(validator.validate_pattern("(?<a>x)(?<a>y)", true), Ok(()));
+    // invalid: one declaration always participates alongside the alternation.
+    assert_ne!(
+      validator.validate_pattern("((?<a>x)|(?<a>y))(?<a>z)", true),
+      Ok(())
+    );
+  }
+
+  #[test]
   fn unicode_group_names_invalid_2020() {
     // source: https://github.com/mysticatea/regexpp/blob/master/test/fixtures/parser/literal/unicode-group-names-invalid.json
     let mut validator = EcmaRegexValidator::new(EcmaVersion::Es2020);
