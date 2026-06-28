@@ -16,8 +16,9 @@ const CODE: &str = "jsx-no-conflicting-pragmas";
 const MESSAGE: &str = "Conflicting JSX pragmas";
 const HINT: &str = "The classic runtime pragmas `@jsx` and `@jsxFragment` are ignored when `@jsxImportSource` (the automatic runtime) is set. Use one runtime or the other, not both.";
 
-// `@jsxImportSource` selects the automatic JSX runtime. It also matches
-// `@jsxImportSourceTypes`.
+// `@jsxImportSource` selects the automatic JSX runtime. The trailing word
+// boundary makes sure the types-only `@jsxImportSourceTypes` directive,
+// which doesn't switch the runtime on its own, is not matched here.
 static IMPORT_SOURCE_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"@jsxImportSource\b").unwrap());
 
@@ -96,6 +97,11 @@ const a = <div />;"#,
       // `@jsxImportSource` paired with `@jsxImportSourceTypes` is fine.
       r#"/** @jsxImportSource https://esm.sh/preact */
 /** @jsxImportSourceTypes https://esm.sh/preact */
+const a = <div />;"#,
+      // `@jsxImportSourceTypes` alone doesn't switch the runtime, so it
+      // doesn't conflict with the classic pragmas.
+      r#"/** @jsxImportSourceTypes https://esm.sh/preact */
+/** @jsx h */
 const a = <div />;"#,
       // No pragmas at all.
       r#"const a = <div />;"#,
