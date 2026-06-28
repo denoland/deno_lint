@@ -68,42 +68,43 @@ fn inherits_from_non_constructor(class: &ast_view::Class) -> bool {
 }
 
 fn super_call_ranges(constructor: &ast_view::Constructor) -> Vec<SourceRange> {
+  let mut ranges = Vec::new();
   if let Some(block_stmt) = &constructor.body {
-    block_stmt
-      .stmts
-      .iter()
-      .filter_map(extract_super_range)
-      .collect()
-  } else {
-    vec![]
+    for stmt in block_stmt.stmts {
+      collect_super_ranges_in_stmt(stmt, &mut ranges);
+    }
   }
+  ranges
 }
 
-fn extract_super_range(stmt: &ast_view::Stmt) -> Option<SourceRange> {
+fn collect_super_ranges_in_stmt(
+  stmt: &ast_view::Stmt,
+  ranges: &mut Vec<SourceRange>,
+) {
   if let ast_view::Stmt::Expr(expr) = stmt {
-    super_range_in_expr(expr.expr)
-  } else {
-    None
+    collect_super_ranges(expr.expr, ranges);
   }
 }
 
-/// Returns the range of a `super()` call in `expr`, if any.
+/// Collects the range of every `super()` call in `expr`.
 ///
 /// `super()` may not be the whole expression: it can appear inside a
 /// comma/sequence expression, e.g. `super(), 0;` or `0, super();`. In those
-/// cases it is still called unconditionally, so the sequence is unwrapped.
-fn super_range_in_expr(expr: ast_view::Expr) -> Option<SourceRange> {
+/// cases it is still called unconditionally, so the sequence is unwrapped, and
+/// each branch is inspected so `super(), super()` reports both calls.
+fn collect_super_ranges(expr: ast_view::Expr, ranges: &mut Vec<SourceRange>) {
   match expr {
     ast_view::Expr::Call(call)
       if matches!(&call.callee, ast_view::Callee::Super(_)) =>
     {
-      Some(call.range())
+      ranges.push(call.range());
     }
-    ast_view::Expr::Seq(seq) => seq
-      .exprs
-      .iter()
-      .find_map(|inner| super_range_in_expr(*inner)),
-    _ => None,
+    ast_view::Expr::Seq(seq) => {
+      for inner in seq.exprs {
+        collect_super_ranges(*inner, ranges);
+      }
+    }
+    _ => {}
   }
 }
 
@@ -112,7 +113,9 @@ fn return_before_super<'a, 'view>(
 ) -> Option<&'a ast_view::ReturnStmt<'view>> {
   if let Some(block_stmt) = &constructor.body {
     for stmt in block_stmt.stmts {
-      if extract_super_range(stmt).is_some() {
+      let mut ranges = Vec::new();
+      collect_super_ranges_in_stmt(stmt, &mut ranges);
+      if !ranges.is_empty() {
         return None;
       }
 
@@ -379,6 +382,15 @@ mod tests {
         }
       ],
       "class A extends B { constructor() { super(); super(); } }": [
+        {
+          col: 45,
+          message: too_many_super_message,
+          hint: too_many_super_hint,
+        }
+      ],
+      // Two `super()` calls within a single sequence expression are both
+      // counted, so the second is still reported as too many.
+      "class A extends B { constructor() { super(), super(); } }": [
         {
           col: 45,
           message: too_many_super_message,
