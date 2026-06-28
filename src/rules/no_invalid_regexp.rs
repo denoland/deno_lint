@@ -10,6 +10,7 @@ use deno_ast::swc::ast::Expr;
 use deno_ast::swc::ast::ExprOrSpread;
 use deno_ast::swc::ecma_visit::noop_visit_type;
 use deno_ast::swc::ecma_visit::Visit;
+use deno_ast::swc::ecma_visit::VisitWith;
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
 
@@ -119,6 +120,9 @@ impl Visit for NoInvalidRegexpVisitor<'_, '_> {
     if let deno_ast::swc::ast::Callee::Expr(expr) = &call_expr.callee {
       self.handle_call_or_new_expr(expr, &call_expr.args, call_expr.range());
     }
+    // Recurse so regexes nested in the callee or arguments (e.g. inside an
+    // immediately-invoked function expression) are still checked.
+    call_expr.visit_children_with(self);
   }
 
   fn visit_new_expr(&mut self, new_expr: &deno_ast::swc::ast::NewExpr) {
@@ -129,6 +133,7 @@ impl Visit for NoInvalidRegexpVisitor<'_, '_> {
         new_expr.range(),
       );
     }
+    new_expr.visit_children_with(self);
   }
 }
 
@@ -189,6 +194,15 @@ let re = new RegExp('foo', x);",
       r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
+      // https://github.com/denoland/deno_lint/issues/1269
+      // Regexes nested inside a call expression (e.g. an immediately-invoked
+      // function expression) must still be checked.
+      r#"(() => new RegExp("("))();"#: [{ col: 7, message: MESSAGE, hint: HINT }],
+      r#"((_) => [/+/, RegExp(")")])([new RegExp("[")]);"#: [
+        { col: 9, message: MESSAGE, hint: HINT },
+        { col: 14, message: MESSAGE, hint: HINT },
+        { col: 29, message: MESSAGE, hint: HINT },
+      ],
     }
   }
 }
