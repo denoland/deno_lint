@@ -486,6 +486,17 @@ function f() {
   }
 }
       "#,
+
+      // `Deno.exit()` / `process.exit()` in *expression* position must not mark
+      // the following statements as unreachable.
+      r#"
+function h() {
+  const port = Deno.env.get("PORT") ?? Deno.exit(1);
+  startServer(port);
+}
+      "#,
+      "function g(cond) { const result = cond || Deno.exit(1); return result; }",
+      "function p(cond) { const x = cond ? 1 : process.exit(); console.log(x); }",
     };
   }
 

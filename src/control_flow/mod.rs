@@ -446,14 +446,18 @@ impl Visit for Analyzer<'_> {
     self.mark_as_end(n.start(), End::forced_throw());
   }
 
-  fn visit_call_expr(&mut self, n: &CallExpr) {
+  fn visit_expr_stmt(&mut self, n: &ExprStmt) {
     n.visit_children_with(self);
 
-    // Treat `Deno.exit(...)` and `process.exit(...)` as statements that stop
-    // execution. There's no type information available here, so this is a
-    // targeted syntactic heuristic.
-    if is_forced_exit_call(n) {
-      self.mark_as_end(n.start(), End::forced_return());
+    // Treat a `Deno.exit(...)` / `process.exit(...)` *expression statement* as
+    // stopping execution. There's no type information available here, so this
+    // is a targeted syntactic heuristic. It is intentionally limited to
+    // statement position: a call in expression position (e.g.
+    // `cond ?? Deno.exit(1)`) must not poison the surrounding scope.
+    if let Expr::Call(call) = &*n.expr {
+      if is_forced_exit_call(call) {
+        self.mark_as_end(n.start(), End::forced_return());
+      }
     }
   }
 
