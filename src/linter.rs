@@ -248,3 +248,65 @@ impl Linter {
     diagnostics
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::rules::no_debugger::NoDebugger;
+
+  fn lint_with_directives(
+    source: &str,
+    custom_ignore_diagnostic_directive: Option<&'static str>,
+  ) -> Vec<LintDiagnostic> {
+    let linter = Linter::new(LinterOptions {
+      rules: vec![Box::new(NoDebugger)],
+      all_rule_codes: [Cow::from("no-debugger")].into_iter().collect(),
+      custom_ignore_file_directive: None,
+      custom_ignore_diagnostic_directive,
+    });
+    let specifier = ModuleSpecifier::parse("file:///foo.ts").unwrap();
+    let media_type = MediaType::from_specifier(&specifier);
+    let (_, diagnostics) = linter
+      .lint_file(LintFileOptions {
+        specifier,
+        source_code: source.to_string(),
+        media_type,
+        config: LintConfig {
+          default_jsx_factory: None,
+          default_jsx_fragment_factory: None,
+        },
+        external_linter: None,
+      })
+      .unwrap();
+    diagnostics
+  }
+
+  // Regression test for #1475: a configured `custom_ignore_diagnostic_directive`
+  // must actually be honored for line-level ignores. Previously the linter
+  // mistakenly initialized `ignore_diagnostic_directive` from
+  // `custom_ignore_file_directive`, so the custom value was never used.
+  #[test]
+  fn custom_ignore_diagnostic_directive_is_respected() {
+    // Sanity check: with no ignore comment the rule fires.
+    assert_eq!(
+      lint_with_directives("debugger;", Some("custom-ignore")).len(),
+      1
+    );
+
+    // The custom directive suppresses the diagnostic.
+    let source = "// custom-ignore no-debugger\ndebugger;";
+    assert!(lint_with_directives(source, Some("custom-ignore")).is_empty());
+
+    // The default `deno-lint-ignore` is no longer recognized once a custom
+    // directive is configured, so the diagnostic still fires.
+    let source = "// deno-lint-ignore no-debugger\ndebugger;";
+    assert_eq!(lint_with_directives(source, Some("custom-ignore")).len(), 1);
+  }
+
+  // With no custom directive, the default `deno-lint-ignore` still works.
+  #[test]
+  fn default_ignore_diagnostic_directive_is_respected() {
+    let source = "// deno-lint-ignore no-debugger\ndebugger;";
+    assert!(lint_with_directives(source, None).is_empty());
+  }
+}
