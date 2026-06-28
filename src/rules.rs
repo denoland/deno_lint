@@ -185,7 +185,8 @@ pub fn recommended_rules(
 ///
 /// - if `maybe_tags` is `None` then all defined rules are returned, otherwise
 ///   only rules matching at least one tag will be returned; if provided list
-///   is empty then all rules will be excluded by default
+///   is empty then all rules will be excluded by default. The special tag
+///   `all` matches every rule regardless of the rule's own tags.
 ///
 /// - if `maybe_exclude` is `Some`, all rules with matching codes will
 ///   be filtered out
@@ -207,10 +208,12 @@ pub fn filtered_rules(
     .into_iter()
     .filter(|rule| {
       let mut passes = if let Some(tags_set) = &tags_set {
-        rule
-          .tags()
-          .iter()
-          .any(|t| tags_set.contains(&t.to_string()))
+        // The special `all` tag matches every rule regardless of its own tags.
+        tags_set.contains("all")
+          || rule
+            .tags()
+            .iter()
+            .any(|t| tags_set.contains(&t.to_string()))
       } else {
         true
       };
@@ -440,6 +443,27 @@ mod tests {
       Some(vec!["ban-untagged-todo".to_string()]),
     );
     assert_eq!(rules.len(), recommended_rules(get_all_rules()).len());
+
+    // The `all` tag should return every rule.
+    // https://github.com/denoland/deno_lint/issues/1244
+    let rules = filtered_rules(
+      get_all_rules(),
+      Some(vec!["all".to_string()]),
+      None,
+      None,
+    );
+    assert_eq!(rules.len(), get_all_rules().len());
+
+    // The `all` tag combined with an exclude should return every rule but the
+    // excluded one.
+    let rules = filtered_rules(
+      get_all_rules(),
+      Some(vec!["all".to_string()]),
+      Some(vec!["no-explicit-any".to_string()]),
+      None,
+    );
+    assert_eq!(rules.len(), get_all_rules().len() - 1);
+    assert!(rules.iter().all(|r| r.code() != "no-explicit-any"));
 
     // Should skip all rules if given empty tags vec.
     let rules = filtered_rules(get_all_rules(), Some(vec![]), None, None);
