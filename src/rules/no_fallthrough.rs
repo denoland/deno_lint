@@ -95,8 +95,23 @@ impl Visit for NoFallthroughVisitor<'_, '_> {
         }
 
         if last {
-          let comments = self.context.trailing_comments_at(stmt.end());
-          if allow_fall_through(comments) {
+          let mut allow =
+            allow_fall_through(self.context.trailing_comments_at(stmt.end()));
+
+          // The fallthrough comment may also be placed on the last line inside
+          // a block, e.g. `case 0: { foo(); /* falls through */ }`.
+          // See https://github.com/denoland/deno_lint/issues/1041
+          if !allow {
+            if let Stmt::Block(block) = stmt {
+              if let Some(inner_last) = block.stmts.last() {
+                allow = allow_fall_through(
+                  self.context.trailing_comments_at(inner_last.end()),
+                );
+              }
+            }
+          }
+
+          if allow {
             should_emit_err = false;
             // User comment beats everything
             prev_range = Some(case.range());
@@ -189,6 +204,112 @@ switch(someValue) {
   } break;
   default:
     console.log(42);
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1042
+      r#"
+switch (input) {
+  case "x":
+    Deno.exit();
+  default:
+    break;
+}
+      "#,
+      r#"
+switch (input) {
+  case "x":
+    process.exit(1);
+  default:
+    break;
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1156
+      r#"
+function* sequence(type) {
+  let num = 0;
+  switch (type) {
+    case "even":
+      while (true) {
+        if (isEven(num)) yield num;
+        num += 1;
+      }
+    case "odd":
+      yield 1;
+  }
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1331
+      r#"
+export function repro(...nums) {
+  for (let i = 0; i < nums.length; i++) {
+    switch (nums[i]) {
+      case 0:
+        switch (i) {
+          case 0:
+            continue;
+          default:
+            return 0;
+        }
+      case 1:
+        return 1;
+    }
+  }
+}
+      "#,
+      // https://github.com/denoland/deno_lint/issues/1379
+      r#"
+function foo(i, type, flags) {
+  maybeFlag: if (isFlagProp(i)) {
+    switch (i) {
+      case AST_PROP_OPERATOR:
+        switch (type) {
+          case 1:
+            return getAssignOperator(flags);
+          default:
+            break maybeFlag;
+        }
+      case AST_PROP_PREFIX:
+        return true;
+    }
+  }
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1444
+      r#"
+function booleanAnd(b1, b2) {
+  switch (b1) {
+    case true:
+      switch (b2) {
+        case true:
+        default:
+          return true;
+      }
+    case false:
+      switch (b2) {
+        case true:
+          return true;
+        case false:
+          return false;
+      }
+  }
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1041
+      r#"
+function handler(req) {
+  switch (path) {
+    case "/data": {
+      if (req.method === 'GET') return getData()
+      // fallthrough
+    }
+    default:
+      return new Response("not found", { status: 404 });
+  }
 }
       "#,
     };

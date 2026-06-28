@@ -438,6 +438,65 @@ function foo(trueOrFalse: boolean) {
   }
 }
       "#,
+
+      // https://github.com/denoland/deno_lint/issues/1468
+      r#"
+function test(): boolean {
+  let tryCount = 0;
+  do {
+    const httpCode = genRandomNumber(200, 700);
+    if (isRetryableError(httpCode)) {
+      continue;
+    }
+    return randomlyErrorOut();
+  } while (tryCount++ < retryCount);
+  throw new Error("Exceeded maximum retry attempts");
+}
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1341
+      r#"
+let one: number | undefined;
+mainLoop: for (;;) {
+  let two: number | undefined;
+  for (;;) {
+    if (one === 10) {
+      break mainLoop;
+    }
+    if (two === 10) {
+      break;
+    }
+    two = (two ?? 0) + 1;
+  }
+  one = (one ?? 0) + 1;
+  console.log(one);
+}
+console.log("finished!");
+      "#,
+
+      // https://github.com/denoland/deno_lint/issues/1303
+      r#"
+function f() {
+  const fooError = new Error("foo");
+  try {
+    throw fooError;
+  } catch (cause) {
+    assert(cause instanceof Error && cause.message === "foo");
+    throw new Error("bar", { cause });
+  }
+}
+      "#,
+
+      // `Deno.exit()` / `process.exit()` in *expression* position must not mark
+      // the following statements as unreachable.
+      r#"
+function h() {
+  const port = Deno.env.get("PORT") ?? Deno.exit(1);
+  startServer(port);
+}
+      "#,
+      "function g(cond) { const result = cond || Deno.exit(1); return result; }",
+      "function p(cond) { const x = cond ? 1 : process.exit(); console.log(x); }",
     };
   }
 

@@ -6,7 +6,6 @@ use crate::diagnostic::LintFix;
 use crate::diagnostic::LintFixChange;
 use crate::handler::Handler;
 use crate::handler::Traverse;
-use crate::tags;
 use crate::tags::Tags;
 use crate::Program;
 
@@ -39,7 +38,7 @@ impl LintRule for NoProcessGlobal {
   }
 
   fn tags(&self) -> Tags {
-    &[tags::RECOMMENDED]
+    &[]
   }
 }
 
