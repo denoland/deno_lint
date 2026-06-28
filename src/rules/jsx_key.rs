@@ -60,7 +60,17 @@ struct JSXKeyHandler;
 
 impl Handler for JSXKeyHandler {
   fn array_lit(&mut self, node: &ArrayLit, ctx: &mut Context) {
-    for elem in node.elems.iter().flatten() {
+    // Only treat the array as a list of rendered elements when *every*
+    // element produces JSX. Mixed arrays such as `[label, <Foo />]` tuples
+    // are data structures, not lists React renders as siblings, so
+    // requiring a `key` there is a false positive.
+    // See https://github.com/denoland/deno_lint/issues/1429
+    let elems: Vec<_> = node.elems.iter().flatten().collect();
+    if elems.is_empty() || !elems.iter().all(|elem| is_jsx_like(&elem.expr)) {
+      return;
+    }
+
+    for elem in elems {
       check_expr(ctx, &elem.expr);
     }
   }
@@ -174,8 +184,22 @@ fn check_stmt(ctx: &mut Context, stmt: &Stmt) {
   }
 }
 
+/// Returns `true` if the expression evaluates to JSX, looking through
+/// parentheses as well as conditional and logical expressions used for
+/// conditional rendering (e.g. `cond ? <A /> : <B />` or `cond && <A />`).
+fn is_jsx_like(expr: &Expr) -> bool {
+  match expr {
+    Expr::JSXElement(_) | Expr::JSXFragment(_) => true,
+    Expr::Paren(paren) => is_jsx_like(&paren.expr),
+    Expr::Cond(cond) => is_jsx_like(&cond.cons) || is_jsx_like(&cond.alt),
+    Expr::Bin(bin) => is_jsx_like(&bin.left) || is_jsx_like(&bin.right),
+    _ => false,
+  }
+}
+
 fn check_expr(ctx: &mut Context, expr: &Expr) {
   match expr {
+    Expr::Paren(paren) => check_expr(ctx, &paren.expr),
     Expr::JSXElement(jsx_el) => {
       if !has_key_jsx_attr(jsx_el.opening.attrs) {
         ctx.add_diagnostic_with_hint(
@@ -234,6 +258,14 @@ mod tests {
       "[1, 2, 3].map(x => {})",
       "<div />",
       r#"[<div key="1"/>, <div key="2" />]"#,
+      // Data/tuple arrays that merely contain JSX are not rendered as a
+      // list of siblings, so they don't need keys (#1429).
+      r#"const a = [label, <div />];"#,
+      r#"const a = [["label", <><kbd>i</kbd></>], ["other", <kbd>j</kbd>]];"#,
+      r#"const a = [foo(), <div />, "text"];"#,
+      // Conditional/logical rendering inside a list is keyed correctly.
+      r#"const a = [cond ? <div key="1" /> : <div key="2" />];"#,
+      r#"const a = [cond && <div key="1" />];"#,
       r#"[1, 2, 3].map(function(x) { return <div key={x} /> })"#,
       r#"[1, 2, 3].map((x) => { return <div key={x} /> })"#,
       r#"[1, 2, 3].map((x) => <div key={x} />)"#,
@@ -288,6 +320,28 @@ mod tests {
       "[<div />]": [
         {
           col: 1,
+          message: DiagnosticKind::MissingKey.message(),
+          hint: DiagnosticKind::MissingKey.hint(),
+        }
+      ],
+      // Parenthesized arrow body must still be checked (#1429).
+      r#"[1, 2, 3].map((x) => (<div />));"#: [
+        {
+          col: 22,
+          message: DiagnosticKind::MissingKey.message(),
+          hint: DiagnosticKind::MissingKey.hint(),
+        }
+      ],
+      r#"items.map(([a, b]) => (<tr><td>{a}</td></tr>));"#: [
+        {
+          col: 23,
+          message: DiagnosticKind::MissingKey.message(),
+          hint: DiagnosticKind::MissingKey.hint(),
+        }
+      ],
+      r#"[(<div />)];"#: [
+        {
+          col: 2,
           message: DiagnosticKind::MissingKey.message(),
           hint: DiagnosticKind::MissingKey.hint(),
         }
