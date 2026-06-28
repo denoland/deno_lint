@@ -85,8 +85,27 @@ impl Handler for JSXCurlyBracesHandler {
 
       if let JSXElementChild::JSXExprContainer(child_expr) = child {
         if let JSXExpr::Expr(Expr::Lit(Lit::Str(lit_str))) = child_expr.expr {
+          let value = lit_str.inner.value.to_string_lossy();
+
           // Ignore entities which would require escaping.
-          if IGNORE_CHARS.is_match(&lit_str.inner.value.to_string_lossy()) {
+          if IGNORE_CHARS.is_match(&value) {
+            continue;
+          }
+
+          // Leading or trailing whitespace (including whitespace-only
+          // strings) is significant: JSX trims and collapses whitespace
+          // around text nodes, so removing the curly braces would change
+          // the rendered output. This makes `{" "}` separators valid.
+          // See https://github.com/denoland/deno_lint/issues/1422
+          if value.trim() != value {
+            continue;
+          }
+
+          // Comment-like text (`//` or `/*`) must stay wrapped in curly
+          // braces, otherwise it becomes a comment text node which
+          // `jsx-no-comment-text-nodes` forbids.
+          // See https://github.com/denoland/deno_lint/issues/1440
+          if value.starts_with("//") || value.starts_with("/*") {
             continue;
           }
 
@@ -195,6 +214,18 @@ mod tests {
       r#"<div>foo{"foo >"}</div>"#,
       r#"<div>foo{"foo }"}</div>"#,
       r#"<div>foo{"foo {"}</div>"#,
+      // Whitespace-only separators are significant (#1422)
+      r#"<div>foo{" "}bar</div>"#,
+      r#"<div>foo{"  "}bar</div>"#,
+      r#"<div><foo />{" "}<bar /></div>"#,
+      // Leading/trailing whitespace is significant (#1422)
+      r#"<div>foo{" :"}bar</div>"#,
+      r#"<div>foo{" ("}bar</div>"#,
+      r#"<div>foo{") "}bar</div>"#,
+      // Comment-like text must stay wrapped (#1440)
+      r#"<div>foo{"//"}</div>"#,
+      r#"<div>foo{"/*"}</div>"#,
+      r#"<div>{"// not a comment"}</div>"#,
     };
   }
 
