@@ -936,6 +936,121 @@ switch (foo) {
   });
 }
 
+// https://github.com/denoland/deno_lint/issues/1042
+#[test]
+fn issue_1042() {
+  let src = r#"
+switch (foo) {
+  case 1:
+    Deno.exit(1);
+  default:
+    break;
+}
+"#;
+  analyze_flow(src, |flow| {
+    assert_flow!(flow, 1, false, Some(End::Continue)); // switch stmt
+    assert_flow!(flow, 18, false, Some(End::forced_return())); // `case 1`
+    assert_flow!(flow, 30, false, Some(End::forced_return())); // `Deno.exit(1);`
+    assert_flow!(flow, 46, false, Some(End::Break)); // `default`
+  });
+}
+
+// https://github.com/denoland/deno_lint/issues/1156
+#[test]
+fn issue_1156() {
+  let src = r#"
+switch (foo) {
+  case 1:
+    while (true) {
+      bar();
+    }
+  default:
+    baz();
+}
+"#;
+  analyze_flow(src, |flow| {
+    // `case 1` stops execution because the infinite loop never breaks.
+    assert_flow!(flow, 18, false, Some(End::forced_infinite_loop()));
+    // The `while` statement itself is exposed as a finisher.
+    assert_flow!(flow, 30, false, Some(End::forced_infinite_loop()));
+  });
+}
+
+// https://github.com/denoland/deno_lint/issues/1331
+#[test]
+fn issue_1331() {
+  let src = r#"
+for (let i = 0; i < 10; i++) {
+  switch (i) {
+    case 0:
+      switch (i) {
+        case 0:
+          continue;
+        default:
+          return 0;
+      }
+    case 1:
+      return 1;
+  }
+}
+"#;
+  analyze_flow(src, |flow| {
+    // The inner switch stops execution (every path either continues the loop or
+    // returns), so the outer `case 0` does not fall through to `case 1`.
+    assert!(flow
+      .meta(StartSourcePos::START_SOURCE_POS + 51)
+      .unwrap()
+      .stops_execution()); // outer `case 0`
+  });
+}
+
+// https://github.com/denoland/deno_lint/issues/1444
+#[test]
+fn issue_1444() {
+  let src = r#"
+switch (b1) {
+  case true:
+    switch (b2) {
+      case true:
+      default:
+        return true;
+    }
+  case false:
+    return false;
+}
+"#;
+  analyze_flow(src, |flow| {
+    // The inner switch always returns (the empty `case true` falls through to
+    // the `default`), so the outer `case true` stops execution.
+    assert!(flow
+      .meta(StartSourcePos::START_SOURCE_POS + 17)
+      .unwrap()
+      .stops_execution()); // outer `case true`
+  });
+}
+
+// https://github.com/denoland/deno_lint/issues/1303
+#[test]
+fn issue_1303() {
+  let src = r#"
+function f() {
+  const fooError = new Error("foo");
+  try {
+    throw fooError;
+  } catch (cause) {
+    bar();
+    throw new Error("bar", { cause });
+  }
+}
+"#;
+  analyze_flow(src, |flow| {
+    // `throw fooError` re-throws an existing identifier; the catch block must
+    // still be considered reachable.
+    let bar = flow.meta(StartSourcePos::START_SOURCE_POS + 105).unwrap();
+    assert!(!bar.unreachable); // `bar();`
+  });
+}
+
 // https://github.com/denoland/deno_lint/issues/644
 #[test]
 fn issue_644() {

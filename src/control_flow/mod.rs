@@ -121,6 +121,11 @@ struct Scope<'a> {
   /// - Some(None): Stopped at a break statement without label
   /// - Some(Somd(id)): Stopped at a break statement with label id
   found_break: Option<Option<Id>>,
+  /// Whether an unlabeled `break` statement targeting the nearest enclosing loop
+  /// or switch was found. This is tracked separately from `found_break` because
+  /// `found_break` can only store a single break and a labeled break (targeting
+  /// an outer construct) would otherwise mask an unlabeled one.
+  found_unlabeled_break: bool,
   found_continue: bool,
 }
 
@@ -187,6 +192,18 @@ impl End {
     }
   }
 
+  /// A forced stop that isn't a plain `return`/`throw`/infinite-loop, such as a
+  /// `continue` or labeled `break` that exits a construct enclosing a switch.
+  /// It still stops execution (so it prevents fallthrough), but carries no
+  /// specific reason.
+  fn forced_stop() -> Self {
+    End::Forced {
+      ret: false,
+      throw: false,
+      infinite_loop: false,
+    }
+  }
+
   fn merge_forced(self, other: Self) -> Option<Self> {
     match (self, other) {
       (
@@ -223,9 +240,28 @@ impl<'a> Scope<'a> {
       end: None,
       may_throw: false,
       found_break: None,
+      found_unlabeled_break: false,
       found_continue: false,
     }
   }
+}
+
+/// Returns `true` if the given call expression is a call to `Deno.exit` or
+/// `process.exit`, which terminate the process and thus stop execution.
+fn is_forced_exit_call(n: &CallExpr) -> bool {
+  let Callee::Expr(callee) = &n.callee else {
+    return false;
+  };
+  let Expr::Member(member) = &**callee else {
+    return false;
+  };
+  let Expr::Ident(obj) = &*member.obj else {
+    return false;
+  };
+  let MemberProp::Ident(prop) = &member.prop else {
+    return false;
+  };
+  matches!(&*obj.sym, "Deno" | "process") && &*prop.sym == "exit"
 }
 
 impl Analyzer<'_> {
@@ -239,7 +275,15 @@ impl Analyzer<'_> {
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
     let prev_end = self.scope.end;
-    let (info, end, hoist, found_break, found_continue, may_throw) = {
+    let (
+      info,
+      end,
+      hoist,
+      found_break,
+      found_unlabeled_break,
+      found_continue,
+      may_throw,
+    ) = {
       let mut child = Analyzer {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind.clone()),
@@ -262,6 +306,7 @@ impl Analyzer<'_> {
         child.scope.end,
         child.scope.used_hoistable_ids,
         child.scope.found_break,
+        child.scope.found_unlabeled_break,
         child.scope.found_continue,
         child.scope.may_throw,
       )
@@ -273,7 +318,23 @@ impl Analyzer<'_> {
     // Preserve information about visited ast nodes.
     self.scope.may_throw |= may_throw;
 
-    self.scope.found_continue |= found_continue;
+    // A loop consumes unlabeled `continue` statements that target it; they
+    // shouldn't be attributed to an enclosing construct. A function obviously
+    // contains its own continues.
+    match kind {
+      BlockKind::Loop | BlockKind::Function => {}
+      _ => {
+        self.scope.found_continue |= found_continue;
+      }
+    };
+
+    // A loop or switch consumes unlabeled `break` statements that target it.
+    match kind {
+      BlockKind::Loop | BlockKind::Case | BlockKind::Function => {}
+      _ => {
+        self.scope.found_unlabeled_break |= found_unlabeled_break;
+      }
+    };
 
     match kind {
       BlockKind::Case => {}
@@ -377,7 +438,23 @@ impl Visit for Analyzer<'_> {
 
   fn visit_throw_stmt(&mut self, n: &ThrowStmt) {
     n.visit_children_with(self);
+    // A `throw` statement can always be caught by an enclosing `try`/`catch`,
+    // regardless of what is being thrown (e.g. `throw someVariable`). Mark the
+    // scope as possibly throwing so that the corresponding `catch` block is not
+    // treated as unreachable.
+    self.scope.may_throw = true;
     self.mark_as_end(n.start(), End::forced_throw());
+  }
+
+  fn visit_call_expr(&mut self, n: &CallExpr) {
+    n.visit_children_with(self);
+
+    // Treat `Deno.exit(...)` and `process.exit(...)` as statements that stop
+    // execution. There's no type information available here, so this is a
+    // targeted syntactic heuristic.
+    if is_forced_exit_call(n) {
+      self.mark_as_end(n.start(), End::forced_return());
+    }
   }
 
   fn visit_break_stmt(&mut self, n: &BreakStmt) {
@@ -386,6 +463,7 @@ impl Visit for Analyzer<'_> {
       self.scope.found_break = Some(Some(label));
     } else {
       self.scope.found_break = Some(None);
+      self.scope.found_unlabeled_break = true;
     }
   }
 
@@ -472,24 +550,45 @@ impl Visit for Analyzer<'_> {
     let prev_end = self.scope.end;
     n.visit_children_with(self);
 
-    let end = {
-      let has_default = n.cases.iter().any(|case| case.test.is_none());
-      let forced_end = n
+    let has_default = n.cases.iter().any(|case| case.test.is_none());
+
+    // The code following a switch is reachable (i.e. the switch does not stop
+    // execution) if any of the following holds:
+    //
+    //  - there's no `default` case (a value might match nothing), or
+    //  - some case exits via a plain `break` (which jumps to right after the
+    //    switch), or
+    //  - the last case completes normally and "falls off" the end of the
+    //    switch.
+    //
+    // Otherwise every path either returns/throws, loops forever, or escapes an
+    // enclosing construct (via `continue`/labeled `break`), so the switch stops
+    // execution.
+    let end = if !has_default {
+      End::Continue
+    } else {
+      let case_ends: Vec<Option<End>> = n
         .cases
         .iter()
-        .filter_map(|case| self.get_end_reason(case.start()))
-        .try_fold(
-          End::Forced {
-            ret: false,
-            throw: false,
-            infinite_loop: false,
-          },
-          |acc, cur| acc.merge_forced(cur),
-        );
+        .map(|case| self.get_end_reason(case.start()))
+        .collect();
 
-      match forced_end {
-        Some(e) if has_default => e,
-        _ => End::Continue,
+      let any_plain_break =
+        case_ends.iter().any(|e| matches!(e, Some(End::Break)));
+      let last_falls_through = matches!(
+        case_ends.last(),
+        Some(None) | Some(Some(End::Continue))
+      );
+
+      if any_plain_break || last_falls_through {
+        End::Continue
+      } else {
+        case_ends
+          .into_iter()
+          .flatten()
+          .filter(|e| e.is_forced())
+          .reduce(|acc, cur| acc.merge_forced(cur).unwrap_or(acc))
+          .unwrap_or_else(End::forced_stop)
       }
     };
 
@@ -507,8 +606,15 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Case, n.start(), |a| {
       n.cons.visit_with(a);
 
-      if a.scope.found_break.is_some() {
+      if a.scope.found_unlabeled_break {
+        // A plain `break` exits the switch: execution reaches the code right
+        // after the switch, so this case does not fall through to the next one.
         case_end = Some(End::Break);
+      } else if a.scope.found_break.is_some() || a.scope.found_continue {
+        // A labeled `break` or a `continue` escapes an enclosing construct (a
+        // loop or labeled statement). This case stops execution (so it doesn't
+        // fall through) but doesn't reach the code after the switch either.
+        case_end = Some(End::forced_stop());
       } else if matches!(a.scope.end, Some(End::Forced { .. })) {
         case_end = a.scope.end;
       }
@@ -611,7 +717,7 @@ impl Visit for Analyzer<'_> {
     self.with_child_scope(BlockKind::Loop, n.body.start(), |a| {
       n.body.visit_with(a);
 
-      let has_break = matches!(a.scope.found_break, Some(None));
+      let has_break = a.scope.found_unlabeled_break;
 
       if !has_break {
         let end = match a.get_end_reason(n.body.start()) {
@@ -680,7 +786,7 @@ impl Visit for Analyzer<'_> {
         matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)));
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
-      let has_break = matches!(a.scope.found_break, Some(None));
+      let has_break = a.scope.found_unlabeled_break;
 
       if unconditionally_enter && return_or_throw && !has_break {
         // This `unwrap` is safe;
@@ -697,6 +803,15 @@ impl Visit for Analyzer<'_> {
       }
     });
 
+    // Expose the loop statement itself (not just its body) as a finisher when
+    // it unconditionally stops execution, so that consumers reading the
+    // metadata at the statement's start (e.g. `no-fallthrough`) see it.
+    if let Some(end) = self.get_end_reason(body_lo) {
+      if end.is_forced() {
+        self.mark_as_end(n.start(), end);
+      }
+    }
+
     n.test.visit_with(self);
   }
 
@@ -712,9 +827,13 @@ impl Visit for Analyzer<'_> {
       let infinite_loop =
         matches!(n.test.cast_to_bool(expr_ctxt), (_, Value::Known(true)))
           && a.scope.found_break.is_none();
-      let has_break = matches!(a.scope.found_break, Some(None));
+      let has_break = a.scope.found_unlabeled_break;
+      // A `continue` jumps to the loop's condition check. If the body contains a
+      // (reachable) `continue`, then it doesn't *unconditionally* return/throw,
+      // so a non-infinite do-while loop may still exit normally.
+      let has_continue = a.scope.found_continue;
 
-      if return_or_throw && !has_break {
+      if return_or_throw && !has_break && !has_continue {
         // This `unwrap` is safe;
         // if `return_or_throw` is true, `end_reason` is surely wrapped in `Some`.
         a.mark_as_end(body_lo, end_reason.unwrap());
