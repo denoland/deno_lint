@@ -209,10 +209,7 @@ impl<'a> Context<'a> {
   pub fn global_with_writable(&self, name: &str) -> Option<bool> {
     match &self.globals {
       Some(globals) => globals.get(name).copied(),
-      None => GLOBALS
-        .iter()
-        .find(|(global, _)| *global == name)
-        .map(|(_, writable)| *writable),
+      None => GLOBALS.get(name).copied(),
     }
   }
 
