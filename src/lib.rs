@@ -122,8 +122,10 @@ mod lint_tests {
 
   #[test]
   fn empty_file() {
+    // An empty file is reported by the recommended `no-empty-file` rule.
     let diagnostics = lint_recommended_rules("");
-    assert!(diagnostics.is_empty());
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].details.code, "no-empty-file");
   }
 
   #[test]
@@ -293,8 +295,10 @@ const _foo = 42;
 
   #[test]
   fn empty_file_with_ast() {
+    // An empty file is reported by the recommended `no-empty-file` rule.
     let parsed_source = parse("");
     let diagnostics = lint_recommended_rules_with_ast(&parsed_source);
-    assert!(diagnostics.is_empty());
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].details.code, "no-empty-file");
   }
 }
