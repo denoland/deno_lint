@@ -195,14 +195,35 @@ mod tests {
       r#"fetch(url, {method: "HEAD", body: "foo=bar", method: "post"});"#,
       r#"new Request(url, {method: "HEAD",body: "foo=bar", method: "POST"});"#,
       r#"fetch('/', {body: new URLSearchParams({ data: "test" }), method: "POST"})"#,
+      r#"const method = "post"; new Request(url, {method, body: "foo=bar"})"#,
+      r#"const method = "post"; fetch(url, {method, body: "foo=bar"})"#,
+      r#"const method = `post`; fetch(url, {method, body: "foo=bar"})"#,
+      r#"const method = `po${"st"}`; fetch(url, {method, body: "foo=bar"})"#,
+      r#"function foo(method: "POST" | "PUT", body: string) {
+            return new Request(url, {method, body});
+        }"#,
+      "function foo(method: string, body: string) {
+            return new Request(url, {method, body});
+        }",
+      r#"enum Method {
+          Post = "POST",
+        }
+        const response = await fetch("/", {
+         method: Method.Post,
+         body: "",
+        });"#,
+      "const response = await fetch('', { method, headers, body, });",
       r#"fetch("/url", { method: logic ? "PATCH" : "POST", body: "some body" });"#,
       r#"new Request("/url", { method: logic ? "PATCH" : "POST", body: "some body" });"#,
       r#"fetch("/url", { method: getMethod(), body: "some body" });"#,
+      r#"const method = 'POST' as const; await fetch('some-url', { method, body: '' });"#,
+      r#"const options = { method: 'POST' } as const; await fetch('some-url', { method: options.method, body: '' });"#,
+      r#"const options = { method: 'POST' }; await fetch('some-url', { method: options.method, body: '' });"#,
+      r#"const options = { method: 'POST' } as const; new Request('some-url', { method: options.method, body: '' });"#,
       r#"fetch("/url", { method: getOptions().method, body: "some body" });"#,
       r#"new Request("/url", { method: getOptions().method, body: "some body" });"#,
       r#"fetch("/url", { method: (options).method, body: "some body" });"#,
       r#"new Request("/url", { method: (options).method, body: "some body" });"#,
-      "const response = await fetch('', { method, headers, body, });",
     };
   }
 
