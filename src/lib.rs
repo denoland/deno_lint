@@ -59,6 +59,7 @@ mod lint_tests {
         config: LintConfig {
           default_jsx_factory: None,
           default_jsx_fragment_factory: None,
+          globals: None,
         },
         external_linter: None,
       })
@@ -82,6 +83,7 @@ mod lint_tests {
       LintConfig {
         default_jsx_factory: None,
         default_jsx_fragment_factory: None,
+        globals: None,
       },
       None,
     )

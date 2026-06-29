@@ -2,9 +2,9 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::swc_util::find_lhs_ids;
 use crate::tags::{self, Tags};
 use crate::Program;
-use crate::{globals::GLOBALS, swc_util::find_lhs_ids};
 use deno_ast::swc::ast::Id;
 use deno_ast::SourceRange;
 use deno_ast::SourceRangedForSpanned;
@@ -59,11 +59,11 @@ impl NoGlobalAssignVisitor {
     }
 
     // We only care about globals.
-    let maybe_global = GLOBALS.iter().find(|(name, _)| name == &&*id.0);
+    let maybe_writable = ctx.global_with_writable(&id.0);
 
-    if let Some(global) = maybe_global {
+    if let Some(writable) = maybe_writable {
       // If global can be overwritten then don't need to report anything
-      if !global.1 {
+      if !writable {
         ctx.add_diagnostic_with_hint(
           range,
           CODE,
@@ -166,5 +166,36 @@ Boolean = true;
         },
       ],
     };
+  }
+
+  // When the host supplies a set of globals, their writability flag drives the
+  // rule: read-only globals can't be reassigned, writable ones can.
+  #[test]
+  fn no_global_assign_configured_globals() {
+    use crate::test_util::{
+      assert_lint_ok_with_globals, assert_lint_some_with_globals, globals,
+    };
+
+    // A read-only DOM global may not be reassigned.
+    assert_lint_some_with_globals(
+      Box::new(NoGlobalAssign),
+      "document = 1;",
+      globals(&[("document", false)]),
+    );
+
+    // A writable global may be reassigned without complaint.
+    assert_lint_ok_with_globals(
+      Box::new(NoGlobalAssign),
+      "onmessage = function () {};",
+      globals(&[("onmessage", true)]),
+    );
+
+    // Built-in globals are no longer consulted once the host supplies a set:
+    // `Object` isn't in the supplied list, so assigning to it is allowed.
+    assert_lint_ok_with_globals(
+      Box::new(NoGlobalAssign),
+      "Object = 1;",
+      globals(&[("document", false)]),
+    );
   }
 }

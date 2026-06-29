@@ -5,10 +5,12 @@ use crate::diagnostic::{
   LintDiagnostic, LintDiagnosticDetails, LintDiagnosticRange,
   LintDiagnosticSeverity, LintDocsUrl, LintFix,
 };
+use crate::globals::GLOBALS;
 use crate::ignore_directives::{
   parse_line_ignore_directives, CodeStatus, FileIgnoreDirective,
   LineIgnoreDirective,
 };
+use crate::linter::ConfiguredGlobals;
 use crate::linter::LinterContext;
 use crate::rules;
 use deno_ast::swc::ast::Expr;
@@ -40,6 +42,7 @@ pub struct Context<'a> {
   jsx_factory: Option<Rc<Box<Expr>>>,
   #[allow(clippy::redundant_allocation)] // This type comes from SWC.
   jsx_fragment_factory: Option<Rc<Box<Expr>>>,
+  globals: Option<ConfiguredGlobals>,
 }
 
 impl<'a> Context<'a> {
@@ -50,6 +53,7 @@ impl<'a> Context<'a> {
     file_ignore_directive: Option<FileIgnoreDirective>,
     default_jsx_factory: Option<String>,
     default_jsx_fragment_factory: Option<String>,
+    globals: Option<ConfiguredGlobals>,
   ) -> Self {
     let line_ignore_directives = parse_line_ignore_directives(
       linter_ctx.ignore_diagnostic_directive,
@@ -117,6 +121,7 @@ impl<'a> Context<'a> {
       check_unknown_rules: linter_ctx.check_unknown_rules,
       jsx_factory,
       jsx_fragment_factory,
+      globals,
     }
   }
 
@@ -192,6 +197,29 @@ impl<'a> Context<'a> {
   /// return `None`.
   pub fn jsx_fragment_factory(&self) -> Option<Rc<Box<Expr>>> {
     self.jsx_fragment_factory.clone()
+  }
+
+  /// Looks up a global variable by name, returning its writability when the
+  /// name is a recognized global: `Some(true)` if the global may be reassigned,
+  /// `Some(false)` if it is read-only, and `None` if `name` is not a global.
+  ///
+  /// When the host has supplied a configured set of globals (derived from the
+  /// TypeScript `lib`), that set is consulted; otherwise the built-in `GLOBALS`
+  /// list is used.
+  pub fn global_with_writable(&self, name: &str) -> Option<bool> {
+    match &self.globals {
+      Some(globals) => globals.get(name).copied(),
+      None => GLOBALS
+        .iter()
+        .find(|(global, _)| *global == name)
+        .map(|(_, writable)| *writable),
+    }
+  }
+
+  /// Returns `true` if `name` is a recognized global variable. See
+  /// [`Context::global_with_writable`] for how the global set is resolved.
+  pub fn is_global(&self, name: &str) -> bool {
+    self.global_with_writable(name).is_some()
   }
 
   /// The `SyntaxContext` of any unresolved identifiers
