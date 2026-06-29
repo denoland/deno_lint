@@ -40,6 +40,7 @@ pub mod jsx_void_dom_elements_no_children;
 pub mod no_array_constructor;
 pub mod no_async_promise_executor;
 pub mod no_await_in_loop;
+pub mod no_await_in_promise_methods;
 pub mod no_await_in_sync_fn;
 pub mod no_boolean_literal_for_arguments;
 pub mod no_case_declarations;
@@ -284,6 +285,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_array_constructor::NoArrayConstructor),
     Box::new(no_async_promise_executor::NoAsyncPromiseExecutor),
     Box::new(no_await_in_loop::NoAwaitInLoop),
+    Box::new(no_await_in_promise_methods::NoAwaitInPromiseMethods),
     Box::new(no_await_in_sync_fn::NoAwaitInSyncFn),
     Box::new(no_boolean_literal_for_arguments::NoBooleanLiteralForArguments),
     Box::new(no_case_declarations::NoCaseDeclarations),
