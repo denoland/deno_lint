@@ -58,6 +58,13 @@ mod tests {
       filename: "file:///foo.jsx",
       // non derived classes.
       r#"<div />"#,
+      // A `{/* deno-lint-ignore */}` block comment suppresses the next
+      // line, since `//` line comments aren't valid inside JSX children.
+      // See https://github.com/denoland/deno_lint/issues/1452
+      r#"<div>
+        {/* deno-lint-ignore react-no-danger */}
+        <div dangerouslySetInnerHTML={{}} />
+      </div>"#,
     };
   }
 
