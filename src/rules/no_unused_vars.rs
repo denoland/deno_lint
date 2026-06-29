@@ -6,16 +6,16 @@ use crate::tags::{self, Tags};
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::ast::{
-  ArrowExpr, AssignExpr, AssignPatProp, AssignTarget, CallExpr, CatchClause,
-  ClassDecl, ClassMethod, ClassProp, Constructor, Decl, DefaultDecl,
-  ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr, FnDecl, FnExpr,
-  Function, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,
-  ImportStarAsSpecifier, JSXElementName, JSXFragment, JSXObject, MemberExpr,
-  MemberProp, MethodKind, ModuleExportName, NamedExport, Param, Pat,
-  PrivateMethod, Prop, PropName, SetterProp, TsEntityName, TsEnumDecl,
-  TsExprWithTypeArgs, TsImportEqualsDecl, TsInterfaceDecl, TsModuleDecl,
-  TsModuleRef, TsNamespaceDecl, TsPropertySignature, TsTypeAliasDecl,
-  TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
+  ArrowExpr, AssignExpr, AssignPat, AssignPatProp, AssignTarget, CallExpr,
+  CatchClause, ClassDecl, ClassMethod, ClassProp, Constructor, Decl,
+  DefaultDecl, ExportDecl, ExportDefaultDecl, ExportNamedSpecifier, Expr,
+  FnDecl, FnExpr, Function, Ident, ImportDefaultSpecifier,
+  ImportNamedSpecifier, ImportStarAsSpecifier, JSXElementName, JSXFragment,
+  JSXObject, MemberExpr, MemberProp, MethodKind, ModuleExportName, NamedExport,
+  NewExpr, Param, Pat, PrivateMethod, Prop, PropName, SetterProp, TsEntityName,
+  TsEnumDecl, TsExprWithTypeArgs, TsImportEqualsDecl, TsInterfaceDecl,
+  TsModuleDecl, TsModuleRef, TsNamespaceDecl, TsPropertySignature,
+  TsTypeAliasDecl, TsTypeQueryExpr, TsTypeRef, VarDecl, VarDeclarator,
 };
 use deno_ast::swc::ast::{Id, SimpleAssignTarget};
 use deno_ast::swc::ecma_visit::{Visit, VisitWith};
@@ -392,6 +392,37 @@ impl Visit for Collector {
     }
 
     call_expr.type_args.visit_children_with(self);
+  }
+
+  fn visit_new_expr(&mut self, new_expr: &NewExpr) {
+    new_expr.callee.visit_with(self);
+
+    // Arguments to a constructor are evaluated lazily with respect to the
+    // variable being declared, exactly like call arguments. For example in
+    // `const foo = new MyClass(() => foo.hello());` the closure is invoked
+    // later, so `foo` must be treated as used.
+    // See https://github.com/denoland/deno_lint/issues/1318
+    if let Some(args) = &new_expr.args {
+      for arg in args {
+        self.without_cur_defining(|a| {
+          arg.visit_children_with(a);
+        });
+      }
+    }
+
+    new_expr.type_args.visit_children_with(self);
+  }
+
+  fn visit_assign_pat(&mut self, assign_pat: &AssignPat) {
+    // The default value of a destructuring binding may reference sibling
+    // bindings, e.g. `const { foo, bar: baz = foo } = obj;`. The default
+    // expression is only evaluated when the property is missing, so a sibling
+    // referenced there is used rather than self-referential.
+    // See https://github.com/denoland/deno_lint/issues/1414
+    assign_pat.left.visit_with(self);
+    self.without_cur_defining(|a| {
+      assign_pat.right.visit_with(a);
+    });
   }
 
   fn visit_class_decl(&mut self, decl: &ClassDecl) {
@@ -773,6 +804,15 @@ mod tests {
     assert_lint_ok! {
       NoUnusedVars,
       "var a = 1; console.log(a)",
+      // https://github.com/denoland/deno_lint/issues/1318
+      // a variable referenced inside a closure passed to its own constructor
+      // is used (the closure runs lazily)
+      "const foo = new MyClass(() => { foo.hello(); });",
+      "const foo = new MyClass(function () { return foo; });",
+      // https://github.com/denoland/deno_lint/issues/1414
+      // a sibling binding referenced in a destructuring default is used
+      "const { foo, bar: baz = foo } = obj; console.log(baz);",
+      "const [a, b = a] = arr; console.log(b);",
       "var a = 1; const arrow = () => a; console.log(arrow)",
       "var a = 1; console.log?.(a)",
       "var a = 1; a?.()",
