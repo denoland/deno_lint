@@ -19,6 +19,7 @@ pub mod camelcase;
 pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
+pub mod erasing_op;
 pub mod explicit_function_return_type;
 pub mod explicit_module_boundary_types;
 pub mod for_direction;
@@ -263,6 +264,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(constructor_super::ConstructorSuper),
     Box::new(default_param_last::DefaultParamLast),
     Box::new(eqeqeq::Eqeqeq),
+    Box::new(erasing_op::ErasingOp),
     Box::new(explicit_function_return_type::ExplicitFunctionReturnType),
     Box::new(explicit_module_boundary_types::ExplicitModuleBoundaryTypes),
     Box::new(for_direction::ForDirection),
