@@ -465,9 +465,11 @@ impl<'a> Context<'a> {
     details: LintDiagnosticDetails,
     severity: LintDiagnosticSeverity,
   ) {
-    let mut diagnostic = self.create_diagnostic(maybe_range, details);
-    diagnostic.severity = severity;
-    self.diagnostics.push(diagnostic);
+    self.diagnostics.push(self.create_diagnostic_with_severity(
+      maybe_range,
+      details,
+      severity,
+    ));
   }
 
   /// Add fully constructed diagnostics.
@@ -483,11 +485,24 @@ impl<'a> Context<'a> {
     maybe_range: Option<LintDiagnosticRange>,
     details: LintDiagnosticDetails,
   ) -> LintDiagnostic {
+    self.create_diagnostic_with_severity(
+      maybe_range,
+      details,
+      LintDiagnosticSeverity::default(),
+    )
+  }
+
+  pub(crate) fn create_diagnostic_with_severity(
+    &self,
+    maybe_range: Option<LintDiagnosticRange>,
+    details: LintDiagnosticDetails,
+    severity: LintDiagnosticSeverity,
+  ) -> LintDiagnostic {
     LintDiagnostic {
       specifier: self.specifier().clone(),
       range: maybe_range,
       details,
-      severity: LintDiagnosticSeverity::default(),
+      severity,
     }
   }
 

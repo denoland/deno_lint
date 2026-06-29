@@ -16,7 +16,11 @@ use deno_ast::SourceTextInfo;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Severity for a [`LintDiagnostic`].
+/// Severity of an emitted [`LintDiagnostic`].
+///
+/// This is a property of the emitted diagnostic instance rather than of the
+/// rule's [`LintDiagnosticDetails`], because the same rule may be configured to
+/// emit either errors or warnings depending on consumer configuration.
 ///
 /// `Error` is the default to preserve backwards-compatible behavior with
 /// pre-severity versions of `deno_lint` where every diagnostic was treated
@@ -26,8 +30,10 @@ use serde::Serialize;
 )]
 #[serde(rename_all = "lowercase")]
 pub enum LintDiagnosticSeverity {
+  /// A hard error. The default, to preserve existing behavior.
   #[default]
   Error,
+  /// A warning that does not necessarily indicate a failure.
   Warning,
 }
 
