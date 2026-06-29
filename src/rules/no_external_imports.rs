@@ -50,15 +50,26 @@ struct NoExternalImportHandler;
 
 impl NoExternalImportHandler {
   fn check_import_path(&self, decl: &ImportDecl, ctx: &mut Context) {
-    let parsed_src =
-      ModuleSpecifier::parse(&decl.src.value().to_string_lossy());
+    let Ok(parsed_src) =
+      ModuleSpecifier::parse(&decl.src.value().to_string_lossy())
+    else {
+      return;
+    };
+
+    // `node:` and `bun:` specifiers are runtime built-ins, not external
+    // resources, so they are always allowed.
+    // https://github.com/denoland/deno_lint/issues/1366
+    if matches!(parsed_src.scheme(), "node" | "bun") {
+      return;
+    }
+
     let maybe_file_path = ctx.specifier().to_file_path().ok();
     let file_stem = maybe_file_path
       .as_ref()
       .and_then(|p| p.file_stem())
       .and_then(OsStr::to_str);
 
-    if parsed_src.is_ok() && file_stem != Some("deps") {
+    if file_stem != Some("deps") {
       ctx.add_diagnostic_with_hint(
         decl.range(),
         CODE,
@@ -94,7 +105,12 @@ mod tests {
       "import type Foo from './deps.ts';",
       "import * as Foo from './deps.ts';",
       "import './deps.ts';",
-      "const foo = await import('https://example.com');"
+      "const foo = await import('https://example.com');",
+      // https://github.com/denoland/deno_lint/issues/1366
+      // node: and bun: specifiers are built-ins, not external resources.
+      "import { readFile } from 'node:fs/promises';",
+      "import process from 'node:process';",
+      "import { Database } from 'bun:sqlite';"
     };
 
     assert_lint_ok! {
