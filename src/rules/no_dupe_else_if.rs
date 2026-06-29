@@ -190,9 +190,51 @@ fn is_subset(arr_a: &[Expr], arr_b: &[Expr]) -> bool {
     .all(|a| arr_b.iter().any(|b| equal_in_if_else(a, b)))
 }
 
+/// Walks an expression looking for an UpdateExpr (`i++`, `++i`, `i--`,
+/// `--i`). When such a mutating operator is present, two textually
+/// identical conditions in an if/else-if chain aren't actually duplicates
+/// — the second evaluation observes a different value of the operand.
+///
+/// We deliberately don't treat `AwaitExpr`, `AssignExpr`, `CallExpr`,
+/// or `NewExpr` as side-effecting here, to keep parity with ESLint's
+/// `no-dupe-else-if`: e.g. `if (a = b) {} else if (a = b) {}` and
+/// `if (await a) {} else if (await a) {}` are still flagged. (For
+/// `await`, awaiting the same Promise twice yields the same value, so
+/// the second branch genuinely never executes.)
+fn has_update_side_effect(expr: &Expr) -> bool {
+  use deno_ast::swc::ast::Expr::*;
+  match expr {
+    Update(_) => true,
+    Paren(ParenExpr { expr, .. }) => has_update_side_effect(expr),
+    Unary(u) => has_update_side_effect(&u.arg),
+    Bin(b) => {
+      has_update_side_effect(&b.left) || has_update_side_effect(&b.right)
+    }
+    Cond(c) => {
+      has_update_side_effect(&c.test)
+        || has_update_side_effect(&c.cons)
+        || has_update_side_effect(&c.alt)
+    }
+    Seq(s) => s.exprs.iter().any(|e| has_update_side_effect(e)),
+    TsAs(t) => has_update_side_effect(&t.expr),
+    TsTypeAssertion(t) => has_update_side_effect(&t.expr),
+    TsConstAssertion(t) => has_update_side_effect(&t.expr),
+    TsNonNull(t) => has_update_side_effect(&t.expr),
+    _ => false,
+  }
+}
+
 /// Determines whether the two given `Expr`s are considered to be equal in if-else condition
 /// context. Note that `expr1` and `expr2` must be span-dropped to be compared properly.
 fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
+  // If either side has a mutating update (`i++`, `--i`, etc.), the two
+  // conditions can't be considered equivalent: the second branch observes
+  // a different operand value. Bail out before the structural comparison
+  // below, which would otherwise treat e.g. `!i--` and `!i--` as a
+  // duplicate.
+  if has_update_side_effect(expr1) || has_update_side_effect(expr2) {
+    return false;
+  }
   use deno_ast::swc::ast::Expr::*;
   match (expr1, expr2) {
     (Bin(ref bin1), Bin(ref bin2))
@@ -206,10 +248,7 @@ fn equal_in_if_else(expr1: &Expr, expr2: &Expr) -> bool {
     }
     (Paren(ParenExpr { ref expr, .. }), _) => equal_in_if_else(expr, expr2),
     (_, Paren(ParenExpr { ref expr, .. })) => equal_in_if_else(expr1, expr),
-    (Fn(a), Fn(b)) => {
-      eprintln!("fn:\n{:?}\n{:?}", a, b);
-      a == b
-    }
+    (Fn(a), Fn(b)) => a == b,
     (This(_), This(_))
     | (Array(_), Array(_))
     | (Object(_), Object(_))
@@ -308,6 +347,17 @@ if (a) {
       "if (a) {} else if (b && (a || c)) {}",
       "if (a) {} else if (b && (c || d && a)) {}",
       "if (a && b && c) {} else if (a && b && (c || d)) {}",
+      // Regression test for https://github.com/denoland/deno/issues/32097
+      // Conditions that mutate state via `++`/`--` can be textually
+      // identical without being semantically duplicate — the second
+      // branch sees a different value.
+      "if (!i--) f(); else if (!i--) g();",
+      "if (i++ === 0) {} else if (i++ === 0) {}",
+      "if (--i) {} else if (--i) {}",
+      "if (++a) {} else if (++a) {}",
+      // Side-effecting operand inside a logical operator chain shouldn't
+      // make the branch a duplicate either.
+      "if (a && i++) {} else if (a && i++) {}",
     };
   }
 
@@ -459,13 +509,6 @@ if (a) {
       "if (!a) {} else if (!a) {}": [
         {
           col: 20,
-          message: NoDupeElseIfMessage::Unexpected,
-          hint: NoDupeElseIfHint::RemoveOrRework,
-        }
-      ],
-      "if (++a) {} else if (++a) {}": [
-        {
-          col: 21,
           message: NoDupeElseIfMessage::Unexpected,
           hint: NoDupeElseIfHint::RemoveOrRework,
         }
