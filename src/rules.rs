@@ -99,6 +99,7 @@ pub mod no_setter_return;
 pub mod no_shadow_restricted_names;
 pub mod no_sparse_arrays;
 pub mod no_sync_fn_in_async_fn;
+pub mod no_thenable;
 pub mod no_this_alias;
 pub mod no_this_before_super;
 pub mod no_throw_literal;
@@ -347,6 +348,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_shadow_restricted_names::NoShadowRestrictedNames),
     Box::new(no_sparse_arrays::NoSparseArrays),
     Box::new(no_sync_fn_in_async_fn::NoSyncFnInAsyncFn),
+    Box::new(no_thenable::NoThenable),
     Box::new(no_this_alias::NoThisAlias),
     Box::new(no_this_before_super::NoThisBeforeSuper),
     Box::new(no_throw_literal::NoThrowLiteral),
