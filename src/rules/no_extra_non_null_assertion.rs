@@ -94,6 +94,13 @@ impl Handler for NoExtraNonNullAssertionHandler {
     opt_chain_expr: &OptChainExpr,
     ctx: &mut Context,
   ) {
+    // A non-null assertion is only "extra" when the access applied to it is
+    // itself optional, e.g. `foo!?.bar`. When the link is not optional — as in
+    // `(a?.b)!.c` or `(a?.b)![c]`, where the `?.` belongs to an earlier link —
+    // the assertion applies to the optional-chain *result* and is meaningful.
+    if !opt_chain_expr.inner.optional {
+      return;
+    }
     let expr = match &opt_chain_expr.base {
       OptChainBase::Member(member_expr) => &member_expr.obj,
       OptChainBase::Call(call_expr) => &call_expr.callee,
@@ -114,6 +121,12 @@ mod tests {
       r#"function foo() { return "foo"; }"#,
       r#"function foo(bar: undefined | string) { return bar!; }"#,
       r#"function foo(bar?: { str: string }) { return bar?.str; }"#,
+      // A non-null assertion on an optional-chain result, followed by a
+      // non-optional access, is meaningful and must not be flagged.
+      // https://github.com/denoland/deno_lint/issues/1432
+      r#"function foo(bar?: { str: string }) { return bar?.str!.length; }"#,
+      // https://github.com/denoland/deno_lint/issues/1254
+      r#"function foo(bar?: { arr?: number[] }) { return bar?.arr![0]; }"#,
     };
   }
 
@@ -164,6 +177,15 @@ mod tests {
         }
       ],
       r#"function foo(bar?: { str: string }) { return (bar!)?.(); }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      // A non-null assertion immediately followed by another optional link
+      // (`!?.`) is still redundant, even on an optional-chain result.
+      r#"function foo(bar?: { str: string }) { return bar?.str!?.length; }"#: [
         {
           col: 45,
           message: NoExtraNonNullAssertionMessage::Unexpected,
