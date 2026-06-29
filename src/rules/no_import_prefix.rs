@@ -11,8 +11,7 @@ use deno_ast::SourceRanged;
 pub struct NoImportPrefix;
 
 const CODE: &str = "no-import-prefix";
-const MESSAGE: &str =
-  "Inline 'npm:', 'jsr:' or 'https:' dependency not allowed";
+const MESSAGE: &str = "Inline 'npm:', 'jsr:' or 'https:' dependency discouraged in non-single file projects";
 const HINT: &str = "Add it as a dependency in a deno.json or package.json instead and reference it here via its bare specifier";
 
 impl LintRule for NoImportPrefix {
