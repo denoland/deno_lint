@@ -12,8 +12,13 @@ pub struct FreshHandlerExport;
 
 const CODE: &str = "fresh-handler-export";
 const MESSAGE: &str =
-  "Fresh middlewares must be exported as \"handler\" but got \"handlers\" instead.";
-const HINT: &str = "Did you mean \"handler\"?";
+  "Fresh only recognizes \"handler\", \"handlers\", and \"config\" exports in route files.";
+const HINT: &str = "Rename this export or move it out of the route file.";
+
+/// Named exports that Fresh recognizes in a route file. A default export (the
+/// route component) is a separate AST node (`ExportDefaultDecl`) that this rule
+/// never reaches, so it does not need to be listed here.
+const ALLOWED_EXPORTS: &[&str] = &["handler", "handlers", "config"];
 
 impl LintRule for FreshHandlerExport {
   fn tags(&self) -> Tags {
@@ -65,8 +70,11 @@ impl Handler for Visitor {
       _ => return,
     };
 
-    // Fresh middleware handler must be exported as "handler" not "handlers"
-    if id.sym().eq("handlers") {
+    // Flag any export Fresh doesn't recognize in a route file. `config`
+    // (`RouteConfig`) is a legitimate route export alongside the handler, so it
+    // must be allowed; otherwise valid routes would get a false positive.
+    let sym = id.sym();
+    if !ALLOWED_EXPORTS.iter().any(|allowed| sym.eq(*allowed)) {
       ctx.add_diagnostic_with_hint(id.range(), CODE, MESSAGE, HINT);
     }
   }
@@ -120,19 +128,53 @@ mod tests {
       "export async function handler() {}",
     );
 
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export const handlers = {}"#: [
+    // Both "handler" and "handlers" are valid in Fresh 2.x
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export const handlers = {}"#,
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export function handlers() {}"#,
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export async function handlers() {}"#,
+    );
+
+    // `config` (`RouteConfig`) is a recognized Fresh route export and must not
+    // be flagged. Regression test for the whitelist false positive.
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export const config = {}"#,
+    );
+
+    // A default export is the route component, which Fresh recognizes; it is a
+    // different AST node and is never flagged by this rule.
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export default function Page() {}"#,
+    );
+
+    // Unknown export names should be flagged
+    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export const foo = {}"#: [
     {
       col: 13,
       message: MESSAGE,
       hint: HINT,
     }]);
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export function handlers() {}"#: [
+    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export function bar() {}"#: [
     {
       col: 16,
       message: MESSAGE,
       hint: HINT,
     }]);
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export async function handlers() {}"#: [
+    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export async function baz() {}"#: [
     {
       col: 22,
       message: MESSAGE,
