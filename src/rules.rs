@@ -9,6 +9,8 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 
 pub mod adjacent_overload_signatures;
+pub mod bad_char_at_comparison;
+pub mod bad_object_literal_comparison;
 pub mod ban_ts_comment;
 pub mod ban_types;
 pub mod ban_unknown_rule_code;
@@ -116,6 +118,7 @@ pub mod no_window;
 pub mod no_window_prefix;
 pub mod no_with;
 pub mod node_builtin_specifier;
+pub mod number_arg_out_of_range;
 pub mod prefer_as_const;
 pub mod prefer_ascii;
 pub mod prefer_const;
@@ -253,6 +256,8 @@ pub(crate) fn sort_rules_by_priority(rules: &mut [Box<dyn LintRule>]) {
 fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
   vec![
     Box::new(adjacent_overload_signatures::AdjacentOverloadSignatures),
+    Box::new(bad_char_at_comparison::BadCharAtComparison),
+    Box::new(bad_object_literal_comparison::BadObjectLiteralComparison),
     Box::new(ban_ts_comment::BanTsComment),
     Box::new(ban_types::BanTypes),
     Box::new(ban_unknown_rule_code::BanUnknownRuleCode),
@@ -364,6 +369,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_window_prefix::NoWindowPrefix),
     Box::new(no_with::NoWith),
     Box::new(node_builtin_specifier::NodeBuiltinsSpecifier),
+    Box::new(number_arg_out_of_range::NumberArgOutOfRange),
     Box::new(prefer_as_const::PreferAsConst),
     Box::new(prefer_ascii::PreferAscii),
     Box::new(prefer_const::PreferConst),
