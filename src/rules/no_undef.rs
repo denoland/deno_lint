@@ -2,7 +2,6 @@
 
 use super::program_ref;
 use super::{Context, LintRule};
-use crate::globals::GLOBALS;
 use crate::Program;
 use crate::ProgramRef;
 use deno_ast::swc::{
@@ -62,7 +61,7 @@ impl<'c, 'view> NoUndefVisitor<'c, 'view> {
     }
 
     // Globals
-    if GLOBALS.iter().any(|(name, _)| name == &&*ident.sym) {
+    if self.context.is_global(&ident.sym) {
       return;
     }
 
@@ -389,5 +388,29 @@ mod tests {
         },
       ],
     };
+  }
+
+  // When the host supplies a set of globals (derived from the configured
+  // TypeScript `lib`), those names are recognized as defined and replace the
+  // built-in list. See https://github.com/denoland/deno_lint/issues/622 and
+  // denoland/deno#27379.
+  #[test]
+  fn no_undef_configured_globals() {
+    use crate::test_util::{
+      assert_lint_ok_with_globals, assert_lint_some_with_globals, globals,
+    };
+
+    let dom = || globals(&[("document", false), ("HTMLElement", false)]);
+
+    // DOM globals are recognized when supplied.
+    assert_lint_ok_with_globals(Box::new(NoUndef), "document.body;", dom());
+    assert_lint_ok_with_globals(Box::new(NoUndef), "new HTMLElement();", dom());
+
+    // Typos are still reported.
+    assert_lint_some_with_globals(Box::new(NoUndef), "documentt;", dom());
+
+    // The supplied set fully replaces the built-in list: a Deno runtime global
+    // is no longer recognized when the host doesn't include it.
+    assert_lint_some_with_globals(Box::new(NoUndef), "Deno;", dom());
   }
 }

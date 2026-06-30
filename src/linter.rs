@@ -11,8 +11,19 @@ use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
+
+/// Set of global variables recognized by `no-undef` and `no-global-assign`,
+/// keyed by name. The boolean value indicates whether the global may be
+/// reassigned (`true` = writable, e.g. `onmessage`; `false` = read-only, e.g.
+/// `Object`).
+///
+/// The host derives this from the project's TypeScript `lib` configuration and
+/// passes it via [`LintConfig::globals`]. It is wrapped in an [`Arc`] because
+/// the same set is shared, unchanged, across every file in a lint run.
+pub type ConfiguredGlobals = Arc<HashMap<String, bool>>;
 
 pub struct LinterOptions {
   /// Rules to lint with.
@@ -94,6 +105,14 @@ pub struct LintFileOptions {
 pub struct LintConfig {
   pub default_jsx_factory: Option<String>,
   pub default_jsx_fragment_factory: Option<String>,
+  /// Optional override for the set of recognized global variables.
+  ///
+  /// When `Some`, it fully replaces the built-in `GLOBALS` list for the
+  /// `no-undef` and `no-global-assign` rules, letting the host derive the
+  /// available globals from the configured TypeScript `lib` (e.g. adding the
+  /// DOM globals when `"dom"` is in `lib`). When `None`, the built-in list is
+  /// used, preserving the default behavior.
+  pub globals: Option<ConfiguredGlobals>,
 }
 
 impl Linter {
@@ -125,6 +144,7 @@ impl Linter {
       &parsed_source,
       options.config.default_jsx_factory,
       options.config.default_jsx_fragment_factory,
+      options.config.globals,
       options.external_linter,
     );
 
@@ -146,6 +166,7 @@ impl Linter {
       parsed_source,
       config.default_jsx_factory,
       config.default_jsx_fragment_factory,
+      config.globals,
       maybe_external_linter,
     )
   }
@@ -192,6 +213,7 @@ impl Linter {
     parsed_source: &ParsedSource,
     default_jsx_factory: Option<String>,
     default_jsx_fragment_factory: Option<String>,
+    globals: Option<ConfiguredGlobals>,
     maybe_external_linter: Option<ExternalLinterCb>,
   ) -> Vec<LintDiagnostic> {
     let _mark = PerformanceMark::new("Linter::lint_inner");
@@ -227,6 +249,7 @@ impl Linter {
         file_ignore_directive,
         default_jsx_factory,
         default_jsx_fragment_factory,
+        globals.clone(),
       );
 
       // Run configured lint rules.
@@ -274,6 +297,7 @@ mod tests {
         config: LintConfig {
           default_jsx_factory: None,
           default_jsx_fragment_factory: None,
+          globals: None,
         },
         external_linter: None,
       })

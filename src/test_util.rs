@@ -4,6 +4,7 @@ use std::borrow::Cow;
 
 use crate::ast_parser;
 use crate::diagnostic::LintDiagnostic;
+use crate::linter::ConfiguredGlobals;
 use crate::linter::LintConfig;
 use crate::linter::LintFileOptions;
 use crate::linter::Linter;
@@ -205,7 +206,8 @@ impl LintErrTester {
   #[track_caller]
   pub fn run(self) {
     let rule_code = self.rule.code();
-    let (parsed_source, diagnostics) = lint(self.rule, self.src, self.filename);
+    let (parsed_source, diagnostics) =
+      lint(self.rule, self.src, self.filename, None);
     if self.errors.len() != diagnostics.len() {
       eprintln!(
         "Actual diagnostics:\n{:#?}",
@@ -322,6 +324,7 @@ fn lint(
   rule: Box<dyn LintRule>,
   source: &str,
   specifier: &str,
+  globals: Option<ConfiguredGlobals>,
 ) -> (ParsedSource, Vec<LintDiagnostic>) {
   let linter = Linter::new(LinterOptions {
     rules: vec![rule],
@@ -343,6 +346,7 @@ fn lint(
     config: LintConfig {
       default_jsx_factory: Some("React.createElement".to_owned()),
       default_jsx_fragment_factory: Some("React.Fragment".to_owned()),
+      globals,
     },
     external_linter: None,
   });
@@ -461,7 +465,7 @@ pub fn assert_lint_ok(
   source: &str,
   specifier: &'static str,
 ) {
-  let (_parsed_source, diagnostics) = lint(rule, source, specifier);
+  let (_parsed_source, diagnostics) = lint(rule, source, specifier, None);
   if !diagnostics.is_empty() {
     eprintln!("filename {:?}", specifier);
     panic!(
@@ -474,7 +478,52 @@ pub fn assert_lint_ok(
 
 /// Just run the specified lint on the source code to make sure it doesn't panic.
 pub fn assert_lint_not_panic(rule: Box<dyn LintRule>, source: &str) {
-  let _result = lint(rule, source, TEST_FILE_NAME);
+  let _result = lint(rule, source, TEST_FILE_NAME, None);
+}
+
+/// Builds a [`ConfiguredGlobals`] set from `(name, writable)` pairs, mirroring
+/// what the host derives from the TypeScript `lib` configuration.
+pub fn globals(entries: &[(&str, bool)]) -> ConfiguredGlobals {
+  std::sync::Arc::new(
+    entries
+      .iter()
+      .map(|(name, writable)| (name.to_string(), *writable))
+      .collect(),
+  )
+}
+
+/// Like [`assert_lint_ok`] but lints with a host-supplied set of globals.
+pub fn assert_lint_ok_with_globals(
+  rule: Box<dyn LintRule>,
+  source: &str,
+  globals: ConfiguredGlobals,
+) {
+  let (_parsed_source, diagnostics) =
+    lint(rule, source, TEST_FILE_NAME, Some(globals));
+  if !diagnostics.is_empty() {
+    panic!(
+      "Unexpected diagnostics found:\n{:#?}\n\nsource:\n{}\n",
+      diagnostics.iter().map(|d| d.message()).collect::<Vec<_>>(),
+      source
+    );
+  }
+}
+
+/// Like [`assert_lint_ok`] but asserts that linting with a host-supplied set of
+/// globals produces at least one diagnostic.
+pub fn assert_lint_some_with_globals(
+  rule: Box<dyn LintRule>,
+  source: &str,
+  globals: ConfiguredGlobals,
+) {
+  let (_parsed_source, diagnostics) =
+    lint(rule, source, TEST_FILE_NAME, Some(globals));
+  if diagnostics.is_empty() {
+    panic!(
+      "Expected diagnostics but found none.\n\nsource:\n{}\n",
+      source
+    );
+  }
 }
 
 const TEST_FILE_NAME: &str = "file:///lint_test.ts";

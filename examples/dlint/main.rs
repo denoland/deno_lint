@@ -134,6 +134,7 @@ fn run_linter(
         config: LintConfig {
           default_jsx_factory: Some("React.createElement".to_string()),
           default_jsx_fragment_factory: Some("React.Fragment".to_string()),
+          globals: None,
         },
         external_linter: None,
       })?;
