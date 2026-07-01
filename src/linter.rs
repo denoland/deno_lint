@@ -3,6 +3,7 @@
 use crate::ast_parser::parse_program;
 use crate::context::Context;
 use crate::diagnostic::LintDiagnostic;
+use crate::diagnostic::LintDiagnosticSeverity;
 use crate::ignore_directives::parse_file_ignore_directives;
 use crate::performance_mark::PerformanceMark;
 use crate::rules::{ban_unknown_rule_code::BanUnknownRuleCode, LintRule};
@@ -11,6 +12,7 @@ use deno_ast::MediaType;
 use deno_ast::ParsedSource;
 use deno_ast::{ModuleSpecifier, ParseDiagnostic};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -19,6 +21,12 @@ pub struct LinterOptions {
   pub rules: Vec<Box<dyn LintRule>>,
   /// Collection of all the lint rule codes.
   pub all_rule_codes: HashSet<Cow<'static, str>>,
+  /// Per-rule diagnostic severity, keyed by rule code. Diagnostics from a rule
+  /// whose code isn't present default to [`LintDiagnosticSeverity::Error`], so
+  /// callers that don't configure severities keep the historical behavior.
+  ///
+  /// See [`crate::rules::config`] for producing this from configuration.
+  pub rule_severities: HashMap<Cow<'static, str>, LintDiagnosticSeverity>,
   /// Defaults to "deno-lint-ignore-file"
   pub custom_ignore_file_directive: Option<&'static str>,
   /// Defaults to "deno-lint-ignore"
@@ -43,6 +51,8 @@ pub(crate) struct LinterContext {
   /// Rules are sorted by priority
   pub rules: Vec<Box<dyn LintRule>>,
   pub all_rule_codes: HashSet<Cow<'static, str>>,
+  /// Per-rule diagnostic severity, keyed by rule code.
+  pub rule_severities: HashMap<Cow<'static, str>, LintDiagnosticSeverity>,
 }
 
 impl LinterContext {
@@ -63,6 +73,7 @@ impl LinterContext {
       check_unknown_rules,
       rules,
       all_rule_codes: options.all_rule_codes,
+      rule_severities: options.rule_severities,
     }
   }
 }
@@ -174,6 +185,21 @@ impl Linter {
     // Run `ban-unused-ignore`
     diagnostics.extend(context.ban_unused_ignore(&enabled_rules));
 
+    // Stamp each diagnostic with its rule's configured severity. Rules without
+    // a configured severity keep the default (`Error`), so this is a no-op
+    // unless the caller supplied `rule_severities`.
+    if !self.ctx.rule_severities.is_empty() {
+      for diagnostic in &mut diagnostics {
+        if let Some(severity) = self
+          .ctx
+          .rule_severities
+          .get(diagnostic.details.code.as_str())
+        {
+          diagnostic.severity = *severity;
+        }
+      }
+    }
+
     // Finally sort by position the diagnostics originates on then by code
     diagnostics.sort_by(|a, b| {
       let a_range = a.range.as_ref().map(|r| r.range.start);
@@ -261,6 +287,7 @@ mod tests {
     let linter = Linter::new(LinterOptions {
       rules: vec![Box::new(NoDebugger)],
       all_rule_codes: [Cow::from("no-debugger")].into_iter().collect(),
+      rule_severities: Default::default(),
       custom_ignore_file_directive: None,
       custom_ignore_diagnostic_directive,
     });
@@ -308,5 +335,60 @@ mod tests {
   fn default_ignore_diagnostic_directive_is_respected() {
     let source = "// deno-lint-ignore no-debugger\ndebugger;";
     assert!(lint_with_directives(source, None).is_empty());
+  }
+
+  // End-to-end: configuring a rule's severity flows all the way to the emitted
+  // diagnostic. This is the payoff of the `rules::config` layer.
+  #[test]
+  fn configured_severity_reaches_diagnostic() {
+    use crate::diagnostic::LintDiagnosticSeverity;
+    use crate::rules::config::{
+      configure_rules, split_configured, RuleConfig, RuleSeverity,
+    };
+    use crate::rules::no_console::NoConsole;
+    use std::collections::HashMap;
+
+    let mut user = HashMap::new();
+    user.insert(
+      "no-console".to_string(),
+      RuleConfig {
+        severity: Some(RuleSeverity::Warn),
+        options: None,
+      },
+    );
+
+    let defs = vec![NoConsole::def()];
+    let configured = configure_rules(&defs, &user).unwrap();
+    let (rules, rule_severities) = split_configured(configured);
+    let all_rule_codes = rules
+      .iter()
+      .map(|r| Cow::from(r.code()))
+      .collect::<HashSet<_>>();
+
+    let linter = Linter::new(LinterOptions {
+      rules,
+      all_rule_codes,
+      rule_severities,
+      custom_ignore_file_directive: None,
+      custom_ignore_diagnostic_directive: None,
+    });
+
+    let (_, diagnostics) = linter
+      .lint_file(LintFileOptions {
+        specifier: ModuleSpecifier::parse("file:///foo.ts").unwrap(),
+        source_code: "console.log('x');".to_string(),
+        media_type: MediaType::TypeScript,
+        config: LintConfig {
+          default_jsx_factory: None,
+          default_jsx_fragment_factory: None,
+        },
+        external_linter: None,
+      })
+      .unwrap();
+
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].details.code, "no-console");
+    // Without configuration this would default to `Error`.
+    assert_eq!(diagnostics[0].severity, LintDiagnosticSeverity::Warning);
   }
 }

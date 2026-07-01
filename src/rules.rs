@@ -16,6 +16,7 @@ pub mod ban_untagged_ignore;
 pub mod ban_untagged_todo;
 pub mod ban_unused_ignore;
 pub mod camelcase;
+pub mod config;
 pub mod constructor_super;
 pub mod default_param_last;
 pub mod eqeqeq;
@@ -262,7 +263,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(camelcase::Camelcase),
     Box::new(constructor_super::ConstructorSuper),
     Box::new(default_param_last::DefaultParamLast),
-    Box::new(eqeqeq::Eqeqeq),
+    Box::new(eqeqeq::Eqeqeq::default()),
     Box::new(explicit_function_return_type::ExplicitFunctionReturnType),
     Box::new(explicit_module_boundary_types::ExplicitModuleBoundaryTypes),
     Box::new(for_direction::ForDirection),
@@ -290,7 +291,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_class_assign::NoClassAssign),
     Box::new(no_compare_neg_zero::NoCompareNegZero),
     Box::new(no_cond_assign::NoCondAssign),
-    Box::new(no_console::NoConsole),
+    Box::new(no_console::NoConsole::default()),
     Box::new(no_const_assign::NoConstAssign),
     Box::new(no_constant_condition::NoConstantCondition),
     Box::new(no_control_regex::NoControlRegex),
@@ -302,7 +303,7 @@ fn get_all_rules_raw() -> Vec<Box<dyn LintRule>> {
     Box::new(no_dupe_else_if::NoDupeElseIf),
     Box::new(no_dupe_keys::NoDupeKeys),
     Box::new(no_duplicate_case::NoDuplicateCase),
-    Box::new(no_empty::NoEmpty),
+    Box::new(no_empty::NoEmpty::default()),
     Box::new(no_empty_character_class::NoEmptyCharacterClass),
     Box::new(no_empty_enum::NoEmptyEnum),
     Box::new(no_empty_interface::NoEmptyInterface),
@@ -512,7 +513,7 @@ mod tests {
       Box::new(ban_unknown_rule_code::BanUnknownRuleCode),
       Box::new(ban_unused_ignore::BanUnusedIgnore),
       Box::new(no_redeclare::NoRedeclare),
-      Box::new(eqeqeq::Eqeqeq),
+      Box::new(eqeqeq::Eqeqeq::default()),
     ];
 
     sort_rules_by_priority(&mut rules);

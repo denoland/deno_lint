@@ -111,6 +111,7 @@ fn run_linter(
   let linter = Linter::new(LinterOptions {
     rules,
     all_rule_codes,
+    rule_severities: Default::default(),
     custom_ignore_file_directive: None,
     custom_ignore_diagnostic_directive: None,
   });

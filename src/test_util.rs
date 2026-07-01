@@ -330,6 +330,7 @@ fn lint(
       .map(|rule| rule.code())
       .map(Cow::from)
       .collect(),
+    rule_severities: Default::default(),
     custom_ignore_diagnostic_directive: None,
     custom_ignore_file_directive: None,
   });

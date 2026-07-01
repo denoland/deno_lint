@@ -2,15 +2,59 @@
 
 use super::{Context, LintRule};
 use crate::handler::{Handler, Traverse};
+use crate::rules::config::{RuleConfigError, RuleDef, RuleSeverity};
 use crate::tags::{self, Tags};
 use crate::Program;
-use deno_ast::view::{ArrowExpr, BlockStmt, Constructor, Function, SwitchStmt};
+use deno_ast::view::{
+  ArrowExpr, BlockStmt, CatchClause, Constructor, Function, SwitchStmt,
+};
 use deno_ast::{SourceRanged, SourceRangedForSpanned};
+use serde::Deserialize;
 
-#[derive(Debug)]
-pub struct NoEmpty;
+#[derive(Debug, Default)]
+pub struct NoEmpty {
+  allow_empty_catch: bool,
+}
 
 const CODE: &str = "no-empty";
+
+/// Options for `no-empty`, mirroring eslint's `{ allowEmptyCatch: boolean }`.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct NoEmptyOptions {
+  allow_empty_catch: bool,
+}
+
+fn configure(
+  options: Option<&serde_json::Value>,
+) -> Result<Box<dyn LintRule>, RuleConfigError> {
+  let options: NoEmptyOptions = match options {
+    None => NoEmptyOptions::default(),
+    Some(value) => serde_json::from_value(value.clone()).map_err(|e| {
+      RuleConfigError::InvalidOptions {
+        code: CODE,
+        message: e.to_string(),
+      }
+    })?,
+  };
+  Ok(Box::new(NoEmpty {
+    allow_empty_catch: options.allow_empty_catch,
+  }))
+}
+
+impl NoEmpty {
+  /// The rule *definition*: metadata plus the constructor used to build a
+  /// configured instance. See [`crate::rules::config`].
+  pub fn def() -> RuleDef {
+    RuleDef {
+      code: CODE,
+      tags: &[tags::RECOMMENDED],
+      // Recommended, so on by default at error severity.
+      default_severity: RuleSeverity::Error,
+      configure_options: configure,
+    }
+  }
+}
 
 impl LintRule for NoEmpty {
   fn tags(&self) -> Tags {
@@ -26,11 +70,16 @@ impl LintRule for NoEmpty {
     context: &mut Context,
     program: Program,
   ) {
-    NoEmptyHandler.traverse(program, context);
+    NoEmptyHandler {
+      allow_empty_catch: self.allow_empty_catch,
+    }
+    .traverse(program, context);
   }
 }
 
-struct NoEmptyHandler;
+struct NoEmptyHandler {
+  allow_empty_catch: bool,
+}
 
 impl Handler for NoEmptyHandler {
   fn block_stmt(&mut self, block_stmt: &BlockStmt, ctx: &mut Context) {
@@ -38,10 +87,15 @@ impl Handler for NoEmptyHandler {
     // Because function's body is a block statement, we're gonna
     // manually visit each member; otherwise rule would produce errors
     // for empty function or arrow body or constructor.
+    //
+    // When `allowEmptyCatch` is enabled, an empty `catch {}` body is allowed.
+    let is_allowed_empty_catch =
+      self.allow_empty_catch && block_stmt.parent().is::<CatchClause>();
     if block_stmt.stmts.is_empty()
       && !block_stmt.parent().is::<Function>()
       && !block_stmt.parent().is::<ArrowExpr>()
       && !block_stmt.parent().is::<Constructor>()
+      && !is_allowed_empty_catch
       && !block_stmt.contains_comments(ctx)
     {
       ctx.add_diagnostic_with_hint(
@@ -84,7 +138,7 @@ mod tests {
   #[test]
   fn no_empty_valid() {
     assert_lint_ok! {
-      NoEmpty,
+      NoEmpty::default(),
       r#"function foobar() {}"#,
       r#"
 class Foo {
@@ -140,7 +194,7 @@ try {
   #[test]
   fn no_empty_invalid() {
     assert_lint_err! {
-      NoEmpty,
+      NoEmpty::default(),
       "if (foo) { }": [
         {
           col: 9,
@@ -331,5 +385,56 @@ try {
         }
       ]
     };
+  }
+
+  fn allow_empty_catch() -> NoEmpty {
+    NoEmpty {
+      allow_empty_catch: true,
+    }
+  }
+
+  #[test]
+  fn no_empty_allow_empty_catch_valid() {
+    // With `allowEmptyCatch`, an empty `catch {}` is permitted...
+    assert_lint_ok! {
+      allow_empty_catch(),
+      "try { foo(); } catch {}",
+      "try { foo(); } catch (e) {}",
+    };
+  }
+
+  #[test]
+  fn no_empty_allow_empty_catch_still_flags_others() {
+    // ...but other empty blocks are still reported.
+    assert_lint_err! {
+      allow_empty_catch(),
+      "if (foo) { }": [
+        {
+          col: 9,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ],
+      // An empty `try` block is not a `catch`, so it is still flagged.
+      "try {} catch { foo(); }": [
+        {
+          col: 4,
+          message: "Empty block statement",
+          hint: "Add code or comment to the empty block",
+        }
+      ]
+    };
+  }
+
+  #[test]
+  fn no_empty_configure_parses_allow_empty_catch() {
+    let default_rule = (NoEmpty::def().configure_options)(None).unwrap();
+    assert_eq!(default_rule.code(), "no-empty");
+
+    let configured = (NoEmpty::def().configure_options)(Some(
+      &serde_json::json!({ "allowEmptyCatch": true }),
+    ))
+    .unwrap();
+    assert_eq!(configured.code(), "no-empty");
   }
 }
