@@ -47,6 +47,7 @@ mod lint_tests {
     let linter = Linter::new(LinterOptions {
       rules,
       all_rule_codes,
+      rule_severities: Default::default(),
       custom_ignore_diagnostic_directive: None,
       custom_ignore_file_directive: None,
     });
@@ -74,6 +75,7 @@ mod lint_tests {
     let linter = Linter::new(LinterOptions {
       rules,
       all_rule_codes,
+      rule_severities: Default::default(),
       custom_ignore_diagnostic_directive: None,
       custom_ignore_file_directive: None,
     });
