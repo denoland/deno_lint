@@ -74,13 +74,18 @@ pub fn parse_line_ignore_directives(
     .comments()
     .iter()
     .filter_map(|comment| {
-      parse_ignore_comment(ignore_diagnostic_directive, comment, source_text)
-        .map(|directive| {
-          (
-            text_info.line_index(directive.range().start as usize),
-            directive,
-          )
-        })
+      parse_ignore_comment(
+        ignore_diagnostic_directive,
+        comment,
+        source_text,
+        true,
+      )
+      .map(|directive| {
+        (
+          text_info.line_index(directive.range().end as usize),
+          directive,
+        )
+      })
     })
     .collect()
 }
@@ -91,7 +96,7 @@ pub fn parse_file_ignore_directives(
 ) -> Option<FileIgnoreDirective> {
   let source_text = parsed_source.text();
   parsed_source.get_leading_comments().find_map(|comment| {
-    parse_ignore_comment(ignore_global_directive, comment, source_text)
+    parse_ignore_comment(ignore_global_directive, comment, source_text, false)
   })
 }
 
@@ -99,8 +104,15 @@ fn parse_ignore_comment<T: DirectiveKind>(
   ignore_diagnostic_directive: &str,
   comment: &Comment,
   source_text: &str,
+  allow_block_comment: bool,
 ) -> Option<IgnoreDirective<T>> {
-  if comment.kind != CommentKind::Line {
+  if comment.kind != CommentKind::Line
+    && !(allow_block_comment
+      && matches!(
+        comment.kind,
+        CommentKind::SingleLineBlock | CommentKind::MultiLineBlock
+      ))
+  {
     return None;
   }
 
@@ -216,6 +228,38 @@ function foo(): any {}
         d.codes,
         code_map(["no-explicit-any", "no-empty", "no-debugger"])
       );
+    });
+  }
+
+  #[test]
+  fn test_parse_block_comment_line_ignore_directives() {
+    let source_code = r#"
+/* deno-lint-ignore no-explicit-any */
+const a: any = 1;
+
+/* deno-lint-ignore
+   no-empty */
+function foo() {}
+"#;
+
+    test_util::parse_and_then(source_code, |parsed_source| {
+      let line_directives =
+        parse_line_ignore_directives("deno-lint-ignore", parsed_source);
+
+      assert_eq!(line_directives.len(), 2);
+      let d = line_directives.get(&1).unwrap();
+      assert_eq!(d.codes, code_map(["no-explicit-any"]));
+      let d = line_directives.get(&5).unwrap();
+      assert_eq!(d.codes, code_map(["no-empty"]));
+    });
+  }
+
+  #[test]
+  fn test_block_comment_not_a_file_directive() {
+    test_util::parse_and_then("/* deno-lint-ignore-file */", |parsed_source| {
+      let file_directive =
+        parse_file_ignore_directives("deno-lint-ignore-file", parsed_source);
+      assert!(file_directive.is_none());
     });
   }
 

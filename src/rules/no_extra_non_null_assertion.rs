@@ -90,36 +90,24 @@ impl Handler<'_> for NoExtraNonNullAssertionHandler {
     chain_expr: &ChainExpression,
     ctx: &mut Context,
   ) {
-    match &chain_expr.expression {
+    let (optional, expr) = match &chain_expr.expression {
       ChainElement::CallExpression(call_expr) => {
-        check_expr_for_nested_non_null_assert(
-          chain_expr.span,
-          &call_expr.callee,
-          ctx,
-        );
+        (call_expr.optional, &call_expr.callee)
       }
       ChainElement::StaticMemberExpression(member_expr) => {
-        check_expr_for_nested_non_null_assert(
-          chain_expr.span,
-          &member_expr.object,
-          ctx,
-        );
+        (member_expr.optional, &member_expr.object)
       }
       ChainElement::ComputedMemberExpression(member_expr) => {
-        check_expr_for_nested_non_null_assert(
-          chain_expr.span,
-          &member_expr.object,
-          ctx,
-        );
+        (member_expr.optional, &member_expr.object)
       }
       ChainElement::PrivateFieldExpression(member_expr) => {
-        check_expr_for_nested_non_null_assert(
-          chain_expr.span,
-          &member_expr.object,
-          ctx,
-        );
+        (member_expr.optional, &member_expr.object)
       }
-      ChainElement::TSNonNullExpression(_) => {}
+      ChainElement::TSNonNullExpression(_) => return,
+    };
+
+    if optional {
+      check_expr_for_nested_non_null_assert(chain_expr.span, expr, ctx);
     }
   }
 }
@@ -136,6 +124,8 @@ mod tests {
       r#"function foo() { return "foo"; }"#,
       r#"function foo(bar: undefined | string) { return bar!; }"#,
       r#"function foo(bar?: { str: string }) { return bar?.str; }"#,
+      r#"function foo(bar?: { str: string }) { return bar?.str!.length; }"#,
+      r#"function foo(bar?: { arr?: number[] }) { return bar?.arr![0]; }"#,
     };
   }
 
@@ -186,6 +176,13 @@ mod tests {
         }
       ],
       r#"function foo(bar?: { str: string }) { return (bar!)?.(); }"#: [
+        {
+          col: 45,
+          message: NoExtraNonNullAssertionMessage::Unexpected,
+          hint: NoExtraNonNullAssertionHint::Remove,
+        }
+      ],
+      r#"function foo(bar?: { str: string }) { return bar?.str!?.length; }"#: [
         {
           col: 45,
           message: NoExtraNonNullAssertionMessage::Unexpected,

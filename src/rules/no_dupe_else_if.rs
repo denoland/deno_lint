@@ -180,6 +180,44 @@ fn is_subset(arr_a: &[&Expression], arr_b: &[&Expression]) -> bool {
     .all(|a| arr_b.iter().any(|b| equal_in_if_else(a, b)))
 }
 
+fn has_update_side_effect(expr: &Expression) -> bool {
+  let expr = unwrap_parens(expr);
+  match expr {
+    Expression::UpdateExpression(_) => true,
+    Expression::UnaryExpression(unary) => {
+      has_update_side_effect(&unary.argument)
+    }
+    Expression::BinaryExpression(binary) => {
+      has_update_side_effect(&binary.left)
+        || has_update_side_effect(&binary.right)
+    }
+    Expression::LogicalExpression(logical) => {
+      has_update_side_effect(&logical.left)
+        || has_update_side_effect(&logical.right)
+    }
+    Expression::ConditionalExpression(cond) => {
+      has_update_side_effect(&cond.test)
+        || has_update_side_effect(&cond.consequent)
+        || has_update_side_effect(&cond.alternate)
+    }
+    Expression::SequenceExpression(seq) => {
+      seq.expressions.iter().any(has_update_side_effect)
+    }
+    Expression::TSAsExpression(ts) => has_update_side_effect(&ts.expression),
+    Expression::TSSatisfiesExpression(ts) => {
+      has_update_side_effect(&ts.expression)
+    }
+    Expression::TSTypeAssertion(ts) => has_update_side_effect(&ts.expression),
+    Expression::TSNonNullExpression(ts) => {
+      has_update_side_effect(&ts.expression)
+    }
+    Expression::TSInstantiationExpression(ts) => {
+      has_update_side_effect(&ts.expression)
+    }
+    _ => false,
+  }
+}
+
 /// Determines whether the two given expressions are considered equal
 /// in if-else condition context. Uses ContentEq for structural comparison
 /// (ignoring spans), with special handling for logical operators where
@@ -187,6 +225,10 @@ fn is_subset(arr_a: &[&Expression], arr_b: &[&Expression]) -> bool {
 fn equal_in_if_else(expr1: &Expression, expr2: &Expression) -> bool {
   let expr1 = unwrap_parens(expr1);
   let expr2 = unwrap_parens(expr2);
+
+  if has_update_side_effect(expr1) || has_update_side_effect(expr2) {
+    return false;
+  }
 
   // Special case for logical AND/OR: operand order doesn't matter
   if let (
@@ -271,6 +313,11 @@ if (a) {
       "if (a) {} else if (b && (a || c)) {}",
       "if (a) {} else if (b && (c || d && a)) {}",
       "if (a && b && c) {} else if (a && b && (c || d)) {}",
+      "if (!i--) f(); else if (!i--) g();",
+      "if (i++ === 0) {} else if (i++ === 0) {}",
+      "if (--i) {} else if (--i) {}",
+      "if (++a) {} else if (++a) {}",
+      "if (a && i++) {} else if (a && i++) {}",
     };
   }
 
@@ -422,13 +469,6 @@ if (a) {
       "if (!a) {} else if (!a) {}": [
         {
           col: 20,
-          message: NoDupeElseIfMessage::Unexpected,
-          hint: NoDupeElseIfHint::RemoveOrRework,
-        }
-      ],
-      "if (++a) {} else if (++a) {}": [
-        {
-          col: 21,
           message: NoDupeElseIfMessage::Unexpected,
           hint: NoDupeElseIfHint::RemoveOrRework,
         }

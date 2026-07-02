@@ -86,9 +86,17 @@ impl Handler<'_> for ValidTypeofHandler {
           ctx.add_diagnostic(tpl.span, CODE, MESSAGE);
         }
       }
-      _ => {
+      Expression::Identifier(ident) if ident.name.as_str() == "undefined" => {
+        ctx.add_diagnostic(ident.span, CODE, MESSAGE);
+      }
+      Expression::BooleanLiteral(_)
+      | Expression::NullLiteral(_)
+      | Expression::NumericLiteral(_)
+      | Expression::BigIntLiteral(_)
+      | Expression::RegExpLiteral(_) => {
         ctx.add_diagnostic(operand.span(), CODE, MESSAGE);
       }
+      _ => {}
     }
   }
 }
@@ -144,6 +152,11 @@ mod tests {
       r#"typeof foo !== `bigint`"#,
 
       r#"typeof bar != typeof qux"#,
+      r#"const type = "string"; typeof foo === type"#,
+      r#"typeof bar == Object"#,
+      r#"typeof baz === anotherVariable"#,
+      r#"typeof foo === obj.type"#,
+      r#"typeof foo === getExpected()"#,
     };
   }
 
@@ -171,11 +184,11 @@ mod tests {
         col: 15,
         message: MESSAGE
       }],
-      r#"typeof bar == Object"#: [{
-        col: 14,
+      r#"typeof foo === null"#: [{
+        col: 15,
         message: MESSAGE
       }],
-      r#"typeof baz === anotherVariable"#: [{
+      r#"typeof foo === 5"#: [{
         col: 15,
         message: MESSAGE
       }],

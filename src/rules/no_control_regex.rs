@@ -20,7 +20,7 @@ const CODE: &str = "no-control-regex";
 #[derive(Display)]
 enum NoControlRegexMessage {
   #[display(
-    fmt = "Unexpected control character(s) in regular expression: \\x{:x}.",
+    fmt = "Unexpected control character(s) in regular expression: \\x{:02x}.",
     _0
   )]
   Unexpected(u64),
@@ -190,6 +190,20 @@ mod tests {
   }
 
   #[test]
+  fn message_zero_pads_to_two_hex_digits() {
+    // Regression for #1143: the code point must be zero-padded so a null
+    // character renders as `\x00`, not `\x0`.
+    assert_eq!(
+      NoControlRegexMessage::Unexpected(0x00).to_string(),
+      r"Unexpected control character(s) in regular expression: \x00.",
+    );
+    assert_eq!(
+      NoControlRegexMessage::Unexpected(0x1f).to_string(),
+      r"Unexpected control character(s) in regular expression: \x1f.",
+    );
+  }
+
+  #[test]
   fn no_control_regex_valid() {
     assert_lint_ok! {
       NoControlRegex,
@@ -213,6 +227,13 @@ mod tests {
   fn no_control_regex_invalid() {
     assert_lint_err! {
       NoControlRegex,
+      r"/\x00/": [
+        {
+          col: 0,
+          message: NoControlRegexMessage::Unexpected(0x00),
+          hint: NoControlRegexHint::DisableOrRework,
+        }
+      ],
       r"/\x1f/": [
         {
           col: 0,

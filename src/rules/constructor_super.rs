@@ -7,7 +7,6 @@ use deno_ast::oxc::ast::ast::{
   Class, ClassElement, Expression, MethodDefinitionKind, Program, Statement,
 };
 use deno_ast::oxc::span::Span;
-use if_chain::if_chain;
 
 #[derive(Debug)]
 pub struct ConstructorSuper;
@@ -87,27 +86,34 @@ fn inherits_from_non_constructor(class: &Class) -> bool {
 fn super_call_spans(
   method_def: &deno_ast::oxc::ast::ast::MethodDefinition,
 ) -> Vec<Span> {
+  let mut spans = Vec::new();
   if let Some(body) = &method_def.value.body {
-    body
-      .statements
-      .iter()
-      .filter_map(extract_super_span)
-      .collect()
-  } else {
-    vec![]
+    for stmt in &body.statements {
+      collect_super_spans_in_stmt(stmt, &mut spans);
+    }
+  }
+  spans
+}
+
+fn collect_super_spans_in_stmt(stmt: &Statement, spans: &mut Vec<Span>) {
+  if let Statement::ExpressionStatement(expr_stmt) = stmt {
+    collect_super_spans(&expr_stmt.expression, spans);
   }
 }
 
-fn extract_super_span(stmt: &Statement) -> Option<Span> {
-  if_chain! {
-    if let Statement::ExpressionStatement(expr_stmt) = stmt;
-    if let Expression::CallExpression(call) = &expr_stmt.expression;
-    if matches!(&call.callee, Expression::Super(_));
-    then {
-      Some(call.span)
-    } else {
-      None
+fn collect_super_spans(expr: &Expression, spans: &mut Vec<Span>) {
+  match expr {
+    Expression::CallExpression(call)
+      if matches!(&call.callee, Expression::Super(_)) =>
+    {
+      spans.push(call.span);
     }
+    Expression::SequenceExpression(seq) => {
+      for expr in &seq.expressions {
+        collect_super_spans(expr, spans);
+      }
+    }
+    _ => {}
   }
 }
 
@@ -116,7 +122,9 @@ fn return_before_super<'a>(
 ) -> Option<&'a deno_ast::oxc::ast::ast::ReturnStatement<'a>> {
   if let Some(body) = &method_def.value.body {
     for stmt in &body.statements {
-      if extract_super_span(stmt).is_some() {
+      let mut spans = Vec::new();
+      collect_super_spans_in_stmt(stmt, &mut spans);
+      if !spans.is_empty() {
         return None;
       }
 
@@ -242,6 +250,8 @@ mod tests {
       // "class A extends B { constructor() { switch (a) { case 0: super(); break; default: super(); } } }",
       // "class A extends B { constructor() { try {} finally { super(); } } }",
       // "class A extends B { constructor() { if (a) throw Error(); super(); } }",
+      "class A extends B { constructor() { super(), 0; } }",
+      "class A extends B { constructor() { 0, super(); } }",
 
       // derived classes.
       "class A extends (class B {}) { constructor() { super(); } }",
@@ -287,6 +297,13 @@ mod tests {
     assert_lint_err! {
       ConstructorSuper,
       "class A { constructor() { super(); } }": [
+        {
+          col: 26,
+          message: unnecessary_super_message,
+          hint: unnecessary_super_hint,
+        }
+      ],
+      "class A { constructor() { super(), 0; } }": [
         {
           col: 26,
           message: unnecessary_super_message,
@@ -371,6 +388,13 @@ mod tests {
         }
       ],
       "class A extends B { constructor() { super(); super(); } }": [
+        {
+          col: 45,
+          message: too_many_super_message,
+          hint: too_many_super_hint,
+        }
+      ],
+      "class A extends B { constructor() { super(), super(); } }": [
         {
           col: 45,
           message: too_many_super_message,

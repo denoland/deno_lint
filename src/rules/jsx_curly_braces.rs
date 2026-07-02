@@ -85,8 +85,18 @@ impl Handler<'_> for JSXCurlyBracesHandler {
 
       if let JSXChild::ExpressionContainer(child_expr) = child {
         if let JSXExpression::StringLiteral(lit_str) = &child_expr.expression {
+          let value = lit_str.value.as_str();
+
           // Ignore entities which would require escaping.
-          if IGNORE_CHARS.is_match(lit_str.value.as_str()) {
+          if IGNORE_CHARS.is_match(value) {
+            continue;
+          }
+
+          if value.trim() != value {
+            continue;
+          }
+
+          if value.starts_with("//") || value.starts_with("/*") {
             continue;
           }
 
@@ -196,6 +206,11 @@ mod tests {
       r#"<div>foo{"foo >"}</div>"#,
       r#"<div>foo{"foo }"}</div>"#,
       r#"<div>foo{"foo {"}</div>"#,
+      r#"<div>{" "}</div>"#,
+      r#"<div>{" foo"}</div>"#,
+      r#"<div>{"foo "}</div>"#,
+      r#"<div>{"// keep"}</div>"#,
+      r#"<div>{"/* keep */"}</div>"#,
     };
   }
 

@@ -204,6 +204,13 @@ let re = new RegExp('foo', x);",
       r"/(?<a>a)\k</": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(?<!a){1}/": [{ col: 0, message: MESSAGE, hint: HINT }],
       r"/(a)(a)(a)(a)(a)(a)(a)(a)(a)(a)\11/u": [{ col: 0, message: MESSAGE, hint: HINT }],
+      r#"(() => new RegExp("("))();"#: [{ col: 7, message: MESSAGE, hint: HINT }],
+      r#"((_) => [/+/, RegExp(")")])([new RegExp("[")]);"#: [
+        { col: 9, message: MESSAGE, hint: HINT },
+        { col: 14, message: MESSAGE, hint: HINT },
+        { col: 29, message: MESSAGE, hint: HINT },
+      ],
+      r#"foo(/+/);"#: [{ col: 4, message: MESSAGE, hint: HINT }],
     }
   }
 }

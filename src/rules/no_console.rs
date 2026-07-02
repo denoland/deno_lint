@@ -3,9 +3,12 @@ use crate::handler::Handler;
 use crate::tags::Tags;
 
 use deno_ast::oxc::ast::ast::{
-  ComputedMemberExpression, Expression, ExpressionStatement, Program,
+  ComputedMemberExpression, Expression, ExpressionStatement,
+  IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, Program,
   StaticMemberExpression,
 };
+use deno_ast::oxc::syntax::symbol::SymbolId;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct NoConsole;
@@ -27,23 +30,67 @@ impl LintRule for NoConsole {
     context: &mut Context<'a>,
     program: &Program<'a>,
   ) {
-    let mut handler = NoConsoleHandler;
+    let mut handler = NoConsoleHandler {
+      imported_console: HashSet::new(),
+    };
     crate::handler::traverse_program(&mut handler, program, context);
   }
 }
 
-struct NoConsoleHandler;
+struct NoConsoleHandler {
+  imported_console: HashSet<SymbolId>,
+}
+
+impl NoConsoleHandler {
+  fn resolve_symbol_id(
+    ident: &IdentifierReference,
+    ctx: &Context,
+  ) -> Option<SymbolId> {
+    let ref_id = ident.reference_id.get()?;
+    ctx.scoping().get_reference(ref_id).symbol_id()
+  }
+
+  fn is_console(&self, ident: &IdentifierReference, ctx: &Context) -> bool {
+    if let Some(symbol_id) = Self::resolve_symbol_id(ident, ctx) {
+      return self.imported_console.contains(&symbol_id);
+    }
+
+    ident.name.as_str() == "console"
+  }
+}
 
 impl Handler<'_> for NoConsoleHandler {
+  fn import_declaration(
+    &mut self,
+    import: &ImportDeclaration,
+    _ctx: &mut Context,
+  ) {
+    if import.source.value.as_str() != "node:console" {
+      return;
+    }
+
+    let Some(specifiers) = &import.specifiers else {
+      return;
+    };
+
+    for specifier in specifiers {
+      if let ImportDeclarationSpecifier::ImportDefaultSpecifier(default) =
+        specifier
+      {
+        if let Some(symbol_id) = default.local.symbol_id.get() {
+          self.imported_console.insert(symbol_id);
+        }
+      }
+    }
+  }
+
   fn static_member_expression(
     &mut self,
     expr: &StaticMemberExpression,
     ctx: &mut Context,
   ) {
     if let Expression::Identifier(ident) = &expr.object {
-      if ident.name.as_str() == "console"
-        && ctx.scope().ids_with_symbol(ident.name.as_str()).is_none()
-      {
+      if self.is_console(ident, ctx) {
         ctx.add_diagnostic(ident.span, CODE, MESSAGE);
       }
     }
@@ -55,9 +102,7 @@ impl Handler<'_> for NoConsoleHandler {
     ctx: &mut Context,
   ) {
     if let Expression::Identifier(ident) = &expr.object {
-      if ident.name.as_str() == "console"
-        && ctx.scope().ids_with_symbol(ident.name.as_str()).is_none()
-      {
+      if self.is_console(ident, ctx) {
         ctx.add_diagnostic(ident.span, CODE, MESSAGE);
       }
     }
@@ -69,9 +114,7 @@ impl Handler<'_> for NoConsoleHandler {
     ctx: &mut Context,
   ) {
     if let Expression::Identifier(ident) = &expr.expression {
-      if ident.name.as_str() == "console"
-        && ctx.scope().ids_with_symbol(ident.name.as_str()).is_none()
-      {
+      if self.is_console(ident, ctx) {
         ctx.add_diagnostic(ident.span, CODE, MESSAGE);
       }
     }
@@ -92,6 +135,7 @@ mod tests {
       r"const console = { log() {} }; console.log('Error message');",
       // https://github.com/denoland/deno_lint/issues/1232
       "const x: { console: any } = { console: 21 }; x.console",
+      r#"import { Console } from "node:console"; Console;"#,
     );
   }
 
@@ -121,6 +165,21 @@ mod tests {
             message: MESSAGE,
         }],
         r#"console.warn("test");"#: [{
+            col: 0,
+            message: MESSAGE,
+        }],
+        "import console from \"node:console\";\nconsole.log(\"hi\");": [{
+            line: 2,
+            col: 0,
+            message: MESSAGE,
+        }],
+        "import myConsole from \"node:console\";\nmyConsole.log(\"hi\");": [{
+            line: 2,
+            col: 0,
+            message: MESSAGE,
+        }],
+        "import console from \"node:console\";\nconsole;": [{
+            line: 2,
             col: 0,
             message: MESSAGE,
         }],

@@ -1,5 +1,6 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 
@@ -121,6 +122,15 @@ pub struct EcmaRegexValidator {
   last_assertion_is_quantifiable: bool,
   num_capturing_parens: u32,
   group_names: HashSet<String>,
+  /// For each capture-group name, the alternation paths at which it was
+  /// declared. A path is the stack of `(disjunction id, alternative index)`
+  /// pairs enclosing the declaration. Two same-named groups are only valid if
+  /// some common disjunction places them in different alternatives.
+  group_name_paths: HashMap<String, Vec<Vec<(u32, u32)>>>,
+  /// The alternation path of the position currently being parsed.
+  alt_path: Vec<(u32, u32)>,
+  /// Monotonic id handed out to each `Disjunction` as it is entered.
+  next_disjunction_id: u32,
   backreference_names: HashSet<String>,
 }
 
@@ -136,6 +146,21 @@ impl DerefMut for EcmaRegexValidator {
   fn deref_mut(&mut self) -> &mut Self::Target {
     &mut self.reader
   }
+}
+
+/// Returns `true` if two capture groups declared at the given alternation
+/// paths could both participate in a single match — in which case sharing a
+/// name is invalid. They cannot both participate when some common disjunction
+/// places them in different alternatives.
+fn paths_might_both_participate(a: &[(u32, u32)], b: &[(u32, u32)]) -> bool {
+  for &(a_disjunction, a_alt) in a {
+    for &(b_disjunction, b_alt) in b {
+      if a_disjunction == b_disjunction && a_alt != b_alt {
+        return false;
+      }
+    }
+  }
+  true
 }
 
 impl EcmaRegexValidator {
@@ -155,6 +180,9 @@ impl EcmaRegexValidator {
       last_assertion_is_quantifiable: false,
       num_capturing_parens: 0,
       group_names: HashSet::new(),
+      group_name_paths: HashMap::new(),
+      alt_path: Vec::new(),
+      next_disjunction_id: 0,
       backreference_names: HashSet::new(),
     }
   }
@@ -219,6 +247,9 @@ impl EcmaRegexValidator {
   fn consume_pattern(&mut self) -> Result<(), String> {
     self.num_capturing_parens = self.count_capturing_parens();
     self.group_names.clear();
+    self.group_name_paths.clear();
+    self.alt_path.clear();
+    self.next_disjunction_id = 0;
     self.backreference_names.clear();
 
     self.consume_disjunction()?;
@@ -251,10 +282,18 @@ impl EcmaRegexValidator {
   ///      Alternative[?U, ?N] `|` Disjunction[?U, ?N]
   /// ```
   fn consume_disjunction(&mut self) -> Result<(), String> {
+    let disjunction_id = self.next_disjunction_id;
+    self.next_disjunction_id += 1;
+    let mut alternative_index = 0;
+
+    self.alt_path.push((disjunction_id, alternative_index));
     self.consume_alternative()?;
     while self.eat('|') {
+      alternative_index += 1;
+      *self.alt_path.last_mut().unwrap() = (disjunction_id, alternative_index);
       self.consume_alternative()?;
     }
+    self.alt_path.pop();
 
     if self.consume_quantifier(true)? {
       Err("Nothing to repeat".to_string())
@@ -631,12 +670,24 @@ impl EcmaRegexValidator {
   fn consume_group_specifier(&mut self) -> Result<bool, String> {
     if self.eat('?') {
       if self.eat_group_name()? {
-        if !self.group_names.contains(&self.last_str_value) {
-          self.group_names.insert(self.last_str_value.clone());
-          Ok(true)
-        } else {
-          Err("Duplicate capture group name".to_string())
+        let name = self.last_str_value.clone();
+        let path = self.alt_path.clone();
+        // A duplicate name is allowed as long as no previous declaration of
+        // the same name could participate in the same match (i.e. there is a
+        // common enclosing disjunction that puts them in different
+        // alternatives). This is the ES2025 "duplicate named capturing
+        // groups" semantics.
+        let declarations =
+          self.group_name_paths.entry(name.clone()).or_default();
+        if declarations
+          .iter()
+          .any(|prev| paths_might_both_participate(prev, &path))
+        {
+          return Err("Duplicate capture group name".to_string());
         }
+        declarations.push(path);
+        self.group_names.insert(name);
+        Ok(true)
       } else {
         Err("Invalid group".to_string())
       }

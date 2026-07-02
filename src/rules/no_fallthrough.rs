@@ -102,11 +102,22 @@ impl Handler<'_> for NoFallthroughHandler {
 
         if last {
           // Check for trailing comments after this statement that allow fallthrough
-          let trailing_allows = context.all_comments().any(|comment| {
+          let mut trailing_allows = context.all_comments().any(|comment| {
             comment.span.start >= stmt.span().end
               && comment.span.end <= case.span.end
               && allow_fall_through_text(context.comment_text(comment))
           });
+          if !trailing_allows {
+            if let Statement::BlockStatement(block) = stmt {
+              if let Some(inner_last) = block.body.last() {
+                trailing_allows = context.all_comments().any(|comment| {
+                  comment.span.start >= inner_last.span().end
+                    && comment.span.end <= stmt.span().end
+                    && allow_fall_through_text(context.comment_text(comment))
+                });
+              }
+            }
+          }
           if trailing_allows {
             should_emit_err = false;
             continue;
@@ -197,6 +208,48 @@ switch(someValue) {
   } break;
   default:
     console.log(42);
+}
+      "#,
+      r#"
+switch (input) {
+  case "x":
+    Deno.exit();
+  default:
+    break;
+}
+      "#,
+      r#"
+switch (input) {
+  case "x":
+    process.exit(1);
+  default:
+    break;
+}
+      "#,
+      r#"
+function* sequence(type) {
+  let num = 0;
+  switch (type) {
+    case "even":
+      while (true) {
+        if (isEven(num)) yield num;
+        num += 1;
+      }
+    case "odd":
+      yield 1;
+  }
+}
+      "#,
+      r#"
+function handler(req) {
+  switch (path) {
+    case "/data": {
+      if (req.method === 'GET') return getData()
+      // fallthrough
+    }
+    default:
+      return new Response("not found", { status: 404 });
+  }
 }
       "#,
     };

@@ -103,6 +103,11 @@ struct Scope<'a> {
   /// - Some(None): Stopped at a break statement without label
   /// - Some(Some(id)): Stopped at a break statement with label id
   found_break: Option<Option<String>>,
+  /// Whether an unlabeled `break` statement targeting the nearest enclosing
+  /// loop or switch was found. This is tracked separately from `found_break`
+  /// because `found_break` can only store a single break and a labeled break
+  /// targeting an outer construct would otherwise mask an unlabeled one.
+  found_unlabeled_break: bool,
   found_continue: bool,
 }
 
@@ -169,6 +174,14 @@ impl End {
     }
   }
 
+  fn forced_stop() -> Self {
+    End::Forced {
+      ret: false,
+      throw: false,
+      infinite_loop: false,
+    }
+  }
+
   fn merge_forced(self, other: Self) -> Option<Self> {
     match (self, other) {
       (
@@ -205,6 +218,7 @@ impl<'a> Scope<'a> {
       end: None,
       may_throw: false,
       found_break: None,
+      found_unlabeled_break: false,
       found_continue: false,
     }
   }
@@ -224,6 +238,17 @@ fn stmt_start(s: &Statement) -> u32 {
   s.span().start
 }
 
+fn is_forced_exit_call(n: &CallExpression) -> bool {
+  let Expression::StaticMemberExpression(member) = &n.callee else {
+    return false;
+  };
+  let Expression::Identifier(obj) = &member.object else {
+    return false;
+  };
+  matches!(obj.name.as_str(), "Deno" | "process")
+    && member.property.name.as_str() == "exit"
+}
+
 impl Analyzer<'_> {
   /// `lo` is marked as end if child scope is unconditionally finished
   pub(super) fn with_child_scope<F>(
@@ -235,7 +260,15 @@ impl Analyzer<'_> {
     F: for<'any> FnOnce(&mut Analyzer<'any>),
   {
     let prev_end = self.scope.end;
-    let (info, end, hoist, found_break, found_continue, may_throw) = {
+    let (
+      info,
+      end,
+      hoist,
+      found_break,
+      found_unlabeled_break,
+      found_continue,
+      may_throw,
+    ) = {
       let mut child = Analyzer {
         info: take(&mut self.info),
         scope: Scope::new(Some(&self.scope), kind.clone()),
@@ -257,6 +290,7 @@ impl Analyzer<'_> {
         child.scope.end,
         child.scope.used_hoistable_ids,
         child.scope.found_break,
+        child.scope.found_unlabeled_break,
         child.scope.found_continue,
         child.scope.may_throw,
       )
@@ -268,7 +302,19 @@ impl Analyzer<'_> {
     // Preserve information about visited ast nodes.
     self.scope.may_throw |= may_throw;
 
-    self.scope.found_continue |= found_continue;
+    match kind {
+      BlockKind::Loop | BlockKind::Function => {}
+      _ => {
+        self.scope.found_continue |= found_continue;
+      }
+    }
+
+    match kind {
+      BlockKind::Loop | BlockKind::Case | BlockKind::Function => {}
+      _ => {
+        self.scope.found_unlabeled_break |= found_unlabeled_break;
+      }
+    }
 
     match kind {
       BlockKind::Case => {}
@@ -363,7 +409,18 @@ impl<'a> Visit<'a> for Analyzer<'_> {
 
   fn visit_throw_statement(&mut self, n: &ThrowStatement<'a>) {
     walk::walk_throw_statement(self, n);
+    self.scope.may_throw = true;
     self.mark_as_end(n.span.start, End::forced_throw());
+  }
+
+  fn visit_expression_statement(&mut self, n: &ExpressionStatement<'a>) {
+    walk::walk_expression_statement(self, n);
+
+    if let Expression::CallExpression(call) = &n.expression {
+      if is_forced_exit_call(call) {
+        self.mark_as_end(n.span.start, End::forced_return());
+      }
+    }
   }
 
   fn visit_break_statement(&mut self, n: &BreakStatement<'a>) {
@@ -372,6 +429,7 @@ impl<'a> Visit<'a> for Analyzer<'_> {
       self.scope.found_break = Some(Some(label));
     } else {
       self.scope.found_break = Some(None);
+      self.scope.found_unlabeled_break = true;
     }
   }
 
@@ -480,24 +538,31 @@ impl<'a> Visit<'a> for Analyzer<'_> {
     let prev_end = self.scope.end;
     walk::walk_switch_statement(self, n);
 
-    let end = {
-      let has_default = n.cases.iter().any(|case| case.test.is_none());
-      let forced_end = n
+    let has_default = n.cases.iter().any(|case| case.test.is_none());
+
+    let end = if !has_default {
+      End::Continue
+    } else {
+      let case_ends: Vec<Option<End>> = n
         .cases
         .iter()
-        .filter_map(|case| self.get_end_reason(case.span.start))
-        .try_fold(
-          End::Forced {
-            ret: false,
-            throw: false,
-            infinite_loop: false,
-          },
-          |acc, cur| acc.merge_forced(cur),
-        );
+        .map(|case| self.get_end_reason(case.span.start))
+        .collect();
 
-      match forced_end {
-        Some(e) if has_default => e,
-        _ => End::Continue,
+      let any_plain_break =
+        case_ends.iter().any(|e| matches!(e, Some(End::Break)));
+      let last_falls_through =
+        matches!(case_ends.last(), Some(None) | Some(Some(End::Continue)));
+
+      if any_plain_break || last_falls_through {
+        End::Continue
+      } else {
+        case_ends
+          .into_iter()
+          .flatten()
+          .filter(|e| e.is_forced())
+          .reduce(|acc, cur| acc.merge_forced(cur).unwrap_or(acc))
+          .unwrap_or_else(End::forced_stop)
       }
     };
 
@@ -528,8 +593,10 @@ impl<'a> Visit<'a> for Analyzer<'_> {
         }
       }
 
-      if a.scope.found_break.is_some() {
+      if a.scope.found_unlabeled_break {
         case_end = Some(End::Break);
+      } else if a.scope.found_break.is_some() || a.scope.found_continue {
+        case_end = Some(End::forced_stop());
       } else if matches!(a.scope.end, Some(End::Forced { .. })) {
         case_end = a.scope.end;
       }
@@ -639,7 +706,7 @@ impl<'a> Visit<'a> for Analyzer<'_> {
     self.with_child_scope(BlockKind::Loop, stmt_start(&n.body), |a| {
       a.visit_statement(&n.body);
 
-      let has_break = matches!(a.scope.found_break, Some(None));
+      let has_break = a.scope.found_unlabeled_break;
 
       if !has_break {
         let end = match a.get_end_reason(stmt_start(&n.body)) {
@@ -706,7 +773,7 @@ impl<'a> Visit<'a> for Analyzer<'_> {
       let unconditionally_enter = is_definitely_truthy(&n.test);
       let end_reason = a.get_end_reason(body_lo);
       let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
-      let has_break = matches!(a.scope.found_break, Some(None));
+      let has_break = a.scope.found_unlabeled_break;
 
       if unconditionally_enter && return_or_throw && !has_break {
         // This `unwrap` is safe;
@@ -723,6 +790,12 @@ impl<'a> Visit<'a> for Analyzer<'_> {
       }
     });
 
+    if let Some(end) = self.get_end_reason(body_lo) {
+      if end.is_forced() {
+        self.mark_as_end(n.span.start, end);
+      }
+    }
+
     self.visit_expression(&n.test);
   }
 
@@ -736,9 +809,10 @@ impl<'a> Visit<'a> for Analyzer<'_> {
       let return_or_throw = end_reason.is_some_and(|e| e.is_forced());
       let infinite_loop =
         is_definitely_truthy(&n.test) && a.scope.found_break.is_none();
-      let has_break = matches!(a.scope.found_break, Some(None));
+      let has_break = a.scope.found_unlabeled_break;
+      let has_continue = a.scope.found_continue;
 
-      if return_or_throw && !has_break {
+      if return_or_throw && !has_break && !has_continue {
         // This `unwrap` is safe;
         // if `return_or_throw` is true, `end_reason` is surely wrapped in `Some`.
         a.mark_as_end(body_lo, end_reason.unwrap());

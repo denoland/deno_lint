@@ -614,6 +614,20 @@ impl<'a> Visit<'a> for Collector<'_> {
     }
   }
 
+  fn visit_new_expression(&mut self, new_expr: &NewExpression<'a>) {
+    self.visit_expression(&new_expr.callee);
+
+    for arg in &new_expr.arguments {
+      self.without_cur_defining(|a| {
+        a.visit_argument(arg);
+      });
+    }
+
+    if let Some(type_args) = &new_expr.type_arguments {
+      self.visit_ts_type_parameter_instantiation(type_args);
+    }
+  }
+
   fn visit_for_in_statement(&mut self, n: &ForInStatement<'a>) {
     // The LHS of `for (x in obj)` is an assignment target, not a read.
     // Only visit VariableDeclaration LHS; skip assignment targets (they're writes, not reads).
@@ -1110,6 +1124,8 @@ mod tests {
     assert_lint_ok! {
       NoUnusedVars,
       "var a = 1; console.log(a)",
+      "const foo = new MyClass(() => { foo.hello(); });",
+      "const foo = new MyClass(function () { return foo; });",
       "var a = 1; const arrow = () => a; console.log(arrow)",
       "var a = 1; console.log?.(a)",
       "var a = 1; a?.()",

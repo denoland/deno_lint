@@ -10,8 +10,9 @@ pub struct FreshHandlerExport;
 
 const CODE: &str = "fresh-handler-export";
 const MESSAGE: &str =
-  "Fresh middlewares must be exported as \"handler\" but got \"handlers\" instead.";
-const HINT: &str = "Did you mean \"handler\"?";
+  "Fresh only recognizes \"handler\", \"handlers\", and \"config\" exports in route files.";
+const HINT: &str = "Rename this export or move it out of the route file.";
+const ALLOWED_EXPORTS: &[&str] = &["handler", "handlers", "config"];
 
 impl LintRule for FreshHandlerExport {
   fn tags(&self) -> Tags {
@@ -75,7 +76,7 @@ impl Handler<'_> for FreshHandlerExportHandler {
       _ => return,
     };
 
-    if name == "handlers" {
+    if !ALLOWED_EXPORTS.iter().any(|allowed| name == *allowed) {
       ctx.add_diagnostic_with_hint(span, CODE, MESSAGE, HINT);
     }
   }
@@ -129,23 +130,40 @@ mod tests {
       "export async function handler() {}",
     );
 
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export const handlers = {}"#: [
-    {
-      col: 13,
-      message: MESSAGE,
-      hint: HINT,
-    }]);
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export function handlers() {}"#: [
-    {
-      col: 16,
-      message: MESSAGE,
-      hint: HINT,
-    }]);
-    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export async function handlers() {}"#: [
-    {
-      col: 22,
-      message: MESSAGE,
-      hint: HINT,
-    }]);
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export const handlers = {}"#,
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export function handlers() {}"#,
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export async function handlers() {}"#,
+    );
+    assert_lint_ok!(
+      FreshHandlerExport,
+      filename: "file:///routes/index.tsx",
+      r#"export const config = {}"#,
+    );
+
+    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export const loader = {}"#: [
+      {
+        col: 13,
+        message: MESSAGE,
+        hint: HINT,
+      }
+    ]);
+    assert_lint_err!(FreshHandlerExport, filename: "file:///routes/index.tsx",  r#"export function action() {}"#: [
+      {
+        col: 16,
+        message: MESSAGE,
+        hint: HINT,
+      }
+    ]);
   }
 }

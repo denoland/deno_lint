@@ -60,19 +60,22 @@ struct JSXKeyHandler;
 
 impl Handler<'_> for JSXKeyHandler {
   fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
-    for elem in &node.elements {
-      if let ArrayExpressionElement::SpreadElement(_) = elem {
-        continue;
+    let elems: Vec<_> = node
+      .elements
+      .iter()
+      .filter_map(|elem| match elem {
+        ArrayExpressionElement::Elision(_) => None,
+        ArrayExpressionElement::SpreadElement(_) => None,
+        other => Some(other.to_expression()),
+      })
+      .collect();
+
+    if elems.iter().all(|expr| is_jsx_like(expr)) {
+      for expr in elems {
+        check_expr(ctx, expr);
       }
-      let expr = match elem {
-        ArrayExpressionElement::Elision(_) => continue,
-        ArrayExpressionElement::SpreadElement(_) => continue,
-        other => other.to_expression(),
-      };
-      check_expr(ctx, expr);
     }
   }
-
   fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context) {
     if is_map_callee(&node.callee) {
       if let Some(callback) = node.arguments.first() {
@@ -154,8 +157,30 @@ fn check_stmt(ctx: &mut Context, stmt: &Statement) {
   }
 }
 
+fn is_jsx_like(expr: &Expression) -> bool {
+  match expr {
+    Expression::JSXElement(_) | Expression::JSXFragment(_) => true,
+    Expression::ParenthesizedExpression(paren) => {
+      is_jsx_like(&paren.expression)
+    }
+    Expression::ConditionalExpression(cond) => {
+      is_jsx_like(&cond.consequent) || is_jsx_like(&cond.alternate)
+    }
+    Expression::LogicalExpression(logical) => {
+      is_jsx_like(&logical.left) || is_jsx_like(&logical.right)
+    }
+    Expression::BinaryExpression(binary) => {
+      is_jsx_like(&binary.left) || is_jsx_like(&binary.right)
+    }
+    _ => false,
+  }
+}
+
 fn check_expr(ctx: &mut Context, expr: &Expression) {
   match expr {
+    Expression::ParenthesizedExpression(paren) => {
+      check_expr(ctx, &paren.expression);
+    }
     Expression::JSXElement(jsx_el) => {
       if !has_key_jsx_attr(&jsx_el.opening_element) {
         ctx.add_diagnostic_with_hint(
@@ -218,6 +243,8 @@ mod tests {
       "[1, 2, 3].map(x => {})",
       "<div />",
       r#"[<div key="1"/>, <div key="2" />]"#,
+      r#"[label, <Foo />]"#,
+      r#"[(<div key="1" />)]"#,
       r#"[1, 2, 3].map(function(x) { return <div key={x} /> })"#,
       r#"[1, 2, 3].map((x) => { return <div key={x} /> })"#,
       r#"[1, 2, 3].map((x) => <div key={x} />)"#,
