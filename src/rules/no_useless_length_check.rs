@@ -5,7 +5,7 @@ use crate::handler::{Handler, Traverse};
 use crate::tags::{self, Tags};
 use crate::Program;
 use deno_ast::view::{
-  BinExpr, BinaryOp, Callee, Expr, Lit, MemberProp, NodeTrait,
+  BinExpr, BinaryOp, Callee, Expr, Lit, MemberProp, Node, NodeTrait,
 };
 use deno_ast::{SourceRange, SourceRanged};
 use derive_more::Display;
@@ -58,6 +58,23 @@ impl Handler for NoUselessLengthCheckHandler {
     let op = bin_expr.op();
     if op != BinaryOp::LogicalOr && op != BinaryOp::LogicalAnd {
       return;
+    }
+
+    // Only process the root of a same-operator chain. `A || B || C` parses as
+    // `((A || B) || C)`, and every logical `BinExpr` triggers this handler,
+    // including the inner `A || B`. Since the outer node flattens the whole
+    // chain and checks every adjacent pair, processing the inner nodes too
+    // would report shared pairs multiple times. If this node is itself an
+    // operand of a parent logical expression with the same operator (ignoring
+    // surrounding parentheses), bail out and let the root handle it.
+    let mut parent = bin_expr.parent();
+    while let Node::ParenExpr(paren) = parent {
+      parent = paren.parent();
+    }
+    if let Node::BinExpr(parent_bin) = parent {
+      if parent_bin.op() == op {
+        return;
+      }
     }
 
     let mut flat = Vec::new();
@@ -329,20 +346,9 @@ mod tests {
           col: 16,
           message: NoUselessLengthCheckMessage::Useless,
           hint: NoUselessLengthCheckHint::Some,
-        },
-        {
-          line: 2,
-          col: 16,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Some,
         }
       ],
       "(array.length === 0 || array.every(Boolean)) || foo": [
-        {
-          col: 1,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Every,
-        },
         {
           col: 1,
           message: NoUselessLengthCheckMessage::Useless,
@@ -354,11 +360,6 @@ mod tests {
           col: 8,
           message: NoUselessLengthCheckMessage::Useless,
           hint: NoUselessLengthCheckHint::Every,
-        },
-        {
-          col: 8,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Every,
         }
       ],
       "(array.length > 0 && array.some(Boolean)) && foo": [
@@ -366,19 +367,9 @@ mod tests {
           col: 1,
           message: NoUselessLengthCheckMessage::Useless,
           hint: NoUselessLengthCheckHint::Some,
-        },
-        {
-          col: 1,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Some,
         }
       ],
       "foo && (array.length > 0 && array.some(Boolean))": [
-        {
-          col: 8,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Some,
-        },
         {
           col: 8,
           message: NoUselessLengthCheckMessage::Useless,
@@ -458,19 +449,9 @@ mod tests {
           col: 24,
           message: NoUselessLengthCheckMessage::Useless,
           hint: NoUselessLengthCheckHint::Every,
-        },
-        {
-          col: 24,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Every,
         }
       ],
       "array.length === 0 || array.every(Boolean) || array.length === 0": [
-        {
-          col: 0,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Every,
-        },
         {
           col: 0,
           message: NoUselessLengthCheckMessage::Useless,
@@ -485,12 +466,6 @@ mod tests {
       "array1.every(Boolean)
             || (( array1.length === 0 || array2.length === 0 )) // Both useless
             || array2.every(Boolean)": [
-        {
-          line: 2,
-          col: 18,
-          message: NoUselessLengthCheckMessage::Useless,
-          hint: NoUselessLengthCheckHint::Every,
-        },
         {
           line: 2,
           col: 18,
