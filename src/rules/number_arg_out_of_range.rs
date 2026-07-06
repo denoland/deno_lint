@@ -46,8 +46,8 @@ impl Handler for NumberArgOutOfRangeHandler {
 
     let (min, max) = match name.as_str() {
       "toString" => (2, 36),
-      "toFixed" | "toExponential" => (0, 20),
-      "toPrecision" => (1, 21),
+      "toFixed" | "toExponential" => (0, 100),
+      "toPrecision" => (1, 100),
       _ => return,
     };
 
@@ -99,6 +99,12 @@ mod tests {
       "x.toFixed(2);",
       "x.toExponential(0);",
       "x.toPrecision(10);",
+      // Valid in V8/Deno (ES2018+ raised the upper bound to 100).
+      "x.toFixed(22);",
+      "x['toExponential'](22);",
+      "x.toPrecision(100);",
+      "x.toFixed(100);",
+      "x.toExponential(100);",
       // No argument.
       "x.toString();",
       // Non-literal argument.
@@ -126,33 +132,33 @@ mod tests {
           hint: "Pass a value between 2 and 36",
         }
       ],
-      "x.toFixed(22);": [
+      "x.toFixed(101);": [
         {
           col: 0,
-          message: "The argument to `toFixed` must be between 0 and 20",
-          hint: "Pass a value between 0 and 20",
+          message: "The argument to `toFixed` must be between 0 and 100",
+          hint: "Pass a value between 0 and 100",
         }
       ],
       "x.toPrecision(0);": [
         {
           col: 0,
-          message: "The argument to `toPrecision` must be between 1 and 21",
-          hint: "Pass a value between 1 and 21",
+          message: "The argument to `toPrecision` must be between 1 and 100",
+          hint: "Pass a value between 1 and 100",
         }
       ],
-      "x.toPrecision(100);": [
+      "x.toPrecision(101);": [
         {
           col: 0,
-          message: "The argument to `toPrecision` must be between 1 and 21",
-          hint: "Pass a value between 1 and 21",
+          message: "The argument to `toPrecision` must be between 1 and 100",
+          hint: "Pass a value between 1 and 100",
         }
       ],
       // Computed member access.
-      "x['toExponential'](22);": [
+      "x['toExponential'](101);": [
         {
           col: 0,
-          message: "The argument to `toExponential` must be between 0 and 20",
-          hint: "Pass a value between 0 and 20",
+          message: "The argument to `toExponential` must be between 0 and 100",
+          hint: "Pass a value between 0 and 100",
         }
       ]
     };
